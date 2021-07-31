@@ -10,7 +10,7 @@ group = "de.eldoria"
 version = "1.0"
 description = "Save order based trading."
 var mainPackage = "companies"
-val shadebade = group as String? + "." + mainPackage + "."
+val shadebade = group as String? + "." + mainPackage + ".libs."
 
 repositories {
     mavenCentral()
@@ -20,7 +20,11 @@ repositories {
 
 dependencies {
     implementation("de.eldoria", "eldo-util", "1.9.2-DEV")
-    compileOnly("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
+    implementation("org.mariadb.jdbc:mariadb-java-client:2.7.2")
+    implementation("net.kyori", "adventure-api", "4.8.1")
+    implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
+
+    compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains", "annotations", "20.1.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
@@ -79,6 +83,7 @@ tasks {
     shadowJar {
         relocate("de.eldoria.eldoutilities", shadebade + "eldoutilities")
         relocate("net.kyori", shadebade + "kyori")
+        relocate("org.mariadb", shadebade + "mariadb")
         mergeServiceFiles()
         minimize()
         archiveClassifier.set("")

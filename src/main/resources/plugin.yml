@@ -1,0 +1,14 @@
+name: ${name}
+description: ${description}
+author: Hadde
+version: ${version}
+main: de.eldoria.companies.Companies
+api-version: 1.13
+depend:
+  - vault
+
+
+commands:
+  company:
+    description: main command
+    usage: Something
