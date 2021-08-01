@@ -1,10 +1,9 @@
 package de.eldoria.companies.data.wrapper.company;
 
-import de.eldoria.companies.data.wrapper.order.Order;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public class CompanyProfile extends SimpleCompany{
     List<CompanyMember> members;
@@ -14,7 +13,7 @@ public class CompanyProfile extends SimpleCompany{
         this.members = members;
     }
 
-    public Company toCompany(List<Order> orders){
+    public Company toCompany(List<FullOrder> orders){
         return new Company(id, name, founded, members, orders);
     }
 }

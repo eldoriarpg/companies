@@ -1,19 +1,22 @@
 package de.eldoria.companies.data.wrapper.order;
 
+import de.eldoria.eldoutilities.localization.ILocalizer;
+import net.kyori.adventure.text.Component;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class OrderContent {
-    ItemStack stack;
-    int amount;
-    List<ContentPart> parts;
-    float price;
+    private ItemStack stack;
+    private int amount;
+    private List<ContentPart> parts = new ArrayList<>();
+    private float price;
 
-    public OrderContent(ItemStack stack, int amount) {
+    public OrderContent(ItemStack stack, int amount, float price) {
         this.stack = stack;
         this.amount = amount;
-        this.parts = parts;
         this.price = price;
     }
 
@@ -35,5 +38,12 @@ public class OrderContent {
 
     public float price() {
         return price;
+    }
+
+    public Component asComponent(ILocalizer localizer, Economy economy) {
+        return Component.text()
+                .append(Component.text(stack.getType().name().replace("_", " ")))
+                .append(Component.text("[x" + amount + "]"))
+                .append(Component.text(" " + economy.format(price))).build();
     }
 }
