@@ -1,13 +1,15 @@
 package de.eldoria.companies.configuration;
 
 import de.eldoria.companies.configuration.elements.CompanySettings;
+import de.eldoria.companies.configuration.elements.OrderSetting;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.eldoutilities.configuration.EldoConfig;
 import org.bukkit.plugin.Plugin;
 
 public class Configuration extends EldoConfig {
-    private CompanySettings companySettings = new CompanySettings();
-    private UserSettings userSettings = new UserSettings();
+    private CompanySettings companySettings;
+    private UserSettings userSettings;
+    private OrderSetting orderSetting;
 
     public Configuration(Plugin plugin) {
         super(plugin);
@@ -22,12 +24,14 @@ public class Configuration extends EldoConfig {
     protected void reloadConfigs() {
         companySettings = getConfig().getObject("companySettings", CompanySettings.class, new CompanySettings());
         userSettings = getConfig().getObject("userSettings", UserSettings.class, new UserSettings());
+        orderSetting = getConfig().getObject("orderSetting", OrderSetting.class, new OrderSetting());
     }
 
     @Override
     protected void saveConfigs() {
-        getConfig().set("companySettings",companySettings);
-        getConfig().set("userSettings",userSettings);
+        getConfig().set("companySettings", companySettings);
+        getConfig().set("userSettings", userSettings);
+        getConfig().set("orderSetting", orderSetting);
     }
 
     public CompanySettings companySettings() {
@@ -36,5 +40,9 @@ public class Configuration extends EldoConfig {
 
     public UserSettings userSettings() {
         return userSettings;
+    }
+
+    public OrderSetting orderSetting() {
+        return orderSetting;
     }
 }
