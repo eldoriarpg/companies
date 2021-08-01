@@ -1,5 +1,5 @@
 plugins {
-    id("com.github.johnrengelman.shadow") version "6.0.0"
+    id("com.github.johnrengelman.shadow") version "7.0.0"
     java
     `maven-publish`
     `java-library`
@@ -19,16 +19,21 @@ repositories {
 }
 
 dependencies {
-    implementation("de.eldoria", "eldo-util", "1.9.2-DEV")
+    implementation("de.eldoria", "eldo-util", "1.9.3-DEV")
+    implementation("de.chojo", "sql-util", "1.0.4")
     implementation("org.mariadb.jdbc:mariadb-java-client:2.7.2")
     implementation("net.kyori", "adventure-api", "4.8.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
 
     compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains", "annotations", "20.1.0")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    testImplementation("org.jetbrains:annotations:19.0.0")
+    testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
+    testImplementation("org.mockito:mockito-core:3.5.13")
 }
 
 java {
@@ -84,6 +89,7 @@ tasks {
         relocate("de.eldoria.eldoutilities", shadebade + "eldoutilities")
         relocate("net.kyori", shadebade + "kyori")
         relocate("org.mariadb", shadebade + "mariadb")
+        relocate("de.chojo.sqlutil", shadebade + "sqlutil")
         mergeServiceFiles()
         minimize()
         archiveClassifier.set("")
