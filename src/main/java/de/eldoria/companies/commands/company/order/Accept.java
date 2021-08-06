@@ -2,6 +2,7 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.permissions.CompanyPermissions;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -13,11 +14,13 @@ import org.jetbrains.annotations.NotNull;
 
 public class Accept extends EldoCommand {
     private final CompanyData companyData;
+    private final OrderData orderData;
     private final Configuration configuration;
 
-    public Accept(Plugin plugin, CompanyData companyData, Configuration configuration) {
+    public Accept(Plugin plugin, CompanyData companyData, OrderData orderData, Configuration configuration) {
         super(plugin);
         this.companyData = companyData;
+        this.orderData = orderData;
         this.configuration = configuration;
     }
 
@@ -45,13 +48,14 @@ public class Accept extends EldoCommand {
                         messageSender().sendError(sender, "You are not allowed to accept orders.");
                         return;
                     }
-                    companyData.retrieveCompanyOrderCount(profile)
+
+                    orderData.retrieveCompanyOrderCount(profile)
                             .whenComplete(count -> {
                                 if (count >= configuration.companySettings().maxOrders()) {
                                     messageSender().sendError(sender, "Maximum order limit reached.");
                                     return;
                                 }
-                                companyData.retrieveOrderById(optId.getAsInt())
+                                orderData.retrieveOrderById(optId.getAsInt())
                                         .whenComplete(order -> {
                                             if (order.isEmpty()) {
                                                 messageSender().sendError(sender, "Unknown order");
@@ -61,7 +65,7 @@ public class Accept extends EldoCommand {
                                                 messageSender().sendError(sender, "This order is not claimable");
                                                 return;
                                             }
-                                            companyData.submitOrderClaim(profile, simpleOrder).whenComplete(success ->{
+                                            orderData.submitOrderClaim(profile, simpleOrder).whenComplete(success ->{
                                                 if(success){
                                                     messageSender().sendMessage(sender, "Order claimed.");
                                                 }else {

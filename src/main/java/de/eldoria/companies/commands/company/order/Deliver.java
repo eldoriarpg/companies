@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -22,10 +23,12 @@ import java.util.OptionalInt;
 public class Deliver extends EldoCommand {
     private final Economy economy;
     private final CompanyData companyData;
+    private final OrderData orderData;
     private final BukkitAudiences audiences;
 
-    public Deliver(Plugin plugin, CompanyData companyData, Economy economy) {
+    public Deliver(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy) {
         super(plugin);
+        this.orderData = orderData;
         this.economy = economy;
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
@@ -69,13 +72,13 @@ public class Deliver extends EldoCommand {
                         messageSender().sendError(sender, "You are not part of a company");
                         return;
                     }
-                    companyData.retrieveCompanyOrderById(id, company.get().id())
+                    orderData.retrieveCompanyOrderById(id, company.get().id())
                             .whenComplete(simpleOrder -> {
                                 if (simpleOrder.isEmpty()) {
                                     messageSender().sendError(sender, "Order not found.");
                                     return;
                                 }
-                                companyData.retrieveFullOrder(simpleOrder.get())
+                                orderData.retrieveFullOrder(simpleOrder.get())
                                         .whenComplete(fullOrder -> {
                                             var optContent = fullOrder.content(material);
                                             if (optContent.isEmpty()) {
@@ -97,9 +100,9 @@ public class Deliver extends EldoCommand {
                                                     break;
                                                 }
                                             }
-                                            companyData.submitDelivery(player, simpleOrder.get(), material, contained)
+                                            orderData.submitDelivery(player, simpleOrder.get(), material, contained)
                                                     .whenComplete(v -> {
-                                                        companyData.retrieveFullOrder(simpleOrder.get())
+                                                        orderData.retrieveFullOrder(simpleOrder.get())
                                                                 .whenComplete(refreshedFullOrder -> {
                                                                     if (refreshedFullOrder.isDone()) {
                                                                         orderDone(refreshedFullOrder);
@@ -116,7 +119,7 @@ public class Deliver extends EldoCommand {
 
     private void orderDone(FullOrder order) {
         var payments = order.payments(PaymentType.STACK);
-        companyData.submitOrderDelivered(order);
+        orderData.submitOrderDelivered(order);
         CompletableBukkitFuture.runAsync(() -> {
             for (var entry : payments.entrySet()) {
                 var player = getPlugin().getServer().getOfflinePlayer(entry.getKey());

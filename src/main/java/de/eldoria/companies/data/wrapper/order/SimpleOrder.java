@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class SimpleOrder {
-    private final long id;
+    private final int id;
     private final UUID owner;
     private final String name;
     private final LocalDateTime created;
@@ -16,7 +16,7 @@ public class SimpleOrder {
     private final OrderState state;
 
     public SimpleOrder(UUID owner, String name) {
-        this.id = -1L;
+        this.id = -1;
         this.owner = owner;
         this.name = name;
         this.created = null;
@@ -25,7 +25,7 @@ public class SimpleOrder {
         this.state = null;
     }
 
-    public SimpleOrder(long id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed, OrderState state) {
+    public SimpleOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed, OrderState state) {
         this.id = id;
         this.owner = owner;
         this.name = name;
@@ -39,7 +39,7 @@ public class SimpleOrder {
         return new FullOrder(id, owner, name, created, company, claimed, state, contents);
     }
 
-    public long id() {
+    public int id() {
         return id;
     }
 

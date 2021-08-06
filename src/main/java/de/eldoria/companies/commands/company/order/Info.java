@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -13,12 +14,14 @@ import org.jetbrains.annotations.NotNull;
 public class Info extends EldoCommand {
     private BukkitAudiences audiences;
     private CompanyData companyData;
+    private final OrderData orderData;
     private Economy economy;
 
-    public Info(Plugin plugin, CompanyData companyData, Economy economy) {
+    public Info(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy) {
         super(plugin);
         audiences = BukkitAudiences.create(plugin);
         this.companyData = companyData;
+        this.orderData = orderData;
         this.economy = economy;
     }
 
@@ -39,10 +42,10 @@ public class Info extends EldoCommand {
                         messageSender().sendError(sender, "You are not part of a company");
                         return;
                     }
-                    companyData.retrieveCompanyOrderById(optId.getAsInt(), company.get().id())
+                    orderData.retrieveCompanyOrderById(optId.getAsInt(), company.get().id())
                             .whenComplete(order -> {
                                 if (order.isPresent()) {
-                                    companyData.retrieveFullOrder(order.get())
+                                    orderData.retrieveFullOrder(order.get())
                                             .whenComplete(fullOrder -> {
                                                 var component = fullOrder.companyDetailInfo(localizer(), economy);
                                                 audiences.sender(sender).sendMessage(component);

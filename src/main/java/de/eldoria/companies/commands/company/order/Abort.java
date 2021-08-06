@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.permissions.CompanyPermissions;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -19,13 +20,15 @@ import java.util.UUID;
 
 public class Abort extends EldoCommand {
     private final CompanyData companyData;
+    private final OrderData orderData;
     private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
     private final BukkitAudiences audiences;
 
-    public Abort(Plugin plugin, CompanyData companyData) {
+    public Abort(Plugin plugin, CompanyData companyData, OrderData orderData) {
         super(plugin);
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
+        this.orderData = orderData;
     }
 
     @Override
@@ -39,7 +42,7 @@ public class Abort extends EldoCommand {
                 messageSender().sendError(sender, "Nothing to confirm");
                 return true;
             }
-            companyData.submitUnclaimOrder(remove);
+            orderData.submitUnclaimOrder(remove);
             messageSender().sendMessage(sender, "Order canceled.");
             return true;
         }
@@ -59,7 +62,7 @@ public class Abort extends EldoCommand {
 
                     var company = optCompand.get();
 
-                    companyData.retrieveOrderById(optId.getAsInt())
+                    orderData.retrieveOrderById(optId.getAsInt())
                             .whenComplete(optOrder -> {
                                 if (optOrder.isEmpty()) {
                                     messageSender().sendError(sender, "Unkown order");

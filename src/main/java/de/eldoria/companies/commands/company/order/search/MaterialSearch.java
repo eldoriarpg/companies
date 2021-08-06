@@ -2,6 +2,7 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import org.bukkit.command.Command;
@@ -10,12 +11,12 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class MaterialSearch extends EldoCommand {
-    private final CompanyData companyData;
+    private final OrderData orderData;
     private final Search search;
 
-    public MaterialSearch(Plugin plugin, CompanyData companyData, Search search) {
+    public MaterialSearch(Plugin plugin, OrderData orderData, Search search) {
         super(plugin);
-        this.companyData = companyData;
+        this.orderData = orderData;
         this.search = search;
     }
 
@@ -27,9 +28,9 @@ public class MaterialSearch extends EldoCommand {
 
         var material = String.join("_", args);
 
-        companyData.retrieveOrdersByMaterial(material, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+        orderData.retrieveOrdersByMaterial(material, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
                 .whenComplete(orders -> {
-                    companyData.retrieveFullOrders(orders)
+                    orderData.retrieveFullOrders(orders)
                             .whenComplete(fullOrders -> {
                                 search.results().put(player.getUniqueId(), fullOrders);
                                 search.page().renderPage(player, 0);

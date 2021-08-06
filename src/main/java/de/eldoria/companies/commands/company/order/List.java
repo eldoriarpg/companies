@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -13,13 +14,15 @@ import org.jetbrains.annotations.NotNull;
 
 public class List extends EldoCommand {
     private final CompanyData companyData;
+    private final OrderData orderData;
     private final BukkitAudiences audience;
     private final Economy economy;
 
-    public List(Plugin plugin, CompanyData companyData, Economy economy) {
+    public List(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy) {
         super(plugin);
         this.companyData = companyData;
         audience = BukkitAudiences.create(plugin);
+        this.orderData = orderData;
         this.economy = economy;
     }
 
@@ -33,9 +36,9 @@ public class List extends EldoCommand {
                         messageSender().sendError(sender, "You are not part of a company");
                         return;
                     }
-                    companyData.retrieveOrdersByCompany(company.get().id(), OrderState.CLAIMED, OrderState.CLAIMED)
+                    orderData.retrieveOrdersByCompany(company.get().id(), OrderState.CLAIMED, OrderState.CLAIMED)
                             .asFuture()
-                            .thenApplyAsync(companyData::retrieveFullOrders)
+                            .thenApplyAsync(orderData::retrieveFullOrders)
                             .thenAcceptAsync(future -> future.whenComplete(orders -> {
                                 var component = Component.text()
                                         .append(Component.text("Company orders:"))
