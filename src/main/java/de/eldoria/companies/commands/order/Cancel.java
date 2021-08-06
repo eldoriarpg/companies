@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -14,11 +15,13 @@ import java.util.concurrent.CompletableFuture;
 
 public class Cancel extends EldoCommand {
     private final CompanyData companyData;
+    private final OrderData orderData;
     private final Economy economy;
 
-    public Cancel(Plugin plugin, CompanyData companyData, Economy economy) {
+    public Cancel(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy) {
         super(plugin);
         this.companyData = companyData;
+        this.orderData = orderData;
         this.economy = economy;
     }
 
@@ -26,7 +29,7 @@ public class Cancel extends EldoCommand {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         var optId = Parser.parseInt(args[0]);
 
-        companyData.retrieveOrderById(optId.getAsInt())
+        orderData.retrieveOrderById(optId.getAsInt())
                 .whenComplete(optOrder -> {
                     if (optOrder.isEmpty()) {
                         messageSender().sendError(sender, "Order not found.");
@@ -44,7 +47,7 @@ public class Cancel extends EldoCommand {
                         return;
                     }
 
-                    companyData.retrieveFullOrder(optOrder.get())
+                    orderData.retrieveFullOrder(optOrder.get())
                             .whenComplete(fullOrder -> {
                                 CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
                                 messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");

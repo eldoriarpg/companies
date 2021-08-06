@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -12,13 +13,13 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class List extends EldoCommand {
-    private final CompanyData companyData;
+    private final OrderData orderData;
     private Economy economy;
     private BukkitAudiences audiences;
 
-    public List(Plugin plugin, CompanyData companyData, Economy economy) {
+    public List(Plugin plugin, OrderData orderData, Economy economy) {
         super(plugin);
-        this.companyData = companyData;
+        this.orderData = orderData;
         this.economy = economy;
         audiences = BukkitAudiences.create(plugin);
     }
@@ -29,9 +30,9 @@ public class List extends EldoCommand {
             return true;
         }
 
-        companyData.retrieveOrdersByPlayer(getPlayerFromSender(sender), OrderState.UNCLAIMED, OrderState.DELIVERED).asFuture()
-                .thenApply(companyData::retrieveFullOrders)
-                .whenComplete(((future, e) -> future
+        orderData.retrieveOrdersByPlayer(getPlayerFromSender(sender), OrderState.UNCLAIMED, OrderState.DELIVERED).asFuture()
+                .thenApplyAsync(orderData::retrieveFullOrders)
+                .thenAcceptAsync((future -> future
                         .whenComplete(orders -> {
                             var component = Component.text()
                                     .append(Component.text("Your orders:"))

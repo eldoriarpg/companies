@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -11,13 +12,13 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Info extends EldoCommand {
-    private final CompanyData companyData;
+    private final OrderData orderData;
     private final Economy economy;
     private final BukkitAudiences audiences;
 
-    public Info(Plugin plugin, CompanyData companyData, Economy economy) {
+    public Info(Plugin plugin, OrderData orderData, Economy economy) {
         super(plugin);
-        this.companyData = companyData;
+        this.orderData = orderData;
         this.economy = economy;
         this.audiences = BukkitAudiences.create(plugin);
     }
@@ -28,10 +29,10 @@ public class Info extends EldoCommand {
 
         var optId = Parser.parseInt(args[0]);
 
-        companyData.retrieveOrderById(optId.getAsInt())
+        orderData.retrieveOrderById(optId.getAsInt())
                 .whenComplete(order -> {
                     if (order.isPresent()) {
-                        companyData.retrieveFullOrder(order.get())
+                        orderData.retrieveFullOrder(order.get())
                                 .whenComplete(fullOrder -> audiences.sender(sender)
                                         .sendMessage(fullOrder.userDetailInfo(localizer(), economy)));
                         return;

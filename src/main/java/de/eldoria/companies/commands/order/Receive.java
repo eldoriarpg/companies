@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -11,11 +12,11 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Receive extends EldoCommand {
-    private final CompanyData companyData;
+    private final OrderData orderData;
 
-    public Receive(Plugin plugin, CompanyData companyData) {
+    public Receive(Plugin plugin, OrderData orderData) {
         super(plugin);
-        this.companyData = companyData;
+        this.orderData = orderData;
     }
 
     @Override
@@ -25,7 +26,7 @@ public class Receive extends EldoCommand {
 
         var optId = Parser.parseInt(args[0]);
 
-        companyData.retrieveOrderById(optId.getAsInt())
+        orderData.retrieveOrderById(optId.getAsInt())
                 .whenComplete(optOrder -> {
                     if (optOrder.isEmpty()) {
                         messageSender().sendError(sender, "Order not found.");
@@ -42,7 +43,7 @@ public class Receive extends EldoCommand {
                         messageSender().sendLocalizedError(sender, "Not ready");
                         return;
                     }
-                    companyData.retrieveFullOrder(optOrder.get())
+                    orderData.retrieveFullOrder(optOrder.get())
                             .whenComplete(fullOrder -> {
                                 var stacks = fullOrder.createStacks();
                                 var empty = 0;
@@ -55,7 +56,7 @@ public class Receive extends EldoCommand {
                                     return;
                                 }
                                 player.getInventory().addItem(stacks.toArray(ItemStack[]::new));
-                                companyData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
+                                orderData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
                             });
                 });
         return true;

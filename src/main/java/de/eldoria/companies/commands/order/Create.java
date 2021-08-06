@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -28,14 +29,14 @@ public class Create extends EldoCommand {
     private final BukkitAudiences audience;
     private final Configuration configuration;
     private final Economy economy;
-    private final CompanyData companyData;
+    private final OrderData orderData;
 
-    public Create(Plugin plugin, Configuration configuration, Economy economy, CompanyData companyData) {
+    public Create(Plugin plugin, OrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
         audience = BukkitAudiences.create(plugin);
+        this.orderData = orderData;
         this.configuration = configuration;
         this.economy = economy;
-        this.companyData = companyData;
     }
 
     @Override
@@ -93,7 +94,7 @@ public class Create extends EldoCommand {
             return true;
         }).whenComplete(result -> {
             if (result) {
-                companyData.submitOrder(player, order.build()).whenComplete(v -> {
+                orderData.submitOrder(player, order.build()).whenComplete(v -> {
                     messageSender().sendLocalizedMessage(player, "Created UwU");
                 });
             } else {
@@ -104,7 +105,7 @@ public class Create extends EldoCommand {
     }
 
     private void initCreation(Player player, String[] args) {
-        companyData.retrievePlayerOrderCount(player)
+        orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
                     if (count.get() >= configuration.userSettings().maxOrders()) {
                         messageSender().sendLocalizedError(player, "error.tooMuchOrders");
