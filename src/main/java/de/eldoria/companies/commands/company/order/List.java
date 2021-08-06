@@ -12,13 +12,15 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class List extends EldoCommand {
-    CompanyData companyData;
-    BukkitAudiences audience;
-    Economy economy;
+    private final CompanyData companyData;
+    private final BukkitAudiences audience;
+    private final Economy economy;
 
-    public List(Plugin plugin) {
+    public List(Plugin plugin, CompanyData companyData, Economy economy) {
         super(plugin);
+        this.companyData = companyData;
         audience = BukkitAudiences.create(plugin);
+        this.economy = economy;
     }
 
     @Override

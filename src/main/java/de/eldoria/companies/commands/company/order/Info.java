@@ -11,13 +11,15 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Info extends EldoCommand {
-    BukkitAudiences audiences;
-    CompanyData companyData;
-    Economy economy;
+    private BukkitAudiences audiences;
+    private CompanyData companyData;
+    private Economy economy;
 
-    public Info(Plugin plugin) {
+    public Info(Plugin plugin, CompanyData companyData, Economy economy) {
         super(plugin);
         audiences = BukkitAudiences.create(plugin);
+        this.companyData = companyData;
+        this.economy = economy;
     }
 
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {

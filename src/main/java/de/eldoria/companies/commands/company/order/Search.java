@@ -7,6 +7,7 @@ import de.eldoria.companies.commands.company.order.search.Page;
 import de.eldoria.companies.data.CompanyData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 import java.util.HashMap;
@@ -15,17 +16,16 @@ import java.util.Map;
 import java.util.UUID;
 
 public class Search extends EldoCommand {
-    private CompanyData companyData;
     private Map<UUID, List<FullOrder>> results = new HashMap<>();
     private final Page page;
 
-    public Search(Plugin plugin) {
+    public Search(Plugin plugin, CompanyData companyData, Economy economy) {
         super(plugin);
-        page = new Page(plugin, this);
-        registerCommand("material", new MaterialSearch(plugin, this));
-        registerCommand("name", new NameSearch(plugin, this));
+        page = new Page(plugin, this, economy);
+        registerCommand("all", new All(plugin, companyData, this));
+        registerCommand("material", new MaterialSearch(plugin, companyData, this));
+        registerCommand("name", new NameSearch(plugin, companyData, this));
         registerCommand("page", page);
-        registerCommand("all", new All(plugin, this));
     }
 
     public Map<UUID, List<FullOrder>> results() {

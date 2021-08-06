@@ -10,11 +10,12 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class NameSearch extends EldoCommand {
-    CompanyData companyData;
-    private Search search;
+    private final CompanyData companyData;
+    private final Search search;
 
-    public NameSearch(Plugin plugin, Search search) {
+    public NameSearch(Plugin plugin, CompanyData companyData, Search search) {
         super(plugin);
+        this.companyData = companyData;
         this.search = search;
     }
 

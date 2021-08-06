@@ -20,12 +20,14 @@ import org.jetbrains.annotations.NotNull;
 import java.util.OptionalInt;
 
 public class Deliver extends EldoCommand {
-    Economy economy;
-    CompanyData companyData;
-    BukkitAudiences audiences;
+    private final Economy economy;
+    private final CompanyData companyData;
+    private final BukkitAudiences audiences;
 
-    public Deliver(Plugin plugin) {
+    public Deliver(Plugin plugin, CompanyData companyData, Economy economy) {
         super(plugin);
+        this.economy = economy;
+        this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
     }
 

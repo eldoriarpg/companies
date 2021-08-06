@@ -20,14 +20,15 @@ import java.util.List;
 
 public class Page extends EldoCommand {
     private static final int PAGE_SIZE = 10;
-    private Search search;
-    private Economy economy;
-    private BukkitAudiences audiences;
+    private final Search search;
+    private final Economy economy;
+    private final BukkitAudiences audiences;
 
-    public Page(Plugin plugin, Search search) {
+    public Page(Plugin plugin, Search search, Economy economy) {
         super(plugin);
         this.search = search;
         audiences = BukkitAudiences.create(plugin);
+        this.economy = economy;
     }
 
     @Override

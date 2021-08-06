@@ -18,12 +18,13 @@ import java.util.Map;
 import java.util.UUID;
 
 public class Abort extends EldoCommand {
-    CompanyData companyData;
-    Map<UUID, SimpleOrder> cancel = new HashMap<>();
-    BukkitAudiences audiences;
+    private final CompanyData companyData;
+    private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
+    private final BukkitAudiences audiences;
 
-    public Abort(Plugin plugin) {
+    public Abort(Plugin plugin, CompanyData companyData) {
         super(plugin);
+        this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
     }
 

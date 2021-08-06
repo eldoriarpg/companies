@@ -12,11 +12,13 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Accept extends EldoCommand {
-    CompanyData companyData;
-    Configuration configuration;
+    private final CompanyData companyData;
+    private final Configuration configuration;
 
-    public Accept(Plugin plugin) {
+    public Accept(Plugin plugin, CompanyData companyData, Configuration configuration) {
         super(plugin);
+        this.companyData = companyData;
+        this.configuration = configuration;
     }
 
     @Override
