@@ -1,9 +1,11 @@
 package de.eldoria.companies.commands.company.order;
 
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.companies.permissions.CompanyPermissions;
+import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -11,24 +13,28 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class Abort extends EldoCommand {
-    private final CompanyData companyData;
-    private final OrderData orderData;
+    private final ACompanyData companyData;
+    private final AOrderData orderData;
     private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
     private final BukkitAudiences audiences;
+    private final List list;
 
-    public Abort(Plugin plugin, CompanyData companyData, OrderData orderData) {
+    public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData, List list) {
         super(plugin);
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
         this.orderData = orderData;
+        this.list = list;
     }
 
     @Override
@@ -42,8 +48,10 @@ public class Abort extends EldoCommand {
                 messageSender().sendError(sender, "Nothing to confirm");
                 return true;
             }
-            orderData.submitUnclaimOrder(remove);
-            messageSender().sendMessage(sender, "Order canceled.");
+            orderData.submitUnclaimOrder(remove).whenComplete(r -> {
+                list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
+                        messageSender().sendMessage(sender, "Order canceled."));
+            });
             return true;
         }
 
@@ -54,39 +62,47 @@ public class Abort extends EldoCommand {
         }
 
         companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optCompand -> {
-                    if (optCompand.isEmpty()) {
-                        messageSender().sendError(sender, "You are not part of a company.");
-                        return;
-                    }
-
-                    var company = optCompand.get();
-
-                    orderData.retrieveOrderById(optId.getAsInt())
-                            .whenComplete(optOrder -> {
-                                if (optOrder.isEmpty()) {
-                                    messageSender().sendError(sender, "Unkown order");
-                                    return;
-                                }
-                                var order = optOrder.get();
-
-                                if (!company.member(player).get().hasPermission(CompanyPermissions.ACCEPT_ORDER)) {
-                                    messageSender().sendError(sender, "You are not allowed to cancel orders.");
-                                    return;
-                                }
-
-                                if (order.company() != company.id()) {
-                                    messageSender().sendError(sender, "This order is not owned by your company");
-                                    return;
-                                }
-
-                                var component = Component.text().append(Component.text("Please confirm the deletion. All already delivered items will be lost."))
-                                        .append(Component.space())
-                                        .append(Component.text("[Confirm]").clickEvent(ClickEvent.runCommand("/company order abort confirm"))).build();
-
-                                audiences.sender(player).sendMessage(component);
-                            });
+                .whenComplete(optCompany -> {
+                    handleCompany(optCompany, player, optId.getAsInt());
                 });
         return true;
+    }
+
+    private void handleCompany(Optional<CompanyProfile> optCompany, Player player, int id) {
+        if (optCompany.isEmpty()) {
+            messageSender().sendError(player, "You are not part of a company.");
+            return;
+        }
+
+        var company = optCompany.get();
+
+        orderData.retrieveOrderById(id)
+                .whenComplete(optOrder -> {
+                    handleOrder(player, company, optOrder);
+                });
+    }
+
+    private void handleOrder(Player player, CompanyProfile company, Optional<SimpleOrder> optOrder) {
+        if (optOrder.isEmpty()) {
+            messageSender().sendError(player, "Unkown order");
+            return;
+        }
+        var order = optOrder.get();
+
+        if (!company.member(player).get().hasPermission(CompanyPermission.MANAGE_ORDERS)) {
+            messageSender().sendError(player, "You are not allowed to cancel orders.");
+            return;
+        }
+
+        if (order.company() != company.id()) {
+            messageSender().sendError(player, "This order is not owned by your company");
+            return;
+        }
+
+        var component = Component.text().append(Component.text("Please confirm the deletion. All already delivered items will be lost."))
+                .append(Component.space())
+                .append(Component.text("[Confirm]").clickEvent(ClickEvent.runCommand("/company order abort confirm"))).build();
+        cancel.put(player.getUniqueId(), order);
+        audiences.sender(player).sendMessage(component);
     }
 }

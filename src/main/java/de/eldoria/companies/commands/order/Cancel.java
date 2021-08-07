@@ -1,7 +1,6 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -14,19 +13,20 @@ import org.jetbrains.annotations.NotNull;
 import java.util.concurrent.CompletableFuture;
 
 public class Cancel extends EldoCommand {
-    private final CompanyData companyData;
-    private final OrderData orderData;
+    private final AOrderData orderData;
     private final Economy economy;
+    private final List list;
 
-    public Cancel(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy) {
+    public Cancel(Plugin plugin, AOrderData orderData, Economy economy, List list) {
         super(plugin);
-        this.companyData = companyData;
         this.orderData = orderData;
         this.economy = economy;
+        this.list = list;
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        if (argumentsInvalid(sender, args, 1, "<id>")) return true;
         var optId = Parser.parseInt(args[0]);
 
         orderData.retrieveOrderById(optId.getAsInt())
@@ -38,7 +38,7 @@ public class Cancel extends EldoCommand {
 
                     var simpleOrder = optOrder.get();
                     var player = getPlayerFromSender(sender);
-                    if (!simpleOrder.owner().equals(player)) {
+                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
                         messageSender().sendLocalizedError(sender, "Not your order");
                         return;
                     }
@@ -50,7 +50,11 @@ public class Cancel extends EldoCommand {
                     orderData.retrieveFullOrder(optOrder.get())
                             .whenComplete(fullOrder -> {
                                 CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
-                                messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");
+                                orderData.submitOrderDeletion(fullOrder).whenComplete(r -> {
+                                    list.showOrders(player, () -> {
+                                        messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");
+                                    });
+                                });
                             });
                 });
         return true;

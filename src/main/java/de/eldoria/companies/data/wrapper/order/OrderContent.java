@@ -16,9 +16,9 @@ public class OrderContent {
     private ItemStack stack;
     private int amount;
     private List<ContentPart> parts = new ArrayList<>();
-    private float price;
+    private double price;
 
-    public OrderContent(ItemStack stack, int amount, float price) {
+    public OrderContent(ItemStack stack, int amount, double price) {
         this.stack = stack;
         this.amount = amount;
         this.price = price;
@@ -36,12 +36,20 @@ public class OrderContent {
         return amount;
     }
 
+    public void amount(int amount) {
+        this.amount = amount;
+    }
+
     public List<ContentPart> parts() {
         return parts;
     }
 
-    public float price() {
+    public double price() {
         return price;
+    }
+
+    public void price(double price) {
+        this.price = price;
     }
 
     public Component asComponent(ILocalizer localizer, Economy economy) {
@@ -54,6 +62,7 @@ public class OrderContent {
     public Component asProgressComponent(ILocalizer localizer, Economy economy) {
         return Component.text()
                 .append(Component.text(stack.getType().name().replace("_", " ")))
+                .append(Component.space())
                 .append(Component.text(delivered() + "/" + amount + ""))
                 .append(Component.text(" " + economy.format(price))).build();
     }
@@ -62,8 +71,8 @@ public class OrderContent {
         return parts.stream().mapToInt(ContentPart::amount).sum();
     }
 
-    public float percent() {
-        return delivered() / (float) amount;
+    public double percent() {
+        return delivered() / (double) amount;
     }
 
     public String materialString() {
@@ -78,10 +87,10 @@ public class OrderContent {
         return amount - delivered();
     }
 
-    public Map<UUID, Float> payments() {
-        Map<UUID, Float> payments = new HashMap<>();
+    public Map<UUID, Double> payments() {
+        Map<UUID, Double> payments = new HashMap<>();
         for (var part : parts) {
-            payments.put(part.worker, (part.amount / (float) amount) * price);
+            payments.put(part.worker, (part.amount / (double) amount) * price);
         }
         return payments;
     }

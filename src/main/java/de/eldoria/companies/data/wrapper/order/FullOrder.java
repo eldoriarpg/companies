@@ -1,7 +1,9 @@
 package de.eldoria.companies.data.wrapper.order;
 
+import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -49,6 +51,7 @@ public class FullOrder extends SimpleOrder {
 
     public Component userDetailInfo(ILocalizer localizer, Economy economy) {
         var build = Component.text().append(Component.text(id())).append(Component.text(" | ")).append(Component.text(name())
+                        .append(Component.newline())
                         .append(Component.text("State: " + state().name().toLowerCase()))
                         .append(Component.newline())
                         .append(userContent(localizer, economy))
@@ -72,8 +75,9 @@ public class FullOrder extends SimpleOrder {
         return build.build();
     }
 
-    public Component companyDetailInfo(ILocalizer localizer, Economy economy) {
+    public Component companyDetailInfo(CompanyMember member, ILocalizer localizer, Economy economy) {
         var build = Component.text().append(Component.text(id())).append(Component.text(" | ")).append(Component.text(name())
+                        .append(Component.newline())
                         .append(Component.text("State: " + state().name().toLowerCase()))
                         .append(Component.newline())
                         .append(companyActionContent(localizer, economy, state()))
@@ -82,12 +86,16 @@ public class FullOrder extends SimpleOrder {
                 .append(Component.newline());
         switch (state()) {
             case UNCLAIMED:
-                build.append(Component.text("[accept]")
-                        .clickEvent(ClickEvent.runCommand("/company order accept " + id())));
+                if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
+                    build.append(Component.text("[accept]")
+                            .clickEvent(ClickEvent.runCommand("/company order accept " + id())));
+                }
                 break;
             case CLAIMED:
-                build.append(Component.text("[abort]")
-                        .clickEvent(ClickEvent.runCommand("/company order abort " + id())));
+                if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
+                    build.append(Component.text("[abort]")
+                            .clickEvent(ClickEvent.runCommand("/company order abort " + id())));
+                }
                 break;
             case DELIVERED:
                 break;
@@ -144,8 +152,8 @@ public class FullOrder extends SimpleOrder {
         return contents;
     }
 
-    public float price() {
-        return (float) contents.stream().mapToDouble(OrderContent::price).sum();
+    public double price() {
+        return contents.stream().mapToDouble(OrderContent::price).sum();
     }
 
     public int amount() {
@@ -177,19 +185,19 @@ public class FullOrder extends SimpleOrder {
     }
 
     public double progress() {
-        return amount() / (float) delivered();
+        return amount() / (double) delivered();
     }
 
     public Optional<OrderContent> content(Material material) {
-        return contents.stream().filter(c -> c.material() == material).findFirst();
+        return contents.stream().filter(content -> content.material() == material).findFirst();
     }
 
     public boolean isDone() {
         return amount() == delivered();
     }
 
-    public Map<UUID, Float> payments(PaymentType paymentType) {
-        Map<UUID, Float> payments = new HashMap<>();
+    public Map<UUID, Double> payments(PaymentType paymentType) {
+        Map<UUID, Double> payments = new HashMap<>();
         switch (paymentType) {
             case STACK:
                 for (var content : contents) {
@@ -208,7 +216,7 @@ public class FullOrder extends SimpleOrder {
                 var amount = amount();
                 var price = price();
                 for (var entry : workers.entrySet()) {
-                    payments.put(entry.getKey(), (entry.getValue() / (float) amount) * price);
+                    payments.put(entry.getKey(), (entry.getValue() / (double) amount) * price);
                 }
                 break;
             default:

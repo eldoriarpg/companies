@@ -1,7 +1,6 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -12,16 +11,15 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Receive extends EldoCommand {
-    private final OrderData orderData;
+    private final AOrderData orderData;
 
-    public Receive(Plugin plugin, OrderData orderData) {
+    public Receive(Plugin plugin, AOrderData orderData) {
         super(plugin);
         this.orderData = orderData;
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) return true;
         if (argumentsInvalid(sender, args, 1, "<id>")) return true;
 
         var optId = Parser.parseInt(args[0]);
@@ -35,7 +33,7 @@ public class Receive extends EldoCommand {
 
                     var simpleOrder = optOrder.get();
                     var player = getPlayerFromSender(sender);
-                    if (!simpleOrder.owner().equals(player)) {
+                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
                         messageSender().sendLocalizedError(sender, "Not your order");
                         return;
                     }

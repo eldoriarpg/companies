@@ -1,7 +1,6 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -12,11 +11,11 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Info extends EldoCommand {
-    private final OrderData orderData;
+    private final AOrderData orderData;
     private final Economy economy;
     private final BukkitAudiences audiences;
 
-    public Info(Plugin plugin, OrderData orderData, Economy economy) {
+    public Info(Plugin plugin, AOrderData orderData, Economy economy) {
         super(plugin);
         this.orderData = orderData;
         this.economy = economy;

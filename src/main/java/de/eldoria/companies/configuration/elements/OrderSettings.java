@@ -6,25 +6,26 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
-public class OrderSetting implements ConfigurationSerializable {
+public class OrderSettings implements ConfigurationSerializable {
     int maxItems = 64 * 8;
     int maxMaterials = 5;
 
-    public OrderSetting(Map<String, Object> objectMap) {
+    public OrderSettings(Map<String, Object> objectMap) {
         var map = SerializationUtil.mapOf(objectMap);
         maxItems = map.getValueOrDefault("maxItems", maxItems);
         maxMaterials = map.getValueOrDefault("maxMaterials", maxMaterials);
+    }
+
+    public OrderSettings() {
     }
 
     @Override
     @NotNull
     public Map<String, Object> serialize() {
         return SerializationUtil.newBuilder()
+                .add("maxItems", maxItems)
+                .add("maxMaterials", maxMaterials)
                 .build();
-    }
-
-
-    public OrderSetting() {
     }
 
     public int maxItems() {

@@ -6,19 +6,30 @@ import de.eldoria.companies.commands.order.Info;
 import de.eldoria.companies.commands.order.List;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
 public class Order extends EldoCommand {
-    public Order(Plugin plugin, CompanyData companyData, OrderData orderData, Configuration configuration, Economy economy) {
+    public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy) {
         super(plugin);
-        registerCommand("cancel", new Cancel(plugin, companyData, orderData, economy));
+        var list = new List(plugin, orderData, economy, configuration);
+        setDefaultCommand(list);
+        registerCommand("cancel", new Cancel(plugin, orderData, economy, list));
         registerCommand("create", new Create(plugin, orderData, economy, configuration));
         registerCommand("info", new Info(plugin, orderData, economy));
-        registerCommand("list", new List(plugin, orderData, economy));
+        registerCommand("list", list);
         registerCommand("receive", new Receive(plugin, orderData));
+    }
+
+    @Override
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        if (denyConsole(sender)) return true;
+
+        return super.onCommand(sender, command, label, args);
     }
 }

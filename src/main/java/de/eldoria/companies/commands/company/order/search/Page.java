@@ -7,6 +7,7 @@ import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -49,22 +50,26 @@ public class Page extends EldoCommand {
     public void renderPage(Player player, int page) {
         var fullOrders = search.results().get(player.getUniqueId());
 
-        var builder = Component.text().append(Component.text(""));
+        var builder = Component.text().append(Component.text("Results: " + fullOrders.size())).append(Component.newline());
         var pageList = page(fullOrders, page);
         List<Component> components = new ArrayList<>();
         for (var order : pageList) {
             components.add(order.companyShortInfo(localizer(), economy));
         }
 
-        builder.append(Component.join(Component.newline(), components));
+        builder.append(Component.join(Component.newline(), components)).append(Component.newline());
         if (page != 0) {
-            builder.append(Component.text("<<< ").clickEvent(ClickEvent.runCommand("/company order page " + (page - 1))));
+            builder.append(Component.text("<<< ").clickEvent(ClickEvent.runCommand("/company order search page " + (page - 1))));
+        } else {
+            builder.append(Component.text("<<< ", NamedTextColor.DARK_GRAY));
         }
 
         builder.append(Component.text(page + 1).append(Component.text("/"))).append(Component.text(fullOrders.size() / PAGE_SIZE + 1));
 
         if (fullOrders.size() - (page + 1) * PAGE_SIZE > 0) {
-            builder.append(Component.text(" >>>").clickEvent(ClickEvent.runCommand("/company order page " + (page + 1))));
+            builder.append(Component.text(" >>>").clickEvent(ClickEvent.runCommand("/company order search page " + (page + 1))));
+        } else {
+            builder.append(Component.text(" >>>", NamedTextColor.DARK_GRAY));
         }
         audiences.sender(player).sendMessage(builder.build());
     }

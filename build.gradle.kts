@@ -10,7 +10,7 @@ group = "de.eldoria"
 version = "1.0"
 description = "Save order based trading."
 var mainPackage = "companies"
-val shadebade = group as String? + "." + mainPackage + ".libs."
+val shadebase = group as String? + "." + mainPackage + ".libs."
 
 repositories {
     mavenCentral()
@@ -19,21 +19,31 @@ repositories {
 }
 
 dependencies {
-    implementation("de.eldoria", "eldo-util", "1.9.3-DEV")
-    implementation("de.chojo", "sql-util", "1.0.4")
-    implementation("org.mariadb.jdbc:mariadb-java-client:2.7.2")
+    implementation("de.eldoria", "eldo-util", "1.9.6-DEV")
+    implementation("de.chojo", "sql-util", "1.1.3-DEV") {
+        exclude("org.jetbrains")
+        exclude("org.slf4j")
+        exclude("com.zaxxer")
+    }
+    // text
     implementation("net.kyori", "adventure-api", "4.8.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
 
+    // database
+    compileOnly("com.zaxxer", "HikariCP", "5.0.0")
+    compileOnly("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
+    compileOnly("org.xerial", "sqlite-jdbc", "3.7.2")
+    compileOnly("org.postgresql","postgresql","42.2.23")
+
     compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains", "annotations", "20.1.0")
-    compileOnly("com.github.MilkBowl:VaultAPI:1.7")
+    compileOnly("com.github.MilkBowl", "VaultAPI", "1.7")
 
-    testImplementation("org.jetbrains:annotations:19.0.0")
+    testImplementation("org.jetbrains", "annotations", "19.0.0")
     testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
-    testImplementation("org.mockito:mockito-core:3.5.13")
+    testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.7.1")
+    testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.7.1")
+    testImplementation("org.mockito", "mockito-core", "3.5.13")
 }
 
 java {
@@ -86,12 +96,13 @@ tasks {
     }
 
     shadowJar {
-        relocate("de.eldoria.eldoutilities", shadebade + "eldoutilities")
-        relocate("net.kyori", shadebade + "kyori")
-        relocate("org.mariadb", shadebade + "mariadb")
-        relocate("de.chojo.sqlutil", shadebade + "sqlutil")
+        relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
+        relocate("de.chojo.sqlutil", shadebase + "sqlutil")
         mergeServiceFiles()
-        minimize()
+        minimize {
+            exclude(dependency("org.xerial:.*:.*"))
+            // exclude(dependency("org.mariadb:.*:.*"))
+        }
         archiveClassifier.set("")
     }
 
@@ -100,6 +111,10 @@ tasks {
         testLogging {
             events("passed", "skipped", "failed")
         }
+    }
+    register<Copy>("copyToServer"){
+        from(shadowJar)
+        destinationDir = File("/home/chojo/dev/minecraft_server/1.17.1/plugins/")
     }
 }
 
