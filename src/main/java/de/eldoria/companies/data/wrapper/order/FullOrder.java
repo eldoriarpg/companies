@@ -188,8 +188,8 @@ public class FullOrder extends SimpleOrder {
         return amount() == delivered();
     }
 
-    public Map<UUID, Float> payments(PaymentType paymentType) {
-        Map<UUID, Float> payments = new HashMap<>();
+    public Map<UUID, Double> payments(PaymentType paymentType) {
+        Map<UUID, Double> payments = new HashMap<>();
         switch (paymentType) {
             case STACK:
                 for (var content : contents) {
@@ -208,7 +208,7 @@ public class FullOrder extends SimpleOrder {
                 var amount = amount();
                 var price = price();
                 for (var entry : workers.entrySet()) {
-                    payments.put(entry.getKey(), (entry.getValue() / (float) amount) * price);
+                    payments.put(entry.getKey(), (entry.getValue() / (double) amount) * price);
                 }
                 break;
             default:

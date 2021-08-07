@@ -36,7 +36,7 @@ public class List extends EldoCommand {
                         messageSender().sendError(sender, "You are not part of a company");
                         return;
                     }
-                    orderData.retrieveOrdersByCompany(company.get().id(), OrderState.CLAIMED, OrderState.CLAIMED)
+                    orderData.retrieveOrdersByCompany(company.get(), OrderState.CLAIMED, OrderState.CLAIMED)
                             .asFuture()
                             .thenApplyAsync(orderData::retrieveFullOrders)
                             .thenAcceptAsync(future -> future.whenComplete(orders -> {

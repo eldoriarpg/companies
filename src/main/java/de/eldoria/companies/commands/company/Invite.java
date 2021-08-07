@@ -1,8 +1,10 @@
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -19,15 +21,18 @@ import java.util.Map;
 import java.util.UUID;
 
 public class Invite extends EldoCommand {
-    CompanyData companyData;
-    Map<UUID, InviteData> invites = new HashMap<>();
-    BukkitAudiences audiences;
-    DelayedActions delayedActions;
+    private final CompanyData companyData;
+    private final Map<UUID, InviteData> invites = new HashMap<>();
+    private final BukkitAudiences audiences;
+    private final DelayedActions delayedActions;
+    private final Configuration configuration;
 
-    public Invite(Plugin plugin) {
+    public Invite(Plugin plugin, CompanyData companyData, Configuration configuration) {
         super(plugin);
         audiences = BukkitAudiences.create(plugin);
         delayedActions = DelayedActions.start(plugin);
+        this.companyData = companyData;
+        this.configuration = configuration;
     }
 
     @Override
@@ -38,28 +43,36 @@ public class Invite extends EldoCommand {
         var player = getPlayerFromSender(sender);
 
         if ("accept".equalsIgnoreCase(args[0])) {
-            if (!invites.containsKey(player.getUniqueId())) {
+            var data = invites.remove(player.getUniqueId());
+            if (data == null) {
                 messageSender().sendError(sender, "No pending invite");
                 return true;
             }
+
             companyData.retrievePlayerCompany(player)
                     .whenComplete(company -> {
-                        if (company.isEmpty()) {
-                            messageSender().sendMessage(sender, "You have joined the company");
-                        } else {
+                        if (company.isPresent()) {
+
                             messageSender().sendError(sender, "You are already part of a company");
+                            return;
                         }
+                        companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
+                        messageSender().sendMessage(sender, "You have joined the company");
                     });
             return true;
         }
 
         if ("deny".equalsIgnoreCase(args[0])) {
-            if (!invites.containsKey(player.getUniqueId())) {
+            var data = invites.remove(player.getUniqueId());
+            if (data == null) {
                 messageSender().sendError(sender, "No pending invite");
                 return true;
             }
-
-
+            messageSender().sendMessage(player, "Invite expired.");
+            var inviter = getPlugin().getServer().getPlayer(data.inviter);
+            if (inviter != null) {
+                messageSender().sendMessage(inviter, "Your invite was declined.");
+            }
             return true;
         }
 
@@ -70,14 +83,27 @@ public class Invite extends EldoCommand {
             return true;
         }
 
-        companyData.retrievePlayerCompany(player)
+        companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(company -> {
                     if (company.isEmpty()) {
                         messageSender().sendError(sender, "You are not part of a company.");
                         return;
                     }
+
+                    if (company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
+                        messageSender().sendError(sender, "You dont have the permission to invite users.");
+                        return;
+                    }
                     companyData.retrievePlayerCompany(target)
                             .whenComplete(targetCompany -> {
+                                companyData.retrieveCompanyProfile(company.get())
+                                        .whenComplete(optProfile -> {
+                                            var profile = optProfile.get();
+                                            if (profile.members().size() >= configuration.companySettings().maxMember()) {
+                                                messageSender().sendError(sender, "Your company has reached the member limit.");
+                                                return;
+                                            }
+                                        });
                                 if (targetCompany.isPresent()) {
                                     messageSender().sendError(sender, "Player is already part of a company");
                                     return;
@@ -95,7 +121,7 @@ public class Invite extends EldoCommand {
                 .append(Component.text("[Accept]").clickEvent(ClickEvent.runCommand("/company invite accept")))
                 .append(Component.text("[Deny]").clickEvent(ClickEvent.runCommand("/company invite deny"))));
         invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
-        delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 2);
+        delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
     }
 
     private void expiredInvite(UUID uuid) {

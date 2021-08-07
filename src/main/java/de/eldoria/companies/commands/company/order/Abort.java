@@ -3,7 +3,7 @@ package de.eldoria.companies.commands.company.order;
 import de.eldoria.companies.data.CompanyData;
 import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.companies.permissions.CompanyPermissions;
+import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -70,7 +70,7 @@ public class Abort extends EldoCommand {
                                 }
                                 var order = optOrder.get();
 
-                                if (!company.member(player).get().hasPermission(CompanyPermissions.ACCEPT_ORDER)) {
+                                if (!company.member(player).get().hasPermission(CompanyPermission.ACCEPT_ORDER)) {
                                     messageSender().sendError(sender, "You are not allowed to cancel orders.");
                                     return;
                                 }

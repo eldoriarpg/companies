@@ -63,10 +63,11 @@ public class OrderData extends QueryBuilderFactory {
             builder()
                     .query("INSERT INTO order_content(id, material, stack, amount, price) VALUES(?,?,?,?,?)")
                     .paramsBuilder(stmt -> stmt.setLong(orderId).setString(content.stack().getType().name())
-                            .setString(toString(content.stack())).setInt(content.amount()).setFloat(content.price()))
+                            .setString(toString(content.stack())).setInt(content.amount()).setDouble(content.price()))
                     .update();
         }
     }
+
     public BukkitFutureResult<Void> submitOrderStateUpdate(SimpleOrder order, OrderState state) {
         return CompletableBukkitFuture.runAsync(() -> updateOrderState(order, state), executorService);
     }
@@ -117,7 +118,7 @@ public class OrderData extends QueryBuilderFactory {
     private void unclaimOrder(SimpleOrder order) {
         builder()
                 .query("UPDATE order_states SET state = ?, company = NULL, claimed = NULL WHERE id = ?")
-                .paramsBuilder(stmt -> stmt.setInt(OrderState.UNCLAIMED.stateId()))
+                .paramsBuilder(stmt -> stmt.setInt(OrderState.UNCLAIMED.stateId()).setInt(order.id()))
                 .append()
                 .query("DELETE FROM orders_delivered WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(order.id()))
@@ -169,14 +170,14 @@ public class OrderData extends QueryBuilderFactory {
                 .firstSync();
     }
 
-    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByCompany(int companyId, OrderState min, OrderState max) {
-        return BukkitFutureResult.of(ordersByCompany(companyId, min, max));
+    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByCompany(SimpleCompany company, OrderState min, OrderState max) {
+        return BukkitFutureResult.of(ordersByCompany(company, min, max));
     }
 
-    private CompletableFuture<List<SimpleOrder>> ordersByCompany(int companyId, OrderState min, OrderState max) {
+    private CompletableFuture<List<SimpleOrder>> ordersByCompany(SimpleCompany company, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
                 .query("SELECT id, owner_uuid, name, created, company, claimed, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE oc.company = ? AND state >= ? AND state <= ?")
-                .paramsBuilder(stmt -> stmt.setInt(companyId).setInt(min.stateId()).setInt(max.stateId()))
+                .paramsBuilder(stmt -> stmt.setInt(company.id()).setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .all(executorService);
     }
@@ -309,6 +310,12 @@ public class OrderData extends QueryBuilderFactory {
 
     private String toString(ItemStack stack) {
         return GSON.toJson(ItemStackContainer.create(stack));
+    }
+
+    public void submitCompanyPurge(SimpleCompany profile) {
+        for (var simpleOrder : ordersByCompany(profile, OrderState.CLAIMED, OrderState.CLAIMED).join()) {
+            unclaimOrder(simpleOrder);
+        }
     }
 
     private static class ItemStackContainer {

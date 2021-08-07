@@ -10,5 +10,7 @@ depend:
 
 commands:
   company:
-    description: main command
+    description: manage your company
     usage: Something
+  order:
+    description: create orders

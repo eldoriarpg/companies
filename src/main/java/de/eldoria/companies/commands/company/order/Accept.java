@@ -4,7 +4,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.CompanyData;
 import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
-import de.eldoria.companies.permissions.CompanyPermissions;
+import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import org.bukkit.command.Command;
@@ -44,7 +44,7 @@ public class Accept extends EldoCommand {
                     }
                     var profile = optProfile.get();
                     var companyMember = profile.member(player).get();
-                    if (!companyMember.hasPermission(CompanyPermissions.ACCEPT_ORDER)) {
+                    if (!companyMember.hasPermission(CompanyPermission.ACCEPT_ORDER)) {
                         messageSender().sendError(sender, "You are not allowed to accept orders.");
                         return;
                     }
