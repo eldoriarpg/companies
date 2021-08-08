@@ -144,8 +144,8 @@ public class FullOrder extends SimpleOrder {
         return contents;
     }
 
-    public float price() {
-        return (float) contents.stream().mapToDouble(OrderContent::price).sum();
+    public double price() {
+        return contents.stream().mapToDouble(OrderContent::price).sum();
     }
 
     public int amount() {
@@ -177,11 +177,11 @@ public class FullOrder extends SimpleOrder {
     }
 
     public double progress() {
-        return amount() / (float) delivered();
+        return amount() / (double) delivered();
     }
 
     public Optional<OrderContent> content(Material material) {
-        return contents.stream().filter(c -> c.material() == material).findFirst();
+        return contents.stream().filter(content -> content.material() == material).findFirst();
     }
 
     public boolean isDone() {

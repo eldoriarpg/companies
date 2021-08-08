@@ -1,7 +1,6 @@
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
-import de.eldoria.companies.data.CompanyData;
 import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;

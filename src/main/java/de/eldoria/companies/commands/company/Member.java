@@ -21,8 +21,8 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 public class Member extends EldoCommand {
-    private final CompanyData companyData;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
+    private final CompanyData companyData;
     private final BukkitAudiences audiences;
 
     public Member(Plugin plugin, CompanyData companyData) {

@@ -1,6 +1,5 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.CompanyData;
 import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -14,13 +13,11 @@ import org.jetbrains.annotations.NotNull;
 import java.util.concurrent.CompletableFuture;
 
 public class Cancel extends EldoCommand {
-    private final CompanyData companyData;
     private final OrderData orderData;
     private final Economy economy;
 
-    public Cancel(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy) {
+    public Cancel(Plugin plugin, OrderData orderData, Economy economy) {
         super(plugin);
-        this.companyData = companyData;
         this.orderData = orderData;
         this.economy = economy;
     }
@@ -50,6 +47,7 @@ public class Cancel extends EldoCommand {
                     orderData.retrieveFullOrder(optOrder.get())
                             .whenComplete(fullOrder -> {
                                 CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
+                                orderData.submitOrderDeletion(fullOrder);
                                 messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");
                             });
                 });

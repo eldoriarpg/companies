@@ -3,7 +3,6 @@ package de.eldoria.companies.commands.order;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.CompanyData;
 import de.eldoria.companies.data.OrderData;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -25,11 +24,12 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public class Create extends EldoCommand {
-    Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
     private final BukkitAudiences audience;
     private final Configuration configuration;
     private final Economy economy;
     private final OrderData orderData;
+    private final Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
+    private final BukkitAudiences audiences;
 
     public Create(Plugin plugin, OrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
@@ -37,6 +37,7 @@ public class Create extends EldoCommand {
         this.orderData = orderData;
         this.configuration = configuration;
         this.economy = economy;
+        audiences = BukkitAudiences.create(plugin);
     }
 
     @Override
@@ -120,7 +121,7 @@ public class Create extends EldoCommand {
     }
 
     private void add(Player player, String[] args) {
-        if (argumentsInvalid(player, args, 3, "material amount price")) {
+        if (argumentsInvalid(player, args, 3, "<material> <amount> <price>")) {
             return;
         }
         var builder = builderCache.getIfPresent(player.getUniqueId());
@@ -133,5 +134,6 @@ public class Create extends EldoCommand {
         }
 
         builder.addContent(new ItemStack(parse), amount.getAsInt(), (float) price.getAsDouble());
+        audience.sender(player).sendMessage(builder.asComponent(configuration.orderSetting(), localizer(), economy));
     }
 }

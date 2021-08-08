@@ -79,10 +79,15 @@ public class OrderData extends QueryBuilderFactory {
                 .update().executeSync();
     }
 
-    private List<Long> getExpiredOrders(int days) {
-        return builder(Long.class).query("SELECT id FROM order_states WHERE claimed > ? AND company IS NOT NULL")
-                .emptyParams()
-                .readRow(rs -> rs.getLong("id"))
+    public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrders(int hours) {
+        return CompletableFuture.supplyAsync(() -> getExpiredOrders(hours), executorService);
+    }
+
+    private List<SimpleOrder> getExpiredOrders(int hours) {
+        return builder(SimpleOrder.class)
+                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - INTERVAL ? HOUR AND company IS NOT NULL AND state = ?")
+                .paramsBuilder(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
+                .readRow(this::buildSimpleOrder)
                 .allSync();
     }
 
@@ -92,7 +97,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private boolean claimOrder(SimpleCompany company, SimpleOrder order) {
         return builder()
-                       .query("UPDATE order_states SET state = ?, company = ?, claimed = NOW() WHERE id = ? AND state = ?")
+                       .query("UPDATE order_states SET state = ?, company = ?, last_update = NOW() WHERE id = ? AND state = ?")
                        .paramsBuilder(stmt -> stmt.setInt(OrderState.CLAIMED.stateId()).setInt(company.id()).setInt(order.id()).setInt(OrderState.UNCLAIMED.stateId()))
                        .update().executeSync() > 0;
     }
@@ -103,7 +108,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private void orderDelivered(SimpleOrder order) {
         builder()
-                .query("UPDATE order_states SET state = ?, claimed = NULL WHERE id = ?")
+                .query("UPDATE order_states SET state = ?, last_update = NOW() WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(OrderState.DELIVERED.stateId()).setInt(order.id()))
                 .append()
                 .query("DELETE FROM orders_delivered WHERE id = ?")
@@ -117,7 +122,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private void unclaimOrder(SimpleOrder order) {
         builder()
-                .query("UPDATE order_states SET state = ?, company = NULL, claimed = NULL WHERE id = ?")
+                .query("UPDATE order_states SET state = ?, company = NULL, last_update = NOW() WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(OrderState.UNCLAIMED.stateId()).setInt(order.id()))
                 .append()
                 .query("DELETE FROM orders_delivered WHERE id = ?")
@@ -137,22 +142,13 @@ public class OrderData extends QueryBuilderFactory {
                 .update().executeSync();
     }
 
-    private List<SimpleOrder> ordersById(List<Integer> ids) {
-        List<CompletableFuture<Optional<SimpleOrder>>> orders = new ArrayList<>();
-        for (var id : ids) {
-            orders.add(CompletableFuture.supplyAsync(() -> orderById(id), executorService));
-        }
-        CompletableFuture.allOf(orders.toArray(CompletableFuture[]::new));
-        return orders.stream().map(CompletableFuture::join).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
-    }
-
     public BukkitFutureResult<Optional<SimpleOrder>> retrieveOrderById(int id) {
         return CompletableBukkitFuture.supplyAsync(() -> orderById(id), executorService);
     }
 
     private Optional<SimpleOrder> orderById(int id) {
         return builder(SimpleOrder.class)
-                .query("SELECT id, owner_uuid, name, created, company, claimed, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(id))
                 .readRow(this::buildSimpleOrder)
                 .firstSync();
@@ -164,7 +160,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private Optional<SimpleOrder> companyOrderById(int id, int company) {
         return builder(SimpleOrder.class)
-                .query("SELECT id, owner_uuid, name, created, company, claimed, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ? AND company = ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ? AND company = ?")
                 .paramsBuilder(stmt -> stmt.setInt(id).setInt(company))
                 .readRow(this::buildSimpleOrder)
                 .firstSync();
@@ -176,7 +172,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private CompletableFuture<List<SimpleOrder>> ordersByCompany(SimpleCompany company, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT id, owner_uuid, name, created, company, claimed, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE oc.company = ? AND state >= ? AND state <= ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE oc.company = ? AND state >= ? AND state <= ?")
                 .paramsBuilder(stmt -> stmt.setInt(company.id()).setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .all(executorService);
@@ -188,7 +184,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private List<SimpleOrder> ordersByPlayer(OfflinePlayer player, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT id, owner_uuid, name, created, company, claimed, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ? AND state >= ? AND state <= ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ? AND state >= ? AND state <= ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())).setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -200,7 +196,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private List<SimpleOrder> ordersByState(OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, claimed, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE state >= ? AND state <= ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE state >= ? AND state <= ?")
                 .paramsBuilder(stmt -> stmt.setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -212,7 +208,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private List<SimpleOrder> ordersByName(String name, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, claimed, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE name = ? AND state >= ? AND state <= ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE name = ? AND state >= ? AND state <= ?")
                 .paramsBuilder(stmt -> stmt.setString("%" + name + "%").setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -224,7 +220,7 @@ public class OrderData extends QueryBuilderFactory {
 
     private List<SimpleOrder> ordersByMaterial(String material, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, claimed, state FROM (SELECT id FROM order_content WHERE material LIKE ?) m LEFT JOIN orders o ON m.id = o.id LEFT JOIN order_states oc ON o.id = oc.id WHERE  state >= ? AND state <= ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM (SELECT id FROM order_content WHERE material LIKE ?) m LEFT JOIN orders o ON m.id = o.id LEFT JOIN order_states oc ON o.id = oc.id WHERE  state >= ? AND state <= ?")
                 .paramsBuilder(stmt -> stmt.setString("%" + material + "%").setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -232,8 +228,8 @@ public class OrderData extends QueryBuilderFactory {
 
     private SimpleOrder buildSimpleOrder(ResultSet rs) throws SQLException {
         return new SimpleOrder(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("owner_uuid")),
-                rs.getString("name"), rs.getTimestamp("created").toLocalDateTime(),
-                rs.getInt("company"), rs.getTimestamp("claimed").toLocalDateTime(),
+                rs.getString("name"), rs.getTimestamp("last_update").toLocalDateTime(),
+                rs.getInt("company"), rs.getTimestamp("created").toLocalDateTime(),
                 OrderState.byId(rs.getInt("state")));
     }
 
@@ -255,7 +251,7 @@ public class OrderData extends QueryBuilderFactory {
     }
 
     private FullOrder toFullOrder(SimpleOrder order) {
-        var orderContent = getOrderContent(order.id());
+        var orderContent = getOrderContent(order);
         return order.toFullOrder(orderContent);
     }
 
@@ -283,23 +279,23 @@ public class OrderData extends QueryBuilderFactory {
                 .firstSync().get();
     }
 
-    private List<OrderContent> getOrderContent(long orderId) {
+    private List<OrderContent> getOrderContent(SimpleOrder order) {
         var orderContents = builder(OrderContent.class)
                 .query("SELECT material, stack, amount, price FROM order_content WHERE id = ?")
-                .paramsBuilder(stmt -> stmt.setLong(orderId))
+                .paramsBuilder(stmt -> stmt.setInt(order.id()))
                 .readRow(rs -> new OrderContent(toItemStack(rs.getString("stack")), rs.getInt("amount"), rs.getFloat("price")))
                 .allSync();
 
         for (var orderContent : orderContents) {
-            orderContent.parts(getContentParts(orderId, orderContent.stack().getType()));
+            orderContent.parts(getContentParts(order, orderContent.stack().getType()));
         }
         return orderContents;
     }
 
-    private List<ContentPart> getContentParts(long orderId, Material material) {
+    private List<ContentPart> getContentParts(SimpleOrder order, Material material) {
         return builder(ContentPart.class)
                 .query("SELECT worker_uuid, delivered FROM orders_delivered WHERE id = ? AND material = ?")
-                .paramsBuilder(stmt -> stmt.setLong(orderId).setString(material.name()))
+                .paramsBuilder(stmt -> stmt.setInt(order.id()).setString(material.name()))
                 .readRow(rs -> new ContentPart(UUIDConverter.convert(rs.getBytes("uuid")), rs.getInt("amount")))
                 .allSync();
     }
@@ -318,8 +314,19 @@ public class OrderData extends QueryBuilderFactory {
         }
     }
 
+    public BukkitFutureResult<Void> submitOrderDeletion(SimpleOrder order) {
+        return CompletableBukkitFuture.runAsync(() -> deleteOrder(order));
+    }
+
+    public void deleteOrder(SimpleOrder order) {
+        builder()
+                .query("DELETE FROM orders WHERE id = ?")
+                .paramsBuilder(stmt -> stmt.setInt(order.id()))
+                .update().executeSync();
+    }
+
     private static class ItemStackContainer {
-        private Map<String, Object> data;
+        private final Map<String, Object> data;
 
         private ItemStackContainer(Map<String, Object> data) {
             this.data = data;

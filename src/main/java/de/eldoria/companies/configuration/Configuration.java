@@ -1,6 +1,7 @@
 package de.eldoria.companies.configuration;
 
 import de.eldoria.companies.configuration.elements.CompanySettings;
+import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.OrderSetting;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.eldoutilities.configuration.EldoConfig;
@@ -10,6 +11,7 @@ public class Configuration extends EldoConfig {
     private CompanySettings companySettings;
     private UserSettings userSettings;
     private OrderSetting orderSetting;
+    private GeneralSettings generalSettings;
 
     public Configuration(Plugin plugin) {
         super(plugin);
@@ -44,5 +46,9 @@ public class Configuration extends EldoConfig {
 
     public OrderSetting orderSetting() {
         return orderSetting;
+    }
+
+    public GeneralSettings generalSettings() {
+        return generalSettings;
     }
 }

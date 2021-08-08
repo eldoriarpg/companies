@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -59,7 +60,7 @@ public class CompanyData extends QueryBuilderFactory {
     }
 
     public Optional<CompanyProfile> toCompanyProfile(SimpleCompany simpleCompany) {
-        return Optional.ofNullable(simpleCompany.toCompanyProfile(getCompanyMember(simpleCompany.id())));
+        return Optional.ofNullable(simpleCompany.toCompanyProfile(getCompanyMember(simpleCompany)));
     }
 
     public BukkitFutureResult<Optional<CompanyProfile>> retrievePlayerCompanyProfile(OfflinePlayer player) {
@@ -98,11 +99,11 @@ public class CompanyData extends QueryBuilderFactory {
                 .firstSync().get();
     }
 
-    private List<CompanyMember> getCompanyMember(int companyId) {
+    private List<CompanyMember> getCompanyMember(SimpleCompany company) {
         return builder(CompanyMember.class)
                 .query("SELECT uuid, permission FROM company_member WHERE id = ?")
-                .paramsBuilder(stmt -> stmt.setInt(companyId))
-                .readRow(rs -> CompanyMember.of(companyId, UUIDConverter.convert(rs.getBytes("uuid")),
+                .paramsBuilder(stmt -> stmt.setInt(company.id()))
+                .readRow(rs -> CompanyMember.of(company.id(), UUIDConverter.convert(rs.getBytes("uuid")),
                         rs.getLong("permission")))
                 .allSync();
     }
@@ -130,11 +131,11 @@ public class CompanyData extends QueryBuilderFactory {
     }
 
     public void submitCompanyPurge(SimpleCompany company) {
-
+        CompletableFuture.runAsync(() -> purgeCompany(company));
     }
 
     private void purgeCompany(SimpleCompany company) {
-        var members = getCompanyMember(company.id());
+        var members = getCompanyMember(company);
         for (var member : members) {
             updateMember(member.kick());
         }

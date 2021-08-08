@@ -12,10 +12,10 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Info extends EldoCommand {
-    private BukkitAudiences audiences;
-    private CompanyData companyData;
     private final OrderData orderData;
-    private Economy economy;
+    private final BukkitAudiences audiences;
+    private final CompanyData companyData;
+    private final Economy economy;
 
     public Info(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy) {
         super(plugin);

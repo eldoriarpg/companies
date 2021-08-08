@@ -1,6 +1,5 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.CompanyData;
 import de.eldoria.companies.data.OrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;

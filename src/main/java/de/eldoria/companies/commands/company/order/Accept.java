@@ -65,10 +65,10 @@ public class Accept extends EldoCommand {
                                                 messageSender().sendError(sender, "This order is not claimable");
                                                 return;
                                             }
-                                            orderData.submitOrderClaim(profile, simpleOrder).whenComplete(success ->{
-                                                if(success){
+                                            orderData.submitOrderClaim(profile, simpleOrder).whenComplete(success -> {
+                                                if (success) {
                                                     messageSender().sendMessage(sender, "Order claimed.");
-                                                }else {
+                                                } else {
                                                     messageSender().sendError(sender, "Order could not be claimed");
                                                 }
                                             });

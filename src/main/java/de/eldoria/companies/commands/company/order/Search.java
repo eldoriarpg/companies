@@ -16,13 +16,13 @@ import java.util.Map;
 import java.util.UUID;
 
 public class Search extends EldoCommand {
-    private Map<UUID, List<FullOrder>> results = new HashMap<>();
     private final Page page;
+    private Map<UUID, List<FullOrder>> results = new HashMap<>();
 
     public Search(Plugin plugin, OrderData orderData, Economy economy) {
         super(plugin);
         page = new Page(plugin, this, economy);
-        registerCommand("all", new All(plugin, orderData,this));
+        registerCommand("all", new All(plugin, orderData, this));
         registerCommand("material", new MaterialSearch(plugin, orderData, this));
         registerCommand("name", new NameSearch(plugin, orderData, this));
         registerCommand("page", page);
