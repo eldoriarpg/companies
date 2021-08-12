@@ -1,6 +1,6 @@
 package de.eldoria.companies.orders;
 
-import de.eldoria.companies.configuration.elements.OrderSetting;
+import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -43,12 +43,12 @@ public class OrderBuilder {
         return elements;
     }
 
-    public float price() {
-        return (float) elements.stream().mapToDouble(OrderContent::price).sum();
+    public double price() {
+        return elements.stream().mapToDouble(OrderContent::price).sum();
     }
 
-    public float amount() {
-        return (float) elements.stream().mapToDouble(OrderContent::amount).sum();
+    public int amount() {
+        return elements.stream().mapToInt(OrderContent::amount).sum();
     }
 
     public int materialsAmount() {
@@ -59,7 +59,7 @@ public class OrderBuilder {
         return elements.stream().anyMatch(e -> e.stack().getType() == material);
     }
 
-    public Component asComponent(OrderSetting setting, ILocalizer localizer, Economy economy) {
+    public Component asComponent(OrderSettings setting, ILocalizer localizer, Economy economy) {
         var items = Component.text()
                 .append(Component.text(order.name())).append(Component.newline())
                 .append(Component.text("Items"));

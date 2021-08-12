@@ -20,20 +20,24 @@ repositories {
 
 dependencies {
     implementation("de.eldoria", "eldo-util", "1.9.3-DEV")
-    implementation("de.chojo", "sql-util", "1.0.4")
-    implementation("org.mariadb.jdbc:mariadb-java-client:2.7.2")
+    implementation("de.chojo", "sql-util", "1.1.2") {
+        exclude("org.jetbrains")
+        exclude("org.slf4j")
+    }
+    implementation("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
+    implementation("org.xerial", "sqlite-jdbc", "3.7.2")
     implementation("net.kyori", "adventure-api", "4.8.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
 
     compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains", "annotations", "20.1.0")
-    compileOnly("com.github.MilkBowl:VaultAPI:1.7")
+    compileOnly("com.github.MilkBowl", "VaultAPI", "1.7")
 
-    testImplementation("org.jetbrains:annotations:19.0.0")
+    testImplementation("org.jetbrains", "annotations", "19.0.0")
     testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
-    testImplementation("org.mockito:mockito-core:3.5.13")
+    testImplementation("org.junit.jupiter", "junit-jupiter-api", "5.7.1")
+    testRuntimeOnly("org.junit.jupiter", "junit-jupiter-engine", "5.7.1")
+    testImplementation("org.mockito", "mockito-core", "3.5.13")
 }
 
 java {
@@ -88,10 +92,15 @@ tasks {
     shadowJar {
         relocate("de.eldoria.eldoutilities", shadebade + "eldoutilities")
         relocate("net.kyori", shadebade + "kyori")
+        relocate("com.zaxxer", shadebade + "hikari")
         relocate("org.mariadb", shadebade + "mariadb")
+        relocate("org.sqlite", shadebade + "sqlite")
         relocate("de.chojo.sqlutil", shadebade + "sqlutil")
         mergeServiceFiles()
-        minimize()
+       // minimize {
+       //     exclude("org.sqlite")
+       //     exclude("org.mariadb")
+       // }
         archiveClassifier.set("")
     }
 

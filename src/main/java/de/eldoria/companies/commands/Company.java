@@ -9,14 +9,14 @@ import de.eldoria.companies.commands.company.Order;
 import de.eldoria.companies.commands.company.Permission;
 import de.eldoria.companies.commands.company.Profile;
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 public class Company extends EldoCommand {
-    public Company(Plugin plugin, CompanyData companyData, OrderData orderData, Economy economy, Configuration configuration) {
+    public Company(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
         registerCommand("create", new Create(plugin, companyData, economy, configuration));
         registerCommand("create", new Profile(plugin, companyData, orderData));

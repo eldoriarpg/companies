@@ -1,7 +1,7 @@
 package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.permissions.CompanyPermission;
@@ -21,13 +21,13 @@ import java.util.Map;
 import java.util.UUID;
 
 public class Invite extends EldoCommand {
-    private final CompanyData companyData;
+    private final ACompanyData companyData;
     private final Map<UUID, InviteData> invites = new HashMap<>();
     private final BukkitAudiences audiences;
     private final DelayedActions delayedActions;
     private final Configuration configuration;
 
-    public Invite(Plugin plugin, CompanyData companyData, Configuration configuration) {
+    public Invite(Plugin plugin, ACompanyData companyData, Configuration configuration) {
         super(plugin);
         audiences = BukkitAudiences.create(plugin);
         delayedActions = DelayedActions.start(plugin);

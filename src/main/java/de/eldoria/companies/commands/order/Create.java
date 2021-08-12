@@ -3,7 +3,7 @@ package de.eldoria.companies.commands.order;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -27,17 +27,15 @@ public class Create extends EldoCommand {
     private final BukkitAudiences audience;
     private final Configuration configuration;
     private final Economy economy;
-    private final OrderData orderData;
+    private final AOrderData orderData;
     private final Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
-    private final BukkitAudiences audiences;
 
-    public Create(Plugin plugin, OrderData orderData, Economy economy, Configuration configuration) {
+    public Create(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
         audience = BukkitAudiences.create(plugin);
         this.orderData = orderData;
         this.configuration = configuration;
         this.economy = economy;
-        audiences = BukkitAudiences.create(plugin);
     }
 
     @Override
@@ -60,7 +58,7 @@ public class Create extends EldoCommand {
         }
 
         if ("done".equalsIgnoreCase(subArgs[0])) {
-            done(player, args);
+            done(player);
             return true;
         }
 
@@ -77,15 +75,16 @@ public class Create extends EldoCommand {
         player.sendMessage("Aborted");
     }
 
-    private void done(Player player, String[] args) {
+    private void done(Player player) {
         var order = builderCache.getIfPresent(player.getUniqueId());
 
-        var price = order.price();
 
         if (order == null) {
             messageSender().sendLocalizedError(player, "No order builder registered.");
             return;
         }
+
+        var price = order.price();
 
         CompletableBukkitFuture.supplyAsync(() -> {
             if (!economy.has(player, price)) {
@@ -102,7 +101,6 @@ public class Create extends EldoCommand {
                 messageSender().sendLocalizedError(player, "Not enough money.");
             }
         });
-        return;
     }
 
     private void initCreation(Player player, String[] args) {

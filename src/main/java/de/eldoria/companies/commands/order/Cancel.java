@@ -1,6 +1,6 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -13,10 +13,10 @@ import org.jetbrains.annotations.NotNull;
 import java.util.concurrent.CompletableFuture;
 
 public class Cancel extends EldoCommand {
-    private final OrderData orderData;
+    private final AOrderData orderData;
     private final Economy economy;
 
-    public Cancel(Plugin plugin, OrderData orderData, Economy economy) {
+    public Cancel(Plugin plugin, AOrderData orderData, Economy economy) {
         super(plugin);
         this.orderData = orderData;
         this.economy = economy;

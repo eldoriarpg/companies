@@ -1,6 +1,6 @@
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -22,10 +22,10 @@ import java.util.stream.Collectors;
 
 public class Member extends EldoCommand {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
-    private final CompanyData companyData;
+    private final ACompanyData companyData;
     private final BukkitAudiences audiences;
 
-    public Member(Plugin plugin, CompanyData companyData) {
+    public Member(Plugin plugin, ACompanyData companyData) {
         super(plugin);
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);

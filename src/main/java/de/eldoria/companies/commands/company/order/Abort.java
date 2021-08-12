@@ -1,7 +1,7 @@
 package de.eldoria.companies.commands.company.order;
 
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -19,12 +19,12 @@ import java.util.Map;
 import java.util.UUID;
 
 public class Abort extends EldoCommand {
-    private final CompanyData companyData;
-    private final OrderData orderData;
+    private final ACompanyData companyData;
+    private final AOrderData orderData;
     private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
     private final BukkitAudiences audiences;
 
-    public Abort(Plugin plugin, CompanyData companyData, OrderData orderData) {
+    public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData) {
         super(plugin);
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);

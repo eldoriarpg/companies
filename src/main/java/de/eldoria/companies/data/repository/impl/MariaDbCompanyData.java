@@ -1,13 +1,11 @@
-package de.eldoria.companies.data;
+package de.eldoria.companies.data.repository.impl;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
-import de.chojo.sqlutil.wrapper.QueryBuilderFactory;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
-import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
-import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 
@@ -16,25 +14,18 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.logging.Level;
 
-public class CompanyData extends QueryBuilderFactory {
-    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
+public class MariaDbCompanyData extends ACompanyData {
 
-    public CompanyData(DataSource dataSource, Plugin plugin) {
+    public MariaDbCompanyData(DataSource dataSource, Plugin plugin) {
         super(QueryBuilderConfig.builder()
                 .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
                 .build(), dataSource);
     }
 
-    public BukkitFutureResult<Void> submitMemberUpdate(CompanyMember member) {
-        return CompletableBukkitFuture.runAsync(() -> updateMember(member));
-    }
-
-    private void updateMember(CompanyMember member) {
+    @Override
+    protected void updateMember(CompanyMember member) {
         if (member.company() == -1) {
             builder()
                     .query("DELETE FROM company_member WHERE uuid = ?")
@@ -48,26 +39,15 @@ public class CompanyData extends QueryBuilderFactory {
         }
     }
 
-
     // Company Profiles
 
-    public BukkitFutureResult<Optional<SimpleCompany>> retrievePlayerCompany(OfflinePlayer player) {
-        return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player), executorService);
-    }
-
-    public BukkitFutureResult<Optional<CompanyProfile>> retrieveCompanyProfile(SimpleCompany simpleCompany) {
-        return CompletableBukkitFuture.supplyAsync(() -> toCompanyProfile(simpleCompany));
-    }
-
-    public Optional<CompanyProfile> toCompanyProfile(SimpleCompany simpleCompany) {
+    @Override
+    protected Optional<CompanyProfile> toCompanyProfile(SimpleCompany simpleCompany) {
         return Optional.ofNullable(simpleCompany.toCompanyProfile(getCompanyMember(simpleCompany)));
     }
 
-    public BukkitFutureResult<Optional<CompanyProfile>> retrievePlayerCompanyProfile(OfflinePlayer player) {
-        return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player).map(company -> toCompanyProfile(company).get()));
-    }
-
-    private Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player) {
+    @Override
+    protected Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player) {
         return builder(SimpleCompany.class)
                 .query("SELECT c.id, c.name, c.founded FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
@@ -75,11 +55,8 @@ public class CompanyData extends QueryBuilderFactory {
                 .firstSync();
     }
 
-    public BukkitFutureResult<Optional<SimpleCompany>> retrieveCompanyByName(String name) {
-        return CompletableBukkitFuture.supplyAsync(() -> getCompanyByName(name), executorService);
-    }
-
-    private Optional<SimpleCompany> getCompanyByName(String name) {
+    @Override
+    protected Optional<SimpleCompany> getCompanyByName(String name) {
         return builder(SimpleCompany.class)
                 .query("SELECT c.id, c.name, c.founded FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE c.name LIKE ?")
                 .paramsBuilder(stmt -> stmt.setString(name))
@@ -87,11 +64,8 @@ public class CompanyData extends QueryBuilderFactory {
                 .firstSync();
     }
 
-    public BukkitFutureResult<Integer> submitCompanyCreation(String name) {
-        return CompletableBukkitFuture.supplyAsync(() -> createCompany(name), executorService);
-    }
-
-    private Integer createCompany(String name) {
+    @Override
+    protected Integer createCompany(String name) {
         return builder(Integer.class)
                 .query("INSERT INTO companies(name) VALUES(?) RETURNING id")
                 .paramsBuilder(stmt -> stmt.setString(name))
@@ -99,7 +73,22 @@ public class CompanyData extends QueryBuilderFactory {
                 .firstSync().get();
     }
 
-    private List<CompanyMember> getCompanyMember(SimpleCompany company) {
+    @Override
+    protected SimpleCompany parseCompany(ResultSet rs) throws SQLException {
+        return new SimpleCompany(rs.getInt("id"), rs.getString("name"),
+                rs.getTimestamp("founded").toLocalDateTime());
+    }
+
+    @Override
+    public void purgeCompany(SimpleCompany company) {
+        var members = getCompanyMember(company);
+        for (var member : members) {
+            updateMember(member.kick());
+        }
+    }
+
+    @Override
+    protected List<CompanyMember> getCompanyMember(SimpleCompany company) {
         return builder(CompanyMember.class)
                 .query("SELECT uuid, permission FROM company_member WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(company.id()))
@@ -108,7 +97,8 @@ public class CompanyData extends QueryBuilderFactory {
                 .allSync();
     }
 
-    private Optional<CompanyMember> getCompanyMember(OfflinePlayer player) {
+    @Override
+    protected Optional<CompanyMember> getCompanyMember(OfflinePlayer player) {
         return builder(CompanyMember.class)
                 .query("SELECT id, uuid, permission FROM company_member WHERE uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
@@ -117,27 +107,12 @@ public class CompanyData extends QueryBuilderFactory {
                 .firstSync();
     }
 
-    private Optional<SimpleCompany> getSimpleCompany(int companyId) {
+    @Override
+    protected Optional<SimpleCompany> getSimpleCompany(int companyId) {
         return builder(SimpleCompany.class)
                 .query("SELECT * FROM companies WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(companyId))
                 .readRow(this::parseCompany)
                 .firstSync();
-    }
-
-    private SimpleCompany parseCompany(ResultSet rs) throws SQLException {
-        return new SimpleCompany(rs.getInt("id"), rs.getString("name"),
-                rs.getTimestamp("founded").toLocalDateTime());
-    }
-
-    public void submitCompanyPurge(SimpleCompany company) {
-        CompletableFuture.runAsync(() -> purgeCompany(company));
-    }
-
-    private void purgeCompany(SimpleCompany company) {
-        var members = getCompanyMember(company);
-        for (var member : members) {
-            updateMember(member.kick());
-        }
     }
 }

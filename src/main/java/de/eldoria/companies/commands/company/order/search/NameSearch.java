@@ -1,7 +1,7 @@
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import org.bukkit.command.Command;
@@ -10,10 +10,10 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class NameSearch extends EldoCommand {
-    private final OrderData orderData;
+    private final AOrderData orderData;
     private final Search search;
 
-    public NameSearch(Plugin plugin, OrderData orderData, Search search) {
+    public NameSearch(Plugin plugin, AOrderData orderData, Search search) {
         super(plugin);
         this.orderData = orderData;
         this.search = search;

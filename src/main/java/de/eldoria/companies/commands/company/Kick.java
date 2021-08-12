@@ -1,6 +1,6 @@
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import org.bukkit.command.Command;
@@ -9,9 +9,9 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Kick extends EldoCommand {
-    private final CompanyData companyData;
+    private final ACompanyData companyData;
 
-    public Kick(Plugin plugin, CompanyData companyData) {
+    public Kick(Plugin plugin, ACompanyData companyData) {
         super(plugin);
         this.companyData = companyData;
     }

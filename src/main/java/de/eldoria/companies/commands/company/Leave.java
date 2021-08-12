@@ -1,7 +1,7 @@
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.companies.data.CompanyData;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
@@ -17,12 +17,12 @@ import java.util.Set;
 import java.util.UUID;
 
 public class Leave extends EldoCommand {
-    private final CompanyData companyData;
-    private final OrderData orderData;
+    private final ACompanyData companyData;
+    private final AOrderData orderData;
     private final Set<UUID> leaves = new HashSet<>();
     private final BukkitAudiences audiences;
 
-    public Leave(Plugin plugin, CompanyData companyData, OrderData orderData) {
+    public Leave(Plugin plugin, ACompanyData companyData, AOrderData orderData) {
         super(plugin);
         this.companyData = companyData;
         this.orderData = orderData;
@@ -77,7 +77,7 @@ public class Leave extends EldoCommand {
                     var profile = optProfile.get();
                     if (profile.member(player).get().isOwner()) {
                         companyData.submitCompanyPurge(profile);
-                        orderData.submitCompanyPurge(profile);
+                        orderData.submitCompanyOrdersPurge(profile);
                         messageSender().sendMessage(player, "The company was disbanded");
                         for (var member : profile.members()) {
                             if (member.player().isOnline()) {

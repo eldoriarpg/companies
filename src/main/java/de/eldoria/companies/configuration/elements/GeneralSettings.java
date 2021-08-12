@@ -9,6 +9,9 @@ import java.util.Map;
 public class GeneralSettings implements ConfigurationSerializable {
     private int orderCheckInterval = 60;
 
+    public GeneralSettings() {
+    }
+
     public GeneralSettings(Map<String, Object> objectMap) {
         var map = SerializationUtil.mapOf(objectMap);
         orderCheckInterval = map.getValueOrDefault("orderCheckInterval", orderCheckInterval);

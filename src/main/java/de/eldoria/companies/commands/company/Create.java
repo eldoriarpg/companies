@@ -1,7 +1,7 @@
 package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -23,13 +23,13 @@ import java.util.UUID;
 
 public class Create extends EldoCommand {
     public static final int MAX_NAME_LENGTH = 32;
-    private final CompanyData companyData;
+    private final ACompanyData companyData;
     private final Configuration configuration;
     private final Economy economy;
     private final BukkitAudiences audiences;
     private final Map<UUID, String> registrations = new HashMap<>();
 
-    public Create(Plugin plugin, CompanyData companyData, Economy economy, Configuration configuration) {
+    public Create(Plugin plugin, ACompanyData companyData, Economy economy, Configuration configuration) {
         super(plugin);
         audiences = BukkitAudiences.create(plugin);
         this.companyData = companyData;

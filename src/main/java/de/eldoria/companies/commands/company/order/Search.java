@@ -4,7 +4,7 @@ import de.eldoria.companies.commands.company.order.search.All;
 import de.eldoria.companies.commands.company.order.search.MaterialSearch;
 import de.eldoria.companies.commands.company.order.search.NameSearch;
 import de.eldoria.companies.commands.company.order.search.Page;
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.milkbowl.vault.economy.Economy;
@@ -19,7 +19,7 @@ public class Search extends EldoCommand {
     private final Page page;
     private Map<UUID, List<FullOrder>> results = new HashMap<>();
 
-    public Search(Plugin plugin, OrderData orderData, Economy economy) {
+    public Search(Plugin plugin, AOrderData orderData, Economy economy) {
         super(plugin);
         page = new Page(plugin, this, economy);
         registerCommand("all", new All(plugin, orderData, this));

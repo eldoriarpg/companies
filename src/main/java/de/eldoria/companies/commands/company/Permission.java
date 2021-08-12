@@ -1,6 +1,6 @@
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.companies.data.CompanyData;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -18,10 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Permission extends EldoCommand {
-    private final CompanyData companyData;
+    private final ACompanyData companyData;
     private final BukkitAudiences audiences;
 
-    public Permission(Plugin plugin, CompanyData companyData) {
+    public Permission(Plugin plugin, ACompanyData companyData) {
         super(plugin);
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);

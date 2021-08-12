@@ -1,6 +1,6 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.OrderData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -11,9 +11,9 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Receive extends EldoCommand {
-    private final OrderData orderData;
+    private final AOrderData orderData;
 
-    public Receive(Plugin plugin, OrderData orderData) {
+    public Receive(Plugin plugin, AOrderData orderData) {
         super(plugin);
         this.orderData = orderData;
     }
