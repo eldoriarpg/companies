@@ -111,6 +111,10 @@ tasks {
             events("passed", "skipped", "failed")
         }
     }
+    register<Copy>("copyToServer"){
+        from(shadowJar)
+        destinationDir = File("/home/chojo/dev/minecraft_server/1.17.1/plugins/")
+    }
 }
 
 class PublishData(private val project: Project) {

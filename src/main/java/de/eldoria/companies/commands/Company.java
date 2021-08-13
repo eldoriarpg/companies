@@ -21,7 +21,7 @@ public class Company extends EldoCommand {
         var profile = new Profile(plugin, companyData, orderData);
         setDefaultCommand(profile);
         registerCommand("create", new Create(plugin, companyData, economy, configuration));
-        registerCommand("create", profile);
+        registerCommand("profile", profile);
         registerCommand("invite", new Invite(plugin, companyData, configuration));
         registerCommand("kick", new Kick(plugin, companyData));
         registerCommand("leave", new Leave(plugin, companyData, orderData));

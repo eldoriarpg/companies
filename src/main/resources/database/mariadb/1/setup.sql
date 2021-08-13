@@ -34,7 +34,7 @@ CREATE TABLE orders
     id         INTEGER AUTO_INCREMENT
         PRIMARY KEY,
     owner_uuid BINARY(16)                            NOT NULL,
-    name       INT                                   NULL,
+    name       TEXT                                 NOT  NULL,
     created    TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL
 );
 

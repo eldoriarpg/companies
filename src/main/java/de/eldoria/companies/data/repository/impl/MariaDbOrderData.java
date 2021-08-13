@@ -38,19 +38,25 @@ public class MariaDbOrderData extends AOrderData {
 
     @Override
     protected void putOrder(OfflinePlayer player, FullOrder order) {
-        var orderId = builder(Long.class)
+        var orderId = builder(Integer.class)
                 .query("INSERT INTO orders(owner_uuid, name) VALUES(?,?) RETURNING id")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())).setString(order.name()))
-                .readRow(rs -> rs.getLong("id"))
+                .readRow(rs -> rs.getInt(1))
                 .firstSync().get();
 
         for (var content : order.contents()) {
             builder()
                     .query("INSERT INTO order_content(id, material, stack, amount, price) VALUES(?,?,?,?,?)")
-                    .paramsBuilder(stmt -> stmt.setLong(orderId).setString(content.stack().getType().name())
+                    .paramsBuilder(stmt -> stmt.setInt(orderId).setString(content.stack().getType().name())
                             .setString(toString(content.stack())).setInt(content.amount()).setDouble(content.price()))
-                    .update();
+                    .update()
+                    .executeSync();
         }
+        builder()
+                .query("INSERT INTO order_states(id, state) VALUES(?, ?)")
+                .paramsBuilder(stmt -> stmt.setInt(orderId).setInt(OrderState.UNCLAIMED.stateId()))
+                .update()
+                .executeSync();
     }
 
     @Override
@@ -139,7 +145,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected List<SimpleOrder> ordersByPlayer(OfflinePlayer player, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ? AND state >= ? AND state <= ?")
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.owner_uuid = ? AND state >= ? AND state <= ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())).setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();

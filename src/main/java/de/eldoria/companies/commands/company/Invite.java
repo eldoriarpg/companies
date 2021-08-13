@@ -10,6 +10,7 @@ import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -52,12 +53,33 @@ public class Invite extends EldoCommand {
             companyData.retrievePlayerCompany(player)
                     .whenComplete(company -> {
                         if (company.isPresent()) {
-
                             messageSender().sendError(sender, "You are already part of a company");
                             return;
                         }
-                        companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
-                        messageSender().sendMessage(sender, "You have joined the company");
+                        var inviter = Bukkit.getOfflinePlayer(data.inviter);
+                        companyData.retrieveCompanyProfile(data.company)
+                                .whenComplete(profile -> {
+                                    if (profile.isEmpty()) return;
+
+                                    if (profile.get().members().size() >= configuration.companySettings().maxMember()) {
+                                        messageSender().sendError(sender, "Company is already full");
+                                        return;
+                                    }
+
+                                    companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
+                                    messageSender().sendMessage(sender, "You have joined the company");
+                                    if (inviter.isOnline()) {
+                                        messageSender().sendMessage(inviter.getPlayer(), player.getName() + " has accepted your invite.");
+                                    }
+                                    if (profile.isEmpty()) return;
+                                    for (var member : profile.get().members()) {
+                                        if (member.player().isOnline()) {
+                                            messageSender().sendMessage(member.player().getPlayer(), player.getName() + " has joined the company.");
+                                        }
+
+                                    }
+                                });
+
                     });
             return true;
         }
@@ -90,7 +112,7 @@ public class Invite extends EldoCommand {
                         return;
                     }
 
-                    if (company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
+                    if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
                         messageSender().sendError(sender, "You dont have the permission to invite users.");
                         return;
                     }

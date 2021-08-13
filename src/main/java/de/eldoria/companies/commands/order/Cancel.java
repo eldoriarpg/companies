@@ -24,6 +24,7 @@ public class Cancel extends EldoCommand {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        if (argumentsInvalid(sender, args, 1, "<id>")) return true;
         var optId = Parser.parseInt(args[0]);
 
         orderData.retrieveOrderById(optId.getAsInt())

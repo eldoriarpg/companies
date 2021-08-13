@@ -8,6 +8,8 @@ import de.eldoria.eldoutilities.utils.EnumUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -41,7 +43,7 @@ public class Permission extends EldoCommand {
 
         var memberName = args[0];
         var method = args[1];
-        if (!("add".equalsIgnoreCase(method) || "remote".equalsIgnoreCase(method))) {
+        if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
             messageSender().sendError(sender, "Invalid action. Use ADD or REMOVE");
             return true;
         }
@@ -64,12 +66,22 @@ public class Permission extends EldoCommand {
                         return;
                     }
                     var optTarget = profile.memberByName(memberName);
-                    if (!optTarget.isPresent()) {
+                    if (optTarget.isEmpty()) {
                         messageSender().sendError(sender, "Unkown member");
                         return;
                     }
 
-                    renderPermissionInterface(player, optTarget.get());
+                    var target = optTarget.get();
+
+                    if ("give".equalsIgnoreCase(method)) {
+                        target.addPermission(permission);
+
+                    } else {
+                        target.removePermission(permission);
+                    }
+                    companyData.submitMemberUpdate(target);
+
+                    renderPermissionInterface(player, target);
                 });
         return true;
     }
@@ -83,7 +95,7 @@ public class Permission extends EldoCommand {
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
-                    if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
+                    if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
                         messageSender().sendError(player, "Missing permission");
                         return;
                     }
@@ -103,12 +115,14 @@ public class Permission extends EldoCommand {
             var builder = Component.text();
             if (member.hasPermission(permission)) {
                 var cmd = "/company permission " + member.player().getName() + " remove " + permission.name();
-                builder.append(Component.text(permission.name())
-                        .clickEvent(ClickEvent.runCommand(cmd)));
+                builder.append(Component.text(permission.name(), NamedTextColor.GREEN)
+                        .clickEvent(ClickEvent.runCommand(cmd))
+                        .hoverEvent(HoverEvent.showText(Component.text("remove"))));
             } else {
-                var cmd = "/company permission " + member.player().getName() + " add " + permission.name();
-                builder.append(Component.text(permission.name())
-                        .clickEvent(ClickEvent.runCommand(cmd)));
+                var cmd = "/company permission " + member.player().getName() + " give " + permission.name();
+                builder.append(Component.text(permission.name(), NamedTextColor.RED)
+                        .clickEvent(ClickEvent.runCommand(cmd))
+                        .hoverEvent(HoverEvent.showText(Component.text("give"))));
             }
             permissions.add(builder.build());
         }

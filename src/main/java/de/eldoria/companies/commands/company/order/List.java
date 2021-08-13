@@ -6,6 +6,7 @@ import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -41,7 +42,7 @@ public class List extends EldoCommand {
                             .thenApplyAsync(orderData::retrieveFullOrders)
                             .thenAcceptAsync(future -> future.whenComplete(orders -> {
                                 var component = Component.text()
-                                        .append(Component.text("Company orders:"))
+                                        .append(Component.text("Company orders:")) .append(Component.space()).append(Component.text("[search]").clickEvent(ClickEvent.runCommand("/company order search query")))
                                         .append(Component.newline());
                                 for (var order : orders) {
                                     component.append(order.companyShortInfo(localizer(), economy));

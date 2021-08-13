@@ -21,6 +21,7 @@ public class CompanyMember {
     }
 
     public boolean hasPermission(CompanyPermission permissions) {
+        if(isOwner()) return true;
         return permissions.hasPermission(permission);
     }
 

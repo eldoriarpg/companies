@@ -4,6 +4,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.command.Command;
@@ -14,11 +15,13 @@ import org.jetbrains.annotations.NotNull;
 public class Profile extends EldoCommand {
     private final ACompanyData companyData;
     private final AOrderData orderData;
+    private final BukkitAudiences audiences;
 
     public Profile(Plugin plugin, ACompanyData companyData, AOrderData orderData) {
         super(plugin);
         this.companyData = companyData;
         this.orderData = orderData;
+        audiences = BukkitAudiences.create(plugin);
     }
 
     @Override
@@ -36,13 +39,14 @@ public class Profile extends EldoCommand {
                     orderData.retrieveOrdersByCompany(optProfile.get(), OrderState.CLAIMED, OrderState.CLAIMED)
                             .whenComplete(orders -> {
                                 var profile = optProfile.get();
-                                Component.text()
+                                var component = Component.text()
                                         .append(Component.text(profile.name()).append(Component.newline()))
                                         .append(Component.text("Founded " + profile.foundedString())).append(Component.newline())
                                         .append(Component.text("Members: " + profile.members().size())).append(Component.text("[list]")
                                                 .clickEvent(ClickEvent.runCommand("/company member"))).append(Component.newline())
                                         .append(Component.text("Orders: " + orders.size())).append(Component.text("[list]")
-                                                .clickEvent(ClickEvent.runCommand("/company order list")));
+                                                .clickEvent(ClickEvent.runCommand("/company order list"))).build();
+                                audiences.player(player).sendMessage(component);
                             });
                 });
         return true;

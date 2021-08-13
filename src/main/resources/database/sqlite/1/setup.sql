@@ -13,8 +13,8 @@ CREATE TABLE companies
 
 CREATE TABLE company_member
 (
-    id         INTEGER,
-    uuid       BLOB
+    id         INTEGER NOT NULL ,
+    uuid       BLOB NOT NULL
         CONSTRAINT company_member_pk
             PRIMARY KEY,
     permission TEXT
@@ -31,8 +31,8 @@ CREATE TABLE orders
     id         INTEGER
         CONSTRAINT orders_pk
             PRIMARY KEY,
-    owner_uuid BLOB,
-    name       INTEGER,
+    owner_uuid BLOB NOT NULL ,
+    name       TEXT NOT NULL ,
     created    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -42,10 +42,10 @@ CREATE TABLE order_content
         CONSTRAINT order_content_orders_id_fk
             REFERENCES orders
             ON DELETE CASCADE,
-    material TEXT,
-    stack    TEXT,
-    amount   INTEGER,
-    price    FLOAT
+    material TEXT NOT NULL ,
+    stack    TEXT NOT NULL ,
+    amount   INTEGER NOT NULL ,
+    price    FLOAT NOT NULL
 );
 
 CREATE INDEX order_content_id_index

@@ -18,7 +18,7 @@ public class OrderContent {
     private List<ContentPart> parts = new ArrayList<>();
     private double price;
 
-    public OrderContent(ItemStack stack, int amount, float price) {
+    public OrderContent(ItemStack stack, int amount, double price) {
         this.stack = stack;
         this.amount = amount;
         this.price = price;
@@ -36,12 +36,20 @@ public class OrderContent {
         return amount;
     }
 
+    public void amount(int amount) {
+        this.amount = amount;
+    }
+
     public List<ContentPart> parts() {
         return parts;
     }
 
     public double price() {
         return price;
+    }
+
+    public void price(double price) {
+        this.price = price;
     }
 
     public Component asComponent(ILocalizer localizer, Economy economy) {

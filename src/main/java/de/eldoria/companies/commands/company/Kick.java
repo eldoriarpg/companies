@@ -42,7 +42,14 @@ public class Kick extends EldoCommand {
                         messageSender().sendError(sender, "Not part of the company");
                         return;
                     }
+
                     var member = optMember.get();
+
+                    if(member.hasPermission(CompanyPermission.KICK)){
+                        messageSender().sendError(sender, "You can not kick this user.");
+                        return;
+                    }
+
                     companyData.submitMemberUpdate(member.kick());
                     messageSender().sendMessage(sender, "You kicked " + member.player().getName());
                     if (!member.player().isOnline()) return;

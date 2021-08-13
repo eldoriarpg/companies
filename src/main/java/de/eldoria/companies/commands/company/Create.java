@@ -103,7 +103,9 @@ public class Create extends EldoCommand {
                         return economy.withdrawPlayer(player, configuration.companySettings().foudingPrice()).type == EconomyResponse.ResponseType.SUCCESS;
                     }).whenComplete(result -> {
                         if (!result) {
-                            messageSender().sendError(player, "Not enough " + economy.currencyNamePlural());
+                            var fallbackCurr = economy.currencyNameSingular().isBlank() ? "money" : economy.currencyNameSingular();
+                            var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
+                            messageSender().sendError(player, "Not enough " + curr);
                             return;
                         }
                         companyData.submitCompanyCreation(name)

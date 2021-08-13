@@ -7,12 +7,14 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public class OrderBuilder {
@@ -23,8 +25,12 @@ public class OrderBuilder {
         order = new SimpleOrder(owner, name);
     }
 
-    public void addContent(ItemStack stack, int amount, float price) {
-        elements.add(new OrderContent(stack, amount, price));
+    public void addContent(ItemStack stack, int amount, double price) {
+        var first = elements.stream().filter(orderContent -> orderContent.material() == stack.getType()).findFirst();
+        first.ifPresentOrElse(o -> {
+            o.amount(o.amount() + amount);
+            o.price(o.price() + price);
+        }, () -> elements.add(new OrderContent(stack, amount, price)));
     }
 
     public FullOrder build() {
@@ -62,24 +68,29 @@ public class OrderBuilder {
     public Component asComponent(OrderSettings setting, ILocalizer localizer, Economy economy) {
         var items = Component.text()
                 .append(Component.text(order.name())).append(Component.newline())
-                .append(Component.text("Items"));
-        if (setting.maxItems() != amount() && setting.maxMaterials() != setting.maxMaterials()) {
-            items.append(Component.space()).append(Component.text("[add]").clickEvent(ClickEvent.suggestCommand("/order create add ")));
+                .append(Component.text("Items:"));
+        if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
+            items.append(Component.space()).append(Component.text("[add]", NamedTextColor.GREEN).clickEvent(ClickEvent.suggestCommand("/order create add ")));
         }
 
         for (var element : elements) {
-            items.append(Component.newline()).append(element.asComponent(localizer, economy));
+            items.append(Component.newline()).append(element.asComponent(localizer, economy))
+                    .append(Component.text("[remove]", NamedTextColor.RED).clickEvent(ClickEvent.runCommand("/order create remove " + element.materialString())));
         }
 
         items.append(Component.newline());
 
-        items.append(Component.text("Materials: " + materialsAmount() + "/" + setting.maxMaterials()))
-                .append(Component.text("Items: " + amount() + "/" + setting.maxItems()))
-                .append(Component.text(economy.format(price())))
+        items.append(Component.text("Materials: " + materialsAmount() + "/" + setting.maxMaterials())).append(Component.newline())
+                .append(Component.text("Items: " + amount() + "/" + setting.maxItems())).append(Component.newline())
+                .append(Component.text("Price: " + economy.format(price())))
                 .append(Component.newline())
-                .append(Component.text("[done]").clickEvent(ClickEvent.runCommand("/order create done")))
+                .append(Component.text("[done]", NamedTextColor.GREEN).clickEvent(ClickEvent.runCommand("/order create done")))
                 .append(Component.space())
-                .append(Component.text("[cancel]").clickEvent(ClickEvent.runCommand("/order create cancel")));
+                .append(Component.text("[cancel]", NamedTextColor.RED).clickEvent(ClickEvent.runCommand("/order create cancel")));
         return items.build();
+    }
+
+    public void removeContent(Material parse) {
+        elements.removeIf(o -> o.material() == parse);
     }
 }

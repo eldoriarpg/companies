@@ -17,7 +17,7 @@ public class CompanyProfile extends SimpleCompany {
     }
 
     public Optional<CompanyMember> member(OfflinePlayer player) {
-        return members.stream().filter(m -> m.uuid() == player.getUniqueId()).findAny();
+        return members.stream().filter(m -> m.uuid().equals(player.getUniqueId())).findAny();
     }
 
     public List<CompanyMember> members() {

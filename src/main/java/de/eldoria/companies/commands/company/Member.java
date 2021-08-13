@@ -50,7 +50,7 @@ public class Member extends EldoCommand {
 
                     for (var member : optProfile.get().members()) {
                         var mem = member.player();
-                        if (mem == null) return;
+                        if (mem == null) continue;
                         var hoverBuilder = Component.text();
 
                         if (mem.isOnline()) {
@@ -64,7 +64,8 @@ public class Member extends EldoCommand {
                             var permissions = member.permissions().stream()
                                     .map(perm -> Component.text(perm.name().toLowerCase(Locale.ROOT)))
                                     .collect(Collectors.toList());
-                            hoverBuilder.append(Component.text("Permissions: "))
+                            hoverBuilder.append(Component.newline())
+                                    .append(Component.text("Permissions: "))
                                     .append(Component.join(Component.text(", "), permissions));
                         }
                         var nameComp = Component.text(mem.getName())

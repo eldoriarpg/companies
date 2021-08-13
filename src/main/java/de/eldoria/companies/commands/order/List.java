@@ -37,7 +37,7 @@ public class List extends EldoCommand {
                                     .append(Component.text("Your orders:"))
                                     .append(Component.newline());
                             for (var order : orders) {
-                                component.append(order.userShortInfo(localizer(), economy));
+                                component.append(order.userShortInfo(localizer(), economy)).append(Component.newline());
                             }
                             audiences.sender(sender).sendMessage(component);
                         })));

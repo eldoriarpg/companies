@@ -4,7 +4,7 @@ import de.chojo.sqlutil.updater.SqlType;
 import de.chojo.sqlutil.updater.SqlUpdater;
 import de.chojo.sqlutil.updater.logging.JavaLogger;
 import de.eldoria.companies.commands.Company;
-import de.eldoria.companies.commands.company.Order;
+import de.eldoria.companies.commands.Order;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
@@ -69,7 +69,7 @@ public class Companies extends EldoPlugin {
         }
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration));
-        registerCommand("order", new Order(this, companyData, orderData, economy, configuration));
+        registerCommand("order", new Order(this, orderData, configuration, economy));
     }
 
     @Override
