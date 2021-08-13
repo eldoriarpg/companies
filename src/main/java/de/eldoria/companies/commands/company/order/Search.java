@@ -1,9 +1,8 @@
 package de.eldoria.companies.commands.company.order;
 
-import de.eldoria.companies.commands.company.order.search.All;
-import de.eldoria.companies.commands.company.order.search.MaterialSearch;
-import de.eldoria.companies.commands.company.order.search.NameSearch;
 import de.eldoria.companies.commands.company.order.search.Page;
+import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -22,9 +21,7 @@ public class Search extends EldoCommand {
     public Search(Plugin plugin, AOrderData orderData, Economy economy) {
         super(plugin);
         page = new Page(plugin, this, economy);
-        registerCommand("all", new All(plugin, orderData, this));
-        registerCommand("material", new MaterialSearch(plugin, orderData, this));
-        registerCommand("name", new NameSearch(plugin, orderData, this));
+        registerCommand("query", new Query(plugin, orderData, this));
         registerCommand("page", page);
     }
 

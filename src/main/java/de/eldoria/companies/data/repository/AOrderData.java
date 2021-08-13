@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import de.chojo.sqlutil.base.QueryFactoryHolder;
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
@@ -178,7 +179,7 @@ public abstract class AOrderData extends QueryFactoryHolder {
     protected abstract void purgeCompanyOrders(SimpleCompany profile);
 
     public BukkitFutureResult<Void> submitCompanyOrdersPurge(SimpleCompany profile) {
-       return CompletableBukkitFuture.runAsync(() -> purgeCompanyOrders(profile), executorService);
+        return CompletableBukkitFuture.runAsync(() -> purgeCompanyOrders(profile), executorService);
     }
 
     public BukkitFutureResult<Void> submitOrderDeletion(SimpleOrder order) {
@@ -186,6 +187,12 @@ public abstract class AOrderData extends QueryFactoryHolder {
     }
 
     protected abstract void deleteOrder(SimpleOrder order);
+
+    public BukkitFutureResult<List<FullOrder>> retrieveOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
+        return CompletableBukkitFuture.supplyAsync(() -> getOrdersByQuery(searchQuery, min, max), executorService);
+    }
+
+    protected abstract List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max);
 
     protected static class ItemStackContainer {
         private final Map<String, Object> data;

@@ -18,8 +18,10 @@ import org.bukkit.plugin.Plugin;
 public class Company extends EldoCommand {
     public Company(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
+        var profile = new Profile(plugin, companyData, orderData);
+        setDefaultCommand(profile);
         registerCommand("create", new Create(plugin, companyData, economy, configuration));
-        registerCommand("create", new Profile(plugin, companyData, orderData));
+        registerCommand("create", profile);
         registerCommand("invite", new Invite(plugin, companyData, configuration));
         registerCommand("kick", new Kick(plugin, companyData));
         registerCommand("leave", new Leave(plugin, companyData, orderData));

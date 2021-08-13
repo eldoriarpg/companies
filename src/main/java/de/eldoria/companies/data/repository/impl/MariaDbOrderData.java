@@ -2,6 +2,7 @@ package de.eldoria.companies.data.repository.impl;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
@@ -24,8 +25,9 @@ public class MariaDbOrderData extends AOrderData {
 
     /**
      * Create a new QueryBuilderFactory
-     *  @param dataSource data source
-     * @param plugin     plugin
+     *
+     * @param dataSource      data source
+     * @param plugin          plugin
      * @param executorService
      */
     public MariaDbOrderData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
@@ -217,6 +219,28 @@ public class MariaDbOrderData extends AOrderData {
                 .query("DELETE FROM orders WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(order.id()))
                 .update().executeSync();
+    }
+
+    @Override
+    protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
+        var orders = builder(SimpleOrder.class)
+                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o " +
+                       "LEFT JOIN (SELECT c.id,GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price FROM order_content c GROUP BY id) oc " +
+                       "LEFT JOIN order_states os ON o.id = os.id " +
+                       "ON o.id = oc.id " +
+                       "WHERE name = ? " +
+                       "AND oc.materials REGEXP ? " +
+                       "AND oc.price > ? AND oc.price < ? " +
+                       "AND oc.amount > ? AND oc.price < ?")
+                .paramsBuilder(stmt -> stmt.setString("%" + searchQuery.name() + "%")
+                        .setString(searchQuery.materialRegex())
+                        .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
+                        .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize()))
+                .readRow(this::buildSimpleOrder)
+                .allSync();
+        var fullOrders = toFullOrders(orders);
+        searchQuery.sort(fullOrders);
+        return fullOrders;
     }
 
     @Override

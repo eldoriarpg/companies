@@ -47,7 +47,6 @@ public class Page extends EldoCommand {
         return true;
     }
 
-    @Contract("mutates -> this")
     public void renderPage(Player player, int page) {
         var fullOrders = search.results().get(player.getUniqueId());
 
