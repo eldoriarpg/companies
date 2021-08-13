@@ -30,7 +30,7 @@ dependencies {
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
 
     // database
-    compileOnly("com.zaxxer:HikariCP:5.0.0")
+    compileOnly("com.zaxxer", "HikariCP", "5.0.0")
     compileOnly("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
     compileOnly("org.xerial", "sqlite-jdbc", "3.7.2")
 

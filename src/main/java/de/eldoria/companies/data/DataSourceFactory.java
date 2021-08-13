@@ -42,6 +42,8 @@ public final class DataSourceFactory {
                         .withUser(db.user())
                         .withPassword(db.password())
                         .create()
+                        .withMaximumPoolSize(5)
+                        .withMinimumIdle(2)
                         .build();
                 break;
             case POSTGRES:

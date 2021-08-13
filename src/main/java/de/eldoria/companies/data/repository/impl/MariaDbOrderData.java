@@ -17,20 +17,21 @@ import javax.sql.DataSource;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
 public class MariaDbOrderData extends AOrderData {
 
     /**
      * Create a new QueryBuilderFactory
-     *
-     * @param dataSource data source
+     *  @param dataSource data source
      * @param plugin     plugin
+     * @param executorService
      */
-    public MariaDbOrderData(DataSource dataSource, Plugin plugin) {
+    public MariaDbOrderData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(QueryBuilderConfig.builder()
                 .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
-                .build(), dataSource);
+                .build(), dataSource, executorService);
     }
 
     @Override

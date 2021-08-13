@@ -26,15 +26,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public abstract class AOrderData extends QueryFactoryHolder {
     private static final Gson GSON = new GsonBuilder().create();
-    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
+    private final ExecutorService executorService;
 
-    public AOrderData(QueryBuilderConfig config, DataSource dataSource) {
+    public AOrderData(QueryBuilderConfig config, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, config);
+        this.executorService = executorService;
     }
 
     // Order Management

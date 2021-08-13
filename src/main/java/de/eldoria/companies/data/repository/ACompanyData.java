@@ -1,9 +1,7 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sqlutil.base.QueryFactoryHolder;
-import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
-import de.chojo.sqlutil.wrapper.QueryBuilderFactory;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
@@ -18,13 +16,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public abstract class ACompanyData extends QueryFactoryHolder {
-    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
+    private final ExecutorService executorService;
 
-    public ACompanyData(QueryBuilderConfig config, DataSource dataSource) {
+    public ACompanyData(QueryBuilderConfig config, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, config);
+        this.executorService = executorService;
     }
 
     public BukkitFutureResult<Void> submitMemberUpdate(CompanyMember member) {

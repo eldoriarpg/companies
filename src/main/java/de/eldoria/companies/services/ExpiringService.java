@@ -16,7 +16,7 @@ public class ExpiringService implements Runnable {
         this.configuration = configuration;
     }
 
-    public static ExpiringService create(MariaDbOrderData orderData, Configuration configuration, ScheduledExecutorService executorService) {
+    public static ExpiringService create(AOrderData orderData, Configuration configuration, ScheduledExecutorService executorService) {
         var expiringService = new ExpiringService(orderData, configuration);
         var interval = configuration.generalSettings().orderCheckInterval();
         executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);

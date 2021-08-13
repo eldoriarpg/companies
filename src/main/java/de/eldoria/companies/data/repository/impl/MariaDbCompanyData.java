@@ -14,14 +14,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
 public class MariaDbCompanyData extends ACompanyData {
 
-    public MariaDbCompanyData(DataSource dataSource, Plugin plugin) {
+    public MariaDbCompanyData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(QueryBuilderConfig.builder()
                 .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
-                .build(), dataSource);
+                .build(), dataSource, executorService);
     }
 
     @Override

@@ -62,21 +62,19 @@ CREATE TABLE order_states
             ON DELETE CASCADE
 );
 
-CREATE TABLE orders_delivered
+create table orders_delivered
 (
-    id          INTEGER    NOT NULL,
-    worker_uuid BINARY(16) NOT NULL,
-    material    TEXT       NOT NULL,
-    delivered   INT        NULL,
-    CONSTRAINT orders_delivered_id_worker_uuid_material_uindex
-        UNIQUE (id, worker_uuid, material) USING HASH,
-    CONSTRAINT orders_delivered_orders_id_fk
-        FOREIGN KEY (id) REFERENCES orders (id)
-            ON DELETE CASCADE
+    id int not null,
+    worker_uuid BINARY(16) not null,
+    material TEXT not null,
+    delivered int not null,
+    constraint orders_delivered_orders_id_fk
+        foreign key (id) references orders (id)
+            on delete cascade
 );
 
-CREATE INDEX orders_delivered_id_index
-    ON orders_delivered (id);
+create index orders_delivered_id_index
+    on orders_delivered (id);
 
-CREATE INDEX orders_delivered_id_worker_uuid_index
-    ON orders_delivered (id, worker_uuid);
+create unique index orders_delivered_id_worker_uuid_material_uindex
+    on orders_delivered (id, worker_uuid, material);
