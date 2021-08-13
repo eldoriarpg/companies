@@ -1,7 +1,5 @@
 package de.eldoria.companies;
 
-import com.zaxxer.hikari.HikariDataSource;
-import de.chojo.sqlutil.datasource.DataSourceCreator;
 import de.chojo.sqlutil.updater.SqlType;
 import de.chojo.sqlutil.updater.SqlUpdater;
 import de.chojo.sqlutil.updater.logging.JavaLogger;
@@ -13,23 +11,21 @@ import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
-import de.eldoria.companies.data.repository.impl.MariaDbCompanyData;
-import de.eldoria.companies.data.repository.impl.MariaDbOrderData;
+import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.impl.MariaDbCompanyData;
+import de.eldoria.companies.data.repository.impl.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.SqLiteCompanyData;
+import de.eldoria.companies.data.repository.impl.SqLiteOrderData;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.mariadb.jdbc.MariaDbDataSource;
-import org.sqlite.SQLiteDataSource;
 
 import javax.sql.DataSource;
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.logging.Level;
@@ -71,7 +67,6 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
-
     }
 
     @Override
@@ -86,17 +81,15 @@ public class Companies extends EldoPlugin {
 
         switch (configuration.databaseSettings().storageType()) {
             case SQLITE:
-                builder = SqlUpdater
-                        .builder(dataSource, SqlType.SQLITE);
+                builder = SqlUpdater.builder(dataSource, SqlType.SQLITE);
                 break;
             case MARIADB:
-                builder = SqlUpdater
-                        .builder(dataSource, SqlType.MARIADB);
+                builder = SqlUpdater.builder(dataSource, SqlType.MARIADB);
                 break;
             case POSTGRES:
-                builder = SqlUpdater
-                        .builder(dataSource, SqlType.POSTGRES);
                 throw new IllegalStateException("Not Implemented yet");
+            default:
+                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }
 
         builder.setVersionTable("order_db_version")
@@ -108,67 +101,23 @@ public class Companies extends EldoPlugin {
     }
 
     private void buildDataSource() throws SQLException {
-        var db = configuration.databaseSettings();
-        switch (db.storageType()) {
-            case SQLITE:
-                var path = getDataFolder().toPath().resolve(Paths.get("data.db"));
-                try {
-                    path = Files.createFile(path);
-                } catch (FileAlreadyExistsException e) {
-                    logger().info("Found sqlite database file.");
-                } catch (IOException e) {
-                    logger().log(Level.SEVERE, "Could not create database file", e);
-                    throw new IllegalStateException("Failed to init Database");
-                }
-                var sqLiteDataSource = new SQLiteDataSource();
-                sqLiteDataSource.setUrl("jdbc:sqlite:" + path.toString());
-                dataSource = sqLiteDataSource;
-
-                var hikariDataSource = new HikariDataSource();
-                hikariDataSource.setConnectionTestQuery("SELECT 1");
-                hikariDataSource.setDataSource(dataSource);
-                dataSource = hikariDataSource;
-                break;
-            case MARIADB:
-                dataSource = DataSourceCreator
-                        .create(MariaDbDataSource.class)
-                        .withAddress(db.host())
-                        .withPort(db.port())
-                        .forDatabase(db.database())
-                        .withUser(db.user())
-                        .withPassword(db.password())
-                        .create()
-                        .build();
-                break;
-            case POSTGRES:
-                // TODO: probably implement in the future
-                dataSource = DataSourceCreator
-                        .create(MariaDbDataSource.class)
-                        .withAddress(db.host())
-                        .withPort(db.port())
-                        .forDatabase(db.database())
-                        .withUser(db.user())
-                        .withPassword(db.password())
-                        .create()
-                        .forSchema(db.schema())
-                        .build();
-                throw new IllegalStateException("Not Implemented yet");
-        }
-
-        try (var conn = dataSource.getConnection(); var stmt = conn.prepareStatement("SELECT 1")) {
-            stmt.execute();
-        }
+        dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
     }
 
     private void initDataRepositories() {
         switch (configuration.databaseSettings().storageType()) {
             case SQLITE:
+                companyData = new SqLiteCompanyData(dataSource, this);
+                orderData = new SqLiteOrderData(dataSource, this);
+                break;
             case MARIADB:
                 companyData = new MariaDbCompanyData(dataSource, this);
                 orderData = new MariaDbOrderData(dataSource, this);
                 break;
             case POSTGRES:
-                break;
+                throw new IllegalStateException("Not Implemented yet");
+            default:
+                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }
     }
 }

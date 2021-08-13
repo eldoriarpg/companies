@@ -10,7 +10,7 @@ group = "de.eldoria"
 version = "1.0"
 description = "Save order based trading."
 var mainPackage = "companies"
-val shadebade = group as String? + "." + mainPackage + ".libs."
+val shadebase = group as String? + "." + mainPackage + ".libs."
 
 repositories {
     mavenCentral()
@@ -20,14 +20,19 @@ repositories {
 
 dependencies {
     implementation("de.eldoria", "eldo-util", "1.9.3-DEV")
-    implementation("de.chojo", "sql-util", "1.1.2") {
+    implementation("de.chojo", "sql-util", "1.1.3-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
+        exclude("com.zaxxer")
     }
-    implementation("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
-    implementation("org.xerial", "sqlite-jdbc", "3.7.2")
+    // text
     implementation("net.kyori", "adventure-api", "4.8.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
+
+    // database
+    compileOnly("com.zaxxer:HikariCP:5.0.0")
+    compileOnly("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
+    compileOnly("org.xerial", "sqlite-jdbc", "3.7.2")
 
     compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains", "annotations", "20.1.0")
@@ -90,17 +95,13 @@ tasks {
     }
 
     shadowJar {
-        relocate("de.eldoria.eldoutilities", shadebade + "eldoutilities")
-        relocate("net.kyori", shadebade + "kyori")
-        relocate("com.zaxxer", shadebade + "hikari")
-        relocate("org.mariadb", shadebade + "mariadb")
-        relocate("org.sqlite", shadebade + "sqlite")
-        relocate("de.chojo.sqlutil", shadebade + "sqlutil")
+        relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
+        relocate("de.chojo.sqlutil", shadebase + "sqlutil")
         mergeServiceFiles()
-       // minimize {
-       //     exclude("org.sqlite")
-       //     exclude("org.mariadb")
-       // }
+        minimize {
+            exclude(dependency("org.xerial:.*:.*"))
+            // exclude(dependency("org.mariadb:.*:.*"))
+        }
         archiveClassifier.set("")
     }
 
