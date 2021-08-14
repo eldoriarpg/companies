@@ -1,10 +1,13 @@
 package de.eldoria.companies.data.repository;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import de.chojo.sqlutil.base.QueryFactoryHolder;
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.eldoria.companies.Companies;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
@@ -26,13 +29,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public abstract class AOrderData extends QueryFactoryHolder {
     private static final Gson GSON = new GsonBuilder().create();
     private final ExecutorService executorService;
+    private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).build();
 
     public AOrderData(QueryBuilderConfig config, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, config);
@@ -47,7 +55,10 @@ public abstract class AOrderData extends QueryFactoryHolder {
     protected abstract void putOrder(OfflinePlayer player, FullOrder order);
 
     public BukkitFutureResult<Void> submitOrderStateUpdate(SimpleOrder order, OrderState state) {
-        return CompletableBukkitFuture.runAsync(() -> updateOrderState(order, state), executorService);
+        return CompletableBukkitFuture.runAsync(() -> {
+            updateOrderState(order, state);
+            invalidateFullOrder(order);
+        }, executorService);
     }
 
     protected abstract void updateOrderState(SimpleOrder order, OrderState state);
@@ -59,25 +70,38 @@ public abstract class AOrderData extends QueryFactoryHolder {
     protected abstract List<SimpleOrder> getExpiredOrders(int hours);
 
     public BukkitFutureResult<Boolean> submitOrderClaim(SimpleCompany company, SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> claimOrder(company, order));
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var result = claimOrder(company, order);
+            invalidateFullOrder(order);
+            return result;
+        });
     }
 
     protected abstract boolean claimOrder(SimpleCompany company, SimpleOrder order);
 
     public void submitOrderDelivered(SimpleOrder order) {
-        CompletableBukkitFuture.runAsync(() -> orderDelivered(order), executorService);
+        CompletableBukkitFuture.runAsync(() -> {
+            orderDelivered(order);
+            invalidateFullOrder(order);
+        }, executorService);
     }
 
     protected abstract void orderDelivered(SimpleOrder order);
 
     public FutureResult<Void> submitUnclaimOrder(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> unclaimOrder(order));
+        return CompletableBukkitFuture.runAsync(() -> {
+            unclaimOrder(order);
+            invalidateFullOrder(order);
+        });
     }
 
     protected abstract void unclaimOrder(SimpleOrder order);
 
     public BukkitFutureResult<Void> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
-        return CompletableBukkitFuture.runAsync(() -> deliver(player, order, material, amount), executorService);
+        return CompletableBukkitFuture.runAsync(() -> {
+            deliver(player, order, material, amount);
+            invalidateFullOrder(order);
+        }, executorService);
     }
 
     protected abstract void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount);
@@ -106,24 +130,6 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract List<SimpleOrder> ordersByPlayer(OfflinePlayer player, OrderState min, OrderState max);
 
-    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByState(OrderState min, OrderState max) {
-        return CompletableBukkitFuture.supplyAsync(() -> ordersByState(min, max), executorService);
-    }
-
-    protected abstract List<SimpleOrder> ordersByState(OrderState min, OrderState max);
-
-    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByName(String name, OrderState min, OrderState max) {
-        return CompletableBukkitFuture.supplyAsync(() -> ordersByName(name, min, max), executorService);
-    }
-
-    protected abstract List<SimpleOrder> ordersByName(String name, OrderState min, OrderState max);
-
-    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByMaterial(String material, OrderState min, OrderState max) {
-        return CompletableBukkitFuture.supplyAsync(() -> ordersByMaterial(material, min, max), executorService);
-    }
-
-    protected abstract List<SimpleOrder> ordersByMaterial(String material, OrderState min, OrderState max);
-
     public SimpleOrder buildSimpleOrder(ResultSet rs) throws SQLException {
         return new SimpleOrder(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("owner_uuid")),
                 rs.getString("name"), rs.getTimestamp("last_update").toLocalDateTime(),
@@ -138,14 +144,14 @@ public abstract class AOrderData extends QueryFactoryHolder {
     public List<FullOrder> toFullOrders(List<SimpleOrder> orders) {
         List<CompletableFuture<FullOrder>> fullOrders = new ArrayList<>();
         for (var order : orders) {
-            fullOrders.add(CompletableFuture.supplyAsync(() -> toFullOrder(order), executorService));
+            fullOrders.add(CompletableFuture.supplyAsync(() -> cacheFullOrder(1, () -> Optional.of(toFullOrder(order))).get(), executorService));
         }
         CompletableFuture.allOf(fullOrders.toArray(CompletableFuture[]::new));
         return fullOrders.stream().map(CompletableFuture::join).collect(Collectors.toList());
     }
 
     public BukkitFutureResult<FullOrder> retrieveFullOrder(SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> toFullOrder(order), executorService);
+        return CompletableBukkitFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))).get(), executorService);
     }
 
     public FullOrder toFullOrder(SimpleOrder order) {
@@ -184,7 +190,10 @@ public abstract class AOrderData extends QueryFactoryHolder {
     }
 
     public BukkitFutureResult<Void> submitOrderDeletion(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> deleteOrder(order));
+        return CompletableBukkitFuture.runAsync(() -> {
+            invalidateFullOrder(order);
+            deleteOrder(order);
+        });
     }
 
     protected abstract void deleteOrder(SimpleOrder order);
@@ -195,8 +204,34 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max);
 
+    protected ExecutorService executorService() {
+        return executorService;
+    }
+
+    protected Optional<FullOrder> cacheFullOrder(SimpleOrder order, Callable<Optional<FullOrder>> orderCallable) {
+        return cacheFullOrder(order.id(), orderCallable);
+    }
+
+    protected Optional<FullOrder> cacheFullOrder(int id, Callable<Optional<FullOrder>> orderCallable) {
+        try {
+            fullOrderCache.get(id, orderCallable);
+        } catch (ExecutionException e) {
+            Companies.logger().log(Level.SEVERE, "Could not compute value for order " + id);
+        }
+        return Optional.empty();
+    }
+
+    protected void invalidateFullOrder(SimpleOrder order) {
+        invalidateFullOrder(order.id());
+    }
+
+    protected void invalidateFullOrder(int id) {
+        fullOrderCache.invalidate(id);
+    }
+
     protected static class ItemStackContainer {
-        private final Map<String, Object> data;
+        @SuppressWarnings("FieldMayBeFinal")
+        private Map<String, Object> data;
 
         private ItemStackContainer(Map<String, Object> data) {
             this.data = data;
@@ -209,9 +244,5 @@ public abstract class AOrderData extends QueryFactoryHolder {
         public ItemStack toItemStack() {
             return ItemStack.deserialize(data);
         }
-    }
-
-    protected ExecutorService executorService() {
-        return executorService;
     }
 }

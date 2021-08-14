@@ -10,8 +10,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class CompanyMember {
-    private int company;
     private final UUID uuid;
+    private int company;
     private long permission;
 
     private CompanyMember(int company, UUID uuid, long permission) {
@@ -20,8 +20,24 @@ public class CompanyMember {
         this.permission = permission;
     }
 
+    public static CompanyMember forCompany(SimpleCompany company, OfflinePlayer player) {
+        return new CompanyMember(company.id(), player.getUniqueId(), 0);
+    }
+
+    public static CompanyMember forCompanyId(int company, OfflinePlayer player) {
+        return new CompanyMember(company, player.getUniqueId(), 0);
+    }
+
+    public static CompanyMember withoutCompany(OfflinePlayer player) {
+        return new CompanyMember(-1, player.getUniqueId(), 0);
+    }
+
+    public static CompanyMember of(int company, UUID player, long permission) {
+        return new CompanyMember(company, player, permission);
+    }
+
     public boolean hasPermission(CompanyPermission permissions) {
-        if(isOwner()) return true;
+        if (isOwner()) return true;
         return permissions.hasPermission(permission);
     }
 
@@ -75,21 +91,5 @@ public class CompanyMember {
 
     public boolean isOwner() {
         return CompanyPermission.hasPermission(permission, CompanyPermission.OWNER);
-    }
-
-    public static CompanyMember forCompany(SimpleCompany company, OfflinePlayer player) {
-        return new CompanyMember(company.id(), player.getUniqueId(), 0);
-    }
-
-    public static CompanyMember forCompanyId(int company, OfflinePlayer player) {
-        return new CompanyMember(company, player.getUniqueId(), 0);
-    }
-
-    public static CompanyMember withoutCompany(OfflinePlayer player) {
-        return new CompanyMember(-1, player.getUniqueId(), 0);
-    }
-
-    public static CompanyMember of(int company, UUID player, long permission) {
-        return new CompanyMember(company, player, permission);
     }
 }

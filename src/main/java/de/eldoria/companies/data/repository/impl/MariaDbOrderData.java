@@ -28,7 +28,7 @@ public class MariaDbOrderData extends AOrderData {
      *
      * @param dataSource      data source
      * @param plugin          plugin
-     * @param executorService
+     * @param executorService executor service for future handling
      */
     public MariaDbOrderData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(QueryBuilderConfig.builder()
@@ -148,33 +148,6 @@ public class MariaDbOrderData extends AOrderData {
         return builder(SimpleOrder.class)
                 .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.owner_uuid = ? AND state >= ? AND state <= ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())).setInt(min.stateId()).setInt(max.stateId()))
-                .readRow(this::buildSimpleOrder)
-                .allSync();
-    }
-
-    @Override
-    protected List<SimpleOrder> ordersByState(OrderState min, OrderState max) {
-        return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE state >= ? AND state <= ?")
-                .paramsBuilder(stmt -> stmt.setInt(min.stateId()).setInt(max.stateId()))
-                .readRow(this::buildSimpleOrder)
-                .allSync();
-    }
-
-    @Override
-    protected List<SimpleOrder> ordersByName(String name, OrderState min, OrderState max) {
-        return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE name = ? AND state >= ? AND state <= ?")
-                .paramsBuilder(stmt -> stmt.setString("%" + name + "%").setInt(min.stateId()).setInt(max.stateId()))
-                .readRow(this::buildSimpleOrder)
-                .allSync();
-    }
-
-    @Override
-    protected List<SimpleOrder> ordersByMaterial(String material, OrderState min, OrderState max) {
-        return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM (SELECT id FROM order_content WHERE material LIKE ?) m LEFT JOIN orders o ON m.id = o.id LEFT JOIN order_states oc ON o.id = oc.id WHERE  state >= ? AND state <= ?")
-                .paramsBuilder(stmt -> stmt.setString("%" + material + "%").setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
     }

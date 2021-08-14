@@ -13,8 +13,9 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
     /**
      * Create a new QueryBuilderFactory
-     *  @param dataSource data source
-     * @param plugin     plugin
+     *
+     * @param dataSource      data source
+     * @param plugin          plugin
      * @param executorService
      */
     public SqLiteOrderData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
