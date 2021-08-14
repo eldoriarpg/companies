@@ -16,11 +16,11 @@ public class SearchQuery {
     private double maxPrice = Double.MAX_VALUE;
     private int minOrderSize = 0;
     private int maxOrderSize = Integer.MAX_VALUE;
-    private Sorting sorting = Sorting.AGE;
+    private SortingType sortingType = SortingType.AGE;
     private boolean asc = true;
 
     public void sort(List<FullOrder> orders) {
-        sorting.sort(orders, asc);
+        sortingType.sort(orders, asc);
     }
 
     public String name() {
@@ -88,12 +88,12 @@ public class SearchQuery {
     }
 
 
-    public Sorting sorting() {
-        return sorting;
+    public SortingType sorting() {
+        return sortingType;
     }
 
-    public void sorting(Sorting sorting) {
-        this.sorting = sorting;
+    public void sorting(SortingType sortingType) {
+        this.sortingType = sortingType;
     }
 
     public boolean isAsc() {
@@ -137,8 +137,8 @@ public class SearchQuery {
                 .append(Component.text("[change]").clickEvent(ClickEvent.suggestCommand(queryCmd + "max_size ")))
                 .append(Component.newline())
                 .append(Component.text("Order by: "));
-        for (var sort : Sorting.values()) {
-            builder.append(Component.text("[" + sort.name() + "]", sort == sorting ? NamedTextColor.GREEN : NamedTextColor.GRAY)
+        for (var sort : SortingType.values()) {
+            builder.append(Component.text("[" + sort.name() + "]", sort == sortingType ? NamedTextColor.GREEN : NamedTextColor.GRAY)
                     .clickEvent(ClickEvent.runCommand(queryCmd + "sorting " + sort)));
         }
         builder.append(Component.text("[asc]", asc ? NamedTextColor.GREEN : NamedTextColor.GRAY))

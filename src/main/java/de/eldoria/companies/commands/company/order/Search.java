@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+// TODO: Testing
 public class Search extends EldoCommand {
     private final Page page;
     private Map<UUID, List<FullOrder>> results = new HashMap<>();
@@ -21,7 +22,9 @@ public class Search extends EldoCommand {
     public Search(Plugin plugin, AOrderData orderData, Economy economy) {
         super(plugin);
         page = new Page(plugin, this, economy);
-        registerCommand("query", new Query(plugin, orderData, this));
+        var query = new Query(plugin, orderData, this);
+        setDefaultCommand(query);
+        registerCommand("query", query);
         registerCommand("page", page);
     }
 

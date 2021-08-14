@@ -14,10 +14,12 @@ import org.bukkit.plugin.Plugin;
 public class Order extends EldoCommand {
     public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy) {
         super(plugin);
+        var list = new List(plugin, orderData, economy);
+        setDefaultCommand(list);
         registerCommand("cancel", new Cancel(plugin, orderData, economy));
         registerCommand("create", new Create(plugin, orderData, economy, configuration));
         registerCommand("info", new Info(plugin, orderData, economy));
-        registerCommand("list", new List(plugin, orderData, economy));
+        registerCommand("list", list);
         registerCommand("receive", new Receive(plugin, orderData));
     }
 }

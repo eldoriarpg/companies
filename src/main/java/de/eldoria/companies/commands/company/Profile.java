@@ -42,6 +42,7 @@ public class Profile extends EldoCommand {
                                 var component = Component.text()
                                         .append(Component.text(profile.name()).append(Component.newline()))
                                         .append(Component.text("Founded " + profile.foundedString())).append(Component.newline())
+                                        .append(Component.text("Leader: " + profile.owner().player().getName())).append(Component.newline())
                                         .append(Component.text("Members: " + profile.members().size())).append(Component.text("[list]")
                                                 .clickEvent(ClickEvent.runCommand("/company member"))).append(Component.newline())
                                         .append(Component.text("Orders: " + orders.size())).append(Component.text("[list]")
