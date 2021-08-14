@@ -11,22 +11,10 @@ public enum CompanyPermission {
     MANAGE_ORDERS(3),
     MANAGE_PERMISSIONS(4);
 
-    CompanyPermission(int mask) {
-        this.mask = toBitMask(mask);
-    }
-
     private final long mask;
 
-    public boolean hasPermission(long mask) {
-        return (mask & (mask())) != 0L;
-    }
-
-    private long toBitMask(int mask) {
-        return 1L << mask;
-    }
-
-    public long mask() {
-        return mask;
+    CompanyPermission(int mask) {
+        this.mask = toBitMask(mask);
     }
 
     public static long composePermissions(CompanyPermission... permissions) {
@@ -45,5 +33,17 @@ public enum CompanyPermission {
     public static boolean hasPermission(long mask, CompanyPermission... permissions) {
         for (var permission : permissions) if (!permission.hasPermission(mask)) return false;
         return true;
+    }
+
+    public boolean hasPermission(long mask) {
+        return (mask & (mask())) != 0L;
+    }
+
+    private long toBitMask(int mask) {
+        return 1L << mask;
+    }
+
+    public long mask() {
+        return mask;
     }
 }

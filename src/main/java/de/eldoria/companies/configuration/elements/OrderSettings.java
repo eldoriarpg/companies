@@ -16,15 +16,14 @@ public class OrderSettings implements ConfigurationSerializable {
         maxMaterials = map.getValueOrDefault("maxMaterials", maxMaterials);
     }
 
+    public OrderSettings() {
+    }
+
     @Override
     @NotNull
     public Map<String, Object> serialize() {
         return SerializationUtil.newBuilder()
                 .build();
-    }
-
-
-    public OrderSettings() {
     }
 
     public int maxItems() {

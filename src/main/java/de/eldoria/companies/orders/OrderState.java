@@ -24,12 +24,12 @@ public enum OrderState {
         this.stateId = stateId;
     }
 
-    public int stateId() {
-        return stateId;
-    }
-
     public static OrderState byId(int stateId) {
         for (var value : values()) if (value.stateId == stateId) return value;
         return null;
+    }
+
+    public int stateId() {
+        return stateId;
     }
 }

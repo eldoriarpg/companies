@@ -1,7 +1,6 @@
 package de.eldoria.companies.services;
 
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.repository.impl.MariaDbOrderData;
 import de.eldoria.companies.data.repository.AOrderData;
 
 import java.util.concurrent.ScheduledExecutorService;

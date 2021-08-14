@@ -35,15 +35,15 @@ import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 
 public class Companies extends EldoPlugin {
+    private final Thread.UncaughtExceptionHandler exceptionHandler =
+            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occured in " + t.getName() + "-" + t.getId() + ".", e);
+    private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
+    private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
     private Configuration configuration = null;
     private DataSource dataSource = null;
     private ACompanyData companyData = null;
     private AOrderData orderData = null;
     private Economy economy;
-    private final Thread.UncaughtExceptionHandler exceptionHandler =
-            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occured in " + t.getName() + "-" + t.getId() + ".", e);
-    private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
-    private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
 
     @Override
     public void onPluginEnable(boolean reload) throws Exception {
