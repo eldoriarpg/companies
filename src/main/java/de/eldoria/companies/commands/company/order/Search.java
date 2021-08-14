@@ -2,7 +2,6 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.commands.company.order.search.Page;
 import de.eldoria.companies.commands.company.order.search.Query;
-import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;

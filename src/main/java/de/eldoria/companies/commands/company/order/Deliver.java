@@ -2,7 +2,9 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -15,9 +17,11 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.OptionalInt;
 
 public class Deliver extends EldoCommand {
@@ -67,53 +71,69 @@ public class Deliver extends EldoCommand {
 
         companyData.retrievePlayerCompanyProfile(player).asFuture()
                 .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendError(sender, "You are not part of a company");
-                        return;
-                    }
-                    orderData.retrieveCompanyOrderById(id, company.get().id())
-                            .whenComplete(simpleOrder -> {
-                                if (simpleOrder.isEmpty()) {
-                                    messageSender().sendError(sender, "Order not found.");
-                                    return;
-                                }
-                                orderData.retrieveFullOrder(simpleOrder.get())
-                                        .whenComplete(fullOrder -> {
-                                            var optContent = fullOrder.content(material);
-                                            if (optContent.isEmpty()) {
-                                                messageSender().sendError(sender, "Invalid material");
-                                                return;
-                                            }
-                                            var content = optContent.get();
-                                            var deliver = Math.min(amount, content.missing());
-                                            var inv = player.getInventory();
-                                            var slots = inv.all(content.stack().getType());
-                                            var contained = 0;
-                                            for (var entry : slots.entrySet()) {
-                                                var stack = entry.getValue();
-                                                if (!stack.isSimilar(content.stack())) continue;
-                                                var take = Math.min(stack.getAmount(), deliver - contained);
-                                                stack.setAmount(stack.getAmount() - take);
-                                                contained += take;
-                                                if (contained == deliver) {
-                                                    break;
-                                                }
-                                            }
-                                            orderData.submitDelivery(player, simpleOrder.get(), material, contained)
-                                                    .whenComplete(v -> {
-                                                        orderData.retrieveFullOrder(simpleOrder.get())
-                                                                .whenComplete(refreshedFullOrder -> {
-                                                                    if (refreshedFullOrder.isDone()) {
-                                                                        orderDone(refreshedFullOrder);
-                                                                        return;
-                                                                    }
-                                                                    audiences.sender(sender).sendMessage(refreshedFullOrder.companyDetailInfo(company.get().member(player).get(), localizer(), economy));
-                                                                });
-                                                    });
-                                        });
-                            });
+                    handleCompany(sender, player, material, id, amount, company);
                 });
         return true;
+    }
+
+    private void handleCompany(@NotNull CommandSender sender, Player player, Material material, int id, int amount, Optional<CompanyProfile> company) {
+        if (company.isEmpty()) {
+            messageSender().sendError(sender, "You are not part of a company");
+            return;
+        }
+        orderData.retrieveCompanyOrderById(id, company.get().id())
+                .whenComplete(simpleOrder -> {
+                    handleOrder(sender, player, material, amount, company, simpleOrder);
+                });
+    }
+
+    private void handleOrder(@NotNull CommandSender sender, Player player, Material material, int amount, Optional<CompanyProfile> company, Optional<SimpleOrder> simpleOrder) {
+        if (simpleOrder.isEmpty()) {
+            messageSender().sendError(sender, "Order not found.");
+            return;
+        }
+        orderData.retrieveFullOrder(simpleOrder.get())
+                .whenComplete(fullOrder -> {
+                    handleFullOrder(sender, player, material, amount, company, simpleOrder, fullOrder);
+                });
+    }
+
+    private void handleFullOrder(@NotNull CommandSender sender, Player player, Material material, int amount, Optional<CompanyProfile> company, Optional<SimpleOrder> simpleOrder, FullOrder fullOrder) {
+        var optContent = fullOrder.content(material);
+        if (optContent.isEmpty()) {
+            messageSender().sendError(sender, "Invalid material");
+            return;
+        }
+        var content = optContent.get();
+        var deliver = Math.min(amount, content.missing());
+        var inv = player.getInventory();
+        var slots = inv.all(content.stack().getType());
+        var contained = 0;
+        for (var entry : slots.entrySet()) {
+            var stack = entry.getValue();
+            if (!stack.isSimilar(content.stack())) continue;
+            var take = Math.min(stack.getAmount(), deliver - contained);
+            stack.setAmount(stack.getAmount() - take);
+            contained += take;
+            if (contained == deliver) {
+                break;
+            }
+        }
+        orderData.submitDelivery(player, simpleOrder.get(), material, contained)
+                .whenComplete(v -> {
+                    orderData.retrieveFullOrder(simpleOrder.get())
+                            .whenComplete(refreshedFullOrder -> {
+                                handleRefreshedOrder(sender, player, company, refreshedFullOrder);
+                            });
+                });
+    }
+
+    private void handleRefreshedOrder(@NotNull CommandSender sender, Player player, Optional<CompanyProfile> company, FullOrder refreshedFullOrder) {
+        if (refreshedFullOrder.isDone()) {
+            orderDone(refreshedFullOrder);
+            return;
+        }
+        audiences.sender(sender).sendMessage(refreshedFullOrder.companyDetailInfo(company.get().member(player).get(), localizer(), economy));
     }
 
     private void orderDone(FullOrder order) {

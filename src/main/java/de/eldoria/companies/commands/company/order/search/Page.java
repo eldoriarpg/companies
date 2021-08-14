@@ -60,7 +60,7 @@ public class Page extends EldoCommand {
         builder.append(Component.join(Component.newline(), components)).append(Component.newline());
         if (page != 0) {
             builder.append(Component.text("<<< ").clickEvent(ClickEvent.runCommand("/company order search page " + (page - 1))));
-        }else {
+        } else {
             builder.append(Component.text("<<< ", NamedTextColor.DARK_GRAY));
         }
 
@@ -68,7 +68,7 @@ public class Page extends EldoCommand {
 
         if (fullOrders.size() - (page + 1) * PAGE_SIZE > 0) {
             builder.append(Component.text(" >>>").clickEvent(ClickEvent.runCommand("/company order search page " + (page + 1))));
-        }else {
+        } else {
             builder.append(Component.text(" >>>", NamedTextColor.DARK_GRAY));
         }
         audiences.sender(player).sendMessage(builder.build());

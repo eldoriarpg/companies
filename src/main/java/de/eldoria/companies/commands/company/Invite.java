@@ -3,6 +3,7 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
@@ -12,6 +13,7 @@ import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -22,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class Invite extends EldoCommand {
@@ -45,57 +48,12 @@ public class Invite extends EldoCommand {
         var player = getPlayerFromSender(sender);
 
         if ("accept".equalsIgnoreCase(args[0])) {
-            var data = invites.remove(player.getUniqueId());
-            if (data == null) {
-                messageSender().sendError(sender, "No pending invite");
-                return true;
-            }
-
-            companyData.retrievePlayerCompany(player)
-                    .whenComplete(company -> {
-                        if (company.isPresent()) {
-                            messageSender().sendError(sender, "You are already part of a company");
-                            return;
-                        }
-                        var inviter = Bukkit.getOfflinePlayer(data.inviter);
-                        companyData.retrieveCompanyProfile(data.company)
-                                .whenComplete(profile -> {
-                                    if (profile.isEmpty()) return;
-
-                                    if (profile.get().members().size() >= configuration.companySettings().maxMember()) {
-                                        messageSender().sendError(sender, "Company is already full");
-                                        return;
-                                    }
-
-                                    companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
-                                    messageSender().sendMessage(sender, "You have joined the company");
-                                    if (inviter.isOnline()) {
-                                        messageSender().sendMessage(inviter.getPlayer(), player.getName() + " has accepted your invite.");
-                                    }
-                                    if (profile.isEmpty()) return;
-                                    for (var member : profile.get().members()) {
-                                        if (member.player().isOnline()) {
-                                            messageSender().sendMessage(member.player().getPlayer(), player.getName() + " has joined the company.");
-                                        }
-
-                                    }
-                                });
-
-                    });
+            accept(sender, player);
             return true;
         }
 
         if ("deny".equalsIgnoreCase(args[0])) {
-            var data = invites.remove(player.getUniqueId());
-            if (data == null) {
-                messageSender().sendError(sender, "No pending invite");
-                return true;
-            }
-            messageSender().sendMessage(player, "Invite expired.");
-            var inviter = getPlugin().getServer().getPlayer(data.inviter);
-            if (inviter != null) {
-                messageSender().sendMessage(inviter, "Your invite was declined.");
-            }
+            deny(sender, player);
             return true;
         }
 
@@ -138,6 +96,63 @@ public class Invite extends EldoCommand {
         return true;
     }
 
+    private void deny(@NotNull CommandSender sender, Player player) {
+        var data = invites.remove(player.getUniqueId());
+        if (data == null) {
+            messageSender().sendError(sender, "No pending invite");
+            return;
+        }
+        messageSender().sendMessage(player, "Invite expired.");
+        var inviter = getPlugin().getServer().getPlayer(data.inviter);
+        if (inviter != null) {
+            messageSender().sendMessage(inviter, "Your invite was declined.");
+        }
+    }
+
+    private void accept(@NotNull CommandSender sender, Player player) {
+        var data = invites.remove(player.getUniqueId());
+        if (data == null) {
+            messageSender().sendError(sender, "No pending invite");
+            return;
+        }
+
+        companyData.retrievePlayerCompany(player)
+                .whenComplete(company -> {
+                    if (company.isPresent()) {
+                        messageSender().sendError(sender, "You are already part of a company");
+                        return;
+                    }
+                    var inviter = Bukkit.getOfflinePlayer(data.inviter);
+                    companyData.retrieveCompanyProfile(data.company)
+                            .whenComplete(profile -> {
+                                handleInviteAccept(sender, player, data, inviter, profile);
+                            });
+
+                });
+    }
+
+    private void handleInviteAccept(@NotNull CommandSender sender, Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
+        if (profile.isEmpty()) {
+            messageSender().sendError(player, "The company does no longer exist.");
+            return;
+        }
+
+        if (profile.get().members().size() >= configuration.companySettings().maxMember()) {
+            messageSender().sendError(sender, "Company is already full");
+            return;
+        }
+
+        companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
+        messageSender().sendMessage(sender, "You have joined the company");
+        if (inviter.isOnline()) {
+            messageSender().sendMessage(inviter.getPlayer(), player.getName() + " has accepted your invite.");
+        }
+        for (var member : profile.get().members()) {
+            if (!member.player().isOnline()) continue;
+            messageSender().sendMessage(member.player().getPlayer(), player.getName() + " has joined the company.");
+        }
+    }
+
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {
         messageSender().sendMessage(inviter, "Invited " + target.getName());
         audiences.player(target).sendMessage(Component.text().append(Component.text("You have been invited to join the " + company.name() + " company"))
@@ -165,11 +180,11 @@ public class Invite extends EldoCommand {
         }
     }
 
-    class InviteData {
+    private static class InviteData {
         private final SimpleCompany company;
         private final UUID inviter;
 
-        public InviteData(SimpleCompany company, UUID inviter) {
+        private InviteData(SimpleCompany company, UUID inviter) {
             this.company = company;
             this.inviter = inviter;
         }

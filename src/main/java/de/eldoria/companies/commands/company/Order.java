@@ -22,7 +22,7 @@ public class Order extends EldoCommand {
         registerCommand("accept", new Accept(plugin, companyData, orderData, configuration));
         registerCommand("deliver", new Deliver(plugin, companyData, orderData, economy));
         registerCommand("list", list);
-        registerCommand("info", new Info(plugin, companyData,orderData, economy));
+        registerCommand("info", new Info(plugin, companyData, orderData, economy));
         registerCommand("search", new Search(plugin, orderData, economy));
     }
 }

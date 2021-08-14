@@ -46,7 +46,7 @@ public class List extends EldoCommand {
                         .whenComplete(orders -> {
                             var builder = Component.text()
                                     .append(Component.text("Your orders:"));
-                            if(configuration.userSettings().maxOrders() > orders.size()){
+                            if (configuration.userSettings().maxOrders() > orders.size()) {
                                 builder.append(Component.text("[New Order]").clickEvent(ClickEvent.suggestCommand("/order create ")));
                             }
                             builder.append(Component.newline());

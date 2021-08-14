@@ -2,7 +2,6 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -45,16 +44,17 @@ public class List extends EldoCommand {
     }
 
     public void showOrders(SimpleCompany company, Player player) {
-        showOrders(company, player, () ->{});
+        showOrders(company, player, () -> {
+        });
     }
 
-    public void showOrders(SimpleCompany company, Player player, Runnable runnable){
+    public void showOrders(SimpleCompany company, Player player, Runnable runnable) {
         orderData.retrieveOrdersByCompany(company, OrderState.CLAIMED, OrderState.CLAIMED)
                 .asFuture()
                 .thenApplyAsync(orderData::retrieveFullOrders)
                 .thenAcceptAsync(future -> future.whenComplete(orders -> {
                     var component = Component.text()
-                            .append(Component.text("Company orders:")) .append(Component.space()).append(Component.text("[search]").clickEvent(ClickEvent.runCommand("/company order search query")))
+                            .append(Component.text("Company orders:")).append(Component.space()).append(Component.text("[search]").clickEvent(ClickEvent.runCommand("/company order search query")))
                             .append(Component.newline());
                     for (var order : orders) {
                         component.append(order.companyShortInfo(localizer(), economy)).append(Component.newline());

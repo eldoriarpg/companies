@@ -124,6 +124,7 @@ public class SearchQuery {
                 .append(Component.newline())
                 .append(Component.text("Materials:"))
                 .append(Component.text("[add]").clickEvent(ClickEvent.suggestCommand(queryCmd + "material_add ")))
+                .append(Component.text("[clear]").clickEvent(ClickEvent.suggestCommand(queryCmd + "material_remove")))
                 .append(Component.newline());
         for (var material : materials) {
             builder.append(Component.text(material))
