@@ -16,6 +16,10 @@ public class SimpleCompany {
         this.founded = founded;
     }
 
+    public static SimpleCompany forId(int id) {
+        return new SimpleCompany(id, "", null);
+    }
+
     public int id() {
         return id;
     }

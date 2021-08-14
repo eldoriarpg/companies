@@ -112,7 +112,8 @@ public class MariaDbOrderData extends AOrderData {
                 .query("INSERT INTO orders_delivered(id, worker_uuid, material, delivered) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE delivered = delivered + ?")
                 .paramsBuilder(stmt -> stmt.setInt(order.id()).setBytes(UUIDConverter.convert(player.getUniqueId()))
                         .setString(material.name()).setInt(amount).setInt(amount))
-                .update().executeSync();
+                .update()
+                .executeSync();
     }
 
     @Override
@@ -179,12 +180,12 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected Optional<Integer> getPlayerOrderCount(OfflinePlayer player) {
+    protected Integer getPlayerOrderCount(OfflinePlayer player) {
         return builder(Integer.class)
                 .query("SELECT COUNT(1) AS count FROM orders LEFT JOIN order_states s ON orders.id = s.id WHERE owner_uuid = ? AND s.state < ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())).setInt(OrderState.DELIVERED.stateId()))
                 .readRow(rs -> rs.getInt("count"))
-                .firstSync();
+                .firstSync().get();
     }
 
     @Override
@@ -201,7 +202,7 @@ public class MariaDbOrderData extends AOrderData {
         var orderContents = builder(OrderContent.class)
                 .query("SELECT material, stack, amount, price FROM order_content WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(order.id()))
-                .readRow(rs -> new OrderContent(toItemStack(rs.getString("stack")), rs.getInt("amount"), rs.getFloat("price")))
+                .readRow(rs -> new OrderContent(toItemStack(rs.getString("stack")), rs.getInt("amount"), rs.getDouble("price")))
                 .allSync();
 
         for (var orderContent : orderContents) {
@@ -215,7 +216,7 @@ public class MariaDbOrderData extends AOrderData {
         return builder(ContentPart.class)
                 .query("SELECT worker_uuid, delivered FROM orders_delivered WHERE id = ? AND material = ?")
                 .paramsBuilder(stmt -> stmt.setInt(order.id()).setString(material.name()))
-                .readRow(rs -> new ContentPart(UUIDConverter.convert(rs.getBytes("uuid")), rs.getInt("amount")))
+                .readRow(rs -> new ContentPart(UUIDConverter.convert(rs.getBytes("worker_uuid")), rs.getInt("delivered")))
                 .allSync();
     }
 
@@ -230,18 +231,26 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         var orders = builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o " +
-                       "LEFT JOIN (SELECT c.id,GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price FROM order_content c GROUP BY id) oc " +
-                       "LEFT JOIN order_states os ON o.id = os.id " +
-                       "ON o.id = oc.id " +
-                       "WHERE name = ? " +
-                       "AND oc.materials REGEXP ? " +
-                       "AND oc.price > ? AND oc.price < ? " +
-                       "AND oc.amount > ? AND oc.price < ?")
+                .query("SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state " +
+                       "FROM orders o " +
+                       "         LEFT JOIN (SELECT c.id, GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price " +
+                       "                    FROM order_content c " +
+                       "                    GROUP BY id) oc " +
+                       "                   ON o.id = oc.id " +
+                       "         LEFT JOIN order_states os " +
+                       "                   ON o.id = os.id " +
+                       "WHERE o.name LIKE ? " +
+                       "  AND oc.materials REGEXP ? " +
+                       "  AND oc.price >= ? " +
+                       "  AND oc.price <= ? " +
+                       "  AND oc.amount >= ? " +
+                       "  AND oc.amount <= ? " +
+                       "  AND os.state >= ? AND os.state <= ? ")
                 .paramsBuilder(stmt -> stmt.setString("%" + searchQuery.name() + "%")
                         .setString(searchQuery.materialRegex())
                         .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
-                        .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize()))
+                        .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize())
+                        .setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
         var fullOrders = toFullOrders(orders);

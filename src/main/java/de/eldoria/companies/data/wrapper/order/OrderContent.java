@@ -62,6 +62,7 @@ public class OrderContent {
     public Component asProgressComponent(ILocalizer localizer, Economy economy) {
         return Component.text()
                 .append(Component.text(stack.getType().name().replace("_", " ")))
+                .append(Component.space())
                 .append(Component.text(delivered() + "/" + amount + ""))
                 .append(Component.text(" " + economy.format(price))).build();
     }
@@ -70,8 +71,8 @@ public class OrderContent {
         return parts.stream().mapToInt(ContentPart::amount).sum();
     }
 
-    public float percent() {
-        return delivered() / (float) amount;
+    public double percent() {
+        return delivered() / (double) amount;
     }
 
     public String materialString() {

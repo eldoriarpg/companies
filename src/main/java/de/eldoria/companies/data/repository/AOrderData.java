@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
+import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -69,8 +70,8 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract void orderDelivered(SimpleOrder order);
 
-    public void submitUnclaimOrder(SimpleOrder order) {
-        CompletableFuture.runAsync(() -> unclaimOrder(order));
+    public FutureResult<Void> submitUnclaimOrder(SimpleOrder order) {
+        return CompletableBukkitFuture.runAsync(() -> unclaimOrder(order));
     }
 
     protected abstract void unclaimOrder(SimpleOrder order);
@@ -152,11 +153,11 @@ public abstract class AOrderData extends QueryFactoryHolder {
         return order.toFullOrder(orderContent);
     }
 
-    public BukkitFutureResult<Optional<Integer>> retrievePlayerOrderCount(OfflinePlayer player) {
+    public BukkitFutureResult<Integer> retrievePlayerOrderCount(OfflinePlayer player) {
         return CompletableBukkitFuture.supplyAsync(() -> getPlayerOrderCount(player), executorService);
     }
 
-    protected abstract Optional<Integer> getPlayerOrderCount(OfflinePlayer player);
+    protected abstract Integer getPlayerOrderCount(OfflinePlayer player);
 
     public BukkitFutureResult<Integer> retrieveCompanyOrderCount(SimpleCompany company) {
         return CompletableBukkitFuture.supplyAsync(() -> getCompanyOrderCount(company), executorService);

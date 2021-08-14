@@ -40,7 +40,6 @@ public class Create extends EldoCommand {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (argumentsInvalid(sender, args, 1, "<name>")) return true;
-        if (denyConsole(sender)) return true;
 
         var player = getPlayerFromSender(sender);
         if ("confirm".equalsIgnoreCase(args[0])) {

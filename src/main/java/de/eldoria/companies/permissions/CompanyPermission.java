@@ -8,7 +8,7 @@ public enum CompanyPermission {
     OWNER(0),
     INVITE(1),
     KICK(2),
-    ACCEPT_ORDER(3),
+    MANAGE_ORDERS(3),
     MANAGE_PERMISSIONS(4);
 
     CompanyPermission(int mask) {

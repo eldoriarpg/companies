@@ -1,12 +1,17 @@
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
+import de.eldoria.companies.commands.company.order.search.query.Clear;
+import de.eldoria.companies.commands.company.order.search.query.Execute;
+import de.eldoria.companies.commands.company.order.search.query.Material;
+import de.eldoria.companies.commands.company.order.search.query.Name;
+import de.eldoria.companies.commands.company.order.search.query.Order;
+import de.eldoria.companies.commands.company.order.search.query.Price;
+import de.eldoria.companies.commands.company.order.search.query.Render;
+import de.eldoria.companies.commands.company.order.search.query.Size;
+import de.eldoria.companies.commands.company.order.search.query.Sorting;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
-import de.eldoria.eldoutilities.utils.EnumUtil;
-import de.eldoria.eldoutilities.utils.Parser;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -17,40 +22,37 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-// TODO: Testing
 public class Query extends EldoCommand {
-    private final AOrderData orderData;
-    private final Search search;
     private final Map<UUID, SearchQuery> searches = new HashMap<>();
-    private final BukkitAudiences audiences;
+    private final Render render;
 
     public Query(Plugin plugin, AOrderData orderData, Search search) {
         super(plugin);
-        this.orderData = orderData;
-        this.search = search;
-        audiences = BukkitAudiences.create(plugin);
+        render = new Render(plugin, this);
+        setDefaultCommand(render);
+        registerCommand("clear", new Clear(plugin, this));
+        registerCommand("execute", new Execute(plugin, this, search, orderData));
+        var material = new Material(plugin, this);
+        registerCommand("material_add", material);
+        registerCommand("material_remove", material);
+        registerCommand("name", new Name(plugin, this));
+        registerCommand("order", new Order(plugin, this));
+        var price = new Price(plugin, this);
+        registerCommand("min_price", price);
+        registerCommand("max_price", price);
+        var size = new Size(plugin, this);
+        registerCommand("min_size", size);
+        registerCommand("max_size", size);
+        registerCommand("sorting", new Sorting(plugin, this));
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) return true;
-        var player = getPlayerFromSender(sender);
-
-        if (args.length == 0) {
-            renderSearch(player);
-            return true;
-        }
-
         if (!super.onCommand(sender, command, label, args)) {
             return true;
         }
-        renderSearch(player);
+        render.renderSearch(getPlayerFromSender(sender));
         return true;
-    }
-
-    private void renderSearch(Player player) {
-        var playerSearch = getPlayerSearch(player);
-        audiences.player(player).sendMessage(playerSearch.asComponent());
     }
 
     public SearchQuery getPlayerSearch(Player player) {

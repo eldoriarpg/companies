@@ -13,7 +13,10 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
 public class Company extends EldoCommand {
     public Company(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
@@ -28,5 +31,12 @@ public class Company extends EldoCommand {
         registerCommand("member", new Member(plugin, companyData));
         registerCommand("order", new Order(plugin, companyData, orderData, economy, configuration));
         registerCommand("permission", new Permission(plugin, companyData));
+    }
+
+    @Override
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        if (denyConsole(sender)) return true;
+
+        return super.onCommand(sender, command, label, args);
     }
 }

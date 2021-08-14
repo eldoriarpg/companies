@@ -12,7 +12,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-// TODO: Testing
 public class Accept extends EldoCommand {
     private final ACompanyData companyData;
     private final AOrderData orderData;
@@ -45,7 +44,7 @@ public class Accept extends EldoCommand {
                     }
                     var profile = optProfile.get();
                     var companyMember = profile.member(player).get();
-                    if (!companyMember.hasPermission(CompanyPermission.ACCEPT_ORDER)) {
+                    if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
                         messageSender().sendError(sender, "You are not allowed to accept orders.");
                         return;
                     }

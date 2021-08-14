@@ -11,7 +11,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-// TODO: Testing
 public class Info extends EldoCommand {
     private final AOrderData orderData;
     private final BukkitAudiences audiences;
@@ -28,8 +27,6 @@ public class Info extends EldoCommand {
 
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (argumentsInvalid(sender, args, 1, "<id>")) return true;
-        if (denyConsole(sender)) return true;
-
         var player = getPlayerFromSender(sender);
         var optId = Parser.parseInt(args[0]);
         if (optId.isEmpty()) {
@@ -37,18 +34,18 @@ public class Info extends EldoCommand {
             return true;
         }
 
-        companyData.retrievePlayerCompany(player).asFuture()
+        companyData.retrievePlayerCompanyProfile(player).asFuture()
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
                         messageSender().sendError(sender, "You are not part of a company");
                         return;
                     }
-                    orderData.retrieveCompanyOrderById(optId.getAsInt(), company.get().id())
+                    orderData.retrieveOrderById(optId.getAsInt())
                             .whenComplete(order -> {
                                 if (order.isPresent()) {
                                     orderData.retrieveFullOrder(order.get())
                                             .whenComplete(fullOrder -> {
-                                                var component = fullOrder.companyDetailInfo(localizer(), economy);
+                                                var component = fullOrder.companyDetailInfo(company.get().member(player).get(), localizer(), economy);
                                                 audiences.sender(sender).sendMessage(component);
                                             });
                                     return;

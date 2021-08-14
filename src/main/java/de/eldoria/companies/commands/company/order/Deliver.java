@@ -20,7 +20,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.OptionalInt;
 
-// TODO: Testing
 public class Deliver extends EldoCommand {
     private final Economy economy;
     private final ACompanyData companyData;
@@ -38,7 +37,6 @@ public class Deliver extends EldoCommand {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (argumentsInvalid(sender, args, 3, "<id> <material> <amount>")) return true;
-        if (denyConsole(sender)) return true;
 
         var player = getPlayerFromSender(sender);
         var optId = Parser.parseInt(args[0]);
@@ -53,7 +51,7 @@ public class Deliver extends EldoCommand {
             return true;
         }
         var optAmount = OptionalInt.empty();
-        if ("all".equalsIgnoreCase(args[2])) {
+        if ("max".equalsIgnoreCase(args[2])) {
             optAmount = OptionalInt.of(Integer.MAX_VALUE);
         }
         if (optAmount.isEmpty()) {
@@ -67,7 +65,7 @@ public class Deliver extends EldoCommand {
         var id = optId.getAsInt();
         var amount = optAmount.getAsInt();
 
-        companyData.retrievePlayerCompany(player).asFuture()
+        companyData.retrievePlayerCompanyProfile(player).asFuture()
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
                         messageSender().sendError(sender, "You are not part of a company");
@@ -109,7 +107,7 @@ public class Deliver extends EldoCommand {
                                                                         orderDone(refreshedFullOrder);
                                                                         return;
                                                                     }
-                                                                    audiences.sender(sender).sendMessage(fullOrder.companyDetailInfo(localizer(), economy));
+                                                                    audiences.sender(sender).sendMessage(refreshedFullOrder.companyDetailInfo(company.get().member(player).get(), localizer(), economy));
                                                                 });
                                                     });
                                         });

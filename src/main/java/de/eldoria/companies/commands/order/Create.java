@@ -46,9 +46,6 @@ public class Create extends EldoCommand {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) {
-            return true;
-        }
         var player = getPlayerFromSender(sender);
 
         if (!builderCache.asMap().containsKey(player.getUniqueId())) {
@@ -109,27 +106,35 @@ public class Create extends EldoCommand {
 
         var price = order.price();
 
-        CompletableBukkitFuture.supplyAsync(() -> {
-            if (!economy.has(player, price)) {
-                return false;
-            }
-            economy.withdrawPlayer(player, price);
-            return true;
-        }).whenComplete(result -> {
-            if (result) {
-                orderData.submitOrder(player, order.build()).whenComplete(v -> {
-                    messageSender().sendLocalizedMessage(player, "Created UwU");
+        orderData.retrievePlayerOrderCount(player)
+                .whenComplete(count -> {
+                    if (count >= configuration.userSettings().maxOrders()) {
+                        messageSender().sendError(player, "Order limit reached.");
+                        return;
+                    }
+                    CompletableBukkitFuture.supplyAsync(() -> {
+                        if (!economy.has(player, price)) {
+                            return false;
+                        }
+                        economy.withdrawPlayer(player, price);
+                        return true;
+                    }).whenComplete(result -> {
+                        if (result) {
+                            orderData.submitOrder(player, order.build()).whenComplete(v -> {
+                                messageSender().sendLocalizedMessage(player, "Created UwU");
+                                builderCache.invalidate(player.getUniqueId());
+                            });
+                        } else {
+                            messageSender().sendLocalizedError(player, "Not enough money.");
+                        }
+                    });
                 });
-            } else {
-                messageSender().sendLocalizedError(player, "Not enough money.");
-            }
-        });
     }
 
     private void initCreation(Player player, String[] args) {
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
-                    if (count.get() >= configuration.userSettings().maxOrders()) {
+                    if (count >= configuration.userSettings().maxOrders()) {
                         messageSender().sendLocalizedError(player, "error.tooMuchOrders");
                         return;
                     }
@@ -185,13 +190,16 @@ public class Create extends EldoCommand {
         }
         if ("add".equalsIgnoreCase(cmd)) {
             if (args.length == 2) {
+                if (args[1].isEmpty()) return Collections.singletonList("material");
                 return TabCompleteUtil.complete(args[1], Material.class);
             }
             if (args.length == 3) {
+                if (args[2].isEmpty()) return Collections.singletonList("amount");
                 var max = configuration.orderSetting().maxItems() - builder.amount();
                 return TabCompleteUtil.completeInt(args[2], 1, max, localizer());
             }
             if (args.length == 4) {
+                if (args[3].isEmpty()) return Collections.singletonList("price");
                 return TabCompleteUtil.completeDouble(args[3], 0, 20000, localizer());
             }
             return Collections.emptyList();

@@ -4,6 +4,7 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,11 @@ public class SearchQuery {
         return name == null ? "" : name;
     }
 
-    public void name(String name) {
+    public void name(@Nullable String name) {
+        if (name != null) {
+            this.name = name.substring(0, Math.min(name.length(), 32));
+            return;
+        }
         this.name = name;
     }
 
@@ -112,7 +117,8 @@ public class SearchQuery {
     public Component asComponent() {
         var queryCmd = "/company order search query ";
         var builder = Component.text()
-                .append(Component.text("Name: ")).append(Component.text(name))
+                .append(Component.text("Current search Settings")).append(Component.newline())
+                .append(Component.text("Name: ")).append(Component.text(name().isBlank() ? "_____" : name()))
                 .append(Component.text("[change]").clickEvent(ClickEvent.suggestCommand(queryCmd + "name ")))
                 .append(Component.text("[clear]").clickEvent(ClickEvent.runCommand(queryCmd + "name")))
                 .append(Component.newline())
@@ -141,8 +147,10 @@ public class SearchQuery {
             builder.append(Component.text("[" + sort.name() + "]", sort == sortingType ? NamedTextColor.GREEN : NamedTextColor.GRAY)
                     .clickEvent(ClickEvent.runCommand(queryCmd + "sorting " + sort)));
         }
-        builder.append(Component.text("[asc]", asc ? NamedTextColor.GREEN : NamedTextColor.GRAY))
-                .append(Component.text("[desc]", !asc ? NamedTextColor.GREEN : NamedTextColor.GRAY))
+        builder.append(Component.text("[asc]", asc ? NamedTextColor.GREEN : NamedTextColor.GRAY)
+                        .clickEvent(ClickEvent.runCommand(queryCmd + "order asc")))
+                .append(Component.text("[desc]", !asc ? NamedTextColor.GREEN : NamedTextColor.GRAY)
+                        .clickEvent(ClickEvent.runCommand(queryCmd + "order desc")))
                 .append(Component.newline());
         builder.append(Component.text("[Search]").clickEvent(ClickEvent.runCommand(queryCmd + "execute")))
                 .append(Component.text("[Clear]").clickEvent(ClickEvent.runCommand(queryCmd + "clear")));

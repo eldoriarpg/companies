@@ -5,6 +5,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -16,7 +17,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-// TODO: Testing
 public class Leave extends EldoCommand {
     private final ACompanyData companyData;
     private final AOrderData orderData;
@@ -32,7 +32,6 @@ public class Leave extends EldoCommand {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) return true;
         var player = getPlayerFromSender(sender);
 
         if (args.length != 0 && "confirm".equalsIgnoreCase(args[0])) {
@@ -51,18 +50,19 @@ public class Leave extends EldoCommand {
                         return;
                     }
                     var profile = optProfile.get();
+                    leaves.add(player.getUniqueId());
+                    TextComponent message;
                     if (profile.member(player).get().isOwner()) {
-                        var message = Component.text()
+                        message = Component.text()
                                 .append(Component.text("If you leave the company it will be dissolved. Please confirm."))
                                 .append(Component.text("[Confirm]").clickEvent(ClickEvent.runCommand("/company leave confirm")))
                                 .build();
-                        audiences.player(player).sendMessage(message);
-                        return;
+                    } else {
+                        message = Component.text()
+                                .append(Component.text("Please confirm that you want to leave the company."))
+                                .append(Component.text("[Confirm]").clickEvent(ClickEvent.runCommand("/company leave confirm")))
+                                .build();
                     }
-                    var message = Component.text()
-                            .append(Component.text("Please confirm that you want to leave the company."))
-                            .append(Component.text("[Confirm]").clickEvent(ClickEvent.runCommand("/company leave confirm")))
-                            .build();
                     audiences.player(player).sendMessage(message);
                 });
         return true;
@@ -86,6 +86,12 @@ public class Leave extends EldoCommand {
                             }
                         }
                         return;
+                    }
+                    for (var member : profile.members()) {
+                        if (member.player().getUniqueId().equals(player.getUniqueId())) continue;
+                        if (member.player().isOnline()) {
+                            messageSender().sendMessage(member.player().getPlayer(), player.getName() + " has left the company.");
+                        }
                     }
                     companyData.submitMemberUpdate(profile.member(player).get().kick());
                     messageSender().sendMessage(player, "You left the company.");

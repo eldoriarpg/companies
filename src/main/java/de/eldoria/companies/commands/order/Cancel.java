@@ -12,15 +12,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
 
-// TODO: Testing
 public class Cancel extends EldoCommand {
     private final AOrderData orderData;
     private final Economy economy;
+    private final List list;
 
-    public Cancel(Plugin plugin, AOrderData orderData, Economy economy) {
+    public Cancel(Plugin plugin, AOrderData orderData, Economy economy, List list) {
         super(plugin);
         this.orderData = orderData;
         this.economy = economy;
+        this.list = list;
     }
 
     @Override
@@ -37,7 +38,7 @@ public class Cancel extends EldoCommand {
 
                     var simpleOrder = optOrder.get();
                     var player = getPlayerFromSender(sender);
-                    if (!simpleOrder.owner().equals(player)) {
+                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
                         messageSender().sendLocalizedError(sender, "Not your order");
                         return;
                     }
@@ -49,8 +50,11 @@ public class Cancel extends EldoCommand {
                     orderData.retrieveFullOrder(optOrder.get())
                             .whenComplete(fullOrder -> {
                                 CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
-                                orderData.submitOrderDeletion(fullOrder);
-                                messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");
+                                orderData.submitOrderDeletion(fullOrder).whenComplete(r -> {
+                                    list.showOrders(player, () -> {
+                                        messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");
+                                    });
+                                });
                             });
                 });
         return true;

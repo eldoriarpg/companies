@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-// TODO: Testing
 public class Search extends EldoCommand {
     private final Page page;
     private Map<UUID, List<FullOrder>> results = new HashMap<>();

@@ -2,6 +2,7 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -18,18 +19,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-// TODO: Testing
 public class Abort extends EldoCommand {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
     private final BukkitAudiences audiences;
+    private final List list;
 
-    public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData) {
+    public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData, List list) {
         super(plugin);
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
         this.orderData = orderData;
+        this.list = list;
     }
 
     @Override
@@ -43,8 +45,10 @@ public class Abort extends EldoCommand {
                 messageSender().sendError(sender, "Nothing to confirm");
                 return true;
             }
-            orderData.submitUnclaimOrder(remove);
-            messageSender().sendMessage(sender, "Order canceled.");
+            orderData.submitUnclaimOrder(remove).whenComplete(r -> {
+                list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
+                        messageSender().sendMessage(sender, "Order canceled."));
+            });
             return true;
         }
 
@@ -55,13 +59,13 @@ public class Abort extends EldoCommand {
         }
 
         companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optCompand -> {
-                    if (optCompand.isEmpty()) {
+                .whenComplete(optCompany -> {
+                    if (optCompany.isEmpty()) {
                         messageSender().sendError(sender, "You are not part of a company.");
                         return;
                     }
 
-                    var company = optCompand.get();
+                    var company = optCompany.get();
 
                     orderData.retrieveOrderById(optId.getAsInt())
                             .whenComplete(optOrder -> {
@@ -71,7 +75,7 @@ public class Abort extends EldoCommand {
                                 }
                                 var order = optOrder.get();
 
-                                if (!company.member(player).get().hasPermission(CompanyPermission.ACCEPT_ORDER)) {
+                                if (!company.member(player).get().hasPermission(CompanyPermission.MANAGE_ORDERS)) {
                                     messageSender().sendError(sender, "You are not allowed to cancel orders.");
                                     return;
                                 }
@@ -84,7 +88,7 @@ public class Abort extends EldoCommand {
                                 var component = Component.text().append(Component.text("Please confirm the deletion. All already delivered items will be lost."))
                                         .append(Component.space())
                                         .append(Component.text("[Confirm]").clickEvent(ClickEvent.runCommand("/company order abort confirm"))).build();
-
+                                cancel.put(player.getUniqueId(), order);
                                 audiences.sender(player).sendMessage(component);
                             });
                 });

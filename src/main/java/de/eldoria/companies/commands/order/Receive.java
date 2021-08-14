@@ -10,7 +10,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-// TODO: Testing
 public class Receive extends EldoCommand {
     private final AOrderData orderData;
 
@@ -21,7 +20,6 @@ public class Receive extends EldoCommand {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) return true;
         if (argumentsInvalid(sender, args, 1, "<id>")) return true;
 
         var optId = Parser.parseInt(args[0]);
@@ -35,7 +33,7 @@ public class Receive extends EldoCommand {
 
                     var simpleOrder = optOrder.get();
                     var player = getPlayerFromSender(sender);
-                    if (!simpleOrder.owner().equals(player)) {
+                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
                         messageSender().sendLocalizedError(sender, "Not your order");
                         return;
                     }

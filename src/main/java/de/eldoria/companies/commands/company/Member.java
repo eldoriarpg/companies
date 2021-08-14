@@ -33,7 +33,6 @@ public class Member extends EldoCommand {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) return true;
         var player = getPlayerFromSender(sender);
 
         companyData.retrievePlayerCompanyProfile(player)

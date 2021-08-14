@@ -7,6 +7,7 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -16,8 +17,10 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,8 +42,6 @@ public class Invite extends EldoCommand {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (argumentsInvalid(sender, args, 1, "<name>")) return true;
-        if (denyConsole(sender)) return true;
-
         var player = getPlayerFromSender(sender);
 
         if ("accept".equalsIgnoreCase(args[0])) {
@@ -144,6 +145,11 @@ public class Invite extends EldoCommand {
                 .append(Component.text("[Deny]").clickEvent(ClickEvent.runCommand("/company invite deny"))));
         invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
         delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+        return TabCompleteUtil.completePlayers(args[0]);
     }
 
     private void expiredInvite(UUID uuid) {

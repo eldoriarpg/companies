@@ -15,6 +15,6 @@ libraries:
 commands:
   company:
     description: manage your company
-    usage: Something
+    usage: Invalid command
   order:
     description: create orders
