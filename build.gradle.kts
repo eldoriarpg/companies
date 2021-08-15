@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation("de.eldoria", "eldo-util", "1.9.5-DEV")
+    implementation("de.eldoria", "eldo-util", "1.9.6-DEV")
     implementation("de.chojo", "sql-util", "1.1.3-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")

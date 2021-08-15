@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Set;
 
 public class Material extends EldoCommand {
     private final Query query;
@@ -39,6 +40,6 @@ public class Material extends EldoCommand {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return TabCompleteUtil.complete(String.join("_", args), org.bukkit.Material.class);
+        return TabCompleteUtil.completeMaterial(String.join("_", args), true);
     }
 }

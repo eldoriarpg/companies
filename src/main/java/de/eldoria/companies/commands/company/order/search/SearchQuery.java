@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 public class SearchQuery {
     private String name = null;
     private List<String> materials = new ArrayList<>();
+    private boolean anyMaterial = true;
+    private boolean exactMatch = false;
     private double minPrice = 0.0;
     private double maxPrice = Double.MAX_VALUE;
     private int minOrderSize = 0;
@@ -21,7 +23,7 @@ public class SearchQuery {
     private boolean asc = true;
 
     public void sort(List<FullOrder> orders) {
-        sortingType.sort(orders, asc);
+        sortingType().sort(orders, isAsc());
     }
 
     public String name() {
@@ -93,11 +95,11 @@ public class SearchQuery {
     }
 
 
-    public SortingType sorting() {
+    public SortingType sortingType() {
         return sortingType;
     }
 
-    public void sorting(SortingType sortingType) {
+    public void sortingType(SortingType sortingType) {
         this.sortingType = sortingType;
     }
 
@@ -111,7 +113,25 @@ public class SearchQuery {
 
     public String materialRegex() {
         if (materials.isEmpty()) return ".*";
-        return materials.stream().map(m -> ".*" + m + ".*").collect(Collectors.joining("|"));
+        if (anyMaterial) {
+            return materials.stream().map(mat -> "(" + regexMat(mat) + ")").collect(Collectors.joining("|"));
+        }
+        return materials.stream().map(mat -> "(.*" + regexMat(mat) + ")").collect(Collectors.joining(""));
+    }
+
+    public void anyMaterial(boolean anyMaterial) {
+        this.anyMaterial = anyMaterial;
+    }
+
+    public void exactMatch(boolean exactMatch) {
+        this.exactMatch = exactMatch;
+    }
+
+    private String regexMat(String mat) {
+        if (exactMatch) {
+            return "\\b" + mat + "\\b";
+        }
+        return mat;
     }
 
     public Component asComponent() {
@@ -129,6 +149,22 @@ public class SearchQuery {
         for (var material : materials) {
             builder.append(Component.text(material))
                     .append(Component.text("[Remove]").clickEvent(ClickEvent.runCommand(queryCmd + "material_remove " + material)))
+                    .append(Component.newline());
+        }
+        if (materials.size() > 1) {
+            builder.append(Component.text("Material Search "))
+                    .append(Component.text("[ANY]", anyMaterial ? NamedTextColor.GREEN : NamedTextColor.DARK_GRAY)
+                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_search any")))
+                    .append(Component.text("[ALL]", anyMaterial ? NamedTextColor.DARK_GRAY : NamedTextColor.GREEN)
+                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_search all")))
+                    .append(Component.newline());
+        }
+        if (!materials.isEmpty()) {
+            builder.append(Component.text("Material Match "))
+                    .append(Component.text("[PART]", exactMatch ? NamedTextColor.DARK_GRAY : NamedTextColor.GREEN)
+                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_match part")))
+                    .append(Component.text("[EXACT]", exactMatch ? NamedTextColor.GREEN : NamedTextColor.DARK_GRAY)
+                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_match exact")))
                     .append(Component.newline());
         }
         builder.append(Component.text("Min Price: ")).append(Component.text(minPrice))

@@ -1,5 +1,7 @@
 package de.eldoria.companies.data.repository.impl;
 
+import de.eldoria.companies.commands.company.order.search.SearchQuery;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
 import org.bukkit.plugin.Plugin;
@@ -27,5 +29,35 @@ public class PostgresOrderData extends MariaDbOrderData {
                 .paramsBuilder(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
+    }
+
+    @Override
+    protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
+        var orders = builder(SimpleOrder.class)
+                .query("SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state " +
+                       "FROM orders o " +
+                       "         LEFT JOIN (SELECT c.id, string_agg(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price " +
+                       "                    FROM order_content c " +
+                       "                    GROUP BY id) oc " +
+                       "                   ON o.id = oc.id " +
+                       "         LEFT JOIN order_states os " +
+                       "                   ON o.id = os.id " +
+                       "WHERE o.name ~~* ? " +
+                       "  AND oc.materials ~* ? " +
+                       "  AND oc.price >= ? " +
+                       "  AND oc.price <= ? " +
+                       "  AND oc.amount >= ? " +
+                       "  AND oc.amount <= ? " +
+                       "  AND os.state >= ? AND os.state <= ? ")
+                .paramsBuilder(stmt -> stmt.setString("%" + searchQuery.name() + "%")
+                        .setString(searchQuery.materialRegex())
+                        .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
+                        .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize())
+                        .setInt(min.stateId()).setInt(max.stateId()))
+                .readRow(this::buildSimpleOrder)
+                .allSync();
+        var fullOrders = toFullOrders(orders);
+        searchQuery.sort(fullOrders);
+        return fullOrders;
     }
 }

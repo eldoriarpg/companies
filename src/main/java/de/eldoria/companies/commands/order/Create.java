@@ -191,7 +191,7 @@ public class Create extends EldoCommand {
         if ("add".equalsIgnoreCase(cmd)) {
             if (args.length == 2) {
                 if (args[1].isEmpty()) return Collections.singletonList("material");
-                return TabCompleteUtil.complete(args[1], Material.class);
+                return TabCompleteUtil.completeMaterial(args[1], true);
             }
             if (args.length == 3) {
                 if (args[2].isEmpty()) return Collections.singletonList("amount");

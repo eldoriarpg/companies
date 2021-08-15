@@ -4,6 +4,8 @@ import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.commands.company.order.search.query.Clear;
 import de.eldoria.companies.commands.company.order.search.query.Execute;
 import de.eldoria.companies.commands.company.order.search.query.Material;
+import de.eldoria.companies.commands.company.order.search.query.MaterialMatch;
+import de.eldoria.companies.commands.company.order.search.query.MaterialSearch;
 import de.eldoria.companies.commands.company.order.search.query.Name;
 import de.eldoria.companies.commands.company.order.search.query.Order;
 import de.eldoria.companies.commands.company.order.search.query.Price;
@@ -35,6 +37,8 @@ public class Query extends EldoCommand {
         var material = new Material(plugin, this);
         registerCommand("material_add", material);
         registerCommand("material_remove", material);
+        registerCommand("material_match", new MaterialMatch(plugin, this));
+        registerCommand("material_search", new MaterialSearch(plugin, this));
         registerCommand("name", new Name(plugin, this));
         registerCommand("order", new Order(plugin, this));
         var price = new Price(plugin, this);
