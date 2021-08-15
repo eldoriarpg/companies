@@ -16,6 +16,8 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.MariaDbCompanyData;
 import de.eldoria.companies.data.repository.impl.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.PostgresCompanyData;
+import de.eldoria.companies.data.repository.impl.PostgresOrderData;
 import de.eldoria.companies.data.repository.impl.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.SqLiteOrderData;
 import de.eldoria.companies.services.ExpiringService;
@@ -88,13 +90,17 @@ public class Companies extends EldoPlugin {
 
         switch (configuration.databaseSettings().storageType()) {
             case SQLITE:
+                logger().info("Using SqLite database");
                 builder = SqlUpdater.builder(dataSource, SqlType.SQLITE);
                 break;
             case MARIADB:
+                logger().info("Using MariaDB database");
                 builder = SqlUpdater.builder(dataSource, SqlType.MARIADB);
                 break;
             case POSTGRES:
-                throw new IllegalStateException("Not Implemented yet");
+                logger().info("Using Postgres database");
+                builder = SqlUpdater.builder(dataSource, SqlType.POSTGRES);
+                break;
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }
@@ -119,7 +125,8 @@ public class Companies extends EldoPlugin {
                 orderData = new MariaDbOrderData(dataSource, this, workerPool);
                 break;
             case POSTGRES:
-                throw new IllegalStateException("Not Implemented yet");
+                companyData = new PostgresCompanyData(dataSource, this, workerPool);
+                orderData = new PostgresOrderData(dataSource, this, workerPool);
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }

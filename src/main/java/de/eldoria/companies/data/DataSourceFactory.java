@@ -4,6 +4,7 @@ import de.chojo.sqlutil.datasource.DataSourceCreator;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import org.bukkit.plugin.Plugin;
 import org.mariadb.jdbc.MariaDbDataSource;
+import org.postgresql.ds.PGSimpleDataSource;
 import org.sqlite.SQLiteDataSource;
 
 import javax.sql.DataSource;
@@ -47,7 +48,19 @@ public final class DataSourceFactory {
                         .build();
                 break;
             case POSTGRES:
-                throw new IllegalStateException("Postgres is not supported yet.");
+                dataSource = DataSourceCreator
+                        .create(PGSimpleDataSource.class)
+                        .withAddress(db.host())
+                        .withPort(db.port())
+                        .forDatabase(db.database())
+                        .withUser(db.user())
+                        .withPassword(db.password())
+                        .create()
+                        .withMaximumPoolSize(5)
+                        .withMinimumIdle(2)
+                        .forSchema(db.schema())
+                        .build();
+                break;
             default:
                 throw new IllegalStateException("Unkown Database Type: " + db.storageType());
         }

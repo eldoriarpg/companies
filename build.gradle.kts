@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation("de.eldoria", "eldo-util", "1.9.4-DEV")
+    implementation("de.eldoria", "eldo-util", "1.9.5-DEV")
     implementation("de.chojo", "sql-util", "1.1.3-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
@@ -33,6 +33,7 @@ dependencies {
     compileOnly("com.zaxxer", "HikariCP", "5.0.0")
     compileOnly("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
     compileOnly("org.xerial", "sqlite-jdbc", "3.7.2")
+    compileOnly("org.postgresql","postgresql","42.2.23")
 
     compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains", "annotations", "20.1.0")
