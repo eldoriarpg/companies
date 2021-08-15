@@ -12,15 +12,9 @@ CREATE OR REPLACE TABLE companies
 ALTER TABLE companies
     ADD PRIMARY KEY (id);
 
-CREATE OR REPLACE TABLE companies_db_version
-(
-    major INT NULL,
-    patch INT NULL
-);
-
 CREATE OR REPLACE TABLE company_member
 (
-    id          INT              NULL,
+    id          INT              NOT NULL,
     member_uuid BINARY(16)       NOT NULL
         PRIMARY KEY,
     permission  BIGINT DEFAULT 0 NOT NULL,
@@ -62,11 +56,14 @@ CREATE OR REPLACE TABLE order_states
         PRIMARY KEY,
     company     INT                                   NULL,
     last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
-    state       INT                                   NULL,
+    state       INT       DEFAULT 0                   NOT NULL,
     CONSTRAINT order_states_orders_id_fk
         FOREIGN KEY (id) REFERENCES orders (id)
             ON DELETE CASCADE
 );
+
+CREATE OR REPLACE INDEX orders_owner_uuid_index
+    ON orders (owner_uuid);
 
 CREATE OR REPLACE TABLE orders_delivered
 (

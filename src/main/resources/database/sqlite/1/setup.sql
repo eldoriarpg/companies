@@ -1,29 +1,23 @@
 CREATE TABLE companies
 (
-    id      INT AUTO_INCREMENT
+    id      INT AUTO_INCREMENT NOT NULL
         CONSTRAINT companies_pk
             PRIMARY KEY
         CONSTRAINT companies_id_uindex
             UNIQUE,
-    name    TEXT NOT NULL
+    name    TEXT               NOT NULL
         CONSTRAINT companies_name_uindex
             UNIQUE,
     founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE TABLE companies_db_version
-(
-    major INT,
-    patch INT
-);
-
 CREATE TABLE company_member
 (
-    id          INTEGER,
-    member_uuid BLOB
+    id          INTEGER NOT NULL,
+    member_uuid BLOB    NOT NULL
         CONSTRAINT company_member_pk
             PRIMARY KEY,
-    permission  INTEGER
+    permission  INTEGER DEFAULT 0 NOT NULL
 );
 
 CREATE INDEX company_member_id_index
@@ -34,24 +28,24 @@ CREATE INDEX company_member_id_uuid_index
 
 CREATE TABLE orders
 (
-    id         INTEGER
+    id         INTEGER NOT NULL
         CONSTRAINT orders_pk
             PRIMARY KEY,
-    owner_uuid BLOB,
-    name       INTEGER,
+    owner_uuid BLOB    NOT NULL,
+    name       INTEGER NOT NULL,
     created    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE TABLE order_content
 (
-    id       INTEGER
+    id       INTEGER NOT NULL
         CONSTRAINT order_content_orders_id_fk
             REFERENCES orders
             ON DELETE CASCADE,
-    material TEXT,
-    stack    TEXT,
-    amount   INTEGER,
-    price    FLOAT
+    material TEXT    NOT NULL,
+    stack    TEXT    NOT NULL,
+    amount   INTEGER NOT NULL,
+    price    FLOAT   NOT NULL
 );
 
 CREATE INDEX order_content_id_index
@@ -59,7 +53,7 @@ CREATE INDEX order_content_id_index
 
 CREATE TABLE order_states
 (
-    id          INTEGER
+    id          INTEGER NOT NULL
         CONSTRAINT order_states_pk
             PRIMARY KEY
         CONSTRAINT order_states_orders_id_fk
@@ -67,18 +61,21 @@ CREATE TABLE order_states
             ON DELETE CASCADE,
     company     INTEGER,
     last_update DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    state       INTEGER
+    state       INTEGER  DEFAULT 0 NOT NULL
 );
+
+CREATE INDEX orders_owner_uuid_index
+    ON orders (owner_uuid);
 
 CREATE TABLE orders_delivered
 (
-    id          INTEGER
+    id          INTEGER NOT NULL
         CONSTRAINT orders_delivered_orders_id_fk
             REFERENCES orders
             ON DELETE CASCADE,
-    worker_uuid BLOB,
-    material    TEXT,
-    delivered   INTEGER,
+    worker_uuid BLOB    NOT NULL,
+    material    TEXT    NOT NULL,
+    delivered   INTEGER NOT NULL,
     CONSTRAINT orders_delivered_pk
         PRIMARY KEY (id, worker_uuid, material)
 );

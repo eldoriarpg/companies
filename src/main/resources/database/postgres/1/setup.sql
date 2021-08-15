@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS orders
     created    TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS orders_owner_uuid_index
+    ON orders (owner_uuid);
+
 CREATE TABLE IF NOT EXISTS order_states
 (
     id          INTEGER                 NOT NULL
@@ -71,7 +74,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS companies_name_uindex
 
 CREATE TABLE IF NOT EXISTS company_member
 (
-    id          INTEGER
+    id          INTEGER          NOT NULL
         CONSTRAINT company_member_companies_id_fk
             REFERENCES companies
             ON DELETE CASCADE,
