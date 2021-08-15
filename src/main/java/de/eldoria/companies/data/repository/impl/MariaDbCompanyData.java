@@ -93,7 +93,7 @@ public class MariaDbCompanyData extends ACompanyData {
         return builder(CompanyMember.class)
                 .query("SELECT member_uuid, permission FROM company_member WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(company.id()))
-                .readRow(rs -> CompanyMember.of(company.id(), UUIDConverter.convert(rs.getBytes("uuid")),
+                .readRow(rs -> CompanyMember.of(company.id(), UUIDConverter.convert(rs.getBytes("member_uuid")),
                         rs.getLong("permission")))
                 .allSync();
     }
@@ -103,7 +103,7 @@ public class MariaDbCompanyData extends ACompanyData {
         return builder(CompanyMember.class)
                 .query("SELECT id, member_uuid, permission FROM company_member WHERE member_uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
-                .readRow(rs -> CompanyMember.of(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("uuid")),
+                .readRow(rs -> CompanyMember.of(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("member_uuid")),
                         rs.getLong("permission")))
                 .firstSync();
     }

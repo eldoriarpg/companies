@@ -127,6 +127,14 @@ public class SearchQuery {
         this.exactMatch = exactMatch;
     }
 
+    public boolean isAnyMaterial() {
+        return anyMaterial;
+    }
+
+    public boolean isExactMatch() {
+        return exactMatch;
+    }
+
     private String regexMat(String mat) {
         if (exactMatch) {
             return "\\b" + mat + "\\b";

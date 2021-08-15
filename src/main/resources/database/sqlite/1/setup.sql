@@ -1,15 +1,14 @@
-CREATE TABLE companies
+create table companies
 (
-    id      INT AUTO_INCREMENT NOT NULL
-        CONSTRAINT companies_pk
-            PRIMARY KEY
-        CONSTRAINT companies_id_uindex
-            UNIQUE,
-    name    TEXT               NOT NULL
-        CONSTRAINT companies_name_uindex
-            UNIQUE,
-    founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    id INTEGER
+        constraint companies_pk
+            primary key autoincrement,
+    name TEXT,
+    founded datetime default current_timestamp
 );
+
+create unique index companies_name_uindex
+    on companies (name);
 
 CREATE TABLE company_member
 (
@@ -30,11 +29,14 @@ CREATE TABLE orders
 (
     id         INTEGER NOT NULL
         CONSTRAINT orders_pk
-            PRIMARY KEY,
+            PRIMARY KEY AUTOINCREMENT,
     owner_uuid BLOB    NOT NULL,
     name       INTEGER NOT NULL,
     created    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+CREATE INDEX orders_owner_uuid_index
+    ON orders (owner_uuid);
 
 CREATE TABLE order_content
 (
@@ -63,9 +65,6 @@ CREATE TABLE order_states
     last_update DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     state       INTEGER  DEFAULT 0 NOT NULL
 );
-
-CREATE INDEX orders_owner_uuid_index
-    ON orders (owner_uuid);
 
 CREATE TABLE orders_delivered
 (

@@ -21,6 +21,7 @@ import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 
 import javax.sql.DataSource;
 import java.sql.ResultSet;
@@ -142,19 +143,18 @@ public abstract class AOrderData extends QueryFactoryHolder {
     }
 
     public List<FullOrder> toFullOrders(List<SimpleOrder> orders) {
-        List<CompletableFuture<FullOrder>> fullOrders = new ArrayList<>();
+        List<CompletableFuture<Optional<FullOrder>>> fullOrders = new ArrayList<>();
         for (var order : orders) {
-            fullOrders.add(CompletableFuture.supplyAsync(() -> cacheFullOrder(1, () -> Optional.of(toFullOrder(order))).get(), executorService));
+            fullOrders.add(CompletableFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))), executorService));
         }
-        CompletableFuture.allOf(fullOrders.toArray(CompletableFuture[]::new));
-        return fullOrders.stream().map(CompletableFuture::join).collect(Collectors.toList());
+        return fullOrders.stream().map(CompletableFuture::join).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
     }
 
     public BukkitFutureResult<FullOrder> retrieveFullOrder(SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))).get(), executorService);
     }
 
-    public FullOrder toFullOrder(SimpleOrder order) {
+    public @NotNull FullOrder toFullOrder(SimpleOrder order) {
         var orderContent = getOrderContent(order);
         return order.toFullOrder(orderContent);
     }
@@ -214,7 +214,7 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected Optional<FullOrder> cacheFullOrder(int id, Callable<Optional<FullOrder>> orderCallable) {
         try {
-            fullOrderCache.get(id, orderCallable);
+            return fullOrderCache.get(id, orderCallable);
         } catch (ExecutionException e) {
             Companies.logger().log(Level.SEVERE, "Could not compute value for order " + id);
         }

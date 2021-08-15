@@ -23,6 +23,8 @@ public class OrderSettings implements ConfigurationSerializable {
     @NotNull
     public Map<String, Object> serialize() {
         return SerializationUtil.newBuilder()
+                .add("maxItems", maxItems)
+                .add("maxMaterials", maxMaterials)
                 .build();
     }
 

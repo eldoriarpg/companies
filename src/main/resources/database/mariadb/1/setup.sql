@@ -71,8 +71,6 @@ CREATE OR REPLACE TABLE orders_delivered
     worker_uuid BINARY(16) NOT NULL,
     material    TEXT       NOT NULL,
     delivered   INT        NOT NULL,
-    CONSTRAINT orders_delivered_id_worker_uuid_material_uindex
-        UNIQUE (id, worker_uuid, material) USING HASH,
     CONSTRAINT orders_delivered_orders_id_fk
         FOREIGN KEY (id) REFERENCES orders (id)
             ON DELETE CASCADE
