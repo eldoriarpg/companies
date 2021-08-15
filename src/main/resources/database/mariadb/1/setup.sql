@@ -1,4 +1,4 @@
-CREATE TABLE companies
+CREATE OR REPLACE TABLE companies
 (
     id      INT AUTO_INCREMENT,
     name    TEXT                                  NOT NULL,
@@ -12,47 +12,53 @@ CREATE TABLE companies
 ALTER TABLE companies
     ADD PRIMARY KEY (id);
 
-CREATE TABLE company_member
+CREATE OR REPLACE TABLE companies_db_version
 (
-    id         INT                  NULL,
-    uuid       BINARY(16)           NOT NULL
+    major INT NULL,
+    patch INT NULL
+);
+
+CREATE OR REPLACE TABLE company_member
+(
+    id          INT              NULL,
+    member_uuid BINARY(16)       NOT NULL
         PRIMARY KEY,
-    permission MEDIUMTEXT DEFAULT 0 NOT NULL,
+    permission  BIGINT DEFAULT 0 NOT NULL,
     CONSTRAINT company_member_companies_id_fk
         FOREIGN KEY (id) REFERENCES companies (id)
             ON DELETE CASCADE
 );
 
-CREATE INDEX company_member_id_index
+CREATE OR REPLACE INDEX company_member_id_index
     ON company_member (id);
 
-CREATE INDEX company_member_id_uuid_index
-    ON company_member (id, uuid);
+CREATE OR REPLACE INDEX company_member_id_uuid_index
+    ON company_member (id, member_uuid);
 
-CREATE TABLE orders
+CREATE OR REPLACE TABLE orders
 (
-    id         INTEGER AUTO_INCREMENT
+    id         INT AUTO_INCREMENT
         PRIMARY KEY,
     owner_uuid BINARY(16)                            NOT NULL,
-    name       TEXT                                 NOT  NULL,
+    name       TEXT                                  NULL,
     created    TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL
 );
 
-CREATE TABLE order_content
+CREATE OR REPLACE TABLE order_content
 (
-    id       INTEGER NOT NULL,
-    material TEXT    NULL,
-    stack    TEXT    NULL,
-    amount   INT     NULL,
-    price    FLOAT   NULL,
+    id       INT   NOT NULL,
+    material TEXT  NOT NULL,
+    stack    TEXT  NOT NULL,
+    amount   INT   NOT NULL,
+    price    FLOAT NOT NULL,
     CONSTRAINT order_content_orders_id_fk
         FOREIGN KEY (id) REFERENCES orders (id)
             ON DELETE CASCADE
 );
 
-CREATE TABLE order_states
+CREATE OR REPLACE TABLE order_states
 (
-    id          INTEGER                               NOT NULL
+    id          INT                                   NOT NULL
         PRIMARY KEY,
     company     INT                                   NULL,
     last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
@@ -62,19 +68,18 @@ CREATE TABLE order_states
             ON DELETE CASCADE
 );
 
-create table orders_delivered
+CREATE OR REPLACE TABLE orders_delivered
 (
-    id int not null,
-    worker_uuid BINARY(16) not null,
-    material TEXT not null,
-    delivered int not null,
-    constraint orders_delivered_orders_id_fk
-        foreign key (id) references orders (id)
-            on delete cascade
+    id          INT        NOT NULL,
+    worker_uuid BINARY(16) NOT NULL,
+    material    TEXT       NOT NULL,
+    delivered   INT        NOT NULL,
+    CONSTRAINT orders_delivered_id_worker_uuid_material_uindex
+        UNIQUE (id, worker_uuid, material) USING HASH,
+    CONSTRAINT orders_delivered_orders_id_fk
+        FOREIGN KEY (id) REFERENCES orders (id)
+            ON DELETE CASCADE
 );
 
-create index orders_delivered_id_index
-    on orders_delivered (id);
-
-create unique index orders_delivered_id_worker_uuid_material_uindex
-    on orders_delivered (id, worker_uuid, material);
+CREATE OR REPLACE INDEX orders_delivered_id_index
+    ON orders_delivered (id);

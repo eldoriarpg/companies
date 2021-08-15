@@ -29,12 +29,12 @@ public class MariaDbCompanyData extends ACompanyData {
     protected void updateMember(CompanyMember member) {
         if (member.company() == -1) {
             builder()
-                    .query("DELETE FROM company_member WHERE uuid = ?")
+                    .query("DELETE FROM company_member WHERE member_uuid = ?")
                     .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(member.uuid())))
                     .update().executeSync();
         } else {
             builder()
-                    .query("REPLACE company_member(id, uuid, permission) VALUES(?,?,?)")
+                    .query("REPLACE company_member(id, member_uuid, permission) VALUES(?,?,?)")
                     .paramsBuilder(stmt -> stmt.setInt(member.company()).setBytes(UUIDConverter.convert(member.uuid())).setLong(member.permission()))
                     .update().executeSync();
         }
@@ -50,7 +50,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player) {
         return builder(SimpleCompany.class)
-                .query("SELECT c.id, c.name, c.founded FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE uuid = ?")
+                .query("SELECT c.id, c.name, c.founded FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE member_uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
                 .readRow(this::parseCompany)
                 .firstSync();
@@ -91,7 +91,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected List<CompanyMember> getCompanyMember(SimpleCompany company) {
         return builder(CompanyMember.class)
-                .query("SELECT uuid, permission FROM company_member WHERE id = ?")
+                .query("SELECT member_uuid, permission FROM company_member WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(company.id()))
                 .readRow(rs -> CompanyMember.of(company.id(), UUIDConverter.convert(rs.getBytes("uuid")),
                         rs.getLong("permission")))
@@ -101,7 +101,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<CompanyMember> getCompanyMember(OfflinePlayer player) {
         return builder(CompanyMember.class)
-                .query("SELECT id, uuid, permission FROM company_member WHERE uuid = ?")
+                .query("SELECT id, member_uuid, permission FROM company_member WHERE member_uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
                 .readRow(rs -> CompanyMember.of(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("uuid")),
                         rs.getLong("permission")))

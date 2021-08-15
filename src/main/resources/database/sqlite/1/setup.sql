@@ -11,28 +11,34 @@ CREATE TABLE companies
     founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+CREATE TABLE companies_db_version
+(
+    major INT,
+    patch INT
+);
+
 CREATE TABLE company_member
 (
-    id         INTEGER NOT NULL ,
-    uuid       BLOB NOT NULL
+    id          INTEGER,
+    member_uuid BLOB
         CONSTRAINT company_member_pk
             PRIMARY KEY,
-    permission TEXT
+    permission  INTEGER
 );
 
 CREATE INDEX company_member_id_index
     ON company_member (id);
 
 CREATE INDEX company_member_id_uuid_index
-    ON company_member (id, uuid);
+    ON company_member (id, member_uuid);
 
 CREATE TABLE orders
 (
     id         INTEGER
         CONSTRAINT orders_pk
             PRIMARY KEY,
-    owner_uuid BLOB NOT NULL ,
-    name       TEXT NOT NULL ,
+    owner_uuid BLOB,
+    name       INTEGER,
     created    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -42,10 +48,10 @@ CREATE TABLE order_content
         CONSTRAINT order_content_orders_id_fk
             REFERENCES orders
             ON DELETE CASCADE,
-    material TEXT NOT NULL ,
-    stack    TEXT NOT NULL ,
-    amount   INTEGER NOT NULL ,
-    price    FLOAT NOT NULL
+    material TEXT,
+    stack    TEXT,
+    amount   INTEGER,
+    price    FLOAT
 );
 
 CREATE INDEX order_content_id_index

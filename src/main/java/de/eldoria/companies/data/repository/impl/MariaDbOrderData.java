@@ -79,7 +79,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected boolean claimOrder(SimpleCompany company, SimpleOrder order) {
         return builder()
-                       .query("UPDATE order_states SET state = ?, company = ?, last_update = NOW() WHERE id = ? AND state = ?")
+                       .query("UPDATE order_states SET state = ?, company = ?, last_update = current_timestamp WHERE id = ? AND state = ?")
                        .paramsBuilder(stmt -> stmt.setInt(OrderState.CLAIMED.stateId()).setInt(company.id()).setInt(order.id()).setInt(OrderState.UNCLAIMED.stateId()))
                        .update().executeSync() > 0;
     }
@@ -87,7 +87,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected void orderDelivered(SimpleOrder order) {
         builder()
-                .query("UPDATE order_states SET state = ?, last_update = NOW() WHERE id = ?")
+                .query("UPDATE order_states SET state = ?, last_update = current_timestamp WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(OrderState.DELIVERED.stateId()).setInt(order.id()))
                 .append()
                 .query("DELETE FROM orders_delivered WHERE id = ?")
@@ -98,7 +98,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected void unclaimOrder(SimpleOrder order) {
         builder()
-                .query("UPDATE order_states SET state = ?, company = NULL, last_update = NOW() WHERE id = ?")
+                .query("UPDATE order_states SET state = ?, company = NULL, last_update = current_timestamp WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(OrderState.UNCLAIMED.stateId()).setInt(order.id()))
                 .append()
                 .query("DELETE FROM orders_delivered WHERE id = ?")
