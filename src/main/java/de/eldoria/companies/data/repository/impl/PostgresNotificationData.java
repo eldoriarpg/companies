@@ -10,7 +10,6 @@ public class PostgresNotificationData extends MariaDbNotificationData {
      * Create a new QueryFactoryholder
      *
      * @param dataSource      datasource
-     * @param config          factory config
      * @param executorService
      */
     public PostgresNotificationData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {

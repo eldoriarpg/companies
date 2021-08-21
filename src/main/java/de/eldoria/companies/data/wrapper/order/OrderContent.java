@@ -52,19 +52,16 @@ public class OrderContent {
         this.price = price;
     }
 
-    public Component asComponent(ILocalizer localizer, Economy economy) {
-        return Component.text()
-                .append(Component.text(stack.getType().name().replace("_", " ")))
-                .append(Component.text("[x" + amount + "]"))
-                .append(Component.text(" " + economy.format(price))).build();
+    public String asComponent(Economy economy) {
+        return prettyType() + " [" + amount + "] " + economy.format(price);
     }
 
-    public Component asProgressComponent(ILocalizer localizer, Economy economy) {
-        return Component.text()
-                .append(Component.text(stack.getType().name().replace("_", " ")))
-                .append(Component.space())
-                .append(Component.text(delivered() + "/" + amount + ""))
-                .append(Component.text(" " + economy.format(price))).build();
+    public String asProgressComponent(Economy economy) {
+        return prettyType() + " " + delivered() + "/" + amount + " " + economy.format(price);
+    }
+
+    private String prettyType() {
+        return stack.getType().name().replace("_", " ");
     }
 
     public int delivered() {

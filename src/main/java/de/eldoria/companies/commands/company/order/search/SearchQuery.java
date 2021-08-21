@@ -1,9 +1,13 @@
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.eldoutilities.localization.ILocalizer;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -11,6 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SearchQuery {
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.get();
     private String name = null;
     private List<String> materials = new ArrayList<>();
     private boolean anyMaterial = true;
@@ -142,63 +147,49 @@ public class SearchQuery {
         return exactMatch;
     }
 
-    public Component asComponent() {
-        var queryCmd = "/company order search query ";
-        var builder = Component.text()
-                .append(Component.text("Current search Settings")).append(Component.newline())
-                .append(Component.text("Name: ")).append(Component.text(name().isBlank() ? "_____" : name()))
-                .append(Component.text("[change]").clickEvent(ClickEvent.suggestCommand(queryCmd + "name ")))
-                .append(Component.text("[clear]").clickEvent(ClickEvent.runCommand(queryCmd + "name")))
-                .append(Component.newline())
-                .append(Component.text("Materials:"))
-                .append(Component.text("[add]").clickEvent(ClickEvent.suggestCommand(queryCmd + "material_add ")))
-                .append(Component.text("[clear]").clickEvent(ClickEvent.suggestCommand(queryCmd + "material_remove")))
-                .append(Component.newline());
+    public Component asComponent(ILocalizer localizer) {
+        var queryCmd = "/company order search query";
+        var composer = MessageComposer.create().text("Current search Settings").newLine()
+                .text("Name: ").text(name().isBlank() ? "_____" : name())
+                .text("<click:suggest_command:%s name >[", queryCmd).localeCode("change").text("]</click>")
+                .text("<click:run_command:%s name>[", queryCmd).localeCode("clear").text("]</click>")
+                .newLine()
+                .text("Materials: ")
+                .text("<click:suggest_command:%s material_add>[", queryCmd).localeCode("add").text("]</click>")
+                .text("<click:run_command:%s material_remove>[", queryCmd).localeCode("clear").text("]</click>")
+                .newLine();
         for (var material : materials) {
-            builder.append(Component.text(material))
-                    .append(Component.text("[Remove]").clickEvent(ClickEvent.runCommand(queryCmd + "material_remove " + material)))
-                    .append(Component.newline());
+            composer.text(material).text(" <click:run_command:%s material_remove %s>[", queryCmd, material).localeCode("remove").text("]</click>").newLine();
         }
         if (materials.size() > 1) {
-            builder.append(Component.text("Material Search "))
-                    .append(Component.text("[ANY]", anyMaterial ? NamedTextColor.GREEN : NamedTextColor.DARK_GRAY)
-                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_search any")))
-                    .append(Component.text("[ALL]", anyMaterial ? NamedTextColor.DARK_GRAY : NamedTextColor.GREEN)
-                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_search all")))
-                    .append(Component.newline());
+            composer.text("Material Search ")
+                    .text("<click:run_command:%s material_search any>[", queryCmd).localeCode("any").text("]</click> ")
+                    .text("<click:run_command:%s material_search any>[", queryCmd).localeCode("all").text("]</click> ");
         }
         if (!materials.isEmpty()) {
-            builder.append(Component.text("Material Match "))
-                    .append(Component.text("[PART]", exactMatch ? NamedTextColor.DARK_GRAY : NamedTextColor.GREEN)
-                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_match part")))
-                    .append(Component.text("[EXACT]", exactMatch ? NamedTextColor.GREEN : NamedTextColor.DARK_GRAY)
-                            .clickEvent(ClickEvent.runCommand(queryCmd + " material_match exact")))
-                    .append(Component.newline());
+            composer.localeCode("Material Match").space()
+                    .text("<click:run_command:%s material_match part>[", queryCmd).localeCode("part").text("]</click>")
+                    .text("<click:run_command:%s material_match exact>[", queryCmd).localeCode("exact").text("]</click>")
+                    .newLine();
         }
-        builder.append(Component.text("Min Price: ")).append(Component.text(minPrice))
-                .append(Component.text("[change]").clickEvent(ClickEvent.suggestCommand(queryCmd + "min_price ")))
-                .append(Component.newline())
-                .append(Component.text("Max Price: ")).append(Component.text(String.valueOf(maxPrice == Double.MAX_VALUE ? "MAX" : maxPrice)))
-                .append(Component.text("[change]").clickEvent(ClickEvent.suggestCommand(queryCmd + "max_price ")))
-                .append(Component.newline())
-                .append(Component.text("Min Size: ")).append(Component.text(minOrderSize))
-                .append(Component.text("[change]").clickEvent(ClickEvent.suggestCommand(queryCmd + "min_size ")))
-                .append(Component.newline())
-                .append(Component.text("Max Size: ")).append(Component.text(String.valueOf(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxOrderSize)))
-                .append(Component.text("[change]").clickEvent(ClickEvent.suggestCommand(queryCmd + "max_size ")))
-                .append(Component.newline())
-                .append(Component.text("Order by: "));
+        composer.localeCode("Min Price").space().text(minPrice).space()
+                .text("<click:suggest_command:%s min_price >[").localeCode("change").text("]</click>").newLine()
+                .localeCode("Max Price").space().text(maxPrice == Double.MAX_VALUE ? "MAX" : maxPrice).space()
+                .text("<click:suggest_command:%s max_price >[").localeCode("change").text("]</click>").newLine()
+                .localeCode("Min Size").space().text(minOrderSize).space()
+                .text("<click:suggest_command:%s min_size >[").localeCode("change").text("]</click>").newLine()
+                .localeCode("Max Size").space().text(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxPrice).space()
+                .text("<click:suggest_command:%s max_size >[").localeCode("change").text("]</click>").newLine()
+                .localeCode("Order by ");
         for (var sort : SortingType.values()) {
-            builder.append(Component.text("[" + sort.name() + "]", sort == sortingType ? NamedTextColor.GREEN : NamedTextColor.GRAY)
-                    .clickEvent(ClickEvent.runCommand(queryCmd + "sorting " + sort)));
+            composer.text("<click:run_command:%s sorting %s>", queryCmd, sort).text(sort == sortingType ? "<green>" : "<gray>")
+                    .text("[").localeCode(sort.name()).text("]</click>");
         }
-        builder.append(Component.text("[asc]", asc ? NamedTextColor.GREEN : NamedTextColor.GRAY)
-                        .clickEvent(ClickEvent.runCommand(queryCmd + "order asc")))
-                .append(Component.text("[desc]", !asc ? NamedTextColor.GREEN : NamedTextColor.GRAY)
-                        .clickEvent(ClickEvent.runCommand(queryCmd + "order desc")))
-                .append(Component.newline());
-        builder.append(Component.text("[Search]").clickEvent(ClickEvent.runCommand(queryCmd + "execute")))
-                .append(Component.text("[Clear]").clickEvent(ClickEvent.runCommand(queryCmd + "clear")));
-        return builder.build();
+        composer.text("<click:run_command:%s order asc>%s[", queryCmd, asc ? "<green>" : "<gray>").localeCode("asc").text("]</click>").space()
+                .text("<click:run_command:%s order desc>%s[", queryCmd, !asc ? "<green>" : "<gray>").localeCode("desc").text("]</click>")
+                .newLine()
+                .text("<click:run_command:%s execute>[").localeCode("Search").text("]</click>")
+                .text("<click:run_command:%s clear>[").localeCode("Clear").text("]</click>");
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 }
