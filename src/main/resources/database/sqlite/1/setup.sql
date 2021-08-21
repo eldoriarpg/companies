@@ -87,9 +87,10 @@ CREATE INDEX orders_delivered_id_worker_uuid_index
 
 CREATE TABLE notification
 (
-    user_uuid         BLOB NOT NULL
-        CONSTRAINT notification_pk
-            PRIMARY KEY,
+    user_uuid         BLOB NOT NULL,
     created           TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     notification_data TEXT NOT NULL
 );
+
+CREATE INDEX notification_user_uuid_index
+    ON notification (user_uuid);
