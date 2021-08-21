@@ -5,6 +5,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -48,10 +49,39 @@ public class Abort extends EldoCommand {
                 messageSender().sendError(sender, "Nothing to confirm");
                 return true;
             }
-            orderData.submitUnclaimOrder(remove).whenComplete(r -> {
-                list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
-                        messageSender().sendMessage(sender, "Order canceled."));
-            });
+
+            companyData.retrievePlayerCompanyProfile(player)
+                    .whenComplete(optProfile -> {
+                        if (optProfile.isEmpty()) {
+                            messageSender().sendError(player, "You are not part of a Company");
+                            return;
+                        }
+                        var profile = optProfile.get();
+                        if (!profile.member(player).get().hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
+                            messageSender().sendError(player, "You don't have the permission.");
+                            return;
+                        }
+
+                        orderData.retrieveOrderById(remove.id())
+                                .whenComplete(optOrder -> {
+                                    if (optOrder.isEmpty()) {
+                                        messageSender().sendError(player, "This order does not exist");
+                                        return;
+                                    }
+
+                                    var order = optOrder.get();
+                                    if (order.company() != profile.id()) {
+                                        messageSender().sendError(player, "This order does not belong to your company.");
+                                        return;
+                                    }
+
+                                    orderData.submitUnclaimOrder(remove).whenComplete(r -> {
+                                        list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
+                                                getPlugin().getServer().getPluginManager().callEvent(new OrderCanceledEvent(remove, profile)));
+                                    });
+
+                                });
+                    });
             return true;
         }
 
@@ -89,13 +119,13 @@ public class Abort extends EldoCommand {
         }
         var order = optOrder.get();
 
-        if (!company.member(player).get().hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-            messageSender().sendError(player, "You are not allowed to cancel orders.");
+        if (order.company() != company.id()) {
+            messageSender().sendError(player, "This order is not owned by your company");
             return;
         }
 
-        if (order.company() != company.id()) {
-            messageSender().sendError(player, "This order is not owned by your company");
+        if (!company.member(player).get().hasPermission(CompanyPermission.MANAGE_ORDERS)) {
+            messageSender().sendError(player, "You are not allowed to cancel orders.");
             return;
         }
 

@@ -11,8 +11,6 @@ import org.bukkit.plugin.Plugin;
 import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -21,8 +19,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 public class SqLiteOrderData extends MariaDbOrderData {
-
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * Create a new QueryBuilderFactory
@@ -75,8 +71,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
     public SimpleOrder buildSimpleOrder(ResultSet rs) throws SQLException {
         return new SimpleOrder(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("owner_uuid")),
                 // Sqlite cant read its own timestamp as timestamp. We need to parse them
-                rs.getString("name"), LocalDateTime.parse(rs.getString("last_update"), FORMATTER),
-                rs.getInt("company"), LocalDateTime.parse(rs.getString("created"), FORMATTER),
+                rs.getString("name"), SqLiteAdapter.getTimestamp(rs, "last_update"),
+                rs.getInt("company"), SqLiteAdapter.getTimestamp(rs, "created"),
                 OrderState.byId(rs.getInt("state")));
     }
 
@@ -84,7 +80,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         List<List<Integer>> results = new ArrayList<>();
         Set<Integer> materialMatch;
-        var materialFilter = searchQuery.materials().isEmpty();
+        var materialFilter = !searchQuery.materials().isEmpty();
         // This is pain. SqLite doesnt support regex from stock so we need to do some dirty looping.
         if (materialFilter) {
             for (var material : searchQuery.materials()) {
@@ -126,7 +122,6 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        "  AND oc.amount <= ? " +
                        "  AND os.state >= ? AND os.state <= ? ")
                 .paramsBuilder(stmt -> stmt.setString("%" + searchQuery.name() + "%")
-                        .setString(searchQuery.materialRegex())
                         .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
                         .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize())
                         .setInt(min.stateId()).setInt(max.stateId()))

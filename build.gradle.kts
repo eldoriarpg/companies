@@ -19,21 +19,23 @@ repositories {
 }
 
 dependencies {
-    implementation("de.eldoria", "eldo-util", "1.9.6-DEV")
+    implementation("de.eldoria", "eldo-util", "1.9.8-DEV")
     implementation("de.chojo", "sql-util", "1.1.3-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
         exclude("com.zaxxer")
     }
+
     // text
     implementation("net.kyori", "adventure-api", "4.8.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
+    implementation("net.kyori", "adventure-text-minimessage", "4.1.0-SNAPSHOT")
 
     // database
     compileOnly("com.zaxxer", "HikariCP", "5.0.0")
     compileOnly("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
     compileOnly("org.xerial", "sqlite-jdbc", "3.7.2")
-    compileOnly("org.postgresql","postgresql","42.2.23")
+    compileOnly("org.postgresql", "postgresql", "42.2.23")
 
     compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
     compileOnly("org.jetbrains", "annotations", "20.1.0")
@@ -96,13 +98,10 @@ tasks {
     }
 
     shadowJar {
-        relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
-        relocate("de.chojo.sqlutil", shadebase + "sqlutil")
+        //relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
+        //relocate("de.chojo.sqlutil", shadebase + "sqlutil")
         mergeServiceFiles()
-        minimize {
-            exclude(dependency("org.xerial:.*:.*"))
-            // exclude(dependency("org.mariadb:.*:.*"))
-        }
+        minimize()
         archiveClassifier.set("")
     }
 
@@ -112,9 +111,14 @@ tasks {
             events("passed", "skipped", "failed")
         }
     }
-    register<Copy>("copyToServer"){
+    register<Copy>("copyToServer") {
+        val path = project.property("targetDir") ?: "";
+        if (path.toString().isEmpty()) {
+            println("targetDir is not set in gradle properties")
+            return@register
+        }
         from(shadowJar)
-        destinationDir = File("/home/chojo/dev/minecraft_server/1.17.1/plugins/")
+        destinationDir = File(path.toString())
     }
 }
 

@@ -5,6 +5,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -89,7 +90,7 @@ public class Accept extends EldoCommand {
         }
         orderData.submitOrderClaim(profile, simpleOrder).whenComplete(success -> {
             if (success) {
-                messageSender().sendMessage(sender, "Order claimed.");
+                getPlugin().getServer().getPluginManager().callEvent(new OrderAcceptEvent(order.get(), profile));
             } else {
                 messageSender().sendError(sender, "Order could not be claimed");
             }

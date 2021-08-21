@@ -13,14 +13,19 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.ANotificationData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.MariaDbCompanyData;
+import de.eldoria.companies.data.repository.impl.MariaDbNotificationData;
 import de.eldoria.companies.data.repository.impl.MariaDbOrderData;
 import de.eldoria.companies.data.repository.impl.PostgresCompanyData;
+import de.eldoria.companies.data.repository.impl.PostgresNotificationData;
 import de.eldoria.companies.data.repository.impl.PostgresOrderData;
 import de.eldoria.companies.data.repository.impl.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.SqLiterNotificationData;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
@@ -45,11 +50,22 @@ public class Companies extends EldoPlugin {
     private DataSource dataSource = null;
     private ACompanyData companyData = null;
     private AOrderData orderData = null;
-    private Economy economy;
+    private ANotificationData notificationData = null;
+    private Economy economy = null;
+
+    @Override
+    public void onPluginLoad() throws Throwable {
+        configuration = new Configuration(this);
+        try {
+            initDb();
+        } catch (SQLException | IOException e) {
+            logger().log(Level.SEVERE, "Could not init database", e);
+            throw e;
+        }
+    }
 
     @Override
     public void onPluginEnable(boolean reload) throws Exception {
-        configuration = new Configuration(this);
 
         MessageSender.create(this, "§c[C]");
         ILocalizer.create(this, "en_US", "de_DE").setLocale("en_US");
@@ -63,15 +79,12 @@ public class Companies extends EldoPlugin {
             return;
         }
 
-        try {
-            initDb();
-        } catch (SQLException | IOException e) {
-            logger().log(Level.SEVERE, "Could not init database", e);
-            throw e;
-        }
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration));
         registerCommand("order", new Order(this, orderData, configuration, economy));
+
+        ExpiringService.create(this, orderData, companyData, configuration, workerPool);
+        registerListener(new NotificationService(notificationData, this));
     }
 
     @Override
@@ -111,7 +124,6 @@ public class Companies extends EldoPlugin {
 
 
         initDataRepositories();
-        ExpiringService.create(orderData, configuration, workerPool);
     }
 
     private void initDataRepositories() {
@@ -119,14 +131,17 @@ public class Companies extends EldoPlugin {
             case SQLITE:
                 companyData = new SqLiteCompanyData(dataSource, this, workerPool);
                 orderData = new SqLiteOrderData(dataSource, this, workerPool);
+                notificationData = new SqLiterNotificationData(dataSource, this, workerPool);
                 break;
             case MARIADB:
                 companyData = new MariaDbCompanyData(dataSource, this, workerPool);
                 orderData = new MariaDbOrderData(dataSource, this, workerPool);
+                notificationData = new MariaDbNotificationData(dataSource, this, workerPool);
                 break;
             case POSTGRES:
                 companyData = new PostgresCompanyData(dataSource, this, workerPool);
                 orderData = new PostgresOrderData(dataSource, this, workerPool);
+                notificationData = new PostgresNotificationData(dataSource, this, workerPool);
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }

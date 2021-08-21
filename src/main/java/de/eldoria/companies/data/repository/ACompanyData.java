@@ -8,6 +8,7 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.plugin.Plugin;
 
 import javax.sql.DataSource;
 import java.sql.ResultSet;
@@ -16,12 +17,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.logging.Level;
 
 public abstract class ACompanyData extends QueryFactoryHolder {
     private final ExecutorService executorService;
 
-    public ACompanyData(QueryBuilderConfig config, DataSource dataSource, ExecutorService executorService) {
-        super(dataSource, config);
+    public ACompanyData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
+        super(dataSource, QueryBuilderConfig.builder()
+                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
+                .build());
         this.executorService = executorService;
     }
 
@@ -52,6 +56,12 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     }
 
     protected abstract Optional<SimpleCompany> getCompanyByName(String name);
+
+    public BukkitFutureResult<Optional<SimpleCompany>> retrieveCompanyById(int id) {
+        return CompletableBukkitFuture.supplyAsync(() -> getCompanyById(id), executorService);
+    }
+
+    protected abstract Optional<SimpleCompany> getCompanyById(int id);
 
     public BukkitFutureResult<Integer> submitCompanyCreation(String name) {
         return CompletableBukkitFuture.supplyAsync(() -> createCompany(name), executorService);

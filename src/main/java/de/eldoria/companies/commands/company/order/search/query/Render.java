@@ -27,6 +27,6 @@ public class Render extends EldoCommand {
 
     public void renderSearch(Player player) {
         var playerSearch = query.getPlayerSearch(player);
-        audiences.player(player).sendMessage(playerSearch.asComponent());
+        audiences.player(player).sendMessage(playerSearch.asComponent(localizer()));
     }
 }

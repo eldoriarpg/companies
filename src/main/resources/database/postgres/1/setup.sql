@@ -89,3 +89,13 @@ CREATE INDEX IF NOT EXISTS company_member_id_index
 
 CREATE INDEX IF NOT EXISTS company_member_id_uuid_index
     ON company_member (id, member_uuid);
+
+CREATE TABLE IF NOT EXISTS notification
+(
+    user_uuid         bytea                   NOT NULL,
+    created           TIMESTAMP DEFAULT NOW() NOT NULL,
+    notification_data jsonb                   NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS notification_user_uuid_index
+    ON notification (user_uuid);

@@ -5,9 +5,9 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.eldoutilities.localization.ILocalizer;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class OrderBuilder {
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.get();
     private final SimpleOrder order;
     private final List<OrderContent> elements = new ArrayList<>();
 
@@ -65,28 +66,28 @@ public class OrderBuilder {
     }
 
     public Component asComponent(OrderSettings setting, ILocalizer localizer, Economy economy) {
-        var items = Component.text()
-                .append(Component.text(order.name())).append(Component.newline())
-                .append(Component.text("Items:"));
+        var cmd = "/order create";
+        var composer = MessageComposer.create()
+                .text(name()).newLine()
+                .localeCode("Items").text(": ");
+
         if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
-            items.append(Component.space()).append(Component.text("[add]", NamedTextColor.GREEN).clickEvent(ClickEvent.suggestCommand("/order create add ")));
+            composer.space().text("<click:suggest_command:%s add >[", cmd).localeCode("add").text("]</click>");
         }
 
         for (var element : elements) {
-            items.append(Component.newline()).append(element.asComponent(localizer, economy))
-                    .append(Component.text("[remove]", NamedTextColor.RED).clickEvent(ClickEvent.runCommand("/order create remove " + element.materialString())));
+            composer.newLine()
+                    .text(element.asComponent(economy))
+                    .text("<click:run_command:%s remove %s><red>[", cmd, element.materialString())
+                    .localeCode("remove")
+                    .text("]");
         }
-
-        items.append(Component.newline());
-
-        items.append(Component.text("Materials: " + materialsAmount() + "/" + setting.maxMaterials())).append(Component.newline())
-                .append(Component.text("Items: " + amount() + "/" + setting.maxItems())).append(Component.newline())
-                .append(Component.text("Price: " + economy.format(price())))
-                .append(Component.newline())
-                .append(Component.text("[done]", NamedTextColor.GREEN).clickEvent(ClickEvent.runCommand("/order create done")))
-                .append(Component.space())
-                .append(Component.text("[cancel]", NamedTextColor.RED).clickEvent(ClickEvent.runCommand("/order create cancel")));
-        return items.build();
+        composer.newLine().localeCode("Materials").text(": %s/%s", materialsAmount(), setting.maxMaterials()).newLine()
+                .localeCode("Items").text(": %s/%s", amount(), setting.maxItems()).newLine()
+                .localeCode("Price").text(": %s", economy.format(price())).newLine()
+                .text("<click:run_command:%s done>[", cmd).localeCode("done").text("]</click>").space()
+                .text("<click:run_command:%s cancel>[", cmd).localeCode("cancel").text("]</click>");
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
     public void removeContent(Material parse) {

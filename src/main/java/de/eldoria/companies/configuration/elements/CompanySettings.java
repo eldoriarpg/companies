@@ -50,12 +50,12 @@ public class CompanySettings implements ConfigurationSerializable {
         return foudingPrice;
     }
 
-    public void maxOrders(int maxOrder) {
-        this.maxOrders = maxOrder;
+    public void maxOrders(int maxOrders) {
+        this.maxOrders = maxOrders;
     }
 
-    public void deliveryHours(int deliveryDays) {
-        this.deliveryHours = deliveryDays;
+    public void deliveryHours(int deliveryHours) {
+        this.deliveryHours = deliveryHours;
     }
 
     public void maxMember(int maxMember) {

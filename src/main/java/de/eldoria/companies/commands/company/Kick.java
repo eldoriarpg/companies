@@ -2,6 +2,7 @@ package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.events.company.CompanyKickEvent;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import org.bukkit.command.Command;
@@ -60,15 +61,7 @@ public class Kick extends EldoCommand {
 
         companyData.submitMemberUpdate(member.kick());
         messageSender().sendMessage(sender, "You kicked " + member.player().getName());
-        if (member.player().isOnline()) {
-            var target = member.player().getPlayer();
-            messageSender().sendMessage(target, "You were kicked from your company.");
-        }
 
-        for (var currMember : profile.members()) {
-            if (currMember.uuid().equals(member.uuid())) continue;
-            if (!currMember.player().isOnline()) continue;
-            messageSender().sendMessage(currMember.player().getPlayer(), member.player().getName() + " was kicked from the company");
-        }
+        getPlugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(optProfile.get(), member.player()));
     }
 }

@@ -14,3 +14,4 @@ gradle-app.setting
 # Idea
 .idea/
 *.iml
+gradle.properties

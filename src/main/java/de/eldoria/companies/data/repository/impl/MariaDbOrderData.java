@@ -1,7 +1,6 @@
 package de.eldoria.companies.data.repository.impl;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
-import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.logging.Level;
 
 public class MariaDbOrderData extends AOrderData {
 
@@ -31,9 +29,7 @@ public class MariaDbOrderData extends AOrderData {
      * @param executorService executor service for future handling
      */
     public MariaDbOrderData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
-        super(QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
-                .build(), dataSource, executorService);
+        super(plugin, dataSource, executorService);
     }
 
     @Override
@@ -79,7 +75,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected boolean claimOrder(SimpleCompany company, SimpleOrder order) {
         return builder()
-                       .query("UPDATE order_states SET state = ?, company = ?, last_update = current_timestamp WHERE id = ? AND state = ?")
+                       .query("UPDATE order_states SET state = ?, company = ?, last_update = CURRENT_TIMESTAMP WHERE id = ? AND state = ?")
                        .paramsBuilder(stmt -> stmt.setInt(OrderState.CLAIMED.stateId()).setInt(company.id()).setInt(order.id()).setInt(OrderState.UNCLAIMED.stateId()))
                        .update().executeSync() > 0;
     }
@@ -87,7 +83,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected void orderDelivered(SimpleOrder order) {
         builder()
-                .query("UPDATE order_states SET state = ?, last_update = current_timestamp WHERE id = ?")
+                .query("UPDATE order_states SET state = ?, last_update = CURRENT_TIMESTAMP WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(OrderState.DELIVERED.stateId()).setInt(order.id()))
                 .append()
                 .query("DELETE FROM orders_delivered WHERE id = ?")
@@ -98,7 +94,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected void unclaimOrder(SimpleOrder order) {
         builder()
-                .query("UPDATE order_states SET state = ?, company = NULL, last_update = current_timestamp WHERE id = ?")
+                .query("UPDATE order_states SET state = ?, company = NULL, last_update = CURRENT_TIMESTAMP WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(OrderState.UNCLAIMED.stateId()).setInt(order.id()))
                 .append()
                 .query("DELETE FROM orders_delivered WHERE id = ?")

@@ -5,9 +5,11 @@ import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.localization.ILocalizer;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class FullOrder extends SimpleOrder {
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.get();
     private final List<OrderContent> contents;
 
     public FullOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed,
@@ -30,122 +33,103 @@ public class FullOrder extends SimpleOrder {
     }
 
     public Component userShortInfo(ILocalizer localizer, Economy economy) {
-        return Component.text().append(Component.text(id()).append(Component.text(" | "))
-                .append(Component.text(name())
-                        .hoverEvent(HoverEvent.showText(() ->
-                                userContent(localizer, economy).append(Component.newline())
-                                        .append(Component.text("Price " + price())))))
+        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
+                .text("<hover:show_text:" + userContent(economy) + "\nPrice:" + economy.format(price()) + ">"
+                      + "<click:run_command:/order info " + id() + ">[info]</click>"
+                      + "</hover>");
 
-                .append(Component.text("[info]")
-                        .clickEvent(ClickEvent.runCommand("/order info " + id())))).asComponent();
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
     public Component companyShortInfo(ILocalizer localizer, Economy economy) {
-        return Component.text().append(Component.text(id()).append(Component.text(" | ")).append(Component.text(name())
-                        .append(Component.text("[info]")
-                                .clickEvent(ClickEvent.runCommand("/company order info " + id())))).asComponent()
-                .hoverEvent(HoverEvent.showText(() ->
-                        companySimpleContent(localizer, economy, state()).append(Component.newline())
-                                .append(Component.text("Price " + price()))))).build();
+        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
+                .text("<hover:show_text:" + companySimpleContent(economy, state()) + "\nPrice:" + economy.format(price()) + ">"
+                      + "<click:run_command:/company order info " + id() + ">[info]</click>"
+                      + "</hover>");
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
     public Component userDetailInfo(ILocalizer localizer, Economy economy) {
-        var build = Component.text().append(Component.text(id())).append(Component.text(" | ")).append(Component.text(name())
-                        .append(Component.newline())
-                        .append(Component.text("State: " + state().name().toLowerCase()))
-                        .append(Component.newline())
-                        .append(userContent(localizer, economy))
-                        .append(Component.newline())
-                        .append(Component.text("Price " + price())))
-                .append(Component.newline());
+        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
+                .text("State: " + state().name().toLowerCase()).newLine()
+                .text(userContent(economy)).newLine()
+                .text("Price: " + price()).newLine();
         switch (state()) {
             case UNCLAIMED:
-                build.append(Component.text("[cancel]")
-                        .clickEvent(ClickEvent.runCommand("/order cancel " + id())));
-                break;
-            case CLAIMED:
+                composer.text("<click:run_command:/order cancel " + id() + ">[cancel]");
                 break;
             case DELIVERED:
-                build.append(Component.text("[receive]")
-                        .clickEvent(ClickEvent.runCommand("/order receive " + id())));
+                composer.text("<click:run_command:/order receive " + id() + ">[cancel]");
                 break;
             case RECEIVED:
+            case CLAIMED:
                 break;
         }
-        return build.build();
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
     public Component companyDetailInfo(CompanyMember member, ILocalizer localizer, Economy economy) {
-        var build = Component.text().append(Component.text(id())).append(Component.text(" | ")).append(Component.text(name())
-                        .append(Component.newline())
-                        .append(Component.text("State: " + state().name().toLowerCase()))
-                        .append(Component.newline())
-                        .append(companyActionContent(localizer, economy, state()))
-                        .append(Component.newline())
-                        .append(Component.text("Price " + price())))
-                .append(Component.newline());
+        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
+                .text("State: " + state().name().toLowerCase()).newLine()
+                .text(companyActionContent(economy, state())).newLine()
+                .text("Price: " + price()).newLine();
+
         switch (state()) {
             case UNCLAIMED:
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                    build.append(Component.text("[accept]")
-                            .clickEvent(ClickEvent.runCommand("/company order accept " + id())));
+                    composer.text("<click:run_command:/company order accept " + id() + ">[accept]</click>");
                 }
                 break;
             case CLAIMED:
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                    build.append(Component.text("[abort]")
-                            .clickEvent(ClickEvent.runCommand("/company order abort " + id())));
+                    composer.text("<click:run_command:/company order abort " + id() + ">[abort]</click>");
                 }
                 break;
             case DELIVERED:
-                break;
             case RECEIVED:
-                break;
         }
-        return build.build();
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
-    private Component userContent(ILocalizer localizer, Economy economy) {
-        List<Component> contents = new ArrayList<>();
+    private String userContent(Economy economy) {
+        List<String> contents = new ArrayList<>();
         for (var content : this.contents) {
-            contents.add(content.asComponent(localizer, economy));
+            contents.add(content.asComponent(economy));
         }
-        return Component.join(Component.newline(), contents);
+        return String.join("\n", contents);
     }
 
-    private Component companyActionContent(ILocalizer localizer, Economy economy, OrderState state) {
-        List<Component> contents = new ArrayList<>();
+    private String companyActionContent(Economy economy, OrderState state) {
+        List<String> contents = new ArrayList<>();
         for (var content : this.contents) {
             if (state == OrderState.UNCLAIMED) {
-                contents.add(content.asComponent(localizer, economy));
+                contents.add(content.asComponent(economy));
             } else {
-                var component = content.asProgressComponent(localizer, economy).append(Component.space());
+                var composer = MessageComposer.create().text(content.asProgressComponent(economy)).space();
                 if (content.missing() != 0) {
-                    component = component.append(Component.text("[max]")
-                                    .clickEvent(ClickEvent.runCommand("/company order deliver " + id() + " " + content.stack().getType() + " max")))
-                            .append(Component.text("[1]")
-                                    .clickEvent(ClickEvent.runCommand("/company order deliver " + id() + " " + content.stack().getType() + " 1")))
-                            .append(Component.text("[64]")
-                                    .clickEvent(ClickEvent.runCommand("/company order deliver " + id() + " " + content.stack().getType() + " 64")));
+                    var baseCommand = "/company order deliver " + id() + " " + content.stack().getType() + " ";
+                    composer.text("<click:run_command:" + baseCommand + " max>[max]</click>")
+                            .text("<click:run_command:" + baseCommand + " 1>[1]</click>")
+                            .text("<click:run_command:" + baseCommand + " 64>[64]</click>");
                 } else {
-                    component = component.append(Component.text("Done"));
+                    composer.text("Done");
                 }
-                contents.add(component);
+                contents.add(composer.build());
             }
         }
-        return Component.join(Component.newline(), contents);
+        return String.join("\n", contents);
     }
 
-    private Component companySimpleContent(ILocalizer localizer, Economy economy, OrderState state) {
-        List<Component> contents = new ArrayList<>();
+    private String companySimpleContent(Economy economy, OrderState state) {
+        List<String> contents = new ArrayList<>();
         for (var content : this.contents) {
             if (state == OrderState.UNCLAIMED) {
-                contents.add(content.asComponent(localizer, economy));
+                contents.add(content.asComponent(economy));
             } else {
-                contents.add(content.asProgressComponent(localizer, economy));
+                contents.add(content.asProgressComponent(economy));
             }
         }
-        return Component.join(Component.newline(), contents);
+        return String.join("\n", contents);
     }
 
     public List<OrderContent> contents() {
