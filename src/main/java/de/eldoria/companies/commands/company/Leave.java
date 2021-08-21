@@ -2,6 +2,8 @@ package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.events.company.CompanyDisbandEvent;
+import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
@@ -80,18 +82,11 @@ public class Leave extends EldoCommand {
                         companyData.submitCompanyPurge(profile);
                         orderData.submitCompanyOrdersPurge(profile);
                         messageSender().sendMessage(player, "The company was disbanded");
-                        for (var member : profile.members()) {
-                            if (member.player().isOnline()) {
-                                messageSender().sendMessage(member.player().getPlayer(), "Your company was disbanded.");
-                            }
-                        }
+                        getPlugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(optProfile.get()));
                         return;
                     }
+                        getPlugin().getServer().getPluginManager().callEvent(new CompanyLeaveEvent(optProfile.get(), player));
                     for (var member : profile.members()) {
-                        if (member.player().getUniqueId().equals(player.getUniqueId())) continue;
-                        if (member.player().isOnline()) {
-                            messageSender().sendMessage(member.player().getPlayer(), player.getName() + " has left the company.");
-                        }
                     }
                     companyData.submitMemberUpdate(profile.member(player).get().kick());
                     messageSender().sendMessage(player, "You left the company.");

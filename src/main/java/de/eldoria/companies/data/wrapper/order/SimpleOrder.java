@@ -51,6 +51,10 @@ public class SimpleOrder {
         return name;
     }
 
+    public String fullName() {
+        return String.format("%s - %s", id, name);
+    }
+
     public LocalDateTime created() {
         return created;
     }

@@ -119,6 +119,13 @@ public class SearchQuery {
         return materials.stream().map(mat -> "(.*" + regexMat(mat) + ")").collect(Collectors.joining(""));
     }
 
+    private String regexMat(String mat) {
+        if (exactMatch) {
+            return "\\b" + mat + "\\b";
+        }
+        return mat;
+    }
+
     public void anyMaterial(boolean anyMaterial) {
         this.anyMaterial = anyMaterial;
     }
@@ -133,13 +140,6 @@ public class SearchQuery {
 
     public boolean isExactMatch() {
         return exactMatch;
-    }
-
-    private String regexMat(String mat) {
-        if (exactMatch) {
-            return "\\b" + mat + "\\b";
-        }
-        return mat;
     }
 
     public Component asComponent() {

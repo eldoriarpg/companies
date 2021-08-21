@@ -5,6 +5,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
@@ -84,12 +85,12 @@ public class Invite extends EldoCommand {
                                                 messageSender().sendError(sender, "Your company has reached the member limit.");
                                                 return;
                                             }
+                                            if (targetCompany.isPresent()) {
+                                                messageSender().sendError(sender, "Player is already part of a company");
+                                                return;
+                                            }
+                                            scheduleInvite(player, target, company.get());
                                         });
-                                if (targetCompany.isPresent()) {
-                                    messageSender().sendError(sender, "Player is already part of a company");
-                                    return;
-                                }
-                                scheduleInvite(player, target, company.get());
                             });
 
                 });
@@ -147,10 +148,8 @@ public class Invite extends EldoCommand {
         if (inviter.isOnline()) {
             messageSender().sendMessage(inviter.getPlayer(), player.getName() + " has accepted your invite.");
         }
-        for (var member : profile.get().members()) {
-            if (!member.player().isOnline()) continue;
-            messageSender().sendMessage(member.player().getPlayer(), player.getName() + " has joined the company.");
-        }
+
+        getPlugin().getServer().getPluginManager().callEvent(new CompanyJoinEvent(profile.get(), player));
     }
 
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {

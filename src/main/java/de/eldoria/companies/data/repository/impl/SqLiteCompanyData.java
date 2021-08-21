@@ -8,12 +8,9 @@ import org.bukkit.plugin.Plugin;
 import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 
 public class SqLiteCompanyData extends MariaDbCompanyData {
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public SqLiteCompanyData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(dataSource, plugin, executorService);
@@ -49,6 +46,6 @@ public class SqLiteCompanyData extends MariaDbCompanyData {
     @Override
     protected SimpleCompany parseCompany(ResultSet rs) throws SQLException {
         return new SimpleCompany(rs.getInt("id"), rs.getString("name"),
-                LocalDateTime.parse(rs.getString("founded"), FORMATTER));
+                SqLiteAdapter.getTimestamp(rs, "founded"));
     }
 }

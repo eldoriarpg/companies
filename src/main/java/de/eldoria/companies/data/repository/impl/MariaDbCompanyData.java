@@ -1,7 +1,6 @@
 package de.eldoria.companies.data.repository.impl;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
-import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -15,14 +14,11 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.logging.Level;
 
 public class MariaDbCompanyData extends ACompanyData {
 
     public MariaDbCompanyData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
-        super(QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
-                .build(), dataSource, executorService);
+        super(plugin, dataSource, executorService);
     }
 
     @Override
@@ -61,6 +57,15 @@ public class MariaDbCompanyData extends ACompanyData {
         return builder(SimpleCompany.class)
                 .query("SELECT c.id, c.name, c.founded FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE c.name LIKE ?")
                 .paramsBuilder(stmt -> stmt.setString(name))
+                .readRow(this::parseCompany)
+                .firstSync();
+    }
+
+    @Override
+    protected Optional<SimpleCompany> getCompanyById(int id) {
+        return builder(SimpleCompany.class)
+                .query("SELECT * FROM companies WHERE id = ?")
+                .paramsBuilder(stmt -> stmt.setInt(id))
                 .readRow(this::parseCompany)
                 .firstSync();
     }

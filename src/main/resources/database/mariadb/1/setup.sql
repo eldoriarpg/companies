@@ -78,3 +78,11 @@ CREATE OR REPLACE TABLE orders_delivered
 
 CREATE OR REPLACE INDEX orders_delivered_id_index
     ON orders_delivered (id);
+
+CREATE OR REPLACE TABLE notification
+(
+    user_uuid         BINARY(16)                            NOT NULL
+        PRIMARY KEY,
+    created           TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
+    notification_data TEXT                                  NOT NULL
+);

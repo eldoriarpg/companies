@@ -21,6 +21,7 @@ import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import javax.sql.DataSource;
@@ -39,12 +40,13 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public abstract class AOrderData extends QueryFactoryHolder {
-    private static final Gson GSON = new GsonBuilder().create();
     private final ExecutorService executorService;
     private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).build();
 
-    public AOrderData(QueryBuilderConfig config, DataSource dataSource, ExecutorService executorService) {
-        super(dataSource, config);
+    public AOrderData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
+        super(dataSource, QueryBuilderConfig.builder()
+                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
+                .build());
         this.executorService = executorService;
     }
 
@@ -175,12 +177,12 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);
 
-    protected ItemStack toItemStack(String map) {
-        return GSON.fromJson(map, ItemStackContainer.class).toItemStack();
+    protected ItemStack toItemStack(String json) {
+        return ItemStackContainer.fromString(json).toItemStack();
     }
 
     protected String toString(ItemStack stack) {
-        return GSON.toJson(ItemStackContainer.create(stack));
+        return ItemStackContainer.fromItemStack(stack).toJson();
     }
 
     protected abstract void purgeCompanyOrders(SimpleCompany profile);
@@ -230,6 +232,8 @@ public abstract class AOrderData extends QueryFactoryHolder {
     }
 
     protected static class ItemStackContainer {
+        private static final Gson GSON = new GsonBuilder().create();
+
         @SuppressWarnings("FieldMayBeFinal")
         private Map<String, Object> data;
 
@@ -237,12 +241,20 @@ public abstract class AOrderData extends QueryFactoryHolder {
             this.data = data;
         }
 
-        public static ItemStackContainer create(ItemStack stack) {
+        public static ItemStackContainer fromItemStack(ItemStack stack) {
             return new ItemStackContainer(stack.serialize());
+        }
+
+        public static ItemStackContainer fromString(String json) {
+            return GSON.fromJson(json, ItemStackContainer.class);
         }
 
         public ItemStack toItemStack() {
             return ItemStack.deserialize(data);
+        }
+
+        public String toJson() {
+            return GSON.toJson(this);
         }
     }
 }

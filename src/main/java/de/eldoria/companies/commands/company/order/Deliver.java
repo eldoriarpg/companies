@@ -5,6 +5,8 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.order.OrderDoneEvent;
+import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -130,27 +132,23 @@ public class Deliver extends EldoCommand {
 
     private void handleRefreshedOrder(@NotNull CommandSender sender, Player player, Optional<CompanyProfile> company, FullOrder refreshedFullOrder) {
         if (refreshedFullOrder.isDone()) {
-            orderDone(refreshedFullOrder);
+            orderDone(refreshedFullOrder, company.get());
             return;
         }
         audiences.sender(sender).sendMessage(refreshedFullOrder.companyDetailInfo(company.get().member(player).get(), localizer(), economy));
     }
 
-    private void orderDone(FullOrder order) {
+    private void orderDone(FullOrder order, CompanyProfile profile) {
         var payments = order.payments(PaymentType.STACK);
         orderData.submitOrderDelivered(order);
+        getPlugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(order, profile));
         CompletableBukkitFuture.runAsync(() -> {
             for (var entry : payments.entrySet()) {
                 var player = getPlugin().getServer().getOfflinePlayer(entry.getKey());
+                var event = new OrderPaymentEvent(order, player, entry.getValue());
+                getPlugin().getServer().getPluginManager().callEvent(event);
+                if(event.isCancelled()) continue;
                 economy.depositPlayer(player, entry.getValue());
-                if (player.isOnline()) {
-                    messageSender().sendMessage(player.getPlayer(), "Order \" " + order.name() + "\" delivered. You received " + entry.getValue());
-                }
-            }
-            var owner = getPlugin().getServer().getOfflinePlayer(order.owner());
-            if (owner.isOnline()) {
-                Component.text().append(Component.text("Order delivered.").append(Component.space()).append(Component.text("[Click here to claim]"))
-                        .clickEvent(ClickEvent.runCommand("/order receive " + order.id())));
             }
         });
     }
