@@ -7,6 +7,7 @@ import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyKickEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
+import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
@@ -111,7 +112,12 @@ public class NotificationService implements Listener {
 
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
-        sendMessage(event.player(), "You received " + event.amount() + " for your contribution to order " + event.order().fullName());
+        sendMessage(event.player(), "You received %amount% for your contribution to order %order_name%",
+                Replacement.create("amount", event.amount()), Replacement.create("order_name", event.order().fullName()));
+    }
+
+    public void onCompanyLevelUp(CompanyLevelUpEvent event) {
+
     }
 
     @EventHandler

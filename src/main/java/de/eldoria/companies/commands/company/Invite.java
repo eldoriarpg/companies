@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -81,7 +82,7 @@ public class Invite extends EldoCommand {
                                 companyData.retrieveCompanyProfile(company.get())
                                         .whenComplete(optProfile -> {
                                             var profile = optProfile.get();
-                                            if (profile.members().size() >= configuration.companySettings().maxMember()) {
+                                            if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxMembers()) {
                                                 messageSender().sendError(sender, "Your company has reached the member limit.");
                                                 return;
                                             }
@@ -138,7 +139,7 @@ public class Invite extends EldoCommand {
             return;
         }
 
-        if (profile.get().members().size() >= configuration.companySettings().maxMember()) {
+        if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).orElse(new CompanyLevel()).settings().maxMembers()) {
             messageSender().sendError(sender, "Company is already full");
             return;
         }

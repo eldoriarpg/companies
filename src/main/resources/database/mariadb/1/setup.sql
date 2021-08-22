@@ -3,7 +3,8 @@ CREATE OR REPLACE TABLE companies
     id      INT AUTO_INCREMENT,
     name    TEXT                                  NOT NULL,
     founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
-    CONSTRAINT companies_id_uindex
+    level   INT       DEFAULT 1                   NOT NULL,
+        CONSTRAINT companies_id_uindex
         UNIQUE (id),
     CONSTRAINT companies_name_uindex
         UNIQUE (name) USING HASH
@@ -79,7 +80,7 @@ CREATE OR REPLACE TABLE orders_delivered
 CREATE OR REPLACE INDEX orders_delivered_id_index
     ON orders_delivered (id);
 
-CREATE OR REPLACE TABLE notification
+CREATE OR REPLACE TABLE company_notification
 (
     user_uuid         BINARY(16)                            NOT NULL,
     created           TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
@@ -87,4 +88,43 @@ CREATE OR REPLACE TABLE notification
 );
 
 CREATE OR REPLACE INDEX notification_user_uuid_index
-    ON notification (user_uuid);
+    ON company_notification (user_uuid);
+
+CREATE OR REPLACE TABLE company_stats
+(
+    id             INT           NOT NULL
+        PRIMARY KEY,
+    failed_orders INT DEFAULT 0 NOT NULL,
+    CONSTRAINT company_stats_companies_id_fk
+        FOREIGN KEY (id) REFERENCES companies (id)
+            ON DELETE CASCADE
+);
+
+CREATE OR REPLACE VIEW company_stats_view AS
+SELECT c.id,
+       c.name,
+       c.founded,
+       m.member_count,
+       o.order_count - s.failed_orders AS order_count,
+       o.price,
+       o.amount
+FROM companies c
+         LEFT JOIN (SELECT company,
+                           COUNT(1)    AS order_count,
+                           SUM(price)  AS price,
+                           SUM(amount) AS amount
+                    FROM orders o
+                             LEFT JOIN order_states os ON o.id = os.id
+                             LEFT JOIN (SELECT id,
+                                               SUM(amount) AS amount,
+                                               SUM(price)  AS price
+                                        FROM order_content
+                                        GROUP BY id) oc
+                                       ON o.id = oc.id
+                    WHERE os.state >= 300
+                    GROUP BY company) o ON c.id = o.company
+         LEFT JOIN company_stats s ON c.id = s.id
+         LEFT JOIN (SELECT id,
+                           COUNT(1) AS member_count
+                    FROM company_member
+                    GROUP BY id) m ON c.id = m.id

@@ -1,4 +1,4 @@
-package de.eldoria.companies.data.repository.impl;
+package de.eldoria.companies.data.repository.impl.sqlite;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

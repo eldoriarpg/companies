@@ -82,8 +82,8 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract boolean claimOrder(SimpleCompany company, SimpleOrder order);
 
-    public void submitOrderDelivered(SimpleOrder order) {
-        CompletableBukkitFuture.runAsync(() -> {
+    public FutureResult<Void> submitOrderDelivered(SimpleOrder order) {
+        return CompletableBukkitFuture.runAsync(() -> {
             orderDelivered(order);
             invalidateFullOrder(order);
         }, executorService);

@@ -1,4 +1,4 @@
-package de.eldoria.companies.data.repository.impl;
+package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.data.repository.ANotificationData;
@@ -25,7 +25,7 @@ public class MariaDbNotificationData extends ANotificationData {
     @Override
     protected MissedNotifications getMissedNotifications(OfflinePlayer player) {
         var notifications = builder(Notification.class)
-                .query("SELECT created, notification_data FROM notification WHERE user_uuid = ?")
+                .query("SELECT created, notification_data FROM company_notification WHERE user_uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
                 .readRow(rs -> new Notification(
                         rs.getTimestamp("created").toLocalDateTime(),
@@ -37,7 +37,7 @@ public class MariaDbNotificationData extends ANotificationData {
     @Override
     protected void saveNotifications(OfflinePlayer player, NotificationData notificationData) {
         builder()
-                .query("INSERT INTO notification(user_uuid, notification_data) VALUES(?,?)")
+                .query("INSERT INTO company_notification(user_uuid, notification_data) VALUES(?,?)")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())).setString(notificationData.toJson()))
                 .update()
                 .executeSync();
@@ -45,7 +45,7 @@ public class MariaDbNotificationData extends ANotificationData {
 
     @Override
     protected void clearNotifications(OfflinePlayer player) {
-        builder().query("DELETE FROM notification WHERE user_uuid = ?")
+        builder().query("DELETE FROM company_notification WHERE user_uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
                 .update().executeSync();
     }

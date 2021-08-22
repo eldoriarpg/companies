@@ -140,8 +140,8 @@ public class Deliver extends EldoCommand {
 
     private void orderDone(FullOrder order, CompanyProfile profile) {
         var payments = order.payments(PaymentType.STACK);
-        orderData.submitOrderDelivered(order);
-        getPlugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(order, profile));
+        orderData.submitOrderDelivered(order)
+                .whenComplete(r -> getPlugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(order, profile)));
         CompletableBukkitFuture.runAsync(() -> {
             for (var entry : payments.entrySet()) {
                 var player = getPlugin().getServer().getOfflinePlayer(entry.getKey());

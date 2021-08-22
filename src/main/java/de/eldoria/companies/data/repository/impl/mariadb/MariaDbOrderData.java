@@ -1,4 +1,4 @@
-package de.eldoria.companies.data.repository.impl;
+package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
