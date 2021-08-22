@@ -86,7 +86,7 @@ public class CompanySettings implements ConfigurationSerializable {
 
     public CompanyLevel createLevel(int level) {
         var newLevel = new CompanyLevel();
-        var clampedLevel = Math.max(1, Math.min(level - 1, this.level.size()));
+        var clampedLevel = Math.max(0, Math.min(level - 1, this.level.size()));
         this.level.add(clampedLevel, newLevel);
         updateLevel();
         return newLevel;
@@ -95,6 +95,13 @@ public class CompanySettings implements ConfigurationSerializable {
     public Optional<CompanyLevel> level(int level) {
         if (level > this.level.size()) return Optional.empty();
         return Optional.ofNullable(this.level.get(level - 1));
+    }
+
+    public void moveLevel(int source, int target) {
+        if (source == target) return;
+        var clampedTarget = Math.max(1, Math.min(target, level.size())) - 1;
+        level.add(clampedTarget, level.remove(source - 1));
+        updateLevel();
     }
 
     public List<CompanyLevel> level() {
