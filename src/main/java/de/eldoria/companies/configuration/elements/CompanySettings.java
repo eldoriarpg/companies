@@ -1,23 +1,36 @@
 package de.eldoria.companies.configuration.elements;
 
+import de.eldoria.companies.Companies;
+import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.eldoutilities.serialization.SerializationUtil;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class CompanySettings implements ConfigurationSerializable {
-    private int maxOrders = 5;
     private int deliveryHours = 48;
-    private int maxMember = 20;
-    private double foudingPrice = 20000.0f;
+    private double foudingPrice = 20000.0;
+    private int expiredOrderPenalty = 3;
+    private int abortedOrderPenalty = 1;
+    private List<CompanyLevel> level = new ArrayList<>();
 
     public CompanySettings(Map<String, Object> objectMap) {
         var map = SerializationUtil.mapOf(objectMap);
-        maxOrders = map.getValueOrDefault("maxOrders", maxOrders);
         deliveryHours = map.getValueOrDefault("deliveryHours", deliveryHours);
-        maxMember = map.getValueOrDefault("maxMember", maxMember);
         foudingPrice = map.getValueOrDefault("foudingPrice", foudingPrice);
+        expiredOrderPenalty = map.getValueOrDefault("expiredOrderPenalty", expiredOrderPenalty);
+        abortedOrderPenalty = map.getValueOrDefault("abortedOrderPenalty", abortedOrderPenalty);
+        level = map.getValueOrDefault("level", level);
+        if (level.isEmpty()) {
+            Companies.logger().info("No company level set. Creating default level.");
+            level.add(new CompanyLevel());
+        }
+        updateLevel();
     }
 
     public CompanySettings() {
@@ -27,42 +40,86 @@ public class CompanySettings implements ConfigurationSerializable {
     @NotNull
     public Map<String, Object> serialize() {
         return SerializationUtil.newBuilder()
-                .add("maxOrders", maxOrders)
                 .add("deliveryHours", deliveryHours)
-                .add("maxMember", maxMember)
                 .add("foudingPrice", foudingPrice)
+                .add("expiredOrderPenalty", expiredOrderPenalty)
+                .add("abortedOrderPenalty", abortedOrderPenalty)
+                .add("level", level)
                 .build();
-    }
-
-    public int maxOrders() {
-        return maxOrders;
     }
 
     public int deliveryHours() {
         return deliveryHours;
     }
 
-    public int maxMember() {
-        return maxMember;
-    }
-
     public double foudingPrice() {
         return foudingPrice;
-    }
-
-    public void maxOrders(int maxOrders) {
-        this.maxOrders = maxOrders;
     }
 
     public void deliveryHours(int deliveryHours) {
         this.deliveryHours = deliveryHours;
     }
 
-    public void maxMember(int maxMember) {
-        this.maxMember = maxMember;
-    }
-
     public void foudingPrice(float foudingPrice) {
         this.foudingPrice = foudingPrice;
+    }
+
+    public void foudingPrice(double foudingPrice) {
+        this.foudingPrice = foudingPrice;
+    }
+
+    public int expiredOrderPenalty() {
+        return expiredOrderPenalty;
+    }
+
+    public void expiredOrderPenalty(int expiredOrderPenalty) {
+        this.expiredOrderPenalty = expiredOrderPenalty;
+    }
+
+    public int abortedOrderPenalty() {
+        return abortedOrderPenalty;
+    }
+
+    public void abortedOrderPenalty(int abortedOrderPenalty) {
+        this.abortedOrderPenalty = abortedOrderPenalty;
+    }
+
+    public CompanyLevel createLevel(int level) {
+        var newLevel = new CompanyLevel();
+        var clampedLevel = Math.max(0, Math.min(level - 1, this.level.size()));
+        this.level.add(clampedLevel, newLevel);
+        updateLevel();
+        return newLevel;
+    }
+
+    public Optional<CompanyLevel> level(int level) {
+        if (level > this.level.size()) return Optional.empty();
+        return Optional.ofNullable(this.level.get(level - 1));
+    }
+
+    public void moveLevel(int source, int target) {
+        if (source == target) return;
+        var clampedTarget = Math.max(1, Math.min(target, level.size())) - 1;
+        level.add(clampedTarget, level.remove(source - 1));
+        updateLevel();
+    }
+
+    public List<CompanyLevel> level() {
+        return level;
+    }
+
+    public CompanyLevel calcCompanyLevel(CompanyStats stats) {
+        var finalLevel = level.get(0);
+        for (var level : level) {
+            if (!level.requirement().checkRequirements(stats)) break;
+            finalLevel = level;
+        }
+        return finalLevel;
+    }
+
+    private void updateLevel() {
+        for (var i = 0; i < level.size(); i++) {
+            level.get(i).level(i + 1);
+        }
     }
 }

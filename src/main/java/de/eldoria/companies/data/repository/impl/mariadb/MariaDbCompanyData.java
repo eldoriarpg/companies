@@ -1,9 +1,10 @@
-package de.eldoria.companies.data.repository.impl;
+package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
@@ -46,7 +47,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player) {
         return builder(SimpleCompany.class)
-                .query("SELECT c.id, c.name, c.founded FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE member_uuid = ?")
+                .query("SELECT c.id, c.name, c.founded, c.level FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE member_uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
                 .readRow(this::parseCompany)
                 .firstSync();
@@ -55,7 +56,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<SimpleCompany> getCompanyByName(String name) {
         return builder(SimpleCompany.class)
-                .query("SELECT c.id, c.name, c.founded FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE c.name LIKE ?")
+                .query("SELECT c.id, c.name, c.founded, c.level FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE c.name LIKE ?")
                 .paramsBuilder(stmt -> stmt.setString(name))
                 .readRow(this::parseCompany)
                 .firstSync();
@@ -64,7 +65,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<SimpleCompany> getCompanyById(int id) {
         return builder(SimpleCompany.class)
-                .query("SELECT * FROM companies WHERE id = ?")
+                .query("SELECT id, name, founded, level FROM companies WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(id))
                 .readRow(this::parseCompany)
                 .firstSync();
@@ -82,7 +83,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected SimpleCompany parseCompany(ResultSet rs) throws SQLException {
         return new SimpleCompany(rs.getInt("id"), rs.getString("name"),
-                rs.getTimestamp("founded").toLocalDateTime());
+                rs.getTimestamp("founded").toLocalDateTime(), rs.getInt("level"));
     }
 
     @Override
@@ -91,6 +92,35 @@ public class MariaDbCompanyData extends ACompanyData {
         for (var member : members) {
             updateMember(member.kick());
         }
+    }
+
+    @Override
+    protected CompanyStats getCompanyStats(SimpleCompany company) {
+        return builder(CompanyStats.class)
+                .query("SELECT id, name, founded, member_count, order_count, price, amount FROM company_stats_view WHERE id = ?")
+                .paramsBuilder(stmt -> stmt.setInt(company.id()))
+                .readRow(this::parseCompanyStats)
+                .firstSync().get();
+    }
+
+    @Override
+    protected void updateCompanyLevel(SimpleCompany company, int level) {
+        builder().query("UPDATE companies SET level = ? WHERE id = ?")
+                .paramsBuilder(stmt -> stmt.setInt(level).setInt(company.id()))
+                .update().executeSync();
+    }
+
+    @Override
+    public void upcountFailedOrders(SimpleCompany company, int amount) {
+        builder()
+                .query("INSERT INTO company_stats(id, failed_orders) VALUES(?,?) ON DUPLICATE KEY UPDATE failed_orders = failed_orders + ?")
+                .paramsBuilder(stmt -> stmt.setInt(company.id()).setInt(amount).setInt(amount))
+                .update().executeSync();
+    }
+
+    protected CompanyStats parseCompanyStats(ResultSet rs) throws SQLException {
+        return new CompanyStats(rs.getInt("id"), rs.getString("name"), rs.getTimestamp("founded").toLocalDateTime(),
+                rs.getInt("member_count"), rs.getInt("order_count"), rs.getDouble("price"), rs.getInt("amount"));
     }
 
     @Override
@@ -116,7 +146,7 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<SimpleCompany> getSimpleCompany(int companyId) {
         return builder(SimpleCompany.class)
-                .query("SELECT * FROM companies WHERE id = ?")
+                .query("SELECT id, name, founded, level FROM companies WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setInt(companyId))
                 .readRow(this::parseCompany)
                 .firstSync();

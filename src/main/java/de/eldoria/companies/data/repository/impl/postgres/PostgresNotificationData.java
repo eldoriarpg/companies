@@ -1,5 +1,6 @@
-package de.eldoria.companies.data.repository.impl;
+package de.eldoria.companies.data.repository.impl.postgres;
 
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
 import org.bukkit.plugin.Plugin;
 
 import javax.sql.DataSource;

@@ -4,6 +4,7 @@ import de.chojo.sqlutil.updater.SqlType;
 import de.chojo.sqlutil.updater.SqlUpdater;
 import de.chojo.sqlutil.updater.logging.JavaLogger;
 import de.eldoria.companies.commands.Company;
+import de.eldoria.companies.commands.CompanyAdmin;
 import de.eldoria.companies.commands.Order;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.CompanySettings;
@@ -11,19 +12,22 @@ import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
+import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.configuration.elements.companylevel.LevelRequirement;
+import de.eldoria.companies.configuration.elements.companylevel.LevelSettings;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANotificationData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.repository.impl.MariaDbCompanyData;
-import de.eldoria.companies.data.repository.impl.MariaDbNotificationData;
-import de.eldoria.companies.data.repository.impl.MariaDbOrderData;
-import de.eldoria.companies.data.repository.impl.PostgresCompanyData;
-import de.eldoria.companies.data.repository.impl.PostgresNotificationData;
-import de.eldoria.companies.data.repository.impl.PostgresOrderData;
-import de.eldoria.companies.data.repository.impl.SqLiteCompanyData;
-import de.eldoria.companies.data.repository.impl.SqLiteOrderData;
-import de.eldoria.companies.data.repository.impl.SqLiterNotificationData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresNotificationData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiterNotificationData;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.eldoutilities.localization.ILocalizer;
@@ -82,6 +86,7 @@ public class Companies extends EldoPlugin {
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration));
         registerCommand("order", new Order(this, orderData, configuration, economy));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData));
 
         ExpiringService.create(this, orderData, companyData, configuration, workerPool);
         registerListener(new NotificationService(notificationData, this));
@@ -93,7 +98,8 @@ public class Companies extends EldoPlugin {
 
     @Override
     public List<Class<? extends ConfigurationSerializable>> getConfigSerialization() {
-        return List.of(CompanySettings.class, DatabaseSettings.class, GeneralSettings.class, OrderSettings.class, UserSettings.class);
+        return List.of(CompanySettings.class, DatabaseSettings.class, GeneralSettings.class, OrderSettings.class, UserSettings.class,
+                CompanyLevel.class, LevelSettings.class, LevelRequirement.class);
     }
 
     private void initDb() throws SQLException, IOException {

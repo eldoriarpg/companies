@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -44,9 +45,7 @@ public class Accept extends EldoCommand {
         var player = getPlayerFromSender(sender);
 
         companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optProfile -> {
-                    handleProfile(sender, optId, player, optProfile);
-                });
+                .whenComplete(optProfile -> handleProfile(sender, optId, player, optProfile));
         return true;
     }
 
@@ -63,20 +62,16 @@ public class Accept extends EldoCommand {
         }
 
         orderData.retrieveCompanyOrderCount(profile)
-                .whenComplete(count -> {
-                    handleOrderCount(sender, optId, profile, count);
-                });
+                .whenComplete(count -> handleOrderCount(sender, optId, profile, count));
     }
 
     private void handleOrderCount(@NotNull CommandSender sender, OptionalInt optId, CompanyProfile profile, Integer count) {
-        if (count >= configuration.companySettings().maxOrders()) {
+        if (count >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxOrders()) {
             messageSender().sendError(sender, "Maximum order limit reached.");
             return;
         }
         orderData.retrieveOrderById(optId.getAsInt())
-                .whenComplete(order -> {
-                    handleOrder(sender, profile, order);
-                });
+                .whenComplete(order -> handleOrder(sender, profile, order));
     }
 
     private void handleOrder(@NotNull CommandSender sender, CompanyProfile profile, Optional<SimpleOrder> order) {

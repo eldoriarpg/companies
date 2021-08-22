@@ -4,9 +4,11 @@ import de.chojo.sqlutil.base.QueryFactoryHolder;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
+import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 
@@ -82,4 +84,22 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     }
 
     protected abstract void purgeCompany(SimpleCompany company);
+
+    public FutureResult<CompanyStats> retrieveCompanyStats(SimpleCompany company) {
+        return CompletableBukkitFuture.supplyAsync(() -> getCompanyStats(company));
+    }
+
+    protected abstract CompanyStats getCompanyStats(SimpleCompany company);
+
+    public FutureResult<Void> submitCompanyLevelUpdate(SimpleCompany company, int level) {
+        return CompletableBukkitFuture.runAsync(() -> updateCompanyLevel(company, level));
+    }
+
+    protected abstract void updateCompanyLevel(SimpleCompany simpleCompany, int level);
+
+    public FutureResult<Void> submitFailedOrder(SimpleCompany company, int amount) {
+        return CompletableBukkitFuture.runAsync(() -> upcountFailedOrders(company, amount));
+    }
+
+    public abstract void upcountFailedOrders(SimpleCompany company, int amount);
 }

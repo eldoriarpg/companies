@@ -11,8 +11,8 @@ import java.util.stream.Collectors;
 public class CompanyProfile extends SimpleCompany {
     private final List<CompanyMember> members;
 
-    public CompanyProfile(int id, String name, LocalDateTime founded, List<CompanyMember> members) {
-        super(id, name, founded);
+    public CompanyProfile(int id, String name, LocalDateTime founded, int level, List<CompanyMember> members) {
+        super(id, name, founded, level);
         this.members = members;
     }
 

@@ -1,7 +1,8 @@
-package de.eldoria.companies.data.repository.impl;
+package de.eldoria.companies.data.repository.impl.sqlite;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
