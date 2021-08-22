@@ -1,14 +1,15 @@
-create table companies
+CREATE TABLE companies
 (
-    id INTEGER
-        constraint companies_pk
-            primary key autoincrement,
-    name TEXT,
-    founded datetime default current_timestamp
+    id      INTEGER
+        CONSTRAINT companies_pk
+            PRIMARY KEY AUTOINCREMENT,
+    name    TEXT,
+    founded DATETIME DEFAULT CURRENT_TIMESTAMP,
+    level   INT      DEFAULT 1 NOT NULL
 );
 
-create unique index companies_name_uindex
-    on companies (name);
+CREATE UNIQUE INDEX companies_name_uindex
+    ON companies (name);
 
 CREATE TABLE company_member
 (
@@ -85,7 +86,7 @@ CREATE INDEX orders_delivered_id_index
 CREATE INDEX orders_delivered_id_worker_uuid_index
     ON orders_delivered (id, worker_uuid);
 
-CREATE TABLE notification
+CREATE TABLE company_notification
 (
     user_uuid         BLOB NOT NULL,
     created           TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -93,4 +94,47 @@ CREATE TABLE notification
 );
 
 CREATE INDEX notification_user_uuid_index
-    ON notification (user_uuid);
+    ON company_notification (user_uuid);
+
+CREATE TABLE company_stats
+(
+    id            INT NOT NULL
+        CONSTRAINT company_stats_companies_id_fk
+            REFERENCES companies
+            ON DELETE CASCADE,
+    failed_orders INT DEFAULT 0
+);
+
+
+CREATE UNIQUE INDEX company_stats_id_uindex
+    ON company_stats (id);
+
+DROP VIEW IF EXISTS company_stats_view;
+CREATE VIEW company_stats_view AS
+SELECT c.id,
+       c.name,
+       c.founded,
+       m.member_count,
+       o.order_count - s.failed_orders AS order_count,
+       o.price,
+       o.amount
+FROM companies c
+         LEFT JOIN (SELECT company,
+                           COUNT(1)    AS order_count,
+                           SUM(price)  AS price,
+                           SUM(amount) AS amount
+                    FROM orders o
+                             LEFT JOIN order_states os ON o.id = os.id
+                             LEFT JOIN (SELECT id,
+                                               SUM(amount) AS amount,
+                                               SUM(price)  AS price
+                                        FROM order_content
+                                        GROUP BY id) oc
+                                       ON o.id = oc.id
+                    WHERE os.state >= 300
+                    GROUP BY company) o ON c.id = o.company
+         LEFT JOIN company_stats s ON c.id = s.id
+         LEFT JOIN (SELECT id,
+                           COUNT(1) AS member_count
+                    FROM company_member
+                    GROUP BY id) m ON c.id = m.id

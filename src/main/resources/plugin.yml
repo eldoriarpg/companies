@@ -6,16 +6,18 @@ main: de.eldoria.companies.Companies
 api-version: 1.13
 depend:
   - Vault
+softdepend:
+  - PlaceholderAPI
 libraries:
   - "com.zaxxer:HikariCP:5.0.0"
   - "org.mariadb.jdbc:mariadb-java-client:2.7.2"
   - "org.xerial:sqlite-jdbc:3.36.0.1"
   - "org.postgresql:postgresql:42.2.23"
 
-
 commands:
   company:
     description: manage your company
-    usage: Invalid command
   order:
     description: create orders
+  companyadmin:
+    description: Manage the plugin

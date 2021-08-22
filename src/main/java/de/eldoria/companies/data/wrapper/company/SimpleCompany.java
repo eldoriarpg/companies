@@ -6,18 +6,20 @@ import java.util.List;
 
 public class SimpleCompany {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy");
-    int id;
-    String name;
-    LocalDateTime founded;
+    private final int id;
+    private final String name;
+    private final LocalDateTime founded;
+    private final int level;
 
-    public SimpleCompany(int id, String name, LocalDateTime founded) {
+    public SimpleCompany(int id, String name, LocalDateTime founded, int level) {
         this.id = id;
         this.name = name;
         this.founded = founded;
+        this.level = level;
     }
 
     public static SimpleCompany forId(int id) {
-        return new SimpleCompany(id, "", null);
+        return new SimpleCompany(id, "", null, 1);
     }
 
     public int id() {
@@ -36,7 +38,11 @@ public class SimpleCompany {
         return founded.format(FORMATTER);
     }
 
+    public int level() {
+        return level;
+    }
+
     public CompanyProfile toCompanyProfile(List<CompanyMember> members) {
-        return new CompanyProfile(id, name, founded, members);
+        return new CompanyProfile(id, name, founded, level, members);
     }
 }

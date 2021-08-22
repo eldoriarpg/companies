@@ -1,6 +1,7 @@
-package de.eldoria.companies.data.repository.impl;
+package de.eldoria.companies.data.repository.impl.sqlite;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
 import de.eldoria.companies.services.notifications.MissedNotifications;
 import de.eldoria.companies.services.notifications.Notification;
 import de.eldoria.companies.services.notifications.NotificationData;
@@ -25,7 +26,7 @@ public class SqLiterNotificationData extends MariaDbNotificationData {
     @Override
     protected MissedNotifications getMissedNotifications(OfflinePlayer player) {
         var notifications = builder(Notification.class)
-                .query("SELECT created, notification_data FROM notification WHERE user_uuid = ?")
+                .query("SELECT created, notification_data FROM company_notification WHERE user_uuid = ?")
                 .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
                 .readRow(rs -> new Notification(
                         SqLiteAdapter.getTimestamp(rs, "created"),

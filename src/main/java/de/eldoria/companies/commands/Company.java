@@ -12,7 +12,6 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
-import de.eldoria.eldoutilities.simplecommands.commands.DefaultDebug;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -22,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 public class Company extends EldoCommand {
     public Company(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
-        var profile = new Profile(plugin, companyData, orderData);
+        var profile = new Profile(plugin, companyData, orderData, configuration);
         setDefaultCommand(profile);
         registerCommand("create", new Create(plugin, companyData, economy, configuration));
         registerCommand("profile", profile);

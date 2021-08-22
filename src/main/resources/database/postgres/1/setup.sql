@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS companies
         CONSTRAINT companies_pk
             PRIMARY KEY,
     name    TEXT                    NOT NULL,
-    founded TIMESTAMP DEFAULT NOW() NOT NULL
+    founded TIMESTAMP DEFAULT NOW() NOT NULL,
+    level   INT       DEFAULT 1     NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS companies_name_uindex
@@ -90,7 +91,7 @@ CREATE INDEX IF NOT EXISTS company_member_id_index
 CREATE INDEX IF NOT EXISTS company_member_id_uuid_index
     ON company_member (id, member_uuid);
 
-CREATE TABLE IF NOT EXISTS notification
+CREATE TABLE IF NOT EXISTS company_notification
 (
     user_uuid         bytea                   NOT NULL,
     created           TIMESTAMP DEFAULT NOW() NOT NULL,
@@ -98,4 +99,44 @@ CREATE TABLE IF NOT EXISTS notification
 );
 
 CREATE INDEX IF NOT EXISTS notification_user_uuid_index
-    ON notification (user_uuid);
+    ON company_notification (user_uuid);
+
+CREATE TABLE IF NOT EXISTS company_stats
+(
+    id             INTEGER           NOT NULL
+        CONSTRAINT company_stats_pk
+            PRIMARY KEY
+        CONSTRAINT company_stats_companies_id_fk
+            REFERENCES companies
+            ON DELETE CASCADE,
+    failed_orders INTEGER DEFAULT 0 NOT NULL
+);
+
+CREATE OR REPLACE VIEW company_stats_view AS
+SELECT c.id,
+       c.name,
+       c.founded,
+       m.member_count,
+       o.order_count - s.failed_orders AS order_count,
+       o.price,
+       o.amount
+FROM companies c
+         LEFT JOIN (SELECT company,
+                           COUNT(1)    AS order_count,
+                           SUM(price)  AS price,
+                           SUM(amount) AS amount
+                    FROM orders o
+                             LEFT JOIN order_states os ON o.id = os.id
+                             LEFT JOIN (SELECT id,
+                                               SUM(amount) AS amount,
+                                               SUM(price)  AS price
+                                        FROM order_content
+                                        GROUP BY id) oc
+                                       ON o.id = oc.id
+                    WHERE os.state >= 300
+                    GROUP BY company) o ON c.id = o.company
+         LEFT JOIN company_stats s ON c.id = s.id
+         LEFT JOIN (SELECT id,
+                           COUNT(1) AS member_count
+                    FROM company_member
+                    GROUP BY id) m ON c.id = m.id
