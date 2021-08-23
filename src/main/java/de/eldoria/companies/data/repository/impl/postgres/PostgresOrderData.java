@@ -1,10 +1,13 @@
 package de.eldoria.companies.data.repository.impl.postgres;
 
+import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
+import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 
 import javax.sql.DataSource;
@@ -60,5 +63,22 @@ public class PostgresOrderData extends MariaDbOrderData {
         var fullOrders = toFullOrders(orders);
         searchQuery.sort(fullOrders);
         return fullOrders;
+    }
+
+    @Override
+    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        builder()
+                .query("INSERT INTO orders_delivered(id, worker_uuid, material, delivered) VALUES(?,?,?,?) ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered")
+                .paramsBuilder(stmt -> stmt.setInt(order.id()).setBytes(UUIDConverter.convert(player.getUniqueId()))
+                        .setString(material.name()).setInt(amount))
+                .update()
+                .executeSync();
+    }
+
+    @Override
+    public void refreshMaterialPrices() {
+        builder()
+                .queryWithoutParams("REFRESH MATERIALIZED VIEW material_price;")
+                .update().executeSync();
     }
 }

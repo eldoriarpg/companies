@@ -103,7 +103,7 @@ CREATE INDEX IF NOT EXISTS notification_user_uuid_index
 
 CREATE TABLE IF NOT EXISTS company_stats
 (
-    id             INTEGER           NOT NULL
+    id            INTEGER           NOT NULL
         CONSTRAINT company_stats_pk
             PRIMARY KEY
         CONSTRAINT company_stats_companies_id_fk
@@ -139,4 +139,17 @@ FROM companies c
          LEFT JOIN (SELECT id,
                            COUNT(1) AS member_count
                     FROM company_member
-                    GROUP BY id) m ON c.id = m.id
+                    GROUP BY id) m ON c.id = m.id;
+
+CREATE MATERIALIZED VIEW material_price AS
+SELECT material, avg_price, min_price, max_price
+FROM (SELECT c.material,
+             AVG(c.price / c.amount) AS avg_price,
+             MIN(c.price / c.amount) AS min_price,
+             MAX(c.price / c.amount) AS max_price
+      FROM (SELECT ROW_NUMBER() OVER (PARTITION BY material ORDER BY last_update DESC) AS id, material, amount, price, last_update
+            FROM order_content c
+                     LEFT JOIN order_states s ON c.id = s.id
+            WHERE s.state >= 200) c
+      WHERE c.id < 100
+      GROUP BY c.material) avg;

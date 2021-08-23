@@ -10,6 +10,7 @@ import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
@@ -40,6 +41,7 @@ import java.util.stream.Collectors;
 public abstract class AOrderData extends QueryFactoryHolder {
     private final ExecutorService executorService;
     private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).build();
+    private final Cache<String, Optional<MaterialPrice>> materialPriceCache = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
 
     public AOrderData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, QueryBuilderConfig.builder()
@@ -227,5 +229,56 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected void invalidateFullOrder(int id) {
         fullOrderCache.invalidate(id);
+    }
+
+    public FutureResult<Void> submitMaterialPriceRefresh() {
+        return CompletableBukkitFuture.runAsync(this::refreshMaterialPrices, executorService);
+    }
+
+    /**
+     * Get the material price from cache.
+     * <p>
+     * If no cached result is present this will return a empty optional and queue a pull from the database to retrieve the price.
+     * <p>
+     * Use {@link #retrieveMaterialPrice(String)} for async retrieval of the material price
+     *
+     * @param material material to check
+     * @return material price if present or empty optional
+     */
+    public Optional<MaterialPrice> getMaterialPrice(String material) {
+        try {
+            return materialPriceCache.get(material, () -> {
+                retrieveMaterialPrice(material);
+                return Optional.empty();
+            });
+        } catch (ExecutionException e) {
+            Companies.logger().log(Level.SEVERE, "Could not compute material price for  " + material);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Retrieves a material price from the database or returns a cached result.
+     *
+     * @param material material to retrieve
+     * @return future which provides a material price
+     */
+    public FutureResult<Optional<MaterialPrice>> retrieveMaterialPrice(String material) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            try {
+                return materialPriceCache.get(material, () -> findMaterialPrice(material));
+            } catch (ExecutionException e) {
+                Companies.logger().log(Level.SEVERE, "Could not compute material price for  " + material);
+            }
+            return Optional.empty();
+        }, executorService);
+    }
+
+    protected abstract Optional<MaterialPrice> findMaterialPrice(String material);
+
+    public abstract void refreshMaterialPrices();
+
+    public void invalidateMaterialPriceCache() {
+        materialPriceCache.invalidateAll();
     }
 }

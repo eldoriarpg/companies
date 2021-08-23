@@ -87,7 +87,7 @@ public class Create extends EldoCommand {
         var parse = EnumUtil.parse(args[0], Material.class);
 
         builder.removeContent(parse);
-        audience.sender(player).sendMessage(builder.asComponent(configuration.orderSetting(), localizer(), economy));
+        audience.sender(player).sendMessage(builder.asComponent(configuration.orderSetting(), localizer(), economy, orderData));
     }
 
     private void cancel(Player player) {
@@ -141,7 +141,7 @@ public class Create extends EldoCommand {
                     var name = String.join(" ", args);
                     var builder = new OrderBuilder(player.getUniqueId(), name);
                     builderCache.put(player.getUniqueId(), builder);
-                    var component = builder.asComponent(configuration.orderSetting(), localizer(), economy);
+                    var component = builder.asComponent(configuration.orderSetting(), localizer(), economy, orderData);
                     audience.player(player).sendMessage(component);
                 });
     }
@@ -171,7 +171,7 @@ public class Create extends EldoCommand {
 
         builder.addContent(new ItemStack(parse), Math.min(amount.getAsInt(), configuration.orderSetting().maxItems() - builder.amount()),
                 Math.max(0, price.getAsDouble()));
-        audience.sender(player).sendMessage(builder.asComponent(configuration.orderSetting(), localizer(), economy));
+        audience.sender(player).sendMessage(builder.asComponent(configuration.orderSetting(), localizer(), economy, orderData));
     }
 
     @Override
@@ -198,9 +198,17 @@ public class Create extends EldoCommand {
                 var max = configuration.orderSetting().maxItems() - builder.amount();
                 return TabCompleteUtil.completeInt(args[2], 1, max, localizer());
             }
+            var materialPrice = orderData.getMaterialPrice(args[2]);
             if (args.length == 4) {
                 if (args[3].isEmpty()) return Collections.singletonList("price");
-                return TabCompleteUtil.completeDouble(args[3], 0, 20000, localizer());
+                var result = TabCompleteUtil.completeDouble(args[3], 0, 20000, localizer());
+                if(materialPrice.isPresent()){
+                    var price = materialPrice.get();
+                    result.add("Avg: " + price.avgPrice());
+                    result.add("Min: " + price.minPrice());
+                    result.add("Max: " + price.maxPrice());
+                }
+                return result;
             }
             return Collections.emptyList();
         }

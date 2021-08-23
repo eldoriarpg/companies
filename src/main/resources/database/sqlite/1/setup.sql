@@ -131,10 +131,20 @@ FROM companies c
                                         FROM order_content
                                         GROUP BY id) oc
                                        ON o.id = oc.id
-                    WHERE os.state >= 300
+                    WHERE os.state >= 200
                     GROUP BY company) o ON c.id = o.company
          LEFT JOIN company_stats s ON c.id = s.id
          LEFT JOIN (SELECT id,
                            COUNT(1) AS member_count
                     FROM company_member
-                    GROUP BY id) m ON c.id = m.id
+                    GROUP BY id) m ON c.id = m.id;
+
+CREATE TABLE material_price
+(
+    material  VARCHAR(255) NOT NULL,
+    avg_price DOUBLE not null,
+    min_price DOUBLE not null,
+    max_price DOUBLE not null,
+    CONSTRAINT material_price_pk
+        PRIMARY KEY (material)
+);
