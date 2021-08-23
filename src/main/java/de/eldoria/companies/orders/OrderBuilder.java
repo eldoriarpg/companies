@@ -79,7 +79,7 @@ public class OrderBuilder {
                     .text("<hover:show_text:%s>%s</hover>", orderData.getMaterialPrice(element.materialString()), element.asComponent(economy))
                     .text("<click:run_command:%s remove %s><red>[", cmd, element.materialString())
                     .localeCode("remove")
-                    .text("]");
+                    .text("]<reset>");
         }
         composer.newLine().localeCode("Materials").text(": %s/%s", materialsAmount(), setting.maxMaterials()).newLine()
                 .localeCode("Items").text(": %s/%s", amount(), setting.maxItems()).newLine()

@@ -2,6 +2,7 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -59,17 +60,17 @@ public class Page extends EldoCommand {
 
         builder.append(Component.join(Component.newline(), components)).append(Component.newline());
         if (page != 0) {
-            builder.append(Component.text("<<< ").clickEvent(ClickEvent.runCommand("/company order search page " + (page - 1))));
+            builder.append(Component.text(Texts.LEFT_ARROW+ " ").clickEvent(ClickEvent.runCommand("/company order search page " + (page - 1))));
         } else {
-            builder.append(Component.text("<<< ", NamedTextColor.DARK_GRAY));
+            builder.append(Component.text(Texts.LEFT_ARROW + " ", NamedTextColor.DARK_GRAY));
         }
 
         builder.append(Component.text(page + 1).append(Component.text("/"))).append(Component.text(fullOrders.size() / PAGE_SIZE + 1));
 
         if (fullOrders.size() - (page + 1) * PAGE_SIZE > 0) {
-            builder.append(Component.text(" >>>").clickEvent(ClickEvent.runCommand("/company order search page " + (page + 1))));
+            builder.append(Component.text(" " + Texts.RIGHT_ARROW).clickEvent(ClickEvent.runCommand("/company order search page " + (page + 1))));
         } else {
-            builder.append(Component.text(" >>>", NamedTextColor.DARK_GRAY));
+            builder.append(Component.text(" " + Texts.RIGHT_ARROW, NamedTextColor.DARK_GRAY));
         }
         audiences.sender(player).sendMessage(builder.build());
     }
