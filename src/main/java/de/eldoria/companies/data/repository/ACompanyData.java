@@ -2,8 +2,10 @@ package de.eldoria.companies.data.repository;
 
 import de.chojo.sqlutil.base.QueryFactoryHolder;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
@@ -102,4 +104,10 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     }
 
     public abstract void upcountFailedOrders(SimpleCompany company, int amount);
+
+    public FutureResult<List<CompanyRank>> retrieveRanking(TopOrder order, int page, int pageSize) {
+        return CompletableBukkitFuture.supplyAsync(() -> getRanking(order, page, pageSize));
+    }
+
+    protected abstract List<CompanyRank> getRanking(TopOrder order, int page, int pageSize);
 }

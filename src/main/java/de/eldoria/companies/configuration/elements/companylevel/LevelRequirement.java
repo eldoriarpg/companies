@@ -38,7 +38,7 @@ public class LevelRequirement implements ConfigurationSerializable {
     public boolean checkRequirements(CompanyStats stats) {
         return stats.orderCount() >= orderCount
                && stats.price() >= earnedMoney
-               && stats.amount() >= deliveredItems
+               && stats.deliveredItems() >= deliveredItems
                && stats.memberCount() >= memberCount;
     }
 

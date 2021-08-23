@@ -2,8 +2,6 @@ package de.eldoria.companies.data.repository;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import de.chojo.sqlutil.base.QueryFactoryHolder;
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
@@ -15,6 +13,7 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
+import de.eldoria.companies.util.SerializeContainer;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.threading.futures.FutureResult;
@@ -29,7 +28,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -178,11 +176,11 @@ public abstract class AOrderData extends QueryFactoryHolder {
     protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);
 
     protected ItemStack toItemStack(String json) {
-        return ItemStackContainer.fromString(json).toItemStack();
+        return SerializeContainer.deserializeFromJson(json, ItemStack.class);
     }
 
     protected String toString(ItemStack stack) {
-        return ItemStackContainer.fromItemStack(stack).toJson();
+        return SerializeContainer.serializeToJson(stack);
     }
 
     protected abstract void purgeCompanyOrders(SimpleCompany profile);
@@ -229,32 +227,5 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected void invalidateFullOrder(int id) {
         fullOrderCache.invalidate(id);
-    }
-
-    protected static class ItemStackContainer {
-        private static final Gson GSON = new GsonBuilder().create();
-
-        @SuppressWarnings("FieldMayBeFinal")
-        private Map<String, Object> data;
-
-        private ItemStackContainer(Map<String, Object> data) {
-            this.data = data;
-        }
-
-        public static ItemStackContainer fromItemStack(ItemStack stack) {
-            return new ItemStackContainer(stack.serialize());
-        }
-
-        public static ItemStackContainer fromString(String json) {
-            return GSON.fromJson(json, ItemStackContainer.class);
-        }
-
-        public ItemStack toItemStack() {
-            return ItemStack.deserialize(data);
-        }
-
-        public String toJson() {
-            return GSON.toJson(this);
-        }
     }
 }

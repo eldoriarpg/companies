@@ -8,6 +8,7 @@ import de.eldoria.companies.commands.company.Member;
 import de.eldoria.companies.commands.company.Order;
 import de.eldoria.companies.commands.company.Permission;
 import de.eldoria.companies.commands.company.Profile;
+import de.eldoria.companies.commands.company.Top;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
@@ -31,6 +32,7 @@ public class Company extends EldoCommand {
         registerCommand("member", new Member(plugin, companyData));
         registerCommand("order", new Order(plugin, companyData, orderData, economy, configuration));
         registerCommand("permission", new Permission(plugin, companyData));
+        registerCommand("top", new Top(plugin, companyData));
     }
 
     @Override
