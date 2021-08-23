@@ -1,5 +1,6 @@
 package de.eldoria.companies.commands.company.order;
 
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -22,13 +23,15 @@ public class Info extends EldoCommand {
     private final BukkitAudiences audiences;
     private final ACompanyData companyData;
     private final Economy economy;
+    private final Configuration configuration;
 
-    public Info(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy) {
+    public Info(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
         audiences = BukkitAudiences.create(plugin);
         this.companyData = companyData;
         this.orderData = orderData;
         this.economy = economy;
+        this.configuration = configuration;
     }
 
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
@@ -62,7 +65,7 @@ public class Info extends EldoCommand {
         if (order.isPresent()) {
             orderData.retrieveFullOrder(order.get())
                     .whenComplete(fullOrder -> {
-                        var component = fullOrder.companyDetailInfo(company.get().member(player).get(), localizer(), economy);
+                        var component = fullOrder.companyDetailInfo(company.get().member(player).get(), configuration,localizer(), economy);
                         audiences.sender(sender).sendMessage(component);
                     });
             return;

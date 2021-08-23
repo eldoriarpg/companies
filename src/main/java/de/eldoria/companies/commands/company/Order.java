@@ -20,9 +20,9 @@ public class Order extends EldoCommand {
         setDefaultCommand(list);
         registerCommand("abort", new Abort(plugin, companyData, orderData, list));
         registerCommand("accept", new Accept(plugin, companyData, orderData, configuration));
-        registerCommand("deliver", new Deliver(plugin, companyData, orderData, economy));
+        registerCommand("deliver", new Deliver(plugin, companyData, orderData, economy, configuration));
         registerCommand("list", list);
-        registerCommand("info", new Info(plugin, companyData, orderData, economy));
+        registerCommand("info", new Info(plugin, companyData, orderData, economy, configuration));
         registerCommand("search", new Search(plugin, orderData, economy));
     }
 }

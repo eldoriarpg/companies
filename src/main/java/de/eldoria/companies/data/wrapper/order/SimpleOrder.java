@@ -1,8 +1,14 @@
 package de.eldoria.companies.data.wrapper.order;
 
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.orders.OrderState;
+import org.apache.commons.lang.time.DurationFormatUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -69,5 +75,13 @@ public class SimpleOrder {
 
     public OrderState state() {
         return state;
+    }
+
+    public String runningOutTime(Configuration configuration) {
+        var duration = Duration.between(LocalDateTime.now(), claimed().plus(configuration.companySettings().deliveryHours(), ChronoUnit.HOURS));
+        if (duration.toDays() > 0L) {
+            return DurationFormatUtils.formatDuration(duration.toMillis(), "dd:HH:mm");
+        }
+        return DurationFormatUtils.formatDuration(duration.toMillis(), "HH:mm");
     }
 }

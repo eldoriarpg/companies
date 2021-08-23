@@ -3,6 +3,7 @@ package de.eldoria.companies.data.repository.impl.postgres;
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
@@ -29,8 +30,17 @@ public class PostgresOrderData extends MariaDbOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < now() - (? || ' HOUR')::INTERVAL AND company IS NOT NULL AND state = ?")
+                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < now() - (? || ' HOUR')::INTERVAL AND company IS NOT NULL AND state = ? ORDER BY last_update")
                 .paramsBuilder(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
+                .readRow(this::buildSimpleOrder)
+                .allSync();
+    }
+
+    @Override
+    protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
+        return builder(SimpleOrder.class)
+                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < now() - (? || ' HOUR')::INTERVAL AND company = ? AND state = ? ORDER BY last_update")
+                .paramsBuilder(stmt -> stmt.setInt(hours).setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
     }

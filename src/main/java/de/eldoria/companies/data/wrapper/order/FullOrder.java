@@ -1,5 +1,6 @@
 package de.eldoria.companies.data.wrapper.order;
 
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.orders.PaymentType;
@@ -9,10 +10,13 @@ import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
+import org.apache.commons.lang.time.DurationFormatUtils;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -65,7 +69,7 @@ public class FullOrder extends SimpleOrder {
         return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
-    public Component companyDetailInfo(CompanyMember member, ILocalizer localizer, Economy economy) {
+    public Component companyDetailInfo(CompanyMember member, Configuration configuration, ILocalizer localizer, Economy economy) {
         var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
                 .text("State: " + state().name().toLowerCase()).newLine()
                 .text(companyActionContent(economy, state())).newLine()
@@ -78,6 +82,7 @@ public class FullOrder extends SimpleOrder {
                 }
                 break;
             case CLAIMED:
+                composer.localeCode("Left time ").text(runningOutTime(configuration)).newLine();
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
                     composer.text("<click:run_command:/company order abort " + id() + ">[abort]</click>");
                 }
