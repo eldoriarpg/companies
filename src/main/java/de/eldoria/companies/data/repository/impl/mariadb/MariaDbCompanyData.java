@@ -1,9 +1,11 @@
 package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sqlutil.conversion.UUIDConverter;
+import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import org.bukkit.OfflinePlayer;
@@ -116,6 +118,15 @@ public class MariaDbCompanyData extends ACompanyData {
                 .query("INSERT INTO company_stats(id, failed_orders) VALUES(?,?) ON DUPLICATE KEY UPDATE failed_orders = failed_orders + ?")
                 .paramsBuilder(stmt -> stmt.setInt(company.id()).setInt(amount).setInt(amount))
                 .update().executeSync();
+    }
+
+    @Override
+    protected List<CompanyRank> getRanking(TopOrder order, int page, int pageSize) {
+        return builder(CompanyRank.class)
+                .query("SELECT ROW_NUMBER() OVER (ORDER BY %s) as comp_rank, id, name, founded, member_count, order_count, price, amount FROM company_stats_view ORDER BY comp_rank LIMIT ? OFFSET ?", order.orderColumn())
+                .paramsBuilder(stmt -> stmt.setInt(pageSize).setInt((page - 1) * pageSize))
+                .readRow(rs -> parseCompanyStats(rs).toRank(rs.getInt("comp_rank")))
+                .allSync();
     }
 
     protected CompanyStats parseCompanyStats(ResultSet rs) throws SQLException {

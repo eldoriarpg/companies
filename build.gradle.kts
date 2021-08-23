@@ -5,7 +5,6 @@ plugins {
     `java-library`
 }
 
-
 group = "de.eldoria"
 version = "1.0"
 description = "Save order based trading."
@@ -20,7 +19,7 @@ repositories {
 
 dependencies {
     implementation("de.eldoria", "eldo-util", "1.9.8-DEV")
-    implementation("de.chojo", "sql-util", "1.1.3-DEV") {
+    implementation("de.chojo", "sql-util", "1.1.4-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
         exclude("com.zaxxer")
