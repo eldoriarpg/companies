@@ -6,6 +6,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
+import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 
@@ -78,6 +79,16 @@ public class SqLiteOrderData extends MariaDbOrderData {
     }
 
     @Override
+    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        builder()
+                .query("INSERT INTO orders_delivered(id, worker_uuid, material, delivered) VALUES(?,?,?,?) ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered")
+                .paramsBuilder(stmt -> stmt.setInt(order.id()).setBytes(UUIDConverter.convert(player.getUniqueId()))
+                        .setString(material.name()).setInt(amount))
+                .update()
+                .executeSync();
+    }
+
+    @Override
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         List<List<Integer>> results = new ArrayList<>();
         Set<Integer> materialMatch;
@@ -132,5 +143,25 @@ public class SqLiteOrderData extends MariaDbOrderData {
         var fullOrders = toFullOrders(orders);
         searchQuery.sort(fullOrders);
         return fullOrders;
+    }
+
+    @Override
+    public void refreshMaterialPrices() {
+        builder()
+                .queryWithoutParams("INSERT INTO material_price(material, avg_price, min_price, max_price) " +
+                                    "SELECT material, avg_price, min_price, max_price " +
+                                    "FROM (SELECT c.material, " +
+                                    "             AVG(c.price / c.amount) AS avg_price, " +
+                                    "             MIN(c.price / c.amount) AS min_price, " +
+                                    "             MAX(c.price / c.amount) AS max_price " +
+                                    "      FROM (SELECT ROW_NUMBER() OVER (PARTITION BY material ORDER BY last_update DESC) AS id, material, amount, price, last_update " +
+                                    "            FROM order_content c " +
+                                    "                     LEFT JOIN order_states s ON c.id = s.id " +
+                                    "            WHERE s.state >= 200) c " +
+                                    "      WHERE c.id < 100 " +
+                                    "      GROUP BY c.material) avg " +
+                                    "WHERE TRUE " +
+                                    "ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price;")
+                .update().executeSync();
     }
 }

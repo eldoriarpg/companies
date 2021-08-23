@@ -127,4 +127,14 @@ FROM companies c
          LEFT JOIN (SELECT id,
                            COUNT(1) AS member_count
                     FROM company_member
-                    GROUP BY id) m ON c.id = m.id
+                    GROUP BY id) m ON c.id = m.id;
+
+create table material_price
+(
+    material VARCHAR(255) not null,
+    avg_price DOUBLE not null,
+    min_price DOUBLE not null,
+    max_price DOUBLE not null,
+    constraint material_price_pk
+        primary key (material)
+);

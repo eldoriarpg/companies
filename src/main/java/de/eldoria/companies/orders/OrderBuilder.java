@@ -1,12 +1,11 @@
 package de.eldoria.companies.orders;
 
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
@@ -65,7 +64,7 @@ public class OrderBuilder {
         return elements.stream().anyMatch(e -> e.stack().getType() == material);
     }
 
-    public Component asComponent(OrderSettings setting, ILocalizer localizer, Economy economy) {
+    public String asComponent(OrderSettings setting, Economy economy, AOrderData orderData) {
         var cmd = "/order create";
         var composer = MessageComposer.create()
                 .text(name()).newLine()
@@ -77,17 +76,17 @@ public class OrderBuilder {
 
         for (var element : elements) {
             composer.newLine()
-                    .text(element.asComponent(economy))
+                    .text("<hover:show_text:%s>%s</hover>", orderData.getMaterialPrice(element.materialString()), element.asComponent(economy))
                     .text("<click:run_command:%s remove %s><red>[", cmd, element.materialString())
                     .localeCode("remove")
-                    .text("]");
+                    .text("]<reset>");
         }
         composer.newLine().localeCode("Materials").text(": %s/%s", materialsAmount(), setting.maxMaterials()).newLine()
                 .localeCode("Items").text(": %s/%s", amount(), setting.maxItems()).newLine()
                 .localeCode("Price").text(": %s", economy.format(price())).newLine()
                 .text("<click:run_command:%s done>[", cmd).localeCode("done").text("]</click>").space()
                 .text("<click:run_command:%s cancel>[", cmd).localeCode("cancel").text("]</click>");
-        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
+        return composer.build();
     }
 
     public void removeContent(Material parse) {

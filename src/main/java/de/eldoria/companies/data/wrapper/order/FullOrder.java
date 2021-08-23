@@ -7,8 +7,6 @@ import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
@@ -42,24 +40,23 @@ public class FullOrder extends SimpleOrder {
     }
 
     public Component companyShortInfo(ILocalizer localizer, Economy economy) {
-        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
-                .text("<hover:show_text:" + companySimpleContent(economy, state()) + "\nPrice:" + economy.format(price()) + ">"
-                      + "<click:run_command:/company order info " + id() + ">[info]</click>"
-                      + "</hover>");
+        var composer = MessageComposer.create().text("<hover:show_text:%s>%s | %s</hover>",
+                        companySimpleContent(economy, state()) + "\nPrice:" + economy.format(price()), id(), name())
+                .text("<click:run_command:/company order info %s>[info]</click>", id());
         return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
     public Component userDetailInfo(ILocalizer localizer, Economy economy) {
-        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
-                .text("State: " + state().name().toLowerCase()).newLine()
+        var composer = MessageComposer.create().text("%s | %s", id(), name()).newLine()
+                .text("State: %s", state().name().toLowerCase()).newLine()
                 .text(userContent(economy)).newLine()
-                .text("Price: " + price()).newLine();
+                .text("Price: %s", price()).newLine();
         switch (state()) {
             case UNCLAIMED:
-                composer.text("<click:run_command:/order cancel " + id() + ">[cancel]");
+                composer.text("<click:run_command:/order cancel %s>[cancel]", id());
                 break;
             case DELIVERED:
-                composer.text("<click:run_command:/order receive " + id() + ">[cancel]");
+                composer.text("<click:run_command:/order receive %s>[cancel]", id());
                 break;
             case RECEIVED:
             case CLAIMED:

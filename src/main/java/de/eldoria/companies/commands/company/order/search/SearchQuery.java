@@ -56,8 +56,8 @@ public class SearchQuery {
     }
 
     public void minPrice(double minPrice) {
-        this.minPrice = minPrice;
-        validatePrice();
+        this.minPrice = Math.max(minPrice, 0);
+        maxPrice = Math.max(this.minPrice, maxPrice);
     }
 
     public double maxPrice() {
@@ -65,14 +65,8 @@ public class SearchQuery {
     }
 
     public void maxPrice(double maxPrice) {
-        this.maxPrice = maxPrice;
-        validatePrice();
-    }
-
-    private void validatePrice() {
-        minOrderSize = Math.min(minOrderSize, 0);
-        maxOrderSize = Math.max(minOrderSize, maxOrderSize);
-        minOrderSize = Math.min(minOrderSize, maxOrderSize);
+        this.maxPrice = Math.max(maxPrice, 0.0);
+        minPrice = Math.min(minPrice, this.maxPrice);
     }
 
     public int minOrderSize() {
@@ -80,8 +74,8 @@ public class SearchQuery {
     }
 
     public void minOrderSize(int minOrderSize) {
-        this.minOrderSize = minOrderSize;
-        validateSize();
+        this.minOrderSize = Math.max(minOrderSize, 0);
+        maxOrderSize = Math.max(this.minOrderSize, maxOrderSize);
     }
 
     public int maxOrderSize() {
@@ -89,16 +83,9 @@ public class SearchQuery {
     }
 
     public void maxOrderSize(int maxOrderSize) {
-        this.maxOrderSize = maxOrderSize;
-        validateSize();
+        this.maxOrderSize = Math.max(maxOrderSize, 0);
+        minOrderSize = Math.min(minOrderSize, this.maxOrderSize);
     }
-
-    private void validateSize() {
-        minOrderSize = Math.min(minOrderSize, 0);
-        maxOrderSize = Math.max(minOrderSize, maxOrderSize);
-        minOrderSize = Math.min(minOrderSize, maxOrderSize);
-    }
-
 
     public SortingType sortingType() {
         return sortingType;
@@ -172,14 +159,14 @@ public class SearchQuery {
                     .text("<click:run_command:%s material_match exact>[", queryCmd).localeCode("exact").text("]</click>")
                     .newLine();
         }
-        composer.localeCode("Min Price").space().text(minPrice).space()
-                .text("<click:suggest_command:%s min_price >[").localeCode("change").text("]</click>").newLine()
-                .localeCode("Max Price").space().text(maxPrice == Double.MAX_VALUE ? "MAX" : maxPrice).space()
-                .text("<click:suggest_command:%s max_price >[").localeCode("change").text("]</click>").newLine()
+        composer.localeCode("Min Price").space().text(String.format("%.2f", minPrice)).space()
+                .text("<click:suggest_command:%s min_price >[",queryCmd).localeCode("change").text("]</click>").newLine()
+                .localeCode("Max Price").space().text(maxPrice == Double.MAX_VALUE ? "MAX" : String.format("%.2f", maxPrice)).space()
+                .text("<click:suggest_command:%s max_price >[",queryCmd).localeCode("change").text("]</click>").newLine()
                 .localeCode("Min Size").space().text(minOrderSize).space()
-                .text("<click:suggest_command:%s min_size >[").localeCode("change").text("]</click>").newLine()
-                .localeCode("Max Size").space().text(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxPrice).space()
-                .text("<click:suggest_command:%s max_size >[").localeCode("change").text("]</click>").newLine()
+                .text("<click:suggest_command:%s min_size >[",queryCmd).localeCode("change").text("]</click>").newLine()
+                .localeCode("Max Size").space().text(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxOrderSize).space()
+                .text("<click:suggest_command:%s max_size >[",queryCmd).localeCode("change").text("]</click>").newLine()
                 .localeCode("Order by ");
         for (var sort : SortingType.values()) {
             composer.text("<click:run_command:%s sorting %s>", queryCmd, sort).text(sort == sortingType ? "<green>" : "<gray>")
@@ -187,9 +174,9 @@ public class SearchQuery {
         }
         composer.text("<click:run_command:%s order asc>%s[", queryCmd, asc ? "<green>" : "<gray>").localeCode("asc").text("]</click>").space()
                 .text("<click:run_command:%s order desc>%s[", queryCmd, !asc ? "<green>" : "<gray>").localeCode("desc").text("]</click>")
-                .newLine()
-                .text("<click:run_command:%s execute>[").localeCode("Search").text("]</click>")
-                .text("<click:run_command:%s clear>[").localeCode("Clear").text("]</click>");
+                .newLine().text("<reset>")
+                .text("<click:run_command:%s execute>[",queryCmd).localeCode("Search").text("]</click>")
+                .text("<click:run_command:%s clear>[",queryCmd).localeCode("Clear").text("]</click>");
         return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 }

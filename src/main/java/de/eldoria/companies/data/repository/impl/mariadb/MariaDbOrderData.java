@@ -6,6 +6,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
@@ -15,6 +16,7 @@ import org.bukkit.plugin.Plugin;
 
 import javax.sql.DataSource;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -228,9 +230,38 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    protected Optional<MaterialPrice> findMaterialPrice(String material) {
+        return builder(MaterialPrice.class).query("SELECT material, avg_price, min_price, max_price FROM material_price WHERE material = ?")
+                .paramsBuilder(stmt -> stmt.setString(material.toLowerCase(Locale.ROOT)))
+                .readRow(rs -> new MaterialPrice(material.toLowerCase(Locale.ROOT), rs.getDouble("avg_price"),
+                        rs.getDouble("min_price"), rs.getDouble("max_price")))
+                .firstSync();
+    }
+
+    @Override
     protected void purgeCompanyOrders(SimpleCompany profile) {
         for (var simpleOrder : ordersByCompany(profile, OrderState.CLAIMED, OrderState.CLAIMED).join()) {
             unclaimOrder(simpleOrder);
         }
+    }
+
+    @Override
+    public void refreshMaterialPrices() {
+        builder()
+                .queryWithoutParams("INSERT INTO material_price(material, avg_price, min_price, max_price) " +
+                                    "SELECT material, avg_price, min_price, max_price " +
+                                    "FROM (SELECT c.material, " +
+                                    "             AVG(c.price / c.amount) AS avg_price, " +
+                                    "             MIN(c.price / c.amount) AS min_price, " +
+                                    "             MAX(c.price / c.amount) AS max_price " +
+                                    "      FROM (SELECT ROW_NUMBER() OVER (PARTITION BY material ORDER BY last_update DESC) AS id, material, amount, price, last_update " +
+                                    "            FROM order_content c " +
+                                    "                     LEFT JOIN order_states s ON c.id = s.id " +
+                                    "            WHERE s.state >= 200) c " +
+                                    "      WHERE c.id < 100 " +
+                                    "      GROUP BY c.material) avg " +
+                                    "WHERE TRUE " +
+                                    "ON DUPLICATE KEY UPDATE avg_price = avg.avg_price;")
+                .update().executeSync();
     }
 }

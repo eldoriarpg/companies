@@ -2,6 +2,7 @@ package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.ArgumentUtils;
@@ -65,16 +66,16 @@ public class Top extends EldoCommand {
             composer.text("%s | <hover:show_text:'%s'>%s</hover>", rank.rank(), rank.asComponent(), rank.name()).newLine();
         }
         if (page > 1) {
-            composer.text("<click:run_command:/company top %s %s><white>«««</white></click>", page - 1, order.name());
+            composer.text("<click:run_command:/company top %s %s><white>%s/white></click>", page - 1, order.name(), Texts.LEFT_ARROW);
         } else {
-            composer.text("<gray>«««<reset>", page - 1, order.name());
+            composer.text("<gray>%s<reset>", Texts.LEFT_ARROW);
         }
         composer.localeCode("Page").text(" %s ", page);
 
         if (ranks.size() < PAGE_SIZE) {
-            composer.text("<gray>»»»<reset>");
+            composer.text("<gray>%s<reset>",Texts.RIGHT_ARROW);
         } else {
-            composer.text("<click:run_command:/company top %s %s><white>»»»</white></click>", page + 1, order.name());
+            composer.text("<click:run_command:/company top %s %s><white>%s</white></click>", page + 1, order.name(), Texts.RIGHT_ARROW);
         }
         audiences.sender(sender).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
     }
