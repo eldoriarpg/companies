@@ -3,6 +3,7 @@ package de.eldoria.companies.data.repository.impl.sqlite;
 import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
@@ -63,8 +64,17 @@ public class SqLiteOrderData extends MariaDbOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR') AND company IS NOT NULL AND state = ?")
+                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR') AND company IS NOT NULL AND state = ? ORDER BY last_update")
                 .paramsBuilder(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
+                .readRow(this::buildSimpleOrder)
+                .allSync();
+    }
+
+    @Override
+    protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
+        return builder(SimpleOrder.class)
+                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR') AND company = ? AND state = ? ORDER BY last_update")
+                .paramsBuilder(stmt -> stmt.setInt(hours).setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
     }
@@ -73,8 +83,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
     public SimpleOrder buildSimpleOrder(ResultSet rs) throws SQLException {
         return new SimpleOrder(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("owner_uuid")),
                 // Sqlite cant read its own timestamp as timestamp. We need to parse them
-                rs.getString("name"), SqLiteAdapter.getTimestamp(rs, "last_update"),
-                rs.getInt("company"), SqLiteAdapter.getTimestamp(rs, "created"),
+                rs.getString("name"), SqLiteAdapter.getTimestamp(rs, "created"),
+                rs.getInt("company"), SqLiteAdapter.getTimestamp(rs, "last_update"),
                 OrderState.byId(rs.getInt("state")));
     }
 

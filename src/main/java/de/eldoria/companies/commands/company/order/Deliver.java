@@ -1,5 +1,6 @@
 package de.eldoria.companies.commands.company.order;
 
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -13,8 +14,6 @@ import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.EnumUtil;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -31,13 +30,15 @@ public class Deliver extends EldoCommand {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final BukkitAudiences audiences;
+    private final Configuration configuration;
 
-    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy) {
+    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
         this.orderData = orderData;
         this.economy = economy;
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
+        this.configuration = configuration;
     }
 
     @Override
@@ -135,7 +136,7 @@ public class Deliver extends EldoCommand {
             orderDone(refreshedFullOrder, company.get());
             return;
         }
-        audiences.sender(sender).sendMessage(refreshedFullOrder.companyDetailInfo(company.get().member(player).get(), localizer(), economy));
+        audiences.sender(sender).sendMessage(refreshedFullOrder.companyDetailInfo(company.get().member(player).get(), configuration, localizer(), economy));
     }
 
     private void orderDone(FullOrder order, CompanyProfile profile) {

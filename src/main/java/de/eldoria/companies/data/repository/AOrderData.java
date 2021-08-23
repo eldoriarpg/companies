@@ -72,6 +72,12 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract List<SimpleOrder> getExpiredOrders(int hours);
 
+    public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrdersByCompany(int hours, SimpleCompany company) {
+        return CompletableFuture.supplyAsync(() -> getExpiredOrdersByCompany(hours, company), executorService);
+    }
+
+    protected abstract List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company);
+
     public BukkitFutureResult<Boolean> submitOrderClaim(SimpleCompany company, SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(() -> {
             var result = claimOrder(company, order);
@@ -135,8 +141,8 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     public SimpleOrder buildSimpleOrder(ResultSet rs) throws SQLException {
         return new SimpleOrder(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("owner_uuid")),
-                rs.getString("name"), rs.getTimestamp("last_update").toLocalDateTime(),
-                rs.getInt("company"), rs.getTimestamp("created").toLocalDateTime(),
+                rs.getString("name"), rs.getTimestamp("created").toLocalDateTime(),
+                rs.getInt("company"), rs.getTimestamp("last_update").toLocalDateTime(),
                 OrderState.byId(rs.getInt("state")));
     }
 
