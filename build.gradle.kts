@@ -15,6 +15,7 @@ repositories {
     mavenCentral()
     maven("https://eldonexus.de/repository/maven-public")
     maven("https://eldonexus.de/repository/maven-proxies")
+    maven("https://repo.dmulloy2.net/repository/public/")
 }
 
 dependencies {
@@ -29,6 +30,8 @@ dependencies {
     implementation("net.kyori", "adventure-api", "4.8.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
     implementation("net.kyori", "adventure-text-minimessage", "4.1.0-SNAPSHOT")
+
+    compileOnly("com.comphenix.protocol:ProtocolLib:4.7.0")
 
     // database
     compileOnly("com.zaxxer", "HikariCP", "5.0.0")

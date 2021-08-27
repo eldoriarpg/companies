@@ -1,15 +1,13 @@
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -21,12 +19,14 @@ import java.util.List;
 public class Render extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
     private final BukkitAudiences audiences;
+    private final IMessageBlockerService messageBlocker;
 
-    public Render(Plugin plugin, Query query) {
+    public Render(Plugin plugin, Query query, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("render")
                 .build());
         this.query = query;
         audiences = BukkitAudiences.create(plugin);
+        this.messageBlocker = messageBlocker;
     }
 
     public void renderSearch(Player player) {

@@ -8,6 +8,7 @@ depend:
   - Vault
 softdepend:
   - PlaceholderAPI
+  - ProtocolLib
 libraries:
   - "com.zaxxer:HikariCP:5.0.0"
   - "org.mariadb.jdbc:mariadb-java-client:2.7.2"

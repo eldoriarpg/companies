@@ -6,6 +6,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
@@ -18,12 +19,12 @@ public class Search extends AdvancedCommand {
     private final Page page;
     private final Map<UUID, List<FullOrder>> results = new HashMap<>();
 
-    public Search(Plugin plugin, AOrderData orderData, Economy economy) {
+    public Search(Plugin plugin, AOrderData orderData, Economy economy, IMessageBlockerService messageBlocker) {
         super(plugin);
         page = new Page(plugin, this, economy);
         var meta = CommandMeta.builder("search")
                 .buildSubCommands((commands, builder) -> {
-                    var query = new Query(plugin, orderData, this);
+                    var query = new Query(plugin, orderData, this, messageBlocker);
                     commands.add(page);
                     commands.add(query);
                     builder.withDefaultCommand(query);

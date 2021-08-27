@@ -18,6 +18,7 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -30,11 +31,11 @@ public class Query extends AdvancedCommand {
     private final Map<UUID, SearchQuery> searches = new HashMap<>();
     private Render render;
 
-    public Query(Plugin plugin, AOrderData orderData, Search search) {
+    public Query(Plugin plugin, AOrderData orderData, Search search, IMessageBlockerService messageBlocker) {
         super(plugin);
         var meta = CommandMeta.builder("query")
                 .buildSubCommands((commands, builder) -> {
-                    render = new Render(plugin, this);
+                    render = new Render(plugin, this, messageBlocker);
                     builder.withDefaultCommand(render);
                     commands.add(new Clear(plugin, this));
                     commands.add(new Execute(plugin, this, search, orderData));
