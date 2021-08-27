@@ -123,10 +123,18 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected List<CompanyRank> getRanking(TopOrder order, int page, int pageSize) {
         return builder(CompanyRank.class)
-                .query("SELECT ROW_NUMBER() OVER (ORDER BY %s) as comp_rank, id, name, founded, member_count, order_count, price, amount FROM company_stats_view ORDER BY comp_rank LIMIT ? OFFSET ?", order.orderColumn())
+                .query("SELECT ROW_NUMBER() OVER (ORDER BY %s) AS comp_rank, id, name, founded, member_count, order_count, price, amount FROM company_stats_view ORDER BY comp_rank LIMIT ? OFFSET ?", order.orderColumn())
                 .paramsBuilder(stmt -> stmt.setInt(pageSize).setInt((page - 1) * pageSize))
                 .readRow(rs -> parseCompanyStats(rs).toRank(rs.getInt("comp_rank")))
                 .allSync();
+    }
+
+    @Override
+    protected void setCompanyName(SimpleCompany company, String name) {
+        builder()
+                .query("UPDATE companies SET name = ? WHERE id = ?")
+                .paramsBuilder(stmt -> stmt.setString(name).setInt(company.id()))
+                .update().executeSync();
     }
 
     protected CompanyStats parseCompanyStats(ResultSet rs) throws SQLException {

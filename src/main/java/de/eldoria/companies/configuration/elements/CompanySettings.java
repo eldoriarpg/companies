@@ -15,6 +15,7 @@ import java.util.Optional;
 public class CompanySettings implements ConfigurationSerializable {
     private int deliveryHours = 48;
     private double foudingPrice = 20000.0;
+    private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
     private List<CompanyLevel> level = new ArrayList<>();
@@ -23,6 +24,7 @@ public class CompanySettings implements ConfigurationSerializable {
         var map = SerializationUtil.mapOf(objectMap);
         deliveryHours = map.getValueOrDefault("deliveryHours", deliveryHours);
         foudingPrice = map.getValueOrDefault("foudingPrice", foudingPrice);
+        renamePrice = map.getValueOrDefault("renamePrice", renamePrice);
         expiredOrderPenalty = map.getValueOrDefault("expiredOrderPenalty", expiredOrderPenalty);
         abortedOrderPenalty = map.getValueOrDefault("abortedOrderPenalty", abortedOrderPenalty);
         level = map.getValueOrDefault("level", level);
@@ -42,6 +44,7 @@ public class CompanySettings implements ConfigurationSerializable {
         return SerializationUtil.newBuilder()
                 .add("deliveryHours", deliveryHours)
                 .add("foudingPrice", foudingPrice)
+                .add("renamePrice", renamePrice)
                 .add("expiredOrderPenalty", expiredOrderPenalty)
                 .add("abortedOrderPenalty", abortedOrderPenalty)
                 .add("level", level)
@@ -82,6 +85,14 @@ public class CompanySettings implements ConfigurationSerializable {
 
     public void abortedOrderPenalty(int abortedOrderPenalty) {
         this.abortedOrderPenalty = abortedOrderPenalty;
+    }
+
+    public double renamePrice() {
+        return renamePrice;
+    }
+
+    public void renamePrice(double renamePrice) {
+        this.renamePrice = renamePrice;
     }
 
     public CompanyLevel createLevel(int level) {

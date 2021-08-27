@@ -5,10 +5,10 @@ import de.eldoria.companies.commands.company.Invite;
 import de.eldoria.companies.commands.company.Kick;
 import de.eldoria.companies.commands.company.Leave;
 import de.eldoria.companies.commands.company.Member;
-import de.eldoria.companies.commands.company.member.Self;
 import de.eldoria.companies.commands.company.Order;
 import de.eldoria.companies.commands.company.Permission;
 import de.eldoria.companies.commands.company.Profile;
+import de.eldoria.companies.commands.company.Rename;
 import de.eldoria.companies.commands.company.Top;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -34,6 +34,7 @@ public class Company extends EldoCommand {
         registerCommand("order", new Order(plugin, companyData, orderData, economy, configuration));
         registerCommand("permission", new Permission(plugin, companyData));
         registerCommand("top", new Top(plugin, companyData));
+        registerCommand("rename", new Rename(plugin, configuration, economy, companyData));
     }
 
     @Override
