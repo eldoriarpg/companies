@@ -17,6 +17,8 @@ libraries:
 commands:
   company:
     description: manage your company
+    aliases:
+      -
   order:
     description: create orders
   companyadmin:

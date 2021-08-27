@@ -1,6 +1,9 @@
 package de.eldoria.companies.data.wrapper.company;
 
+import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.OfflinePlayer;
 
 import java.time.LocalDateTime;
@@ -37,5 +40,20 @@ public class CompanyProfile extends SimpleCompany {
                 .filter(member -> Optional.ofNullable(member.player().getName())
                         .map(n -> n.equalsIgnoreCase(name)).orElse(false))
                 .findFirst();
+    }
+
+    public String asExternalProfileComponent(Configuration configuration) {
+        var level = configuration.companySettings().level(level());
+        var composer = MessageComposer.create()
+                .text(name()).newLine()
+                .localeCode("Level").text(": %s - %s",
+                        level.map(CompanyLevel::level).orElse(-1), level.map(CompanyLevel::levelName).orElse("Unkown Level"));
+        composer.newLine()
+                .localeCode("Founded").text(": %s", foundedString()).newLine()
+                .localeCode("Leader").text(": %s", owner().player().getName()).newLine()
+                .localeCode("Member").text(": %s <click:run_command:/company member id %s>[", members().size(), id()).localeCode("list").text("]</click>").newLine();
+
+        return composer.build();
+
     }
 }
