@@ -9,6 +9,7 @@ import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
+import de.eldoria.eldoutilities.utils.ArgumentUtils;
 import de.eldoria.eldoutilities.utils.EnumUtil;
 import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -26,6 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -58,6 +60,10 @@ public class Create extends EldoCommand {
 
         var subArgs = Arrays.copyOfRange(args, 1, args.length);
 
+        if ("name".equalsIgnoreCase(args[0])) {
+            name(player, subArgs);
+            return true;
+        }
         if ("add".equalsIgnoreCase(args[0])) {
             add(player, subArgs);
             return true;
@@ -81,15 +87,32 @@ public class Create extends EldoCommand {
         return true;
     }
 
+    @NotNull
+    private OrderBuilder getPlayerBuilder(Player player) {
+        var builder = builderCache.getIfPresent(player.getUniqueId());
+        Objects.requireNonNull(builder);
+        return builder;
+    }
+
+    private void name(Player player, String[] args) {
+        if (argumentsInvalid(player, args, 1, "<name>")) {
+            return;
+        }
+        var builder = getPlayerBuilder(player);
+        builder.name(String.join(" ", args));
+        sendBuilder(player, builder);
+    }
+
+
     private void remove(Player player, String[] args) {
         if (argumentsInvalid(player, args, 1, "<material>")) {
             return;
         }
-        var builder = builderCache.getIfPresent(player.getUniqueId());
+        var builder = getPlayerBuilder(player);
         var parse = EnumUtil.parse(args[0], Material.class);
 
         builder.removeContent(parse);
-        audience.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.asComponent(configuration.orderSetting(), economy, orderData))));
+        sendBuilder(player, builder);
     }
 
     private void cancel(Player player) {
@@ -143,7 +166,7 @@ public class Create extends EldoCommand {
                     var name = String.join(" ", args);
                     var builder = new OrderBuilder(player.getUniqueId(), name);
                     builderCache.put(player.getUniqueId(), builder);
-                    audience.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.asComponent(configuration.orderSetting(), economy, orderData))));
+                    sendBuilder(player, builder);
                 });
     }
 
@@ -151,7 +174,7 @@ public class Create extends EldoCommand {
         if (argumentsInvalid(player, args, 3, "<material> <amount> <price>")) {
             return;
         }
-        var builder = builderCache.getIfPresent(player.getUniqueId());
+        var builder = getPlayerBuilder(player);
         var parse = EnumUtil.parse(args[0], Material.class);
         var amount = Parser.parseInt(args[1]);
         var price = Parser.parseDouble(args[2]);
@@ -172,6 +195,10 @@ public class Create extends EldoCommand {
 
         builder.addContent(new ItemStack(parse), Math.min(amount.getAsInt(), configuration.orderSetting().maxItems() - builder.amount()),
                 Math.max(0, price.getAsDouble()));
+        sendBuilder(player, builder);
+    }
+
+    private void sendBuilder(Player player, OrderBuilder builder) {
         audience.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.asComponent(configuration.orderSetting(), economy, orderData))));
     }
 
@@ -187,8 +214,13 @@ public class Create extends EldoCommand {
         if (builder == null) return Collections.singletonList("<name>");
 
         if (args.length == 1) {
-            return TabCompleteUtil.complete(cmd, "add", "remove", "cancel", "done");
+            return TabCompleteUtil.complete(cmd, "name", "add", "remove", "cancel", "done");
         }
+
+        if ("name".equalsIgnoreCase(cmd) || "create".equalsIgnoreCase(cmd)) {
+            return TabCompleteUtil.completeFreeInput(ArgumentUtils.getRangeAsString(args, 1), 32, "<name>", localizer());
+        }
+
         if ("add".equalsIgnoreCase(cmd)) {
             if (args.length == 2) {
                 if (args[1].isEmpty()) return Collections.singletonList("material");
