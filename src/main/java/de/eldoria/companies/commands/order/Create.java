@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class Create extends EldoCommand {
     private final MiniMessage miniMessage = MiniMessage.get();
@@ -74,6 +73,16 @@ public class Create extends EldoCommand {
             return true;
         }
 
+        if ("price".equalsIgnoreCase(args[0])) {
+            price(player, subArgs);
+            return true;
+        }
+
+        if ("amount".equalsIgnoreCase(args[0])) {
+            amount(player, subArgs);
+            return true;
+        }
+
         if ("done".equalsIgnoreCase(args[0])) {
             done(player);
             return true;
@@ -85,6 +94,52 @@ public class Create extends EldoCommand {
         }
 
         return true;
+    }
+
+    private void amount(Player player, String[] args) {
+        if (argumentsInvalid(player, args, 2, "<material> <amount>")) {
+            return;
+        }
+
+        var optamount = Parser.parseInt(args[1]);
+        var material = EnumUtil.parse(args[0], Material.class);
+
+        if (optamount.isEmpty()) {
+            messageSender().sendError(player, "Invalid number");
+            return;
+        }
+
+        if (material == null) {
+            messageSender().sendError(player, "Invalid material");
+            return;
+        }
+
+        var builder = getPlayerBuilder(player);
+        builder.changeContentAmount(material, Math.min(configuration.orderSetting().maxItems() - builder.amount(material), optamount.getAsInt()));
+        sendBuilder(player, builder);
+    }
+
+    private void price(Player player, String[] args) {
+        if (argumentsInvalid(player, args, 2, "<material> <amount>")) {
+            return;
+        }
+
+        var optPrice = Parser.parseDouble(args[1]);
+        var material = EnumUtil.parse(args[0], Material.class);
+
+        if (optPrice.isEmpty()) {
+            messageSender().sendError(player, "Invalid number");
+            return;
+        }
+
+        if (material == null) {
+            messageSender().sendError(player, "Invalid material");
+            return;
+        }
+
+        var builder = getPlayerBuilder(player);
+        builder.changeContentPrice(material, Math.max(0, optPrice.getAsDouble()));
+        sendBuilder(player, builder);
     }
 
     @NotNull
@@ -175,7 +230,7 @@ public class Create extends EldoCommand {
             return;
         }
         var builder = getPlayerBuilder(player);
-        var parse = EnumUtil.parse(args[0], Material.class);
+        var material = EnumUtil.parse(args[0], Material.class);
         var amount = Parser.parseInt(args[1]);
         var price = Parser.parseDouble(args[2]);
         if (price.isEmpty()) {
@@ -192,8 +247,13 @@ public class Create extends EldoCommand {
             return;
         }
 
+        if (material == null) {
+            messageSender().sendError(player, "Invalid material");
+            return;
+        }
 
-        builder.addContent(new ItemStack(parse), Math.min(amount.getAsInt(), configuration.orderSetting().maxItems() - builder.amount()),
+
+        builder.addContent(new ItemStack(material), Math.min(amount.getAsInt(), configuration.orderSetting().maxItems() - builder.amount()),
                 Math.max(0, price.getAsDouble()));
         sendBuilder(player, builder);
     }
@@ -245,9 +305,36 @@ public class Create extends EldoCommand {
             }
             return Collections.emptyList();
         }
+
+        if ("price".equalsIgnoreCase(cmd)) {
+            if (args.length == 2) {
+                if (args[1].isEmpty()) return Collections.singletonList("material");
+                return TabCompleteUtil.complete(args[1], builder.elements().stream().map(OrderContent::materialString));
+            }
+            if (args.length == 3) {
+                return TabCompleteUtil.completeDouble(args[2], 0.0, 100000000000.0, localizer());
+            }
+            return Collections.emptyList();
+        }
+
+        if ("amount".equalsIgnoreCase(cmd)) {
+            if (args.length == 2) {
+                if (args[1].isEmpty()) return Collections.singletonList("material");
+                return TabCompleteUtil.complete(args[1], builder.elements().stream().map(OrderContent::materialString));
+            }
+
+            if (args.length == 3) {
+                var material = EnumUtil.parse(args[1], Material.class);
+                var max = configuration.orderSetting().maxItems() - builder.amount(material);
+                return TabCompleteUtil.completeInt(args[2], 1, max, localizer());
+            }
+
+            return Collections.emptyList();
+        }
+
         if ("remove".equalsIgnoreCase(cmd)) {
             if (args.length == 2) {
-                TabCompleteUtil.complete(args[0], builder.elements().stream().map(OrderContent::materialString).collect(Collectors.toList()));
+                TabCompleteUtil.complete(args[0], builder.elements().stream().map(OrderContent::materialString));
             }
             return Collections.emptyList();
         }

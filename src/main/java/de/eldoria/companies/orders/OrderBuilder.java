@@ -10,6 +10,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +61,10 @@ public class OrderBuilder {
         return elements.stream().mapToInt(OrderContent::amount).sum();
     }
 
+    public int amount(@Nullable Material material) {
+        return elements.stream().filter(m -> m.material() != material).mapToInt(OrderContent::amount).sum();
+    }
+
     public int materialsAmount() {
         return elements.size();
     }
@@ -83,7 +88,8 @@ public class OrderBuilder {
                     .text("<hover:show_text:%s>%s</hover>", orderData.getMaterialPrice(element.materialString()), element.asComponent(economy))
                     .text("<click:run_command:%s remove %s><red>[", cmd, element.materialString())
                     .localeCode("remove")
-                    .text("]<reset>");
+                    .text("]<reset> <click:suggest_command:%s price %s >[", cmd, element.material()).localeCode("price")
+                    .text("]</click> <click:suggest_command:%s amount %s >[", cmd, element.materialString()).localeCode("amount").text("]</click>");
         }
         composer.newLine().localeCode("Materials").text(": %s/%s", materialsAmount(), setting.maxMaterials()).newLine()
                 .localeCode("Items").text(": %s/%s", amount(), setting.maxItems()).newLine()
@@ -95,5 +101,13 @@ public class OrderBuilder {
 
     public void removeContent(Material parse) {
         elements.removeIf(o -> o.material() == parse);
+    }
+
+    public void changeContentAmount(Material material, int amount) {
+        elements().stream().filter(m -> m.material() == material).findAny().ifPresent(m -> m.amount(amount));
+    }
+
+    public void changeContentPrice(Material material, double price) {
+        elements().stream().filter(m -> m.material() == material).findAny().ifPresent(m -> m.price(price));
     }
 }
