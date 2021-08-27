@@ -5,6 +5,7 @@ import de.eldoria.companies.commands.company.Invite;
 import de.eldoria.companies.commands.company.Kick;
 import de.eldoria.companies.commands.company.Leave;
 import de.eldoria.companies.commands.company.Member;
+import de.eldoria.companies.commands.company.member.Self;
 import de.eldoria.companies.commands.company.Order;
 import de.eldoria.companies.commands.company.Permission;
 import de.eldoria.companies.commands.company.Profile;
