@@ -2,6 +2,7 @@ package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.orders.OrderState;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DurationFormatUtils;
 
 import java.time.Duration;
@@ -15,7 +16,7 @@ import java.util.UUID;
 public class SimpleOrder {
     private final int id;
     private final UUID owner;
-    private final String name;
+    private String name;
     private final LocalDateTime created;
     private final int company;
     private final LocalDateTime claimed;
@@ -24,7 +25,7 @@ public class SimpleOrder {
     public SimpleOrder(UUID owner, String name) {
         this.id = -1;
         this.owner = owner;
-        this.name = name;
+        this.name = StringUtils.left(name, 32);
         this.created = null;
         this.company = -1;
         this.claimed = null;
@@ -34,7 +35,7 @@ public class SimpleOrder {
     public SimpleOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed, OrderState state) {
         this.id = id;
         this.owner = owner;
-        this.name = name;
+        this.name = StringUtils.left(name, 32);
         this.created = created;
         this.company = company;
         this.claimed = claimed;
@@ -43,6 +44,10 @@ public class SimpleOrder {
 
     public FullOrder toFullOrder(List<OrderContent> contents) {
         return new FullOrder(id, owner, name, created, company, claimed, state, contents);
+    }
+
+    public void name(String name) {
+        this.name = name;
     }
 
     public int id() {
@@ -54,7 +59,7 @@ public class SimpleOrder {
     }
 
     public String name() {
-        return name;
+        return StringUtils.left(name, 32);
     }
 
     public String fullName() {

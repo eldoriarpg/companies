@@ -44,6 +44,10 @@ public class OrderBuilder {
         return order.name();
     }
 
+    public void name(String name) {
+        order.name(name);
+    }
+
     public List<OrderContent> elements() {
         return elements;
     }
@@ -67,7 +71,7 @@ public class OrderBuilder {
     public String asComponent(OrderSettings setting, Economy economy, AOrderData orderData) {
         var cmd = "/order create";
         var composer = MessageComposer.create()
-                .text(name()).newLine()
+                .text("%s <click:suggest_command:/order create name >[", name()).localeCode("change").text("]</click>").newLine()
                 .localeCode("Items").text(": ");
 
         if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
