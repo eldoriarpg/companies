@@ -110,4 +110,10 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     }
 
     protected abstract List<CompanyRank> getRanking(TopOrder order, int page, int pageSize);
+
+    public FutureResult<Void> updateCompanyName(SimpleCompany company, String name) {
+        return CompletableBukkitFuture.runAsync(() -> setCompanyName(company, name));
+    }
+
+    protected abstract void setCompanyName(SimpleCompany company, String name);
 }
