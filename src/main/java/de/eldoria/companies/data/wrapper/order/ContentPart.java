@@ -3,8 +3,8 @@ package de.eldoria.companies.data.wrapper.order;
 import java.util.UUID;
 
 public class ContentPart {
-    UUID worker;
-    int amount;
+    private final UUID worker;
+    private final int amount;
 
     public ContentPart(UUID worker, int amount) {
         this.worker = worker;

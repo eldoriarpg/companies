@@ -8,26 +8,27 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.localization.Replacement;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Map<UUID, InviteData> invites = new HashMap<>();
     private final BukkitAudiences audiences;
+    private final MiniMessage miniMessage;
     private final DelayedActions delayedActions;
     private final Configuration configuration;
 
@@ -47,6 +49,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("name", true)
                 .build());
         audiences = BukkitAudiences.create(plugin);
+        miniMessage = MiniMessage.get();
         delayedActions = DelayedActions.start(plugin);
         this.companyData = companyData;
         this.configuration = configuration;
@@ -92,7 +95,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).orElse(new CompanyLevel()).settings().maxMembers()) {
+        if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
             messageSender().sendError(player, "Company is already full");
             return;
         }
@@ -108,9 +111,11 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {
         messageSender().sendMessage(inviter, "Invited " + target.getName());
-        audiences.player(target).sendMessage(Component.text().append(Component.text("You have been invited to join the " + company.name() + " company"))
-                .append(Component.text("[Accept]").clickEvent(ClickEvent.runCommand("/company invite accept")))
-                .append(Component.text("[Deny]").clickEvent(ClickEvent.runCommand("/company invite deny"))));
+        var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("You have been invited to join the %NAME% company",
+                        Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, company.name(), Colors.NEUTRAL)))
+                .text("<click:run_command:/company invite accept>[").localeCode("accept").text("]</click>")
+                .text("<click:run_command:/company invite deny>[").localeCode("deny").text("]</click>");
+        audiences.sender(target).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
         invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
         delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
     }
@@ -159,7 +164,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
                     var profile = company.get();
-                    if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxMembers()) {
+                    if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
                         messageSender().sendError(player, "Your company has reached the member limit.");
                         return;
                     }

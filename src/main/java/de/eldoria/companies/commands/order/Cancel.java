@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -14,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
@@ -34,7 +36,12 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
         var id = arguments.asInt(0);
 
         orderData.retrieveOrderById(id)
-                .whenComplete(optOrder -> {
+                .asFuture()
+                .whenComplete((optOrder, err) -> {
+                    if (err != null) {
+                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                        return;
+                    }
                     if (optOrder.isEmpty()) {
                         messageSender().sendError(sender, "Order not found.");
                         return;
@@ -51,15 +58,12 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
 
-                    orderData.retrieveFullOrder(optOrder.get())
-                            .whenComplete(fullOrder -> {
-                                CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
-                                orderData.submitOrderDeletion(fullOrder).whenComplete(r -> {
-                                    list.showOrders(player, () -> {
-                                        messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");
-                                    });
-                                });
-                            });
+                    var fullOrder = orderData.retrieveFullOrder(optOrder.get()).join();
+                    CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
+                    orderData.submitOrderDeletion(fullOrder).join();
+                    list.showOrders(player, () -> {
+                        messageSender().sendMessage(sender, "Order canceled. You got your " + economy.format(fullOrder.price()) + " back.");
+                    });
                 });
     }
 

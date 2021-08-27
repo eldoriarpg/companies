@@ -5,7 +5,7 @@ import de.eldoria.companies.events.PlayerProvider;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Cancellable;
 
-public class OrderPaymentEvent extends OrderEvent<SimpleOrder> implements Cancellable, PlayerProvider<OfflinePlayer>{
+public class OrderPaymentEvent extends OrderEvent<SimpleOrder> implements Cancellable, PlayerProvider<OfflinePlayer> {
     private final OfflinePlayer player;
     private final double amount;
     private boolean cancelled;
@@ -21,17 +21,17 @@ public class OrderPaymentEvent extends OrderEvent<SimpleOrder> implements Cancel
         return cancelled;
     }
 
+    @Override
+    public void setCancelled(boolean cancel) {
+        cancelled = cancel;
+    }
+
     public OfflinePlayer player() {
         return player;
     }
 
     public double amount() {
         return amount;
-    }
-
-    @Override
-    public void setCancelled(boolean cancel) {
-        cancelled = cancel;
     }
 
 

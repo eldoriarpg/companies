@@ -13,6 +13,7 @@ import de.eldoria.companies.commands.company.order.search.query.Render;
 import de.eldoria.companies.commands.company.order.search.query.Size;
 import de.eldoria.companies.commands.company.order.search.query.Sorting;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -28,13 +29,15 @@ import java.util.UUID;
 
 public class Query extends AdvancedCommand {
     private final Map<UUID, SearchQuery> searches = new HashMap<>();
+    private final IMessageBlockerService messageBlocker;
     private Render render;
 
-    public Query(Plugin plugin, AOrderData orderData, Search search) {
+    public Query(Plugin plugin, AOrderData orderData, Search search, IMessageBlockerService messageBlocker) {
         super(plugin);
+        this.messageBlocker = messageBlocker;
         var meta = CommandMeta.builder("query")
                 .buildSubCommands((commands, builder) -> {
-                    render = new Render(plugin, this);
+                    render = new Render(plugin, this, messageBlocker);
                     builder.withDefaultCommand(render);
                     commands.add(new Clear(plugin, this));
                     commands.add(new Execute(plugin, this, search, orderData));
@@ -58,6 +61,7 @@ public class Query extends AdvancedCommand {
     }
 
     public SearchQuery getPlayerSearch(Player player) {
+        messageBlocker.blockPlayer(player);
         return searches.computeIfAbsent(player.getUniqueId(), key -> new SearchQuery());
     }
 

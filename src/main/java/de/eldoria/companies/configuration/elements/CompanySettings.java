@@ -133,4 +133,10 @@ public class CompanySettings implements ConfigurationSerializable {
             level.get(i).level(i + 1);
         }
     }
+
+    public boolean deleteLevel(int level) {
+        if(level < 1 || level < this.level.size()) return false;
+        this.level.remove(level);
+        return true;
+    }
 }

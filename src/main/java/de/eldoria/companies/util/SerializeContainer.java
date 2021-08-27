@@ -38,26 +38,6 @@ public class SerializeContainer {
     }
 
     /**
-     * Converts the underlying map to the object
-     *
-     * @param clazz clazz to determine the return type
-     * @param <T>   type to return
-     * @return a new instance of the serialzied object.
-     */
-    public <T extends ConfigurationSerializable> T toObject(Class<T> clazz) {
-        return (T) ConfigurationSerialization.deserializeObject(data, clazz);
-    }
-
-    /**
-     * Conversts the underlying map to a json string
-     *
-     * @return map as json string
-     */
-    public String toJson() {
-        return GSON.toJson(this);
-    }
-
-    /**
      * Convert a serializable object to a json string
      *
      * @param obj object to serialize
@@ -77,5 +57,25 @@ public class SerializeContainer {
      */
     public static <T extends ConfigurationSerializable> T deserializeFromJson(String json, Class<T> clazz) {
         return fromJson(json).toObject(clazz);
+    }
+
+    /**
+     * Converts the underlying map to the object
+     *
+     * @param clazz clazz to determine the return type
+     * @param <T>   type to return
+     * @return a new instance of the serialzied object.
+     */
+    public <T extends ConfigurationSerializable> T toObject(Class<T> clazz) {
+        return (T) ConfigurationSerialization.deserializeObject(data, clazz);
+    }
+
+    /**
+     * Conversts the underlying map to a json string
+     *
+     * @return map as json string
+     */
+    public String toJson() {
+        return GSON.toJson(this);
     }
 }

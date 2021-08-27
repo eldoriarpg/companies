@@ -3,6 +3,7 @@ package de.eldoria.companies.data.wrapper.company;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.OfflinePlayer;
 
@@ -43,15 +44,15 @@ public class CompanyProfile extends SimpleCompany {
     }
 
     public String asExternalProfileComponent(Configuration configuration) {
-        var level = configuration.companySettings().level(level());
+        var level = configuration.companySettings().level(level()).orElse(CompanyLevel.DEFAULT);
         var composer = MessageComposer.create()
-                .text(name()).newLine()
-                .localeCode("Level").text(": %s - %s",
-                        level.map(CompanyLevel::level).orElse(-1), level.map(CompanyLevel::levelName).orElse("Unkown Level"));
-        composer.newLine()
-                .localeCode("Founded").text(": %s", foundedString()).newLine()
-                .localeCode("Leader").text(": %s", owner().player().getName()).newLine()
-                .localeCode("Member").text(": %s <click:run_command:/company member id %s>[", members().size(), id()).localeCode("list").text("]</click>").newLine();
+                .text("<%s>", Colors.HEADING).text(name()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Level").text(": <%s>%s - %s",
+                        Colors.VALUE, level.level(), level.levelName())
+                .newLine()
+                .text("<%s>", Colors.NAME).localeCode("Founded").text(": <%s>%s", Colors.VALUE, foundedString()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Leader").text(": <%s>%s",Colors.VALUE, owner().player().getName()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Member").text(": <%s>%s <click:run_command:/company member id %s><%s>[",Colors.VALUE, members().size(), id(), Colors.SHOW).localeCode("list").text("]</click>").newLine();
 
         return composer.build();
 

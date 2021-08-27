@@ -7,6 +7,8 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderState;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -22,7 +24,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();
@@ -30,13 +31,15 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final BukkitAudiences audiences;
     private final Configuration configuration;
+    private final IMessageBlockerService messageBlocker;
 
-    public Self(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration) {
+    public Self(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("self").build());
         this.companyData = companyData;
         this.orderData = orderData;
         audiences = BukkitAudiences.create(plugin);
         this.configuration = configuration;
+        this.messageBlocker = messageBlocker;
     }
 
     @Override
@@ -56,22 +59,33 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void sendProfile(Player player, CompanyProfile profile, List<SimpleOrder> orders) {
-        var level = configuration.companySettings().level(profile.level());
+        messageBlocker.blockPlayer(player);
+        var level = configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT);
         var optNextLevel = configuration.companySettings().level(profile.level() + 1);
         var composer = MessageComposer.create()
                 .text(profile.name()).newLine()
-                .localeCode("Level").text(": <hover:show_text:%s>%s - %s</hover>", level.map(CompanyLevel::asComponent).orElse("Unkown Level"),
-                        level.map(CompanyLevel::level).orElse(-1), level.map(CompanyLevel::levelName).orElse("Unkown Level"));
+                .text("<%s>", Colors.NAME).localeCode("Level")
+                .text(": <hover:show_text:%s><%s>%s - %s</hover>", level.asComponent(), Colors.VALUE, level.level(), level.levelName());
         if (optNextLevel.isPresent()) {
             var nextLevel = optNextLevel.get();
-            composer.text("<u><hover:show_text:%s>", nextLevel.asComponent()).localeCode("next level").text("<u></hover>");
+            composer.text("<u><hover:show_text:%s><%s>", nextLevel.asComponent(), Colors.SHOW).localeCode("next level").text("</u></hover>");
         }
         composer.newLine()
-                .localeCode("Founded").text(": %s", profile.foundedString()).newLine()
-                .localeCode("Leader").text(": %s", profile.owner().player().getName()).newLine()
-                .localeCode("Member").text(": %s <click:run_command:/company member>[", profile.members().size()).localeCode("list").text("]</click>").newLine()
-                .localeCode("Orders").text(": %s <click:run_command:/company order list>[", orders.size()).localeCode("list").text("]</click>");
-
+                .text("<%s>", Colors.NAME).localeCode("Founded")
+                .text(": <%s>%s", Colors.VALUE, profile.foundedString()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Leader")
+                .text(": <%s>%s", Colors.VALUE, profile.owner().player().getName()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Member")
+                .text(": <%s>%s <click:run_command:/company member><%s>[", Colors.VALUE, profile.members().size(), Colors.SHOW)
+                .localeCode("list").text("]</click>").newLine()
+                .text("<%s>", Colors.NAME).localeCode("Orders")
+                .text(": <%s>%s <click:run_command:/company order list><%s>[", Colors.VALUE, orders.size(), Colors.SHOW)
+                .localeCode("list").text("]</click>");
+        if (messageBlocker.isBlocked(player)) {
+            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+        }
+        composer.prependLines(25);
+        messageBlocker.announce(player, "[x]");
         audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
     }
 
