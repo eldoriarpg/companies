@@ -53,7 +53,7 @@ public class OrderContent {
     }
 
     public String asComponent(Economy economy) {
-        return prettyType() + " " + amount + " " + economy.format(price);
+        return prettyType() + " " + amount + "x " + economy.format(price);
     }
 
     public String asProgressComponent(Economy economy) {
