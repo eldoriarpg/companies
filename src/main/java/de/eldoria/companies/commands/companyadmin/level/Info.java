@@ -2,6 +2,11 @@ package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
@@ -17,38 +22,17 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
-public class Info extends EldoCommand {
+public class Info extends AdvancedCommand implements ITabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();
     private final BukkitAudiences audiences;
     private final Configuration configuration;
 
     public Info(Plugin plugin, Configuration configuration) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("info")
+                .addArgument("level", true)
+                .build());
         audiences = BukkitAudiences.create(plugin);
         this.configuration = configuration;
-    }
-
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "<level>")) {
-            return true;
-        }
-
-        var levelNr = Parser.parseInt(args[0]);
-
-        if (levelNr.isEmpty()) {
-            messageSender().sendError(sender, "Invalid level");
-            return true;
-        }
-
-        var optLevel = configuration.companySettings().level(levelNr.getAsInt());
-        if (optLevel.isEmpty()) {
-            messageSender().sendError(sender, "Invalid level");
-            return true;
-        }
-
-        show(sender, optLevel.get());
-        return true;
     }
 
     public void show(CommandSender sender, CompanyLevel level) {
@@ -86,7 +70,21 @@ public class Info extends EldoCommand {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+    public void onCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var levelNr = arguments.asInt(0);
+
+        var optLevel = configuration.companySettings().level(levelNr);
+        if (optLevel.isEmpty()) {
+            messageSender().sendError(sender, "Invalid level");
+            return;
+        }
+
+        show(sender, optLevel.get());
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments arguments) {
+        var args = arguments.asArray();
         if (args.length == 1) {
             if (args[0].isEmpty()) {
                 return Collections.singletonList("<source>");

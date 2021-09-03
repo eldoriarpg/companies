@@ -1,6 +1,11 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -12,50 +17,36 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 
-public class Move extends EldoCommand {
+public class Move extends AdvancedCommand implements ITabExecutor {
     private final Configuration configuration;
     private final List list;
 
     public Move(Plugin plugin, Configuration configuration, List list) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("move")
+                .addArgument("source", true)
+                .addArgument("target", true)
+                .build());
         this.configuration = configuration;
         this.list = list;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 2, "<source> <target>")) {
-            return true;
-        }
-
-        var sourcePos = Parser.parseInt(args[0]);
-
-        if (sourcePos.isEmpty()) {
-            messageSender().sendError(sender, "Invalid level");
-            return true;
-        }
-
-        var optLevel = configuration.companySettings().level(sourcePos.getAsInt());
+    public void onCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull Arguments args) throws CommandException {
+        var optLevel = configuration.companySettings().level(args.asInt(0));
         if (optLevel.isEmpty()) {
             messageSender().sendError(sender, "Invalid level");
-            return true;
+            return;
         }
 
-        var targetPos = Parser.parseInt(args[1]);
-
-        if (targetPos.isEmpty()) {
-            messageSender().sendError(sender, "Invalid level");
-            return true;
-        }
-
-        configuration.companySettings().moveLevel(sourcePos.getAsInt(), targetPos.getAsInt());
+        configuration.companySettings().moveLevel(args.asInt(0), args.asInt(1));
         configuration.save();
         list.sendList(sender);
-        return true;
+
     }
 
     @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+    public java.util.@Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments arguments) {
+        var args = arguments.asArray();
         if (args.length == 1) {
             if (args[0].isEmpty()) {
                 return Collections.singletonList("<source>");

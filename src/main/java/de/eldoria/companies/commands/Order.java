@@ -19,21 +19,15 @@ public class Order extends AdvancedCommand {
     public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy) {
         super(plugin,
                 new CommandMetaBuilder("order")
-                        .withSubCommand()
+                        .buildSubCommands((cmds, builder) -> {
+                            var list = new List(plugin, orderData, economy, configuration);
+                            cmds.add(list);
+                            cmds.add(new Cancel(plugin, orderData, economy, list));
+                            cmds.add(new Create(plugin, orderData, economy, configuration));
+                            cmds.add(new Info(plugin, orderData, economy));
+                            cmds.add(new Receive(plugin, orderData));
+
+                        })
                         .build());
-        var list = new List(plugin, orderData, economy, configuration);
-        setDefaultCommand(list);
-        registerCommand("cancel", new Cancel(plugin, orderData, economy, list));
-        registerCommand("create", new Create(plugin, orderData, economy, configuration));
-        registerCommand("info", new Info(plugin, orderData, economy));
-        registerCommand("list", list);
-        registerCommand("receive", new Receive(plugin, orderData));
-    }
-
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) return true;
-
-        return super.onCommand(sender, command, label, args);
     }
 }
