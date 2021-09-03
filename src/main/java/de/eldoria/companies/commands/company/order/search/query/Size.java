@@ -24,7 +24,8 @@ public class Size extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Size(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("size")
+        super(plugin, CommandMeta.builder("min_size")
+                .addAlias("max_size")
                 .addArgument("size", true)
                 .build());
         this.query = query;

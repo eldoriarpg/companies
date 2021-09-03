@@ -25,7 +25,7 @@ public class Company extends AdvancedCommand {
     public Company(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
         var profile = new Profile(plugin, companyData, orderData, configuration);
-        CommandMeta.builder("company")
+        var meta = CommandMeta.builder("company")
                 .withDefaultCommand(profile)
                 .withSubCommand(profile)
                 .withSubCommand(new Create(plugin, companyData, economy, configuration))
@@ -38,5 +38,6 @@ public class Company extends AdvancedCommand {
                 .withSubCommand(new Top(plugin, companyData))
                 .withSubCommand(new Rename(plugin, configuration, economy, companyData))
                 .build();
+        meta(meta);
     }
 }

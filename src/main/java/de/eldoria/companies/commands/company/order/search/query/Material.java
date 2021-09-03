@@ -31,7 +31,7 @@ public class Material extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if ("material_add".equalsIgnoreCase(label)) {
-            CommandAssertions.invalidArguments(meta(), arguments, Argument.subCommand("material_add"), Argument.input("material", true));
+            CommandAssertions.invalidArguments(meta(), arguments, Argument.input("material", true));
             query.getPlayerSearch(player).materials().add(arguments.join("_"));
             return;
         }
@@ -42,15 +42,14 @@ public class Material extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
         search.materials().remove(arguments.join("_"));
-
     }
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        if (TabCompleteUtil.isCommand(arguments.asString(0), "material_add")) {
+        if (TabCompleteUtil.isCommand(alias, "material_add")) {
             return TabCompleteUtil.completeMaterial(arguments.join("_"), true);
         }
-        if (TabCompleteUtil.isCommand(arguments.asString(0), "material_remove")) {
+        if (TabCompleteUtil.isCommand(alias, "material_remove")) {
             if (arguments.size() == 1) {
                 return Collections.emptyList();
             }

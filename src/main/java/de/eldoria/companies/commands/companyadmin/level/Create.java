@@ -52,7 +52,7 @@ public class Create extends AdvancedCommand implements ITabExecutor {
             if (args[0].isEmpty()) {
                 return Collections.singletonList("<insert at>");
             }
-            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
+            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size() + 1, localizer());
         }
         return Collections.emptyList();
     }

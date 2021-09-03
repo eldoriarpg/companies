@@ -23,7 +23,8 @@ public class Price extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Price(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("price")
+        super(plugin, CommandMeta.builder("min_price")
+                .addAlias("max_price")
                 .addArgument("price", true)
                 .build());
         this.query = query;

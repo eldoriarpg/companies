@@ -17,6 +17,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 public class Top extends AdvancedCommand implements ITabExecutor {
@@ -74,6 +75,6 @@ public class Top extends AdvancedCommand implements ITabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
+        return Collections.emptyList();
     }
 }

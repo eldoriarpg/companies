@@ -4,6 +4,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
@@ -34,7 +35,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     private final BukkitAudiences audiences;
 
     public Self(Plugin plugin, ACompanyData companyData) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("self").build());
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
     }

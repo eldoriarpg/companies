@@ -3,6 +3,7 @@ package de.eldoria.companies.commands.company.profile;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
@@ -26,7 +27,7 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
     private final MiniMessage miniMessage;
 
     public Player(Plugin plugin, ACompanyData companyData, Configuration configuration) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("player").build());
         this.companyData = companyData;
         this.configuration = configuration;
         audiences = BukkitAudiences.create(plugin);

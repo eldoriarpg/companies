@@ -15,7 +15,10 @@ import de.eldoria.companies.commands.company.order.search.query.Sorting;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -25,12 +28,13 @@ import java.util.UUID;
 
 public class Query extends AdvancedCommand {
     private final Map<UUID, SearchQuery> searches = new HashMap<>();
+    private Render render;
 
     public Query(Plugin plugin, AOrderData orderData, Search search) {
         super(plugin);
         var meta = CommandMeta.builder("query")
                 .buildSubCommands((commands, builder) -> {
-                    var render = new Render(plugin, this);
+                    render = new Render(plugin, this);
                     builder.withDefaultCommand(render);
                     commands.add(new Clear(plugin, this));
                     commands.add(new Execute(plugin, this, search, orderData));
@@ -44,6 +48,13 @@ public class Query extends AdvancedCommand {
                     commands.add(new Sorting(plugin, this));
                 }).build();
         meta(meta);
+    }
+
+    @Override
+    public void commandRoute(CommandSender sender, String label, Arguments args) throws CommandException {
+        super.commandRoute(sender, label, args);
+        CommandAssertions.player(sender);
+        render.renderSearch((Player) sender);
     }
 
     public SearchQuery getPlayerSearch(Player player) {

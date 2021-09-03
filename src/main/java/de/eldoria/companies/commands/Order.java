@@ -26,7 +26,6 @@ public class Order extends AdvancedCommand {
                             cmds.add(new Create(plugin, orderData, economy, configuration));
                             cmds.add(new Info(plugin, orderData, economy));
                             cmds.add(new Receive(plugin, orderData));
-
                         })
                         .build());
     }
