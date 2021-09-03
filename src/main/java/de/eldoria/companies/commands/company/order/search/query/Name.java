@@ -1,38 +1,44 @@
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class Name extends EldoCommand {
+public class Name extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Name(Plugin plugin, Query query) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("name")
+                .addArgument("name", false)
+                .build());
         this.query = query;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        var playerSearch = query.getPlayerSearch(getPlayerFromSender(sender));
-
-        if (args.length == 0) {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var playerSearch = query.getPlayerSearch(player);
+        if (arguments.isEmpty()) {
             playerSearch.name(null);
         } else {
-            playerSearch.name(String.join(" ", args));
+            playerSearch.name(arguments.join());
         }
-        return true;
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return TabCompleteUtil.completeFreeInput(String.join(" ", args), 32, "order name", localizer());
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return TabCompleteUtil.completeFreeInput(arguments.join(), 32, "order name", localizer());
     }
 }

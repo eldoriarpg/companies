@@ -3,24 +3,31 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.localization.Replacement;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class Rename extends EldoCommand {
+public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
     private final Map<UUID, String> confirm = new HashMap<>();
     private final MiniMessage miniMessage = MiniMessage.get();
     private final BukkitAudiences audiences;
@@ -30,7 +37,9 @@ public class Rename extends EldoCommand {
     private final DelayedActions delayedActions;
 
     public Rename(Plugin plugin, Configuration configuration, Economy economy, ACompanyData companyData) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("rename")
+                .addArgument("name", true)
+                .build());
         audiences = BukkitAudiences.create(plugin);
         this.configuration = configuration;
         this.economy = economy;
@@ -38,64 +47,68 @@ public class Rename extends EldoCommand {
         delayedActions = DelayedActions.start(plugin);
     }
 
+    private void expireConfirm(UUID uuid) {
+        if (confirm.remove(uuid) == null) return;
+
+        var player = plugin().getServer().getOfflinePlayer(uuid);
+        if (!player.isOnline()) return;
+
+        messageSender().sendMessage(player.getPlayer(), "Confirm for name change expired.");
+    }
+
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "<name>")) {
-            return true;
-        }
-
-        var player = getPlayerFromSender(sender);
-
-        if ("confirm".equalsIgnoreCase(args[0])) {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
             if (!confirm.containsKey(player.getUniqueId())) {
-                messageSender().sendError(sender, "Nothing to confirm");
-                return true;
+                messageSender().sendError(player, "Nothing to confirm");
+                return;
             }
             var name = confirm.get(player.getUniqueId());
             companyData.retrievePlayerCompanyProfile(player)
+                    // TODO: Check if company name is already taken
                     .asFuture()
                     .thenAcceptAsync(optProfile -> {
                         if (optProfile.isEmpty()) {
-                            messageSender().sendError(sender, "You are not part of a company");
+                            messageSender().sendError(player, "You are not part of a company");
                             return;
                         }
                         var profile = optProfile.get();
                         if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                            messageSender().sendError(sender, "You are not the owner of the company");
+                            messageSender().sendError(player, "You are not the owner of the company");
                             return;
                         }
 
                         var response = economy.withdrawPlayer(player, configuration.companySettings().renamePrice());
                         if (response.type != EconomyResponse.ResponseType.SUCCESS) {
-                            messageSender().sendError(sender, "Not enough money");
+                            messageSender().sendError(player, "Not enough money");
                             return;
                         }
 
                         companyData.updateCompanyName(profile, name);
                         messageSender().sendMessage(player, "Company name changed");
                     });
-            return true;
+            return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
                 .thenAcceptAsync(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(sender, "You are not part of a company");
+                        messageSender().sendError(player, "You are not part of a company");
                         return;
                     }
                     var profile = optProfile.get();
                     if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                        messageSender().sendError(sender, "You are not the owner of the company");
+                        messageSender().sendError(player, "You are not the owner of the company");
                         return;
                     }
 
                     if (!economy.has(player, configuration.companySettings().renamePrice())) {
-                        messageSender().sendError(sender, "You dont have enought money");
+                        messageSender().sendError(player, "You dont have enought money");
                         return;
                     }
 
-                    var name = String.join(" ", args);
+                    var name = arguments.join();
                     confirm.put(player.getUniqueId(), name);
                     var message = MessageComposer.create()
                             .localeCode("Confirm rename",
@@ -104,15 +117,10 @@ public class Rename extends EldoCommand {
                     audiences.sender(player).sendMessage(miniMessage.parse(message.buildLocalized(localizer())));
                     delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
                 });
-        return true;
     }
 
-    private void expireConfirm(UUID uuid) {
-        if (confirm.remove(uuid) == null) return;
-
-        var player = getPlugin().getServer().getOfflinePlayer(uuid);
-        if (!player.isOnline()) return;
-
-        messageSender().sendMessage(player.getPlayer(), "Confirm for name change expired.");
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return null;
     }
 }

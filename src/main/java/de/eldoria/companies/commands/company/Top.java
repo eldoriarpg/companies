@@ -3,21 +3,23 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.util.Texts;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
-import de.eldoria.eldoutilities.utils.ArgumentUtils;
-import de.eldoria.eldoutilities.utils.EnumUtil;
-import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class Top extends EldoCommand {
+public class Top extends AdvancedCommand implements ITabExecutor {
     private static final int PAGE_SIZE = 15;
     private static final TopOrder DEFAULT_ORDER = TopOrder.ORDERS;
     private final MiniMessage miniMessage;
@@ -25,29 +27,13 @@ public class Top extends EldoCommand {
     private final ACompanyData companyData;
 
     public Top(Plugin plugin, ACompanyData companyData) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("top")
+                .addArgument("page", false)
+                .addArgument("order", false)
+                .build());
         this.companyData = companyData;
         miniMessage = MiniMessage.get();
         audiences = BukkitAudiences.create(plugin);
-    }
-
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (args.length == 0) {
-            renderPage(sender, 1, DEFAULT_ORDER);
-            return true;
-        }
-
-        var page = Parser.parseInt(args[0]);
-        if (page.isEmpty()) {
-            messageSender().sendError(sender, "Invalid number");
-            return true;
-        }
-
-        var order = ArgumentUtils.getOptionalParameter(args, 1, DEFAULT_ORDER, s -> EnumUtil.parse(s, TopOrder.class));
-
-        renderPage(sender, page.getAsInt(), order);
-        return true;
     }
 
     private void renderPage(CommandSender sender, int page, TopOrder orders) {
@@ -73,10 +59,21 @@ public class Top extends EldoCommand {
         composer.localeCode("Page").text(" %s ", page);
 
         if (ranks.size() < PAGE_SIZE) {
-            composer.text("<gray>%s<reset>",Texts.RIGHT_ARROW);
+            composer.text("<gray>%s<reset>", Texts.RIGHT_ARROW);
         } else {
             composer.text("<click:run_command:/company top %s %s><white>%s</white></click>", page + 1, order.name(), Texts.RIGHT_ARROW);
         }
         audiences.sender(sender).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
+    }
+
+    @Override
+    public void onCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var order = arguments.asEnum(1, TopOrder.class, DEFAULT_ORDER);
+        renderPage(sender, arguments.asInt(0, 1), order);
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments arguments) {
+        return null;
     }
 }

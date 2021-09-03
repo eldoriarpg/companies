@@ -1,44 +1,62 @@
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Argument;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
-public class Material extends EldoCommand {
+public class Material extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Material(Plugin plugin, Query query) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("material_add")
+                .addAlias("material_remove")
+                .addArgument("material", false)
+                .build());
         this.query = query;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        var player = getPlayerFromSender(sender);
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if ("material_add".equalsIgnoreCase(label)) {
-            if (argumentsInvalid(sender, args, 1, "material_add <material>")) return false;
-            query.getPlayerSearch(player).materials().add(String.join("_", args));
-            return true;
+            CommandAssertions.invalidArguments(meta(), arguments, Argument.subCommand("material_add"), Argument.input("material", true));
+            query.getPlayerSearch(player).materials().add(arguments.join("_"));
+            return;
         }
 
         var search = query.getPlayerSearch(player);
-        if (args.length == 0) {
+        if (arguments.isEmpty()) {
             search.materials().clear();
-            return true;
+            return;
         }
-        search.materials().remove(String.join("_", args));
-        return true;
+        search.materials().remove(arguments.join("_"));
+
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return TabCompleteUtil.completeMaterial(String.join("_", args), true);
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        if (TabCompleteUtil.isCommand(arguments.asString(0), "material_add")) {
+            return TabCompleteUtil.completeMaterial(arguments.join("_"), true);
+        }
+        if (TabCompleteUtil.isCommand(arguments.asString(0), "material_remove")) {
+            if (arguments.size() == 1) {
+                return Collections.emptyList();
+            }
+            var playerSearch = query.getPlayerSearch(player);
+            return TabCompleteUtil.complete(arguments.asString(1), playerSearch.materials());
+        }
+        return Collections.emptyList();
     }
 }
