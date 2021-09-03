@@ -7,16 +7,20 @@ import de.eldoria.companies.commands.order.List;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-public class Order extends EldoCommand {
+public class Order extends AdvancedCommand {
     public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy) {
-        super(plugin);
+        super(plugin,
+                new CommandMetaBuilder("order")
+                        .withSubCommand()
+                        .build());
         var list = new List(plugin, orderData, economy, configuration);
         setDefaultCommand(list);
         registerCommand("cancel", new Cancel(plugin, orderData, economy, list));
