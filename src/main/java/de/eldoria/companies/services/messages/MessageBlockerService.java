@@ -47,6 +47,8 @@ public class MessageBlockerService extends PacketAdapter implements Listener, IM
     public void onPacketSending(PacketEvent event) {
         if (!blockedPlayers.containsKey(event.getPlayer().getUniqueId())) return;
 
+        var message = AdventureComponentAdapter.rawMessage(event.getPacket());
+
         getBlockedPackets(event.getPlayer()).add(event.getPacket());
         event.setCancelled(true);
     }
