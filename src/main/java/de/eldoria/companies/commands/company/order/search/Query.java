@@ -13,50 +13,48 @@ import de.eldoria.companies.commands.company.order.search.query.Render;
 import de.eldoria.companies.commands.company.order.search.query.Size;
 import de.eldoria.companies.commands.company.order.search.query.Sorting;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
-import org.bukkit.command.Command;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class Query extends EldoCommand {
+public class Query extends AdvancedCommand {
     private final Map<UUID, SearchQuery> searches = new HashMap<>();
-    private final Render render;
+    private Render render;
 
     public Query(Plugin plugin, AOrderData orderData, Search search) {
         super(plugin);
-        render = new Render(plugin, this);
-        setDefaultCommand(render);
-        registerCommand("clear", new Clear(plugin, this));
-        registerCommand("execute", new Execute(plugin, this, search, orderData));
-        var material = new Material(plugin, this);
-        registerCommand("material_add", material);
-        registerCommand("material_remove", material);
-        registerCommand("material_match", new MaterialMatch(plugin, this));
-        registerCommand("material_search", new MaterialSearch(plugin, this));
-        registerCommand("name", new Name(plugin, this));
-        registerCommand("order", new Order(plugin, this));
-        var price = new Price(plugin, this);
-        registerCommand("min_price", price);
-        registerCommand("max_price", price);
-        var size = new Size(plugin, this);
-        registerCommand("min_size", size);
-        registerCommand("max_size", size);
-        registerCommand("sorting", new Sorting(plugin, this));
+        var meta = CommandMeta.builder("query")
+                .buildSubCommands((commands, builder) -> {
+                    render = new Render(plugin, this);
+                    builder.withDefaultCommand(render);
+                    commands.add(new Clear(plugin, this));
+                    commands.add(new Execute(plugin, this, search, orderData));
+                    commands.add(new Material(plugin, this));
+                    commands.add(new MaterialMatch(plugin, this));
+                    commands.add(new MaterialSearch(plugin, this));
+                    commands.add(new Name(plugin, this));
+                    commands.add(new Order(plugin, this));
+                    commands.add(new Price(plugin, this));
+                    commands.add(new Size(plugin, this));
+                    commands.add(new Sorting(plugin, this));
+                }).build();
+        meta(meta);
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (!super.onCommand(sender, command, label, args)) {
-            return true;
-        }
-        render.renderSearch(getPlayerFromSender(sender));
-        return true;
+    public void commandRoute(CommandSender sender, String label, Arguments args) throws CommandException {
+        super.commandRoute(sender, label, args);
+        CommandAssertions.player(sender);
+        render.renderSearch((Player) sender);
     }
 
     public SearchQuery getPlayerSearch(Player player) {

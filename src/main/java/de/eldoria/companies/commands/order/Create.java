@@ -6,32 +6,35 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Argument;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.ArgumentUtils;
 import de.eldoria.eldoutilities.utils.EnumUtil;
-import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-public class Create extends EldoCommand {
+public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();
     private final BukkitAudiences audience;
     private final Configuration configuration;
@@ -40,7 +43,10 @@ public class Create extends EldoCommand {
     private final Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
 
     public Create(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("create")
+                .addArgument("field", false)
+                .addArgument("value", false)
+                .build());
         audience = BukkitAudiences.create(plugin);
         this.orderData = orderData;
         this.configuration = configuration;
@@ -48,97 +54,71 @@ public class Create extends EldoCommand {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        var player = getPlayerFromSender(sender);
-
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args) throws CommandException {
         if (!builderCache.asMap().containsKey(player.getUniqueId())) {
-            if (argumentsInvalid(sender, args, 1, "<name>")) return true;
+            CommandAssertions.invalidArguments(meta(), args, Argument.input("name", true));
             initCreation(player, args);
-            return true;
+            return;
         }
 
-        var subArgs = Arrays.copyOfRange(args, 1, args.length);
+        var subArgs = args.subArguments();
+        var cmd = args.asString(0);
 
-        if ("name".equalsIgnoreCase(args[0])) {
-            name(player, subArgs);
-            return true;
+        switch (cmd.toLowerCase(Locale.ROOT)) {
+            case "name":
+                name(player, subArgs);
+            case "add":
+                add(player, subArgs);
+            case "remove":
+                remove(player, subArgs);
+            case "price":
+                price(player, subArgs);
+            case "amount":
+                amount(player, subArgs);
+            case "done":
+                done(player);
+            case "cancel":
+                cancel(player);
         }
-        if ("add".equalsIgnoreCase(args[0])) {
-            add(player, subArgs);
-            return true;
-        }
-
-        if ("remove".equalsIgnoreCase(args[0])) {
-            remove(player, subArgs);
-            return true;
-        }
-
-        if ("price".equalsIgnoreCase(args[0])) {
-            price(player, subArgs);
-            return true;
-        }
-
-        if ("amount".equalsIgnoreCase(args[0])) {
-            amount(player, subArgs);
-            return true;
-        }
-
-        if ("done".equalsIgnoreCase(args[0])) {
-            done(player);
-            return true;
-        }
-
-        if ("cancel".equalsIgnoreCase(args[0])) {
-            cancel(player);
-            return true;
-        }
-
-        return true;
     }
 
-    private void amount(Player player, String[] args) {
-        if (argumentsInvalid(player, args, 2, "<material> <amount>")) {
-            return;
-        }
-
-        var optamount = Parser.parseInt(args[1]);
-        var material = EnumUtil.parse(args[0], Material.class);
-
-        if (optamount.isEmpty()) {
-            messageSender().sendError(player, "Invalid number");
-            return;
-        }
-
-        if (material == null) {
-            messageSender().sendError(player, "Invalid material");
-            return;
-        }
+    private void amount(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("amount", this)
+                .addArgument("material", true)
+                .addArgument("amount", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+        var amount = args.asInt(0);
+        var material = args.asMaterial(1);
 
         var builder = getPlayerBuilder(player);
-        builder.changeContentAmount(material, Math.min(configuration.orderSetting().maxItems() - builder.amount(material), optamount.getAsInt()));
+        builder.changeContentAmount(material, Math.min(configuration.orderSetting().maxItems() - builder.amount(material), amount));
         sendBuilder(player, builder);
     }
 
-    private void price(Player player, String[] args) {
-        if (argumentsInvalid(player, args, 2, "<material> <amount>")) {
-            return;
-        }
+    private void price(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("price", this)
+                .addArgument("material", true)
+                .addArgument("price", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
 
-        var optPrice = Parser.parseDouble(args[1]);
-        var material = EnumUtil.parse(args[0], Material.class);
-
-        if (optPrice.isEmpty()) {
-            messageSender().sendError(player, "Invalid number");
-            return;
-        }
-
-        if (material == null) {
-            messageSender().sendError(player, "Invalid material");
-            return;
-        }
+        var material = args.asMaterial(0);
+        var price = args.asDouble(1);
 
         var builder = getPlayerBuilder(player);
-        builder.changeContentPrice(material, Math.max(0, optPrice.getAsDouble()));
+        builder.changeContentPrice(material, Math.max(0, price));
+        sendBuilder(player, builder);
+    }
+
+    private void name(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("name", this)
+                .addArgument("name", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+
+        var builder = getPlayerBuilder(player);
+        builder.name(String.join(" ", args.asArray()));
         sendBuilder(player, builder);
     }
 
@@ -149,22 +129,15 @@ public class Create extends EldoCommand {
         return builder;
     }
 
-    private void name(Player player, String[] args) {
-        if (argumentsInvalid(player, args, 1, "<name>")) {
-            return;
-        }
-        var builder = getPlayerBuilder(player);
-        builder.name(String.join(" ", args));
-        sendBuilder(player, builder);
-    }
 
+    private void remove(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("name", this)
+                .addArgument("material", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
 
-    private void remove(Player player, String[] args) {
-        if (argumentsInvalid(player, args, 1, "<material>")) {
-            return;
-        }
         var builder = getPlayerBuilder(player);
-        var parse = EnumUtil.parse(args[0], Material.class);
+        var parse = args.asMaterial(0);
 
         builder.removeContent(parse);
         sendBuilder(player, builder);
@@ -177,7 +150,6 @@ public class Create extends EldoCommand {
 
     private void done(Player player) {
         var order = builderCache.getIfPresent(player.getUniqueId());
-
 
         if (order == null) {
             messageSender().sendLocalizedError(player, "No order builder registered.");
@@ -211,32 +183,32 @@ public class Create extends EldoCommand {
                 });
     }
 
-    private void initCreation(Player player, String[] args) {
+    private void initCreation(Player player, @NotNull Arguments args) {
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
                     if (count >= configuration.userSettings().maxOrders()) {
                         messageSender().sendLocalizedError(player, "error.tooMuchOrders");
                         return;
                     }
-                    var name = String.join(" ", args);
+                    var name = String.join(" ", args.asArray());
                     var builder = new OrderBuilder(player.getUniqueId(), name);
                     builderCache.put(player.getUniqueId(), builder);
                     sendBuilder(player, builder);
                 });
     }
 
-    private void add(Player player, String[] args) {
-        if (argumentsInvalid(player, args, 3, "<material> <amount> <price>")) {
-            return;
-        }
+    private void add(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("name", this)
+                .addArgument("material", true)
+                .addArgument("amount", true)
+                .addArgument("price", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+
         var builder = getPlayerBuilder(player);
-        var material = EnumUtil.parse(args[0], Material.class);
-        var amount = Parser.parseInt(args[1]);
-        var price = Parser.parseDouble(args[2]);
-        if (price.isEmpty()) {
-            messageSender().sendError(player, "error.invalidNumber");
-            return;
-        }
+        var material = args.asMaterial(0);
+        var amount = args.asInt(1);
+        var price = args.asDouble(2);
 
         if (builder.materialsAmount() >= configuration.orderSetting().maxMaterials()) {
             messageSender().sendError(player, "Material limit reached");
@@ -247,14 +219,9 @@ public class Create extends EldoCommand {
             return;
         }
 
-        if (material == null) {
-            messageSender().sendError(player, "Invalid material");
-            return;
-        }
 
-
-        builder.addContent(new ItemStack(material), Math.min(amount.getAsInt(), configuration.orderSetting().maxItems() - builder.amount()),
-                Math.max(0, price.getAsDouble()));
+        builder.addContent(new ItemStack(material), Math.min(amount, configuration.orderSetting().maxItems() - Math.max(1, builder.amount())),
+                Math.max(0, price));
         sendBuilder(player, builder);
     }
 
@@ -263,8 +230,8 @@ public class Create extends EldoCommand {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (!(sender instanceof Player)) return Collections.emptyList();
+    public @Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments arguments) {
+        var args = arguments.asArray();
         if (args.length == 0) {
             return List.of("add", "remove", "cancel", "done");
         }
@@ -325,7 +292,7 @@ public class Create extends EldoCommand {
 
             if (args.length == 3) {
                 var material = EnumUtil.parse(args[1], Material.class);
-                var max = configuration.orderSetting().maxItems() - builder.amount(material);
+                var max = configuration.orderSetting().maxItems() - builder.amount(material.orElse(null));
                 return TabCompleteUtil.completeInt(args[2], 1, max, localizer());
             }
 

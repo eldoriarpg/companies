@@ -2,34 +2,38 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
-import de.eldoria.eldoutilities.utils.Parser;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-public class Cancel extends EldoCommand {
+public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Economy economy;
     private final List list;
 
     public Cancel(Plugin plugin, AOrderData orderData, Economy economy, List list) {
-        super(plugin);
+        super(plugin, new CommandMetaBuilder("cancel")
+                .addArgument("id", true)
+                .build());
         this.orderData = orderData;
         this.economy = economy;
         this.list = list;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "<id>")) return true;
-        var optId = Parser.parseInt(args[0]);
+    public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var id = arguments.asInt(0);
 
-        orderData.retrieveOrderById(optId.getAsInt())
+        orderData.retrieveOrderById(id)
                 .whenComplete(optOrder -> {
                     if (optOrder.isEmpty()) {
                         messageSender().sendError(sender, "Order not found.");
@@ -57,6 +61,10 @@ public class Cancel extends EldoCommand {
                                 });
                             });
                 });
-        return true;
+    }
+
+    @Override
+    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments arguments) {
+        return null;
     }
 }

@@ -1,38 +1,42 @@
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class MaterialMatch extends EldoCommand {
+public class MaterialMatch extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public MaterialMatch(Plugin plugin, Query query) {
-        super(plugin);
+        super(plugin, CommandMeta
+                .builder("material_match")
+                .addUnlocalizedArgument("exact|type", true)
+                .build());
         this.query = query;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "material_match <exact|part>")) return false;
-        var matchType = args[0];
-        if (!("exact".equalsIgnoreCase(matchType) || "part".equalsIgnoreCase(matchType))) {
-            messageSender().sendError(sender, "Invalid match type");
-            return false;
-        }
-        query.getPlayerSearch(getPlayerFromSender(sender)).exactMatch("exact".equalsIgnoreCase(args[0]));
-        return true;
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var matchType = arguments.asString(0);
+        CommandAssertions.isTrue(TabCompleteUtil.isCommand(matchType, "exact", "part"), "Invalid match type");
+        query.getPlayerSearch(player).exactMatch("exact".equalsIgnoreCase(arguments.asString(0)));
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return TabCompleteUtil.complete(args[0], "exact", "part");
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return TabCompleteUtil.complete(arguments.asString(0), "exact", "part");
     }
 }

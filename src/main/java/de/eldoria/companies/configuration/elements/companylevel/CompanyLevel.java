@@ -36,8 +36,8 @@ public class CompanyLevel implements ConfigurationSerializable {
                 .space().localeCode("Delivered Items").text(": %s", requirement.deliveredItems()).newLine()
                 .space().localeCode("Earned Money").text(": %s", requirement.earnedMoney()).newLine()
                 .localeCode("Limits").text(":").newLine()
-                .space().localeCode("Max Member").text(": %s", settings.maxMembers()).newLine()
-                .space().localeCode("Max Orders").text(": %s", settings.maxOrders())
+                .space().localeCode("Max Member").text(": %s ", settings.maxMembers()).newLine()
+                .space().localeCode("Max Orders").text(": %s ", settings.maxOrders())
                 .build();
     }
 

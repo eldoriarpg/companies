@@ -1,6 +1,11 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.utils.Parser;
@@ -16,99 +21,65 @@ import java.util.List;
 import java.util.Locale;
 import java.util.OptionalDouble;
 
-public class Edit extends EldoCommand {
+public class Edit extends AdvancedCommand  implements ITabExecutor {
     private final Configuration configuration;
     private final Info info;
 
     public Edit(Plugin plugin, Configuration configuration, Info info) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("edit")
+                .addArgument("level", true)
+                .addArgument("field", true)
+                .addArgument("value", true)
+                .build()
+        );
         this.configuration = configuration;
         this.info = info;
     }
 
+
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 3, "<level> <field> <value>")) {
-            return true;
-        }
-
-        var levelNr = Parser.parseInt(args[0]);
-
-        if (levelNr.isEmpty()) {
-            messageSender().sendError(sender, "Invalid level");
-            return true;
-        }
-
-        var optLevel = configuration.companySettings().level(levelNr.getAsInt());
+    public void onCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull Arguments args) throws CommandException {
+        var optLevel = configuration.companySettings().level(args.asInt(0));
         if (optLevel.isEmpty()) {
             messageSender().sendError(sender, "Invalid level");
-            return true;
+            return;
         }
 
         var level = optLevel.get();
-        var field = args[1].toLowerCase(Locale.ROOT);
-        var values = Arrays.copyOfRange(args, 2, args.length);
 
-        var optInt = Parser.parseInt(values[0]);
-        var optDouble = OptionalDouble.empty();
-        switch (field) {
+        switch (args.asString(1).toLowerCase(Locale.ROOT)) {
             case "name":
-                level.levelName(String.join(" ", values));
+                level.levelName(args.join(2));
                 break;
             case "order_count":
-                if (optInt.isEmpty()) {
-                    messageSender().sendError(sender, "Invalid number");
-                    return true;
-                }
-                level.requirement().orderCount(optInt.getAsInt());
+                level.requirement().orderCount(args.asInt(2));
                 break;
             case "member_count":
-                if (optInt.isEmpty()) {
-                    messageSender().sendError(sender, "Invalid number");
-                    return true;
-                }
-                level.requirement().memberCount(optInt.getAsInt());
+                level.requirement().memberCount(args.asInt(2));
                 break;
             case "earned_money":
-                optDouble = Parser.parseDouble(values[0]);
-                if (optDouble.isEmpty()) {
-                    messageSender().sendError(sender, "Invalid number");
-                    return true;
-                }
-                level.requirement().earnedMoney(optDouble.getAsDouble());
+                level.requirement().earnedMoney(args.asDouble(2));
                 break;
             case "delivered_items":
-                if (optInt.isEmpty()) {
-                    messageSender().sendError(sender, "Invalid number");
-                    return true;
-                }
-                level.requirement().deliveredItems(optInt.getAsInt());
+                level.requirement().deliveredItems(args.asInt(2));
                 break;
             case "max_members":
-                if (optInt.isEmpty()) {
-                    messageSender().sendError(sender, "Invalid number");
-                    return true;
-                }
-                level.settings().maxMembers(optInt.getAsInt());
+                level.settings().maxMembers(args.asInt(2));
                 break;
             case "max_orders":
-                if (optInt.isEmpty()) {
-                    messageSender().sendError(sender, "Invalid number");
-                    return true;
-                }
-                level.settings().maxOrders(optInt.getAsInt());
+                level.settings().maxOrders(args.asInt(2));
                 break;
             default:
                 messageSender().sendError(sender, "Unkown field");
-                return true;
+                return;
         }
         configuration.save();
         info.show(sender, level);
-        return true;
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments arguments) {
+        var args = arguments.asArray();
         if (args.length == 1) {
             if (args[0].isEmpty()) {
                 return Collections.singletonList("<source>");

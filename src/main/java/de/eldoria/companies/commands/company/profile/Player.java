@@ -2,6 +2,11 @@ package de.eldoria.companies.commands.company.profile;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -15,14 +20,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
-public class Player extends EldoCommand {
+public class Player extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final BukkitAudiences audiences;
     private final MiniMessage miniMessage;
 
     public Player(Plugin plugin, ACompanyData companyData, Configuration configuration) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("player").build());
         this.companyData = companyData;
         this.configuration = configuration;
         audiences = BukkitAudiences.create(plugin);
@@ -30,31 +35,26 @@ public class Player extends EldoCommand {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        var player = getPlugin().getServer().getPlayer(args[0]);
+    public void onCommand(org.bukkit.entity.@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+        var target = args.asPlayer(0);
 
-        if (player == null) {
-            messageSender().sendError(sender, "Unkown Player");
-            return true;
-        }
-
-        companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optCompany -> {
+        companyData.retrievePlayerCompanyProfile(target)
+                .asFuture()
+                .whenComplete((optCompany, err) -> {
                     if (optCompany.isEmpty()) {
-                        messageSender().sendError(sender, "This player is not part of a company");
+                        messageSender().sendError(player, "This player is not part of a company");
                         return;
                     }
 
                     var companyProfile = optCompany.get();
-                    audiences.sender(sender).sendMessage(miniMessage.parse(localizer().localize(companyProfile.asExternalProfileComponent(configuration))));
+                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(companyProfile.asExternalProfileComponent(configuration))));
                 });
-        return true;
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (args.length == 1) {
-            return TabCompleteUtil.completeOnlinePlayers(args[0]);
+    public @Nullable List<String> onTabComplete(org.bukkit.entity.@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        if (args.size() == 1) {
+            return TabCompleteUtil.completeOnlinePlayers(args.asString(0));
         }
         return Collections.emptyList();
     }

@@ -9,20 +9,26 @@ import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
-public class Order extends EldoCommand {
+public class Order extends AdvancedCommand {
     public Order(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
         super(plugin);
-        var list = new List(plugin, companyData, orderData, economy);
-        setDefaultCommand(list);
-        registerCommand("abort", new Abort(plugin, companyData, orderData, list));
-        registerCommand("accept", new Accept(plugin, companyData, orderData, configuration));
-        registerCommand("deliver", new Deliver(plugin, companyData, orderData, economy, configuration));
-        registerCommand("list", list);
-        registerCommand("info", new Info(plugin, companyData, orderData, economy, configuration));
-        registerCommand("search", new Search(plugin, orderData, economy));
+        var meta = CommandMeta.builder("order")
+                .buildSubCommands((commands, builder) -> {
+                    var list = new List(plugin, companyData, orderData, economy);
+                    builder.withDefaultCommand(list);
+                    commands.add(new Abort(plugin, companyData, orderData, list));
+                    commands.add(new Accept(plugin, companyData, orderData, configuration));
+                    commands.add(new Deliver(plugin, companyData, orderData, economy, configuration));
+                    commands.add(list);
+                    commands.add(new Info(plugin, companyData, orderData, economy, configuration));
+                    commands.add(new Search(plugin, orderData, economy));
+                })
+                .build();
+        meta(meta);
     }
 }

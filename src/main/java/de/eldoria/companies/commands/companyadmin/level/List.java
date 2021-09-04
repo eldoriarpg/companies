@@ -1,6 +1,11 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -14,21 +19,15 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class List extends EldoCommand {
+public class List extends AdvancedCommand implements ITabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();
     private final Configuration configuration;
     private final BukkitAudiences audiences;
 
     public List(Plugin plugin, Configuration configuration) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("list").build());
         this.configuration = configuration;
         audiences = BukkitAudiences.create(plugin);
-    }
-
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        sendList(sender);
-        return true;
     }
 
     public void sendList(CommandSender sender) {
@@ -47,7 +46,12 @@ public class List extends EldoCommand {
     }
 
     @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+    public void onCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        sendList(sender);
+    }
+
+    @Override
+    public java.util.@Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments arguments) {
         return Collections.emptyList();
     }
 }

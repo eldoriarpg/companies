@@ -2,43 +2,49 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.utils.Parser;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class Receive extends EldoCommand {
+import java.util.List;
+
+public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
 
     public Receive(Plugin plugin, AOrderData orderData) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("receive").addArgument("id", true).build());
         this.orderData = orderData;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "<id>")) return true;
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var id = arguments.asInt(0);
 
-        var optId = Parser.parseInt(args[0]);
-
-        orderData.retrieveOrderById(optId.getAsInt())
+        orderData.retrieveOrderById(id)
                 .whenComplete(optOrder -> {
                     if (optOrder.isEmpty()) {
-                        messageSender().sendError(sender, "Order not found.");
+                        messageSender().sendError(player, "Order not found.");
                         return;
                     }
 
                     var simpleOrder = optOrder.get();
-                    var player = getPlayerFromSender(sender);
                     if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                        messageSender().sendLocalizedError(sender, "Not your order");
+                        messageSender().sendLocalizedError(player, "Not your order");
                         return;
                     }
                     if (simpleOrder.state() != OrderState.DELIVERED) {
-                        messageSender().sendLocalizedError(sender, "Not ready");
+                        messageSender().sendLocalizedError(player, "Not ready");
                         return;
                     }
                     orderData.retrieveFullOrder(optOrder.get())
@@ -50,13 +56,17 @@ public class Receive extends EldoCommand {
                                 }
 
                                 if (stacks.size() > empty) {
-                                    messageSender().sendLocalizedError(sender, "Not enought space. You need " + stacks.size() + " slots");
+                                    messageSender().sendLocalizedError(player, "Not enought space. You need " + stacks.size() + " slots");
                                     return;
                                 }
                                 player.getInventory().addItem(stacks.toArray(ItemStack[]::new));
                                 orderData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
                             });
                 });
-        return true;
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return null;
     }
 }
