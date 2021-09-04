@@ -18,9 +18,7 @@ repositories {
 }
 
 dependencies {
-    implementation("de.eldoria", "eldo-util", "1.9.9-DEV") {
-        isChanging = true
-    }
+    implementation("de.eldoria", "eldo-util", "1.10.1m-SNAPSHOT")
     implementation("de.chojo", "sql-util", "1.1.4-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")

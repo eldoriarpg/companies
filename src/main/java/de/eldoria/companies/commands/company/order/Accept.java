@@ -4,91 +4,86 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.permissions.CompanyPermission;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
-import de.eldoria.eldoutilities.utils.Parser;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
-import java.util.OptionalInt;
+import java.util.List;
+import java.util.logging.Level;
 
-public class Accept extends EldoCommand {
+public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Configuration configuration;
 
     public Accept(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("accept")
+                .addArgument("id", true)
+                .build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.configuration = configuration;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "<id>")) return true;
-
-        var optId = Parser.parseInt(args[0]);
-        if (optId.isEmpty() || optId.getAsInt() < 0) {
-            messageSender().sendError(sender, "Invalid number");
-            return true;
-        }
-
-        var player = getPlayerFromSender(sender);
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var id = arguments.asInt(0);
+        CommandAssertions.min(id, 0);
 
         companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optProfile -> handleProfile(sender, optId, player, optProfile));
-        return true;
+                .asFuture()
+                .whenComplete((optProfile, err) -> {
+                    if (optProfile.isEmpty()) {
+                        messageSender().sendError(player, "You are not part of a company");
+                        return;
+                    }
+                    var profile = optProfile.get();
+                    var companyMember = profile.member(player).get();
+                    if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
+                        messageSender().sendError(player, "You are not allowed to accept orders.");
+                        return;
+                    }
+
+                    var count = orderData.retrieveCompanyOrderCount(profile).join();
+                    if (count >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxOrders()) {
+                        messageSender().sendError(player, "Maximum order limit reached.");
+                        return;
+                    }
+
+                    var optOrder = orderData.retrieveOrderById(id).join();
+                    if (optOrder.isEmpty()) {
+                        messageSender().sendError(player, "Unknown order");
+                    }
+
+                    var simpleOrder = optOrder.get();
+                    if (simpleOrder.state() != OrderState.UNCLAIMED) {
+                        messageSender().sendError(player, "This order is not claimable");
+                        return;
+                    }
+
+                    if (orderData.submitOrderClaim(profile, simpleOrder).join()) {
+                        player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
+                        return;
+                    }
+                    messageSender().sendError(player, "Order could not be claimed");
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
-    private void handleProfile(@NotNull CommandSender sender, OptionalInt optId, Player player, Optional<CompanyProfile> optProfile) {
-        if (optProfile.isEmpty()) {
-            messageSender().sendError(sender, "You are not part of a company");
-            return;
-        }
-        var profile = optProfile.get();
-        var companyMember = profile.member(player).get();
-        if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-            messageSender().sendError(sender, "You are not allowed to accept orders.");
-            return;
-        }
-
-        orderData.retrieveCompanyOrderCount(profile)
-                .whenComplete(count -> handleOrderCount(sender, optId, profile, count));
-    }
-
-    private void handleOrderCount(@NotNull CommandSender sender, OptionalInt optId, CompanyProfile profile, Integer count) {
-        if (count >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxOrders()) {
-            messageSender().sendError(sender, "Maximum order limit reached.");
-            return;
-        }
-        orderData.retrieveOrderById(optId.getAsInt())
-                .whenComplete(order -> handleOrder(sender, profile, order));
-    }
-
-    private void handleOrder(@NotNull CommandSender sender, CompanyProfile profile, Optional<SimpleOrder> order) {
-        if (order.isEmpty()) {
-            messageSender().sendError(sender, "Unknown order");
-        }
-        var simpleOrder = order.get();
-        if (simpleOrder.state() != OrderState.UNCLAIMED) {
-            messageSender().sendError(sender, "This order is not claimable");
-            return;
-        }
-        orderData.submitOrderClaim(profile, simpleOrder).whenComplete(success -> {
-            if (success) {
-                getPlugin().getServer().getPluginManager().callEvent(new OrderAcceptEvent(order.get(), profile));
-            } else {
-                messageSender().sendError(sender, "Order could not be claimed");
-            }
-        });
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return null;
     }
 }

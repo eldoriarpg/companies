@@ -1,38 +1,41 @@
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class MaterialSearch extends EldoCommand {
+public class MaterialSearch extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public MaterialSearch(Plugin plugin, Query query) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("material_search")
+                .addArgument("any|all", true)
+                .build());
         this.query = query;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "material_search <any|all>")) return false;
-        var matchType = args[0];
-        if(!("all".equalsIgnoreCase(matchType) || "any".equalsIgnoreCase(matchType))) {
-            messageSender().sendError(sender, "Invalid search type");
-            return false;
-        }
-        query.getPlayerSearch(getPlayerFromSender(sender)).anyMaterial("any".equalsIgnoreCase(args[0]));
-        return true;
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var searchType = arguments.asString(0);
+        CommandAssertions.isTrue(TabCompleteUtil.isCommand(searchType, "all", "any"), "Invalid search type");
+        query.getPlayerSearch(player).anyMaterial("any".equalsIgnoreCase(searchType));
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return TabCompleteUtil.complete(args[0], "any", "all");
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return TabCompleteUtil.complete(arguments.asString(0), "any", "all");
     }
 }

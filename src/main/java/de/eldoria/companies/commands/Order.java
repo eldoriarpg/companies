@@ -7,29 +7,26 @@ import de.eldoria.companies.commands.order.List;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-public class Order extends EldoCommand {
+public class Order extends AdvancedCommand {
     public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy) {
-        super(plugin);
-        var list = new List(plugin, orderData, economy, configuration);
-        setDefaultCommand(list);
-        registerCommand("cancel", new Cancel(plugin, orderData, economy, list));
-        registerCommand("create", new Create(plugin, orderData, economy, configuration));
-        registerCommand("info", new Info(plugin, orderData, economy));
-        registerCommand("list", list);
-        registerCommand("receive", new Receive(plugin, orderData));
-    }
-
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (denyConsole(sender)) return true;
-
-        return super.onCommand(sender, command, label, args);
+        super(plugin,
+                new CommandMetaBuilder("order")
+                        .buildSubCommands((cmds, builder) -> {
+                            var list = new List(plugin, orderData, economy, configuration);
+                            cmds.add(list);
+                            cmds.add(new Cancel(plugin, orderData, economy, list));
+                            cmds.add(new Create(plugin, orderData, economy, configuration));
+                            cmds.add(new Info(plugin, orderData, economy));
+                            cmds.add(new Receive(plugin, orderData));
+                        })
+                        .build());
     }
 }

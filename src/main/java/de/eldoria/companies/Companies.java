@@ -1,8 +1,8 @@
 package de.eldoria.companies;
 
+import de.chojo.sqlutil.logging.JavaLogger;
 import de.chojo.sqlutil.updater.SqlType;
 import de.chojo.sqlutil.updater.SqlUpdater;
-import de.chojo.sqlutil.updater.logging.JavaLogger;
 import de.eldoria.companies.commands.Company;
 import de.eldoria.companies.commands.CompanyAdmin;
 import de.eldoria.companies.commands.Order;
@@ -127,7 +127,6 @@ public class Companies extends EldoPlugin {
         builder.setVersionTable("companies_db_version")
                 .withLogger(new JavaLogger(logger()))
                 .execute();
-
 
         initDataRepositories();
     }

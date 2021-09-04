@@ -8,8 +8,12 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
@@ -23,13 +27,15 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Level;
 
-public class Invite extends EldoCommand {
+public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Map<UUID, InviteData> invites = new HashMap<>();
     private final BukkitAudiences audiences;
@@ -37,120 +43,67 @@ public class Invite extends EldoCommand {
     private final Configuration configuration;
 
     public Invite(Plugin plugin, ACompanyData companyData, Configuration configuration) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("invite")
+                .addArgument("name", true)
+                .build());
         audiences = BukkitAudiences.create(plugin);
         delayedActions = DelayedActions.start(plugin);
         this.companyData = companyData;
         this.configuration = configuration;
     }
 
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (argumentsInvalid(sender, args, 1, "<name>")) return true;
-        var player = getPlayerFromSender(sender);
-
-        if ("accept".equalsIgnoreCase(args[0])) {
-            accept(sender, player);
-            return true;
-        }
-
-        if ("deny".equalsIgnoreCase(args[0])) {
-            deny(sender, player);
-            return true;
-        }
-
-        var target = getPlugin().getServer().getPlayer(args[0]);
-
-        if (target == null) {
-            messageSender().sendError(sender, "Invalid player");
-            return true;
-        }
-
-        companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendError(sender, "You are not part of a company.");
-                        return;
-                    }
-
-                    if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
-                        messageSender().sendError(sender, "You dont have the permission to invite users.");
-                        return;
-                    }
-                    companyData.retrievePlayerCompany(target)
-                            .whenComplete(targetCompany -> {
-                                companyData.retrieveCompanyProfile(company.get())
-                                        .whenComplete(optProfile -> {
-                                            var profile = optProfile.get();
-                                            if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxMembers()) {
-                                                messageSender().sendError(sender, "Your company has reached the member limit.");
-                                                return;
-                                            }
-                                            if (targetCompany.isPresent()) {
-                                                messageSender().sendError(sender, "Player is already part of a company");
-                                                return;
-                                            }
-                                            scheduleInvite(player, target, company.get());
-                                        });
-                            });
-
-                });
-        return true;
-    }
-
-    private void deny(@NotNull CommandSender sender, Player player) {
+    private void deny(@NotNull Player player) {
         var data = invites.remove(player.getUniqueId());
         if (data == null) {
-            messageSender().sendError(sender, "No pending invite");
+            messageSender().sendError(player, "No pending invite");
             return;
         }
-        messageSender().sendMessage(player, "Invite expired.");
-        var inviter = getPlugin().getServer().getPlayer(data.inviter);
+        var inviter = plugin().getServer().getPlayer(data.inviter);
         if (inviter != null) {
             messageSender().sendMessage(inviter, "Your invite was declined.");
         }
     }
 
-    private void accept(@NotNull CommandSender sender, Player player) {
+    private void accept(@NotNull Player player) {
         var data = invites.remove(player.getUniqueId());
         if (data == null) {
-            messageSender().sendError(sender, "No pending invite");
+            messageSender().sendError(player, "No pending invite");
             return;
         }
 
         companyData.retrievePlayerCompany(player)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendError(sender, "You are already part of a company");
+                        messageSender().sendError(player, "You are already part of a company");
                         return;
                     }
                     var inviter = Bukkit.getOfflinePlayer(data.inviter);
                     companyData.retrieveCompanyProfile(data.company)
                             .whenComplete(profile -> {
-                                handleInviteAccept(sender, player, data, inviter, profile);
+                                handleInviteAccept(player, data, inviter, profile);
                             });
 
                 });
     }
 
-    private void handleInviteAccept(@NotNull CommandSender sender, Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
+    private void handleInviteAccept(Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
         if (profile.isEmpty()) {
             messageSender().sendError(player, "The company does no longer exist.");
             return;
         }
 
         if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).orElse(new CompanyLevel()).settings().maxMembers()) {
-            messageSender().sendError(sender, "Company is already full");
+            messageSender().sendError(player, "Company is already full");
             return;
         }
 
         companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
-        messageSender().sendMessage(sender, "You have joined the company");
+        messageSender().sendMessage(player, "You have joined the company");
         if (inviter.isOnline()) {
             messageSender().sendMessage(inviter.getPlayer(), player.getName() + " has accepted your invite.");
         }
 
-        getPlugin().getServer().getPluginManager().callEvent(new CompanyJoinEvent(profile.get(), player));
+        plugin().getServer().getPluginManager().callEvent(new CompanyJoinEvent(profile.get(), player));
     }
 
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {
@@ -162,22 +115,67 @@ public class Invite extends EldoCommand {
         delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
     }
 
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        return TabCompleteUtil.completePlayers(args[0]);
-    }
-
     private void expiredInvite(UUID uuid) {
         var data = invites.get(uuid);
         if (data == null) return;
-        var target = getPlugin().getServer().getPlayer(uuid);
+        var target = plugin().getServer().getPlayer(uuid);
         if (target != null) {
             messageSender().sendMessage(target, "Invite expired.");
         }
-        var inviter = getPlugin().getServer().getPlayer(data.inviter);
+        var inviter = plugin().getServer().getPlayer(data.inviter);
         if (inviter != null) {
             messageSender().sendMessage(inviter, "Invite expired.");
         }
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        if ("accept".equalsIgnoreCase(arguments.asString(0))) {
+            accept(player);
+            return;
+        }
+
+        if ("deny".equalsIgnoreCase(arguments.asString(0))) {
+            deny(player);
+            return;
+        }
+
+        var target = arguments.asPlayer(0);
+
+        companyData.retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .whenComplete((company, err) -> {
+                    if (err != null) {
+                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                        return;
+                    }
+                    if (company.isEmpty()) {
+                        messageSender().sendError(player, "You are not part of a company.");
+                        return;
+                    }
+
+                    if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
+                        messageSender().sendError(player, "You dont have the permission to invite users.");
+                        return;
+                    }
+                    var profile = company.get();
+                    if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxMembers()) {
+                        messageSender().sendError(player, "Your company has reached the member limit.");
+                        return;
+                    }
+
+                    var targetCompany = companyData.retrievePlayerCompany(target).asFuture().join();
+                    if (targetCompany.isPresent()) {
+                        messageSender().sendError(player, "Player is already part of a company");
+                        return;
+                    }
+                    scheduleInvite(player, target, company.get());
+                });
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return TabCompleteUtil.completePlayers(arguments.asString(0));
     }
 
     private static class InviteData {

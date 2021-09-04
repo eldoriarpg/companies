@@ -142,7 +142,7 @@ public class SearchQuery {
                 .text("<click:run_command:%s name>[", queryCmd).localeCode("clear").text("]</click>")
                 .newLine()
                 .text("Materials: ")
-                .text("<click:suggest_command:%s material_add>[", queryCmd).localeCode("add").text("]</click>")
+                .text("<click:suggest_command:%s material_add >[", queryCmd).localeCode("add").text("]</click>")
                 .text("<click:run_command:%s material_remove>[", queryCmd).localeCode("clear").text("]</click>")
                 .newLine();
         for (var material : materials) {

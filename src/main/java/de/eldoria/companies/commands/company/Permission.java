@@ -3,16 +3,19 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.permissions.CompanyPermission;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
+import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
+import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.eldoutilities.commands.command.util.Argument;
+import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
+import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
-import de.eldoria.eldoutilities.utils.EnumUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -24,70 +27,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-public class Permission extends EldoCommand {
+public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final BukkitAudiences audiences;
 
     public Permission(Plugin plugin, ACompanyData companyData) {
-        super(plugin);
+        super(plugin, CommandMeta.builder("permission")
+                .addArgument("member", true)
+                .build());
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
-    }
-
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        var player = getPlayerFromSender(sender);
-        if (args.length == 1) {
-            var memberName = args[0];
-            renderPermissionInterface(player, memberName);
-            return true;
-        }
-
-        if (argumentsInvalid(sender, args, 3, "<member> <add|remove> <permission>")) return true;
-
-        var memberName = args[0];
-        var method = args[1];
-        if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
-            messageSender().sendError(sender, "Invalid action. Use ADD or REMOVE");
-            return true;
-        }
-        var permission = EnumUtil.parse(args[2], CompanyPermission.class);
-        if (permission == null || permission == CompanyPermission.OWNER) {
-            messageSender().sendError(sender, "Invalid permission");
-            return true;
-        }
-
-        companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optProfile -> {
-                    if (optProfile.isEmpty()) {
-                        messageSender().sendError(sender, "You are not part of a company");
-                        return;
-                    }
-                    var profile = optProfile.get();
-                    var self = profile.member(player).get();
-                    if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
-                        messageSender().sendError(sender, "Missing permission");
-                        return;
-                    }
-                    var optTarget = profile.memberByName(memberName);
-                    if (optTarget.isEmpty()) {
-                        messageSender().sendError(sender, "Unkown member");
-                        return;
-                    }
-
-                    var target = optTarget.get();
-
-                    if ("give".equalsIgnoreCase(method)) {
-                        target.addPermission(permission);
-
-                    } else {
-                        target.removePermission(permission);
-                    }
-                    companyData.submitMemberUpdate(target);
-
-                    renderPermissionInterface(player, target);
-                });
-        return true;
     }
 
     private void renderPermissionInterface(Player player, String memberName) {
@@ -139,7 +88,64 @@ public class Permission extends EldoCommand {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        if (arguments.size() == 1) {
+            var memberName = arguments.asString(0);
+            renderPermissionInterface(player, memberName);
+            return;
+        }
+
+        CommandAssertions.invalidArguments(meta(), arguments,
+                Argument.input("member", true),
+                Argument.unlocalizedInput("add|remove", true),
+                Argument.input("permission", true));
+
+        var memberName = arguments.asString(0);
+        var method = arguments.asString(1);
+        if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
+            messageSender().sendError(player, "Invalid action. Use ADD or REMOVE");
+            return;
+        }
+        var permission = arguments.asEnum(2, CompanyPermission.class);
+        if (permission == CompanyPermission.OWNER) {
+            messageSender().sendError(player, "Owner permission is not allowed");
+            return;
+        }
+
+        companyData.retrievePlayerCompanyProfile(player)
+                .whenComplete(optProfile -> {
+                    if (optProfile.isEmpty()) {
+                        messageSender().sendError(player, "You are not part of a company");
+                        return;
+                    }
+                    var profile = optProfile.get();
+                    var self = profile.member(player).get();
+                    if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
+                        messageSender().sendError(player, "Missing permission");
+                        return;
+                    }
+                    var optTarget = profile.memberByName(memberName);
+                    if (optTarget.isEmpty()) {
+                        messageSender().sendError(player, "Unkown member");
+                        return;
+                    }
+
+                    var target = optTarget.get();
+
+                    if ("give".equalsIgnoreCase(method)) {
+                        target.addPermission(permission);
+                    } else {
+                        target.removePermission(permission);
+                    }
+                    companyData.submitMemberUpdate(target);
+
+                    renderPermissionInterface(player, target);
+                });
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        var args = arguments.asArray();
         if (args.length == 0) {
             return List.of("give", "remove");
         }
