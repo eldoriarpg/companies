@@ -2,7 +2,6 @@ package de.eldoria.companies.commands.company.profile;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -10,8 +9,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -19,7 +16,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.logging.Level;
 
 public class Name extends AdvancedCommand implements IPlayerTabExecutor {
@@ -43,7 +39,7 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrieveCompanyByName(arguments.join())
                 .asFuture()
                 .whenComplete((optComp, err) -> {
-                    if(err != null){
+                    if (err != null) {
                         plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                         return;
                     }

@@ -31,8 +31,9 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final BukkitAudiences audiences;
     private final Configuration configuration;
+    private final Info info;
 
-    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration) {
+    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, Info info) {
         super(plugin, CommandMeta.builder("deliver")
                 .addArgument("id", true)
                 .addArgument("material", true)
@@ -43,6 +44,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
         this.configuration = configuration;
+        this.info = info;
     }
 
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
@@ -76,7 +78,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                         orderDone(refreshedOrder, company);
                         return;
                     }
-                    audiences.sender(player).sendMessage(refreshedOrder.companyDetailInfo(company.member(player).get(), configuration, localizer(), economy));
+                    info.renderOrder(player, company.member(player).get(), refreshedOrder);
                 });
     }
 

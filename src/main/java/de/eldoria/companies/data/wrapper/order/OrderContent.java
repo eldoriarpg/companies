@@ -1,7 +1,5 @@
 package de.eldoria.companies.data.wrapper.order;
 
-import de.eldoria.eldoutilities.localization.ILocalizer;
-import net.kyori.adventure.text.Component;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;

@@ -20,6 +20,7 @@ public class CompanyEvent<Company extends SimpleCompany> extends Event implement
 
     /**
      * The involved company
+     *
      * @return a company
      */
     @Override

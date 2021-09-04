@@ -22,7 +22,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();

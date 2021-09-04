@@ -10,10 +10,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
 public class Order extends AdvancedCommand {
     public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy) {

@@ -2,7 +2,6 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
@@ -12,12 +11,9 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -25,7 +21,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -57,7 +52,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
                 .whenComplete((optCompany, err) -> {
-                    if(err != null){
+                    if (err != null) {
                         plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                         return;
                     }

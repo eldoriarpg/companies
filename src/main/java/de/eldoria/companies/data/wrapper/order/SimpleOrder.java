@@ -7,8 +7,6 @@ import org.apache.commons.lang.time.DurationFormatUtils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -16,11 +14,11 @@ import java.util.UUID;
 public class SimpleOrder {
     private final int id;
     private final UUID owner;
-    private String name;
     private final LocalDateTime created;
     private final int company;
     private final LocalDateTime claimed;
     private final OrderState state;
+    private String name;
 
     public SimpleOrder(UUID owner, String name) {
         this.id = -1;

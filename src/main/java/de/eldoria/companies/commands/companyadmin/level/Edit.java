@@ -6,22 +6,17 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
-import de.eldoria.eldoutilities.utils.Parser;
-import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.OptionalDouble;
 
-public class Edit extends AdvancedCommand  implements ITabExecutor {
+public class Edit extends AdvancedCommand implements ITabExecutor {
     private final Configuration configuration;
     private final Info info;
 

@@ -1,5 +1,6 @@
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.commands.company.Chatblock;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Invite;
 import de.eldoria.companies.commands.company.Kick;
@@ -32,9 +33,10 @@ public class Company extends AdvancedCommand {
                 .withSubCommand(new Leave(plugin, companyData, orderData))
                 .withSubCommand(new Member(plugin, companyData))
                 .withSubCommand(new Order(plugin, companyData, orderData, economy, configuration, messageBlocker))
-                .withSubCommand(new Permission(plugin, companyData))
+                .withSubCommand(new Permission(plugin, companyData, messageBlocker))
                 .withSubCommand(new Top(plugin, companyData))
                 .withSubCommand(new Rename(plugin, configuration, economy, companyData))
+                .withSubCommand(new Chatblock(plugin, messageBlocker))
                 .build();
         meta(meta);
     }
