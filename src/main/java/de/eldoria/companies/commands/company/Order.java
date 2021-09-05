@@ -20,12 +20,12 @@ public class Order extends AdvancedCommand {
         super(plugin);
         var meta = CommandMeta.builder("order")
                 .buildSubCommands((commands, builder) -> {
-                    var list = new List(plugin, companyData, orderData, economy);
+                    var list = new List(plugin, companyData, orderData, economy, messageBlocker);
                     var info = new Info(plugin, companyData, orderData, economy, configuration, messageBlocker);
                     builder.withDefaultCommand(list);
                     commands.add(new Abort(plugin, companyData, orderData, list));
-                    commands.add(new Accept(plugin, companyData, orderData, configuration));
-                    commands.add(new Deliver(plugin, companyData, orderData, economy, configuration, info));
+                    commands.add(new Accept(plugin, companyData, orderData, configuration, messageBlocker));
+                    commands.add(new Deliver(plugin, companyData, orderData, economy, configuration, info, messageBlocker));
                     commands.add(list);
                     commands.add(info);
                     commands.add(new Search(plugin, orderData, economy, messageBlocker));

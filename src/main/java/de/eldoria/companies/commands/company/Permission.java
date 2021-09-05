@@ -4,6 +4,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Argument;
@@ -72,21 +73,21 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
             var permCmd = "/company permission " + member.player().getName();
             var builder = MessageComposer.create();
             if (member.hasPermission(permission)) {
-                builder.text("<click:run_command:%s remove %s><green>", permCmd, permission.name()).text("</green></click>").build();
+                builder.text("<click:run_command:%s remove %s><%s>", permCmd, permission.name(), Colors.REMOVE).text("</click>").build();
             } else {
-                builder.text("<click:run_command:%s give %s><green>", permCmd, permission.name()).text("</green></click>").build();
+                builder.text("<click:run_command:%s give %s><red>", permCmd, permission.name(), Colors.ADD).text("</click>").build();
             }
             permissions.add(builder.build());
         }
 
         var composer = MessageComposer.create()
-                .localeCode("Permissions of").text(" %:", member.player().getName()).newLine()
+                .text("<%s>", Colors.HEADING).localeCode("Permissions of").text("<%s> %s:", Colors.VALUE, member.player().getName()).newLine()
                 .text(permissions, " ");
         if (messageBlocker.isBlocked(player)) {
             composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>").build();
         }
         messageBlocker.announce(player, "[x]");
-        composer.fillLines();
+        composer.prependLines(25);
         audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
     }
 

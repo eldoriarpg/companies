@@ -6,7 +6,7 @@ import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
-import de.eldoria.companies.util.RotatingCache;
+import de.eldoria.companies.util.RollingCache;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -27,7 +27,7 @@ import java.util.logging.Level;
 
 public class MessageBlockerService extends PacketAdapter implements Listener, IMessageBlockerService {
     private final Set<UUID> blocked = new HashSet<>();
-    private final Map<UUID, RotatingCache<PacketContainer>> messageCache = new ConcurrentHashMap<>();
+    private final Map<UUID, RollingCache<PacketContainer>> messageCache = new ConcurrentHashMap<>();
     private final Map<UUID, String> announcements = new HashMap<>();
     private final ExecutorService executorService;
     private final ProtocolManager manager;
@@ -123,7 +123,7 @@ public class MessageBlockerService extends PacketAdapter implements Listener, IM
     }
 
     @NotNull
-    public RotatingCache<PacketContainer> getPlayerCache(Player player) {
-        return messageCache.computeIfAbsent(player.getUniqueId(), k -> new RotatingCache<>(100));
+    public RollingCache<PacketContainer> getPlayerCache(Player player) {
+        return messageCache.computeIfAbsent(player.getUniqueId(), k -> new RollingCache<>(100));
     }
 }

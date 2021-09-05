@@ -5,6 +5,7 @@ import de.eldoria.companies.commands.companyadmin.level.Edit;
 import de.eldoria.companies.commands.companyadmin.level.Info;
 import de.eldoria.companies.commands.companyadmin.level.List;
 import de.eldoria.companies.commands.companyadmin.level.Move;
+import de.eldoria.companies.commands.companyadmin.level.Remove;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -23,6 +24,7 @@ public class Level extends AdvancedCommand {
                     commands.add(list);
                     commands.add(new Move(plugin, configuration, list));
                     commands.add(info);
+                    commands.add(new Remove(plugin, configuration, list));
                 })
                 .build());
     }

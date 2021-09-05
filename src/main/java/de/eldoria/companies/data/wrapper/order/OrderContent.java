@@ -85,7 +85,7 @@ public class OrderContent {
     public Map<UUID, Double> payments() {
         Map<UUID, Double> payments = new HashMap<>();
         for (var part : parts) {
-            payments.put(part.worker, (part.amount / (double) amount) * price);
+            payments.put(part.worker(), (part.amount() / (double) amount) * price);
         }
         return payments;
     }
@@ -93,7 +93,7 @@ public class OrderContent {
     public Map<UUID, Integer> workerAmount() {
         Map<UUID, Integer> workerAmount = new HashMap<>();
         for (var part : parts) {
-            workerAmount.put(part.worker, part.amount);
+            workerAmount.put(part.worker(), part.amount());
         }
         return workerAmount;
     }

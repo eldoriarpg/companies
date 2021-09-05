@@ -2,14 +2,17 @@ package de.eldoria.companies.commands.company.member;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Color;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -25,14 +28,17 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 public class Self extends AdvancedCommand implements IPlayerTabExecutor {
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
     private final ACompanyData companyData;
     private final BukkitAudiences audiences;
+    private final MiniMessage miniMessage;
+    private final IMessageBlockerService messageBlocker;
 
-    public Self(Plugin plugin, ACompanyData companyData) {
+    public Self(Plugin plugin, ACompanyData companyData, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("self").build());
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
+        miniMessage = MiniMessage.get();
+        this.messageBlocker = messageBlocker;
     }
 
     @Override
@@ -44,44 +50,40 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendMessage(player, "You are not part of a company.");
                         return;
                     }
-                    var builder = Component.text()
-                            .append(Component.text("Company Members:")).append(Component.newline());
+                    messageBlocker.blockPlayer(player);
+                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("Company Members").text(":").newLine();
 
-                    List<Component> members = new ArrayList<>();
+                    List<String> members = new ArrayList<>();
                     var self = optProfile.get().member(player).get();
 
                     for (var member : optProfile.get().members()) {
                         var mem = member.player();
                         if (mem == null) continue;
-                        var hoverBuilder = Component.text();
+                        var hover = MessageComposer.create();
 
-                        if (mem.isOnline()) {
-                            hoverBuilder.append(Component.text("Online"));
-                        } else {
-                            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(mem.getLastPlayed()), ZoneId.systemDefault());
-                            hoverBuilder.append(Component.text("Seen " + lastSeen.format(FORMATTER)));
-                        }
+                        hover.text(member.statusComponent());
 
                         if (!member.permissions().isEmpty()) {
                             var permissions = member.permissions().stream()
-                                    .map(perm -> Component.text(perm.name().toLowerCase(Locale.ROOT)))
+                                    .map(perm -> "  "  + perm.name().toLowerCase(Locale.ROOT))
                                     .collect(Collectors.toList());
-                            hoverBuilder.append(Component.newline())
-                                    .append(Component.text("Permissions: "))
-                                    .append(Component.join(Component.text(", "), permissions));
+                            hover.newLine().text("<%s>", Colors.HEADING).localeCode("Permissions").text(":").newLine()
+                                    .text("<%s>", Colors.ACTIVE).text(permissions, ", ");
                         }
-                        var nameComp = Component.text(mem.getName())
-                                .hoverEvent(hoverBuilder.build());
+                        var nameComp = MessageComposer.create().text("<hover:show_text:'%s'>%s</hover>", hover.build(), mem.getName());
 
                         if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                            nameComp = nameComp.append(Component.space())
-                                    .append(Component.text("[Permissions]")
-                                            .clickEvent(ClickEvent.runCommand("/company permission " + mem.getName())));
+                            nameComp = nameComp.space().text("<click:run_command:/company permission %s><%s>[", mem.getName(), Colors.MODIFY).localeCode("Permissions").text("]</click>");
                         }
-                        members.add(nameComp);
+                        members.add(nameComp.build());
                     }
-                    builder.append(Component.join(Component.newline(), members));
-                    audiences.player(player).sendMessage(builder.build());
+                    builder.text(members);
+                    if (messageBlocker.isBlocked(player)) {
+                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                    }
+                    messageBlocker.announce(player, "[x]");
+                    builder.prependLines(25);
+                    audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                 });
     }
 

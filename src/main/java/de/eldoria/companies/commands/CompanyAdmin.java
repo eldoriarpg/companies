@@ -9,9 +9,9 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import org.bukkit.plugin.Plugin;
 
 public class CompanyAdmin extends AdvancedCommand {
-    public CompanyAdmin(Plugin plugin, Configuration configuration, ACompanyData companyData, IMessageBlockerService messageBlock) {
+    public CompanyAdmin(Plugin plugin, Configuration configuration, ACompanyData companyData, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("companyadmin")
-                .withSubCommand(new Level(plugin, configuration))
+                .withSubCommand(new Level(plugin, configuration, messageBlocker))
                 .build());
     }
 }

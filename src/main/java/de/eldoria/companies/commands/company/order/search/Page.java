@@ -3,6 +3,7 @@ package de.eldoria.companies.commands.company.order.search;
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -46,7 +47,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         var fullOrders = search.results().get(player.getUniqueId());
 
         var builder = MessageComposer.create()
-                .localeCode("Results").text(": %s", fullOrders.size()).newLine();
+                .text("<%s>", Colors.HEADING).localeCode("Results").text(": <%s>%s", Colors.VALUE, fullOrders.size()).newLine();
 
         var pageList = page(fullOrders, page);
         var components = new ArrayList<String>();
@@ -56,24 +57,24 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
 
         builder.text(components).newLine();
         if (page != 0) {
-            builder.text("<click:run_command:/company order search page %s> %s </click>", page - 1, Texts.LEFT_ARROW);
+            builder.text("<click:run_command:/company order search page %s> <%s>%s </click>", page - 1, Colors.ACTIVE, Texts.LEFT_ARROW);
         } else {
-            builder.text("<dark_gray> %s </dark_gray>", Texts.LEFT_ARROW);
+            builder.text(" <%s>%s ", Colors.INACTIVE, Texts.LEFT_ARROW);
         }
 
-        var pageString = String.format("%s/%s", page + 1, fullOrders.size() / PAGE_SIZE + 1);
+        var pageString = String.format("<%s>%s/%s", page + 1, Colors.HEADING, fullOrders.size() / PAGE_SIZE + 1);
         builder.text(pageString);
 
-        if (fullOrders.size() - (page + 1) * PAGE_SIZE > 0) {
-            builder.text("<click:run_command:/company order search page %s> %s </click>", page + 1, Texts.RIGHT_ARROW);
+        if (!page(fullOrders, page + 1).isEmpty()) {
+            builder.text("<click:run_command:/company order search page %s> <%s>%s </click>", page + 1, Colors.ACTIVE, Texts.RIGHT_ARROW);
         } else {
-            builder.text("<dark_gray> %s </dark_gray>", Texts.RIGHT_ARROW);
+            builder.text("<%s> %s ", Colors.INACTIVE, Texts.RIGHT_ARROW);
         }
         if (messageBlocker.isBlocked(player)) {
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         messageBlocker.announce(player, "[x]");
-        builder.fillLines();
+        builder.prependLines(25);
         audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
     }
 

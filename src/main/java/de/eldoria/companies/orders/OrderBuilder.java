@@ -3,6 +3,7 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.eldoutilities.localization.MessageComposer;
@@ -15,6 +16,12 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import static de.eldoria.companies.util.Colors.ADD;
+import static de.eldoria.companies.util.Colors.MODIFY;
+import static de.eldoria.companies.util.Colors.NAME;
+import static de.eldoria.companies.util.Colors.REMOVE;
+import static de.eldoria.companies.util.Colors.VALUE;
 
 public class OrderBuilder {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.get();
@@ -76,26 +83,28 @@ public class OrderBuilder {
     public String asComponent(OrderSettings setting, Economy economy, AOrderData orderData) {
         var cmd = "/order create";
         var composer = MessageComposer.create()
-                .text("%s <click:suggest_command:/order create name >[", name()).localeCode("change").text("]</click>").newLine()
+                .text("<%s>%s <click:suggest_command:/order create name ><%s>[", NAME, name(), MODIFY).localeCode("change").text("]</click>").newLine()
                 .localeCode("Items").text(": ");
 
         if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
-            composer.space().text("<click:suggest_command:%s add >[", cmd).localeCode("add").text("]</click>");
+            composer.space().text("<click:suggest_command:%s add ><%s>[", cmd, ADD).localeCode("add").text("]</click>");
         }
 
         for (var element : elements) {
+            var materialPrice = orderData.getMaterialPrice(element.materialString()).orElse(new MaterialPrice(element.materialString()));
             composer.newLine()
-                    .text("<hover:show_text:%s>%s</hover>", orderData.getMaterialPrice(element.materialString()), element.asComponent(economy))
-                    .text("<click:run_command:%s remove %s><red>[", cmd, element.materialString())
+                    .text("<hover:show_text:%s>%s</hover>", materialPrice.asComponent(economy), element.asComponent(economy))
+                    .text("<click:run_command:%s remove %s><%s>[", cmd, element.materialString(), REMOVE)
                     .localeCode("remove")
-                    .text("]<reset> <click:suggest_command:%s price %s >[", cmd, element.material()).localeCode("price")
-                    .text("]</click> <click:suggest_command:%s amount %s >[", cmd, element.materialString()).localeCode("amount").text("]</click>");
+                    .text("] <click:suggest_command:%s price %s ><%s><%s>[", cmd, element.materialString(), MODIFY).localeCode("price")
+                    .text("]</click> <click:suggest_command:%s amount %s ><%s>[", cmd, element.materialString(), MODIFY).localeCode("amount").text("]</click>");
         }
-        composer.newLine().localeCode("Materials").text(": %s/%s", materialsAmount(), setting.maxMaterials()).newLine()
-                .localeCode("Items").text(": %s/%s", amount(), setting.maxItems()).newLine()
-                .localeCode("Price").text(": %s", economy.format(price())).newLine()
-                .text("<click:run_command:%s done>[", cmd).localeCode("done").text("]</click>").space()
-                .text("<click:run_command:%s cancel>[", cmd).localeCode("cancel").text("]</click>");
+        composer.newLine()
+                .text("<%s>", NAME).localeCode("Materials").text(": <%s>%s/%s",VALUE, materialsAmount(), setting.maxMaterials()).newLine()
+                .text("<%s>", NAME).localeCode("Items").text(": <%s>%s/%s",VALUE, amount(), setting.maxItems()).newLine()
+                .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE,economy.format(price())).newLine()
+                .text("<click:run_command:%s done><%s>[", cmd, ADD).localeCode("done").text("]</click>").space()
+                .text("<click:run_command:%s cancel><%s>[", cmd, REMOVE).localeCode("cancel").text("]</click>");
         return composer.build();
     }
 

@@ -1,5 +1,6 @@
 package de.eldoria.companies.data.wrapper.company;
 
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 
 import java.time.LocalDateTime;
@@ -59,12 +60,12 @@ public class CompanyStats {
 
     public String asComponent() {
         return MessageComposer.create()
-                .text(name).newLine()
-                .localeCode("Founded").text(": %s ", FORMATTER.format(founded)).newLine()
-                .localeCode("Member").text(": %s", memberCount).newLine()
-                .localeCode("Orders").text(": %s", orderCount).newLine()
-                .localeCode("Earned Money").text(": %s", price).newLine()
-                .localeCode("Delivered Items").text(": %s", deliveredItems)
+                .text("<%s>", Colors.HEADING).text(name).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Founded").text(": <%s>%s ", Colors.VALUE, FORMATTER.format(founded)).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Member").text(": <%s>%s", Colors.VALUE, memberCount).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Orders").text(": <%s>%s", Colors.VALUE, orderCount).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Earned Money").text(": <%s>%s", Colors.VALUE, price).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Delivered Items").text(": <%s>%s", Colors.VALUE, deliveredItems)
                 .build();
     }
 }

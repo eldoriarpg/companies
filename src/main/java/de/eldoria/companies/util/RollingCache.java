@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class RotatingCache<T> {
+public class RollingCache<T> {
     private final int size;
     private final ConcurrentLinkedQueue<T> queue;
 
-    public RotatingCache(int size) {
+    public RollingCache(int size) {
         this.size = size;
         queue = new ConcurrentLinkedQueue<>();
     }
@@ -31,12 +31,6 @@ public class RotatingCache<T> {
             var cache = new ArrayList<>(queue);
             queue.clear();
             return cache;
-        }
-    }
-
-    public synchronized List<T> copy() {
-        synchronized (queue) {
-            return new ArrayList<>(queue);
         }
     }
 }
