@@ -10,10 +10,13 @@ import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
+import org.apache.commons.lang.time.DurationFormatUtils;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,23 +34,23 @@ public class FullOrder extends SimpleOrder {
         this.contents = contents;
     }
 
-    public String userShortInfo(Economy economy) {
+    public Component userShortInfo(ILocalizer localizer, Economy economy) {
         var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
                 .text("<hover:show_text:" + userContent(economy) + "\nPrice:" + economy.format(price()) + ">"
                       + "<click:run_command:/order info " + id() + ">[info]</click>"
                       + "</hover>");
 
-        return composer.build();
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
-    public String companyShortInfo(Economy economy) {
+    public Component companyShortInfo(ILocalizer localizer, Economy economy) {
         var composer = MessageComposer.create().text("<hover:show_text:%s>%s | %s</hover>",
                         companySimpleContent(economy, state()) + "\nPrice:" + economy.format(price()), id(), name())
                 .text("<click:run_command:/company order info %s>[info]</click>", id());
-        return composer.build();
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
-    public String userDetailInfo(Economy economy) {
+    public Component userDetailInfo(ILocalizer localizer, Economy economy) {
         var composer = MessageComposer.create().text("%s | %s", id(), name()).newLine()
                 .text("State: %s", state().name().toLowerCase()).newLine()
                 .text(userContent(economy)).newLine()
@@ -63,10 +66,10 @@ public class FullOrder extends SimpleOrder {
             case CLAIMED:
                 break;
         }
-        return composer.build();
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
-    public String companyDetailInfo(CompanyMember member, Configuration configuration, ILocalizer localizer, Economy economy) {
+    public Component companyDetailInfo(CompanyMember member, Configuration configuration, ILocalizer localizer, Economy economy) {
         var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
                 .text("State: " + state().name().toLowerCase()).newLine()
                 .text(companyActionContent(economy, state())).newLine()
@@ -87,7 +90,7 @@ public class FullOrder extends SimpleOrder {
             case DELIVERED:
             case RECEIVED:
         }
-        return composer.build();
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 
     private String userContent(Economy economy) {

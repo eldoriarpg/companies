@@ -4,7 +4,6 @@ import de.eldoria.companies.commands.company.order.search.Page;
 import de.eldoria.companies.commands.company.order.search.Query;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import net.milkbowl.vault.economy.Economy;
@@ -19,12 +18,12 @@ public class Search extends AdvancedCommand {
     private final Page page;
     private final Map<UUID, List<FullOrder>> results = new HashMap<>();
 
-    public Search(Plugin plugin, AOrderData orderData, Economy economy, IMessageBlockerService messageBlocker) {
+    public Search(Plugin plugin, AOrderData orderData, Economy economy) {
         super(plugin);
-        page = new Page(plugin, this, economy, messageBlocker);
+        page = new Page(plugin, this, economy);
         var meta = CommandMeta.builder("search")
                 .buildSubCommands((commands, builder) -> {
-                    var query = new Query(plugin, orderData, this, messageBlocker);
+                    var query = new Query(plugin, orderData, this);
                     commands.add(page);
                     commands.add(query);
                     builder.withDefaultCommand(query);

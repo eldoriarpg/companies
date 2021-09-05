@@ -3,6 +3,7 @@ package de.eldoria.companies.events.order;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.jetbrains.annotations.NotNull;
 
 public class OrderEvent<Order extends SimpleOrder> extends Event implements OrderProvider<Order> {
@@ -20,10 +21,6 @@ public class OrderEvent<Order extends SimpleOrder> extends Event implements Orde
         this.order = order;
     }
 
-    public static HandlerList getHandlerList() {
-        return HANDLERS;
-    }
-
     @Override
     public Order order() {
         return order;
@@ -32,6 +29,10 @@ public class OrderEvent<Order extends SimpleOrder> extends Event implements Orde
     @NotNull
     @Override
     public HandlerList getHandlers() {
+        return HANDLERS;
+    }
+
+    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

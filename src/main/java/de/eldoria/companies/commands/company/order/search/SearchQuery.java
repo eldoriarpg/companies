@@ -1,7 +1,12 @@
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.jetbrains.annotations.Nullable;
 
@@ -129,41 +134,40 @@ public class SearchQuery {
         return exactMatch;
     }
 
-    public String asComponent() {
+    public Component asComponent(ILocalizer localizer) {
         var queryCmd = "/company order search query";
         var composer = MessageComposer.create().text("Current search Settings").newLine()
-                .text("<aqua>").localeCode("Name").text(": %s", name().isBlank() ? "_____" : name())
-                .text("<click:suggest_command:%s name ><gold>[", queryCmd).localeCode("change").text("]</click>")
-                .text("<click:run_command:%s name><red>[", queryCmd).localeCode("clear").text("]</click>")
+                .text("Name: ").text(name().isBlank() ? "_____" : name())
+                .text("<click:suggest_command:%s name >[", queryCmd).localeCode("change").text("]</click>")
+                .text("<click:run_command:%s name>[", queryCmd).localeCode("clear").text("]</click>")
                 .newLine()
-                .text("<aqua>").localeCode("Materials")
-                .text(": <click:suggest_command:%s material_add ><green>[", queryCmd).localeCode("add").text("]</click>")
-                .text("<click:run_command:%s material_remove><red>[", queryCmd).localeCode("clear").text("]</click>")
+                .text("Materials: ")
+                .text("<click:suggest_command:%s material_add >[", queryCmd).localeCode("add").text("]</click>")
+                .text("<click:run_command:%s material_remove>[", queryCmd).localeCode("clear").text("]</click>")
                 .newLine();
         for (var material : materials) {
-            composer.space(2).text("<dark_green>%s",material).text(" <click:run_command:%s material_remove %s><red>[", queryCmd, material).localeCode("remove").text("]</click>").newLine();
+            composer.text(material).text(" <click:run_command:%s material_remove %s>[", queryCmd, material).localeCode("remove").text("]</click>").newLine();
         }
         if (materials.size() > 1) {
-            composer.text("<aqua>").localeCode("Material Search").space()
-                    .text("<click:run_command:%s material_search any><%s>[", queryCmd, anyMaterial ? "green": "gray").localeCode("any").text("]<reset></click> ")
-                    .text("<click:run_command:%s material_search all><%s>[", queryCmd, !anyMaterial ? "green": "gray").localeCode("all").text("]<reset></click> ")
-                    .newLine();
+            composer.text("Material Search ")
+                    .text("<click:run_command:%s material_search any>[", queryCmd).localeCode("any").text("]</click> ")
+                    .text("<click:run_command:%s material_search any>[", queryCmd).localeCode("all").text("]</click> ");
         }
         if (!materials.isEmpty()) {
-            composer.text("<aqua>").localeCode("Material Match").space()
+            composer.localeCode("Material Match").space()
                     .text("<click:run_command:%s material_match part>[", queryCmd).localeCode("part").text("]</click>")
                     .text("<click:run_command:%s material_match exact>[", queryCmd).localeCode("exact").text("]</click>")
                     .newLine();
         }
-        composer.text("<aqua>").localeCode("Min Price").space().text("<green>%.2f", minPrice).space()
-                .text("<click:suggest_command:%s min_price ><gold>[", queryCmd).localeCode("change").text("]</click>").newLine()
-                .text("<aqua>").localeCode("Max Price").space().text("<green>").text(maxPrice == Double.MAX_VALUE ? "MAX" : String.format("%.2f", maxPrice)).space()
-                .text("<click:suggest_command:%s max_price ><gold>[", queryCmd).localeCode("change").text("]</click>").newLine()
-                .text("<aqua>").localeCode("Min Size").space().text("<green>%s",minOrderSize).space()
-                .text("<click:suggest_command:%s min_size ><gold>[", queryCmd).localeCode("change").text("]</click>").newLine()
-                .text("<aqua>").localeCode("Max Size").space().text("<green>").text(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxOrderSize).space()
-                .text("<click:suggest_command:%s max_size ><gold>[", queryCmd).localeCode("change").text("]</click>").newLine()
-                .text("<aqua>").localeCode("Order by").text(":").space();
+        composer.localeCode("Min Price").space().text(String.format("%.2f", minPrice)).space()
+                .text("<click:suggest_command:%s min_price >[",queryCmd).localeCode("change").text("]</click>").newLine()
+                .localeCode("Max Price").space().text(maxPrice == Double.MAX_VALUE ? "MAX" : String.format("%.2f", maxPrice)).space()
+                .text("<click:suggest_command:%s max_price >[",queryCmd).localeCode("change").text("]</click>").newLine()
+                .localeCode("Min Size").space().text(minOrderSize).space()
+                .text("<click:suggest_command:%s min_size >[",queryCmd).localeCode("change").text("]</click>").newLine()
+                .localeCode("Max Size").space().text(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxOrderSize).space()
+                .text("<click:suggest_command:%s max_size >[",queryCmd).localeCode("change").text("]</click>").newLine()
+                .localeCode("Order by ");
         for (var sort : SortingType.values()) {
             composer.text("<click:run_command:%s sorting %s>", queryCmd, sort).text(sort == sortingType ? "<green>" : "<gray>")
                     .text("[").localeCode(sort.name()).text("]</click>");
@@ -171,8 +175,8 @@ public class SearchQuery {
         composer.text("<click:run_command:%s order asc>%s[", queryCmd, asc ? "<green>" : "<gray>").localeCode("asc").text("]</click>").space()
                 .text("<click:run_command:%s order desc>%s[", queryCmd, !asc ? "<green>" : "<gray>").localeCode("desc").text("]</click>")
                 .newLine().text("<reset>")
-                .text("<click:run_command:%s execute><green>[", queryCmd).localeCode("Search").text("]</click>")
-                .text("<click:run_command:%s clear><red>[", queryCmd).localeCode("Clear").text("]</click>");
-        return composer.build();
+                .text("<click:run_command:%s execute>[",queryCmd).localeCode("Search").text("]</click>")
+                .text("<click:run_command:%s clear>[",queryCmd).localeCode("Clear").text("]</click>");
+        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
     }
 }

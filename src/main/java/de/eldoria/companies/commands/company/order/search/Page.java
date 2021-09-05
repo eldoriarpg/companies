@@ -2,16 +2,16 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -27,54 +27,41 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
     private final Search search;
     private final Economy economy;
     private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
-    private final IMessageBlockerService messageBlocker;
 
-    public Page(Plugin plugin, Search search, Economy economy, IMessageBlockerService messageBlocker) {
+    public Page(Plugin plugin, Search search, Economy economy) {
         super(plugin, CommandMeta.builder("page")
                 .addArgument("page", true)
                 .build());
         this.search = search;
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
         this.economy = economy;
-        this.messageBlocker = messageBlocker;
     }
 
     public void renderPage(Player player, int page) {
-        messageBlocker.blockPlayer(player);
         var fullOrders = search.results().get(player.getUniqueId());
 
-        var builder = MessageComposer.create()
-                .localeCode("Results").text(": %s", fullOrders.size()).newLine();
-
+        var builder = Component.text().append(Component.text("Results: " + fullOrders.size())).append(Component.newline());
         var pageList = page(fullOrders, page);
-        var components = new ArrayList<String>();
+        List<Component> components = new ArrayList<>();
         for (var order : pageList) {
-            components.add(order.companyShortInfo(economy));
+            components.add(order.companyShortInfo(localizer(), economy));
         }
 
-        builder.text(components).newLine();
+        builder.append(Component.join(Component.newline(), components)).append(Component.newline());
         if (page != 0) {
-            builder.text("<click:run_command:/company order search page %s> %s </click>", page - 1, Texts.LEFT_ARROW);
+            builder.append(Component.text(Texts.LEFT_ARROW + " ").clickEvent(ClickEvent.runCommand("/company order search page " + (page - 1))));
         } else {
-            builder.text("<dark_gray> %s </dark_gray>", Texts.LEFT_ARROW);
+            builder.append(Component.text(Texts.LEFT_ARROW + " ", NamedTextColor.DARK_GRAY));
         }
 
-        var pageString = String.format("%s/%s", page + 1, fullOrders.size() / PAGE_SIZE + 1);
-        builder.text(pageString);
+        builder.append(Component.text(page + 1).append(Component.text("/"))).append(Component.text(fullOrders.size() / PAGE_SIZE + 1));
 
         if (fullOrders.size() - (page + 1) * PAGE_SIZE > 0) {
-            builder.text("<click:run_command:/company order search page %s> %s </click>", page + 1, Texts.RIGHT_ARROW);
+            builder.append(Component.text(" " + Texts.RIGHT_ARROW).clickEvent(ClickEvent.runCommand("/company order search page " + (page + 1))));
         } else {
-            builder.text("<dark_gray> %s </dark_gray>", Texts.RIGHT_ARROW);
+            builder.append(Component.text(" " + Texts.RIGHT_ARROW, NamedTextColor.DARK_GRAY));
         }
-        if (messageBlocker.isBlocked(player)) {
-            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        messageBlocker.announce(player, "[x]");
-        builder.fillLines();
-        audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
+        audiences.sender(player).sendMessage(builder.build());
     }
 
     private List<FullOrder> page(List<FullOrder> orders, int page) {

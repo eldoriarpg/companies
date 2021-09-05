@@ -1,6 +1,7 @@
 package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.PlayerProvider;
 import org.bukkit.OfflinePlayer;
 
@@ -17,7 +18,6 @@ public class CompanyKickEvent extends CompanyEvent<CompanyProfile> implements Pl
 
     /**
      * The player which was kicked.
-     *
      * @return the kicked player
      */
     @Override

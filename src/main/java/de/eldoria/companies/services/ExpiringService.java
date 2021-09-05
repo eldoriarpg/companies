@@ -10,12 +10,16 @@ import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.localization.Replacement;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.apache.commons.lang.time.DurationFormatUtils;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,13 +41,6 @@ public class ExpiringService implements Runnable, Listener {
         this.configuration = configuration;
         miniMessage = MiniMessage.get();
         audiences = BukkitAudiences.create(plugin);
-    }
-
-    public static ExpiringService create(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, ScheduledExecutorService executorService) {
-        var expiringService = new ExpiringService(plugin, orderData, companyData, configuration);
-        var interval = configuration.generalSettings().orderCheckInterval();
-        executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);
-        return expiringService;
     }
 
     @EventHandler
@@ -70,6 +67,13 @@ public class ExpiringService implements Runnable, Listener {
                     .newLine();
         }
         audiences.sender(player).sendMessage(miniMessage.parse(localizer.localize(composer.build())));
+    }
+
+    public static ExpiringService create(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, ScheduledExecutorService executorService) {
+        var expiringService = new ExpiringService(plugin, orderData, companyData, configuration);
+        var interval = configuration.generalSettings().orderCheckInterval();
+        executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);
+        return expiringService;
     }
 
     @Override
