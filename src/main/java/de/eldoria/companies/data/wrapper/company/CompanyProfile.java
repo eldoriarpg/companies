@@ -51,8 +51,8 @@ public class CompanyProfile extends SimpleCompany {
                         Colors.VALUE, level.level(), level.levelName())
                 .newLine()
                 .text("<%s>", Colors.NAME).localeCode("Founded").text(": <%s>%s", Colors.VALUE, foundedString()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Leader").text(": <%s>%s",Colors.VALUE, owner().player().getName()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Member").text(": <%s>%s <click:run_command:/company member id %s><%s>[",Colors.VALUE, members().size(), id(), Colors.SHOW).localeCode("list").text("]</click>").newLine();
+                .text("<%s>", Colors.NAME).localeCode("Leader").text(": <%s>%s", Colors.VALUE, owner().player().getName()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("Member").text(": <%s>%s <click:run_command:/company member id %s><%s>[", Colors.VALUE, members().size(), id(), Colors.SHOW).localeCode("list").text("]</click>").newLine();
 
         return composer.build();
 

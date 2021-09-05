@@ -12,16 +12,11 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Color;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -65,7 +60,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
 
                         if (!member.permissions().isEmpty()) {
                             var permissions = member.permissions().stream()
-                                    .map(perm -> "  "  + perm.name().toLowerCase(Locale.ROOT))
+                                    .map(perm -> "  " + perm.name().toLowerCase(Locale.ROOT))
                                     .collect(Collectors.toList());
                             hover.newLine().text("<%s>", Colors.HEADING).localeCode("Permissions").text(":").newLine()
                                     .text("<%s>", Colors.ACTIVE).text(permissions, ", ");

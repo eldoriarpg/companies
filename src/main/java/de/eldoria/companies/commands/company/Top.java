@@ -57,12 +57,12 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
         if (page > 1) {
             composer.text("<click:run_command:/company top %s %s><%s>%s</click>", page - 1, order.name(), Colors.ACTIVE, Texts.LEFT_ARROW);
         } else {
-            composer.text("<%s>%s",Colors.INACTIVE, Texts.LEFT_ARROW);
+            composer.text("<%s>%s", Colors.INACTIVE, Texts.LEFT_ARROW);
         }
         composer.localeCode("Page").text(" <aqua>%s ", page);
 
         if (ranks.size() < PAGE_SIZE) {
-            composer.text("<%s>%s",Colors.INACTIVE, Texts.RIGHT_ARROW);
+            composer.text("<%s>%s", Colors.INACTIVE, Texts.RIGHT_ARROW);
         } else {
             composer.text("<click:run_command:/company top %s %s><%s>%s</click>", page + 1, order.name(), Colors.ACTIVE, Texts.RIGHT_ARROW);
         }

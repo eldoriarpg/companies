@@ -9,13 +9,10 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Color;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -47,27 +44,27 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                 .text("<%s>", Colors.HEADING).localeCode("Level").text(" %s ", level.level())
                 .text("<click:suggest_command:%s move %s ><%s>[", cmd, level.level(), Colors.MODIFY).localeCode("move").text("]</click>")
                 .newLine()
-                .text("<%s>", Colors.NAME).localeCode("Name").text(": <%s>%s ",Colors.VALUE, level.levelName())
+                .text("<%s>", Colors.NAME).localeCode("Name").text(": <%s>%s ", Colors.VALUE, level.levelName())
                 .text("<click:suggest_command:%s name ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
                 .newLine()
                 .text("<%s>", Colors.HEADING).localeCode("Requirements").newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Order count").text(": <%s>%s ",Colors.VALUE, level.requirement().orderCount())
+                .space(2).text("<%s>", Colors.NAME).localeCode("Order count").text(": <%s>%s ", Colors.VALUE, level.requirement().orderCount())
                 .text("<click:suggest_command:%s order_count ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Member Count").text(": <%s>%s ",Colors.VALUE, level.requirement().memberCount())
+                .space(2).text("<%s>", Colors.NAME).localeCode("Member Count").text(": <%s>%s ", Colors.VALUE, level.requirement().memberCount())
                 .text("<click:suggest_command:%s member_count ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Earned money").text(": <%s>%s ",Colors.VALUE, level.requirement().earnedMoney())
+                .space(2).text("<%s>", Colors.NAME).localeCode("Earned money").text(": <%s>%s ", Colors.VALUE, level.requirement().earnedMoney())
                 .text("<click:suggest_command:%s earned_money ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Delivered Items").text(": <%s>%s ",Colors.VALUE, level.requirement().deliveredItems())
+                .space(2).text("<%s>", Colors.NAME).localeCode("Delivered Items").text(": <%s>%s ", Colors.VALUE, level.requirement().deliveredItems())
                 .text("<click:suggest_command:%s delivered_items ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
                 .newLine()
                 .text("<%s>", Colors.HEADING).localeCode("Limits").newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Max Members").text(": <%s>%s", Colors.VALUE,level.settings().maxMembers())
+                .space(2).text("<%s>", Colors.NAME).localeCode("Max Members").text(": <%s>%s", Colors.VALUE, level.settings().maxMembers())
                 .text("<click:suggest_command:%s max_members ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Max Orders").text(": <%s>%s",Colors.VALUE, level.settings().maxOrders())
+                .space(2).text("<%s>", Colors.NAME).localeCode("Max Orders").text(": <%s>%s", Colors.VALUE, level.settings().maxOrders())
                 .text("<click:suggest_command:%s max_orders ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>");
         if (messageBlocker.isBlocked(player)) {
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
