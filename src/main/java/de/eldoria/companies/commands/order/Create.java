@@ -7,6 +7,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Argument;
@@ -49,6 +50,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         super(plugin, CommandMeta.builder("create")
                 .addArgument("field", false)
                 .addArgument("value", false)
+                .withPermission(Permission.Orders.CREATE)
                 .build());
         audience = BukkitAudiences.create(plugin);
         this.orderData = orderData;
@@ -164,7 +166,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
-                    if (count >= configuration.userSettings().maxOrders()) {
+                    if (count >= Permission.Orders.getOrderOverride(player).orElse(configuration.userSettings().maxOrders())) {
                         messageSender().sendError(player, "Order limit reached.");
                         return;
                     }

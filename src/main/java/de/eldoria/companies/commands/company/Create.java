@@ -5,6 +5,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -16,8 +17,6 @@ import de.eldoria.eldoutilities.localization.Replacement;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
@@ -43,6 +42,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     public Create(Plugin plugin, ACompanyData companyData, Economy economy, Configuration configuration) {
         super(plugin, CommandMeta.builder("create")
                 .addArgument("name", true)
+                .withPermission(Permission.Company.CREATE)
                 .build());
         audiences = BukkitAudiences.create(plugin);
         miniMessage = MiniMessage.get();
