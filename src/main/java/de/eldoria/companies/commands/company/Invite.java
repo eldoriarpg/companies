@@ -95,7 +95,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).settings().maxMembers()) {
+        if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
             messageSender().sendError(player, "Company is already full");
             return;
         }
@@ -164,7 +164,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
                     var profile = company.get();
-                    if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxMembers()) {
+                    if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
                         messageSender().sendError(player, "Your company has reached the member limit.");
                         return;
                     }

@@ -58,7 +58,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     var count = orderData.retrieveCompanyOrderCount(profile).join();
-                    if (count >= configuration.companySettings().level(profile.level()).orElse(new CompanyLevel()).settings().maxOrders()) {
+                    if (count >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxOrders()) {
                         messageSender().sendError(player, "Maximum order limit reached.");
                         return;
                     }
