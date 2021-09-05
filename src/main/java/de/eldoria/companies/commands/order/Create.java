@@ -154,13 +154,11 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         player.sendMessage("Aborted");
     }
 
-    private void done(Player player) {
+    private void done(Player player) throws CommandException {
         var order = builderCache.getIfPresent(player.getUniqueId());
 
-        if (order == null) {
-            messageSender().sendLocalizedError(player, "No order builder registered.");
-            return;
-        }
+        CommandAssertions.isFalse(order != null, "No order creation in progress");
+        CommandAssertions.isFalse(order.elements().isEmpty(), "Order is empty");
 
         var price = order.price();
 
@@ -179,8 +177,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                     }).whenComplete(result -> {
                         if (result) {
                             orderData.submitOrder(player, order.build()).whenComplete(v -> {
-                                messageSender().sendLocalizedMessage(player, "Created UwU");
-                                builderCache.invalidate(player.getUniqueId());
+                                messageBlocker.unblockPlayer(player).whenComplete((unused, err) -> {
+                                    messageSender().sendLocalizedMessage(player, "Created UwU");
+                                    builderCache.invalidate(player.getUniqueId());
+                                });
                             });
                         } else {
                             messageSender().sendLocalizedError(player, "Not enough money.");

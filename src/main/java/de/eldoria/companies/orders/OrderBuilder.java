@@ -6,6 +6,7 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -84,7 +85,7 @@ public class OrderBuilder {
         var cmd = "/order create";
         var composer = MessageComposer.create()
                 .text("<%s>%s <click:suggest_command:/order create name ><%s>[", NAME, name(), MODIFY).localeCode("change").text("]</click>").newLine()
-                .localeCode("Items").text(": ");
+                .text("<%s>", NAME).localeCode("Items").text(": ");
 
         if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
             composer.space().text("<click:suggest_command:%s add ><%s>[", cmd, ADD).localeCode("add").text("]</click>");

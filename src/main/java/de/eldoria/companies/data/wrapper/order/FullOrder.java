@@ -36,19 +36,19 @@ public class FullOrder extends SimpleOrder {
 
     public String userShortInfo(Economy economy) {
         return MessageComposer.create()
-                .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
-                .text("<hover:show_text:" + userContent(economy)).newLine()
-                .localeCode("Price").text(": <%s, %s>", VALUE, economy.format(price()))
-                .text("</hover>").space().text("<click:run_command:/order info %s>%s[", id(), ADD).localeCode("info").text("</click>")
+                .text("<hover:show_text:'%s",userContent(economy)).newLine()
+                .localeCode("Price").text(": <%s>%s'>", VALUE, economy.format(price()))
+                .text(" <%s>%s | <%s>%s", NAME, id(), VALUE, name())
+                .text("</hover>").space().text("<click:run_command:/order info %s><%s>[", id(), ADD).localeCode("info").text("]</click>")
                 .build();
     }
 
     public String companyShortInfo(Economy economy) {
         return MessageComposer.create()
-                .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
-                .text("<hover:show_text:" + companySimpleContent(economy, state())).newLine()
-                .localeCode("Price").text(": <%s, %s>", VALUE, economy.format(price()))
-                .text("</hover>").space().text("<click:run_command:/company order info %s>%s[", id(), ADD).localeCode("info").text("</click>")
+                .text("<hover:show_text:%s", companySimpleContent(economy, state())).newLine()
+                .localeCode("Price").text(": <%s>%s", VALUE, economy.format(price())).text(">")
+                .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name())
+                .text("</hover>").space().text("<click:run_command:/company order info %s><%s>[", id(), ADD).localeCode("info").text("]</click>")
                 .build();
     }
 
@@ -60,10 +60,10 @@ public class FullOrder extends SimpleOrder {
                 .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, price()).newLine();
         switch (state()) {
             case UNCLAIMED:
-                composer.text("<click:run_command:/order cancel %s>%s[", id(), REMOVE).localeCode("cancel").text("]</click>");
+                composer.text("<click:run_command:/order cancel %s><%s>[", id(), REMOVE).localeCode("cancel").text("]</click>");
                 break;
             case DELIVERED:
-                composer.text("<click:run_command:/order receive %s>[", id(), ADD).localeCode("receive").text("]</click>");
+                composer.text("<click:run_command:/order receive %s><%s>[", id(), ADD).localeCode("receive").text("]</click>");
                 break;
             case RECEIVED:
             case CLAIMED:

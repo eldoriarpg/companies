@@ -63,12 +63,12 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
         var level = configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT);
         var optNextLevel = configuration.companySettings().level(profile.level() + 1);
         var composer = MessageComposer.create()
-                .text(profile.name()).newLine()
+                .text("<%s>", Colors.HEADING).text(profile.name()).newLine()
                 .text("<%s>", Colors.NAME).localeCode("Level")
-                .text(": <hover:show_text:%s><%s>%s - %s</hover>", level.asComponent(), Colors.VALUE, level.level(), level.levelName());
+                .text(": <hover:show_text:'%s'><%s>%s - %s</hover>", level.asComponent(), Colors.VALUE, level.level(), level.levelName());
         if (optNextLevel.isPresent()) {
             var nextLevel = optNextLevel.get();
-            composer.text("<u><hover:show_text:%s><%s>", nextLevel.asComponent(), Colors.SHOW).localeCode("next level").text("</u></hover>");
+            composer.space().text("<u><hover:show_text:'%s'><%s>", nextLevel.asComponent(), Colors.SHOW).localeCode("next level").text("</u></hover>");
         }
         composer.newLine()
                 .text("<%s>", Colors.NAME).localeCode("Founded")
