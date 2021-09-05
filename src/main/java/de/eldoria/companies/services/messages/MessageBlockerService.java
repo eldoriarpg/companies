@@ -6,27 +6,28 @@ import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
+import de.eldoria.companies.util.RotatingCache;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class MessageBlockerService extends PacketAdapter implements Listener, IMessageBlockerService {
-    private final Map<UUID, List<PacketContainer>> blockedPlayers = new HashMap<>();
+    private final Set<UUID> blocked = new HashSet<>();
+    private final Map<UUID, RotatingCache<PacketContainer>> messageCache = new ConcurrentHashMap<>();
     private final Map<UUID, String> announcements = new HashMap<>();
     private final ExecutorService executorService;
     private final ProtocolManager manager;
@@ -46,13 +47,12 @@ public class MessageBlockerService extends PacketAdapter implements Listener, IM
         return adapter;
     }
 
-    private List<PacketContainer> getBlockedPackets(Player player) {
-        return blockedPlayers.computeIfAbsent(player.getUniqueId(), k -> new LinkedList<>());
-    }
-
     @Override
     public void onPacketSending(PacketEvent event) {
-        if (!blockedPlayers.containsKey(event.getPlayer().getUniqueId())) return;
+        if (!blocked.contains(event.getPlayer().getUniqueId())) {
+            getPlayerCache(event.getPlayer()).add(event.getPacket());
+            return;
+        }
 
         var message = AdventureComponentAdapter.rawMessage(event.getPacket());
         var announceKey = announcements.get(event.getPlayer().getUniqueId());
@@ -64,39 +64,39 @@ public class MessageBlockerService extends PacketAdapter implements Listener, IM
 
         plugin.getLogger().config("Blocked message for " + event.getPlayer().getName() + ": " + message);
 
-        getBlockedPackets(event.getPlayer()).add(event.getPacket());
+        getPlayerCache(event.getPlayer()).add(event.getPacket());
         event.setCancelled(true);
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        blockedPlayers.remove(event.getPlayer().getUniqueId());
+        messageCache.remove(event.getPlayer().getUniqueId());
+        blocked.remove(event.getPlayer().getUniqueId());
         announcements.remove(event.getPlayer().getUniqueId());
     }
 
     @Override
     public void blockPlayer(Player player) {
-        blockedPlayers.put(player.getUniqueId(), new LinkedList<>());
+        blocked.add(player.getUniqueId());
         plugin.getLogger().config("Blocking chat for player " + player.getName());
     }
 
     @Override
-    public void unblockPlayer(Player player) {
+    public CompletableFuture<Void> unblockPlayer(Player player) {
+        blocked.remove(player.getUniqueId());
         plugin.getLogger().config("Unblocking chat for player " + player.getName());
-        var blockedPackets = blockedPlayers.remove(player.getUniqueId());
-        var clear = " \n".repeat(60);
-        player.sendMessage(clear);
-        if (blockedPackets == null || blockedPackets.isEmpty()) return;
+        var packets = getPlayerCache(player);
+        if (packets.isEmpty()) return CompletableFuture.completedFuture(null);
 
-        executorService.submit(() -> {
-            for (var blockedPacket : blockedPackets) {
+        return CompletableFuture.runAsync(() -> {
+            for (var blockedPacket : packets.flush()) {
                 try {
                     manager.sendServerPacket(player, blockedPacket);
                 } catch (InvocationTargetException e) {
                     plugin.getLogger().log(Level.WARNING, "Could not send packet to player", e);
                 }
             }
-        });
+        }, executorService);
     }
 
     @Override
@@ -111,7 +111,7 @@ public class MessageBlockerService extends PacketAdapter implements Listener, IM
 
     @Override
     public boolean isBlocked(Player player) {
-        return blockedPlayers.containsKey(player.getUniqueId());
+        return blocked.contains(player.getUniqueId());
     }
 
     @Override
@@ -120,5 +120,10 @@ public class MessageBlockerService extends PacketAdapter implements Listener, IM
             if (value.contains(key)) return true;
         }
         return false;
+    }
+
+    @NotNull
+    public RotatingCache<PacketContainer> getPlayerCache(Player player) {
+        return messageCache.computeIfAbsent(player.getUniqueId(), k -> new RotatingCache<>(100));
     }
 }

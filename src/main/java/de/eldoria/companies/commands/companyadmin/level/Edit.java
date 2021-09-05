@@ -5,9 +5,11 @@ import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-public class Edit extends AdvancedCommand implements ITabExecutor {
+public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
     private final Configuration configuration;
     private final Info info;
 
@@ -33,10 +35,10 @@ public class Edit extends AdvancedCommand implements ITabExecutor {
 
 
     @Override
-    public void onCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args) throws CommandException {
         var optLevel = configuration.companySettings().level(args.asInt(0));
         if (optLevel.isEmpty()) {
-            messageSender().sendError(sender, "Invalid level");
+            messageSender().sendError(player, "Invalid level");
             return;
         }
 
@@ -65,15 +67,15 @@ public class Edit extends AdvancedCommand implements ITabExecutor {
                 level.settings().maxOrders(args.asInt(2));
                 break;
             default:
-                messageSender().sendError(sender, "Unkown field");
+                messageSender().sendError(player, "Unkown field");
                 return;
         }
         configuration.save();
-        info.show(sender, level);
+        info.show(player, level);
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments arguments) {
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         var args = arguments.asArray();
         if (args.length == 1) {
             if (args[0].isEmpty()) {
@@ -94,11 +96,11 @@ public class Edit extends AdvancedCommand implements ITabExecutor {
             }
 
             if (TabCompleteUtil.isCommand(value, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {
-                return TabCompleteUtil.completeInt(value, 0, 100000000, localizer());
+                return TabCompleteUtil.completeMinInt(value, 0, localizer());
             }
 
             if (TabCompleteUtil.isCommand(value, "earned_money")) {
-                return TabCompleteUtil.completeDouble(value, 0.0, 100000000000000.0, localizer());
+                return TabCompleteUtil.completeMinDouble(value, 0.0, localizer());
             }
         }
 

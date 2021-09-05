@@ -2,6 +2,8 @@ package de.eldoria.companies.services.messages;
 
 import org.bukkit.entity.Player;
 
+import java.util.concurrent.CompletableFuture;
+
 @FunctionalInterface
 public interface IMessageBlockerService {
     /**
@@ -33,8 +35,10 @@ public interface IMessageBlockerService {
      * Unblock a player from message blocker
      *
      * @param player player to unblock
+     * @return a completable future which will be completed once all blocked packets were send
      */
-    default void unblockPlayer(Player player) {
+    default CompletableFuture<Void> unblockPlayer(Player player) {
+        return null;
     }
 
     /**

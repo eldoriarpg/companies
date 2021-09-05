@@ -7,6 +7,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -25,14 +26,16 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Configuration configuration;
+    private final IMessageBlockerService messageBlocker;
 
-    public Accept(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration) {
+    public Accept(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("accept")
                 .addArgument("id", true)
                 .build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.configuration = configuration;
+        this.messageBlocker = messageBlocker;
     }
 
     @Override
@@ -72,7 +75,9 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     if (orderData.submitOrderClaim(profile, simpleOrder).join()) {
-                        player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
+                        messageBlocker.unblockPlayer(player).thenRun(() -> {
+                            player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
+                        });
                         return;
                     }
                     messageSender().sendError(player, "Order could not be claimed");

@@ -6,6 +6,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Argument;
@@ -13,6 +14,7 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.ArgumentUtils;
@@ -39,10 +41,11 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final BukkitAudiences audience;
     private final Configuration configuration;
     private final Economy economy;
+    private final IMessageBlockerService messageBlocker;
     private final AOrderData orderData;
     private final Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
 
-    public Create(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration) {
+    public Create(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("create")
                 .addArgument("field", false)
                 .addArgument("value", false)
@@ -51,6 +54,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         this.orderData = orderData;
         this.configuration = configuration;
         this.economy = economy;
+        this.messageBlocker = messageBlocker;
     }
 
     @Override
@@ -225,8 +229,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         sendBuilder(player, builder);
     }
 
-    private void sendBuilder(Player player, OrderBuilder builder) {
-        audience.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.asComponent(configuration.orderSetting(), economy, orderData))));
+    private void sendBuilder(Player player, OrderBuilder order) {
+        var builder = MessageComposer.create().text(order.asComponent(configuration.orderSetting(), economy, orderData));
+        if (messageBlocker.isBlocked(player)) {
+            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+        }
+        messageBlocker.announce(player, "[x]");
+        builder.fillLines();
+        audience.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
     }
 
     @Override
