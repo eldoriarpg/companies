@@ -60,15 +60,12 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void sendProfile(Player player, CompanyProfile profile, List<SimpleOrder> orders) {
         messageBlocker.blockPlayer(player);
-        var level = configuration.companySettings().level(profile.level());
+        var level = configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT);
         var optNextLevel = configuration.companySettings().level(profile.level() + 1);
-        var levelNum = level.map(CompanyLevel::level).orElse(-1);
-        var levelName = level.map(CompanyLevel::levelName).orElse("Unkown Level");
-        var levelComp = level.map(CompanyLevel::asComponent).orElse("Unkown Level");
         var composer = MessageComposer.create()
                 .text(profile.name()).newLine()
                 .text("<%s>", Colors.NAME).localeCode("Level")
-                .text(": <hover:show_text:%s><%s>%s - %s</hover>", levelComp, Colors.VALUE, levelNum, levelName);
+                .text(": <hover:show_text:%s><%s>%s - %s</hover>", level.asComponent(), Colors.VALUE, level.level(), level.levelName());
         if (optNextLevel.isPresent()) {
             var nextLevel = optNextLevel.get();
             composer.text("<u><hover:show_text:%s><%s>", nextLevel.asComponent(), Colors.SHOW).localeCode("next level").text("</u></hover>");

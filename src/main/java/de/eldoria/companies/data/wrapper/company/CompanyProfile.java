@@ -1,6 +1,7 @@
 package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
@@ -43,7 +44,7 @@ public class CompanyProfile extends SimpleCompany {
     }
 
     public String asExternalProfileComponent(Configuration configuration) {
-        var level = configuration.companySettings().level(level());
+        var level = configuration.companySettings().level(level()).orElse(CompanyLevel.DEFAULT);
         var composer = MessageComposer.create()
                 .text("<%s>", Colors.HEADING).text(name()).newLine()
                 .text("<%s>", Colors.NAME).localeCode("Level").text(": <%s>%s - %s",

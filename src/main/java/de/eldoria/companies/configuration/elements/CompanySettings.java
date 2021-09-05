@@ -103,9 +103,9 @@ public class CompanySettings implements ConfigurationSerializable {
         return newLevel;
     }
 
-    public CompanyLevel level(int level) {
-        if (level > this.level.size()) return CompanyLevel.DEFAULT;
-        return this.level.get(level - 1);
+    public Optional<CompanyLevel> level(int level) {
+        if (level > this.level.size()) return Optional.empty();
+        return Optional.ofNullable(this.level.get(level - 1));
     }
 
     public void moveLevel(int source, int target) {
