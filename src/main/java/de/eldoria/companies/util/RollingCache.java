@@ -28,9 +28,15 @@ public class RotatingCache<T> {
 
     public synchronized List<T> flush() {
         synchronized (queue) {
-            var cache = new ArrayList<T>(queue);
+            var cache = new ArrayList<>(queue);
             queue.clear();
             return cache;
+        }
+    }
+
+    public synchronized List<T> copy() {
+        synchronized (queue) {
+            return new ArrayList<>(queue);
         }
     }
 }
