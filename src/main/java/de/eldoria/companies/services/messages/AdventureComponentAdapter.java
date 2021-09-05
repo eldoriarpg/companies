@@ -5,7 +5,6 @@ import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import de.eldoria.companies.Companies;
 import net.kyori.adventure.text.TextComponent;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -17,11 +16,9 @@ public final class AdventureComponentAdapter {
         throw new UnsupportedOperationException("This is a utility class.");
     }
 
-    private static Function<PacketContainer, String> adapter = AdventureComponentAdapter::adapter;
-
     public static String rawMessage(PacketContainer packet) {
         return adapter.apply(packet);
-    }
+    }    private static Function<PacketContainer, String> adapter = AdventureComponentAdapter::adapter;
 
     private static String adapter(PacketContainer packet) {
         buildAdapter(packet);
@@ -59,12 +56,14 @@ public final class AdventureComponentAdapter {
             return Optional.empty();
         }
         var components = container.getChatComponents().getValues().stream().filter(Objects::nonNull).collect(Collectors.toList());
-        if(components.isEmpty()){
+        if (components.isEmpty()) {
             return Optional.empty();
         }
         var result = components.stream().map(WrappedChatComponent::getJson).collect(Collectors.joining(""));
         return Optional.of(result);
     }
+
+
 
 
 }
