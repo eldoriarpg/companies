@@ -8,6 +8,7 @@ import de.eldoria.companies.commands.companyadmin.level.Move;
 import de.eldoria.companies.commands.companyadmin.level.Remove;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import org.bukkit.plugin.Plugin;
@@ -26,6 +27,7 @@ public class Level extends AdvancedCommand {
                     commands.add(info);
                     commands.add(new Remove(plugin, configuration, list));
                 })
+                .withPermission(Permission.Admin.LEVEL)
                 .build());
     }
 }

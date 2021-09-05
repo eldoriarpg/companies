@@ -5,6 +5,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -43,6 +44,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     public Create(Plugin plugin, ACompanyData companyData, Economy economy, Configuration configuration) {
         super(plugin, CommandMeta.builder("create")
                 .addArgument("name", true)
+                .withPermission(Permission.Company.CREATE)
                 .build());
         audiences = BukkitAudiences.create(plugin);
         miniMessage = MiniMessage.get();

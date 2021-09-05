@@ -36,7 +36,7 @@ dependencies {
     // database
     compileOnly("com.zaxxer", "HikariCP", "5.0.0")
     compileOnly("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
-    compileOnly("org.xerial", "sqlite-jdbc", "3.7.2")
+    compileOnly("org.xerial", "sqlite-jdbc", "3.36.0.3")
     compileOnly("org.postgresql", "postgresql", "42.2.23")
 
     compileOnly("org.spigotmc", "spigot-api", "1.13.2-R0.1-SNAPSHOT")
