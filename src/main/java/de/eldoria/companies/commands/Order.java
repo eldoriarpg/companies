@@ -19,6 +19,7 @@ public class Order extends AdvancedCommand {
                 new CommandMetaBuilder("order")
                         .buildSubCommands((cmds, builder) -> {
                             var list = new List(plugin, orderData, economy, configuration, messageBlocker);
+                            builder.withDefaultCommand(list);
                             cmds.add(list);
                             cmds.add(new Cancel(plugin, orderData, economy, list));
                             cmds.add(new Create(plugin, orderData, economy, configuration, messageBlocker));

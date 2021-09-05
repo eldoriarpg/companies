@@ -26,13 +26,15 @@ public class LevelService implements Listener {
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
         companyData.submitFailedOrder(event.company(), configuration.companySettings().abortedOrderPenalty())
-                .whenComplete(r -> updateCompanyLevel(event.company()));
+                .asFuture()
+                .thenRun(() -> updateCompanyLevel(event.company()));
     }
 
     @EventHandler
     public void onOrderExpired(OrderExpiredEvent event) {
         companyData.submitFailedOrder(event.company(), configuration.companySettings().expiredOrderPenalty())
-                .whenComplete(r -> updateCompanyLevel(event.company()));
+                .asFuture()
+                .thenRun(() -> updateCompanyLevel(event.company()));
     }
 
     @EventHandler
@@ -48,6 +50,7 @@ public class LevelService implements Listener {
                     if (newLevel.level() == company.level()) return;
                     var oldLevel = companySettings.level(company.level());
                     if (oldLevel.isEmpty()) return;
+                    companyData.submitCompanyLevelUpdate(company, newLevel.level());
                     if (newLevel.level() > company.level()) {
                         plugin.getServer().getPluginManager().callEvent(new CompanyLevelUpEvent(company, oldLevel.get(), newLevel));
                         return;
