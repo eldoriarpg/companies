@@ -2,15 +2,12 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.simplecommands.EldoCommand;
-import de.eldoria.eldoutilities.utils.Parser;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -21,10 +18,12 @@ import java.util.List;
 
 public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
+    private final IMessageBlockerService messageBlocker;
 
-    public Receive(Plugin plugin, AOrderData orderData) {
+    public Receive(Plugin plugin, AOrderData orderData, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("receive").addArgument("id", true).build());
         this.orderData = orderData;
+        this.messageBlocker = messageBlocker;
     }
 
     @Override
@@ -59,8 +58,11 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
                                     messageSender().sendLocalizedError(player, "Not enought space. You need " + stacks.size() + " slots");
                                     return;
                                 }
-                                player.getInventory().addItem(stacks.toArray(ItemStack[]::new));
-                                orderData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
+                                messageBlocker.unblockPlayer(player).thenRun(() -> {
+                                    player.getInventory().addItem(stacks.toArray(ItemStack[]::new));
+                                    orderData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
+                                    messageSender().sendMessage(player, "You received your order.");
+                                });
                             });
                 });
     }

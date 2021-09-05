@@ -1,5 +1,7 @@
 package de.eldoria.companies;
 
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
 import de.chojo.sqlutil.logging.JavaLogger;
 import de.chojo.sqlutil.updater.SqlType;
 import de.chojo.sqlutil.updater.SqlUpdater;
@@ -29,6 +31,8 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiterNotificationData;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.services.messages.MessageBlockerService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -56,6 +60,8 @@ public class Companies extends EldoPlugin {
     private AOrderData orderData = null;
     private ANotificationData notificationData = null;
     private Economy economy = null;
+    private ProtocolManager protocolManager;
+    private IMessageBlockerService messageBlocker = null;
 
     @Override
     public void onPluginLoad() throws Throwable {
@@ -83,10 +89,17 @@ public class Companies extends EldoPlugin {
             return;
         }
 
+        if (getPluginManager().isPluginEnabled("ProtocolLib")) {
+            protocolManager = ProtocolLibrary.getProtocolManager();
+            messageBlocker = MessageBlockerService.create(this, workerPool, protocolManager);
+            logger().info("Found protocol lib. Initializing Message Blocker.");
+        } else {
+            messageBlocker = IMessageBlockerService.dummy();
+        }
 
-        registerCommand("company", new Company(this, companyData, orderData, economy, configuration));
+        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
         registerCommand("order", new Order(this, orderData, configuration, economy));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker));
 
         ExpiringService.create(this, orderData, companyData, configuration, workerPool);
         registerListener(new NotificationService(notificationData, this));

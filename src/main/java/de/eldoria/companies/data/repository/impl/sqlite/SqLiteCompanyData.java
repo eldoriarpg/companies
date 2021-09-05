@@ -6,7 +6,6 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import org.bukkit.plugin.Plugin;
-import org.intellij.lang.annotations.Language;
 
 import javax.sql.DataSource;
 import java.sql.ResultSet;
