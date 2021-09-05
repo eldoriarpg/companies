@@ -2,11 +2,13 @@ package de.eldoria.companies.commands.company.profile;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -21,13 +23,15 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final BukkitAudiences audiences;
+    private final IMessageBlockerService messageBlocker;
     private final MiniMessage miniMessage;
 
-    public Player(Plugin plugin, ACompanyData companyData, Configuration configuration) {
+    public Player(Plugin plugin, ACompanyData companyData, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("player").build());
         this.companyData = companyData;
         this.configuration = configuration;
         audiences = BukkitAudiences.create(plugin);
+        this.messageBlocker = messageBlocker;
         miniMessage = MiniMessage.get();
     }
 
@@ -38,13 +42,20 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrievePlayerCompanyProfile(target)
                 .asFuture()
                 .whenComplete((optCompany, err) -> {
+                    messageBlocker.blockPlayer(player);
                     if (optCompany.isEmpty()) {
                         messageSender().sendError(player, "This player is not part of a company");
                         return;
                     }
 
                     var companyProfile = optCompany.get();
-                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(companyProfile.asExternalProfileComponent(configuration))));
+                    var builder = MessageComposer.create().text(companyProfile.asExternalProfileComponent(configuration));
+
+                    if (messageBlocker.isBlocked(player)) {
+                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                    }
+                    messageBlocker.announce(player, "[x]");
+                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                 });
     }
 

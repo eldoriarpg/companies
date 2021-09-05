@@ -31,13 +31,13 @@ public class FullOrder extends SimpleOrder {
         this.contents = contents;
     }
 
-    public Component userShortInfo(ILocalizer localizer, Economy economy) {
+    public String userShortInfo(Economy economy) {
         var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
                 .text("<hover:show_text:" + userContent(economy) + "\nPrice:" + economy.format(price()) + ">"
                       + "<click:run_command:/order info " + id() + ">[info]</click>"
                       + "</hover>");
 
-        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
+        return composer.build();
     }
 
     public String companyShortInfo(Economy economy) {
@@ -47,7 +47,7 @@ public class FullOrder extends SimpleOrder {
         return composer.build();
     }
 
-    public Component userDetailInfo(ILocalizer localizer, Economy economy) {
+    public String userDetailInfo(Economy economy) {
         var composer = MessageComposer.create().text("%s | %s", id(), name()).newLine()
                 .text("State: %s", state().name().toLowerCase()).newLine()
                 .text(userContent(economy)).newLine()
@@ -63,7 +63,7 @@ public class FullOrder extends SimpleOrder {
             case CLAIMED:
                 break;
         }
-        return MINI_MESSAGE.parse(localizer.localize(composer.build()));
+        return composer.build();
     }
 
     public String companyDetailInfo(CompanyMember member, Configuration configuration, ILocalizer localizer, Economy economy) {
