@@ -2,23 +2,20 @@ package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 
 public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();
@@ -35,11 +32,12 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
 
     public void sendList(Player player) {
         var level = new ArrayList<String>();
-messageBlocker.blockPlayer(player);
+        messageBlocker.blockPlayer(player);
         for (var companyLevel : configuration.companySettings().level()) {
-            var info = MessageComposer.create().text("<hover:show_text:%s>%s - %s</hover>", companyLevel.asComponent(), companyLevel.level(), companyLevel.levelName())
-                    .text("<click:run_command:/companyadmin level info %s>[", companyLevel.level()).localeCode("info").text("]</click>").space()
-                    .text("<click:suggest_command:/companyadmin level move %s >[", companyLevel.level()).localeCode("move").text("]</click>")
+            var info = MessageComposer.create().text("<hover:show_text:%s><%s>%s - <%s>%s</hover>", companyLevel.asComponent(), Colors.NAME, companyLevel.level(), Colors.VALUE, companyLevel.levelName())
+                    .text("<click:run_command:/companyadmin level info %s><%s>[", companyLevel.level(), Colors.SHOW).localeCode("info").text("]</click>").space()
+                    .text("<click:run_command:/companyadmin level remove %s><%s>[", companyLevel.level(), Colors.REMOVE).localeCode("info").text("]</click>").space()
+                    .text("<click:suggest_command:/companyadmin level move %s >[", companyLevel.level(), Colors.MODIFY).localeCode("move").text("]</click>")
                     .build();
             level.add(info);
         }
@@ -49,7 +47,7 @@ messageBlocker.blockPlayer(player);
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         messageBlocker.announce(player, "[x]");
-        builder.fillLines();
+        builder.prependLines(25);
 
         audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
     }

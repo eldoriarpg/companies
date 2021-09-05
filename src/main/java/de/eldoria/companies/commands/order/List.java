@@ -4,6 +4,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -51,7 +52,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                             messageBlocker.blockPlayer(player);
                             var builder = MessageComposer.create().localeCode("Your orders").text(":").newLine();
                             if (configuration.userSettings().maxOrders() > orders.size()) {
-                                builder.text("<click:suggest_command:/order create >[").localeCode("New Order").text("]</click>");
+                                builder.text("<click:suggest_command:/order create ><%s>[", Colors.ADD).localeCode("New Order").text("]</click>");
                             }
                             for (var order : orders) {
                                 builder.newLine().text(order.userShortInfo(economy));
@@ -60,7 +61,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                                 builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
                             }
                             messageBlocker.announce(player, "[x]");
-                            builder.fillLines();
+                            builder.prependLines(25);
                             audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                             whenComplete.run();
                         })));

@@ -6,14 +6,17 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -29,7 +32,9 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
     private final BukkitAudiences audiences;
+    private final MiniMessage miniMessage;
     private final List list;
+
 
     public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData, List list) {
         super(plugin, CommandMeta.builder("abort")
@@ -37,6 +42,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                 .build());
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
+        miniMessage = MiniMessage.get();
         this.orderData = orderData;
         this.list = list;
     }
@@ -80,11 +86,10 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
 
-                    var component = Component.text().append(Component.text("Please confirm the deletion. All already delivered items will be lost."))
-                            .append(Component.space())
-                            .append(Component.text("[Confirm]").clickEvent(ClickEvent.runCommand("/company order abort confirm"))).build();
+                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("Please confirm the deletion. All already delivered items will be lost.")
+                            .text("<click:run_command:/company order abort confirm><%s>[", Colors.REMOVE).localeCode("confirm").text("]</click>");
                     cancel.put(player.getUniqueId(), order);
-                    audiences.sender(player).sendMessage(component);
+                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
                 });
     }
 

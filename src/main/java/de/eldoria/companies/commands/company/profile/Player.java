@@ -55,6 +55,7 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
                         builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
                     }
                     messageBlocker.announce(player, "[x]");
+                    builder.prependLines(25);
                     audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                 });
     }

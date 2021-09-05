@@ -3,6 +3,7 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -108,11 +109,13 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
 
                     var name = arguments.join();
                     confirm.put(player.getUniqueId(), name);
-                    var message = MessageComposer.create()
-                            .localeCode("Confirm rename",
-                                    Replacement.create("name", name), Replacement.create("price", configuration.companySettings().renamePrice()))
-                            .text("<click:run_command:/company rename confirm>[").localeCode("confirm").text("]</click>");
-                    audiences.sender(player).sendMessage(miniMessage.parse(message.buildLocalized(localizer())));
+                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("Renaming a company costs %AMOUNT%. Do you want rename the company to %NAME%",
+                                    Replacement.create("AMOUNT", String.format("<%s>%s<%s>",
+                                            Colors.HEADING, economy.format(configuration.companySettings().foudingPrice()), Colors.NEUTRAL)),
+                                    Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, name, Colors.NEUTRAL)))
+                            .newLine()
+                            .text("<%s><click:run_command:/company rename confirm><%s>[", Colors.ADD).localeCode("confirm").text("]</click>") ;
+                    audiences.sender(player).sendMessage(miniMessage.parse(composer.buildLocalized(localizer())));
                     delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
                 });
     }

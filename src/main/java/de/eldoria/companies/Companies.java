@@ -98,7 +98,7 @@ public class Companies extends EldoPlugin {
         }
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
-        registerCommand("order", new Order(this, orderData, configuration, economy));
+        registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
         registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker));
 
         ExpiringService.create(this, orderData, companyData, configuration, workerPool);

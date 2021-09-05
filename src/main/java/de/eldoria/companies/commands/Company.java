@@ -23,7 +23,7 @@ import org.bukkit.plugin.Plugin;
 public class Company extends AdvancedCommand {
     public Company(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin);
-        var profile = new Profile(plugin, companyData, orderData, configuration);
+        var profile = new Profile(plugin, companyData, orderData, configuration, messageBlocker);
         var meta = CommandMeta.builder("company")
                 .withDefaultCommand(profile)
                 .withSubCommand(profile)
@@ -31,7 +31,7 @@ public class Company extends AdvancedCommand {
                 .withSubCommand(new Invite(plugin, companyData, configuration))
                 .withSubCommand(new Kick(plugin, companyData))
                 .withSubCommand(new Leave(plugin, companyData, orderData))
-                .withSubCommand(new Member(plugin, companyData))
+                .withSubCommand(new Member(plugin, companyData, messageBlocker))
                 .withSubCommand(new Order(plugin, companyData, orderData, economy, configuration, messageBlocker))
                 .withSubCommand(new Permission(plugin, companyData, messageBlocker))
                 .withSubCommand(new Top(plugin, companyData, messageBlocker))

@@ -9,6 +9,13 @@ public class MaterialPrice {
     private final double minPrice;
     private final double maxPrice;
 
+    public MaterialPrice(String material) {
+        this.material = material;
+        avgPrice = 0;
+        minPrice = 0;
+        maxPrice = 0;
+    }
+
     public MaterialPrice(String material, double avgPrice, double minPrice, double maxPrice) {
         this.material = material;
         this.avgPrice = avgPrice;
@@ -34,9 +41,9 @@ public class MaterialPrice {
 
     public String asComponent(Economy economy) {
         return MessageComposer.create()
-                .localeCode("Avg").text(": %s", economy.format(avgPrice)).newLine()
-                .localeCode("Min").text(": %s", economy.format(minPrice)).newLine()
-                .localeCode("Max").text(": %s", economy.format(maxPrice))
+                .text("<yellow>").localeCode("Avg").text(": %s", economy.format(avgPrice)).newLine()
+                .text("<green>").localeCode("Min").text(": %s", economy.format(minPrice)).newLine()
+                .text("<red>").localeCode("Max").text(": %s", economy.format(maxPrice))
                 .build();
     }
 }

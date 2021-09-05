@@ -40,7 +40,7 @@ public class Render extends AdvancedCommand implements IPlayerTabExecutor {
         if (messageBlocker.isBlocked(player)) {
             message.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>").build();
         }
-        message.fillLines();
+        message.prependLines(25);
         messageBlocker.announce(player, "[x]");
         audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(message.build())));
     }

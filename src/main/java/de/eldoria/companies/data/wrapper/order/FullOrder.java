@@ -5,9 +5,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.OrderState;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.permissions.CompanyPermission;
-import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
@@ -21,6 +19,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static de.eldoria.companies.util.Colors.ADD;
+import static de.eldoria.companies.util.Colors.NAME;
+import static de.eldoria.companies.util.Colors.REMOVE;
+import static de.eldoria.companies.util.Colors.VALUE;
+
 public class FullOrder extends SimpleOrder {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.get();
     private final List<OrderContent> contents;
@@ -32,32 +35,35 @@ public class FullOrder extends SimpleOrder {
     }
 
     public String userShortInfo(Economy economy) {
-        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
-                .text("<hover:show_text:" + userContent(economy) + "\nPrice:" + economy.format(price()) + ">"
-                      + "<click:run_command:/order info " + id() + ">[info]</click>"
-                      + "</hover>");
-
-        return composer.build();
+        return MessageComposer.create()
+                .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
+                .text("<hover:show_text:" + userContent(economy)).newLine()
+                .localeCode("Price").text(": <%s, %s>", VALUE, economy.format(price()))
+                .text("</hover>").space().text("<click:run_command:/order info %s>%s[", id(), ADD).localeCode("info").text("</click>")
+                .build();
     }
 
     public String companyShortInfo(Economy economy) {
-        var composer = MessageComposer.create().text("<hover:show_text:%s>%s | %s</hover>",
-                        companySimpleContent(economy, state()) + "\nPrice:" + economy.format(price()), id(), name())
-                .text("<click:run_command:/company order info %s>[info]</click>", id());
-        return composer.build();
+        return MessageComposer.create()
+                .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
+                .text("<hover:show_text:" + companySimpleContent(economy, state())).newLine()
+                .localeCode("Price").text(": <%s, %s>", VALUE, economy.format(price()))
+                .text("</hover>").space().text("<click:run_command:/company order info %s>%s[", id(), ADD).localeCode("info").text("</click>")
+                .build();
     }
 
     public String userDetailInfo(Economy economy) {
-        var composer = MessageComposer.create().text("%s | %s", id(), name()).newLine()
-                .text("State: %s", state().name().toLowerCase()).newLine()
+        var composer = MessageComposer.create()
+                .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
+                .text("<%s>", NAME).localeCode("State").text(": <%s>%s", VALUE, state().name().toLowerCase()).newLine()
                 .text(userContent(economy)).newLine()
-                .text("Price: %s", price()).newLine();
+                .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, price()).newLine();
         switch (state()) {
             case UNCLAIMED:
-                composer.text("<click:run_command:/order cancel %s>[cancel]", id());
+                composer.text("<click:run_command:/order cancel %s>%s[", id(), REMOVE).localeCode("cancel").text("]</click>");
                 break;
             case DELIVERED:
-                composer.text("<click:run_command:/order receive %s>[cancel]", id());
+                composer.text("<click:run_command:/order receive %s>[", id(), ADD).localeCode("receive").text("]</click>");
                 break;
             case RECEIVED:
             case CLAIMED:
@@ -66,22 +72,23 @@ public class FullOrder extends SimpleOrder {
         return composer.build();
     }
 
-    public String companyDetailInfo(CompanyMember member, Configuration configuration, ILocalizer localizer, Economy economy) {
-        var composer = MessageComposer.create().text(id() + " | " + name()).newLine()
-                .text("State: " + state().name().toLowerCase()).newLine()
+    public String companyDetailInfo(CompanyMember member, Configuration configuration, Economy economy) {
+        var composer = MessageComposer.create()
+                .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
+                .text("<%s>", NAME).localeCode("State").text(": <%s>%s", VALUE, state().name().toLowerCase()).newLine()
                 .text(companyActionContent(economy, state())).newLine()
-                .text("Price: " + price()).newLine();
+                .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, price()).newLine();
 
         switch (state()) {
             case UNCLAIMED:
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                    composer.text("<click:run_command:/company order accept " + id() + ">[accept]</click>");
+                    composer.text("<click:run_command:/company order accept %s><%s>[", id(), ADD).localeCode("accept").text("]</click>");
                 }
                 break;
             case CLAIMED:
                 composer.localeCode("Left time ").text(runningOutTime(configuration)).newLine();
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                    composer.text("<click:run_command:/company order abort " + id() + ">[abort]</click>");
+                    composer.text("<click:run_command:/company order abort %s><%s>[", id(), REMOVE).localeCode("abort").text("]</click>");
                 }
                 break;
             case DELIVERED:
@@ -106,12 +113,17 @@ public class FullOrder extends SimpleOrder {
             } else {
                 var composer = MessageComposer.create().text(content.asProgressComponent(economy)).space();
                 if (content.missing() != 0) {
-                    var baseCommand = "/company order deliver " + id() + " " + content.stack().getType() + " ";
-                    composer.text("<click:run_command:" + baseCommand + " max>[max]</click>")
+
+                    var baseCommand = String.format("/company order deliver %s %s ", id(), content.stack().getType());
+                    composer.text("<%s>", ADD)
                             .text("<click:run_command:" + baseCommand + " 1>[1]</click>")
-                            .text("<click:run_command:" + baseCommand + " 64>[64]</click>");
+                            .text("<click:run_command:" + baseCommand + " 8>[8]</click>")
+                            .text("<click:run_command:" + baseCommand + " 16>[32]</click>")
+                            .text("<click:run_command:" + baseCommand + " 64>[64]</click>")
+                            .text("<click:run_command:" + baseCommand + " max>[").localeCode("max").text("]</click>")
+                            .text("<click:suggest_command:" + baseCommand + " >[").localeCode("add").text("]</click>");
                 } else {
-                    composer.text("Done");
+                    composer.text("<%s>", VALUE).localeCode("Done");
                 }
                 contents.add(composer.build());
             }
