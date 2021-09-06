@@ -55,7 +55,7 @@ public class FullOrder extends SimpleOrder {
     public String userDetailInfo(Economy economy) {
         var composer = MessageComposer.create()
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
-                .text("<%s>", NAME).localeCode("State").text(": <%s>%s", VALUE, state().name().toLowerCase()).newLine()
+                .text("<%s>", NAME).localeCode("State").text(": <%s>", VALUE, state().name().toLowerCase()).localeCode().newLine()
                 .text(userContent(economy)).newLine()
                 .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, price()).newLine();
         switch (state()) {

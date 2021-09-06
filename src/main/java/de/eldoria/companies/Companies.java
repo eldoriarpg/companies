@@ -31,6 +31,8 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiterNotificationData;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.LevelService;
+import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.services.messages.MessageBlockerService;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -102,6 +104,8 @@ public class Companies extends EldoPlugin {
         registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker));
 
         ExpiringService.create(this, orderData, companyData, configuration, workerPool);
+        RefreshService.create(orderData, workerPool);
+        registerListener(new LevelService(this, configuration, companyData));
         registerListener(new NotificationService(notificationData, this));
     }
 

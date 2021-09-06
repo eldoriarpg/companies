@@ -1,13 +1,14 @@
 package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 
-public class CompanyLevelChangeEvent extends CompanyEvent<SimpleCompany> {
+public class CompanyLevelChangeEvent extends CompanyEvent<CompanyProfile> {
     private final CompanyLevel oldLevel;
     private final CompanyLevel newLevel;
 
-    public CompanyLevelChangeEvent(SimpleCompany company, CompanyLevel oldLevel, CompanyLevel newLevel) {
+    public CompanyLevelChangeEvent(CompanyProfile company, CompanyLevel oldLevel, CompanyLevel newLevel) {
         super(company);
         this.oldLevel = oldLevel;
         this.newLevel = newLevel;

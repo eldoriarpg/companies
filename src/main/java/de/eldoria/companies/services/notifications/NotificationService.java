@@ -7,6 +7,7 @@ import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyKickEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
+import de.eldoria.companies.events.company.CompanyLevelDownEvent;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
@@ -18,6 +19,7 @@ import de.eldoria.eldoutilities.localization.Replacement;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventHandler;
@@ -116,8 +118,16 @@ public class NotificationService implements Listener {
                 Replacement.create("amount", event.amount()), Replacement.create("order_name", event.order().fullName()));
     }
 
+    @EventHandler
     public void onCompanyLevelUp(CompanyLevelUpEvent event) {
+        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "Your company level increased and is now %NEW_LEVEL%",
+                Replacement.create("NEW_LEVEL", event.newLevel().levelName()).addFormatting('6'));
+    }
 
+    @EventHandler
+    public void onCompanyLevelUp(CompanyLevelDownEvent event) {
+        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "Your company level decreased and is now %NEW_LEVEL%",
+                Replacement.create("NEW_LEVEL", event.newLevel().levelName()).addFormatting('6'));
     }
 
     @EventHandler
@@ -151,7 +161,7 @@ public class NotificationService implements Listener {
                         }
                     }
                     notificationData.submitNotificationClear(event.getPlayer());
-                    audiences.player(event.getPlayer()).sendMessage(Component.join(Component.newline(), components));
+                    audiences.player(event.getPlayer()).sendMessage(Component.join(JoinConfiguration.separator(Component.newline()), components));
                 }).exceptionally(err -> {
                     plugin.getLogger().log(Level.SEVERE, "", err);
                     return null;
