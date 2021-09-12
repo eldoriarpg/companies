@@ -61,7 +61,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
                     if (optCompany.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company.");
+                        messageSender().sendError(player, "error.noMember");
                         return;
                     }
 

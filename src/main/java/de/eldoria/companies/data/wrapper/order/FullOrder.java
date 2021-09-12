@@ -57,7 +57,7 @@ public class FullOrder extends SimpleOrder {
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
                 .text("<%s>", NAME).localeCode("State").text(": <%s>", VALUE, state().name().toLowerCase()).localeCode().newLine()
                 .text(userContent(economy)).newLine()
-                .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, price()).newLine();
+                .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, price()).newLine();
         switch (state()) {
             case UNCLAIMED:
                 composer.text("<click:run_command:/order cancel %s><%s>[", id(), REMOVE).localeCode("cancel").text("]</click>");
@@ -77,7 +77,7 @@ public class FullOrder extends SimpleOrder {
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
                 .text("<%s>", NAME).localeCode("State").text(": <%s>%s", VALUE, state().name().toLowerCase()).newLine()
                 .text(companyActionContent(economy, state())).newLine()
-                .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, price()).newLine();
+                .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, price()).newLine();
 
         switch (state()) {
             case UNCLAIMED:

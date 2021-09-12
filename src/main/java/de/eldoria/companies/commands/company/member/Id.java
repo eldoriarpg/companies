@@ -43,12 +43,12 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .thenAccept(optSimple -> {
                     if (optSimple.isEmpty()) {
-                        messageSender().sendError(player, "This company does not exist");
+                        messageSender().sendError(player, "error.unknownCompany");
                         return;
                     }
                     messageBlocker.blockPlayer(player);
                     var optProfile = companyData.retrieveCompanyProfile(optSimple.get()).asFuture().join().get();
-                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("Company Members").text(":").newLine();
+                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.member.members").text(":").newLine();
                     List<String> members = new ArrayList<>();
 
                     for (var member : optProfile.members()) {

@@ -97,13 +97,13 @@ public class OrderBuilder {
                     .text("<hover:show_text:%s>%s</hover>", materialPrice.asComponent(economy), element.asComponent(economy))
                     .text("<click:run_command:%s remove %s><%s>[", cmd, element.materialString(), REMOVE)
                     .localeCode("remove")
-                    .text("] <click:suggest_command:%s price %s ><%s><%s>[", cmd, element.materialString(), MODIFY).localeCode("price")
+                    .text("] <click:suggest_command:%s price %s ><%s><%s>[", cmd, element.materialString(), MODIFY).localeCode("words.price")
                     .text("]</click> <click:suggest_command:%s amount %s ><%s>[", cmd, element.materialString(), MODIFY).localeCode("amount").text("]</click>");
         }
         composer.newLine()
                 .text("<%s>", NAME).localeCode("Materials").text(": <%s>%s/%s", VALUE, materialsAmount(), setting.maxMaterials()).newLine()
                 .text("<%s>", NAME).localeCode("Items").text(": <%s>%s/%s", VALUE, amount(), setting.maxItems()).newLine()
-                .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, economy.format(price())).newLine()
+                .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, economy.format(price())).newLine()
                 .text("<click:run_command:%s done><%s>[", cmd, ADD).localeCode("done").text("]</click>").space()
                 .text("<click:run_command:%s cancel><%s>[", cmd, REMOVE).localeCode("cancel").text("]</click>");
         return composer.build();

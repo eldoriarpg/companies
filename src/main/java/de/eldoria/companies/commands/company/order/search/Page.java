@@ -47,7 +47,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         var fullOrders = search.results().get(player.getUniqueId());
 
         var builder = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).localeCode("Results").text(": <%s>%s", Colors.VALUE, fullOrders.size()).newLine();
+                .text("<%s>", Colors.HEADING).localeCode("words.results").text(": <%s>%s", Colors.VALUE, fullOrders.size()).newLine();
 
         var pageList = page(fullOrders, page);
         var components = new ArrayList<String>();

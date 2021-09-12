@@ -48,7 +48,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .whenComplete((optProfile, err) -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company.");
+                        messageSender().sendError(player, "error.noMember");
                         return;
                     }
 

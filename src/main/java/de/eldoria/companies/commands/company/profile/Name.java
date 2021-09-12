@@ -49,7 +49,7 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
                     if (optComp.isEmpty()) {
-                        messageSender().sendError(player, "This company does not exist");
+                        messageSender().sendError(player, "error.unknownCompany");
                         return;
                     }
                     var optProfile = companyData.retrieveCompanyProfile(optComp.get()).asFuture().join();

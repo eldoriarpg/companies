@@ -42,11 +42,11 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .whenComplete((optProfile, err) -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendMessage(player, "You are not part of a company.");
+                        messageSender().sendLocalizedError(player, "error.noMember");
                         return;
                     }
                     messageBlocker.blockPlayer(player);
-                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("Company Members").text(":").newLine();
+                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.member.members").text(":").newLine();
 
                     List<String> members = new ArrayList<>();
                     var self = optProfile.get().member(player).get();
@@ -62,13 +62,13 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                             var permissions = member.permissions().stream()
                                     .map(perm -> "  " + perm.name().toLowerCase(Locale.ROOT))
                                     .collect(Collectors.toList());
-                            hover.newLine().text("<%s>", Colors.HEADING).localeCode("Permissions").text(":").newLine()
+                            hover.newLine().text("<%s>", Colors.HEADING).localeCode("words.permissions").text(":").newLine()
                                     .text("<%s>", Colors.ACTIVE).text(permissions, ", ");
                         }
                         var nameComp = MessageComposer.create().text("<hover:show_text:'%s'>%s</hover>", hover.build(), mem.getName());
 
                         if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                            nameComp = nameComp.space().text("<click:run_command:/company permission %s><%s>[", mem.getName(), Colors.MODIFY).localeCode("Permissions").text("]</click>");
+                            nameComp = nameComp.space().text("<click:run_command:/company permission %s><%s>[", mem.getName(), Colors.MODIFY).localeCode("words.permissions").text("]</click>");
                         }
                         members.add(nameComp.build());
                     }

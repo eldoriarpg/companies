@@ -20,7 +20,7 @@ public class MaterialSearch extends AdvancedCommand implements IPlayerTabExecuto
 
     public MaterialSearch(Plugin plugin, Query query) {
         super(plugin, CommandMeta.builder("material_search")
-                .addArgument("any|all", true)
+                .addUnlocalizedArgument("any|all", true)
                 .build());
         this.query = query;
     }
@@ -28,7 +28,7 @@ public class MaterialSearch extends AdvancedCommand implements IPlayerTabExecuto
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         var searchType = arguments.asString(0);
-        CommandAssertions.isTrue(TabCompleteUtil.isCommand(searchType, "all", "any"), "Invalid search type");
+        CommandAssertions.isTrue(TabCompleteUtil.isCommand(searchType, "all", "any"), "error.invalidSearchType");
         query.getPlayerSearch(player).anyMaterial("any".equalsIgnoreCase(searchType));
     }
 

@@ -20,7 +20,7 @@ public class Sorting extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Sorting(Plugin plugin, Query query) {
         super(plugin, CommandMeta.builder("sorting")
-                .addArgument("sorting", true)
+                .addArgument("words.sorting", true)
                 .build());
         this.query = query;
     }

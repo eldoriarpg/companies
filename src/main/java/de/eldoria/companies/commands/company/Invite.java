@@ -153,7 +153,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
                     if (company.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company.");
+                        messageSender().sendError(player, "error.noMember");
                         return;
                     }
 

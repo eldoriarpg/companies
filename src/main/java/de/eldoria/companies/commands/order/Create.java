@@ -105,7 +105,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private void price(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("price", this)
                 .addArgument("material", true)
-                .addArgument("price", true)
+                .addArgument("words.price", true)
                 .build();
         CommandAssertions.invalidArguments(subMeta, args);
 
@@ -207,7 +207,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var subMeta = meta().forSubCommand("name", this)
                 .addArgument("material", true)
                 .addArgument("amount", true)
-                .addArgument("price", true)
+                .addArgument("words.price", true)
                 .build();
         CommandAssertions.invalidArguments(subMeta, args);
 
@@ -272,7 +272,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             }
             var materialPrice = orderData.getMaterialPrice(args[2]);
             if (args.length == 4) {
-                if (args[3].isEmpty()) return Collections.singletonList("price");
+                if (args[3].isEmpty()) return Collections.singletonList(localizer().localize("words.price"));
                 var result = TabCompleteUtil.completeDouble(args[3], 0, 20000, localizer());
                 if (materialPrice.isPresent()) {
                     var price = materialPrice.get();

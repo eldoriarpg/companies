@@ -23,7 +23,7 @@ public class Material extends AdvancedCommand implements IPlayerTabExecutor {
     public Material(Plugin plugin, Query query) {
         super(plugin, CommandMeta.builder("material_add")
                 .addAlias("material_remove")
-                .addArgument("material", false)
+                .addArgument("words.material", false)
                 .build());
         this.query = query;
     }
@@ -31,7 +31,7 @@ public class Material extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if ("material_add".equalsIgnoreCase(label)) {
-            CommandAssertions.invalidArguments(meta(), arguments, Argument.input("material", true));
+            CommandAssertions.invalidArguments(meta(), arguments, Argument.input("words.material", true));
             query.getPlayerSearch(player).materials().add(arguments.join("_"));
             return;
         }
