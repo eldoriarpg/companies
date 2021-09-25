@@ -10,6 +10,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -42,7 +44,8 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .whenComplete((optProfile, err) -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalizedError(player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE,
+                                MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     messageBlocker.blockPlayer(player);

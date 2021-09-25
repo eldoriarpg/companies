@@ -10,6 +10,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -29,7 +31,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Info(Plugin plugin, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("info")
-                .addArgument("level", true)
+                .addArgument("words.level", true)
                 .build());
         audiences = BukkitAudiences.create(plugin);
         this.configuration = configuration;
@@ -41,31 +43,31 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         var cmd = "/companyadmin level";
         var edit = cmd + " edit " + level.level();
         var builder = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).localeCode("Level").text(" %s ", level.level())
-                .text("<click:suggest_command:%s move %s ><%s>[", cmd, level.level(), Colors.MODIFY).localeCode("move").text("]</click>")
+                .text("<%s>", Colors.HEADING).localeCode("words.level").text(" %s ", level.level())
+                .text("<click:suggest_command:%s move %s ><%s>[", cmd, level.level(), Colors.MODIFY).localeCode("words.move").text("]</click>")
                 .newLine()
-                .text("<%s>", Colors.NAME).localeCode("Name").text(": <%s>%s ", Colors.VALUE, level.levelName())
-                .text("<click:suggest_command:%s name ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
+                .text("<%s>", Colors.NAME).localeCode("words.name").text(": <%s>%s ", Colors.VALUE, level.levelName())
+                .text("<click:suggest_command:%s name ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>")
                 .newLine()
-                .text("<%s>", Colors.HEADING).localeCode("Requirements").newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Order count").text(": <%s>%s ", Colors.VALUE, level.requirement().orderCount())
-                .text("<click:suggest_command:%s order_count ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
+                .text("<%s>", Colors.HEADING).localeCode("level.requirements").newLine()
+                .space(2).text("<%s>", Colors.NAME).localeCode("level.orderCount").text(": <%s>%s ", Colors.VALUE, level.requirement().orderCount())
+                .text("<click:suggest_command:%s order_count ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Member Count").text(": <%s>%s ", Colors.VALUE, level.requirement().memberCount())
-                .text("<click:suggest_command:%s member_count ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
+                .space(2).text("<%s>", Colors.NAME).localeCode("level.memberCount").text(": <%s>%s ", Colors.VALUE, level.requirement().memberCount())
+                .text("<click:suggest_command:%s member_count ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Earned money").text(": <%s>%s ", Colors.VALUE, level.requirement().earnedMoney())
-                .text("<click:suggest_command:%s earned_money ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
+                .space(2).text("<%s>", Colors.NAME).localeCode("level.earnedMoney").text(": <%s>%s ", Colors.VALUE, level.requirement().earnedMoney())
+                .text("<click:suggest_command:%s earned_money ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Delivered Items").text(": <%s>%s ", Colors.VALUE, level.requirement().deliveredItems())
-                .text("<click:suggest_command:%s delivered_items ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
+                .space(2).text("<%s>", Colors.NAME).localeCode("level.deliveredItems").text(": <%s>%s ", Colors.VALUE, level.requirement().deliveredItems())
+                .text("<click:suggest_command:%s delivered_items ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>")
                 .newLine()
-                .text("<%s>", Colors.HEADING).localeCode("Limits").newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Max Members").text(": <%s>%s", Colors.VALUE, level.settings().maxMembers())
-                .text("<click:suggest_command:%s max_members ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>")
+                .text("<%s>", Colors.HEADING).localeCode("level.limits").newLine()
+                .space(2).text("<%s>", Colors.NAME).localeCode("level.maxMember").text(": <%s>%s", Colors.VALUE, level.settings().maxMembers())
+                .text("<click:suggest_command:%s max_members ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>")
                 .newLine()
-                .space(2).text("<%s>", Colors.NAME).localeCode("Max Orders").text(": <%s>%s", Colors.VALUE, level.settings().maxOrders())
-                .text("<click:suggest_command:%s max_orders ><%s>[", edit, Colors.MODIFY).localeCode("edit").text("]</click>");
+                .space(2).text("<%s>", Colors.NAME).localeCode("level.maxOrders").text(": <%s>%s", Colors.VALUE, level.settings().maxOrders())
+                .text("<click:suggest_command:%s max_orders ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>");
         if (messageBlocker.isBlocked(player)) {
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
@@ -80,7 +82,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
 
         var optLevel = configuration.companySettings().level(levelNr);
         if (optLevel.isEmpty()) {
-            messageSender().sendError(player, "Invalid level");
+            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "Invalid level");
             return;
         }
 

@@ -14,6 +14,9 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -30,7 +33,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Accept(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("accept")
-                .addArgument("id", true)
+                .addArgument("words.id", true)
                 .build());
         this.companyData = companyData;
         this.orderData = orderData;
@@ -47,30 +50,30 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .whenComplete((optProfile, err) -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var companyMember = profile.member(player).get();
                     if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                        messageSender().sendError(player, "You are not allowed to accept orders.");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.permission.acceptOrder");
                         return;
                     }
 
                     var count = orderData.retrieveCompanyOrderCount(profile).join();
                     if (count >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxOrders()) {
-                        messageSender().sendError(player, "Maximum order limit reached.");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.orderLimit");
                         return;
                     }
 
                     var optOrder = orderData.retrieveOrderById(id).join();
                     if (optOrder.isEmpty()) {
-                        messageSender().sendError(player, "Unknown order");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unkownOrder");
                     }
 
                     var simpleOrder = optOrder.get();
                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messageSender().sendError(player, "This order is not claimable");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.orderNotClaimable");
                         return;
                     }
 
@@ -80,7 +83,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                         });
                         return;
                     }
-                    messageSender().sendError(player, "Order could not be claimed");
+                    messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.couldNotClaim");
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
@@ -88,7 +91,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        return TabCompleteUtil.completeMinInt(args.asString(0),0, localizer());
     }
 }

@@ -4,6 +4,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
@@ -20,8 +21,8 @@ public class Move extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Move(Plugin plugin, Configuration configuration, List list) {
         super(plugin, CommandMeta.builder("move")
-                .addArgument("source", true)
-                .addArgument("target", true)
+                .addArgument("words.source", true)
+                .addArgument("words.target", true)
                 .build());
         this.configuration = configuration;
         this.list = list;
@@ -30,11 +31,7 @@ public class Move extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments args) throws CommandException {
         var optLevel = configuration.companySettings().level(args.asInt(0));
-        if (optLevel.isEmpty()) {
-            messageSender().sendError(sender, "Invalid level");
-            return;
-        }
-
+        CommandAssertions.isTrue(optLevel.isPresent(), "error.invalidLevel");
         configuration.companySettings().moveLevel(args.asInt(0), args.asInt(1));
         configuration.save();
         list.sendList(sender);

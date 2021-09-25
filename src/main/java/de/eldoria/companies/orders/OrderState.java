@@ -1,6 +1,11 @@
 package de.eldoria.companies.orders;
 
-public enum OrderState {
+import net.kyori.adventure.translation.Translatable;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Locale;
+
+public enum OrderState implements Translatable {
     /**
      * The order is not claimed by any company
      */
@@ -31,5 +36,10 @@ public enum OrderState {
 
     public int stateId() {
         return stateId;
+    }
+
+    @Override
+    public @NotNull String translationKey() {
+        return "enums.orderState." + name().toLowerCase(Locale.ROOT);
     }
 }

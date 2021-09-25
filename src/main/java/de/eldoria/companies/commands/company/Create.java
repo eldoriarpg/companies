@@ -14,6 +14,8 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.localization.Replacement;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -41,7 +43,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Create(Plugin plugin, ACompanyData companyData, Economy economy, Configuration configuration) {
         super(plugin, CommandMeta.builder("create")
-                .addArgument("name", true)
+                .addArgument("words.name", true)
                 .withPermission(Permission.Company.CREATE)
                 .build());
         audiences = BukkitAudiences.create(plugin);
@@ -55,14 +57,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var name = registrations.get(player.getUniqueId());
 
         if (name == null) {
-            messageSender().sendError(player, "nothing to confirm");
+            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noConfirm");
             return;
         }
 
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendError(player, "This company name is already in use.");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyNameUsed");
                         return;
                     }
 
@@ -73,15 +75,17 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         return economy.withdrawPlayer(player, configuration.companySettings().foudingPrice()).type == EconomyResponse.ResponseType.SUCCESS;
                     }).whenComplete(result -> {
                         if (!result) {
-                            var fallbackCurr = economy.currencyNameSingular().isBlank() ? "money" : economy.currencyNameSingular();
+                            var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                             var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                            messageSender().sendError(player, "Not enough " + curr);
+                            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.insufficientCurrency",
+                                    Replacement.create("currency", curr),
+                                    Replacement.create("amount", configuration.companySettings().foudingPrice()));
                             return;
                         }
                         companyData.submitCompanyCreation(name)
                                 .asFuture()
                                 .thenApplyAsync(id -> companyData.submitMemberUpdate(CompanyMember.forCompanyId(id, player).addPermission(CompanyPermission.OWNER)));
-                        messageSender().sendMessage(player, "Company created.");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "company.create.created");
                     });
                 });
     }
@@ -95,10 +99,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         if ("deny".equalsIgnoreCase(arguments.asString(0))) {
             var name = registrations.remove(player.getUniqueId());
             if (name == null) {
-                messageSender().sendError(player, "Nothing to deny");
+                messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noDeny");
                 return;
             }
-            messageSender().sendMessage(player, "Canceled");
+            messageSender().sendLocalizedMessage(player, "words.canceled");
             return;
         }
 
@@ -108,17 +112,17 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendError(player, "This company name is already in use.");
+                        messageSender().send(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyNameUsed");
                         return;
                     }
 
-                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("Founding a company costs %AMOUNT%. Do you want to found a company with the name %NAME%",
+                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.create.create",
                                     Replacement.create("AMOUNT", String.format("<%s>%s<%s>",
                                             Colors.HEADING, economy.format(configuration.companySettings().foudingPrice()), Colors.NEUTRAL)),
                                     Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, name, Colors.NEUTRAL)))
                             .newLine()
-                            .text("<%s><click:run_command:/company create confirm><%s>[", Colors.ADD).localeCode("confirm").text("]</click>")
-                            .text("<%s><click:run_command:/company create deny><%s>[", Colors.REMOVE).localeCode("deny").text("]</click>");
+                            .text("<%s><click:run_command:/company create confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>")
+                            .text("<%s><click:run_command:/company create deny><%s>[", Colors.REMOVE).localeCode("words.deny").text("]</click>");
                     audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
                     registrations.put(player.getUniqueId(), name);
                 });

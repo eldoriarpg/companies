@@ -47,12 +47,14 @@ public class CompanyProfile extends SimpleCompany {
         var level = configuration.companySettings().level(level()).orElse(CompanyLevel.DEFAULT);
         var composer = MessageComposer.create()
                 .text("<%s>", Colors.HEADING).text(name()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Level").text(": <%s>%s - %s",
+                .text("<%s>", Colors.NAME).localeCode("words.level").text(": <%s>%s - %s",
                         Colors.VALUE, level.level(), level.levelName())
                 .newLine()
-                .text("<%s>", Colors.NAME).localeCode("Founded").text(": <%s>%s", Colors.VALUE, foundedString()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Leader").text(": <%s>%s", Colors.VALUE, owner().player().getName()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Member").text(": <%s>%s <click:run_command:/company member id %s><%s>[", Colors.VALUE, members().size(), id(), Colors.SHOW).localeCode("list").text("]</click>").newLine();
+                .text("<%s>", Colors.NAME).localeCode("words.founded").text(": <%s>%s", Colors.VALUE, foundedString()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("words.leader").text(": <%s>%s", Colors.VALUE, owner().player().getName()).newLine()
+                .text("<%s>", Colors.NAME).localeCode("words.member")
+                .text(": <%s>%s <click:run_command:/company member id %s><%s>[", Colors.VALUE, members().size(), id(), Colors.SHOW)
+                .localeCode("words.list").text("]</click>").newLine();
 
         return composer.build();
 

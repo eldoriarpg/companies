@@ -48,9 +48,9 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                 .thenAcceptAsync((future -> future
                         .whenComplete(orders -> {
                             messageBlocker.blockPlayer(player);
-                            var builder = MessageComposer.create().localeCode("Your orders").text(":").newLine();
+                            var builder = MessageComposer.create().localeCode("order.list.orders").text(":").newLine();
                             if (configuration.userSettings().maxOrders() > orders.size()) {
-                                builder.text("<click:suggest_command:/order create ><%s>[", Colors.ADD).localeCode("New Order").text("]</click>");
+                                builder.text("<click:suggest_command:/order create ><%s>[", Colors.ADD).localeCode("order.list.newOrder").text("]</click>");
                             }
                             for (var order : orders) {
                                 builder.newLine().text(order.userShortInfo(economy));

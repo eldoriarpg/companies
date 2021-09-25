@@ -12,6 +12,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -54,7 +56,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     var builder = MessageComposer.create()
                             .text("<%s>", Colors.HEADING).localeCode("Company orders")
                             .text(": <click:run_command:/company order search query><%s>[", Colors.SHOW)
-                            .localeCode("search").text("]</click>").newLine();
+                            .localeCode("words.search").text("]</click>").newLine();
                     for (var order : orders) {
                         builder.text(order.companyShortInfo(economy)).newLine();
                     }
@@ -74,15 +76,10 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrievePlayerCompany(player).asFuture()
                 .thenAcceptAsync(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     showOrders(company.get(), player);
                 });
-    }
-
-    @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Collections.emptyList();
     }
 }

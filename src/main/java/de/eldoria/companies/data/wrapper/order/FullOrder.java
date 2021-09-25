@@ -37,9 +37,9 @@ public class FullOrder extends SimpleOrder {
     public String userShortInfo(Economy economy) {
         return MessageComposer.create()
                 .text("<hover:show_text:'%s",userContent(economy)).newLine()
-                .localeCode("Price").text(": <%s>%s'>", VALUE, economy.format(price()))
+                .localeCode("words.price").text(": <%s>%s'>", VALUE, economy.format(price()))
                 .text(" <%s>%s | <%s>%s", NAME, id(), VALUE, name())
-                .text("</hover>").space().text("<click:run_command:/order info %s><%s>[", id(), ADD).localeCode("info").text("]</click>")
+                .text("</hover>").space().text("<click:run_command:/order info %s><%s>[", id(), ADD).localeCode("words.info").text("]</click>")
                 .build();
     }
 
@@ -48,22 +48,22 @@ public class FullOrder extends SimpleOrder {
                 .text("<hover:show_text:%s", companySimpleContent(economy, state())).newLine()
                 .localeCode("Price").text(": <%s>%s", VALUE, economy.format(price())).text(">")
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name())
-                .text("</hover>").space().text("<click:run_command:/company order info %s><%s>[", id(), ADD).localeCode("info").text("]</click>")
+                .text("</hover>").space().text("<click:run_command:/company order info %s><%s>[", id(), ADD).localeCode("words.info").text("]</click>")
                 .build();
     }
 
     public String userDetailInfo(Economy economy) {
         var composer = MessageComposer.create()
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
-                .text("<%s>", NAME).localeCode("State").text(": <%s>", VALUE, state().name().toLowerCase()).localeCode().newLine()
+                .text("<%s>", NAME).localeCode("words.status").text(": <%s>", VALUE, state().translationKey()).newLine()
                 .text(userContent(economy)).newLine()
                 .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, price()).newLine();
         switch (state()) {
             case UNCLAIMED:
-                composer.text("<click:run_command:/order cancel %s><%s>[", id(), REMOVE).localeCode("cancel").text("]</click>");
+                composer.text("<click:run_command:/order cancel %s><%s>[", id(), REMOVE).localeCode("words.cancel").text("]</click>");
                 break;
             case DELIVERED:
-                composer.text("<click:run_command:/order receive %s><%s>[", id(), ADD).localeCode("receive").text("]</click>");
+                composer.text("<click:run_command:/order receive %s><%s>[", id(), ADD).localeCode("words.receive").text("]</click>");
                 break;
             case RECEIVED:
             case CLAIMED:
@@ -75,20 +75,20 @@ public class FullOrder extends SimpleOrder {
     public String companyDetailInfo(CompanyMember member, Configuration configuration, Economy economy) {
         var composer = MessageComposer.create()
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
-                .text("<%s>", NAME).localeCode("State").text(": <%s>%s", VALUE, state().name().toLowerCase()).newLine()
+                .text("<%s>", NAME).localeCode("words.status").text(": <%s>%s", VALUE, state().translationKey()).newLine()
                 .text(companyActionContent(economy, state())).newLine()
                 .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, price()).newLine();
 
         switch (state()) {
             case UNCLAIMED:
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                    composer.text("<click:run_command:/company order accept %s><%s>[", id(), ADD).localeCode("accept").text("]</click>");
+                    composer.text("<click:run_command:/company order accept %s><%s>[", id(), ADD).localeCode("words.accept").text("]</click>");
                 }
                 break;
             case CLAIMED:
                 composer.localeCode("Left time ").text(runningOutTime(configuration)).newLine();
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                    composer.text("<click:run_command:/company order abort %s><%s>[", id(), REMOVE).localeCode("abort").text("]</click>");
+                    composer.text("<click:run_command:/company order abort %s><%s>[", id(), REMOVE).localeCode("words.abort").text("]</click>");
                 }
                 break;
             case DELIVERED:
@@ -116,12 +116,12 @@ public class FullOrder extends SimpleOrder {
 
                     var baseCommand = String.format("/company order deliver %s %s ", id(), content.stack().getType());
                     composer.text("<%s>", ADD)
-                            .text("<click:run_command:" + baseCommand + " 1>[1]</click>")
-                            .text("<click:run_command:" + baseCommand + " 8>[8]</click>")
-                            .text("<click:run_command:" + baseCommand + " 16>[32]</click>")
-                            .text("<click:run_command:" + baseCommand + " 64>[64]</click>")
-                            .text("<click:run_command:" + baseCommand + " max>[").localeCode("max").text("]</click>")
-                            .text("<click:suggest_command:" + baseCommand + " >[").localeCode("add").text("]</click>");
+                            .text("<click:run_command:%s 1>[1]</click>", baseCommand)
+                            .text("<click:run_command:%s 8>[8]</click>", baseCommand)
+                            .text("<click:run_command:%s 16>[32]</click>", baseCommand)
+                            .text("<click:run_command:%s 64>[64]</click>", baseCommand)
+                            .text("<click:run_command:%s max>[", baseCommand).localeCode("words.max").text("]</click>")
+                            .text("<click:suggest_command:%s >[", baseCommand).localeCode("words.add").text("]</click>");
                 } else {
                     composer.text("<%s>", VALUE).localeCode("Done");
                 }

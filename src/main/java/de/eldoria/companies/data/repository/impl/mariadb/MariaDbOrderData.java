@@ -42,16 +42,14 @@ public class MariaDbOrderData extends AOrderData {
                 .readRow(rs -> rs.getInt(1))
                 .firstSync().get();
 
+        var builder = builder();
         for (var content : order.contents()) {
-            builder()
-                    .query("INSERT INTO order_content(id, material, stack, amount, price) VALUES(?,?,?,?,?)")
+            builder.query("INSERT INTO order_content(id, material, stack, amount, price) VALUES(?,?,?,?,?)")
                     .paramsBuilder(stmt -> stmt.setInt(orderId).setString(content.stack().getType().name())
                             .setString(toString(content.stack())).setInt(content.amount()).setDouble(content.price()))
-                    .update()
-                    .executeSync();
+                    .append();
         }
-        builder()
-                .query("INSERT INTO order_states(id, state) VALUES(?, ?)")
+        builder.query("INSERT INTO order_states(id, state) VALUES(?, ?)")
                 .paramsBuilder(stmt -> stmt.setInt(orderId).setInt(OrderState.UNCLAIMED.stateId()))
                 .update()
                 .executeSync();

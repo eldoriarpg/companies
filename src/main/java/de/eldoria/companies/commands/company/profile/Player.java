@@ -9,6 +9,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -44,7 +46,7 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
                 .whenComplete((optCompany, err) -> {
                     messageBlocker.blockPlayer(player);
                     if (optCompany.isEmpty()) {
-                        messageSender().sendError(player, "This player is not part of a company");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noCompany");
                         return;
                     }
 

@@ -9,6 +9,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -49,7 +51,7 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
                     if (optComp.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
+                        messageSender().send(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unknownCompany");
                         return;
                     }
                     var optProfile = companyData.retrieveCompanyProfile(optComp.get()).asFuture().join();
@@ -63,10 +65,5 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
                     builder.prependLines(25);
                     audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                 });
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Collections.emptyList();
     }
 }

@@ -12,6 +12,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -34,7 +36,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Info(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("info")
-                .addArgument("id", true)
+                .addArgument("words.id", true)
                 .build());
         audiences = BukkitAudiences.create(plugin);
         miniMessage = MiniMessage.get();
@@ -52,24 +54,19 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var optOrder = orderData.retrieveOrderById(id).join();
                     if (optOrder.isEmpty() || optOrder.get().company() != profile.id()) {
-                        messageSender().sendError(player, "Order not found.");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unkownOrder.");
                         return;
                     }
                     var order = optOrder.get();
                     var fullOrder = orderData.retrieveFullOrder(order).join();
                     renderOrder(player, profile.member(player).get(), fullOrder);
                 });
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Collections.emptyList();
     }
 
     public void renderOrder(Player player, CompanyMember member, FullOrder order) {

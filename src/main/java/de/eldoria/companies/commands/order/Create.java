@@ -16,6 +16,9 @@ import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.localization.Replacement;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.ArgumentUtils;
@@ -90,8 +93,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void amount(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("amount", this)
-                .addArgument("material", true)
-                .addArgument("amount", true)
+                .addArgument("words.material", true)
+                .addArgument("words.amount", true)
                 .build();
         CommandAssertions.invalidArguments(subMeta, args);
         var amount = args.asInt(0);
@@ -104,7 +107,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void price(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("price", this)
-                .addArgument("material", true)
+                .addArgument("words.material", true)
                 .addArgument("words.price", true)
                 .build();
         CommandAssertions.invalidArguments(subMeta, args);
@@ -119,7 +122,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void name(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("name", this)
-                .addArgument("name", true)
+                .addArgument("words.name", true)
                 .build();
         CommandAssertions.invalidArguments(subMeta, args);
 
@@ -138,7 +141,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void remove(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("name", this)
-                .addArgument("material", true)
+                .addArgument("words.material", true)
                 .build();
         CommandAssertions.invalidArguments(subMeta, args);
 
@@ -151,21 +154,21 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void cancel(Player player) {
         builderCache.invalidate(player.getUniqueId());
-        player.sendMessage("Aborted");
+        player.sendMessage("words.aborted");
     }
 
     private void done(Player player) throws CommandException {
         var order = builderCache.getIfPresent(player.getUniqueId());
 
-        CommandAssertions.isFalse(order != null, "No order creation in progress");
-        CommandAssertions.isFalse(order.elements().isEmpty(), "Order is empty");
+        CommandAssertions.isFalse(order != null, "order.create.error.notActive");
+        CommandAssertions.isFalse(order.elements().isEmpty(), "order.create.error.empty");
 
         var price = order.price();
 
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
                     if (count >= Permission.Orders.getOrderOverride(player).orElse(configuration.userSettings().maxOrders())) {
-                        messageSender().sendError(player, "Order limit reached.");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "order.create.error.limitReached");
                         return;
                     }
                     CompletableBukkitFuture.supplyAsync(() -> {
@@ -178,12 +181,16 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         if (result) {
                             orderData.submitOrder(player, order.build()).whenComplete(v -> {
                                 messageBlocker.unblockPlayer(player).whenComplete((unused, err) -> {
-                                    messageSender().sendLocalizedMessage(player, "Created UwU");
+                                    messageSender().sendLocalizedMessage(player, "order.create.created");
                                     builderCache.invalidate(player.getUniqueId());
                                 });
                             });
                         } else {
-                            messageSender().sendLocalizedError(player, "Not enough money.");
+                            var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
+                            var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
+                            messageSender().sendLocalizedError(player, "error.insufficientCurrency",
+                                    Replacement.create("currency", curr),
+                                    Replacement.create("amount", economy.format(price)));
                         }
                     });
                 });
@@ -193,7 +200,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
                     if (count >= configuration.userSettings().maxOrders()) {
-                        messageSender().sendLocalizedError(player, "error.tooMuchOrders");
+                        messageSender().sendLocalizedError(player, "order.create.error.limitReached");
                         return;
                     }
                     var name = String.join(" ", args.asArray());
@@ -205,8 +212,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void add(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("name", this)
-                .addArgument("material", true)
-                .addArgument("amount", true)
+                .addArgument("words.material", true)
+                .addArgument("words.amount", true)
                 .addArgument("words.price", true)
                 .build();
         CommandAssertions.invalidArguments(subMeta, args);
@@ -217,11 +224,11 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var price = args.asDouble(2);
 
         if (builder.materialsAmount() >= configuration.orderSetting().maxMaterials()) {
-            messageSender().sendError(player, "Material limit reached");
+            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "order.create.error.materialLimit");
             return;
         }
         if (builder.amount() >= configuration.orderSetting().maxItems()) {
-            messageSender().sendError(player, "Item limit reached");
+            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "order.create.error.itemLimit");
             return;
         }
 

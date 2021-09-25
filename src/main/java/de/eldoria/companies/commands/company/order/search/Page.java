@@ -33,7 +33,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Page(Plugin plugin, Search search, Economy economy, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("page")
-                .addArgument("page", true)
+                .addArgument("words.page", true)
                 .build());
         this.search = search;
         audiences = BukkitAudiences.create(plugin);

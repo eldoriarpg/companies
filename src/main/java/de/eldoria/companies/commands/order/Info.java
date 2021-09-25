@@ -8,6 +8,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -56,7 +58,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                         audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                         return;
                     }
-                    messageSender().sendError(player, "Order not found.");
+                    messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unkownOrder");
                 });
     }
 }

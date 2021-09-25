@@ -11,6 +11,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -46,20 +48,20 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     if (profile.member(player).get().isOwner()) {
                         companyData.submitCompanyPurge(profile);
                         orderData.submitCompanyOrdersPurge(profile);
-                        messageSender().sendMessage(player, "The company was disbanded");
+                        messageSender().sendMessage(player, "company.leave.disbanded");
                         plugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(optProfile.get()));
                         return;
                     }
                     plugin().getServer().getPluginManager().callEvent(new CompanyLeaveEvent(optProfile.get(), player));
                     companyData.submitMemberUpdate(profile.member(player).get().kick());
-                    messageSender().sendMessage(player, "You left the company.");
+                    messageSender().sendLocalizedMessage(player, "company.leave.left");
                 });
     }
 
@@ -70,26 +72,26 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                 leave(player);
                 return;
             }
-            messageSender().sendError(player, "Nothing to confirm");
+            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noConfirm");
             return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     leaves.add(player.getUniqueId());
                     var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL);
                     if (profile.member(player).get().isOwner()) {
-                        composer.localeCode("If you leave the company it will be dissolved. Please confirm.");
+                        composer.localeCode("company.leave.confirmOwner");
                     } else {
-                        composer.localeCode("Please confirm that you want to leave the company.");
+                        composer.localeCode("company.leave.confirm");
                     }
-                    composer.text("<click:run_command:/company leave confirm><%s>[", Colors.REMOVE).localeCode("confirm").text("</click>");
-                    audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
+                    composer.text("<click:run_command:/company leave confirm><%s>[", Colors.REMOVE).localeCode("words.confirm").text("</click>");
+                    audiences.player(player).sendMessage(miniMessage.parse(composer.buildLocalized(localizer())));
                 });
     }
 

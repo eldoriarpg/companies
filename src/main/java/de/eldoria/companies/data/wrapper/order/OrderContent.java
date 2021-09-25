@@ -51,11 +51,11 @@ public class OrderContent {
     }
 
     public String asComponent(Economy economy) {
-        return prettyType() + " " + amount + "x " + economy.format(price);
+        return String.format("%s %sx %s", prettyType(), amount, economy.format(price));
     }
 
     public String asProgressComponent(Economy economy) {
-        return prettyType() + " " + delivered() + "/" + amount + " " + economy.format(price);
+        return String.format("%s %s/%s %s", prettyType(), delivered(), amount, economy.format(price));
     }
 
     private String prettyType() {

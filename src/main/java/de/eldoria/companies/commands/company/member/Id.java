@@ -9,6 +9,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -43,7 +45,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .thenAccept(optSimple -> {
                     if (optSimple.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
+                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unknownCompany");
                         return;
                     }
                     messageBlocker.blockPlayer(player);

@@ -1,10 +1,14 @@
 package de.eldoria.companies.permissions;
 
+import net.kyori.adventure.translation.Translatable;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public enum CompanyPermission {
+public enum CompanyPermission implements Translatable {
     OWNER(0),
     INVITE(1),
     KICK(2),
@@ -45,5 +49,10 @@ public enum CompanyPermission {
 
     public long mask() {
         return mask;
+    }
+
+    @Override
+    public @NotNull String translationKey() {
+        return "enums.companyPermission." +name().toLowerCase(Locale.ROOT);
     }
 }
