@@ -15,6 +15,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.milkbowl.vault.economy.Economy;
@@ -22,9 +24,9 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final Economy economy;
@@ -37,9 +39,9 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, Info info, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("deliver")
-                .addArgument("id", true)
-                .addArgument("material", true)
-                .addArgument("amount", true)
+                .addArgument("words.id", true)
+                .addArgument("words.material", true)
+                .addArgument("words.amount", true)
                 .build());
         this.orderData = orderData;
         this.economy = economy;
@@ -53,7 +55,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
         var optContent = order.content(material);
         if (optContent.isEmpty()) {
-            messageSender().sendError(player, "Invalid material");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidMaterial");
             return;
         }
 
@@ -75,15 +77,22 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
 
         orderData.submitDelivery(player, order, material, contained)
                 .asFuture()
-                .whenComplete((v, err) -> {
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+                .thenAccept((v) -> {
                     var refreshedOrder = orderData.retrieveFullOrder(order).join();
                     if (refreshedOrder.isDone()) {
-                        messageBlocker.unblockPlayer(player);
-                        orderDone(refreshedOrder, company);
+                        messageBlocker.unblockPlayer(player).thenRun(() -> orderDone(refreshedOrder, company));
                         return;
                     }
                     info.renderOrder(player, company.member(player).get(), refreshedOrder);
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     private void orderDone(FullOrder order, CompanyProfile profile) {
@@ -111,14 +120,18 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
                     if (optOrder.isEmpty()) {
-                        messageSender().sendError(player, "Order not found.");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
                         return;
                     }
                     orderData.retrieveFullOrder(optOrder.get())
@@ -126,11 +139,10 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                                 // This part has to be synced to the mainthread
                                 handleFullOrder(player, material, amount, company.get(), fullOrder);
                             });
-                });
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 }

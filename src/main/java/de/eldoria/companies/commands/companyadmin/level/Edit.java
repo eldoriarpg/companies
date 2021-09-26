@@ -4,8 +4,11 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -22,9 +25,9 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Edit(Plugin plugin, Configuration configuration, Info info) {
         super(plugin, CommandMeta.builder("edit")
-                .addArgument("level", true)
-                .addArgument("field", true)
-                .addArgument("value", true)
+                .addArgument("words.level", true)
+                .addArgument("words.field", true)
+                .addArgument("words.value", true)
                 .build()
         );
         this.configuration = configuration;
@@ -35,10 +38,7 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args) throws CommandException {
         var optLevel = configuration.companySettings().level(args.asInt(0));
-        if (optLevel.isEmpty()) {
-            messageSender().sendError(player, "Invalid level");
-            return;
-        }
+        CommandAssertions.isTrue(optLevel.isPresent(), "error.invalidLevel");
 
         var level = optLevel.get();
 
@@ -65,7 +65,7 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
                 level.settings().maxOrders(args.asInt(2));
                 break;
             default:
-                messageSender().sendError(player, "Unkown field");
+                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.unkownField");
                 return;
         }
         configuration.save();

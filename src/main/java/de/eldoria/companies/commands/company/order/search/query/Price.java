@@ -21,7 +21,7 @@ public class Price extends AdvancedCommand implements IPlayerTabExecutor {
     public Price(Plugin plugin, Query query) {
         super(plugin, CommandMeta.builder("min_price")
                 .addAlias("max_price")
-                .addArgument("price", true)
+                .addArgument("words.price", true)
                 .build());
         this.query = query;
     }
@@ -38,7 +38,7 @@ public class Price extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         if (arguments.asString(0).isEmpty()) {
-            return Collections.singletonList("price");
+            return Collections.singletonList(localizer().localize("words.price"));
         }
         return TabCompleteUtil.completeMinDouble(arguments.asString(0), 1.0, localizer());
     }

@@ -17,8 +17,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class ExpiringService implements Runnable, Listener {
     private final MiniMessage miniMessage;
@@ -62,9 +64,9 @@ public class ExpiringService implements Runnable, Listener {
 
     private void reportOrderExpiring(Player player, List<SimpleOrder> orders) {
         var composer = MessageComposer.create()
-                .localeCode("Following Orders are about to expire").newLine();
+                .localeCode("expiring.notice").newLine();
         for (var order : orders) {
-            composer.localeCode("Order %name% is running out in %duration%",
+            composer.localeCode("expiring.element",
                             Replacement.create("name", order.fullName()), Replacement.create("duration", order.runningOutTime(configuration)))
                     .text("<click:run_command:/company order info %s>[", order.id()).localeCode("info").text("]</click>")
                     .newLine();
@@ -79,6 +81,10 @@ public class ExpiringService implements Runnable, Listener {
         for (var order : expired) {
             orderData.submitUnclaimOrder(order);
             var profile = companyData.retrieveCompanyById(order.company()).asFuture()
+                    .exceptionally(err -> {
+                        plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
+                        return Optional.empty();
+                    })
                     .thenApply(r -> r.map(p -> companyData.retrieveCompanyProfile(p).join().orElse(null))).join();
             if (profile.isEmpty()) continue;
             plugin.getServer().getPluginManager().callEvent(new OrderExpiredEvent(order, profile.get()));

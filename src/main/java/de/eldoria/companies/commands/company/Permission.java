@@ -13,6 +13,9 @@ import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.localization.Replacement;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -47,18 +50,18 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
                     if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                        messageSender().sendError(player, "Missing permission");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.permission.managePermissions");
                         return;
                     }
                     var companyMember = profile.memberByName(memberName);
                     if (companyMember.isEmpty()) {
-                        messageSender().sendMessage(player, "Unkown member");
+                        messageSender().sendLocalizedMessage(player, "error.invalidMember");
                         return;
                     }
                     renderPermissionInterface(player, companyMember.get());
@@ -73,15 +76,15 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
             var permCmd = "/company permission " + member.player().getName();
             var builder = MessageComposer.create();
             if (member.hasPermission(permission)) {
-                builder.text("<click:run_command:%s remove %s><%s>", permCmd, permission.name(), Colors.REMOVE).text("</click>").build();
+                builder.text("<click:run_command:%s remove %s><u><%s>[$%s$]</u></click>", permCmd, permission.name(), Colors.ADD, permission.translationKey()).build();
             } else {
-                builder.text("<click:run_command:%s give %s><red>", permCmd, permission.name(), Colors.ADD).text("</click>").build();
+                builder.text("<click:run_command:%s give %s><u><%s>[$%s$]</u></click>", permCmd, permission.name(), Colors.REMOVE, permission.translationKey()).build();
             }
             permissions.add(builder.build());
         }
 
         var composer = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).localeCode("Permissions of").text("<%s> %s:", Colors.VALUE, member.player().getName()).newLine()
+                .text("<%s>", Colors.HEADING).localeCode("company.permission.permissions").text("<%s> %s:", Colors.VALUE, member.player().getName()).newLine()
                 .text(permissions, " ");
         if (messageBlocker.isBlocked(player)) {
             composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>").build();
@@ -100,37 +103,38 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
         CommandAssertions.invalidArguments(meta(), arguments,
-                Argument.input("member", true),
+                Argument.input("words.member", true),
                 Argument.unlocalizedInput("add|remove", true),
-                Argument.input("permission", true));
+                Argument.input("words.permission", true));
 
         var memberName = arguments.asString(0);
         var method = arguments.asString(1);
         if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
-            messageSender().sendError(player, "Invalid action. Use ADD or REMOVE");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.invalidAction",
+                    Replacement.create("first", "GIVE").addFormatting('4'), Replacement.create("second", "REMOVE").addFormatting('c'));
             return;
         }
         var permission = arguments.asEnum(2, CompanyPermission.class);
         if (permission == CompanyPermission.OWNER) {
-            messageSender().sendError(player, "Owner permission is not allowed");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.ownerPermission");
             return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
                     if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
-                        messageSender().sendError(player, "Missing permission");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.permission.givePermissions");
                         return;
                     }
                     var optTarget = profile.memberByName(memberName);
                     if (optTarget.isEmpty()) {
-                        messageSender().sendError(player, "Unkown member");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.invalidMember");
                         return;
                     }
 

@@ -23,21 +23,18 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final Info info;
 
     public Create(Plugin plugin, Configuration configuration, Info info) {
-        super(plugin, CommandMeta.builder("create").addArgument("index", false).build());
+        super(plugin, CommandMeta.builder("create")
+                .addArgument("words.index", false)
+                .build());
         this.configuration = configuration;
         this.info = info;
     }
 
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        var position = ArgumentUtils.getOptionalParameter(arguments.asArray(), 0, Optional.of(Integer.MAX_VALUE), Parser::parseInt);
+        var position = arguments.asInt(0, Integer.MAX_VALUE);
 
-        if (position.isEmpty()) {
-            messageSender().sendError(player, "Invalid number");
-            return;
-        }
-
-        var level = configuration.companySettings().createLevel(position.get());
+        var level = configuration.companySettings().createLevel(position);
         configuration.save();
         info.show(player, level);
     }

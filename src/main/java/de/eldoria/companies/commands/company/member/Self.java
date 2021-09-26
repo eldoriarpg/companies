@@ -10,6 +10,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -20,6 +22,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class Self extends AdvancedCommand implements IPlayerTabExecutor {
@@ -40,13 +44,18 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((optProfile, err) -> {
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendMessage(player, "You are not part of a company.");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR,
+                                MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     messageBlocker.blockPlayer(player);
-                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("Company Members").text(":").newLine();
+                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.member.members").text(":").newLine();
 
                     List<String> members = new ArrayList<>();
                     var self = optProfile.get().member(player).get();
@@ -62,13 +71,13 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                             var permissions = member.permissions().stream()
                                     .map(perm -> "  " + perm.name().toLowerCase(Locale.ROOT))
                                     .collect(Collectors.toList());
-                            hover.newLine().text("<%s>", Colors.HEADING).localeCode("Permissions").text(":").newLine()
+                            hover.newLine().text("<%s>", Colors.HEADING).localeCode("words.permissions").text(":").newLine()
                                     .text("<%s>", Colors.ACTIVE).text(permissions, ", ");
                         }
                         var nameComp = MessageComposer.create().text("<hover:show_text:'%s'>%s</hover>", hover.build(), mem.getName());
 
                         if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                            nameComp = nameComp.space().text("<click:run_command:/company permission %s><%s>[", mem.getName(), Colors.MODIFY).localeCode("Permissions").text("]</click>");
+                            nameComp = nameComp.space().text("<click:run_command:/company permission %s><%s>[", mem.getName(), Colors.MODIFY).localeCode("words.permissions").text("]</click>");
                         }
                         members.add(nameComp.build());
                     }
@@ -79,7 +88,11 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
                     audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     @Override

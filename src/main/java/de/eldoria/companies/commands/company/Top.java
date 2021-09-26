@@ -29,8 +29,8 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Top(Plugin plugin, ACompanyData companyData, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("top")
-                .addArgument("page", false)
-                .addArgument("order", false)
+                .addArgument("words.page", false)
+                .addArgument("words.ordering", false)
                 .build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
@@ -45,7 +45,7 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void sendPage(Player player, int page, TopOrder order, List<CompanyRank> ranks) {
         messageBlocker.blockPlayer(player);
-        var composer = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("Company Ranking").newLine()
+        var composer = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.top.ranking").newLine()
                 .text("<%s>", Colors.NAME).localeCode("Order: ");
         for (var value : TopOrder.values()) {
             composer.text("<click:run_command:/company top %s %s><%s>[", page, value.name(), Colors.active(order == value)).localeCode(value.name()).text("]</click>");
@@ -59,7 +59,7 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
         } else {
             composer.text("<%s>%s", Colors.INACTIVE, Texts.LEFT_ARROW);
         }
-        composer.localeCode("Page").text(" <aqua>%s ", page);
+        composer.localeCode("words.page").text(" <aqua>%s ", page);
 
         if (ranks.size() < PAGE_SIZE) {
             composer.text("<%s>%s", Colors.INACTIVE, Texts.RIGHT_ARROW);

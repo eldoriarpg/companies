@@ -2,6 +2,7 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
@@ -13,6 +14,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -22,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -36,7 +40,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData, List list) {
         super(plugin, CommandMeta.builder("abort")
-                .addArgument("id", true)
+                .addArgument("words.id", true)
                 .build());
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
@@ -55,85 +59,83 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((optCompany, err) -> {
-                    if (err != null) {
-                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                        return;
-                    }
-                    if (optCompany.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company.");
-                        return;
-                    }
-
-                    var company = optCompany.get();
-
-                    var optOrder = orderData.retrieveOrderById(id).join();
-                    if (optOrder.isEmpty()) {
-                        messageSender().sendError(player, "Unkown order");
-                        return;
-                    }
-                    var order = optOrder.get();
-
-                    if (order.company() != company.id()) {
-                        messageSender().sendError(player, "This order is not owned by your company");
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept((optCompany) -> {
+                    var order = checkOrder(optCompany, player, id);
+                    if (order.isEmpty()) {
                         return;
                     }
 
-                    if (!company.member(player).get().hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                        messageSender().sendError(player, "You are not allowed to cancel orders.");
-                        return;
-                    }
-
-                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("Please confirm the deletion. All already delivered items will be lost.")
-                            .text("<click:run_command:/company order abort confirm><%s>[", Colors.REMOVE).localeCode("confirm").text("]</click>");
-                    cancel.put(player.getUniqueId(), order);
+                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.order.abort.confirm")
+                            .text("<click:run_command:/company order abort confirm><%s>[", Colors.REMOVE).localeCode("words.confirm").text("]</click>");
+                    cancel.put(player.getUniqueId(), order.get());
                     audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     private boolean confirm(@NotNull Player player) {
         var remove = cancel.remove(player.getUniqueId());
         if (remove == null) {
-            messageSender().sendError(player, "Nothing to confirm");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noConfirm");
             return true;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((optProfile, err) -> {
-                    if (err != null) {
-                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                        return;
-                    }
-
-                    if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a Company");
-                        return;
-                    }
-                    var profile = optProfile.get();
-                    if (!profile.member(player).get().hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
-                        messageSender().sendError(player, "You don't have the permission.");
-                        return;
-                    }
-
-                    var optOrder = orderData.retrieveOrderById(remove.id()).join();
-                    if (optOrder.isEmpty()) {
-                        messageSender().sendError(player, "This order does not exist");
-                        return;
-                    }
-
-                    var order = optOrder.get();
-                    if (order.company() != profile.id()) {
-                        messageSender().sendError(player, "This order does not belong to your company.");
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optCompany -> {
+                    var id = remove.id();
+                    if (checkOrder(optCompany, player, id).isEmpty()) {
                         return;
                     }
 
                     orderData.submitUnclaimOrder(remove).join();
 
                     list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
-                            plugin().getServer().getPluginManager().callEvent(new OrderCanceledEvent(remove, profile)));
-                });
+                            plugin().getServer().getPluginManager().callEvent(new OrderCanceledEvent(remove, optCompany.get())));
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
         return false;
+    }
+
+    private Optional<SimpleOrder> checkOrder(Optional<CompanyProfile> optCompany, Player player, int id) {
+        if (optCompany.isEmpty()) {
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+            return Optional.empty();
+        }
+
+        var company = optCompany.get();
+
+        var optOrder = orderData.retrieveOrderById(id).join();
+        if (optOrder.isEmpty()) {
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+            return Optional.empty();
+        }
+
+        var order = optOrder.get();
+        if (order.company() != company.id()) {
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.orderNotOwned");
+            return Optional.empty();
+        }
+
+        if (!company.member(player).get().hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.cancelOrder");
+            return Optional.empty();
+        }
+        return optOrder;
     }
 
     @Override

@@ -1,6 +1,11 @@
 package de.eldoria.companies.commands.company;
 
-public enum TopOrder {
+import net.kyori.adventure.translation.Translatable;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Locale;
+
+public enum TopOrder implements Translatable {
     ORDERS("order_count DESC"),
     EARNED("price DESC"),
     MEMBER("member_count DESC"),
@@ -14,5 +19,10 @@ public enum TopOrder {
 
     public String orderColumn() {
         return orderColumn;
+    }
+
+    @Override
+    public @NotNull String translationKey() {
+        return "enums.topOrder" + name().toLowerCase(Locale.ROOT);
     }
 }

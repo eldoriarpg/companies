@@ -9,6 +9,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -18,6 +20,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Player extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
@@ -41,12 +45,16 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(target)
                 .asFuture()
-                .whenComplete((optCompany, err) -> {
-                    messageBlocker.blockPlayer(player);
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optCompany -> {
                     if (optCompany.isEmpty()) {
-                        messageSender().sendError(player, "This player is not part of a company");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noCompany");
                         return;
                     }
+                    messageBlocker.blockPlayer(player);
 
                     var companyProfile = optCompany.get();
                     var builder = MessageComposer.create().text(companyProfile.asExternalProfileComponent(configuration));

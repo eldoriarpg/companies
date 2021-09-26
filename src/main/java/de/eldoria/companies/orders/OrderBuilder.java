@@ -25,7 +25,6 @@ import static de.eldoria.companies.util.Colors.REMOVE;
 import static de.eldoria.companies.util.Colors.VALUE;
 
 public class OrderBuilder {
-    private static final MiniMessage MINI_MESSAGE = MiniMessage.get();
     private final SimpleOrder order;
     private final List<OrderContent> elements = new ArrayList<>();
 
@@ -84,28 +83,29 @@ public class OrderBuilder {
     public String asComponent(OrderSettings setting, Economy economy, AOrderData orderData) {
         var cmd = "/order create";
         var composer = MessageComposer.create()
-                .text("<%s>%s <click:suggest_command:/order create name ><%s>[", NAME, name(), MODIFY).localeCode("change").text("]</click>").newLine()
-                .text("<%s>", NAME).localeCode("Items").text(": ");
+                .text("<%s>%s <click:suggest_command:/order create name ><%s>[", NAME, name(), MODIFY).localeCode("words.change").text("]</click>").newLine()
+                .text("<%s>", NAME).localeCode("words.items").text(": ");
 
         if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
-            composer.space().text("<click:suggest_command:%s add ><%s>[", cmd, ADD).localeCode("add").text("]</click>");
+            composer.space().text("<click:suggest_command:%s add ><%s>[", cmd, ADD).localeCode("words.add").text("]</click>");
         }
 
         for (var element : elements) {
             var materialPrice = orderData.getMaterialPrice(element.materialString()).orElse(new MaterialPrice(element.materialString()));
-            composer.newLine()
-                    .text("<hover:show_text:%s>%s</hover>", materialPrice.asComponent(economy), element.asComponent(economy))
+            composer.newLine().space(2)
+                    .text("<%s><hover:show_text:'%s'>%s</hover>", VALUE, materialPrice.asComponent(economy), element.asComponent(economy))
+                    .space()
                     .text("<click:run_command:%s remove %s><%s>[", cmd, element.materialString(), REMOVE)
-                    .localeCode("remove")
-                    .text("] <click:suggest_command:%s price %s ><%s><%s>[", cmd, element.materialString(), MODIFY).localeCode("price")
-                    .text("]</click> <click:suggest_command:%s amount %s ><%s>[", cmd, element.materialString(), MODIFY).localeCode("amount").text("]</click>");
+                    .localeCode("words.remove")
+                    .text("]</click> <click:suggest_command:%s price %s ><%s>[", cmd, element.materialString(), MODIFY).localeCode("words.price")
+                    .text("]</click> <click:suggest_command:%s amount %s ><%s>[", cmd, element.materialString(), MODIFY).localeCode("words.amount").text("]</click>");
         }
         composer.newLine()
-                .text("<%s>", NAME).localeCode("Materials").text(": <%s>%s/%s", VALUE, materialsAmount(), setting.maxMaterials()).newLine()
-                .text("<%s>", NAME).localeCode("Items").text(": <%s>%s/%s", VALUE, amount(), setting.maxItems()).newLine()
-                .text("<%s>", NAME).localeCode("Price").text(": <%s>%s", VALUE, economy.format(price())).newLine()
-                .text("<click:run_command:%s done><%s>[", cmd, ADD).localeCode("done").text("]</click>").space()
-                .text("<click:run_command:%s cancel><%s>[", cmd, REMOVE).localeCode("cancel").text("]</click>");
+                .text("<%s>", NAME).localeCode("words.materials").text(": <%s>%s/%s", VALUE, materialsAmount(), setting.maxMaterials()).newLine()
+                .text("<%s>", NAME).localeCode("words.items").text(": <%s>%s/%s", VALUE, amount(), setting.maxItems()).newLine()
+                .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, economy.format(price())).newLine()
+                .text("<click:run_command:%s done><%s>[", cmd, ADD).localeCode("words.done").text("]</click>").space()
+                .text("<click:run_command:%s cancel><%s>[", cmd, REMOVE).localeCode("words.cancel").text("]</click>");
         return composer.build();
     }
 
@@ -114,10 +114,10 @@ public class OrderBuilder {
     }
 
     public void changeContentAmount(Material material, int amount) {
-        elements().stream().filter(m -> m.material() == material).findAny().ifPresent(m -> m.amount(amount));
+        elements().stream().filter(mat -> mat.material() == material).findAny().ifPresent(mat -> mat.amount(amount));
     }
 
     public void changeContentPrice(Material material, double price) {
-        elements().stream().filter(m -> m.material() == material).findAny().ifPresent(m -> m.price(price));
+        elements().stream().filter(mat -> mat.material() == material).findAny().ifPresent(mat -> mat.price(price));
     }
 }

@@ -4,6 +4,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
@@ -19,7 +20,7 @@ public class Remove extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Remove(Plugin plugin, Configuration configuration, List list) {
         super(plugin, CommandMeta.builder("remove")
-                .addArgument("level", true)
+                .addArgument("words.level", true)
                 .build());
         this.configuration = configuration;
         this.list = list;
@@ -29,10 +30,7 @@ public class Remove extends AdvancedCommand implements IPlayerTabExecutor {
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
         var level = args.asInt(0);
         var success = configuration.companySettings().deleteLevel(level);
-        if (!success) {
-            messageSender().sendError(player, "Level does not exist.");
-            return;
-        }
+        CommandAssertions.isTrue(success, "error.invalidLevel");
         configuration.save();
         list.sendList(player);
     }

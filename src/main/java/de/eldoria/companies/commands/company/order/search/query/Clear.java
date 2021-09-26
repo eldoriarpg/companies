@@ -9,9 +9,6 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class Clear extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
@@ -24,10 +21,5 @@ public class Clear extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         query.reset(player);
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
     }
 }

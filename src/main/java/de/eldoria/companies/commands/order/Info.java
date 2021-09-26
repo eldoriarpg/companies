@@ -8,6 +8,8 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -15,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.logging.Level;
 
 public class Info extends AdvancedCommand implements IPlayerTabExecutor {
@@ -39,11 +42,11 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
 
         orderData.retrieveOrderById(id)
                 .asFuture()
-                .whenComplete((order, err) -> {
-                    if (err != null) {
-                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                        return;
-                    }
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept((order) -> {
                     if (order.isPresent()) {
                         messageBlocker.blockPlayer(player);
                         var fullOrder = orderData.retrieveFullOrder(order.get()).join();
@@ -56,7 +59,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                         audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                         return;
                     }
-                    messageSender().sendError(player, "Order not found.");
+                    messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.unkownOrder");
                 });
     }
 }

@@ -61,11 +61,11 @@ public class CompanyStats {
     public String asComponent() {
         return MessageComposer.create()
                 .text("<%s>", Colors.HEADING).text(name).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Founded").text(": <%s>%s ", Colors.VALUE, FORMATTER.format(founded)).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Member").text(": <%s>%s", Colors.VALUE, memberCount).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Orders").text(": <%s>%s", Colors.VALUE, orderCount).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Earned Money").text(": <%s>%s", Colors.VALUE, price).newLine()
-                .text("<%s>", Colors.NAME).localeCode("Delivered Items").text(": <%s>%s", Colors.VALUE, deliveredItems)
+                .text("<%s>", Colors.NAME).localeCode("words.founded").text(": <%s>%s ", Colors.VALUE, FORMATTER.format(founded)).newLine()
+                .text("<%s>", Colors.NAME).localeCode("words.member").text(": <%s>%s", Colors.VALUE, memberCount).newLine()
+                .text("<%s>", Colors.NAME).localeCode("words.orders").text(": <%s>%s", Colors.VALUE, orderCount).newLine()
+                .text("<%s>", Colors.NAME).localeCode("level.earnedMoney").text(": <%s>%s", Colors.VALUE, price).newLine()
+                .text("<%s>", Colors.NAME).localeCode("level.deliveredItems").text(": <%s>%s", Colors.VALUE, deliveredItems)
                 .build();
     }
 }

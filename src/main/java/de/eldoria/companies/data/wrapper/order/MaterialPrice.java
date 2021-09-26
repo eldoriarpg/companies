@@ -41,9 +41,9 @@ public class MaterialPrice {
 
     public String asComponent(Economy economy) {
         return MessageComposer.create()
-                .text("<yellow>").localeCode("Avg").text(": %s", economy.format(avgPrice)).newLine()
-                .text("<green>").localeCode("Min").text(": %s", economy.format(minPrice)).newLine()
-                .text("<red>").localeCode("Max").text(": %s", economy.format(maxPrice))
+                .text("<yellow>").localeCode("words.avg").text(": %s", economy.format(avgPrice)).newLine()
+                .text("<green>").localeCode("words.min").text(": %s", economy.format(minPrice)).newLine()
+                .text("<red>").localeCode("words.max").text(": %s", economy.format(maxPrice))
                 .build();
     }
 }

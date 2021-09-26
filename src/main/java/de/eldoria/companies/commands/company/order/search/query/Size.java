@@ -21,7 +21,7 @@ public class Size extends AdvancedCommand implements IPlayerTabExecutor {
     public Size(Plugin plugin, Query query) {
         super(plugin, CommandMeta.builder("min_size")
                 .addAlias("max_size")
-                .addArgument("size", true)
+                .addArgument("words.size", true)
                 .build());
         this.query = query;
     }
@@ -38,7 +38,7 @@ public class Size extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         if (arguments.asString(0).isEmpty()) {
-            return Collections.singletonList("size");
+            return Collections.singletonList(localizer().localize("words.size"));
         }
         return TabCompleteUtil.completeMinInt(arguments.asString(0), 1, localizer());
     }

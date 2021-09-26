@@ -12,16 +12,17 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
@@ -34,7 +35,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Info(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("info")
-                .addArgument("id", true)
+                .addArgument("words.id", true)
                 .build());
         audiences = BukkitAudiences.create(plugin);
         miniMessage = MiniMessage.get();
@@ -50,26 +51,29 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         var id = arguments.asInt(0);
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendError(player, "You are not part of a company");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var optOrder = orderData.retrieveOrderById(id).join();
                     if (optOrder.isEmpty() || optOrder.get().company() != profile.id()) {
-                        messageSender().sendError(player, "Order not found.");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder.");
                         return;
                     }
                     var order = optOrder.get();
                     var fullOrder = orderData.retrieveFullOrder(order).join();
                     renderOrder(player, profile.member(player).get(), fullOrder);
-                });
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Collections.emptyList();
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     public void renderOrder(Player player, CompanyMember member, FullOrder order) {

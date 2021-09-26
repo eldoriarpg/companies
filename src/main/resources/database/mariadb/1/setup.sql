@@ -4,7 +4,7 @@ CREATE OR REPLACE TABLE companies
     name    TEXT                                  NOT NULL,
     founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
     level   INT       DEFAULT 1                   NOT NULL,
-        CONSTRAINT companies_id_uindex
+    CONSTRAINT companies_id_uindex
         UNIQUE (id),
     CONSTRAINT companies_name_uindex
         UNIQUE (name) USING HASH
@@ -92,7 +92,7 @@ CREATE OR REPLACE INDEX notification_user_uuid_index
 
 CREATE OR REPLACE TABLE company_stats
 (
-    id             INT           NOT NULL
+    id            INT           NOT NULL
         PRIMARY KEY,
     failed_orders INT DEFAULT 0 NOT NULL,
     CONSTRAINT company_stats_companies_id_fk
@@ -129,12 +129,12 @@ FROM companies c
                     FROM company_member
                     GROUP BY id) m ON c.id = m.id;
 
-create table material_price
+CREATE TABLE material_price
 (
-    material VARCHAR(255) not null,
-    avg_price DOUBLE not null,
-    min_price DOUBLE not null,
-    max_price DOUBLE not null,
-    constraint material_price_pk
-        primary key (material)
+    material  VARCHAR(255) NOT NULL,
+    avg_price DOUBLE       NOT NULL,
+    min_price DOUBLE       NOT NULL,
+    max_price DOUBLE       NOT NULL,
+    CONSTRAINT material_price_pk
+        PRIMARY KEY (material)
 );

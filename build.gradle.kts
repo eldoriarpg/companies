@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation("de.eldoria", "eldo-util", "1.10.1r-SNAPSHOT")
+    implementation("de.eldoria", "eldo-util", "1.10.2b-SNAPSHOT")
     implementation("de.chojo", "sql-util", "1.1.4-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
@@ -27,8 +27,8 @@ dependencies {
     }
 
     // text
-    implementation("net.kyori", "adventure-api", "4.8.1")
-    implementation("net.kyori", "adventure-platform-bukkit", "4.0.0-SNAPSHOT")
+    implementation("net.kyori", "adventure-api", "4.9.1")
+    implementation("net.kyori", "adventure-platform-bukkit", "4.0.0")
     implementation("net.kyori", "adventure-text-minimessage", "4.1.0-SNAPSHOT")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.7.0")
@@ -101,6 +101,7 @@ tasks {
 
     shadowJar {
         //relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
+        relocate("net.kyori", shadebase + "kyori")
         //relocate("de.chojo.sqlutil", shadebase + "sqlutil")
         mergeServiceFiles()
         minimize()

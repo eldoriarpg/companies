@@ -4,11 +4,15 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyKickEvent;
 import de.eldoria.companies.permissions.CompanyPermission;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.localization.Replacement;
+import de.eldoria.eldoutilities.messages.MessageChannel;
+import de.eldoria.eldoutilities.messages.MessageType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -31,34 +35,35 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void handleProfile(@NotNull CommandSender sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
         if (optProfile.isEmpty()) {
-            messageSender().sendError(sender, "You are not part of a guild");
+            messageSender().send(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.noMember");
             return;
         }
         var profile = optProfile.get();
 
         if (!profile.member(player).map(r -> r.hasPermissions(CompanyPermission.KICK)).orElse(false)) {
-            messageSender().sendError(sender, "You are not allowed to kick users");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.permission.kick");
             return;
         }
 
         var optMember = profile.memberByName(arg);
 
         if (optMember.isEmpty()) {
-            messageSender().sendError(sender, "Not part of the company");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.noCompanyMember");
             return;
         }
 
-        var member = optMember.get();
+        var target = optMember.get();
 
-        if (member.hasPermission(CompanyPermission.KICK)) {
-            messageSender().sendError(sender, "You can not kick this user.");
+        if (target.hasPermission(CompanyPermission.KICK)) {
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.cantKick");
             return;
         }
 
-        companyData.submitMemberUpdate(member.kick());
-        messageSender().sendMessage(sender, "You kicked " + member.player().getName());
+        companyData.submitMemberUpdate(target.kick());
+        messageSender().sendLocalizedMessage(sender, "company.kick.kicked",
+                Replacement.create("name", target.player().getName()).addFormatting('c'));
 
-        plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(optProfile.get(), member.player()));
+        plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(optProfile.get(), target.player()));
     }
 
     @Override

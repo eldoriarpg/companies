@@ -36,9 +36,4 @@ public class Execute extends AdvancedCommand implements IPlayerTabExecutor {
                     search.page().renderPage(player, 0);
                 });
     }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
-    }
 }

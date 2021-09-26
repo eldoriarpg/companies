@@ -33,7 +33,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Page(Plugin plugin, Search search, Economy economy, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("page")
-                .addArgument("page", true)
+                .addArgument("words.page", true)
                 .build());
         this.search = search;
         audiences = BukkitAudiences.create(plugin);
@@ -47,7 +47,10 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         var fullOrders = search.results().get(player.getUniqueId());
 
         var builder = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).localeCode("Results").text(": <%s>%s", Colors.VALUE, fullOrders.size()).newLine();
+                .text("<%s>", Colors.HEADING).localeCode("words.results").text(": <%s>%s", Colors.VALUE, fullOrders.size())
+                .space()
+                .text("<click:run_command:/company order search query render><%s>[", Colors.MODIFY).localeCode("words.change").text("]</click>")
+                .newLine();
 
         var pageList = page(fullOrders, page);
         var components = new ArrayList<String>();
@@ -62,7 +65,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             builder.text(" <%s>%s ", Colors.INACTIVE, Texts.LEFT_ARROW);
         }
 
-        var pageString = String.format("<%s>%s/%s", page + 1, Colors.HEADING, fullOrders.size() / PAGE_SIZE + 1);
+        var pageString = String.format("<%s>%s/%s", Colors.HEADING, page + 1, fullOrders.size() / PAGE_SIZE + 1);
         builder.text(pageString);
 
         if (!page(fullOrders, page + 1).isEmpty()) {

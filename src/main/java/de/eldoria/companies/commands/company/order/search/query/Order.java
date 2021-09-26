@@ -19,7 +19,7 @@ public class Order extends AdvancedCommand implements IPlayerTabExecutor {
 
     public Order(Plugin plugin, Query query) {
         super(plugin, CommandMeta.builder("order")
-                .addArgument("asc|desc", true)
+                .addUnlocalizedArgument("asc|desc", true)
                 .build());
         this.query = query;
     }
