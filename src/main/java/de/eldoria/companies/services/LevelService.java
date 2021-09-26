@@ -12,6 +12,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Optional;
+import java.util.logging.Level;
+
 public class LevelService implements Listener {
     private final Plugin plugin;
     private final Configuration configuration;
@@ -27,6 +30,10 @@ public class LevelService implements Listener {
     public void onOrderCanceled(OrderCanceledEvent event) {
         companyData.submitFailedOrder(event.company(), configuration.companySettings().abortedOrderPenalty())
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
                 .thenRun(() -> updateCompanyLevel(event.company()));
     }
 
@@ -34,6 +41,10 @@ public class LevelService implements Listener {
     public void onOrderExpired(OrderExpiredEvent event) {
         companyData.submitFailedOrder(event.company(), configuration.companySettings().expiredOrderPenalty())
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
                 .thenRun(() -> updateCompanyLevel(event.company()));
     }
 

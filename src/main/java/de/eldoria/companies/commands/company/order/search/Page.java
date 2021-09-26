@@ -62,7 +62,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             builder.text(" <%s>%s ", Colors.INACTIVE, Texts.LEFT_ARROW);
         }
 
-        var pageString = String.format("<%s>%s/%s", page + 1, Colors.HEADING, fullOrders.size() / PAGE_SIZE + 1);
+        var pageString = String.format("<%s>%s/%s", Colors.HEADING, page + 1, fullOrders.size() / PAGE_SIZE + 1);
         builder.text(pageString);
 
         if (!page(fullOrders, page + 1).isEmpty()) {

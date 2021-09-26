@@ -26,6 +26,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();
@@ -48,15 +50,23 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((optProfile, err) -> {
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept((optProfile) -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
 
                     var orders = orderData.retrieveOrdersByCompany(optProfile.get(), OrderState.CLAIMED, OrderState.CLAIMED).join();
                     sendProfile(player, optProfile.get(), orders);
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
 
     }
 

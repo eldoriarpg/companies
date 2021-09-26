@@ -19,6 +19,9 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
+import java.util.logging.Level;
+
 public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Economy economy;
@@ -43,26 +46,35 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     public void showOrders(Player player, Runnable whenComplete) {
-        orderData.retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED).asFuture()
-                .thenApplyAsync(orderData::retrieveFullOrders)
-                .thenAcceptAsync((future -> future
-                        .whenComplete(orders -> {
-                            messageBlocker.blockPlayer(player);
-                            var builder = MessageComposer.create().localeCode("order.list.orders").text(":").newLine();
-                            if (configuration.userSettings().maxOrders() > orders.size()) {
-                                builder.text("<click:suggest_command:/order create ><%s>[", Colors.ADD).localeCode("order.list.newOrder").text("]</click>");
-                            }
-                            for (var order : orders) {
-                                builder.newLine().text(order.userShortInfo(economy));
-                            }
-                            if (messageBlocker.isBlocked(player)) {
-                                builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                            }
-                            messageBlocker.announce(player, "[x]");
-                            builder.prependLines(25);
-                            audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
-                            whenComplete.run();
-                        })));
+        orderData.retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Collections.emptyList();
+                })
+                .thenApply(orders -> orderData.retrieveFullOrders(orders).asFuture()
+                        .exceptionally(err -> {
+                            plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                            return Collections.emptyList();
+                        })
+                        .join())
+                .thenAccept((orders -> {
+                    messageBlocker.blockPlayer(player);
+                    var builder = MessageComposer.create().localeCode("order.list.orders").text(":").newLine();
+                    if (configuration.userSettings().maxOrders() > orders.size()) {
+                        builder.text("<click:suggest_command:/order create ><%s>[", Colors.ADD).localeCode("order.list.newOrder").text("]</click>");
+                    }
+                    for (var order : orders) {
+                        builder.newLine().text(order.userShortInfo(economy));
+                    }
+                    if (messageBlocker.isBlocked(player)) {
+                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                    }
+                    messageBlocker.announce(player, "[x]");
+                    builder.prependLines(25);
+                    audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
+                    whenComplete.run();
+                }));
     }
 
     @Override

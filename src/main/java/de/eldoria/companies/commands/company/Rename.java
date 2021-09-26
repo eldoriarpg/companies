@@ -2,7 +2,6 @@ package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.permissions.CompanyPermission;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -31,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
     public static final int MAX_NAME_LENGTH = 32;
@@ -73,28 +73,32 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
                 .thenAcceptAsync(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noOwner");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noOwner");
                         return;
                     }
 
                     var name = arguments.join();
                     var company = companyData.retrieveCompanyByName(name).join();
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyNameUsed");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyNameUsed");
                         return;
                     }
 
                     if (!economy.has(player, configuration.companySettings().renamePrice())) {
                         var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                         var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.insufficientCurrency",
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.insufficientCurrency",
                                 Replacement.create("currency", curr),
                                 Replacement.create("amount", configuration.companySettings().foudingPrice()));
                         return;
@@ -109,31 +113,39 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                             .text("<%s><click:run_command:/company rename confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>");
                     audiences.sender(player).sendMessage(miniMessage.parse(composer.buildLocalized(localizer())));
                     delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     private void confirm(@NotNull Player player) {
         if (!confirm.containsKey(player.getUniqueId())) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noConfirm");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noConfirm");
             return;
         }
         var name = confirm.get(player.getUniqueId());
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .thenAcceptAsync(optProfile -> {
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noOwner");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noOwner");
                         return;
                     }
 
                     var company = companyData.retrieveCompanyByName(name).join();
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyNameUsed");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyNameUsed");
                         return;
                     }
 
@@ -141,7 +153,7 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                     if (response.type != EconomyResponse.ResponseType.SUCCESS) {
                         var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                         var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.insufficientCurrency",
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.insufficientCurrency",
                                 Replacement.create("currency", curr),
                                 Replacement.create("amount", configuration.companySettings().foudingPrice()));
                         return;
@@ -149,7 +161,11 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
 
                     companyData.updateCompanyName(profile, name);
                     messageSender().sendLocalizedMessage(player, "company.rename.changed");
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     @Override

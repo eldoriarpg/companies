@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     public static final int MAX_NAME_LENGTH = 32;
@@ -53,18 +54,18 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         this.configuration = configuration;
     }
 
-    private void createGuild(Player player) {
-        var name = registrations.get(player.getUniqueId());
+    private void createCompany(Player player) {
+        var name = registrations.remove(player.getUniqueId());
 
         if (name == null) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noConfirm");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noConfirm");
             return;
         }
 
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyNameUsed");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.companyNameUsed");
                         return;
                     }
 
@@ -77,15 +78,22 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         if (!result) {
                             var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                             var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.insufficientCurrency",
+                            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.insufficientCurrency",
                                     Replacement.create("currency", curr),
                                     Replacement.create("amount", configuration.companySettings().foudingPrice()));
                             return;
                         }
                         companyData.submitCompanyCreation(name)
                                 .asFuture()
-                                .thenApplyAsync(id -> companyData.submitMemberUpdate(CompanyMember.forCompanyId(id, player).addPermission(CompanyPermission.OWNER)));
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "company.create.created");
+                                .exceptionally(err -> {
+                                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                                    return -1;
+                                })
+                                .thenAccept(id -> {
+                                    if(id == -1)return;
+                                    companyData.submitMemberUpdate(CompanyMember.forCompanyId(id, player).addPermission(CompanyPermission.OWNER));
+                                });
+                        messageSender().sendLocalizedMessage(player, "company.create.created");
                     });
                 });
     }
@@ -93,13 +101,13 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
-            createGuild(player);
+            createCompany(player);
             return;
         }
         if ("deny".equalsIgnoreCase(arguments.asString(0))) {
             var name = registrations.remove(player.getUniqueId());
             if (name == null) {
-                messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noDeny");
+                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noDeny");
                 return;
             }
             messageSender().sendLocalizedMessage(player, "words.canceled");
@@ -112,7 +120,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().send(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyNameUsed");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.companyNameUsed");
                         return;
                     }
 
@@ -121,9 +129,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                             Colors.HEADING, economy.format(configuration.companySettings().foudingPrice()), Colors.NEUTRAL)),
                                     Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, name, Colors.NEUTRAL)))
                             .newLine()
-                            .text("<%s><click:run_command:/company create confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>")
-                            .text("<%s><click:run_command:/company create deny><%s>[", Colors.REMOVE).localeCode("words.deny").text("]</click>");
-                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
+                            .text("<click:run_command:/company create confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>")
+                            .space()
+                            .text("<click:run_command:/company create deny><%s>[", Colors.REMOVE).localeCode("words.deny").text("]</click>");
+                    audiences.sender(player).sendMessage(miniMessage.parse(composer.buildLocalized(localizer())));
                     registrations.put(player.getUniqueId(), name);
                 });
     }

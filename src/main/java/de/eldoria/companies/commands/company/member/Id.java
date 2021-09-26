@@ -1,6 +1,7 @@
 package de.eldoria.companies.commands.company.member;
 
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -21,6 +22,8 @@ import org.jetbrains.annotations.Nullable;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Id extends AdvancedCommand implements IPlayerTabExecutor {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
@@ -43,17 +46,29 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrieveCompanyById(companyId)
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
                 .thenAccept(optSimple -> {
                     if (optSimple.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unknownCompany");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unknownCompany");
                         return;
                     }
                     messageBlocker.blockPlayer(player);
-                    var optProfile = companyData.retrieveCompanyProfile(optSimple.get()).asFuture().join().get();
+                    var optProfile = companyData.retrieveCompanyProfile(optSimple.get())
+                            .asFuture()
+                            .exceptionally(err -> {
+                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                                return Optional.empty();
+                            })
+                            .join();
+                    if(optProfile.isEmpty()) return;
+                    var profile = optProfile.get();
                     var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.member.members").text(":").newLine();
                     List<String> members = new ArrayList<>();
 
-                    for (var member : optProfile.members()) {
+                    for (var member : profile.members()) {
                         var mem = member.player();
                         if (mem == null) continue;
                         var hover = MessageComposer.create();
@@ -69,7 +84,11 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
                     audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     @Override

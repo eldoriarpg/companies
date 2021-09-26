@@ -20,10 +20,9 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
@@ -52,21 +51,29 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         var id = arguments.asInt(0);
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var optOrder = orderData.retrieveOrderById(id).join();
                     if (optOrder.isEmpty() || optOrder.get().company() != profile.id()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unkownOrder.");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder.");
                         return;
                     }
                     var order = optOrder.get();
                     var fullOrder = orderData.retrieveFullOrder(order).join();
                     renderOrder(player, profile.member(player).get(), fullOrder);
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     public void renderOrder(Player player, CompanyMember member, FullOrder order) {

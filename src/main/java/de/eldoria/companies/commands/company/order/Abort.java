@@ -59,9 +59,13 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((optCompany, err) -> {
-                    var order = checkOrder(err, optCompany, player, id);
-                    if(order.isEmpty()){
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept((optCompany) -> {
+                    var order = checkOrder(optCompany, player, id);
+                    if (order.isEmpty()) {
                         return;
                     }
 
@@ -69,21 +73,29 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                             .text("<click:run_command:/company order abort confirm><%s>[", Colors.REMOVE).localeCode("words.confirm").text("]</click>");
                     cancel.put(player.getUniqueId(), order.get());
                     audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     private boolean confirm(@NotNull Player player) {
         var remove = cancel.remove(player.getUniqueId());
         if (remove == null) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noConfirm");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noConfirm");
             return true;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((optCompany, err) -> {
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optCompany -> {
                     var id = remove.id();
-                    if(checkOrder(err, optCompany, player, id).isEmpty()){
+                    if (checkOrder(optCompany, player, id).isEmpty()) {
                         return;
                     }
 
@@ -91,18 +103,17 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
                     list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
                             plugin().getServer().getPluginManager().callEvent(new OrderCanceledEvent(remove, optCompany.get())));
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
         return false;
     }
 
-    private Optional<SimpleOrder> checkOrder(Throwable err, Optional<CompanyProfile> optCompany, Player player, int id){
-        if (err != null) {
-            plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-            return Optional.empty();
-        }
-
+    private Optional<SimpleOrder> checkOrder(Optional<CompanyProfile> optCompany, Player player, int id) {
         if (optCompany.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
             return Optional.empty();
         }
 
@@ -110,18 +121,18 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
         var optOrder = orderData.retrieveOrderById(id).join();
         if (optOrder.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unkownOrder");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
             return Optional.empty();
         }
 
         var order = optOrder.get();
         if (order.company() != company.id()) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.orderNotOwned");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.orderNotOwned");
             return Optional.empty();
         }
 
         if (!company.member(player).get().hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.permission.cancelOrder");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.cancelOrder");
             return Optional.empty();
         }
         return optOrder;

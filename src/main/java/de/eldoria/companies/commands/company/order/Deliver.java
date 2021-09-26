@@ -24,9 +24,9 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final Economy economy;
@@ -55,7 +55,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
         var optContent = order.content(material);
         if (optContent.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.invalidMaterial");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidMaterial");
             return;
         }
 
@@ -77,14 +77,22 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
 
         orderData.submitDelivery(player, order, material, contained)
                 .asFuture()
-                .whenComplete((v, err) -> {
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+                .thenAccept((v) -> {
                     var refreshedOrder = orderData.retrieveFullOrder(order).join();
                     if (refreshedOrder.isDone()) {
                         messageBlocker.unblockPlayer(player).thenRun(() -> orderDone(refreshedOrder, company));
                         return;
                     }
                     info.renderOrder(player, company.member(player).get(), refreshedOrder);
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     private void orderDone(FullOrder order, CompanyProfile profile) {
@@ -112,14 +120,18 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
                     if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unkownOrder");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
                         return;
                     }
                     orderData.retrieveFullOrder(optOrder.get())
@@ -127,6 +139,10 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                                 // This part has to be synced to the mainthread
                                 handleFullOrder(player, material, amount, company.get(), fullOrder);
                             });
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 }

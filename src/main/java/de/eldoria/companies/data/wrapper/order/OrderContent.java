@@ -1,5 +1,6 @@
 package de.eldoria.companies.data.wrapper.order;
 
+import de.eldoria.companies.util.Colors;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -51,7 +52,7 @@ public class OrderContent {
     }
 
     public String asComponent(Economy economy) {
-        return String.format("%s %sx %s", prettyType(), amount, economy.format(price));
+        return String.format("<%s>%s <%s>%sx <%s>%s", Colors.VALUE, prettyType(), "aqua", amount, "gold", economy.format(price));
     }
 
     public String asProgressComponent(Economy economy) {

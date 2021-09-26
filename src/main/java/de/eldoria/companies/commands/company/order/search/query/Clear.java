@@ -9,9 +9,6 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class Clear extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;

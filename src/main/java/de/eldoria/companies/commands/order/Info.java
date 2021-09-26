@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.logging.Level;
 
 public class Info extends AdvancedCommand implements IPlayerTabExecutor {
@@ -41,11 +42,11 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
 
         orderData.retrieveOrderById(id)
                 .asFuture()
-                .whenComplete((order, err) -> {
-                    if (err != null) {
-                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                        return;
-                    }
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept((order) -> {
                     if (order.isPresent()) {
                         messageBlocker.blockPlayer(player);
                         var fullOrder = orderData.retrieveFullOrder(order.get()).join();
@@ -58,7 +59,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                         audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                         return;
                     }
-                    messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unkownOrder");
+                    messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.unkownOrder");
                 });
     }
 }

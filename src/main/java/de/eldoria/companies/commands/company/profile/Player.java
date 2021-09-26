@@ -20,6 +20,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
 
 public class Player extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
@@ -43,12 +45,16 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(target)
                 .asFuture()
-                .whenComplete((optCompany, err) -> {
-                    messageBlocker.blockPlayer(player);
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optCompany -> {
                     if (optCompany.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noCompany");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noCompany");
                         return;
                     }
+                    messageBlocker.blockPlayer(player);
 
                     var companyProfile = optCompany.get();
                     var builder = MessageComposer.create().text(companyProfile.asExternalProfileComponent(configuration));

@@ -35,27 +35,27 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void handleProfile(@NotNull CommandSender sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
         if (optProfile.isEmpty()) {
-            messageSender().send(MessageChannel.SUBTITLE, MessageType.ERROR, sender, "error.noMember");
+            messageSender().send(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.noMember");
             return;
         }
         var profile = optProfile.get();
 
         if (!profile.member(player).map(r -> r.hasPermissions(CompanyPermission.KICK)).orElse(false)) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,sender, "error.permission.kick");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.permission.kick");
             return;
         }
 
         var optMember = profile.memberByName(arg);
 
         if (optMember.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,sender, "error.noCompanyMember");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.noCompanyMember");
             return;
         }
 
         var target = optMember.get();
 
         if (target.hasPermission(CompanyPermission.KICK)) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,sender, "error.cantKick");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.cantKick");
             return;
         }
 

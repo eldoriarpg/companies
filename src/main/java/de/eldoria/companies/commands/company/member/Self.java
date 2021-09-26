@@ -22,6 +22,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class Self extends AdvancedCommand implements IPlayerTabExecutor {
@@ -42,10 +44,14 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((optProfile, err) -> {
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE,
-                                MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR,
+                                MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     messageBlocker.blockPlayer(player);
@@ -82,7 +88,11 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
                     audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     @Override

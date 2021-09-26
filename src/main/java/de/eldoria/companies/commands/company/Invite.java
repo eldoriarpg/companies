@@ -58,7 +58,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private void deny(@NotNull Player player) {
         var data = invites.remove(player.getUniqueId());
         if (data == null) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "company.invite.error.noPending");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "company.invite.error.noPending");
             return;
         }
         var inviter = plugin().getServer().getPlayer(data.inviter);
@@ -70,14 +70,14 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private void accept(@NotNull Player player) {
         var data = invites.remove(player.getUniqueId());
         if (data == null) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "company.invite.error.noPending");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "company.invite.error.noPending");
             return;
         }
 
         companyData.retrievePlayerCompany(player)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.alreadyMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.alreadyMember");
                         return;
                     }
                     var inviter = Bukkit.getOfflinePlayer(data.inviter);
@@ -91,12 +91,12 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void handleInviteAccept(Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
         if (profile.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.unknownCompany");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unknownCompany");
             return;
         }
 
         if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
-            messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyFull");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyFull");
             return;
         }
 
@@ -150,33 +150,43 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
 
         companyData.retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .whenComplete((company, err) -> {
-                    if (err != null) {
-                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                        return;
-                    }
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
 
                     if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.permission.invite");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.invite");
                         return;
                     }
                     var profile = company.get();
                     if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.companyFull");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyFull");
                         return;
                     }
 
-                    var targetCompany = companyData.retrievePlayerCompany(target).asFuture().join();
+                    var targetCompany = companyData.retrievePlayerCompany(target)
+                            .asFuture()
+                            .exceptionally(err -> {
+                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                                return Optional.empty();
+                            })
+                            .join();
                     if (targetCompany.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,player, "error.hasCompany");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.hasCompany");
                         return;
                     }
                     scheduleInvite(player, target, company.get());
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     @Override

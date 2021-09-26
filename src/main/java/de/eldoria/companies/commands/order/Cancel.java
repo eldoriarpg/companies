@@ -16,6 +16,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -39,13 +40,13 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
 
         orderData.retrieveOrderById(id)
                 .asFuture()
-                .whenComplete((optOrder, err) -> {
-                    if (err != null) {
-                        plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                        return;
-                    }
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optOrder -> {
                     if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.SUBTITLE, MessageType.ERROR,sender, "error.unkownOrder");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.unkownOrder");
                         return;
                     }
 
@@ -67,7 +68,11 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendLocalizedMessage(sender, "order.cancel.canceled",
                                 Replacement.create("money", economy.format(fullOrder.price())));
                     });
-                });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     @Override
