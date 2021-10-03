@@ -1,8 +1,9 @@
 package de.eldoria.companies.data.wrapper.company;
 
-import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -75,6 +76,15 @@ public class CompanyMember implements ICompanyMember {
         if (!hasPermission(permission)) return this;
         this.permission -= permission.mask();
         return this;
+    }
+
+    public void isOwner(boolean state) {
+        if(isOwner() && state) return;
+        if(state){
+            permission += CompanyPermission.OWNER.mask();
+        }else {
+            permission -= CompanyPermission.OWNER.mask();
+        }
     }
 
     @Override

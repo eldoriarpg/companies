@@ -117,4 +117,6 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     }
 
     protected abstract void setCompanyName(SimpleCompany company, String name);
+
+    public abstract CompletableFuture<List<SimpleCompany>> getCompanies();
 }

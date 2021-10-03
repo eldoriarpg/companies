@@ -42,7 +42,12 @@ public final class Permission {
 
     public static final class Admin {
         private static final String ADMIN = perm(BASE, "admin");
+        public static final String CALC_LEVEL = perm(ADMIN, "calcLevel");
+        public static final String DELETE = perm(ADMIN, "delete");
         public static final String LEVEL = perm(ADMIN, "level");
+        public static final String RELOAD = perm(ADMIN, "reload");
+        public static final String RENAME = perm(ADMIN, "rename");
+        public static final String TRANSFER_OWNER = perm(ADMIN, "transferOwner");
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");
         }

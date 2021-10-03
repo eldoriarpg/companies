@@ -17,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 public class MariaDbCompanyData extends ACompanyData {
@@ -136,6 +137,14 @@ public class MariaDbCompanyData extends ACompanyData {
                 .query("UPDATE companies SET name = ? WHERE id = ?")
                 .paramsBuilder(stmt -> stmt.setString(name).setInt(company.id()))
                 .update().executeSync();
+    }
+
+    @Override
+    public CompletableFuture<List<SimpleCompany>> getCompanies() {
+        return builder(SimpleCompany.class)
+                .queryWithoutParams("SELECT id, name, founded, level FROM companies")
+                .readRow(this::parseCompany)
+                .all();
     }
 
     protected CompanyStats parseCompanyStats(ResultSet rs) throws SQLException {

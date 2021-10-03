@@ -4,6 +4,7 @@ import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyLevelDownEvent;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
@@ -13,17 +14,21 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
 public class LevelService implements Listener {
     private final Plugin plugin;
     private final Configuration configuration;
     private final ACompanyData companyData;
+    private final ExecutorService executorService;
 
-    public LevelService(Plugin plugin, Configuration configuration, ACompanyData companyData) {
+    public LevelService(Plugin plugin, Configuration configuration, ACompanyData companyData, ExecutorService executorService) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.companyData = companyData;
+        this.executorService = executorService;
     }
 
     @EventHandler
@@ -68,5 +73,16 @@ public class LevelService implements Listener {
                     }
                     plugin.getServer().getPluginManager().callEvent(new CompanyLevelDownEvent(company, oldLevel.get(), newLevel));
                 });
+    }
+
+    public void updateAllCompanies(Runnable onComplete) {
+        companyData.getCompanies()
+                .thenAccept(companies -> {
+                    for (var company : companies) {
+                        var join = companyData.retrieveCompanyProfile(company).join();
+                        if(join == null || join.isEmpty()) continue;
+                        updateCompanyLevel(join.get());
+                    }
+                }).thenRun(onComplete);
     }
 }
