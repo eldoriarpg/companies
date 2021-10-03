@@ -22,13 +22,11 @@ public class LevelService implements Listener {
     private final Plugin plugin;
     private final Configuration configuration;
     private final ACompanyData companyData;
-    private final ExecutorService executorService;
 
-    public LevelService(Plugin plugin, Configuration configuration, ACompanyData companyData, ExecutorService executorService) {
+    public LevelService(Plugin plugin, Configuration configuration, ACompanyData companyData) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.companyData = companyData;
-        this.executorService = executorService;
     }
 
     @EventHandler
@@ -60,13 +58,14 @@ public class LevelService implements Listener {
 
     public void updateCompanyLevel(ICompanyProfile company) {
         companyData.retrieveCompanyStats(company)
-                .whenComplete(stats -> {
+                .asFuture()
+                .thenAccept(stats -> {
                     var companySettings = configuration.companySettings();
                     var newLevel = companySettings.calcCompanyLevel(stats);
                     if (newLevel.level() == company.level()) return;
                     var oldLevel = companySettings.level(company.level());
                     if (oldLevel.isEmpty()) return;
-                    companyData.submitCompanyLevelUpdate(company, newLevel.level());
+                    companyData.submitCompanyLevelUpdate(company, newLevel.level()).join();
                     if (newLevel.level() > company.level()) {
                         plugin.getServer().getPluginManager().callEvent(new CompanyLevelUpEvent(company, oldLevel.get(), newLevel));
                         return;

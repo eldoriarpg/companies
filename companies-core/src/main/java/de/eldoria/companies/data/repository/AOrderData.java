@@ -174,11 +174,11 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract Integer getPlayerOrderCount(OfflinePlayer player);
 
-    public BukkitFutureResult<Integer> retrieveCompanyOrderCount(SimpleCompany company) {
+    public BukkitFutureResult<Integer> retrieveCompanyOrderCount(ISimpleCompany company) {
         return CompletableBukkitFuture.supplyAsync(() -> getCompanyOrderCount(company), executorService);
     }
 
-    protected abstract Integer getCompanyOrderCount(SimpleCompany company);
+    protected abstract Integer getCompanyOrderCount(ISimpleCompany company);
 
     protected abstract List<OrderContent> getOrderContent(SimpleOrder order);
 

@@ -2,6 +2,9 @@ package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.level.ICompanyLevel;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.event.HandlerList;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * A company level changed.
@@ -9,11 +12,13 @@ import de.eldoria.companies.components.level.ICompanyLevel;
  * Use {@link CompanyLevelDownEvent} or {@link CompanyLevelUpEvent}.
  */
 public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
+    public static HandlerList HANDLERS = new HandlerList();
+
     private final ICompanyLevel oldLevel;
     private final ICompanyLevel newLevel;
 
     public CompanyLevelChangeEvent(ICompanyProfile company, ICompanyLevel oldLevel, ICompanyLevel newLevel) {
-        super(company);
+        super(company, true);
         this.oldLevel = oldLevel;
         this.newLevel = newLevel;
     }
@@ -34,5 +39,15 @@ public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
      */
     public ICompanyLevel newLevel() {
         return newLevel;
+    }
+
+    @NotNull
+    @Override
+    public HandlerList getHandlers() {
+        return HANDLERS;
+    }
+
+    public static HandlerList getHandlerList() {
+        return HANDLERS;
     }
 }

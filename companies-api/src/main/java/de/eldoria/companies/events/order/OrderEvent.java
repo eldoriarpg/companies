@@ -13,9 +13,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * @param <Order> Type of order implementation
  */
-public class OrderEvent<Order extends ISimpleOrder> extends Event implements OrderProvider<Order> {
-    public static HandlerList HANDLERS = new HandlerList();
-
+public abstract class OrderEvent<Order extends ISimpleOrder> extends Event implements OrderProvider<Order> {
     private final Order order;
 
     public OrderEvent(Order order) {
@@ -28,18 +26,8 @@ public class OrderEvent<Order extends ISimpleOrder> extends Event implements Ord
         this.order = order;
     }
 
-    public static HandlerList getHandlerList() {
-        return HANDLERS;
-    }
-
     @Override
     public Order order() {
         return order;
-    }
-
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
-        return HANDLERS;
     }
 }

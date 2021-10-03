@@ -26,6 +26,7 @@ dependencies {
     implementation("net.kyori", "adventure-text-minimessage", "4.1.0-SNAPSHOT")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.7.0")
+    compileOnly("me.clip", "placeholderapi", "2.10.10")
 
     // database
     compileOnly("com.zaxxer", "HikariCP", "5.0.0")
@@ -42,7 +43,7 @@ tasks {
         from(sourceSets.main.get().resources.srcDirs) {
             filesMatching("plugin.yml") {
                 expand(
-                    "name" to project.name,
+                    "name" to project.rootProject.name,
                     "version" to data.getVersion(true),
                     "description" to project.description
                 )

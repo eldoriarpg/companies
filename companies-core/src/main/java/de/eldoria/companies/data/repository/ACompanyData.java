@@ -44,8 +44,8 @@ public abstract class ACompanyData extends QueryFactoryHolder {
         return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player), executorService);
     }
 
-    public BukkitFutureResult<Optional<CompanyProfile>> retrieveCompanyProfile(SimpleCompany simpleCompany) {
-        return CompletableBukkitFuture.supplyAsync(() -> toCompanyProfile(simpleCompany));
+    public BukkitFutureResult<Optional<CompanyProfile>> retrieveCompanyProfile(ISimpleCompany simpleCompany) {
+        return CompletableBukkitFuture.supplyAsync(() -> toCompanyProfile((SimpleCompany) simpleCompany));
     }
 
     protected abstract Optional<CompanyProfile> toCompanyProfile(SimpleCompany simpleCompany);

@@ -58,7 +58,7 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        companyData.submitMemberUpdate(target.kick());
+        companyData.submitMemberUpdate(target.kick()).join();
         messageSender().sendLocalizedMessage(sender, "company.kick.kicked",
                 Replacement.create("name", target.player().getName()).addFormatting('c'));
 
@@ -68,9 +68,8 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optProfile -> {
-                    handleProfile(player, arguments.asString(0), player, optProfile);
-                });
+                .asFuture()
+                .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
     }
 
     @Override

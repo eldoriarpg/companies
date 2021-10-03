@@ -46,7 +46,8 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
 
     public void leave(Player player) {
         companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optProfile -> {
+                .asFuture()
+                .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
                         messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noMember");
                         return;
@@ -54,13 +55,13 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                     var profile = optProfile.get();
                     if (profile.member(player).get().isOwner()) {
                         companyData.submitCompanyPurge(profile);
-                        orderData.submitCompanyOrdersPurge(profile);
+                        orderData.submitCompanyOrdersPurge(profile).join();
                         messageSender().sendMessage(player, "company.leave.disbanded");
                         plugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(optProfile.get()));
                         return;
                     }
+                    companyData.submitMemberUpdate(profile.member(player).get().kick()).join();
                     plugin().getServer().getPluginManager().callEvent(new CompanyLeaveEvent(optProfile.get(), player));
-                    companyData.submitMemberUpdate(profile.member(player).get().kick());
                     messageSender().sendLocalizedMessage(player, "company.leave.left");
                 });
     }

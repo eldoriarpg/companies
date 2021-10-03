@@ -33,6 +33,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiterNotificationData;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.LevelService;
+import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.services.messages.MessageBlockerService;
@@ -103,14 +104,22 @@ public class Companies extends EldoPlugin {
             messageBlocker = IMessageBlockerService.dummy();
         }
 
+        var levelService = new LevelService(this, configuration, companyData);
+
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService));
 
         ExpiringService.create(this, orderData, companyData, configuration, workerPool);
         RefreshService.create(orderData, workerPool);
-        registerListener(new LevelService(this, configuration, companyData));
+        registerListener(levelService);
         registerListener(new NotificationService(notificationData, this));
+
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            var placeholderService = new PlaceholderService(this, companyData, orderData);
+            placeholderService.register();
+            registerListener(placeholderService);
+        }
     }
 
     @Override

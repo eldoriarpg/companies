@@ -11,6 +11,7 @@ repositories {
     maven("https://eldonexus.de/repository/maven-public")
     maven("https://eldonexus.de/repository/maven-proxies")
     maven("https://repo.dmulloy2.net/repository/public/")
+    maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
 }
 
 dependencies {

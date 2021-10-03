@@ -168,7 +168,7 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected Integer getCompanyOrderCount(SimpleCompany company) {
+    protected Integer getCompanyOrderCount(ISimpleCompany company) {
         return builder(Integer.class)
                 .query("SELECT COUNT(1) AS count FROM orders LEFT JOIN order_states s ON orders.id = s.id WHERE company = ? AND s.state = ?")
                 .paramsBuilder(stmt -> stmt.setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))

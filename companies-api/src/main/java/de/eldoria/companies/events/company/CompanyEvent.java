@@ -13,17 +13,15 @@ import org.jetbrains.annotations.NotNull;
  *
  * @param <Company> type of company implementation
  */
-public class CompanyEvent<Company extends ISimpleCompany> extends Event implements CompanyProvider<Company> {
-    public static HandlerList HANDLERS = new HandlerList();
-
+public abstract class CompanyEvent<Company extends ISimpleCompany> extends Event implements CompanyProvider<Company> {
     private final Company company;
 
     public CompanyEvent(Company company) {
         this.company = company;
     }
-
-    public static HandlerList getHandlerList() {
-        return HANDLERS;
+    public CompanyEvent(Company company, boolean async) {
+        super(async);
+        this.company = company;
     }
 
     /**
@@ -36,9 +34,4 @@ public class CompanyEvent<Company extends ISimpleCompany> extends Event implemen
         return company;
     }
 
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
-        return HANDLERS;
-    }
 }
