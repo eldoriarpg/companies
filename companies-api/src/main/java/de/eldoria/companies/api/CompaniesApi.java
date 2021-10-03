@@ -3,8 +3,10 @@ package de.eldoria.companies.api;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.ICompanyStats;
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.order.IMaterialPrice;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderState;
+import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 
 import java.util.List;
@@ -94,4 +96,12 @@ public abstract class CompaniesApi {
      * @return List of orders. List may be empty
      */
     public abstract List<? extends ISimpleOrder> retrieveOrdersByPlayer(OfflinePlayer player, OrderState min, OrderState max);
+
+    /**
+     * Retrieve the material price for a material
+     *
+     * @param material material to check.
+     * @return optional which holds the material price. This result may be cached or be retrived from the database
+     */
+    public abstract Optional<? extends IMaterialPrice> retrieveMaterialPrice(Material material);
 }

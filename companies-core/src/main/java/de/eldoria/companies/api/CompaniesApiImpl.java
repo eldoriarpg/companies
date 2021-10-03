@@ -3,11 +3,13 @@ package de.eldoria.companies.api;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.ICompanyStats;
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.order.IMaterialPrice;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 
 import java.util.List;
@@ -65,5 +67,10 @@ public class CompaniesApiImpl extends CompaniesApi {
     @Override
     public List<? extends SimpleOrder> retrieveOrdersByPlayer(OfflinePlayer player, OrderState min, OrderState max) {
         return orderData.retrieveOrdersByPlayer(player, min, max).join();
+    }
+
+    @Override
+    public Optional<? extends IMaterialPrice> retrieveMaterialPrice(Material material) {
+        return orderData.retrieveMaterialPrice(material.name()).join();
     }
 }
