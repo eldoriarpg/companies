@@ -15,7 +15,7 @@ public class OrderAcceptEvent extends OrderEvent<ISimpleOrder> implements Compan
     private final ICompanyProfile company;
 
     public OrderAcceptEvent(ISimpleOrder order, ICompanyProfile company) {
-        super(order);
+        super(order, true);
         this.company = company;
     }
 

@@ -7,21 +7,17 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * All items for a order are delivered and the order is ready for retrieval.
+ * A active and claimed order was canceled.
+ * <p>
+ * This event will not be fired when a order is aborted by the order owner.
+ * <p>
+ * This event will not be called when an order expires. See {@link OrderExpiredEvent}.
  */
-public class OrderDoneEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
+public class OrderRemovedEvent extends OrderEvent<ISimpleOrder> {
     public static HandlerList HANDLERS = new HandlerList();
 
-    private final ICompanyProfile company;
-
-    public OrderDoneEvent(ISimpleOrder order, ICompanyProfile company) {
+    public OrderRemovedEvent(ISimpleOrder order) {
         super(order, true);
-        this.company = company;
-    }
-
-    @Override
-    public ICompanyProfile company() {
-        return company;
     }
 
     @NotNull

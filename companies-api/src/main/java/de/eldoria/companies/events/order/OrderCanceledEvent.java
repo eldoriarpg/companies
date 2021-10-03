@@ -19,7 +19,7 @@ public class OrderCanceledEvent extends OrderEvent<ISimpleOrder> implements Comp
     private final ICompanyProfile company;
 
     public OrderCanceledEvent(ISimpleOrder order, ICompanyProfile company) {
-        super(order);
+        super(order, true);
         this.company = company;
     }
 

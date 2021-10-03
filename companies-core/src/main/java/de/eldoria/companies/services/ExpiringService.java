@@ -5,6 +5,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
+import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.localization.Replacement;
@@ -79,7 +80,7 @@ public class ExpiringService implements Runnable, Listener {
         var expired = orderData.retrieveExpiredOrders(configuration.companySettings().deliveryHours()).join();
 
         for (var order : expired) {
-            orderData.submitUnclaimOrder(order);
+            orderData.submitUnclaimOrder(order).join();
             var profile = companyData.retrieveCompanyById(order.company()).asFuture()
                     .exceptionally(err -> {
                         plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -88,6 +89,13 @@ public class ExpiringService implements Runnable, Listener {
                     .thenApply(r -> r.map(p -> companyData.retrieveCompanyProfile(p).join().orElse(null))).join();
             if (profile.isEmpty()) continue;
             plugin.getServer().getPluginManager().callEvent(new OrderExpiredEvent(order, profile.get()));
+        }
+
+        expired = orderData.retrieveDeadOrders(configuration.orderSetting().maxUnclaimedHours()).join();
+
+        for (var order : expired) {
+            orderData.submitOrderPurge(order).join();
+            plugin.getServer().getPluginManager().callEvent(new OrderRemovedEvent(order));
         }
     }
 }

@@ -15,7 +15,7 @@ public class OrderExpiredEvent extends OrderEvent<ISimpleOrder> implements Compa
     private final ICompanyProfile company;
 
     public OrderExpiredEvent(ISimpleOrder order, ICompanyProfile company) {
-        super(order);
+        super(order, true);
         this.company = company;
     }
 

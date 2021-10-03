@@ -59,6 +59,10 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
             return String.valueOf(getCompanyCache(player).map(CompanyCacheData::size).orElse(0));
         }
 
+        if ("company_level".equalsIgnoreCase(params)) {
+            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::level).orElse(0));
+        }
+
         if ("active_orders".equalsIgnoreCase(params)) {
             return String.valueOf(getCompanyCache(player).map(CompanyCacheData::orderCount).orElse(0));
         }

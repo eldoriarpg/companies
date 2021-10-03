@@ -74,6 +74,15 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    protected List<SimpleOrder> getDeadOrders(int hours) {
+        return builder(SimpleOrder.class)
+                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - INTERVAL ? HOUR AND company IS NOT NULL AND state = ? ORDER BY last_update")
+                .paramsBuilder(stmt -> stmt.setInt(hours).setInt(OrderState.UNCLAIMED.stateId()))
+                .readRow(this::buildSimpleOrder)
+                .allSync();
+    }
+
+    @Override
     protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
         return builder(SimpleOrder.class)
                 .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - INTERVAL ? HOUR AND company = ? AND state = ? ORDER BY last_update")
@@ -251,6 +260,14 @@ public class MariaDbOrderData extends AOrderData {
         for (var simpleOrder : ordersByCompany(profile, OrderState.CLAIMED, OrderState.CLAIMED).join()) {
             unclaimOrder(simpleOrder);
         }
+    }
+
+    @Override
+    protected void purgeOrder(SimpleOrder order) {
+        builder().query("DELETE FROM orders WHERE id = ?")
+                .paramsBuilder(stmt -> stmt.setInt(order.id()))
+                .delete()
+                .executeSync();
     }
 
     @Override

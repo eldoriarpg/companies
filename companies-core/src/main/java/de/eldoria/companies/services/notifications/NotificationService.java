@@ -4,9 +4,6 @@ import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.data.repository.ANotificationData;
-import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyKickEvent;
@@ -18,11 +15,11 @@ import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
+import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
@@ -40,8 +37,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.logging.Level;
-
-import static de.eldoria.eldoutilities.messages.MessageType.*;
 
 /**
  * Sends notifications based on internal events.
@@ -111,6 +106,12 @@ public class NotificationService implements Listener {
     }
 
     @EventHandler
+    public void onOrderCanceled(OrderRemovedEvent event) {
+        sendMessage(plugin.getServer().getOfflinePlayer(event.order().owner()), "notification.orderRemoved",
+                Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
+    }
+
+    @EventHandler
     public void onOrderDone(OrderDoneEvent event) {
         var owner = plugin.getServer().getOfflinePlayer(event.order().owner());
         var message = MessageComposer.create()
@@ -128,7 +129,7 @@ public class NotificationService implements Listener {
 
     @EventHandler
     public void onOrderExpiredEvent(OrderExpiredEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.orderExpired",
+        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.companyOrderExpired",
                 Replacement.create("order_name", event.order().fullName()));
     }
 

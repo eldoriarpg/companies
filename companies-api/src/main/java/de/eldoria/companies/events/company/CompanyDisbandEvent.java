@@ -11,7 +11,7 @@ public class CompanyDisbandEvent extends CompanyEvent<ICompanyProfile> {
     public static HandlerList HANDLERS = new HandlerList();
 
     public CompanyDisbandEvent(ICompanyProfile company) {
-        super(company);
+        super(company, true);
     }
 
     @NotNull

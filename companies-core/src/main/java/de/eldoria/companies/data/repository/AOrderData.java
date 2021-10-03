@@ -73,6 +73,12 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract List<SimpleOrder> getExpiredOrders(int hours);
 
+    public CompletableFuture<List<SimpleOrder>> retrieveDeadOrders(int hours) {
+        return CompletableFuture.supplyAsync(() -> getExpiredOrders(hours), executorService);
+    }
+
+    protected abstract List<SimpleOrder> getDeadOrders(int hours);
+
     public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrdersByCompany(int hours, SimpleCompany company) {
         return CompletableFuture.supplyAsync(() -> getExpiredOrdersByCompany(hours, company), executorService);
     }
@@ -194,8 +200,14 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract void purgeCompanyOrders(SimpleCompany profile);
 
+    protected abstract void purgeOrder(SimpleOrder order);
+
     public BukkitFutureResult<Void> submitCompanyOrdersPurge(SimpleCompany profile) {
         return CompletableBukkitFuture.runAsync(() -> purgeCompanyOrders(profile), executorService);
+    }
+
+    public BukkitFutureResult<Void> submitOrderPurge(SimpleOrder order) {
+        return CompletableBukkitFuture.runAsync(() -> purgeOrder(order), executorService);
     }
 
     public BukkitFutureResult<Void> submitOrderDeletion(SimpleOrder order) {
