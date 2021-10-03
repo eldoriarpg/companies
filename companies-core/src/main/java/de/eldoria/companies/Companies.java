@@ -85,7 +85,7 @@ public class Companies extends EldoPlugin {
 
         // TODO: Make those configurable
         MessageSender.create(this, "§c[C]");
-        ILocalizer.create(this, "en_US", "de_DE").setLocale("en_US");
+        ILocalizer.create(this, "en_US", "de_DE").setLocale(configuration.generalSettings().language());
 
         var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
         if (economyProvider != null) {
