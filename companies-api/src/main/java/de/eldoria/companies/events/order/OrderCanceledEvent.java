@@ -2,10 +2,10 @@ package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
-import de.eldoria.companies.events.company.CompanyProvider;
+import de.eldoria.companies.events.components.CompanyProvider;
 
 /**
- * Represent the cancellation of an active and claimed order.
+ * A active and claimed order was canceled.
  * <p>
  * This event will not be fired when a order is aborted by the order owner.
  * <p>

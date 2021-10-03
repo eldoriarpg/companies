@@ -1,10 +1,15 @@
 package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
-import de.eldoria.companies.events.PlayerProvider;
+import de.eldoria.companies.events.components.PlayerProvider;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Cancellable;
 
+/**
+ * A payment for a order was retrieved by one user.
+ * <p>
+ * This event may be executed multiple times for the same order.
+ */
 public class OrderPaymentEvent extends OrderEvent<ISimpleOrder> implements Cancellable, PlayerProvider<OfflinePlayer> {
     private final OfflinePlayer player;
     private final double amount;

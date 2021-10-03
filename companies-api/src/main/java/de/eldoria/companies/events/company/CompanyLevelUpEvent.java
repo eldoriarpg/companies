@@ -4,7 +4,7 @@ import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.level.ICompanyLevel;
 
 /**
- * Fired when a company gets disbaneded by its owner.
+ * A company level increases.
  */
 public class CompanyLevelUpEvent extends CompanyLevelChangeEvent {
     public CompanyLevelUpEvent(ICompanyProfile company, ICompanyLevel oldLevel, ICompanyLevel newLevel) {

@@ -4,7 +4,6 @@ plugins {
 }
 
 group = "de.eldoria"
-version = "1.0"
 
 repositories {
     mavenCentral()

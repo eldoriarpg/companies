@@ -2,10 +2,10 @@ package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
-import de.eldoria.companies.events.company.CompanyProvider;
+import de.eldoria.companies.events.components.CompanyProvider;
 
 /**
- * Indicates that all items for a order are delivered and the order is ready for retrieval.
+ * All items for a order are delivered and the order is ready for retrieval.
  */
 public class OrderDoneEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
     private final ICompanyProfile company;

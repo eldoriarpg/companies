@@ -2,8 +2,11 @@ package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
-import de.eldoria.companies.events.company.CompanyProvider;
+import de.eldoria.companies.events.components.CompanyProvider;
 
+/**
+ * A order expired.
+ */
 public class OrderExpiredEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
     private final ICompanyProfile company;
 

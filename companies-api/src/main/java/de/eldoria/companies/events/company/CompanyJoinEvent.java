@@ -1,11 +1,11 @@
 package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
-import de.eldoria.companies.events.PlayerProvider;
+import de.eldoria.companies.events.components.PlayerProvider;
 import org.bukkit.OfflinePlayer;
 
 /**
- * Indicates that a user joined a company.
+ * A user joined a company.
  */
 public class CompanyJoinEvent extends CompanyEvent<ICompanyProfile> implements PlayerProvider<OfflinePlayer> {
     private final OfflinePlayer player;

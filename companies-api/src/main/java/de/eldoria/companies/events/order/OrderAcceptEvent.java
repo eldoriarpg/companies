@@ -2,10 +2,10 @@ package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
-import de.eldoria.companies.events.company.CompanyProvider;
+import de.eldoria.companies.events.components.CompanyProvider;
 
 /**
- * Indicates that a company has accepted a order.
+ * A company has accepted a order.
  */
 public class OrderAcceptEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
 

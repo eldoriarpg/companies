@@ -3,6 +3,11 @@ package de.eldoria.companies.events.company;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.level.ICompanyLevel;
 
+/**
+ * A company level changed.
+ * <p>
+ * Use {@link CompanyLevelDownEvent} or {@link CompanyLevelUpEvent}.
+ */
 public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
     private final ICompanyLevel oldLevel;
     private final ICompanyLevel newLevel;
