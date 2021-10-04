@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "de.eldoria"
-version = "1.0.0-SNAPSHOT"
+version = "1.0.0"
 java.sourceCompatibility = JavaVersion.VERSION_11
 
 repositories {
