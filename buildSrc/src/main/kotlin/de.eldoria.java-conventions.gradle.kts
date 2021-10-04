@@ -5,7 +5,6 @@ plugins {
 
 group = "de.eldoria"
 version = "1.0.0"
-java.sourceCompatibility = JavaVersion.VERSION_11
 
 repositories {
     maven("https://eldonexus.de/repository/maven-public")

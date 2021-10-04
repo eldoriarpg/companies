@@ -15,7 +15,7 @@ public class OrderSettings implements ConfigurationSerializable {
         var map = SerializationUtil.mapOf(objectMap);
         maxItems = map.getValueOrDefault("maxItems", maxItems);
         maxMaterials = map.getValueOrDefault("maxMaterials", maxMaterials);
-        maxMaterials = map.getValueOrDefault("maxUnclaimedHours", maxMaterials);
+        maxMaterials = map.getValueOrDefault("maxUnclaimedHours", maxUnclaimedHours);
     }
 
     public OrderSettings() {

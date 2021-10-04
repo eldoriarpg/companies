@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Map;
 
 public class GeneralSettings implements ConfigurationSerializable {
-    private String language = "de_US";
+    private String language = "en_US";
     private int orderCheckInterval = 60;
 
     public GeneralSettings() {
