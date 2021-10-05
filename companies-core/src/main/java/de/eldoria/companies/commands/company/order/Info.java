@@ -1,5 +1,6 @@
 package de.eldoria.companies.commands.company.order;
 
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
@@ -62,8 +63,12 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     var profile = optProfile.get();
                     var optOrder = orderData.retrieveOrderById(id).join();
-                    if (optOrder.isEmpty() || optOrder.get().company() != profile.id()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder.");
+                    if (optOrder.isEmpty()) {
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+                        return;
+                    }
+                    if (optOrder.get().company() != profile.id() && optOrder.get().state() != OrderState.CLAIMED) {
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
                         return;
                     }
                     var order = optOrder.get();
