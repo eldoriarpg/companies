@@ -98,7 +98,8 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private void orderDone(FullOrder order, CompanyProfile profile) {
         var payments = order.payments(PaymentType.STACK);
         orderData.submitOrderDelivered(order)
-                .whenComplete(r -> plugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(order, profile)));
+                .asFuture()
+                .thenRun(() -> plugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(order, profile)));
         CompletableBukkitFuture.runAsync(() -> {
             for (var entry : payments.entrySet()) {
                 var player = plugin().getServer().getOfflinePlayer(entry.getKey());
