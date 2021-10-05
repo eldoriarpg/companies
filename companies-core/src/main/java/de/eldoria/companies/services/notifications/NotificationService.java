@@ -91,12 +91,13 @@ public class NotificationService implements Listener {
         var message = MessageComposer.create()
                 .text("<%s>", Colors.NEUTRAL)
                 .localeCode("notification.orderAccepted")
-                .text("<click:run_command:/company order info %order_id%><%s>[", Colors.ADD)
+                .space()
+                .text("<click:run_command:/company order info %s><%s>[", order.id(), Colors.ADD)
                 .localeCode("words.info")
                 .text("]</click>")
                 .build();
         sendCompanyMessage(MessageType.MINI_MESSAGE, event.company(), message,
-                miniOrderReplacement(order), Replacement.create("order_id", order.id()));
+                miniOrderReplacement(order), Replacement.create("order_name", order.name()));
     }
 
     @EventHandler
@@ -115,13 +116,15 @@ public class NotificationService implements Listener {
     public void onOrderDone(OrderDoneEvent event) {
         var owner = plugin.getServer().getOfflinePlayer(event.order().owner());
         var message = MessageComposer.create()
+                .text("<%s>", Colors.NEUTRAL)
                 .localeCode("notification.orderDone")
-                .text("<click:run_command:/order receive %order_id%><s>[", Colors.ADD)
+                .space()
+                .text("<click:run_command:/order receive %s><%s>[", event.order().id(), Colors.ADD)
                 .localeCode("notification.recieveItems")
                 .text("]</click>")
                 .build();
         sendMiniMessage(owner, message,
-                miniOrderReplacement(event.order()), Replacement.create("order_id", event.order().id()));
+                miniOrderReplacement(event.order()), Replacement.create("order_name", event.order().name()));
 
         sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.orderDelivered",
                 Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
@@ -136,7 +139,8 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
         sendMessage(event.player(), "notification.orderPayment",
-                Replacement.create("amount", event.amount()).addFormatting('6'), Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
+                Replacement.create("amount", event.amount()).addFormatting('6'),
+                Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
     }
 
     @EventHandler
@@ -240,6 +244,6 @@ public class NotificationService implements Listener {
     }
 
     private Replacement miniOrderReplacement(ISimpleOrder order) {
-        return Replacement.create("order_name", String.format("<b><%s>%s<%s></b>", Colors.NAME, order.fullName(), Colors.NEUTRAL));
+        return Replacement.create("order_name", String.format("<%s>%s<%s>", Colors.NAME, order.fullName(), Colors.NEUTRAL));
     }
 }

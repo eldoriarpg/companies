@@ -5,6 +5,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
@@ -53,7 +54,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
     public String userDetailInfo(Economy economy) {
         var composer = MessageComposer.create()
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
-                .text("<%s>", NAME).localeCode("words.status").text(": <%s>$%s$", VALUE, state().translationKey()).newLine()
+                .text("<%s>", NAME).localeCode("words.status").text(": <%s>", VALUE).localeCode(state().translationKey()).newLine()
                 .text(userContent(economy)).newLine()
                 .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, price()).newLine();
         switch (state()) {
@@ -73,9 +74,9 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
     public String companyDetailInfo(CompanyMember member, Configuration configuration, Economy economy) {
         var composer = MessageComposer.create()
                 .text("<%s>%s | <%s>%s", NAME, id(), VALUE, name()).newLine()
-                .text("<%s>", NAME).localeCode("words.status").text(": <%s>%s", VALUE, state().translationKey()).newLine()
+                .text("<%s>", NAME).localeCode("words.status").text(": <%s>", VALUE).localeCode(state().translationKey()).newLine()
                 .text(companyActionContent(economy, state())).newLine()
-                .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, price()).newLine();
+                .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, economy.format(price())).newLine();
 
         switch (state()) {
             case UNCLAIMED:
@@ -84,7 +85,8 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 }
                 break;
             case CLAIMED:
-                composer.localeCode("Left time ").text(runningOutTime(configuration)).newLine();
+                composer.text("<%s>", NAME).localeCode("words.leftTime").space()
+                        .text("<%s>%s", Colors.VALUE, runningOutTime(configuration)).newLine();
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
                     composer.text("<click:run_command:/company order abort %s><%s>[", id(), REMOVE).localeCode("words.abort").text("]</click>");
                 }

@@ -3,8 +3,6 @@ package de.eldoria.companies.services;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyLevelDownEvent;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
@@ -14,8 +12,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
 public class LevelService implements Listener {
@@ -71,6 +67,9 @@ public class LevelService implements Listener {
                         return;
                     }
                     plugin.getServer().getPluginManager().callEvent(new CompanyLevelDownEvent(company, oldLevel.get(), newLevel));
+                }).exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
                 });
     }
 
@@ -79,7 +78,7 @@ public class LevelService implements Listener {
                 .thenAccept(companies -> {
                     for (var company : companies) {
                         var join = companyData.retrieveCompanyProfile(company).join();
-                        if(join == null || join.isEmpty()) continue;
+                        if (join == null || join.isEmpty()) continue;
                         updateCompanyLevel(join.get());
                     }
                 }).thenRun(onComplete);

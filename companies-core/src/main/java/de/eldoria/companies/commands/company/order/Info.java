@@ -67,7 +67,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
                         return;
                     }
-                    if (optOrder.get().company() != profile.id() && optOrder.get().state() != OrderState.CLAIMED) {
+                    if (optOrder.get().company() != profile.id() && optOrder.get().state() != OrderState.UNCLAIMED) {
                         messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
                         return;
                     }
