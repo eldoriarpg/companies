@@ -38,19 +38,19 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
+                        messageSender().sendLocalizedError(player, "error.unknownCompany");
                         return;
                     }
 
                     var other = companyData.retrieveCompanyByName(args.asString(1)).join();
 
                     if (other == null || other.isEmpty()) {
-                        messageSender().sendError(player, "error.companyNameUsed");
+                        messageSender().sendLocalizedError(player, "error.companyNameUsed");
                         return;
                     }
 
                     companyData.updateCompanyName(company.get(), args.asString(1));
-                    messageSender().sendMessage(player, "company.rename.changed");
+                    messageSender().sendLocalizedMessage(player, "company.rename.changed");
                 });
     }
 

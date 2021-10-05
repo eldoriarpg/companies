@@ -37,7 +37,7 @@ public class TransferOwner extends AdvancedCommand implements IPlayerTabExecutor
                 .asFuture()
                 .thenAccept(optCompany -> {
                     if (optCompany.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
+                        messageSender().sendLocalizedError(player, "error.unknownCompany");
                         return;
                     }
 
@@ -56,7 +56,7 @@ public class TransferOwner extends AdvancedCommand implements IPlayerTabExecutor
 
                     var newOwner = company.member(target);
                     if (newOwner.isEmpty()) {
-                        messageSender().sendError(player, "error.noCompanyMember");
+                        messageSender().sendLocalizedError(player, "error.noCompanyMember");
                         return;
                     }
 
