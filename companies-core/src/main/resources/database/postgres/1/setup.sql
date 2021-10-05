@@ -117,7 +117,7 @@ SELECT c.id,
        c.name,
        c.founded,
        m.member_count,
-       o.order_count - s.failed_orders AS order_count,
+       o.order_count - coalesce(s.failed_orders, 0) AS order_count,
        o.price,
        o.amount
 FROM companies c
