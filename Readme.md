@@ -1,6 +1,6 @@
 [![wakatime](https://wakatime.com/badge/github/eldoriarpg/companies.svg)](https://wakatime.com/badge/github/eldoriarpg/companies)
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Publish%20to%20Nexus?style=for-the-badge&label=Publishing)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Publish%20to%20Nexus?style=for-the-badge&label=Publish)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Verify%20state?style=for-the-badge&label=Building)
 
 ![Sonatype Nexus (Releases)](https://img.shields.io/nexus/maven-releases/de.eldoria/companies-api?label=Release&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)
@@ -35,7 +35,7 @@ dependencies {
 
 # Setup
 
-The plugin is plug and play. However you can do several configurations.
+The plugin is plug & play. However you can do several configurations.
 
 ## Optional Dependencies
 * [PAPI](https://www.spigotmc.org/resources/6245/) for Placeholders
@@ -64,24 +64,24 @@ Definition of company levels. One level needs to be defined all the time and wil
 Please use the ingame command to modify this.
 
 ### User Settings
-MaxOrders\
+**MaxOrders**\
 Max amount of orders one user can have. This countrs for claimed and unclaimed orders.
 
 ### Order Settings
-MaxItems\
+**MaxItems**\
 Max amount of items in one order.
 
-MaxMaterials\
+**MaxMaterials**\
 Amount of materials in one orders.
 
-MaxUnclaimedHours\
+**MaxUnclaimedHours**\
 The amount of time after an unclaimed order gets removed and the money is refunded.
 
 ### General Settings
-OrderCheckInterval\
+**OrderCheckInterval**\
 The interval in minutes which is used to check for expired orders
 
-Language\
+**Language**\
 The language which should be used. Needs to be one of the languages in the messages directory.
 
 ### Database Settings
