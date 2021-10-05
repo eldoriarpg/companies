@@ -34,14 +34,14 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
         var level = new ArrayList<String>();
         messageBlocker.blockPlayer(player);
         for (var companyLevel : configuration.companySettings().level()) {
-            var info = MessageComposer.create().text("<hover:show_text:%s><%s>%s - <%s>%s</hover>", companyLevel.asComponent(), Colors.NAME, companyLevel.level(), Colors.VALUE, companyLevel.levelName())
+            var info = MessageComposer.create().text("<hover:show_text:'%s'><%s>%s - <%s>%s</hover>", companyLevel.asComponent(), Colors.NAME, companyLevel.level(), Colors.VALUE, companyLevel.levelName()).space()
                     .text("<click:run_command:/companyadmin level info %s><%s>[", companyLevel.level(), Colors.SHOW).localeCode("words.info").text("]</click>").space()
                     .text("<click:run_command:/companyadmin level remove %s><%s>[", companyLevel.level(), Colors.REMOVE).localeCode("words.remove").text("]</click>").space()
                     .text("<click:suggest_command:/companyadmin level move %s >[", companyLevel.level(), Colors.MODIFY).localeCode("words.move").text("]</click>")
                     .build();
             level.add(info);
         }
-        var builder = MessageComposer.create().localeCode("words.level").text(" <click:suggest_command:/companyadmin level create >%s[", Colors.ADD).localeCode("words.create").text("]</click>").newLine()
+        var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("words.level").text(" <click:suggest_command:/companyadmin level create ><%s>[", Colors.ADD).localeCode("words.create").text("]</click>").newLine()
                 .text(String.join("\n", level));
         if (messageBlocker.isBlocked(player)) {
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");

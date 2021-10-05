@@ -44,7 +44,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         var edit = cmd + " edit " + level.level();
         var builder = MessageComposer.create()
                 .text("<%s>", Colors.HEADING).localeCode("words.level").text(" %s ", level.level())
-                .text("<click:suggest_command:%s move %s ><%s>[", cmd, level.level(), Colors.MODIFY).localeCode("words.move").text("]</click>")
+                .text("<click:suggest_command:'%s move %s '><%s>[", cmd, level.level(), Colors.MODIFY).localeCode("words.move").text("]</click>")
                 .newLine()
                 .text("<%s>", Colors.NAME).localeCode("words.name").text(": <%s>%s ", Colors.VALUE, level.levelName())
                 .text("<click:suggest_command:%s name ><%s>[", edit, Colors.MODIFY).localeCode("words.change").text("]</click>")
