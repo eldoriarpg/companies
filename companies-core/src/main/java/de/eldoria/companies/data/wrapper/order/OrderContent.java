@@ -59,11 +59,11 @@ OrderContent implements IOrderContent {
     }
 
     public String asComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%sx <%s>%s", Colors.VALUE, prettyType(), "aqua", amount, "gold", economy.format(price));
+        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", prettyType(), "blue", amount, "gold", economy.format(price));
     }
 
     public String asProgressComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%s/%s <%s>%s", Colors.VALUE, prettyType(), "aqua", delivered(), amount, "gold", economy.format(price));
+        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", prettyType(), "blue", delivered(), amount, "gold", economy.format(price));
     }
 
     @Override
