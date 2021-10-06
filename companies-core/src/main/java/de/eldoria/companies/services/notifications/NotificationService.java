@@ -3,7 +3,9 @@ package de.eldoria.companies.services.notifications;
 import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.ANotificationData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyKickEvent;
@@ -35,8 +37,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-import java.util.logging.Level;
 
 /**
  * Sends notifications based on internal events.
@@ -45,14 +48,19 @@ public class NotificationService implements Listener {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private final ANotificationData notificationData;
+    private final AOrderData orderData;
+    private final ScheduledExecutorService workerPool;
     private final MessageSender sender;
     private final ILocalizer localizer;
     private final MiniMessage miniMessage;
     private final BukkitAudiences audiences;
     private final Plugin plugin;
 
-    public NotificationService(ANotificationData notificationData, Plugin plugin) {
+    public NotificationService(ANotificationData notificationData, AOrderData orderData,
+                               ScheduledExecutorService workerPool, Plugin plugin) {
         this.notificationData = notificationData;
+        this.orderData = orderData;
+        this.workerPool = workerPool;
         sender = MessageSender.getPluginMessageSender(plugin);
         localizer = ILocalizer.getPluginLocalizer(plugin);
         this.plugin = plugin;
@@ -157,40 +165,54 @@ public class NotificationService implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        notificationData.retrieveNotifications(event.getPlayer())
-                .thenAccept(notifications -> {
-                    List<Component> components = new ArrayList<>();
+        workerPool.schedule(() -> {
+            var notifications = notificationData.retrieveNotifications(event.getPlayer()).join();
+            List<Component> components = new ArrayList<>();
 
-                    for (var currDate : notifications) {
-                        var date = currDate.getKey();
-                        if (date.equals(LocalDate.now())) {
-                            // Today
-                            components.add(miniMessage.parse(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.today", Colors.NEUTRAL))));
-                        } else if (date.equals(LocalDate.now().minusDays(1))) {
-                            // Yesterday
-                            components.add(miniMessage.parse(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.yesterday", Colors.NEUTRAL))));
-                        } else {
-                            components.add(miniMessage.parse(String.format("<%s>$%s$:<%s>", Colors.HEADING, DATE_FORMATTER.format(date), Colors.NEUTRAL)));
-                        }
-                        for (var notification : currDate.getValue()) {
-                            var time = TIME_FORMATTER.format(notification.created());
-                            var data = notification.data();
-                            switch (data.type()) {
-                                case MINI_MESSAGE:
-                                    components.add(miniMessage.parse(String.format("<%s>%s:<%s> %s", Colors.NAME, time, Colors.NEUTRAL, localizer.localize(data.message(), data.replacements()))));
-                                    break;
-                                case SIMPLE_MESSAGE:
-                                    components.add(Component.text(de.eldoria.eldoutilities.messages.MessageType.NORMAL.forceColor("§b" + time + " §2" + localizer.localize(data.message(), data.replacements()))));
-                                    break;
-                            }
-                        }
+            for (var currDate : notifications) {
+                var date = currDate.getKey();
+                if (date.equals(LocalDate.now())) {
+                    // Today
+                    components.add(miniMessage.parse(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.today", Colors.NEUTRAL))));
+                } else if (date.equals(LocalDate.now().minusDays(1))) {
+                    // Yesterday
+                    components.add(miniMessage.parse(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.yesterday", Colors.NEUTRAL))));
+                } else {
+                    components.add(miniMessage.parse(String.format("<%s>$%s$:<%s>", Colors.HEADING, DATE_FORMATTER.format(date), Colors.NEUTRAL)));
+                }
+                for (var notification : currDate.getValue()) {
+                    var time = TIME_FORMATTER.format(notification.created());
+                    var data = notification.data();
+                    switch (data.type()) {
+                        case MINI_MESSAGE:
+                            components.add(miniMessage.parse(String.format("<%s>%s:<%s> %s", Colors.NAME, time, Colors.NEUTRAL, localizer.localize(data.message(), data.replacements()))));
+                            break;
+                        case SIMPLE_MESSAGE:
+                            components.add(Component.text(de.eldoria.eldoutilities.messages.MessageType.NORMAL.forceColor("§b" + time + " §2" + localizer.localize(data.message(), data.replacements()))));
+                            break;
                     }
-                    notificationData.submitNotificationClear(event.getPlayer());
-                    audiences.player(event.getPlayer()).sendMessage(Component.join(JoinConfiguration.separator(Component.newline()), components));
-                }).exceptionally(err -> {
-                    plugin.getLogger().log(Level.SEVERE, "", err);
-                    return null;
-                });
+                }
+            }
+            notificationData.submitNotificationClear(event.getPlayer());
+            if (!notifications.isEmpty()) {
+                audiences.player(event.getPlayer()).sendMessage(Component.join(JoinConfiguration.separator(Component.newline()), components));
+            }
+
+            var orders = orderData.retrieveOrdersByPlayer(event.getPlayer(), OrderState.DELIVERED, OrderState.DELIVERED).join();
+            if (orders == null) return;
+            for (var order : orders) {
+                var message = MessageComposer.create()
+                        .text("<%s>", Colors.NEUTRAL)
+                        .localeCode("notification.orderDone")
+                        .space()
+                        .text("<click:run_command:/order receive %s><%s>[", order.id(), Colors.ADD)
+                        .localeCode("notification.recieveItems")
+                        .text("]</click>")
+                        .build();
+                sendMiniMessage(event.getPlayer(), message, miniOrderReplacement(order),
+                        Replacement.create("order_name", order.name()));
+            }
+        }, 1L, TimeUnit.SECONDS);
     }
 
     public void sendCompanyMessage(MessageType type, ICompanyProfile company, String message, Replacement... replacements) {
