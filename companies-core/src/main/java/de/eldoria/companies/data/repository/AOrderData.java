@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 public abstract class AOrderData extends QueryFactoryHolder {
     private final ExecutorService executorService;
     private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).build();
-    private final Cache<String, Optional<MaterialPrice>> materialPriceCache = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
+    private final Cache<String, MaterialPrice> materialPriceCache = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
 
     public AOrderData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, QueryBuilderConfig.builder()
@@ -264,16 +264,11 @@ public abstract class AOrderData extends QueryFactoryHolder {
      * @param material material to check
      * @return material price if present or empty optional
      */
-    public Optional<MaterialPrice> getMaterialPrice(String material) {
-        try {
-            return materialPriceCache.get(material, () -> {
-                retrieveMaterialPrice(material);
-                return Optional.empty();
-            });
-        } catch (ExecutionException e) {
-            Companies.logger().log(Level.SEVERE, "Could not compute material price for  " + material);
-        }
-        return Optional.empty();
+    public MaterialPrice getMaterialPrice(String material) {
+        var price = materialPriceCache.getIfPresent(material);
+        if (price != null) return price;
+        retrieveMaterialPrice(material);
+        return new MaterialPrice(material);
     }
 
     /**
@@ -282,14 +277,11 @@ public abstract class AOrderData extends QueryFactoryHolder {
      * @param material material to retrieve
      * @return future which provides a material price
      */
-    public FutureResult<Optional<MaterialPrice>> retrieveMaterialPrice(String material) {
+    public FutureResult<MaterialPrice> retrieveMaterialPrice(String material) {
         return CompletableBukkitFuture.supplyAsync(() -> {
-            try {
-                return materialPriceCache.get(material, () -> findMaterialPrice(material));
-            } catch (ExecutionException e) {
-                Companies.logger().log(Level.SEVERE, "Could not compute material price for  " + material);
-            }
-            return Optional.empty();
+            var price = findMaterialPrice(material).orElse(new MaterialPrice(material));
+            materialPriceCache.put(material, price);
+            return price;
         }, executorService);
     }
 

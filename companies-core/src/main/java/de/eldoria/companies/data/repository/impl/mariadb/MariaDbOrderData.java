@@ -249,7 +249,7 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected Optional<MaterialPrice> findMaterialPrice(String material) {
         return builder(MaterialPrice.class).query("SELECT material, avg_price, min_price, max_price FROM material_price WHERE material = ?")
-                .paramsBuilder(stmt -> stmt.setString(material.toLowerCase(Locale.ROOT)))
+                .paramsBuilder(stmt -> stmt.setString(material.toUpperCase(Locale.ROOT)))
                 .readRow(rs -> new MaterialPrice(material.toLowerCase(Locale.ROOT), rs.getDouble("avg_price"),
                         rs.getDouble("min_price"), rs.getDouble("max_price")))
                 .firstSync();

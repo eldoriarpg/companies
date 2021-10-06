@@ -50,4 +50,14 @@ public class MaterialPrice implements de.eldoria.companies.components.order.IMat
                 .text("<red>").localeCode("words.max").text(": %s", economy.format(maxPrice))
                 .build();
     }
+
+    @Override
+    public String toString() {
+        return "MaterialPrice{" +
+               "material='" + material + '\'' +
+               ", avgPrice=" + avgPrice +
+               ", minPrice=" + minPrice +
+               ", maxPrice=" + maxPrice +
+               '}';
+    }
 }

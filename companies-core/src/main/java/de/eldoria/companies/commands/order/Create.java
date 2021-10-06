@@ -296,16 +296,13 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 var max = configuration.orderSetting().maxItems() - builder.amount();
                 return TabCompleteUtil.completeInt(args[2], 1, max, localizer());
             }
-            var materialPrice = orderData.getMaterialPrice(args[2]);
+            var price = orderData.getMaterialPrice(args[1]);
             if (args.length == 4) {
                 if (args[3].isEmpty()) return Collections.singletonList(localizer().localize("words.price"));
                 var result = TabCompleteUtil.completeDouble(args[3], 0, 20000, localizer());
-                if (materialPrice.isPresent()) {
-                    var price = materialPrice.get();
-                    result.add("Avg: " + price.avgPrice());
-                    result.add("Min: " + price.minPrice());
-                    result.add("Max: " + price.maxPrice());
-                }
+                result.add("Avg: " + price.avgPrice());
+                result.add("Min: " + price.minPrice());
+                result.add("Max: " + price.maxPrice());
                 return result;
             }
             return Collections.emptyList();

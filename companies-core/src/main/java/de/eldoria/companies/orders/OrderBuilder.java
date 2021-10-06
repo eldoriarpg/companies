@@ -89,7 +89,7 @@ public class OrderBuilder {
         }
 
         for (var element : elements) {
-            var materialPrice = orderData.getMaterialPrice(element.materialString()).orElse(new MaterialPrice(element.materialString()));
+            var materialPrice = orderData.getMaterialPrice(element.materialString());
             composer.newLine().space(2)
                     .text("<%s><hover:show_text:'%s'>%s</hover>", VALUE, materialPrice.asComponent(economy), element.asComponent(economy))
                     .space()

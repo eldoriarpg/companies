@@ -70,7 +70,7 @@ public class CompaniesApiImpl extends CompaniesApi {
     }
 
     @Override
-    public Optional<? extends IMaterialPrice> retrieveMaterialPrice(Material material) {
+    public IMaterialPrice retrieveMaterialPrice(Material material) {
         return orderData.retrieveMaterialPrice(material.name()).join();
     }
 }

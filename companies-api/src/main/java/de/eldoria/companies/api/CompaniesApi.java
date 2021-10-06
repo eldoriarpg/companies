@@ -103,5 +103,5 @@ public abstract class CompaniesApi {
      * @param material material to check.
      * @return optional which holds the material price. This result may be cached or be retrived from the database
      */
-    public abstract Optional<? extends IMaterialPrice> retrieveMaterialPrice(Material material);
+    public abstract IMaterialPrice retrieveMaterialPrice(Material material);
 }
