@@ -51,8 +51,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return Collections.emptyList();
-                })
-                .thenApply(orders -> orderData.retrieveFullOrders(orders).asFuture()
+                }).thenApply(orders -> orderData.retrieveFullOrders(orders).asFuture()
                         .exceptionally(err -> {
                             plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                             return Collections.emptyList();
