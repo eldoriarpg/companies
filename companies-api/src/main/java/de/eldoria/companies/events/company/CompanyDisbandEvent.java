@@ -14,13 +14,13 @@ public class CompanyDisbandEvent extends CompanyEvent<ICompanyProfile> {
         super(company, true);
     }
 
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
+    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 
-    public static HandlerList getHandlerList() {
+    @NotNull
+    @Override
+    public HandlerList getHandlers() {
         return HANDLERS;
     }
 }

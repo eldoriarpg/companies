@@ -3,8 +3,6 @@ package de.eldoria.companies.events.order;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.events.components.OrderProvider;
 import org.bukkit.event.Event;
-import org.bukkit.event.HandlerList;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Represends a basic order event.

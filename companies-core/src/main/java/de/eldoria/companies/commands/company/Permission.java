@@ -1,8 +1,8 @@
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -50,13 +50,13 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
                     if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.permission.managePermissions");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.managePermissions");
                         return;
                     }
                     var companyMember = profile.memberByName(memberName);
@@ -110,31 +110,31 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         var memberName = arguments.asString(0);
         var method = arguments.asString(1);
         if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.invalidAction",
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidAction",
                     Replacement.create("first", "GIVE").addFormatting('4'), Replacement.create("second", "REMOVE").addFormatting('c'));
             return;
         }
         var permission = arguments.asEnum(2, CompanyPermission.class);
         if (permission == CompanyPermission.OWNER) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.ownerPermission");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.ownerPermission");
             return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
                     if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.permission.givePermissions");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.givePermissions");
                         return;
                     }
                     var optTarget = profile.memberByName(memberName);
                     if (optTarget.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.invalidMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidMember");
                         return;
                     }
 

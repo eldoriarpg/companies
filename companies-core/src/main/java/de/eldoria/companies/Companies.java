@@ -113,7 +113,7 @@ public class Companies extends EldoPlugin {
         ExpiringService.create(this, orderData, companyData, configuration, workerPool);
         RefreshService.create(orderData, workerPool);
         registerListener(levelService);
-        registerListener(new NotificationService(notificationData, this));
+        registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);

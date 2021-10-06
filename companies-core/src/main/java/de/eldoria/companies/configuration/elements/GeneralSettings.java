@@ -32,7 +32,7 @@ public class GeneralSettings implements ConfigurationSerializable {
         return orderCheckInterval;
     }
 
-    public String language(){
+    public String language() {
         return language;
     }
 }

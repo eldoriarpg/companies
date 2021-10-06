@@ -18,12 +18,12 @@ public final class AdventureComponentAdapter {
 
     public static String rawMessage(PacketContainer packet) {
         return adapter.apply(packet);
-    }    private static Function<PacketContainer, String> adapter = AdventureComponentAdapter::adapter;
+    }
 
     private static String adapter(PacketContainer packet) {
         buildAdapter(packet);
         return adapter.apply(packet);
-    }
+    }    private static Function<PacketContainer, String> adapter = AdventureComponentAdapter::adapter;
 
     private static void buildAdapter(PacketContainer packet) {
         try {

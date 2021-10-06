@@ -1,9 +1,9 @@
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyKickEvent;
-import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -40,21 +40,21 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
         var profile = optProfile.get();
 
         if (!profile.member(player).map(r -> r.hasPermissions(CompanyPermission.KICK)).orElse(false)) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.permission.kick");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.permission.kick");
             return;
         }
 
         var optMember = profile.memberByName(arg);
 
         if (optMember.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.noCompanyMember");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.noCompanyMember");
             return;
         }
 
         var target = optMember.get();
 
         if (target.hasPermission(CompanyPermission.KICK)) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,sender, "error.cantKick");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.cantKick");
             return;
         }
 

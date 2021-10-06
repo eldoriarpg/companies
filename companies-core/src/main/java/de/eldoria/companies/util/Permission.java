@@ -21,6 +21,7 @@ public final class Permission {
         private static final String ORDERS = perm(BASE, "orders");
         public static final String LIMIT = perm(ORDERS, "limit");
         public static final String CREATE = perm(ORDERS, "create");
+
         private Orders() {
             throw new UnsupportedOperationException("This is a utility class.");
         }
@@ -35,6 +36,7 @@ public final class Permission {
     public static final class Company {
         private static final String COMPANY = perm(BASE, "company");
         public static final String CREATE = perm(COMPANY, "create");
+
         private Company() {
             throw new UnsupportedOperationException("This is a utility class.");
         }
@@ -48,6 +50,7 @@ public final class Permission {
         public static final String RELOAD = perm(ADMIN, "reload");
         public static final String RENAME = perm(ADMIN, "rename");
         public static final String TRANSFER_OWNER = perm(ADMIN, "transferOwner");
+
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");
         }

@@ -16,7 +16,6 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.logging.Level;
@@ -49,7 +48,7 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optComp -> {
                     if (optComp.isEmpty()) {
-                        messageSender().send(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.unknownCompany");
+                        messageSender().send(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unknownCompany");
                         return;
                     }
                     var optProfile = companyData.retrieveCompanyProfile(optComp.get()).asFuture().join();

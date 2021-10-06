@@ -49,7 +49,7 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
@@ -73,14 +73,14 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                 leave(player);
                 return;
             }
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noConfirm");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noConfirm");
             return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noMember");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();

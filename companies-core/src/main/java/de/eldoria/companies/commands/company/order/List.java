@@ -1,10 +1,9 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
-import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;

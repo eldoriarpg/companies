@@ -1,9 +1,9 @@
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -58,14 +58,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var name = registrations.remove(player.getUniqueId());
 
         if (name == null) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noConfirm");
+            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noConfirm");
             return;
         }
 
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.companyNameUsed");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyNameUsed");
                         return;
                     }
 
@@ -78,7 +78,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         if (!result) {
                             var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                             var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.insufficientCurrency",
+                            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.insufficientCurrency",
                                     Replacement.create("currency", curr),
                                     Replacement.create("amount", configuration.companySettings().foudingPrice()));
                             return;
@@ -90,7 +90,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                     return -1;
                                 })
                                 .thenAccept(id -> {
-                                    if(id == -1)return;
+                                    if (id == -1) return;
                                     companyData.submitMemberUpdate(CompanyMember.forCompanyId(id, player).addPermission(CompanyPermission.OWNER));
                                 });
                         messageSender().sendLocalizedMessage(player, "company.create.created");
@@ -107,7 +107,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         if ("deny".equalsIgnoreCase(arguments.asString(0))) {
             var name = registrations.remove(player.getUniqueId());
             if (name == null) {
-                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noDeny");
+                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noDeny");
                 return;
             }
             messageSender().sendLocalizedMessage(player, "words.canceled");
@@ -120,7 +120,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.companyNameUsed");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyNameUsed");
                         return;
                     }
 

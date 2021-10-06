@@ -51,7 +51,7 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optCompany -> {
                     if (optCompany.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.noCompany");
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noCompany");
                         return;
                     }
                     messageBlocker.blockPlayer(player);

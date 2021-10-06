@@ -123,7 +123,7 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
         companyData.retrieveCompanyProfile(profile)
                 .asFuture()
                 .thenAccept(newProfile -> {
-                    if(newProfile.isEmpty()){
+                    if (newProfile.isEmpty()) {
                         companyCache.remove(profile.id());
                         return;
                     }
@@ -138,6 +138,12 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
                     companyCache.put(profile.id(), new CompanyCacheData(profile.name(), profile.level(), profile.members().size(), orders));
                 });
 
+    }
+
+    private Optional<CompanyCacheData> getCompanyCache(OfflinePlayer player) {
+        var id = companyGraph.get(player.getUniqueId());
+        if (id == null) return Optional.empty();
+        return Optional.ofNullable(companyCache.get(id));
     }
 
     private static class CompanyCacheData {
@@ -168,11 +174,5 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
         public int level() {
             return level;
         }
-    }
-
-    private Optional<CompanyCacheData> getCompanyCache(OfflinePlayer player) {
-        var id = companyGraph.get(player.getUniqueId());
-        if (id == null) return Optional.empty();
-        return Optional.ofNullable(companyCache.get(id));
     }
 }

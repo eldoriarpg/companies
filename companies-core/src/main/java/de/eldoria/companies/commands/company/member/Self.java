@@ -1,7 +1,7 @@
 package de.eldoria.companies.commands.company.member;
 
-import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Colors;
@@ -66,7 +66,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                         if (mem == null) continue;
                         var hover = MessageComposer.create();
 
-                        hover.text(((CompanyMember)member).statusComponent());
+                        hover.text(((CompanyMember) member).statusComponent());
 
                         if (!member.permissions().isEmpty()) {
                             var permissions = member.permissions().stream()

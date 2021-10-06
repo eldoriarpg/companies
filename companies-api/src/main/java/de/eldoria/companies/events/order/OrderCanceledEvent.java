@@ -23,6 +23,10 @@ public class OrderCanceledEvent extends OrderEvent<ISimpleOrder> implements Comp
         this.company = company;
     }
 
+    public static HandlerList getHandlerList() {
+        return HANDLERS;
+    }
+
     @Override
     public ICompanyProfile company() {
         return company;
@@ -31,10 +35,6 @@ public class OrderCanceledEvent extends OrderEvent<ISimpleOrder> implements Comp
     @NotNull
     @Override
     public HandlerList getHandlers() {
-        return HANDLERS;
-    }
-
-    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

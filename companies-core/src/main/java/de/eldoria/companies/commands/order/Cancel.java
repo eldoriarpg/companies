@@ -1,7 +1,7 @@
 package de.eldoria.companies.commands.order;
 
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;

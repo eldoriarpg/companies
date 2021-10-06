@@ -15,13 +15,13 @@ public class CompanyLevelUpEvent extends CompanyLevelChangeEvent {
         super(company, oldLevel, newLevel);
     }
 
-    @NotNull
-    @Override
-    public HandlerList getHandlers() {
+    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 
-    public static HandlerList getHandlerList() {
+    @NotNull
+    @Override
+    public HandlerList getHandlers() {
         return HANDLERS;
     }
 }

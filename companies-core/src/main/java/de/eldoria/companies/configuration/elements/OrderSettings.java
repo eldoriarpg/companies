@@ -9,7 +9,7 @@ import java.util.Map;
 public class OrderSettings implements ConfigurationSerializable {
     private int maxItems = 64 * 8;
     private int maxMaterials = 5;
-    private int maxUnclaimedHours = 24*7;
+    private int maxUnclaimedHours = 24 * 7;
 
     public OrderSettings(Map<String, Object> objectMap) {
         var map = SerializationUtil.mapOf(objectMap);

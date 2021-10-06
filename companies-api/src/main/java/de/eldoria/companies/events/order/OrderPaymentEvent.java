@@ -25,6 +25,10 @@ public class OrderPaymentEvent extends OrderEvent<ISimpleOrder> implements Cance
         this.amount = amount;
     }
 
+    public static HandlerList getHandlerList() {
+        return HANDLERS;
+    }
+
     @Override
     public boolean isCancelled() {
         return cancelled;
@@ -46,10 +50,6 @@ public class OrderPaymentEvent extends OrderEvent<ISimpleOrder> implements Cance
     @NotNull
     @Override
     public HandlerList getHandlers() {
-        return HANDLERS;
-    }
-
-    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

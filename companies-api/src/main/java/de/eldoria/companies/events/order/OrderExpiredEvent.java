@@ -19,6 +19,10 @@ public class OrderExpiredEvent extends OrderEvent<ISimpleOrder> implements Compa
         this.company = company;
     }
 
+    public static HandlerList getHandlerList() {
+        return HANDLERS;
+    }
+
     @Override
     public ICompanyProfile company() {
         return company;
@@ -27,10 +31,6 @@ public class OrderExpiredEvent extends OrderEvent<ISimpleOrder> implements Compa
     @NotNull
     @Override
     public HandlerList getHandlers() {
-        return HANDLERS;
-    }
-
-    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

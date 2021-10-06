@@ -19,6 +19,10 @@ public class OrderDoneEvent extends OrderEvent<ISimpleOrder> implements CompanyP
         this.company = company;
     }
 
+    public static HandlerList getHandlerList() {
+        return HANDLERS;
+    }
+
     @Override
     public ICompanyProfile company() {
         return company;
@@ -27,10 +31,6 @@ public class OrderDoneEvent extends OrderEvent<ISimpleOrder> implements CompanyP
     @NotNull
     @Override
     public HandlerList getHandlers() {
-        return HANDLERS;
-    }
-
-    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 }

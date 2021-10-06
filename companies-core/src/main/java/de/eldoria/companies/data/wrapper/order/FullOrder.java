@@ -35,7 +35,8 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     public String userShortInfo(Economy economy) {
         return MessageComposer.create()
-                .text("<hover:show_text:'%s",userContent(economy)).newLine()
+                .text("<hover:show_text:'%s", userContent(economy)).newLine()
+                .text("<%s>", NAME).localeCode("words.status").text(": <%s>").localeCode(state().translationKey()).newLine()
                 .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s'>", VALUE, economy.format(price()))
                 .text(" <%s>%s | <%s>%s", NAME, id(), VALUE, name())
                 .text("</hover>").space().text("<click:run_command:/order info %s><%s>[", id(), ADD).localeCode("words.info").text("]</click>")

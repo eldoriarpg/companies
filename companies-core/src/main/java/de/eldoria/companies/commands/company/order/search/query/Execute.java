@@ -2,8 +2,8 @@ package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.commands.company.order.search.Query;
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;

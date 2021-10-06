@@ -1,8 +1,8 @@
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;

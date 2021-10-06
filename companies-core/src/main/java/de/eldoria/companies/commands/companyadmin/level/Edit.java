@@ -65,7 +65,7 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
                 level.settings().maxOrders(args.asInt(2));
                 break;
             default:
-                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR,player, "error.unkownField");
+                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownField");
                 return;
         }
         configuration.save();

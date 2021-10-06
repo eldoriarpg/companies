@@ -19,6 +19,10 @@ public class CompanyLeaveEvent extends CompanyEvent<ICompanyProfile> implements 
         this.player = player;
     }
 
+    public static HandlerList getHandlerList() {
+        return HANDLERS;
+    }
+
     @Override
     public OfflinePlayer player() {
         return player;
@@ -27,10 +31,6 @@ public class CompanyLeaveEvent extends CompanyEvent<ICompanyProfile> implements 
     @NotNull
     @Override
     public HandlerList getHandlers() {
-        return HANDLERS;
-    }
-
-    public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 }
