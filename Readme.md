@@ -7,7 +7,8 @@
 [![Development](https://img.shields.io/nexus/maven-dev/de.eldoria/companies-api?label=DEV&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][development]
 [![Snapshots](https://img.shields.io/nexus/s/de.eldoria/companies-api?color=orange&label=Snapshot&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][snapshot]
 
-<[![Text](image_link)][link_anchor]>
+<!-- [![Text](image_link)][link_anchor] -->
+<!-- [anchor]: link> -->
 
 
 # Dependency
@@ -122,4 +123,3 @@ Required for `postgres`
 [release]: https://eldonexus.de/#browse/browse:maven-releases:de%2Feldoria%2Fcompanies-api
 [development]: https://eldonexus.de/#browse/browse:maven-dev:de%2Feldoria%2Fcompanies-api
 [snapshot]: https://eldonexus.de/#browse/browse:maven-snapshots:de%2Feldoria%2Fcompanies-api
-<[anchor]: link>
