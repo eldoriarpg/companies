@@ -1,4 +1,4 @@
-[![wakatime](https://wakatime.com/badge/github/eldoriarpg/companies.svg)](https://wakatime.com/badge/github/eldoriarpg/companies)
+[![Wakatime_Badge](https://wakatime.com/badge/github/eldoriarpg/companies.svg)][wakatime]
 
 [![Publish](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Publish%20to%20Nexus?style=for-the-badge&label=Publish)][publish]
 [![Build](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Verify%20state?style=for-the-badge&label=Build)][verify]
@@ -118,6 +118,7 @@ Required for `postgres`, `mariadb`
 Schema to use. This schema needs to exists and will not be created by the plugin.\
 Required for `postgres`
 
+[wakatime]: https://wakatime.com/badge/github/eldoriarpg/companies
 [publish]: https://github.com/eldoriarpg/companies/actions/workflows/publish_to_nexus.yml
 [verify]: https://github.com/eldoriarpg/companies/actions/workflows/verify.yml
 [release]: https://eldonexus.de/#browse/browse:maven-releases:de%2Feldoria%2Fcompanies-api
