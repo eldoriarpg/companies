@@ -1,11 +1,14 @@
 [![wakatime](https://wakatime.com/badge/github/eldoriarpg/companies.svg)](https://wakatime.com/badge/github/eldoriarpg/companies)
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Publish%20to%20Nexus?style=for-the-badge&label=Publish)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Verify%20state?style=for-the-badge&label=Building)
+[![Publish](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Publish%20to%20Nexus?style=for-the-badge&label=Publish)][publish]
+[![Build](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Verify%20state?style=for-the-badge&label=Build)][verify]
 
-![Sonatype Nexus (Releases)](https://img.shields.io/nexus/maven-releases/de.eldoria/companies-api?label=Release&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)
-![Sonatype Nexus (Development)](https://img.shields.io/nexus/maven-dev/de.eldoria/companies-api?label=DEV&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)
-![Sonatype Nexus (Snapshots)](https://img.shields.io/nexus/s/de.eldoria/companies-api?color=orange&label=Snapshot&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)
+[![Releases](https://img.shields.io/nexus/maven-releases/de.eldoria/companies-api?label=Release&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][release]
+[![Development](https://img.shields.io/nexus/maven-dev/de.eldoria/companies-api?label=DEV&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][development]
+[![Snapshots](https://img.shields.io/nexus/s/de.eldoria/companies-api?color=orange&label=Snapshot&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][snapshot]
+
+<[![Text](image_link)][link_anchor]>
+
 
 # Dependency
 **Gradle**
@@ -113,3 +116,10 @@ Required for `postgres`, `mariadb`
 **Schema**\
 Schema to use. This schema needs to exists and will not be created by the plugin.\
 Required for `postgres`
+
+[publish]: https://github.com/eldoriarpg/companies/actions/workflows/publish_to_nexus.yml
+[verify]: https://github.com/eldoriarpg/companies/actions/workflows/verify.yml
+[release]: https://eldonexus.de/#browse/browse:maven-releases:de%2Feldoria%2Fcompanies-api
+[development]: https://eldonexus.de/#browse/browse:maven-dev:de%2Feldoria%2Fcompanies-api
+[snapshot]: https://eldonexus.de/#browse/browse:maven-snapshots:de%2Feldoria%2Fcompanies-api
+<[anchor]: link>
