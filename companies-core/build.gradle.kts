@@ -13,7 +13,7 @@ repositories {
 
 dependencies {
     implementation(project(":companies-api"))
-    implementation("de.eldoria", "eldo-util", "1.10.2b-SNAPSHOT")
+    implementation("de.eldoria", "eldo-util", "1.10.3")
     implementation("de.chojo", "sql-util", "1.1.4-DEV") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
