@@ -71,9 +71,4 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
     }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Collections.emptyList();
-    }
 }

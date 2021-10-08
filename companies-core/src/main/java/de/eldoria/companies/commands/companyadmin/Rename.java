@@ -59,11 +59,11 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
         args.parseQuoted();
 
         if (args.size() == 1) {
-            return TabCompleteUtil.completeFreeInput(args.asString(0), 32, "<name>", localizer());
+            return TabCompleteUtil.completeFreeInput(args.asString(0), 32, localizer().localize("words.source"), localizer());
         }
 
         if (args.size() == 2) {
-            return TabCompleteUtil.completeFreeInput(args.asString(1), 32, "<name>", localizer());
+            return TabCompleteUtil.completeFreeInput(args.asString(1), 32, localizer().localize("words.target"), localizer());
         }
 
         return Collections.emptyList();

@@ -170,6 +170,6 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return TabCompleteUtil.completeFreeInput(arguments.join(), MAX_NAME_LENGTH, "<name>", localizer());
+        return TabCompleteUtil.completeFreeInput(arguments.join(), MAX_NAME_LENGTH, localizer().localize("words.name"), localizer());
     }
 }

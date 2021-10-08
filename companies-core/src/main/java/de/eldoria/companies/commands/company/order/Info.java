@@ -77,8 +77,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
-                })
-        ;
+                });
     }
 
     public void renderOrder(Player player, CompanyMember member, FullOrder order) {

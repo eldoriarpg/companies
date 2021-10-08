@@ -90,9 +90,4 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                 })
         ;
     }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return IPlayerTabExecutor.super.onTabComplete(player, alias, args);
-    }
 }

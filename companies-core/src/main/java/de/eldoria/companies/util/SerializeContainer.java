@@ -66,6 +66,7 @@ public class SerializeContainer {
      * @param <T>   type to return
      * @return a new instance of the serialzied object.
      */
+    @SuppressWarnings("unchecked")
     public <T extends ConfigurationSerializable> T toObject(Class<T> clazz) {
         return (T) ConfigurationSerialization.deserializeObject(data, clazz);
     }

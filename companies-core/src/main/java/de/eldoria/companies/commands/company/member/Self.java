@@ -92,12 +92,6 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
-                })
-        ;
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return IPlayerTabExecutor.super.onTabComplete(player, alias, args);
+                });
     }
 }

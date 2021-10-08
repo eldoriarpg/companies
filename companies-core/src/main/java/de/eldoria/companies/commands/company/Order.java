@@ -25,7 +25,7 @@ public class Order extends AdvancedCommand {
                     builder.withDefaultCommand(list);
                     commands.add(new Abort(plugin, companyData, orderData, list));
                     commands.add(new Accept(plugin, companyData, orderData, configuration, messageBlocker));
-                    commands.add(new Deliver(plugin, companyData, orderData, economy, configuration, info, messageBlocker));
+                    commands.add(new Deliver(plugin, companyData, orderData, economy, info, messageBlocker));
                     commands.add(list);
                     commands.add(info);
                     commands.add(new Search(plugin, orderData, economy, messageBlocker));

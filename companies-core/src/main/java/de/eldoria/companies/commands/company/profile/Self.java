@@ -65,9 +65,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
-                })
-        ;
-
+                });
     }
 
     private void sendProfile(Player player, CompanyProfile profile, List<SimpleOrder> orders) {
@@ -99,10 +97,5 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
         composer.prependLines(25);
         messageBlocker.announce(player, "[x]");
         audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Collections.emptyList();
     }
 }

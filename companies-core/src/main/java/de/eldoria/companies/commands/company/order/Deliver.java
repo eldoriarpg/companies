@@ -32,12 +32,10 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final Economy economy;
     private final ACompanyData companyData;
     private final AOrderData orderData;
-    private final BukkitAudiences audiences;
-    private final Configuration configuration;
     private final Info info;
     private final IMessageBlockerService messageBlocker;
 
-    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, Info info, IMessageBlockerService messageBlocker) {
+    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Info info, IMessageBlockerService messageBlocker) {
         super(plugin, CommandMeta.builder("deliver")
                 .addArgument("words.id", true)
                 .addArgument("words.material", true)
@@ -46,8 +44,6 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         this.orderData = orderData;
         this.economy = economy;
         this.companyData = companyData;
-        audiences = BukkitAudiences.create(plugin);
-        this.configuration = configuration;
         this.info = info;
         this.messageBlocker = messageBlocker;
     }
@@ -143,7 +139,6 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
-                })
-        ;
+                });
     }
 }

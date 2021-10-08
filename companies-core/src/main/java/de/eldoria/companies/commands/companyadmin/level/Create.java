@@ -41,7 +41,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var args = arguments.asArray();
         if (args.length == 1) {
             if (args[0].isEmpty()) {
-                return Collections.singletonList("<insert at>");
+                return Collections.singletonList(localizer().localize("words.index"));
             }
             return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size() + 1, localizer());
         }

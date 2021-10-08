@@ -23,7 +23,7 @@ public class Chatblock extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
-        if (args.asBoolen(0)) {
+        if (args.asBoolean(0)) {
             messageBlockerService.blockPlayer(player);
         } else {
             messageBlockerService.unblockPlayer(player);

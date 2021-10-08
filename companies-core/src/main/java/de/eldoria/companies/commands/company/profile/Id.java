@@ -71,7 +71,6 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
-                })
-        ;
+                });
     }
 }
