@@ -23,6 +23,7 @@ import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.ArgumentUtils;
 import de.eldoria.eldoutilities.utils.EnumUtil;
+import de.eldoria.eldoutilities.utils.Parser;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -39,6 +40,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final MiniMessage miniMessage = MiniMessage.get();
@@ -276,33 +278,34 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var cmd = args[0];
         var builder = builderCache.getIfPresent(getPlayerFromSender(sender).getUniqueId());
 
-        if (builder == null) return TabCompleteUtil.completeFreeInput(arguments.join(), 32, "<name>", localizer());
+        if (builder == null) return TabCompleteUtil.completeFreeInput(arguments.join(), 32, localizer().localize("words.name"), localizer());
 
         if (args.length == 1) {
             return TabCompleteUtil.complete(cmd, "name", "add", "remove", "cancel", "done");
         }
 
         if ("name".equalsIgnoreCase(cmd) || "create".equalsIgnoreCase(cmd)) {
-            return TabCompleteUtil.completeFreeInput(ArgumentUtils.getRangeAsString(args, 1), 32, "<name>", localizer());
+            return TabCompleteUtil.completeFreeInput(ArgumentUtils.getRangeAsString(args, 1), 32, localizer().localize("words.name"), localizer());
         }
 
         if ("add".equalsIgnoreCase(cmd)) {
             if (args.length == 2) {
-                if (args[1].isEmpty()) return Collections.singletonList("material");
+                if (args[1].isEmpty()) return Collections.singletonList(localizer().localize("words.material"));
                 return TabCompleteUtil.completeMaterial(args[1], true);
             }
             var price = orderData.getMaterialPrice(args[1]);
             if (args.length == 3) {
-                if (args[2].isEmpty()) return Collections.singletonList("amount");
+                if (args[2].isEmpty()) return Collections.singletonList(localizer().localize("words.amount"));
                 var max = configuration.orderSetting().maxItems() - builder.amount();
                 return TabCompleteUtil.completeInt(args[2], 1, max, localizer());
             }
+            var amount = Parser.parseInt(args[2]);
             if (args.length == 4) {
                 if (args[3].isEmpty()) return Collections.singletonList(localizer().localize("words.price"));
-                var result = TabCompleteUtil.completeMinDouble(args[3], 0,localizer());
-                result.add("Avg: " + price.avgPrice());
-                result.add("Min: " + price.minPrice());
-                result.add("Max: " + price.maxPrice());
+                var result = TabCompleteUtil.completeMinDouble(args[3], 0, localizer());
+                result.add("Avg: " + amount.map(a -> a * price.avgPrice()).orElse(0.0));
+                result.add("Min: " + amount.map(a -> a * price.minPrice()).orElse(0.0));
+                result.add("Max: " + amount.map(a -> a * price.maxPrice()).orElse(0.0));
                 return result;
             }
             return Collections.emptyList();
@@ -310,7 +313,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         if ("price".equalsIgnoreCase(cmd)) {
             if (args.length == 2) {
-                if (args[1].isEmpty()) return Collections.singletonList("material");
+                if (args[1].isEmpty()) return builder.elements().stream().map(OrderContent::materialString).collect(Collectors.toList());
                 return TabCompleteUtil.complete(args[1], builder.elements().stream().map(OrderContent::materialString));
             }
             if (args.length == 3) {
@@ -321,7 +324,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         if ("amount".equalsIgnoreCase(cmd)) {
             if (args.length == 2) {
-                if (args[1].isEmpty()) return Collections.singletonList("material");
+                if (args[1].isEmpty()) return builder.elements().stream().map(OrderContent::materialString).collect(Collectors.toList());
                 return TabCompleteUtil.complete(args[1], builder.elements().stream().map(OrderContent::materialString));
             }
 

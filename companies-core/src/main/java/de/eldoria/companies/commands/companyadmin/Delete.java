@@ -46,6 +46,6 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return TabCompleteUtil.completeFreeInput(args.join(), 32, "<name>", localizer());
+        return TabCompleteUtil.completeFreeInput(args.join(), 32, localizer().localize("words.name"), localizer());
     }
 }

@@ -106,8 +106,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
-                })
-        ;
+                });
         return false;
     }
 
@@ -136,10 +135,5 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
             return Optional.empty();
         }
         return optOrder;
-    }
-
-    @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
     }
 }

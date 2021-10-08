@@ -42,14 +42,14 @@ public class Move extends AdvancedCommand implements IPlayerTabExecutor {
         var args = arguments.asArray();
         if (args.length == 1) {
             if (args[0].isEmpty()) {
-                return Collections.singletonList("<source>");
+                return Collections.singletonList(localizer().localize("words.source"));
             }
             return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
         }
 
         if (args.length == 2) {
             if (args[0].isEmpty()) {
-                return Collections.singletonList("<target>");
+                return Collections.singletonList(localizer().localize("words.target"));
             }
             return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
         }

@@ -11,12 +11,15 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageChannel;
 import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 
@@ -63,5 +66,10 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
                     builder.prependLines(25);
                     audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
                 });
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        return TabCompleteUtil.completeFreeInput(args.asString(0), 32, localizer().localize("words.name"), localizer());
     }
 }

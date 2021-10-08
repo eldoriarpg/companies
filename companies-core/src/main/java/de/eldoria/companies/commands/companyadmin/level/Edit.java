@@ -77,7 +77,7 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
         var args = arguments.asArray();
         if (args.length == 1) {
             if (args[0].isEmpty()) {
-                return Collections.singletonList("<source>");
+                return Collections.singletonList(localizer().localize("words.source"));
             }
             return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
         }
@@ -90,7 +90,7 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
         var value = args[2];
         if (args.length == 3) {
             if (TabCompleteUtil.isCommand(value, "name")) {
-                return TabCompleteUtil.completeFreeInput(value, 32, "Company Name", localizer());
+                return TabCompleteUtil.completeFreeInput(value, 32, localizer().localize("words.name"), localizer());
             }
 
             if (TabCompleteUtil.isCommand(value, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {

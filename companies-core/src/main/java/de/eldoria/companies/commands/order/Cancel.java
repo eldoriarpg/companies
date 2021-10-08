@@ -74,9 +74,4 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                 })
         ;
     }
-
-    @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
-    }
 }
