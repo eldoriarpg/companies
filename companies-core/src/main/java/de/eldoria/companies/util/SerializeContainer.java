@@ -2,7 +2,11 @@ package de.eldoria.companies.util;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import java.lang.reflect.Type;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 
@@ -11,13 +15,7 @@ import java.util.Map;
 public class SerializeContainer {
 
     private static final Gson GSON = new GsonBuilder()
-        .registerTypeAdapter(SerializeContainer.class,
-            (JsonDeserializer<Object>) (json, typeOfT, context) -> {
-                var jsonObject = json.getAsJsonObject();
-                return new SerializeContainer(context.deserialize(jsonObject.has("data")
-                    ? jsonObject.get("data") // To ensure backward compatibility
-                    : jsonObject, Map.class));
-            })
+        .registerTypeAdapter(SerializeContainer.class, new SerializeContainerAdapter())
         .create();
 
     private final Map<String, Object> data;
@@ -87,5 +85,17 @@ public class SerializeContainer {
      */
     public String toJson() {
         return GSON.toJson(data);
+    }
+
+    private static class SerializeContainerAdapter implements JsonDeserializer<SerializeContainer> {
+
+        @Override
+        public SerializeContainer deserialize(JsonElement json, Type typeOfT,
+            JsonDeserializationContext context) throws JsonParseException {
+            var jsonObject = json.getAsJsonObject();
+            return new SerializeContainer(context.deserialize(jsonObject.has("data")
+                ? jsonObject.get("data") // To ensure backward compatibility
+                : jsonObject, Map.class));
+        }
     }
 }
