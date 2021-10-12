@@ -6,6 +6,7 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
@@ -89,13 +90,18 @@ public class SerializeContainer {
 
     private static class SerializeContainerAdapter implements JsonDeserializer<SerializeContainer> {
 
+        private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>(){}.getType();
+
         @Override
         public SerializeContainer deserialize(JsonElement json, Type typeOfT,
             JsonDeserializationContext context) throws JsonParseException {
             var jsonObject = json.getAsJsonObject();
-            return new SerializeContainer(context.deserialize(jsonObject.has("data")
+
+            Map<String, Object> deserializedMap = context.deserialize(jsonObject.has("data")
                 ? jsonObject.get("data") // To ensure backward compatibility
-                : jsonObject, Map.class));
+                : jsonObject, MAP_TYPE);
+
+            return new SerializeContainer(deserializedMap);
         }
     }
 }
