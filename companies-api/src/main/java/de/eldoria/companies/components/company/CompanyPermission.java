@@ -16,9 +16,11 @@ public enum CompanyPermission implements Translatable {
     MANAGE_PERMISSIONS(4);
 
     private final long mask;
+    private final int rawMask;
 
     CompanyPermission(int mask) {
         this.mask = toBitMask(mask);
+        rawMask = mask;
     }
 
     public static long composePermissions(CompanyPermission... permissions) {
@@ -49,6 +51,10 @@ public enum CompanyPermission implements Translatable {
 
     public long mask() {
         return mask;
+    }
+
+    public int rawMask() {
+        return rawMask;
     }
 
     @Override

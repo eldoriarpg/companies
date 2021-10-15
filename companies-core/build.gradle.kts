@@ -57,16 +57,16 @@ tasks {
     }
 
     shadowJar {
-        //relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
+        relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
         relocate("net.kyori", shadebase + "kyori")
-        //relocate("de.chojo.sqlutil", shadebase + "sqlutil")
+        relocate("de.chojo.sqlutil", shadebase + "sqlutil")
         mergeServiceFiles()
         minimize()
         archiveClassifier.set("")
     }
 
     test {
-        useJUnit()
+        useJUnitPlatform()
         testLogging {
             events("passed", "skipped", "failed")
         }
