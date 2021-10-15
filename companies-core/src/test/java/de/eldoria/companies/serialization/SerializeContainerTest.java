@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 public class SerializeContainerTest {
 
   @Test
-  public void serializeItemStack() {
+  public void serializeContainerTest() {
     ConfigurationSerialization.registerClass(TestPojo.class, "TestPojo");
 
     var container = SerializeContainer.fromObject(new TestPojo(33, Material.ACACIA_BOAT));

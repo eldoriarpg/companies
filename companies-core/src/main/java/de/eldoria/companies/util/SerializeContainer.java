@@ -85,7 +85,7 @@ public class SerializeContainer {
      * @return map as json string
      */
     public String toJson() {
-        return GSON.toJson(data);
+        return GSON.toJson(this);
     }
 
     private static class SerializeContainerAdapter implements JsonDeserializer<SerializeContainer> {
@@ -97,9 +97,7 @@ public class SerializeContainer {
             JsonDeserializationContext context) throws JsonParseException {
             var jsonObject = json.getAsJsonObject();
 
-            Map<String, Object> deserializedMap = context.deserialize(jsonObject.has("data")
-                ? jsonObject.get("data") // To ensure backward compatibility
-                : jsonObject, MAP_TYPE);
+            Map<String, Object> deserializedMap = context.deserialize(jsonObject.get("data"), MAP_TYPE);
 
             return new SerializeContainer(deserializedMap);
         }
