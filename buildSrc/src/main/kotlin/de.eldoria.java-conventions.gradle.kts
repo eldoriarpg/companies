@@ -25,6 +25,7 @@ dependencies {
 
 allprojects {
     java {
+        sourceCompatibility = JavaVersion.VERSION_11
         withSourcesJar()
         withJavadocJar()
     }
