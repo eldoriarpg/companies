@@ -1,6 +1,6 @@
 plugins {
     java
-    id("com.github.johnrengelman.shadow") version "7.0.0"
+    id("com.github.johnrengelman.shadow") version "7.1.0"
     id("de.eldoria.java-conventions")
 }
 
@@ -14,7 +14,7 @@ repositories {
 dependencies {
     implementation(project(":companies-api"))
     implementation("de.eldoria", "eldo-util", "1.10.3")
-    implementation("de.chojo", "sql-util", "1.1.4-DEV") {
+    implementation("de.chojo", "sql-util", "1.1.5") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
         exclude("com.zaxxer")
@@ -63,6 +63,7 @@ tasks {
         mergeServiceFiles()
         minimize()
         archiveClassifier.set("")
+        archiveBaseName.set("Companies")
     }
 
     test {
@@ -71,6 +72,7 @@ tasks {
             events("passed", "skipped", "failed")
         }
     }
+
     register<Copy>("copyToServer") {
         val path = project.property("targetDir") ?: ""
         if (path.toString().isEmpty()) {

@@ -3,7 +3,7 @@ description: ${description}
 author: Hadde
 version: ${version}
 main: de.eldoria.companies.Companies
-api-version: 1.13
+api-version: 1.16
 depend:
   - Vault
 softdepend:
