@@ -9,9 +9,11 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
@@ -53,6 +55,63 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         delayedActions = DelayedActions.start(plugin);
         this.companyData = companyData;
         this.configuration = configuration;
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        if ("accept".equalsIgnoreCase(arguments.asString(0))) {
+            accept(player);
+            return;
+        }
+
+        if ("deny".equalsIgnoreCase(arguments.asString(0))) {
+            deny(player);
+            return;
+        }
+
+        var target = arguments.asPlayer(0);
+
+        CommandAssertions.isTrue(target.hasPermission(Permission.Company.JOIN), "error.canNotJoin");
+
+        companyData.retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(company -> {
+                    if (company.isEmpty()) {
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        return;
+                    }
+
+                    if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.invite");
+                        return;
+                    }
+                    var profile = company.get();
+                    if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyFull");
+                        return;
+                    }
+
+                    var targetCompany = companyData.retrievePlayerCompany(target)
+                            .asFuture()
+                            .exceptionally(err -> {
+                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                                return Optional.empty();
+                            })
+                            .join();
+                    if (targetCompany.isPresent()) {
+                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.hasCompany");
+                        return;
+                    }
+                    scheduleInvite(player, target, company.get());
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                })
+        ;
     }
 
     private void deny(@NotNull Player player) {
@@ -132,61 +191,6 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         if (inviter != null) {
             messageSender().sendLocalizedMessage(inviter, "company.invite.expired");
         }
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        if ("accept".equalsIgnoreCase(arguments.asString(0))) {
-            accept(player);
-            return;
-        }
-
-        if ("deny".equalsIgnoreCase(arguments.asString(0))) {
-            deny(player);
-            return;
-        }
-
-        var target = arguments.asPlayer(0);
-
-        companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
-                        return;
-                    }
-
-                    if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.invite");
-                        return;
-                    }
-                    var profile = company.get();
-                    if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyFull");
-                        return;
-                    }
-
-                    var targetCompany = companyData.retrievePlayerCompany(target)
-                            .asFuture()
-                            .exceptionally(err -> {
-                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                                return Optional.empty();
-                            })
-                            .join();
-                    if (targetCompany.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.hasCompany");
-                        return;
-                    }
-                    scheduleInvite(player, target, company.get());
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
-        ;
     }
 
     @Override

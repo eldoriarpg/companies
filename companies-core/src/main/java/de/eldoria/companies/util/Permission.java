@@ -36,6 +36,7 @@ public final class Permission {
     public static final class Company {
         private static final String COMPANY = perm(BASE, "company");
         public static final String CREATE = perm(COMPANY, "create");
+        public static final String JOIN = perm(COMPANY, "join");
 
         private Company() {
             throw new UnsupportedOperationException("This is a utility class.");

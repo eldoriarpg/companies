@@ -2,8 +2,8 @@ package de.eldoria.companies;
 
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
+import de.chojo.sqlutil.databases.SqlType;
 import de.chojo.sqlutil.logging.JavaLogger;
-import de.chojo.sqlutil.updater.SqlType;
 import de.chojo.sqlutil.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.Company;
