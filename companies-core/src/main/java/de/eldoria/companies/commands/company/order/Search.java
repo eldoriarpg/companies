@@ -4,9 +4,9 @@ import de.eldoria.companies.commands.company.order.search.Page;
 import de.eldoria.companies.commands.company.order.search.Query;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
@@ -19,7 +19,7 @@ public class Search extends AdvancedCommand {
     private final Page page;
     private final Map<UUID, List<FullOrder>> results = new HashMap<>();
 
-    public Search(Plugin plugin, AOrderData orderData, Economy economy, IMessageBlockerService messageBlocker) {
+    public Search(Plugin plugin, AOrderData orderData, Economy economy, MessageBlocker messageBlocker) {
         super(plugin);
         page = new Page(plugin, this, economy, messageBlocker);
         var meta = CommandMeta.builder("search")

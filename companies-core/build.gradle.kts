@@ -1,3 +1,6 @@
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+
 plugins {
     java
     id("com.github.johnrengelman.shadow") version "7.1.0"
@@ -15,7 +18,7 @@ repositories {
 
 dependencies {
     implementation(project(":companies-api"))
-    implementation("de.eldoria", "eldo-util", "1.10.3")
+    implementation("de.eldoria", "eldo-util", "1.13.9")
     implementation("de.chojo", "sql-util", "1.4.6") {
         exclude("org.jetbrains")
         exclude("org.slf4j")
@@ -39,7 +42,34 @@ dependencies {
     compileOnly("com.github.MilkBowl", "VaultAPI", "1.7")
 }
 
+fun getBuildType(): String {
+    return when {
+        System.getenv("PATREON")?.equals("true", true) == true -> {
+            "PATREON"
+        }
+        publishData.isPublicBuild() -> {
+            "PUBLIC";
+        }
+        else -> "LOCAL"
+    }
+}
+
 tasks {
+    processResources {
+        from(sourceSets.main.get().resources.srcDirs) {
+            filesMatching("build.data") {
+                expand(
+                    "type" to getBuildType(),
+                    "time" to DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
+                    "branch" to publishData.getBranch(),
+                    "commit" to publishData.getCommitHash()
+                )
+            }
+        }
+
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+
     compileJava {
         options.encoding = "UTF-8"
     }
@@ -118,18 +148,18 @@ bukkit {
             children = listOf("companies.admin.level")
         }
 
-        register("companies.company.*"){
+        register("companies.company.*") {
             description = "Gives access to company commands"
             children = listOf("companies.company.create")
         }
 
-        register("companies.order.create"){
+        register("companies.order.create") {
             description = "Allows creation of orders"
         }
-        register("companies.admin.level"){
+        register("companies.admin.level") {
             description = "Allows managing of company level settings"
         }
-        register("companies.company.create"){
+        register("companies.company.create") {
             description = "Allows creation of a company"
         }
     }

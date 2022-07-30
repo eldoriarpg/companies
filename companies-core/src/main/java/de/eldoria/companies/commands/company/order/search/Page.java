@@ -2,7 +2,6 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -11,13 +10,13 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,15 +28,15 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
     private final Economy economy;
     private final BukkitAudiences audiences;
     private final MiniMessage miniMessage;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
 
-    public Page(Plugin plugin, Search search, Economy economy, IMessageBlockerService messageBlocker) {
+    public Page(Plugin plugin, Search search, Economy economy, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("page")
                 .addArgument("words.page", true)
                 .build());
         this.search = search;
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.economy = economy;
         this.messageBlocker = messageBlocker;
     }
@@ -78,7 +77,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
-        audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
+        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
     }
 
     private List<FullOrder> page(List<FullOrder> orders, int page) {

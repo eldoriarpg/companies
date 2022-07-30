@@ -48,7 +48,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 .withPermission(Permission.Company.CREATE)
                 .build());
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.companyData = companyData;
         this.economy = economy;
         this.configuration = configuration;
@@ -132,13 +132,13 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                             .text("<click:run_command:/company create confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>")
                             .space()
                             .text("<click:run_command:/company create deny><%s>[", Colors.REMOVE).localeCode("words.deny").text("]</click>");
-                    audiences.sender(player).sendMessage(miniMessage.parse(composer.buildLocalized(localizer())));
+                    audiences.sender(player).sendMessage(miniMessage.deserialize(composer.buildLocalized(localizer())));
                     registrations.put(player.getUniqueId(), name);
                 });
     }
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return TabCompleteUtil.completeFreeInput(arguments.join(), 32, localizer().localize("words.name"), localizer());
+        return TabCompleteUtil.completeFreeInput(arguments.join(), 32, localizer().localize("words.name"));
     }
 }

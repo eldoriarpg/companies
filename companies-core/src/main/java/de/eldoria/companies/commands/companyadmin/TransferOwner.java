@@ -73,7 +73,7 @@ public class TransferOwner extends AdvancedCommand implements IPlayerTabExecutor
         args.parseQuoted();
         if (args.size() == 1) {
             var name = args.asString(0);
-            return TabCompleteUtil.completeFreeInput(name, 34, localizer().localize("words.name"), localizer());
+            return TabCompleteUtil.completeFreeInput(name, 34, localizer().localize("words.name"));
         }
 
         if (args.size() == 2) {

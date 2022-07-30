@@ -36,6 +36,6 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return TabCompleteUtil.completeFreeInput(arguments.join(), 32, localizer().localize("words.defaultOrderName"), localizer());
+        return TabCompleteUtil.completeFreeInput(arguments.join(), 32, localizer().localize("words.defaultOrderName"));
     }
 }

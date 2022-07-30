@@ -1,6 +1,5 @@
 package de.eldoria.companies.commands.company.order;
 
-import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -8,7 +7,6 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.orders.PaymentType;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -18,7 +16,7 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.messages.MessageChannel;
 import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -33,9 +31,9 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Info info;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
 
-    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Info info, IMessageBlockerService messageBlocker) {
+    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Info info, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("deliver")
                 .addArgument("words.id", true)
                 .addArgument("words.material", true)

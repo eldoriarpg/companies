@@ -38,20 +38,19 @@ public class Move extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments arguments) {
-        var args = arguments.asArray();
-        if (args.length == 1) {
-            if (args[0].isEmpty()) {
+    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments args) {
+        if (args.sizeIs(1)) {
+            if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.source"));
             }
-            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
+            return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
         }
 
-        if (args.length == 2) {
-            if (args[0].isEmpty()) {
+        if (args.sizeIs(2)) {
+            if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.target"));
             }
-            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
+            return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
         }
         return Collections.emptyList();
     }

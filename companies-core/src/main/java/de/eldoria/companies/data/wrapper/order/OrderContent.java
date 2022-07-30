@@ -1,7 +1,6 @@
 package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.IOrderContent;
-import de.eldoria.companies.util.Colors;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;

@@ -1,9 +1,10 @@
 package de.eldoria.companies;
 
-import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
+import com.zaxxer.hikari.HikariDataSource;
 import de.chojo.sqlutil.databases.SqlType;
 import de.chojo.sqlutil.logging.JavaLogger;
+import de.chojo.sqlutil.updater.QueryReplacement;
 import de.chojo.sqlutil.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.Company;
@@ -35,16 +36,18 @@ import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
-import de.eldoria.companies.services.messages.MessageBlockerService;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.util.UserData;
+import de.eldoria.eldoutilities.debug.data.EntryData;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
+import de.eldoria.messageblocker.MessageBlockerAPI;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
+import org.jetbrains.annotations.NotNull;
 
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
@@ -58,14 +61,13 @@ public class Companies extends EldoPlugin {
             (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occured in " + t.getName() + "-" + t.getId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
     private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
-    private Configuration configuration = null;
-    private DataSource dataSource = null;
-    private ACompanyData companyData = null;
-    private AOrderData orderData = null;
-    private ANotificationData notificationData = null;
-    private Economy economy = null;
-    private ProtocolManager protocolManager;
-    private IMessageBlockerService messageBlocker = null;
+    private Configuration configuration;
+    private HikariDataSource dataSource;
+    private ACompanyData companyData;
+    private AOrderData orderData;
+    private ANotificationData notificationData;
+    private Economy economy;
+    private MessageBlocker messageBlocker;
 
     @Override
     public void onPluginLoad() throws Throwable {
@@ -96,13 +98,7 @@ public class Companies extends EldoPlugin {
             return;
         }
 
-        if (getPluginManager().isPluginEnabled("ProtocolLib")) {
-            protocolManager = ProtocolLibrary.getProtocolManager();
-            messageBlocker = MessageBlockerService.create(this, workerPool, protocolManager);
-            EldoPlugin.logger().info("Found protocol lib. Initializing Message Blocker.");
-        } else {
-            messageBlocker = IMessageBlockerService.dummy();
-        }
+        messageBlocker = MessageBlockerAPI.builder(this).withExectuor(workerPool).addWhitelisted("[C]").build();
 
         var levelService = new LevelService(this, configuration, companyData);
 
@@ -124,6 +120,8 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
+        workerPool.shutdown();
+        dataSource.close();
     }
 
     @Override
@@ -135,27 +133,28 @@ public class Companies extends EldoPlugin {
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
 
-        SqlUpdater.SqlUpdaterBuilder builder;
+        SqlUpdater.SqlUpdaterBuilder<?> builder;
 
         switch (configuration.databaseSettings().storageType()) {
-            case SQLITE:
-                EldoPlugin.logger().info("Using SqLite database");
+            case SQLITE -> {
+                getLogger().info("Using SqLite database");
                 builder = SqlUpdater.builder(dataSource, SqlType.SQLITE);
-                break;
-            case MARIADB:
-                EldoPlugin.logger().info("Using MariaDB database");
+            }
+            case MARIADB -> {
+                getLogger().info("Using MariaDB database");
                 builder = SqlUpdater.builder(dataSource, SqlType.MARIADB);
-                break;
-            case POSTGRES:
-                EldoPlugin.logger().info("Using Postgres database");
+            }
+            case POSTGRES -> {
+                getLogger().info("Using Postgres database");
                 builder = SqlUpdater.builder(dataSource, SqlType.POSTGRES);
-                break;
-            default:
-                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
+            }
+            default ->
+                    throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }
 
         builder.setVersionTable("companies_db_version")
-                .withLogger(new JavaLogger(EldoPlugin.logger()))
+                .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
+                .withLogger(new JavaLogger(getLogger()))
                 .execute();
 
         initDataRepositories();
@@ -180,6 +179,11 @@ public class Companies extends EldoPlugin {
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }
+    }
+
+    @Override
+    public @NotNull EntryData[] getDebugInformations() {
+        return new EntryData[]{new EntryData("Customer Data", UserData.get(this).asString())};
     }
 
     private ThreadFactory createThreadFactory(ThreadGroup group) {

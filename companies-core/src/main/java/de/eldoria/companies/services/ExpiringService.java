@@ -38,7 +38,7 @@ public class ExpiringService implements Runnable, Listener {
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         audiences = BukkitAudiences.create(plugin);
     }
 
@@ -72,7 +72,7 @@ public class ExpiringService implements Runnable, Listener {
                     .text("<click:run_command:/company order info %s>[", order.id()).localeCode("info").text("]</click>")
                     .newLine();
         }
-        audiences.sender(player).sendMessage(miniMessage.parse(localizer.localize(composer.build())));
+        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer.localize(composer.build())));
     }
 
     @Override

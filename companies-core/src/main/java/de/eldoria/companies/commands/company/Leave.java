@@ -41,7 +41,7 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
         this.companyData = companyData;
         this.orderData = orderData;
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
     }
 
     public void leave(Player player) {
@@ -92,7 +92,7 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                         composer.localeCode("company.leave.confirm");
                     }
                     composer.text("<click:run_command:/company leave confirm><%s>[", Colors.REMOVE).localeCode("words.confirm").text("</click>");
-                    audiences.player(player).sendMessage(miniMessage.parse(composer.buildLocalized(localizer())));
+                    audiences.player(player).sendMessage(miniMessage.deserialize(composer.buildLocalized(localizer())));
                 });
     }
 

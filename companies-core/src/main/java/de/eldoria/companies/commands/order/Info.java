@@ -1,7 +1,6 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -10,6 +9,7 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageChannel;
 import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -25,14 +25,14 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final Economy economy;
     private final BukkitAudiences audiences;
     private final MiniMessage miniMessage;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
 
-    public Info(Plugin plugin, AOrderData orderData, Economy economy, IMessageBlockerService messageBlocker) {
+    public Info(Plugin plugin, AOrderData orderData, Economy economy, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("info").addArgument("id", true).build());
         this.orderData = orderData;
         this.economy = economy;
         this.audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.messageBlocker = messageBlocker;
     }
 
@@ -56,7 +56,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                         }
                         messageBlocker.announce(player, "[x]");
                         builder.prependLines(25);
-                        audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
+                        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
                         return;
                     }
                     messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");

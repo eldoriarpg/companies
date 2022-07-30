@@ -37,13 +37,12 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        var args = arguments.asArray();
-        if (args.length == 1) {
-            if (args[0].isEmpty()) {
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        if (args.sizeIs(1)) {
+            if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.index"));
             }
-            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size() + 1, localizer());
+            return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size() + 1);
         }
         return Collections.emptyList();
     }

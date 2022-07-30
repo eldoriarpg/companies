@@ -3,7 +3,6 @@ package de.eldoria.companies.commands.order;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -11,13 +10,13 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.logging.Level;
@@ -28,14 +27,14 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final BukkitAudiences audiences;
     private final MiniMessage miniMessage;
     private final Configuration configuration;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
 
-    public List(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, IMessageBlockerService messageBlocker) {
+    public List(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("list").build());
         this.orderData = orderData;
         this.economy = economy;
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.configuration = configuration;
         this.messageBlocker = messageBlocker;
     }
@@ -71,7 +70,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
-                    audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
+                    audiences.player(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
                     whenComplete.run();
                 }));
     }

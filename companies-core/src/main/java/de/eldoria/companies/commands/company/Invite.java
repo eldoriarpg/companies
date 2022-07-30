@@ -51,7 +51,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("words.name", true)
                 .build());
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         delayedActions = DelayedActions.start(plugin);
         this.companyData = companyData;
         this.configuration = configuration;
@@ -175,7 +175,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                 .newLine()
                 .text("<click:run_command:/company invite accept><%s>[", Colors.ADD).localeCode("accept").text("]</click>")
                 .text("<click:run_command:/company invite deny><%s>[", Colors.REMOVE).localeCode("deny").text("]</click>");
-        audiences.sender(target).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
+        audiences.sender(target).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
         invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
         delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
     }

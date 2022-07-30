@@ -3,7 +3,6 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.eldoutilities.localization.MessageComposer;

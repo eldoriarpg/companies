@@ -21,7 +21,6 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,7 +43,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                 .build());
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.orderData = orderData;
         this.list = list;
     }
@@ -72,7 +71,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                     var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.order.abort.confirm")
                             .text("<click:run_command:/company order abort confirm><%s>[", Colors.REMOVE).localeCode("words.confirm").text("]</click>");
                     cancel.put(player.getUniqueId(), order.get());
-                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
+                    audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;

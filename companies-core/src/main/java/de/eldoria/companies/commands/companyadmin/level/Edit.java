@@ -73,32 +73,31 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        var args = arguments.asArray();
-        if (args.length == 1) {
-            if (args[0].isEmpty()) {
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        if (args.sizeIs(1)) {
+            if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.source"));
             }
-            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
+            return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
         }
 
-        var field = args[1];
-        if (args.length == 2) {
+        var field = args.asString(1);
+        if (args.sizeIs(2)) {
             return TabCompleteUtil.complete(field, "name", "order_count", "member_count", "earned_money", "delivered_items", "max_members", "max_orders");
         }
 
-        var value = args[2];
-        if (args.length == 3) {
+        var value = args.asString(2);
+        if (args.sizeIs(3)) {
             if (TabCompleteUtil.isCommand(value, "name")) {
-                return TabCompleteUtil.completeFreeInput(value, 32, localizer().localize("words.name"), localizer());
+                return TabCompleteUtil.completeFreeInput(value, 32, localizer().localize("words.name"));
             }
 
             if (TabCompleteUtil.isCommand(value, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {
-                return TabCompleteUtil.completeMinInt(value, 0, localizer());
+                return TabCompleteUtil.completeMinInt(value, 0);
             }
 
             if (TabCompleteUtil.isCommand(value, "earned_money")) {
-                return TabCompleteUtil.completeMinDouble(value, 0.0, localizer());
+                return TabCompleteUtil.completeMinDouble(value, 0.0);
             }
         }
 

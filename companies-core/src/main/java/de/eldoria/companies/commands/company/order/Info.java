@@ -6,7 +6,6 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -15,6 +14,7 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageChannel;
 import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -32,14 +32,14 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Economy economy;
     private final Configuration configuration;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
 
-    public Info(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, IMessageBlockerService messageBlocker) {
+    public Info(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("info")
                 .addArgument("words.id", true)
                 .build());
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.companyData = companyData;
         this.orderData = orderData;
         this.economy = economy;
@@ -89,6 +89,6 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         }
         composer.prependLines(25);
         messageBlocker.announce(player, "[x]");
-        audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
+        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
     }
 }

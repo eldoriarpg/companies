@@ -4,7 +4,7 @@ CREATE TABLE companies
         CONSTRAINT companies_pk
             PRIMARY KEY AUTOINCREMENT,
     name    TEXT,
-    founded DATETIME DEFAULT CURRENT_TIMESTAMP,
+    founded datetime DEFAULT CURRENT_TIMESTAMP,
     level   INT      DEFAULT 1 NOT NULL
 );
 
@@ -13,8 +13,8 @@ CREATE UNIQUE INDEX companies_name_uindex
 
 CREATE TABLE company_member
 (
-    id          INTEGER NOT NULL,
-    member_uuid BLOB    NOT NULL
+    id          INTEGER           NOT NULL,
+    member_uuid blob              NOT NULL
         CONSTRAINT company_member_pk
             PRIMARY KEY,
     permission  INTEGER DEFAULT 0 NOT NULL
@@ -28,12 +28,12 @@ CREATE INDEX company_member_id_uuid_index
 
 CREATE TABLE orders
 (
-    id         INTEGER NOT NULL
+    id         INTEGER                            NOT NULL
         CONSTRAINT orders_pk
             PRIMARY KEY AUTOINCREMENT,
-    owner_uuid BLOB    NOT NULL,
-    name       INTEGER NOT NULL,
-    created    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+    owner_uuid blob                               NOT NULL,
+    name       INTEGER                            NOT NULL,
+    created    datetime DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE INDEX orders_owner_uuid_index
@@ -56,15 +56,15 @@ CREATE INDEX order_content_id_index
 
 CREATE TABLE order_states
 (
-    id          INTEGER NOT NULL
+    id          INTEGER                            NOT NULL
         CONSTRAINT order_states_pk
             PRIMARY KEY
         CONSTRAINT order_states_orders_id_fk
             REFERENCES orders
             ON DELETE CASCADE,
     company     INTEGER,
-    last_update DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    state       INTEGER  DEFAULT 0 NOT NULL
+    last_update datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    state       INTEGER  DEFAULT 0                 NOT NULL
 );
 
 CREATE TABLE orders_delivered
@@ -73,7 +73,7 @@ CREATE TABLE orders_delivered
         CONSTRAINT orders_delivered_orders_id_fk
             REFERENCES orders
             ON DELETE CASCADE,
-    worker_uuid BLOB    NOT NULL,
+    worker_uuid blob    NOT NULL,
     material    TEXT    NOT NULL,
     delivered   INTEGER NOT NULL,
     CONSTRAINT orders_delivered_pk
@@ -88,9 +88,9 @@ CREATE INDEX orders_delivered_id_worker_uuid_index
 
 CREATE TABLE company_notification
 (
-    user_uuid         BLOB NOT NULL,
+    user_uuid         blob                                NOT NULL,
     created           TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    notification_data TEXT NOT NULL
+    notification_data TEXT                                NOT NULL
 );
 
 CREATE INDEX notification_user_uuid_index
@@ -115,7 +115,7 @@ SELECT c.id,
        c.name,
        c.founded,
        m.member_count,
-       o.order_count - coalesce(s.failed_orders, 0) AS order_count,
+       o.order_count - COALESCE(s.failed_orders, 0) AS order_count,
        o.price,
        o.amount
 FROM companies c
@@ -142,9 +142,9 @@ FROM companies c
 CREATE TABLE material_price
 (
     material  VARCHAR(255) NOT NULL,
-    avg_price DOUBLE not null,
-    min_price DOUBLE not null,
-    max_price DOUBLE not null,
+    avg_price DOUBLE       NOT NULL,
+    min_price DOUBLE       NOT NULL,
+    max_price DOUBLE       NOT NULL,
     CONSTRAINT material_price_pk
         PRIMARY KEY (material)
 );

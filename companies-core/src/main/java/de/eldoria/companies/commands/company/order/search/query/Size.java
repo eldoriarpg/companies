@@ -40,6 +40,6 @@ public class Size extends AdvancedCommand implements IPlayerTabExecutor {
         if (arguments.asString(0).isEmpty()) {
             return Collections.singletonList(localizer().localize("words.size"));
         }
-        return TabCompleteUtil.completeMinInt(arguments.asString(0), 1, localizer());
+        return TabCompleteUtil.completeMinInt(arguments.asString(0), 1);
     }
 }

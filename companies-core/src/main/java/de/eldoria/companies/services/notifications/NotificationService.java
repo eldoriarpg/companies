@@ -173,19 +173,19 @@ public class NotificationService implements Listener {
                 var date = currDate.getKey();
                 if (date.equals(LocalDate.now())) {
                     // Today
-                    components.add(miniMessage.parse(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.today", Colors.NEUTRAL))));
+                    components.add(miniMessage.deserialize(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.today", Colors.NEUTRAL))));
                 } else if (date.equals(LocalDate.now().minusDays(1))) {
                     // Yesterday
-                    components.add(miniMessage.parse(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.yesterday", Colors.NEUTRAL))));
+                    components.add(miniMessage.deserialize(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.yesterday", Colors.NEUTRAL))));
                 } else {
-                    components.add(miniMessage.parse(String.format("<%s>$%s$:<%s>", Colors.HEADING, DATE_FORMATTER.format(date), Colors.NEUTRAL)));
+                    components.add(miniMessage.deserialize(String.format("<%s>$%s$:<%s>", Colors.HEADING, DATE_FORMATTER.format(date), Colors.NEUTRAL)));
                 }
                 for (var notification : currDate.getValue()) {
                     var time = TIME_FORMATTER.format(notification.created());
                     var data = notification.data();
                     switch (data.type()) {
                         case MINI_MESSAGE:
-                            components.add(miniMessage.parse(String.format("<%s>%s:<%s> %s", Colors.NAME, time, Colors.NEUTRAL, localizer.localize(data.message(), data.replacements()))));
+                            components.add(miniMessage.deserialize(String.format("<%s>%s:<%s> %s", Colors.NAME, time, Colors.NEUTRAL, localizer.localize(data.message(), data.replacements()))));
                             break;
                         case SIMPLE_MESSAGE:
                             components.add(Component.text(de.eldoria.eldoutilities.messages.MessageType.NORMAL.forceColor("§b" + time + " §2" + localizer.localize(data.message(), data.replacements()))));
@@ -257,7 +257,7 @@ public class NotificationService implements Listener {
             return;
         }
 
-        audiences.player(player.getPlayer()).sendMessage(miniMessage.parse(localizer.localize(message, replacements)));
+        audiences.player(player.getPlayer()).sendMessage(miniMessage.deserialize(localizer.localize(message, replacements)));
     }
 
     private void saveNotification(OfflinePlayer player, MessageType type, String message, Replacement... replacements) {

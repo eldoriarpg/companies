@@ -30,7 +30,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < now() - (? || ' HOUR')::INTERVAL AND company IS NOT NULL AND state = ? ORDER BY last_update")
+                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - (? || ' HOUR')::interval AND company IS NOT NULL AND state = ? ORDER BY last_update")
                 .paramsBuilder(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();

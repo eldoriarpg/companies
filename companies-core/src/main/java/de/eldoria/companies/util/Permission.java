@@ -44,7 +44,7 @@ public final class Permission {
     }
 
     public static final class Admin {
-        private static final String ADMIN = perm(BASE, "admin");
+        public static final String ADMIN = perm(BASE, "admin");
         public static final String CALC_LEVEL = perm(ADMIN, "calcLevel");
         public static final String DELETE = perm(ADMIN, "delete");
         public static final String LEVEL = perm(ADMIN, "level");
