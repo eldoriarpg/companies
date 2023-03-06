@@ -25,7 +25,6 @@ dependencies {
     // text
     implementation("net.kyori", "adventure-api", "4.9.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0")
-    implementation("net.kyori", "adventure-text-minimessage", "4.1.0-SNAPSHOT")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
     compileOnly("me.clip", "placeholderapi", "2.11.2")
