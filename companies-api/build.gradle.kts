@@ -14,6 +14,7 @@ dependencies {
 }
 
 publishData{
+    useEldoNexusRepos(true)
     publishComponent("java")
 }
 
@@ -53,11 +54,5 @@ publishing {
                 }
             }
         }
-    }
-}
-
-tasks{
-    test{
-        useJUnitPlatform()
     }
 }
