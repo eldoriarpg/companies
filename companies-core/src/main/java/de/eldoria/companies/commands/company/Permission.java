@@ -1,9 +1,13 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -17,6 +21,7 @@ import de.eldoria.eldoutilities.localization.Replacement;
 import de.eldoria.eldoutilities.messages.MessageChannel;
 import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -34,15 +39,15 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final MiniMessage miniMessage;
     private final BukkitAudiences audiences;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
 
-    public Permission(Plugin plugin, ACompanyData companyData, IMessageBlockerService messageBlocker) {
+    public Permission(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("permission")
                 .addArgument("member", true)
                 .build());
         this.companyData = companyData;
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.messageBlocker = messageBlocker;
     }
 
@@ -91,7 +96,7 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         composer.prependLines(25);
-        audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(composer.build())));
+        audiences.player(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
     }
 
     @Override
@@ -152,19 +157,18 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        var args = arguments.asArray();
-        if (args.length == 0) {
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        if (args.isEmpty()) {
             return List.of("give", "remove");
         }
-        if (args.length == 1) {
-            return TabCompleteUtil.complete(args[0], "give", "remove");
+        if (args.sizeIs(1)) {
+            return TabCompleteUtil.complete(args.asString(0), "give", "remove");
         }
-        if (args.length == 2) {
+        if (args.sizeIs(2)) {
             var stream = Arrays.stream(CompanyPermission.values())
                     .filter(p -> p != CompanyPermission.OWNER)
                     .map(p -> p.name().toLowerCase(Locale.ROOT));
-            return TabCompleteUtil.complete(args[1], stream);
+            return TabCompleteUtil.complete(args.asString(1), stream);
         }
         return Collections.emptyList();
     }

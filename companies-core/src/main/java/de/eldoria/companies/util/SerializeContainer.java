@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.util;
 
 import com.google.gson.Gson;
@@ -7,17 +12,17 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
-import java.lang.reflect.Type;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 
+import java.lang.reflect.Type;
 import java.util.Map;
 
 public class SerializeContainer {
 
     private static final Gson GSON = new GsonBuilder()
-        .registerTypeAdapter(SerializeContainer.class, new SerializeContainerAdapter())
-        .create();
+            .registerTypeAdapter(SerializeContainer.class, new SerializeContainerAdapter())
+            .create();
 
     private final Map<String, Object> data;
 
@@ -90,11 +95,12 @@ public class SerializeContainer {
 
     private static class SerializeContainerAdapter implements JsonDeserializer<SerializeContainer> {
 
-        private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>(){}.getType();
+        private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {
+        }.getType();
 
         @Override
         public SerializeContainer deserialize(JsonElement json, Type typeOfT,
-            JsonDeserializationContext context) throws JsonParseException {
+                                              JsonDeserializationContext context) throws JsonParseException {
             var jsonObject = json.getAsJsonObject();
 
             Map<String, Object> deserializedMap = context.deserialize(jsonObject.get("data"), MAP_TYPE);

@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -59,11 +64,11 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
         args.parseQuoted();
 
         if (args.size() == 1) {
-            return TabCompleteUtil.completeFreeInput(args.asString(0), 32, localizer().localize("words.source"), localizer());
+            return TabCompleteUtil.completeFreeInput(args.asString(0), 32, localizer().localize("words.source"));
         }
 
         if (args.size() == 2) {
-            return TabCompleteUtil.completeFreeInput(args.asString(1), 32, localizer().localize("words.target"), localizer());
+            return TabCompleteUtil.completeFreeInput(args.asString(1), 32, localizer().localize("words.target"));
         }
 
         return Collections.emptyList();

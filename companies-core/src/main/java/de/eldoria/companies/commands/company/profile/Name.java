@@ -1,8 +1,12 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company.profile;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -12,6 +16,7 @@ import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageChannel;
 import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -27,10 +32,10 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final BukkitAudiences audiences;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
     private final MiniMessage miniMessage;
 
-    public Name(Plugin plugin, ACompanyData companyData, Configuration configuration, IMessageBlockerService messageBlocker) {
+    public Name(Plugin plugin, ACompanyData companyData, Configuration configuration, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("name")
                 .addArgument("name", true)
                 .build());
@@ -38,7 +43,7 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
         this.configuration = configuration;
         audiences = BukkitAudiences.create(plugin);
         this.messageBlocker = messageBlocker;
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
     }
 
     @Override
@@ -64,12 +69,12 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
-                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
+                    audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
                 });
     }
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return TabCompleteUtil.completeFreeInput(args.asString(0), 32, localizer().localize("words.name"), localizer());
+        return TabCompleteUtil.completeFreeInput(args.asString(0), 32, localizer().localize("words.name"));
     }
 }

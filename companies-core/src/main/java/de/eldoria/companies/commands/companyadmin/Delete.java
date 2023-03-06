@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -46,6 +51,6 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return TabCompleteUtil.completeFreeInput(args.join(), 32, localizer().localize("words.name"), localizer());
+        return TabCompleteUtil.completeFreeInput(args.join(), 32, localizer().localize("words.name"));
     }
 }

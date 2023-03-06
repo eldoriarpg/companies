@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
@@ -35,7 +40,7 @@ import java.util.logging.Level;
 public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
     public static final int MAX_NAME_LENGTH = 32;
     private final Map<UUID, String> confirm = new HashMap<>();
-    private final MiniMessage miniMessage = MiniMessage.get();
+    private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final BukkitAudiences audiences;
     private final Configuration configuration;
     private final Economy economy;
@@ -111,7 +116,7 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                                     Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, name, Colors.NEUTRAL)))
                             .newLine()
                             .text("<%s><click:run_command:/company rename confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>");
-                    audiences.sender(player).sendMessage(miniMessage.parse(composer.buildLocalized(localizer())));
+                    audiences.sender(player).sendMessage(miniMessage.deserialize(composer.buildLocalized(localizer())));
                     delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -170,6 +175,6 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return TabCompleteUtil.completeFreeInput(arguments.join(), MAX_NAME_LENGTH, localizer().localize("words.name"), localizer());
+        return TabCompleteUtil.completeFreeInput(arguments.join(), MAX_NAME_LENGTH, localizer().localize("words.name"));
     }
 }

@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
@@ -37,6 +42,6 @@ public class Remove extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable java.util.List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return TabCompleteUtil.completeInt(args.asArray()[0], 1, configuration.companySettings().level().size(), localizer());
+        return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
     }
 }

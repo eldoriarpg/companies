@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.util;
 
 import de.eldoria.eldoutilities.permissions.PermUtil;
@@ -36,6 +41,7 @@ public final class Permission {
     public static final class Company {
         private static final String COMPANY = perm(BASE, "company");
         public static final String CREATE = perm(COMPANY, "create");
+        public static final String JOIN = perm(COMPANY, "join");
 
         private Company() {
             throw new UnsupportedOperationException("This is a utility class.");
@@ -43,7 +49,7 @@ public final class Permission {
     }
 
     public static final class Admin {
-        private static final String ADMIN = perm(BASE, "admin");
+        public static final String ADMIN = perm(BASE, "admin");
         public static final String CALC_LEVEL = perm(ADMIN, "calcLevel");
         public static final String DELETE = perm(ADMIN, "delete");
         public static final String LEVEL = perm(ADMIN, "level");

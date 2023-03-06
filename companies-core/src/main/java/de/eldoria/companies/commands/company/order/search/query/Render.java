@@ -1,13 +1,18 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -17,15 +22,15 @@ import org.jetbrains.annotations.NotNull;
 public class Render extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
     private final BukkitAudiences audiences;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
     private final MiniMessage miniMessage;
 
-    public Render(Plugin plugin, Query query, IMessageBlockerService messageBlocker) {
+    public Render(Plugin plugin, Query query, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("render")
                 .build());
         this.query = query;
         audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
+        miniMessage = MiniMessage.miniMessage();
         this.messageBlocker = messageBlocker;
     }
 
@@ -37,7 +42,7 @@ public class Render extends AdvancedCommand implements IPlayerTabExecutor {
         }
         message.prependLines(25);
         messageBlocker.announce(player, "[x]");
-        audiences.player(player).sendMessage(miniMessage.parse(localizer().localize(message.build())));
+        audiences.player(player).sendMessage(miniMessage.deserialize(localizer().localize(message.build())));
     }
 
     @Override

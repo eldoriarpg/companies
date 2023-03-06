@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -73,7 +78,7 @@ public class TransferOwner extends AdvancedCommand implements IPlayerTabExecutor
         args.parseQuoted();
         if (args.size() == 1) {
             var name = args.asString(0);
-            return TabCompleteUtil.completeFreeInput(name, 34, localizer().localize("words.name"), localizer());
+            return TabCompleteUtil.completeFreeInput(name, 34, localizer().localize("words.name"));
         }
 
         if (args.size() == 2) {

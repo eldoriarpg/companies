@@ -1,7 +1,13 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.repository;
 
-import de.chojo.sqlutil.base.QueryFactoryHolder;
-import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.base.QueryFactory;
+import de.chojo.sadu.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.wrapper.util.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
@@ -24,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
-public abstract class ACompanyData extends QueryFactoryHolder {
+public abstract class ACompanyData extends QueryFactory {
     private final ExecutorService executorService;
 
     public ACompanyData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
@@ -80,7 +86,7 @@ public abstract class ACompanyData extends QueryFactoryHolder {
 
     protected abstract Optional<SimpleCompany> getSimpleCompany(int companyId);
 
-    protected abstract SimpleCompany parseCompany(ResultSet rs) throws SQLException;
+    protected abstract SimpleCompany parseCompany(Row rs) throws SQLException;
 
     public void submitCompanyPurge(SimpleCompany company) {
         CompletableFuture.runAsync(() -> purgeCompany(company));

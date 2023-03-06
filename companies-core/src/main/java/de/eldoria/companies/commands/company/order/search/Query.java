@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
@@ -13,12 +18,12 @@ import de.eldoria.companies.commands.company.order.search.query.Render;
 import de.eldoria.companies.commands.company.order.search.query.Size;
 import de.eldoria.companies.commands.company.order.search.query.Sorting;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -29,10 +34,10 @@ import java.util.UUID;
 
 public class Query extends AdvancedCommand {
     private final Map<UUID, SearchQuery> searches = new HashMap<>();
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
     private Render render;
 
-    public Query(Plugin plugin, AOrderData orderData, Search search, IMessageBlockerService messageBlocker) {
+    public Query(Plugin plugin, AOrderData orderData, Search search, MessageBlocker messageBlocker) {
         super(plugin);
         this.messageBlocker = messageBlocker;
         var meta = CommandMeta.builder("query")
