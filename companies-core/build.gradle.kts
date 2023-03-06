@@ -33,7 +33,7 @@ dependencies {
     bukkitLibrary("com.zaxxer", "HikariCP", "5.0.1")
     bukkitLibrary("org.mariadb.jdbc", "mariadb-java-client", "2.7.8")
     bukkitLibrary("org.xerial", "sqlite-jdbc", "3.36.0.3")
-    bukkitLibrary("org.postgresql", "postgresql", "42.2.23")
+    bukkitLibrary("org.postgresql", "postgresql", "42.5.4")
 
     compileOnly("com.github.MilkBowl", "VaultAPI", "1.7.1")
 }
