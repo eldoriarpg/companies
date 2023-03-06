@@ -34,7 +34,7 @@ allprojects {
 
         testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
         testImplementation(platform("org.junit:junit-bom:5.9.2"))
-        testImplementation("com.github.seeseemelk", "MockBukkit-v1.16", "1.0.0")
+        testImplementation("com.github.seeseemelk", "MockBukkit-v1.16", "1.5.2")
         testImplementation("org.junit.jupiter", "junit-jupiter")
     }
     spotless {
