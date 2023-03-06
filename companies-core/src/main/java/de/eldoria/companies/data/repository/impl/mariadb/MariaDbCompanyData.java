@@ -55,7 +55,17 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player) {
         return builder(SimpleCompany.class)
-                .query("SELECT c.id, c.name, c.founded, c.level FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE member_uuid = ?")
+                .query("""
+                        SELECT
+                        	c.id,
+                        	c.name,
+                        	c.founded,
+                        	c.level
+                        FROM
+                        	company_member
+                        		LEFT JOIN companies c
+                        		ON c.id = company_member.id
+                        WHERE member_uuid = ?""")
                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
                 .readRow(this::parseCompany)
                 .firstSync();
@@ -64,7 +74,17 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected Optional<SimpleCompany> getCompanyByName(String name) {
         return builder(SimpleCompany.class)
-                .query("SELECT c.id, c.name, c.founded, c.level FROM company_member LEFT JOIN companies c ON c.id = company_member.id WHERE c.name LIKE ?")
+                .query("""
+                        SELECT
+                        	c.id,
+                        	c.name,
+                        	c.founded,
+                        	c.level
+                        FROM
+                        	company_member
+                        		LEFT JOIN companies c
+                        		ON c.id = company_member.id
+                        WHERE c.name LIKE ?""")
                 .parameter(stmt -> stmt.setString(name))
                 .readRow(this::parseCompany)
                 .firstSync();
@@ -105,7 +125,18 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     protected CompanyStats getCompanyStats(ISimpleCompany company) {
         return builder(CompanyStats.class)
-                .query("SELECT id, name, founded, member_count, order_count, price, amount FROM company_stats_view WHERE id = ?")
+                .query("""
+                        SELECT
+                        	id,
+                        	name,
+                        	founded,
+                        	member_count,
+                        	order_count,
+                        	price,
+                        	amount
+                        FROM
+                        	company_stats_view
+                        WHERE id = ?""")
                 .parameter(stmt -> stmt.setInt(company.id()))
                 .readRow(this::parseCompanyStats)
                 .firstSync().get();
@@ -121,15 +152,35 @@ public class MariaDbCompanyData extends ACompanyData {
     @Override
     public void upcountFailedOrders(ISimpleCompany company, int amount) {
         builder()
-                .query("INSERT INTO company_stats(id, failed_orders) VALUES(?,?) ON DUPLICATE KEY UPDATE failed_orders = failed_orders + ?")
-                .parameter(stmt -> stmt.setInt(company.id()).setInt(amount).setInt(amount))
+                .query("""
+                        INSERT
+                        INTO
+                        	company_stats(id, failed_orders)
+                        VALUES
+                        	(?, ?)
+                        ON DUPLICATE KEY UPDATE
+                        	failed_orders = failed_orders + VALUES(failed_orders)""")
+                .parameter(stmt -> stmt.setInt(company.id()).setInt(amount))
                 .update().executeSync();
     }
 
     @Override
     protected List<CompanyRank> getRanking(TopOrder order, int page, int pageSize) {
         return builder(CompanyRank.class)
-                .query("SELECT ROW_NUMBER() OVER (ORDER BY %s) AS comp_rank, id, name, founded, member_count, order_count, price, amount FROM company_stats_view ORDER BY comp_rank LIMIT ? OFFSET ?", order.orderColumn())
+                .query("""
+                        SELECT
+                        	ROW_NUMBER() OVER (ORDER BY %s) AS comp_rank,
+                        	id,
+                        	name,
+                        	founded,
+                        	member_count,
+                        	order_count,
+                        	price,
+                        	amount
+                        FROM
+                        	company_stats_view
+                        ORDER BY comp_rank
+                        LIMIT ? OFFSET ?""", order.orderColumn())
                 .parameter(stmt -> stmt.setInt(pageSize).setInt((page - 1) * pageSize))
                 .readRow(rs -> parseCompanyStats(rs).toRank(rs.getInt("comp_rank")))
                 .allSync();

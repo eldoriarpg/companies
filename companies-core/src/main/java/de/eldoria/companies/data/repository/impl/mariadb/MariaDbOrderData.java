@@ -78,7 +78,23 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - INTERVAL ? HOUR AND company IS NOT NULL AND state = ? ORDER BY last_update")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	last_update,
+                        	company,
+                        	state,
+                        	owner_uuid,
+                        	name,
+                        	created
+                        FROM
+                        	order_states s
+                        		LEFT JOIN orders o
+                        		ON o.id = s.id
+                        WHERE last_update < NOW() - INTERVAL ? HOUR
+                          AND company IS NOT NULL
+                          AND state = ?
+                        ORDER BY last_update""")
                 .parameter(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -87,7 +103,23 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected List<SimpleOrder> getDeadOrders(int hours) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - INTERVAL ? HOUR AND company IS NOT NULL AND state = ? ORDER BY last_update")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	last_update,
+                        	company,
+                        	state,
+                        	owner_uuid,
+                        	name,
+                        	created
+                        FROM
+                        	order_states s
+                        		LEFT JOIN orders o
+                        		ON o.id = s.id
+                        WHERE last_update < NOW() - INTERVAL ? HOUR
+                          AND company IS NOT NULL
+                          AND state = ?
+                        ORDER BY last_update""")
                 .parameter(stmt -> stmt.setInt(hours).setInt(OrderState.UNCLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -96,7 +128,23 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - INTERVAL ? HOUR AND company = ? AND state = ? ORDER BY last_update")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	last_update,
+                        	company,
+                        	state,
+                        	owner_uuid,
+                        	name,
+                        	created
+                        FROM
+                        	order_states s
+                        		LEFT JOIN orders o
+                        		ON o.id = s.id
+                        WHERE last_update < NOW() - INTERVAL ? HOUR
+                          AND company = ?
+                          AND state = ?
+                        ORDER BY last_update""")
                 .parameter(stmt -> stmt.setInt(hours).setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -105,7 +153,8 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected boolean claimOrder(SimpleCompany company, SimpleOrder order) {
         return builder()
-                .query("UPDATE order_states SET state = ?, company = ?, last_update = CURRENT_TIMESTAMP WHERE id = ? AND state = ?")
+                .query("""
+                        UPDATE order_states SET state = ?, company = ?, last_update = CURRENT_TIMESTAMP WHERE id = ? AND state = ?""")
                 .parameter(stmt -> stmt.setInt(OrderState.CLAIMED.stateId()).setInt(company.id()).setInt(order.id()).setInt(OrderState.UNCLAIMED.stateId()))
                 .update().sendSync().changed();
     }
@@ -135,9 +184,16 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
         builder()
-                .query("INSERT INTO orders_delivered(id, worker_uuid, material, delivered) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE delivered = delivered + ?")
+                .query("""
+                        INSERT
+                        INTO
+                        	orders_delivered(id, worker_uuid, material, delivered)
+                        VALUES
+                        	(?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                        	delivered = delivered + VALUES(delivered)""")
                 .parameter(stmt -> stmt.setInt(order.id()).setUuidAsBytes(player.getUniqueId())
-                        .setString(material.name()).setInt(amount).setInt(amount))
+                        .setString(material.name()).setInt(amount))
                 .update()
                 .sendSync();
     }
@@ -145,7 +201,20 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected Optional<SimpleOrder> orderById(int id) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ?")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	owner_uuid,
+                        	name,
+                        	created,
+                        	company,
+                        	last_update,
+                        	state
+                        FROM
+                        	orders o
+                        		LEFT JOIN order_states oc
+                        		ON o.id = oc.id
+                        WHERE o.id = ?""")
                 .parameter(stmt -> stmt.setInt(id))
                 .readRow(this::buildSimpleOrder)
                 .firstSync();
@@ -154,7 +223,21 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected Optional<SimpleOrder> companyOrderById(int id, int company) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.id = ? AND company = ?")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	owner_uuid,
+                        	name,
+                        	created,
+                        	company,
+                        	last_update,
+                        	state
+                        FROM
+                        	orders o
+                        		LEFT JOIN order_states oc
+                        		ON o.id = oc.id
+                        WHERE o.id = ?
+                          AND company = ?""")
                 .parameter(stmt -> stmt.setInt(id).setInt(company))
                 .readRow(this::buildSimpleOrder)
                 .firstSync();
@@ -163,7 +246,22 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected CompletableFuture<List<SimpleOrder>> ordersByCompany(ISimpleCompany company, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE oc.company = ? AND state >= ? AND state <= ?")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	owner_uuid,
+                        	name,
+                        	created,
+                        	company,
+                        	last_update,
+                        	state
+                        FROM
+                        	orders o
+                        		LEFT JOIN order_states oc
+                        		ON o.id = oc.id
+                        WHERE oc.company = ?
+                          AND state >= ?
+                          AND state <= ?""")
                 .parameter(stmt -> stmt.setInt(company.id()).setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .all(executorService());
@@ -172,7 +270,22 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected List<SimpleOrder> ordersByPlayer(OfflinePlayer player, OrderState min, OrderState max) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, owner_uuid, name, created, company, last_update, state FROM orders o LEFT JOIN order_states oc ON o.id = oc.id WHERE o.owner_uuid = ? AND state >= ? AND state <= ?")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	owner_uuid,
+                        	name,
+                        	created,
+                        	company,
+                        	last_update,
+                        	state
+                        FROM
+                        	orders o
+                        		LEFT JOIN order_states oc
+                        		ON o.id = oc.id
+                        WHERE o.owner_uuid = ?
+                          AND state >= ?
+                          AND state <= ?""")
                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()).setInt(min.stateId()).setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -181,7 +294,15 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected Integer getPlayerOrderCount(OfflinePlayer player) {
         return builder(Integer.class)
-                .query("SELECT COUNT(1) AS count FROM orders LEFT JOIN order_states s ON orders.id = s.id WHERE owner_uuid = ? AND s.state < ?")
+                .query("""
+                        SELECT
+                        	COUNT(1) AS count
+                        FROM
+                        	orders
+                        		LEFT JOIN order_states s
+                        		ON orders.id = s.id
+                        WHERE owner_uuid = ?
+                          AND s.state < ?""")
                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()).setInt(OrderState.DELIVERED.stateId()))
                 .readRow(rs -> rs.getInt("count"))
                 .firstSync().get();
@@ -190,7 +311,15 @@ public class MariaDbOrderData extends AOrderData {
     @Override
     protected Integer getCompanyOrderCount(ISimpleCompany company) {
         return builder(Integer.class)
-                .query("SELECT COUNT(1) AS count FROM orders LEFT JOIN order_states s ON orders.id = s.id WHERE company = ? AND s.state = ?")
+                .query("""
+                        SELECT
+                        	COUNT(1) AS count
+                        FROM
+                        	orders
+                        		LEFT JOIN order_states s
+                        		ON orders.id = s.id
+                        WHERE company = ?
+                          AND s.state = ?""")
                 .parameter(stmt -> stmt.setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(rs -> rs.getInt("count"))
                 .firstSync().get();
@@ -245,8 +374,7 @@ public class MariaDbOrderData extends AOrderData {
                           AND oc.price <= ?
                           AND oc.amount >= ?
                           AND oc.amount <= ?
-                          AND os.state >= ? AND os.state <= ?;
-                        """)
+                          AND os.state >= ? AND os.state <= ?;""")
                 .parameter(stmt -> stmt.setString("%" + searchQuery.name() + "%")
                         .setString(searchQuery.materialRegex())
                         .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
@@ -261,7 +389,8 @@ public class MariaDbOrderData extends AOrderData {
 
     @Override
     protected Optional<MaterialPrice> findMaterialPrice(String material) {
-        return builder(MaterialPrice.class).query("SELECT material, avg_price, min_price, max_price FROM material_price WHERE material = ?")
+        return builder(MaterialPrice.class)
+                .query("SELECT material, avg_price, min_price, max_price FROM material_price WHERE material = ?")
                 .parameter(stmt -> stmt.setString(material.toUpperCase(Locale.ROOT)))
                 .readRow(rs -> new MaterialPrice(material.toLowerCase(Locale.ROOT), rs.getDouble("avg_price"),
                         rs.getDouble("min_price"), rs.getDouble("max_price")))

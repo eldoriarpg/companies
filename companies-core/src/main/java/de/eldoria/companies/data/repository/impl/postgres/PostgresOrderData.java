@@ -34,7 +34,23 @@ public class PostgresOrderData extends MariaDbOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < NOW() - (? || ' HOUR')::interval AND company IS NOT NULL AND state = ? ORDER BY last_update")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	last_update,
+                        	company,
+                        	state,
+                        	owner_uuid,
+                        	name,
+                        	created
+                        FROM
+                        	order_states s
+                        		LEFT JOIN orders o
+                        		ON o.id = s.id
+                        WHERE last_update < now() - ( ? || ' HOUR' )::INTERVAL
+                          AND company IS NOT NULL
+                          AND state = ?
+                        ORDER BY last_update""")
                 .parameter(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -43,7 +59,23 @@ public class PostgresOrderData extends MariaDbOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < now() - (? || ' HOUR')::INTERVAL AND company = ? AND state = ? ORDER BY last_update")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	last_update,
+                        	company,
+                        	state,
+                        	owner_uuid,
+                        	name,
+                        	created
+                        FROM
+                        	order_states s
+                        		LEFT JOIN orders o
+                        		ON o.id = s.id
+                        WHERE last_update < now() - ( ? || ' HOUR' )::INTERVAL
+                          AND company = ?
+                          AND state = ?
+                        ORDER BY last_update""")
                 .parameter(stmt -> stmt.setInt(hours).setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -55,7 +87,7 @@ public class PostgresOrderData extends MariaDbOrderData {
                 .query("""
                         SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state
                         FROM orders o
-                                 LEFT JOIN (SELECT c.id, string_agg(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price
+                                 LEFT JOIN (SELECT c.id, string_agg(c.material, ' ') AS materials, sum(amount) AS amount, sum(price) AS price
                                             FROM order_content c
                                             GROUP BY id) oc
                                            ON o.id = oc.id
@@ -67,8 +99,7 @@ public class PostgresOrderData extends MariaDbOrderData {
                           AND oc.price <= ?
                           AND oc.amount >= ?
                           AND oc.amount <= ?
-                          AND os.state >= ? AND os.state <= ?
-                        """)
+                          AND os.state >= ? AND os.state <= ?""")
                 .parameter(stmt -> stmt.setString("%" + searchQuery.name() + "%")
                         .setString(searchQuery.materialRegex())
                         .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
@@ -84,7 +115,14 @@ public class PostgresOrderData extends MariaDbOrderData {
     @Override
     protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
         builder()
-                .query("INSERT INTO orders_delivered(id, worker_uuid, material, delivered) VALUES(?,?,?,?) ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered")
+                .query("""
+                        INSERT
+                        INTO
+                        	orders_delivered(id, worker_uuid, material, delivered)
+                        VALUES
+                        	(?, ?, ?, ?)
+                        ON CONFLICT(id, worker_uuid, material) DO UPDATE SET
+                        	delivered = delivered + excluded.delivered""")
                 .parameter(stmt -> stmt.setInt(order.id()).setUuidAsBytes(player.getUniqueId())
                         .setString(material.name()).setInt(amount))
                 .update()
