@@ -68,7 +68,23 @@ public class SqLiteOrderData extends MariaDbOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR') AND company IS NOT NULL AND state = ? ORDER BY last_update")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	last_update,
+                        	company,
+                        	state,
+                        	owner_uuid,
+                        	name,
+                        	created
+                        FROM
+                        	order_states s
+                        		LEFT JOIN orders o
+                        		ON o.id = s.id
+                        WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                          AND company IS NOT NULL
+                          AND state = ?
+                        ORDER BY last_update""")
                 .parameter(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -77,7 +93,23 @@ public class SqLiteOrderData extends MariaDbOrderData {
     @Override
     protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
         return builder(SimpleOrder.class)
-                .query("SELECT o.id, last_update, company, state, owner_uuid, name, created FROM order_states s LEFT JOIN orders o ON o.id = s.id WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR') AND company = ? AND state = ? ORDER BY last_update")
+                .query("""
+                        SELECT
+                        	o.id,
+                        	last_update,
+                        	company,
+                        	state,
+                        	owner_uuid,
+                        	name,
+                        	created
+                        FROM
+                        	order_states s
+                        		LEFT JOIN orders o
+                        		ON o.id = s.id
+                        WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                          AND company = ?
+                          AND state = ?
+                        ORDER BY last_update""")
                 .parameter(stmt -> stmt.setInt(hours).setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
@@ -95,7 +127,14 @@ public class SqLiteOrderData extends MariaDbOrderData {
     @Override
     protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
         builder()
-                .query("INSERT INTO orders_delivered(id, worker_uuid, material, delivered) VALUES(?,?,?,?) ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered")
+                .query("""
+                        INSERT
+                        INTO
+                        	orders_delivered(id, worker_uuid, material, delivered)
+                        VALUES
+                        	(?, ?, ?, ?)
+                        ON CONFLICT(id, worker_uuid, material) DO UPDATE SET
+                        	delivered = delivered + excluded.delivered""")
                 .parameter(stmt -> stmt.setInt(order.id()).setUuidAsBytes(player.getUniqueId())
                         .setString(material.name()).setInt(amount))
                 .update()
@@ -107,11 +146,20 @@ public class SqLiteOrderData extends MariaDbOrderData {
         List<List<Integer>> results = new ArrayList<>();
         Set<Integer> materialMatch;
         var materialFilter = !searchQuery.materials().isEmpty();
-        // This is pain. SqLite doesnt support regex from stock so we need to do some dirty looping.
+        // This is pain. SqLite doesn't support regex from stock so we need to do some dirty looping.
         if (materialFilter) {
             for (var material : searchQuery.materials()) {
                 var ids = builder(Integer.class)
-                        .query("SELECT DISTINCT c.id FROM order_content c LEFT JOIN order_states s ON s.id = c.id WHERE material LIKE ? AND s.state >= ? AND s.state <= ? ")
+                        .query("""
+                                SELECT DISTINCT
+                                	c.id
+                                FROM
+                                	order_content c
+                                		LEFT JOIN order_states s
+                                		ON s.id = c.id
+                                WHERE material LIKE ?
+                                  AND s.state >= ?
+                                  AND s.state <= ?""")
                         .parameter(stmt -> stmt.setString(searchQuery.isExactMatch() ? material : "%" + material + "%"))
                         .readRow(rs -> rs.getInt(1))
                         .allSync();
@@ -147,8 +195,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                           AND oc.price <= ?
                           AND oc.amount >= ?
                           AND oc.amount <= ?
-                          AND os.state >= ? AND os.state <= ?
-                        """)
+                          AND os.state >= ? AND os.state <= ?""")
                 .parameter(stmt -> stmt.setString("%" + searchQuery.name() + "%")
                         .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
                         .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize())
@@ -178,8 +225,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                               WHERE c.id < 100
                               GROUP BY c.material) avg
                         WHERE TRUE
-                        ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_pric
-                        """)
+                        ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price""")
                 .update().executeSync();
     }
 }
