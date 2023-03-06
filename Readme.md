@@ -1,7 +1,7 @@
 [![Wakatime_Badge](https://wakatime.com/badge/github/eldoriarpg/companies.svg)][wakatime]
 
-[![Publish](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Publish%20to%20Nexus?style=for-the-badge&label=Publish)][publish]
-[![Build](https://img.shields.io/github/workflow/status/eldoriarpg/companies/Verify%20state?style=for-the-badge&label=Build)][verify]
+[![Publish](https://img.shields.io/github/actions/workflow/status/eldoriarpg/companies/publish_to_nexus.yml?style=for-the-badge&label=Publish)][publish]
+[![Build](https://img.shields.io/github/actions/workflow/status/eldoriarpg/companies/verify.yml?style=for-the-badge&label=Build)][verify]
 
 [![Releases](https://img.shields.io/nexus/maven-releases/de.eldoria/companies-api?label=Release&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][release]
 [![Development](https://img.shields.io/nexus/maven-dev/de.eldoria/companies-api?label=DEV&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][development]
@@ -39,7 +39,7 @@ dependencies {
 
 # Setup
 
-The plugin is plug & play. However you can do several configurations.
+The plugin is plug & play. However, you can do several configurations.
 
 ## Optional Dependencies
 * [PAPI](https://www.spigotmc.org/resources/6245/) for Placeholders
@@ -49,7 +49,7 @@ The plugin is plug & play. However you can do several configurations.
 The configuration needs to be done in the `config.yml`
 ### Company Settings
 **DeliveryHours**\
-Amount of hours after a order was claimed. After this time the order will be claimable again.
+Amount of hours after an order was claimed. After this time the order will be claimable again.
 
 **FoundingPrice**\
 Price to found a company
@@ -115,7 +115,7 @@ Database to use. This database needs to exist and will not be created by the plu
 Required for `postgres`, `mariadb`
 
 **Schema**\
-Schema to use. This schema needs to exists and will not be created by the plugin.\
+Schema to use. This schema needs to exist or the database user needs permission to create a schema.\
 Required for `postgres`
 
 [wakatime]: https://wakatime.com/badge/github/eldoriarpg/companies

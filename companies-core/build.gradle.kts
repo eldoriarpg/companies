@@ -23,16 +23,15 @@ dependencies {
     implementation("de.chojo.sadu", "sadu-mariadb", "1.2.0")
     implementation("de.chojo.sadu", "sadu-sqlite", "1.2.0")
     // text
-    implementation("net.kyori", "adventure-api", "4.9.1")
-    implementation("net.kyori", "adventure-platform-bukkit", "4.0.0")
-    implementation("net.kyori", "adventure-text-minimessage", "4.1.0-SNAPSHOT")
+    implementation("net.kyori", "adventure-api", "4.12.0")
+    implementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
     compileOnly("me.clip", "placeholderapi", "2.11.2")
 
     // database
     bukkitLibrary("com.zaxxer", "HikariCP", "5.0.1")
-    bukkitLibrary("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
+    bukkitLibrary("org.mariadb.jdbc", "mariadb-java-client", "2.7.8")
     bukkitLibrary("org.xerial", "sqlite-jdbc", "3.36.0.3")
     bukkitLibrary("org.postgresql", "postgresql", "42.2.23")
 
