@@ -30,7 +30,7 @@ allprojects {
 
     dependencies {
         compileOnly("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
-        compileOnly("org.jetbrains", "annotations", "20.1.0")
+        compileOnly("org.jetbrains", "annotations", "24.0.1")
 
         testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
         testImplementation(platform("org.junit:junit-bom:5.9.2"))
