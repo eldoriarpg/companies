@@ -1,10 +1,7 @@
-plugins {
-    java
-    id("de.chojo.publishdata") version "1.0.8"
-    id("de.eldoria.library-conventions")
+plugins{
+    `java-library`
+    `maven-publish`
 }
-
-group = "de.eldoria"
 
 dependencies {
     api("net.kyori", "adventure-platform-bukkit", "4.1.1")

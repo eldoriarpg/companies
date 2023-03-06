@@ -1,11 +1,17 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies;
 
-import com.comphenix.protocol.ProtocolManager;
 import com.zaxxer.hikari.HikariDataSource;
-import de.chojo.sqlutil.databases.SqlType;
-import de.chojo.sqlutil.logging.JavaLogger;
-import de.chojo.sqlutil.updater.QueryReplacement;
-import de.chojo.sqlutil.updater.SqlUpdater;
+import de.chojo.sadu.databases.MariaDb;
+import de.chojo.sadu.databases.PostgreSql;
+import de.chojo.sadu.databases.SqLite;
+import de.chojo.sadu.updater.QueryReplacement;
+import de.chojo.sadu.updater.SqlUpdater;
+import de.chojo.sadu.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.Company;
 import de.eldoria.companies.commands.CompanyAdmin;
@@ -138,15 +144,15 @@ public class Companies extends EldoPlugin {
         switch (configuration.databaseSettings().storageType()) {
             case SQLITE -> {
                 getLogger().info("Using SqLite database");
-                builder = SqlUpdater.builder(dataSource, SqlType.SQLITE);
+                builder = SqlUpdater.builder(dataSource, SqLite.get());
             }
             case MARIADB -> {
                 getLogger().info("Using MariaDB database");
-                builder = SqlUpdater.builder(dataSource, SqlType.MARIADB);
+                builder = SqlUpdater.builder(dataSource, MariaDb.get());
             }
             case POSTGRES -> {
                 getLogger().info("Using Postgres database");
-                builder = SqlUpdater.builder(dataSource, SqlType.POSTGRES);
+                builder = SqlUpdater.builder(dataSource, PostgreSql.get());
             }
             default ->
                     throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
@@ -154,7 +160,7 @@ public class Companies extends EldoPlugin {
 
         builder.setVersionTable("companies_db_version")
                 .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
-                .withLogger(new JavaLogger(getLogger()))
+                .withConfig(QueryBuilderConfig.builder().withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err)).build())
                 .execute();
 
         initDataRepositories();

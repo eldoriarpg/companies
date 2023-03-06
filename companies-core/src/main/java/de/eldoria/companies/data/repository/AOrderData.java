@@ -1,10 +1,15 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.repository;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import de.chojo.sqlutil.base.QueryFactoryHolder;
-import de.chojo.sqlutil.conversion.UUIDConverter;
-import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.base.QueryFactory;
+import de.chojo.sadu.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.wrapper.util.Row;
 import de.eldoria.companies.Companies;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
@@ -26,7 +31,6 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import javax.sql.DataSource;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-public abstract class AOrderData extends QueryFactoryHolder {
+public abstract class AOrderData extends QueryFactory {
     private final ExecutorService executorService;
     private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).build();
     private final Cache<String, MaterialPrice> materialPriceCache = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
@@ -146,11 +150,11 @@ public abstract class AOrderData extends QueryFactoryHolder {
 
     protected abstract List<SimpleOrder> ordersByPlayer(OfflinePlayer player, OrderState min, OrderState max);
 
-    public SimpleOrder buildSimpleOrder(ResultSet rs) throws SQLException {
-        return new SimpleOrder(rs.getInt("id"), UUIDConverter.convert(rs.getBytes("owner_uuid")),
-                rs.getString("name"), rs.getTimestamp("created").toLocalDateTime(),
-                rs.getInt("company"), rs.getTimestamp("last_update").toLocalDateTime(),
-                OrderState.byId(rs.getInt("state")));
+    public SimpleOrder buildSimpleOrder(Row row) throws SQLException {
+        return new SimpleOrder(row.getInt("id"), row.getUuidFromBytes("owner_uuid"),
+                row.getString("name"), row.getTimestamp("created").toLocalDateTime(),
+                row.getInt("company"), row.getTimestamp("last_update").toLocalDateTime(),
+                OrderState.byId(row.getInt("state")));
     }
 
     public BukkitFutureResult<List<FullOrder>> retrieveFullOrders(List<SimpleOrder> orders) {

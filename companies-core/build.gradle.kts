@@ -2,11 +2,8 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 plugins {
-    java
-    id("com.github.johnrengelman.shadow") version "7.1.0"
-    id("de.eldoria.java-conventions")
-    id("net.minecrell.plugin-yml.bukkit") version "0.5.2"
-    id("de.chojo.publishdata") version "1.0.8"
+    id("com.github.johnrengelman.shadow") version "8.1.0"
+    id("net.minecrell.plugin-yml.bukkit") version "0.5.3"
 }
 
 group = "de.eldoria"
@@ -19,12 +16,12 @@ repositories {
 dependencies {
     implementation(project(":companies-api"))
     implementation("de.eldoria", "eldo-util", "1.13.9")
-    implementation("de.chojo", "sql-util", "1.4.6") {
-        exclude("org.jetbrains")
-        exclude("org.slf4j")
-        exclude("com.zaxxer")
-    }
-
+    implementation("de.chojo.sadu", "sadu-queries", "1.2.0")
+    implementation("de.chojo.sadu", "sadu-updater", "1.2.0")
+    implementation("de.chojo.sadu", "sadu-datasource", "1.2.0")
+    implementation("de.chojo.sadu", "sadu-postgresql", "1.2.0")
+    implementation("de.chojo.sadu", "sadu-mariadb", "1.2.0")
+    implementation("de.chojo.sadu", "sadu-sqlite", "1.2.0")
     // text
     implementation("net.kyori", "adventure-api", "4.9.1")
     implementation("net.kyori", "adventure-platform-bukkit", "4.0.0")

@@ -1,6 +1,12 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
-import java.sql.ResultSet;
+import de.chojo.sadu.wrapper.util.Row;
+
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -12,7 +18,7 @@ public final class SqLiteAdapter {
         throw new UnsupportedOperationException("This is a utility class.");
     }
 
-    public static LocalDateTime getTimestamp(ResultSet rs, String column) throws SQLException {
+    public static LocalDateTime getTimestamp(Row rs, String column) throws SQLException {
         return LocalDateTime.parse(rs.getString(column), FORMATTER);
     }
 

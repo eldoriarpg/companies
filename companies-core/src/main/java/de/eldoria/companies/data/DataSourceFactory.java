@@ -1,8 +1,15 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data;
 
 import com.zaxxer.hikari.HikariDataSource;
-import de.chojo.sqlutil.databases.SqlType;
-import de.chojo.sqlutil.datasource.DataSourceCreator;
+import de.chojo.sadu.databases.MariaDb;
+import de.chojo.sadu.databases.PostgreSql;
+import de.chojo.sadu.databases.SqLite;
+import de.chojo.sadu.datasource.DataSourceCreator;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import org.bukkit.plugin.Plugin;
 
@@ -31,13 +38,13 @@ public final class DataSourceFactory {
                     plugin.getLogger().log(Level.SEVERE, "Could not create database file", e);
                     throw new IllegalStateException("Failed to init Database");
                 }
-                dataSource = DataSourceCreator.create(SqlType.SQLITE)
+                dataSource = DataSourceCreator.create(SqLite.get())
                         .configure(config -> config.path(path))
                         .create()
                         .build();
             }
             case MARIADB -> dataSource = DataSourceCreator
-                    .create(SqlType.MARIADB)
+                    .create(MariaDb.get())
                     .configure(config -> config.host(db.host())
                             .port(db.port())
                             .database(db.database())
@@ -48,7 +55,7 @@ public final class DataSourceFactory {
                     .withMinimumIdle(2)
                     .build();
             case POSTGRES -> dataSource = DataSourceCreator
-                    .create(SqlType.POSTGRES)
+                    .create(PostgreSql.get())
                     .configure(config -> config
                             .host(db.host())
                             .port(db.port())

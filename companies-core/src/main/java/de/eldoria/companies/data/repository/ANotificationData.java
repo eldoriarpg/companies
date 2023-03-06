@@ -1,7 +1,12 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.repository;
 
-import de.chojo.sqlutil.base.QueryFactoryHolder;
-import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.base.QueryFactory;
+import de.chojo.sadu.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.services.notifications.MissedNotifications;
 import de.eldoria.companies.services.notifications.NotificationData;
 import org.bukkit.OfflinePlayer;
@@ -12,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
-public abstract class ANotificationData extends QueryFactoryHolder {
+public abstract class ANotificationData extends QueryFactory {
 
     private ExecutorService executorService;
 
