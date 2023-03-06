@@ -24,7 +24,7 @@ dependencies {
     implementation("de.chojo.sadu", "sadu-sqlite", "1.2.0")
     // text
     implementation("net.kyori", "adventure-api", "4.12.0")
-    implementation("net.kyori", "adventure-platform-bukkit", "4.0.0")
+    implementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
     compileOnly("me.clip", "placeholderapi", "2.11.2")
