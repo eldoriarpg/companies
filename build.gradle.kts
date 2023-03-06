@@ -45,7 +45,7 @@ allprojects {
     }
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_15
+        sourceCompatibility = JavaVersion.VERSION_17
         withSourcesJar()
         withJavadocJar()
     }
