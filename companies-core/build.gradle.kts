@@ -36,7 +36,7 @@ dependencies {
     bukkitLibrary("org.xerial", "sqlite-jdbc", "3.36.0.3")
     bukkitLibrary("org.postgresql", "postgresql", "42.2.23")
 
-    compileOnly("com.github.MilkBowl", "VaultAPI", "1.7")
+    compileOnly("com.github.MilkBowl", "VaultAPI", "1.7.1")
 }
 
 fun getBuildType(): String {
