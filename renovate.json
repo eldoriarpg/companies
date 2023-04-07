@@ -1,5 +1,5 @@
 {
-  "baseBranches": ["development"],
+  "baseBranches": ["dev"],
   "dependencyDashboard": true,
   "labels": ["dependencies"],
   "extends": ["config:base"],
