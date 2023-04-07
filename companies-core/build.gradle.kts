@@ -15,7 +15,7 @@ repositories {
 
 dependencies {
     implementation(project(":companies-api"))
-    implementation("de.eldoria", "eldo-util", "1.14.2")
+    implementation("de.eldoria", "eldo-util", "1.14.4")
     implementation("de.chojo.sadu", "sadu-queries", "1.2.0")
     implementation("de.chojo.sadu", "sadu-updater", "1.2.0")
     implementation("de.chojo.sadu", "sadu-datasource", "1.2.0")
