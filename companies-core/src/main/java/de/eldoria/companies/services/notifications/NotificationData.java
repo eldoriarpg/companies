@@ -8,28 +8,18 @@ package de.eldoria.companies.services.notifications;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
-import de.eldoria.eldoutilities.localization.Replacement;
 
 public class NotificationData {
     @Expose(deserialize = false)
-    private static final Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(NotificationData.class, new NotificationDataDeserializer())
-            .create();
-    private final MessageType type;
+    private static final Gson GSON = new GsonBuilder().create();
     /**
-     * The unlocalized message.
+     * The localized message.
      * This may be a {@link net.kyori.adventure.text.Component} string representation.
      */
     private final String message;
-    /**
-     * An array of {@link de.eldoria.eldoutilities.localization.Replacement}s.
-     */
-    private final Replacement[] replacements;
 
-    public NotificationData(MessageType type, String message, Replacement... replacements) {
-        this.type = type;
+    public NotificationData(String message) {
         this.message = message;
-        this.replacements = replacements;
     }
 
     public static NotificationData fromJson(String json) {
@@ -38,14 +28,6 @@ public class NotificationData {
 
     public String message() {
         return message;
-    }
-
-    public Replacement[] replacements() {
-        return replacements;
-    }
-
-    public MessageType type() {
-        return type;
     }
 
     public String toJson() {

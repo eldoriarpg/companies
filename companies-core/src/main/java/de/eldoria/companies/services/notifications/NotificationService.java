@@ -26,12 +26,13 @@ import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.localization.Replacement;
 import de.eldoria.eldoutilities.messages.MessageSender;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import de.eldoria.eldoutilities.messages.Replacement;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -57,8 +58,6 @@ public class NotificationService implements Listener {
     private final ScheduledExecutorService workerPool;
     private final MessageSender sender;
     private final ILocalizer localizer;
-    private final MiniMessage miniMessage;
-    private final BukkitAudiences audiences;
     private final Plugin plugin;
 
     public NotificationService(ANotificationData notificationData, AOrderData orderData,
@@ -69,24 +68,22 @@ public class NotificationService implements Listener {
         sender = MessageSender.getPluginMessageSender(plugin);
         localizer = ILocalizer.getPluginLocalizer(plugin);
         this.plugin = plugin;
-        miniMessage = MiniMessage.builder().build();
-        audiences = BukkitAudiences.create(plugin);
     }
 
     @EventHandler
     public void onCompanyDisband(CompanyDisbandEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.companyDisband");
+        sendCompanyMessage(event.company(), "notification.companyDisband");
     }
 
     @EventHandler
     public void onCompanyLeaveEvent(CompanyLeaveEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.companyLeave",
+        sendCompanyMessage(event.company(), "notification.companyLeave",
                 member -> member.uuid().equals(event.player().getUniqueId()), Replacement.create("name", event.player().getName()));
     }
 
     @EventHandler
     public void onCompanyJoin(CompanyJoinEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.companyJoin",
+        sendCompanyMessage(event.company(), "notification.companyJoin",
                 member -> member.uuid().equals(event.player().getUniqueId()), Replacement.create("name", event.player().getName()));
     }
 
@@ -94,7 +91,7 @@ public class NotificationService implements Listener {
     public void onCompanyKick(CompanyKickEvent event) {
         sendMessage(event.player(), "notification.kickedTarget");
 
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.kicked",
+        sendCompanyMessage(event.company(), "notification.kicked",
                 member -> member.uuid().equals(event.player().getUniqueId()), Replacement.create("name", event.player().getName()));
     }
 
@@ -102,27 +99,27 @@ public class NotificationService implements Listener {
     public void onOrderAccept(OrderAcceptEvent event) {
         var order = event.order();
         var message = MessageComposer.create()
-                .text("<%s>", Colors.NEUTRAL)
+                .text("<neutral>")
                 .localeCode("notification.orderAccepted")
                 .space()
-                .text("<click:run_command:/company order info %s><%s>[", order.id(), Colors.ADD)
+                .text("<click:run_command:/company order info %s><add>[", order.id())
                 .localeCode("words.info")
                 .text("]</click>")
                 .build();
-        sendCompanyMessage(MessageType.MINI_MESSAGE, event.company(), message,
+        sendCompanyMessage(event.company(), message,
                 miniOrderReplacement(order), Replacement.create("order_name", order.name()));
     }
 
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.orderCanceled",
-                Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
+        sendCompanyMessage(event.company(), "notification.orderCanceled",
+                Replacement.create("order_name", event.order().fullName(), Style.style(NamedTextColor.GOLD)));
     }
 
     @EventHandler
     public void onOrderCanceled(OrderRemovedEvent event) {
         sendMessage(plugin.getServer().getOfflinePlayer(event.order().owner()), "notification.orderRemoved",
-                Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
+                Replacement.create("order_name", event.order().fullName(), Style.style(NamedTextColor.GOLD)));
     }
 
     @EventHandler
@@ -136,71 +133,64 @@ public class NotificationService implements Listener {
                 .localeCode("notification.recieveItems")
                 .text("]</click>")
                 .build();
-        sendMiniMessage(owner, message,
+        sendMessage(owner, message,
                 miniOrderReplacement(event.order()), Replacement.create("order_name", event.order().name()));
 
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.orderDelivered",
-                Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
+        sendCompanyMessage(event.company(), "notification.orderDelivered",
+                Replacement.create("order_name", event.order().fullName(), Style.style(NamedTextColor.GOLD)));
     }
 
     @EventHandler
     public void onOrderExpiredEvent(OrderExpiredEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.companyOrderExpired",
+        sendCompanyMessage(event.company(), "notification.companyOrderExpired",
                 Replacement.create("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
         sendMessage(event.player(), "notification.orderPayment",
-                Replacement.create("amount", event.amount()).addFormatting('6'),
-                Replacement.create("order_name", event.order().fullName()).addFormatting('6'));
+                Replacement.create("amount", event.amount(), Style.style(NamedTextColor.GOLD)),
+                Replacement.create("order_name", event.order().fullName(), Style.style(NamedTextColor.GOLD)));
     }
 
     @EventHandler
     public void onCompanyLevelUp(CompanyLevelUpEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.companyLevelUp",
-                Replacement.create("NEW_LEVEL", event.newLevel().levelName()).addFormatting('6'));
+        sendCompanyMessage(event.company(), "notification.companyLevelUp",
+                Replacement.create("NEW_LEVEL", event.newLevel().levelName(), Style.style(NamedTextColor.GOLD)));
     }
 
     @EventHandler
     public void onCompanyLevelDown(CompanyLevelDownEvent event) {
-        sendCompanyMessage(MessageType.SIMPLE_MESSAGE, event.company(), "notification.companyLevelDown",
-                Replacement.create("NEW_LEVEL", event.newLevel().levelName()).addFormatting('6'));
+        sendCompanyMessage(event.company(), "notification.companyLevelDown",
+                Replacement.create("NEW_LEVEL", event.newLevel().levelName(), Style.style(NamedTextColor.GOLD)));
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         workerPool.schedule(() -> {
             var notifications = notificationData.retrieveNotifications(event.getPlayer()).join();
-            List<Component> components = new ArrayList<>();
+            List<String> components = new ArrayList<>();
 
             for (var currDate : notifications) {
                 var date = currDate.getKey();
                 if (date.equals(LocalDate.now())) {
                     // Today
-                    components.add(miniMessage.deserialize(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.today", Colors.NEUTRAL))));
+                    components.add("<heading>$words.today$:<neutral>");
                 } else if (date.equals(LocalDate.now().minusDays(1))) {
                     // Yesterday
-                    components.add(miniMessage.deserialize(localizer.localize(String.format("<%s>$%s$:<%s>", Colors.HEADING, "words.yesterday", Colors.NEUTRAL))));
+                    components.add("<heading>$words.yesterday$:<neutral>");
                 } else {
-                    components.add(miniMessage.deserialize(String.format("<%s>$%s$:<%s>", Colors.HEADING, DATE_FORMATTER.format(date), Colors.NEUTRAL)));
+                    components.add(String.format("<heading>$%s$:<neutral>", DATE_FORMATTER.format(date)));
                 }
                 for (var notification : currDate.getValue()) {
                     var time = TIME_FORMATTER.format(notification.created());
                     var data = notification.data();
-                    switch (data.type()) {
-                        case MINI_MESSAGE:
-                            components.add(miniMessage.deserialize(String.format("<%s>%s:<%s> %s", Colors.NAME, time, Colors.NEUTRAL, localizer.localize(data.message(), data.replacements()))));
-                            break;
-                        case SIMPLE_MESSAGE:
-                            components.add(Component.text(de.eldoria.eldoutilities.messages.MessageType.NORMAL.forceColor("§b" + time + " §2" + localizer.localize(data.message(), data.replacements()))));
-                            break;
-                    }
+                    components.add(String.format("<name>%s:<neutral> %s", time, localizer.localize(data.message())));
                 }
             }
             notificationData.submitNotificationClear(event.getPlayer());
             if (!notifications.isEmpty()) {
-                audiences.player(event.getPlayer()).sendMessage(Component.join(JoinConfiguration.separator(Component.newline()), components));
+                sender.sendMessage(event.getPlayer(), String.join("\n", components));
             }
 
             var orders = orderData.retrieveOrdersByPlayer(event.getPlayer(), OrderState.DELIVERED, OrderState.DELIVERED).join();
@@ -214,63 +204,43 @@ public class NotificationService implements Listener {
                         .localeCode("notification.recieveItems")
                         .text("]</click>")
                         .build();
-                sendMiniMessage(event.getPlayer(), message, miniOrderReplacement(order),
+                sendMessage(event.getPlayer(), message, miniOrderReplacement(order),
                         Replacement.create("order_name", order.name()));
             }
         }, 1L, TimeUnit.SECONDS);
     }
 
-    public void sendCompanyMessage(MessageType type, ICompanyProfile company, String message, Replacement... replacements) {
+    public void sendCompanyMessage(ICompanyProfile company, String message, TagResolver... replacements) {
         for (var member : company.members()) {
-            switch (type) {
-                case MINI_MESSAGE:
-                    sendMiniMessage(member.player(), message, replacements);
-                    break;
-                case SIMPLE_MESSAGE:
-                    sendMessage(member.player(), message, replacements);
-                    break;
-            }
+            sendMessage(member.player(), message, replacements);
         }
     }
 
-    public void sendCompanyMessage(MessageType type, ICompanyProfile company, String message, Predicate<ICompanyMember> filter, Replacement... replacements) {
+    public void sendCompanyMessage(ICompanyProfile company, String message, Predicate<ICompanyMember> filter, TagResolver... replacements) {
         for (var member : company.members()) {
             if (filter.test(member)) continue;
-            switch (type) {
-                case MINI_MESSAGE:
-                    sendMiniMessage(member.player(), message, replacements);
-                    break;
-                case SIMPLE_MESSAGE:
-                    sendMessage(member.player(), message, replacements);
-                    break;
+            if (!member.player().isOnline()) {
+                saveNotification(member.player(), message, replacements);
+                return;
             }
+            sender.sendMessage(member.player().getPlayer(), message, replacements);
         }
     }
 
-    public void sendMessage(OfflinePlayer player, String message, Replacement... replacements) {
+    public void sendMessage(OfflinePlayer player, String message, TagResolver... replacements) {
         if (!player.isOnline()) {
-            saveNotification(player, MessageType.SIMPLE_MESSAGE, message, replacements);
+            saveNotification(player, message, replacements);
             return;
         }
-
-        sender.sendMessage(player.getPlayer(), localizer.getMessage(message, replacements));
+        sender.sendMessage(player.getPlayer(), message, replacements);
     }
 
-    public void sendMiniMessage(OfflinePlayer player, String message, Replacement... replacements) {
-        if (!player.isOnline()) {
-            saveNotification(player, MessageType.MINI_MESSAGE, message, replacements);
-            return;
-        }
-
-        audiences.player(player.getPlayer()).sendMessage(miniMessage.deserialize(localizer.localize(message, replacements)));
-    }
-
-    private void saveNotification(OfflinePlayer player, MessageType type, String message, Replacement... replacements) {
-        var container = new NotificationData(type, message, replacements);
+    private void saveNotification(OfflinePlayer player, String message, TagResolver... replacements) {
+        var container = new NotificationData(sender.miniMessage().serialize(sender.serializeMessage(message, replacements)));
         notificationData.submitNotifications(player, container);
     }
 
-    private Replacement miniOrderReplacement(ISimpleOrder order) {
-        return Replacement.create("order_name", String.format("<%s>%s<%s>", Colors.NAME, order.fullName(), Colors.NEUTRAL));
+    private TagResolver miniOrderReplacement(ISimpleOrder order) {
+        return Replacement.create("order_name", String.format("<name>%s<neutral>", order.fullName()));
     }
 }

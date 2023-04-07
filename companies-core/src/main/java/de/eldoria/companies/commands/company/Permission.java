@@ -9,6 +9,7 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Argument;
@@ -17,12 +18,11 @@ import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -55,18 +55,18 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        messageSender().sendErrorActionBar( player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
                     if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.managePermissions");
+                        messageSender().sendErrorActionBar( player, "error.permission.managePermissions");
                         return;
                     }
                     var companyMember = profile.memberByName(memberName);
                     if (companyMember.isEmpty()) {
-                        messageSender().sendLocalizedMessage(player, "error.invalidMember");
+                        messageSender().sendMessage(player, "error.invalidMember");
                         return;
                     }
                     renderPermissionInterface(player, companyMember.get());
@@ -115,31 +115,32 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         var memberName = arguments.asString(0);
         var method = arguments.asString(1);
         if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidAction",
-                    Replacement.create("first", "GIVE").addFormatting('4'), Replacement.create("second", "REMOVE").addFormatting('c'));
+            messageSender().sendErrorActionBar(player, "error.invalidAction",
+                    Replacement.create("first", "GIVE", Style.style(NamedTextColor.DARK_RED)),
+                    Replacement.create("second", "REMOVE", Style.style(NamedTextColor.RED)));
             return;
         }
         var permission = arguments.asEnum(2, CompanyPermission.class);
         if (permission == CompanyPermission.OWNER) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.ownerPermission");
+            messageSender().sendErrorActionBar( player, "error.ownerPermission");
             return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        messageSender().sendErrorActionBar( player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
                     if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.givePermissions");
+                        messageSender().sendErrorActionBar( player, "error.permission.givePermissions");
                         return;
                     }
                     var optTarget = profile.memberByName(memberName);
                     if (optTarget.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidMember");
+                        messageSender().sendErrorActionBar( player, "error.invalidMember");
                         return;
                     }
 
@@ -162,13 +163,13 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
             return List.of("give", "remove");
         }
         if (args.sizeIs(1)) {
-            return TabCompleteUtil.complete(args.asString(0), "give", "remove");
+            return Completion.complete(args.asString(0), "give", "remove");
         }
         if (args.sizeIs(2)) {
             var stream = Arrays.stream(CompanyPermission.values())
                     .filter(p -> p != CompanyPermission.OWNER)
                     .map(p -> p.name().toLowerCase(Locale.ROOT));
-            return TabCompleteUtil.complete(args.asString(1), stream);
+            return Completion.complete(args.asString(1), stream);
         }
         return Collections.emptyList();
     }

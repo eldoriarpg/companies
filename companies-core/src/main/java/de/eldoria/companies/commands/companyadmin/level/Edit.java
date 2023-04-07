@@ -6,15 +6,13 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -70,7 +68,7 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
                 level.settings().maxOrders(args.asInt(2));
                 break;
             default:
-                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownField");
+                messageSender().sendErrorActionBar(player, "error.unkownField");
                 return;
         }
         configuration.save();
@@ -83,26 +81,26 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
             if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.source"));
             }
-            return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
+            return Completion.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
         }
 
         var field = args.asString(1);
         if (args.sizeIs(2)) {
-            return TabCompleteUtil.complete(field, "name", "order_count", "member_count", "earned_money", "delivered_items", "max_members", "max_orders");
+            return Completion.complete(field, "name", "order_count", "member_count", "earned_money", "delivered_items", "max_members", "max_orders");
         }
 
         var value = args.asString(2);
         if (args.sizeIs(3)) {
-            if (TabCompleteUtil.isCommand(value, "name")) {
-                return TabCompleteUtil.completeFreeInput(value, 32, localizer().localize("words.name"));
+            if (Completion.isCommand(value, "name")) {
+                return Completion.completeFreeInput(value, 32, localizer().localize("words.name"));
             }
 
-            if (TabCompleteUtil.isCommand(value, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {
-                return TabCompleteUtil.completeMinInt(value, 0);
+            if (Completion.isCommand(value, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {
+                return Completion.completeMinInt(value, 0);
             }
 
-            if (TabCompleteUtil.isCommand(value, "earned_money")) {
-                return TabCompleteUtil.completeMinDouble(value, 0.0);
+            if (Completion.isCommand(value, "earned_money")) {
+                return Completion.completeMinDouble(value, 0.0);
             }
         }
 

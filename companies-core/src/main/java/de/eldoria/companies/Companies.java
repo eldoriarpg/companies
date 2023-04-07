@@ -9,6 +9,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import de.chojo.sadu.databases.MariaDb;
 import de.chojo.sadu.databases.PostgreSql;
 import de.chojo.sadu.databases.SqLite;
+import de.chojo.sadu.jdbc.SqLiteJdbc;
+import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.chojo.sadu.wrapper.QueryBuilderConfig;
@@ -17,14 +19,6 @@ import de.eldoria.companies.commands.Company;
 import de.eldoria.companies.commands.CompanyAdmin;
 import de.eldoria.companies.commands.Order;
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.configuration.elements.CompanySettings;
-import de.eldoria.companies.configuration.elements.DatabaseSettings;
-import de.eldoria.companies.configuration.elements.GeneralSettings;
-import de.eldoria.companies.configuration.elements.OrderSettings;
-import de.eldoria.companies.configuration.elements.UserSettings;
-import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
-import de.eldoria.companies.configuration.elements.companylevel.LevelRequirement;
-import de.eldoria.companies.configuration.elements.companylevel.LevelSettings;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANotificationData;
@@ -44,19 +38,23 @@ import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.UserData;
+import de.eldoria.eldoutilities.config.JacksonConfig;
+import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.data.EntryData;
 import de.eldoria.eldoutilities.localization.ILocalizer;
-import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.eldoutilities.localization.Localizer;
+import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -77,8 +75,19 @@ public class Companies extends EldoPlugin {
     private MessageBlocker messageBlocker;
 
     @Override
-    public void onPluginLoad() throws Throwable {
+    public Level getLogLevel() {
+        return configuration.secondary(PluginBaseConfiguration.KEY).logLevel();
+    }
+
+    public Configuration configuration() {
+        if(configuration == null){
         configuration = new Configuration(this);
+                 }
+        return configuration;
+    }
+
+    @Override
+    public void onPluginLoad() throws Throwable {
         try {
             initDb();
         } catch (SQLException | IOException e) {
@@ -92,9 +101,25 @@ public class Companies extends EldoPlugin {
     @Override
     public void onPluginEnable(boolean reload) throws Exception {
 
-        // TODO: Make those configurable
-        MessageSender.create(this, "§c[C]");
-        ILocalizer.create(this, "en_US", "de_DE").setLocale(configuration.generalSettings().language());
+        new MessageSenderBuilder(this)
+                .errorColor(TextColor.fromHexString("#f05316"))
+                .messageColor(TextColor.fromHexString("#09ad3a"))
+                // TODO: Make those configurable
+                .prefix("<#00a6ff>[C]")
+                .addTag(builder -> builder
+                        .tag("heading", Tag.styling(NamedTextColor.GOLD))
+                        .tag("name", Tag.styling(NamedTextColor.AQUA))
+                        .tag("value", Tag.styling(NamedTextColor.DARK_GREEN))
+                        .tag("remove", Tag.styling(NamedTextColor.RED))
+                        .tag("add", Tag.styling(NamedTextColor.GREEN))
+                        .tag("modify", Tag.styling(NamedTextColor.YELLOW))
+                        .tag("show", Tag.styling(NamedTextColor.GREEN))
+                        .tag("inactive", Tag.styling(NamedTextColor.DARK_GRAY))
+                        .tag("active", Tag.styling(NamedTextColor.GREEN))
+                        .tag("neutral", Tag.styling(NamedTextColor.DARK_AQUA)))
+                .build();
+        Localizer.create(this, "en_US", "de_DE")
+                .setLocale(configuration().generalSettings().language());
 
         var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
         if (economyProvider != null) {
@@ -107,13 +132,13 @@ public class Companies extends EldoPlugin {
 
         messageBlocker = MessageBlockerAPI.builder(this).withExectuor(workerPool).addWhitelisted("[C]").build();
 
-        var levelService = new LevelService(this, configuration, companyData);
+        var levelService = new LevelService(this, configuration(), companyData);
 
-        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
-        registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService));
+        registerCommand("company", new Company(this, companyData, orderData, economy, configuration(), messageBlocker));
+        registerCommand("order", new Order(this, orderData, configuration(), economy, messageBlocker));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration(), companyData, messageBlocker, levelService));
 
-        ExpiringService.create(this, orderData, companyData, configuration, workerPool);
+        ExpiringService.create(this, orderData, companyData, configuration(), workerPool);
         RefreshService.create(orderData, workerPool);
         registerListener(levelService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
@@ -134,7 +159,7 @@ public class Companies extends EldoPlugin {
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
 
-        SqlUpdater.SqlUpdaterBuilder<?> builder;
+        BaseSqlUpdaterBuilder<?, ?> builder;
 
         switch (configuration.databaseSettings().storageType()) {
             case SQLITE -> {
@@ -180,11 +205,6 @@ public class Companies extends EldoPlugin {
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
         }
-    }
-
-    @Override
-    public @NotNull EntryData[] getDebugInformations() {
-        return new EntryData[]{new EntryData("Customer Data", UserData.get(this).asString())};
     }
 
     private ThreadFactory createThreadFactory(ThreadGroup group) {

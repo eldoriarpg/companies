@@ -5,25 +5,21 @@
  */
 package de.eldoria.companies.configuration.elements;
 
-import de.eldoria.companies.Companies;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
-import de.eldoria.eldoutilities.serialization.SerializationUtil;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class CompanySettings {
     private int deliveryHours = 48;
     private double foudingPrice = 20000.0;
     private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
-    private List<CompanyLevel> level = new ArrayList<>();
+    private final List<CompanyLevel> level = new ArrayList<>();
 
     public CompanySettings() {
         updateLevel();
@@ -106,15 +102,15 @@ public class CompanySettings {
         return finalLevel;
     }
 
-    private void updateLevel() {
-        for (var i = 0; i < level.size(); i++) {
-            level.get(i).level(i + 1);
-        }
-    }
-
     public boolean deleteLevel(int level) {
         if (level < 1 || level < this.level.size()) return false;
         this.level.remove(level);
         return true;
+    }
+
+    private void updateLevel() {
+        for (var i = 0; i < level.size(); i++) {
+            level.get(i).level(i + 1);
+        }
     }
 }

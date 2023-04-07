@@ -6,12 +6,8 @@
 package de.eldoria.companies.configuration.elements.companylevel;
 
 import de.eldoria.companies.components.level.ILevelSettings;
-import de.eldoria.eldoutilities.serialization.SerializationUtil;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
-
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class LevelSettings implements ILevelSettings {
     private int maxMembers = 20;
     private int maxOrders = 5;

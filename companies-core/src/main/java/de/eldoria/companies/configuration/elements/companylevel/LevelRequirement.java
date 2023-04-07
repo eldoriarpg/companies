@@ -7,17 +7,13 @@ package de.eldoria.companies.configuration.elements.companylevel;
 
 import de.eldoria.companies.components.level.ILevelRequirement;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
-import de.eldoria.eldoutilities.serialization.SerializationUtil;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
-
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class LevelRequirement implements ILevelRequirement {
-    private int orderCount = 0;
-    private double earnedMoney = 0.0;
-    private int deliveredItems = 0;
-    private int memberCount = 0;
+    private int orderCount = 1;
+    private double earnedMoney = 1000.0;
+    private int deliveredItems = 1000;
+    private int memberCount =1;
 
     public LevelRequirement() {
     }

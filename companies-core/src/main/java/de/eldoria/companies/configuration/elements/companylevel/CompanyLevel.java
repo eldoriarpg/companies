@@ -8,19 +8,15 @@ package de.eldoria.companies.configuration.elements.companylevel;
 import de.eldoria.companies.components.level.ICompanyLevel;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.serialization.SerializationUtil;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
-
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class CompanyLevel implements ICompanyLevel {
     public static final CompanyLevel DEFAULT = new CompanyLevel();
 
     private int level = -1;
     private String levelName = "none";
-    private LevelRequirement requirement = new LevelRequirement();
-    private LevelSettings settings = new LevelSettings();
+    private final LevelRequirement requirement = new LevelRequirement();
+    private final LevelSettings settings = new LevelSettings();
 
     public CompanyLevel() {
     }

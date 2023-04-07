@@ -18,8 +18,6 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
@@ -54,7 +52,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
         var optContent = order.content(material);
         if (optContent.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidMaterial");
+            messageSender().sendErrorActionBar(player, "error.invalidMaterial");
             return;
         }
 
@@ -126,12 +124,12 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
                     if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
                         return;
                     }
                     orderData.retrieveFullOrder(optOrder.get())

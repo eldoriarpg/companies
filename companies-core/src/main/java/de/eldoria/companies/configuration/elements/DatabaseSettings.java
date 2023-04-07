@@ -5,13 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements;
 
-import de.eldoria.eldoutilities.serialization.SerializationUtil;
-import de.eldoria.eldoutilities.utils.EnumUtil;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.Map;
-
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class DatabaseSettings {
     private StorageType storageType = StorageType.SQLITE;
     private String host = "localhost";

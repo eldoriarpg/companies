@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -22,11 +23,8 @@ import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
@@ -86,17 +84,17 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
 
                     if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.invite");
+                        messageSender().sendErrorActionBar(player, "error.permission.invite");
                         return;
                     }
                     var profile = company.get();
                     if (profile.members().size() >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyFull");
+                        messageSender().sendErrorActionBar(player, "error.companyFull");
                         return;
                     }
 
@@ -108,7 +106,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                             })
                             .join();
                     if (targetCompany.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.hasCompany");
+                        messageSender().sendErrorActionBar(player, "error.hasCompany");
                         return;
                     }
                     scheduleInvite(player, target, company.get());
@@ -122,26 +120,26 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private void deny(@NotNull Player player) {
         var data = invites.remove(player.getUniqueId());
         if (data == null) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "company.invite.error.noPending");
+            messageSender().sendErrorActionBar(player, "company.invite.error.noPending");
             return;
         }
         var inviter = plugin().getServer().getPlayer(data.inviter);
         if (inviter != null) {
-            messageSender().sendLocalizedMessage(inviter, "company.invite.inviteDeclined");
+            messageSender().sendErrorActionBar(inviter, "company.invite.inviteDeclined");
         }
     }
 
     private void accept(@NotNull Player player) {
         var data = invites.remove(player.getUniqueId());
         if (data == null) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "company.invite.error.noPending");
+            messageSender().sendErrorActionBar(player, "company.invite.error.noPending");
             return;
         }
 
         companyData.retrievePlayerCompany(player)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.alreadyMember");
+                        messageSender().sendErrorActionBar(player, "error.alreadyMember");
                         return;
                     }
                     var inviter = Bukkit.getOfflinePlayer(data.inviter);
@@ -155,26 +153,26 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void handleInviteAccept(Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
         if (profile.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unknownCompany");
+            messageSender().sendErrorActionBar(player, "error.unknownCompany");
             return;
         }
 
         if (profile.get().members().size() >= configuration.companySettings().level(profile.get().level()).orElse(CompanyLevel.DEFAULT).settings().maxMembers()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyFull");
+            messageSender().sendErrorActionBar(player, "error.companyFull");
             return;
         }
 
         companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
-        messageSender().sendLocalizedMessage(player, "company.invite.joined");
+        messageSender().sendMessage(player, "company.invite.joined");
         if (inviter.isOnline()) {
-            messageSender().sendLocalizedMessage(inviter.getPlayer(), "company.invite.accepted", Replacement.create("NAME", player));
+            messageSender().sendMessage(inviter.getPlayer(), "company.invite.accepted", Replacement.create("NAME", player));
         }
 
         plugin().getServer().getPluginManager().callEvent(new CompanyJoinEvent(profile.get(), player));
     }
 
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {
-        messageSender().sendLocalizedMessage(inviter, "company.invite.inviteSend", Replacement.create("NAME", target));
+        messageSender().sendMessage(inviter, "company.invite.inviteSend", Replacement.create("NAME", target));
         var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.invite.invited",
                         Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, company.name(), Colors.NEUTRAL)))
                 .newLine()
@@ -190,17 +188,17 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         if (data == null) return;
         var target = plugin().getServer().getPlayer(uuid);
         if (target != null) {
-            messageSender().sendLocalizedMessage(target, "company.invite.expired");
+            messageSender().sendMessage(target, "company.invite.expired");
         }
         var inviter = plugin().getServer().getPlayer(data.inviter);
         if (inviter != null) {
-            messageSender().sendLocalizedMessage(inviter, "company.invite.expired");
+            messageSender().sendMessage(inviter, "company.invite.expired");
         }
     }
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return TabCompleteUtil.completePlayers(arguments.asString(0));
+        return Completion.completePlayers(arguments.asString(0));
     }
 
     private static class InviteData {

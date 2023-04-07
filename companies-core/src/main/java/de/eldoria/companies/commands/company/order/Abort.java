@@ -19,8 +19,6 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
@@ -87,7 +85,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     private boolean confirm(@NotNull Player player) {
         var remove = cancel.remove(player.getUniqueId());
         if (remove == null) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noConfirm");
+            messageSender().sendErrorActionBar(player, "error.noConfirm");
             return true;
         }
 
@@ -116,7 +114,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
     private Optional<SimpleOrder> checkOrder(Optional<CompanyProfile> optCompany, Player player, int id) {
         if (optCompany.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+            messageSender().sendErrorActionBar(player, "error.noMember");
             return Optional.empty();
         }
 
@@ -124,18 +122,18 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
         var optOrder = orderData.retrieveOrderById(id).join();
         if (optOrder.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+            messageSender().sendErrorActionBar(player, "error.unkownOrder");
             return Optional.empty();
         }
 
         var order = optOrder.get();
         if (order.company() != company.id()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.orderNotOwned");
+            messageSender().sendErrorActionBar(player, "error.orderNotOwned");
             return Optional.empty();
         }
 
         if (!company.member(player).get().hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.cancelOrder");
+            messageSender().sendErrorActionBar(player, "error.permission.cancelOrder");
             return Optional.empty();
         }
         return optOrder;

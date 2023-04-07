@@ -14,10 +14,9 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import org.bukkit.command.CommandSender;
+import de.eldoria.eldoutilities.messages.Replacement;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -34,35 +33,35 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
         this.companyData = companyData;
     }
 
-    private void handleProfile(@NotNull CommandSender sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
+    private void handleProfile(@NotNull Player sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
         if (optProfile.isEmpty()) {
-            messageSender().send(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.noMember");
+            messageSender().sendErrorActionBar(sender, "error.noMember");
             return;
         }
         var profile = optProfile.get();
 
         if (!profile.member(player).map(r -> r.hasPermissions(CompanyPermission.KICK)).orElse(false)) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.permission.kick");
+            messageSender().sendErrorActionBar(sender, "error.permission.kick");
             return;
         }
 
         var optMember = profile.memberByName(arg);
 
         if (optMember.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.noCompanyMember");
+            messageSender().sendErrorActionBar(sender, "error.noCompanyMember");
             return;
         }
 
         var target = optMember.get();
 
         if (target.hasPermission(CompanyPermission.KICK)) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.cantKick");
+            messageSender().sendErrorActionBar(sender, "error.cantKick");
             return;
         }
 
         companyData.submitMemberUpdate(target.kick()).join();
-        messageSender().sendLocalizedMessage(sender, "company.kick.kicked",
-                Replacement.create("name", target.player().getName()).addFormatting('c'));
+        messageSender().sendMessage(sender, "company.kick.kicked",
+                Replacement.create("name", target.player().getName(), Style.style().color(NamedTextColor.GOLD).build()));
 
         plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(optProfile.get(), target.player()));
     }

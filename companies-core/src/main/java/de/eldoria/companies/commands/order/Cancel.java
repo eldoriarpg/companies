@@ -12,9 +12,7 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -50,18 +48,18 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optOrder -> {
                     if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.unkownOrder");
+                        messageSender().sendErrorActionBar(sender, "error.unkownOrder");
                         return;
                     }
 
                     var simpleOrder = optOrder.get();
                     var player = getPlayerFromSender(sender);
                     if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                        messageSender().sendLocalizedError(sender, "error.notYourOrder");
+                        messageSender().sendError(sender, "error.notYourOrder");
                         return;
                     }
                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messageSender().sendLocalizedError(sender, "error.orderAlreadyClaimed");
+                        messageSender().sendError(sender, "error.orderAlreadyClaimed");
                         return;
                     }
 
@@ -69,7 +67,7 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                     CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
                     orderData.submitOrderDeletion(fullOrder).join();
                     list.showOrders(player, () -> {
-                        messageSender().sendLocalizedMessage(sender, "order.cancel.canceled",
+                        messageSender().sendError(sender, "order.cancel.canceled",
                                 Replacement.create("money", economy.format(fullOrder.price())));
                     });
                 }).exceptionally(err -> {

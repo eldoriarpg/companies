@@ -7,15 +7,13 @@ package de.eldoria.companies.commands.company.profile;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -56,7 +54,7 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optComp -> {
                     if (optComp.isEmpty()) {
-                        messageSender().send(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unknownCompany");
+                        messageSender().sendErrorActionBar(player, "error.unknownCompany");
                         return;
                     }
                     var optProfile = companyData.retrieveCompanyProfile(optComp.get()).asFuture().join();
@@ -75,6 +73,6 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return TabCompleteUtil.completeFreeInput(args.asString(0), 32, localizer().localize("words.name"));
+        return Completion.completeFreeInput(args.asString(0), 32, localizer().localize("words.name"));
     }
 }

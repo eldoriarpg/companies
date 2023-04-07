@@ -8,15 +8,13 @@ package de.eldoria.companies.commands.companyadmin.level;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -87,7 +85,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
 
         var optLevel = configuration.companySettings().level(levelNr);
         if (optLevel.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "Invalid level");
+            messageSender().sendErrorActionBar(player, "Invalid level");
             return;
         }
 
@@ -100,7 +98,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
             if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.index"));
             }
-            return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
+            return Completion.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
         }
         return Collections.emptyList();
     }

@@ -11,6 +11,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -18,10 +19,7 @@ import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -63,14 +61,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var name = registrations.remove(player.getUniqueId());
 
         if (name == null) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noConfirm");
+            messageSender().sendErrorActionBar(player, "error.noConfirm");
             return;
         }
 
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyNameUsed");
+                        messageSender().sendErrorActionBar( player, "error.companyNameUsed");
                         return;
                     }
 
@@ -83,7 +81,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         if (!result) {
                             var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                             var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.insufficientCurrency",
+                            messageSender().sendErrorActionBar(player, "error.insufficientCurrency",
                                     Replacement.create("currency", curr),
                                     Replacement.create("amount", configuration.companySettings().foudingPrice()));
                             return;
@@ -98,7 +96,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                     if (id == -1) return;
                                     companyData.submitMemberUpdate(CompanyMember.forCompanyId(id, player).addPermission(CompanyPermission.OWNER));
                                 });
-                        messageSender().sendLocalizedMessage(player, "company.create.created");
+                        messageSender().sendMessage(player, "company.create.created");
                     });
                 });
     }
@@ -112,10 +110,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         if ("deny".equalsIgnoreCase(arguments.asString(0))) {
             var name = registrations.remove(player.getUniqueId());
             if (name == null) {
-                messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noDeny");
+                messageSender().sendErrorActionBar(player, "error.noDeny");
                 return;
             }
-            messageSender().sendLocalizedMessage(player, "words.canceled");
+            messageSender().sendMessage(player, "words.canceled");
             return;
         }
 
@@ -125,7 +123,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.companyNameUsed");
+                        messageSender().sendErrorActionBar( player, "error.companyNameUsed");
                         return;
                     }
 
@@ -144,6 +142,6 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return TabCompleteUtil.completeFreeInput(arguments.join(), 32, localizer().localize("words.name"));
+        return Completion.completeFreeInput(arguments.join(), 32, localizer().localize("words.name"));
     }
 }

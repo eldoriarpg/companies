@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Argument;
@@ -13,7 +14,6 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -51,15 +51,15 @@ public class Material extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        if (TabCompleteUtil.isCommand(alias, "material_add")) {
-            return TabCompleteUtil.completeMaterial(arguments.join("_"), true);
+        if (Completion.isCommand(alias, "material_add")) {
+            return Completion.completeMaterial(arguments.join("_"), true);
         }
-        if (TabCompleteUtil.isCommand(alias, "material_remove")) {
+        if (Completion.isCommand(alias, "material_remove")) {
             if (arguments.size() == 1) {
                 return Collections.emptyList();
             }
             var playerSearch = query.getPlayerSearch(player);
-            return TabCompleteUtil.complete(arguments.asString(1), playerSearch.materials());
+            return Completion.complete(arguments.asString(1), playerSearch.materials());
         }
         return Collections.emptyList();
     }
