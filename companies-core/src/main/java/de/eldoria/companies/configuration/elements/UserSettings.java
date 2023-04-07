@@ -11,23 +11,10 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
-public class UserSettings implements ConfigurationSerializable {
+public class UserSettings {
     private int maxOrders = 7;
 
-    public UserSettings(Map<String, Object> objectMap) {
-        var map = SerializationUtil.mapOf(objectMap);
-        maxOrders = map.getValueOrDefault("maxOrders", maxOrders);
-    }
-
     public UserSettings() {
-    }
-
-    @Override
-    @NotNull
-    public Map<String, Object> serialize() {
-        return SerializationUtil.newBuilder()
-                .add("maxOrders", maxOrders)
-                .build();
     }
 
     public int maxOrders() {

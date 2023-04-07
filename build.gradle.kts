@@ -4,7 +4,8 @@ import de.chojo.PublishData
 plugins {
     java
     id("com.diffplug.spotless") version "6.16.0"
-    id("de.chojo.publishdata") version "1.0.9"
+    id("de.chojo.publishdata") version "1.2.4"
+    `maven-publish`
 }
 
 group = "de.eldoria"
@@ -15,6 +16,7 @@ subprojects {
         plugin<SpotlessPlugin>()
         plugin<JavaPlugin>()
         plugin<PublishData>()
+        plugin<MavenPublishPlugin>()
     }
 }
 

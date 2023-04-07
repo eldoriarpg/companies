@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class CompanySettings implements ConfigurationSerializable {
+public class CompanySettings {
     private int deliveryHours = 48;
     private double foudingPrice = 20000.0;
     private double renamePrice = 10000.0;
@@ -25,35 +25,8 @@ public class CompanySettings implements ConfigurationSerializable {
     private int abortedOrderPenalty = 1;
     private List<CompanyLevel> level = new ArrayList<>();
 
-    public CompanySettings(Map<String, Object> objectMap) {
-        var map = SerializationUtil.mapOf(objectMap);
-        deliveryHours = map.getValueOrDefault("deliveryHours", deliveryHours);
-        foudingPrice = map.getValueOrDefault("foudingPrice", foudingPrice);
-        renamePrice = map.getValueOrDefault("renamePrice", renamePrice);
-        expiredOrderPenalty = map.getValueOrDefault("expiredOrderPenalty", expiredOrderPenalty);
-        abortedOrderPenalty = map.getValueOrDefault("abortedOrderPenalty", abortedOrderPenalty);
-        level = map.getValueOrDefault("level", level);
-        if (level.isEmpty()) {
-            Companies.logger().info("No company level set. Creating default level.");
-            level.add(new CompanyLevel());
-        }
-        updateLevel();
-    }
-
     public CompanySettings() {
-    }
-
-    @Override
-    @NotNull
-    public Map<String, Object> serialize() {
-        return SerializationUtil.newBuilder()
-                .add("deliveryHours", deliveryHours)
-                .add("foudingPrice", foudingPrice)
-                .add("renamePrice", renamePrice)
-                .add("expiredOrderPenalty", expiredOrderPenalty)
-                .add("abortedOrderPenalty", abortedOrderPenalty)
-                .add("level", level)
-                .build();
+        updateLevel();
     }
 
     public int deliveryHours() {

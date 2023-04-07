@@ -14,7 +14,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
-public class CompanyLevel implements ConfigurationSerializable, ICompanyLevel {
+public class CompanyLevel implements ICompanyLevel {
     public static final CompanyLevel DEFAULT = new CompanyLevel();
 
     private int level = -1;
@@ -23,13 +23,6 @@ public class CompanyLevel implements ConfigurationSerializable, ICompanyLevel {
     private LevelSettings settings = new LevelSettings();
 
     public CompanyLevel() {
-    }
-
-    public CompanyLevel(Map<String, Object> objectMap) {
-        var map = SerializationUtil.mapOf(objectMap);
-        levelName = map.getValueOrDefault("levelName", levelName);
-        requirement = map.getValueOrDefault("requirement", requirement);
-        settings = map.getValueOrDefault("settings", settings);
     }
 
     public void level(int level) {
@@ -73,15 +66,5 @@ public class CompanyLevel implements ConfigurationSerializable, ICompanyLevel {
     @Override
     public LevelSettings settings() {
         return settings;
-    }
-
-    @Override
-    @NotNull
-    public Map<String, Object> serialize() {
-        return SerializationUtil.newBuilder()
-                .add("levelName", levelName)
-                .add("requirement", requirement)
-                .add("settings", settings)
-                .build();
     }
 }

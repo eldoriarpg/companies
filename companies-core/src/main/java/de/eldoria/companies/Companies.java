@@ -62,6 +62,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 
+@SuppressWarnings("InstanceVariableMayNotBeInitialized")
 public class Companies extends EldoPlugin {
     private final Thread.UncaughtExceptionHandler exceptionHandler =
             (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occured in " + t.getName() + "-" + t.getId() + ".", e);
@@ -128,12 +129,6 @@ public class Companies extends EldoPlugin {
     public void onPluginDisable() {
         workerPool.shutdown();
         dataSource.close();
-    }
-
-    @Override
-    public List<Class<? extends ConfigurationSerializable>> getConfigSerialization() {
-        return List.of(CompanySettings.class, DatabaseSettings.class, GeneralSettings.class, OrderSettings.class, UserSettings.class,
-                CompanyLevel.class, LevelSettings.class, LevelRequirement.class);
     }
 
     private void initDb() throws SQLException, IOException {

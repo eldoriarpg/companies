@@ -6,7 +6,9 @@ plugins{
 dependencies {
     api("net.kyori", "adventure-platform-bukkit", "4.2.0")
     api("net.kyori", "adventure-text-minimessage", "4.12.0")
-    api("de.eldoria", "eldo-util", "1.14.2")
+    api("de.eldoria.util", "jackson-configuration", "2.0.0-SNAPSHOT")
+    api("de.eldoria.util", "plugin", "2.0.0-SNAPSHOT")
+    api("de.eldoria.util", "plugin", "2.0.0-SNAPSHOT")
     api("de.eldoria", "messageblocker", "1.1.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
@@ -14,7 +16,7 @@ dependencies {
 }
 
 publishData{
-    useEldoNexusRepos(true)
+    useEldoNexusRepos()
     publishComponent("java")
 }
 

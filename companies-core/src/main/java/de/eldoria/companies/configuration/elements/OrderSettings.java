@@ -11,29 +11,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
-public class OrderSettings implements ConfigurationSerializable {
+public class OrderSettings {
     private int maxItems = 64 * 8;
     private int maxMaterials = 5;
     private int maxUnclaimedHours = 24 * 7;
 
-    public OrderSettings(Map<String, Object> objectMap) {
-        var map = SerializationUtil.mapOf(objectMap);
-        maxItems = map.getValueOrDefault("maxItems", maxItems);
-        maxMaterials = map.getValueOrDefault("maxMaterials", maxMaterials);
-        maxMaterials = map.getValueOrDefault("maxUnclaimedHours", maxUnclaimedHours);
-    }
-
     public OrderSettings() {
-    }
-
-    @Override
-    @NotNull
-    public Map<String, Object> serialize() {
-        return SerializationUtil.newBuilder()
-                .add("maxItems", maxItems)
-                .add("maxMaterials", maxMaterials)
-                .add("maxUnclaimedHours", maxUnclaimedHours)
-                .build();
     }
 
     public int maxItems() {

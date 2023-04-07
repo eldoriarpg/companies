@@ -13,32 +13,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
-public class LevelRequirement implements ConfigurationSerializable, ILevelRequirement {
+public class LevelRequirement implements ILevelRequirement {
     private int orderCount = 0;
     private double earnedMoney = 0.0;
     private int deliveredItems = 0;
     private int memberCount = 0;
 
     public LevelRequirement() {
-    }
-
-    public LevelRequirement(Map<String, Object> objectMap) {
-        var map = SerializationUtil.mapOf(objectMap);
-        orderCount = map.getValueOrDefault("orderCount", orderCount);
-        earnedMoney = map.getValueOrDefault("earnedMoney", earnedMoney);
-        deliveredItems = map.getValueOrDefault("deliveredItems", deliveredItems);
-        memberCount = map.getValueOrDefault("memberCount", memberCount);
-    }
-
-    @Override
-    @NotNull
-    public Map<String, Object> serialize() {
-        return SerializationUtil.newBuilder()
-                .add("orderCount", orderCount)
-                .add("earnedMoney", earnedMoney)
-                .add("deliveredItems", deliveredItems)
-                .add("memberCount", memberCount)
-                .build();
     }
 
     public boolean checkRequirements(CompanyStats stats) {
