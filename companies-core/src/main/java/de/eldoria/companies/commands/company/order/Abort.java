@@ -12,15 +12,12 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -35,8 +32,6 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
     private final List list;
 
 
@@ -45,8 +40,6 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("words.id", true)
                 .build());
         this.companyData = companyData;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.orderData = orderData;
         this.list = list;
     }
@@ -74,7 +67,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                     var composer = MessageComposer.create().text("<neutral>").localeCode("company.order.abort.confirm")
                             .text("<click:run_command:/company order abort confirm><remove>[").localeCode("words.confirm").text("]</click>");
                     cancel.put(player.getUniqueId(), order.get());
-                    audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
+                    messageSender().sendMessage(player, composer.build());
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;

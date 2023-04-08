@@ -8,7 +8,6 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -20,10 +19,8 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -37,8 +34,6 @@ import java.util.Locale;
 
 public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
-    private final MiniMessage miniMessage;
-    private final BukkitAudiences audiences;
     private final MessageBlocker messageBlocker;
 
     public Permission(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
@@ -46,22 +41,95 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("member", true)
                 .build());
         this.companyData = companyData;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.messageBlocker = messageBlocker;
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        if (arguments.size() == 1) {
+            var memberName = arguments.asString(0);
+            renderPermissionInterface(player, memberName);
+            return;
+        }
+
+        CommandAssertions.invalidArguments(meta(), arguments,
+                Argument.input("words.member", true),
+                Argument.unlocalizedInput("add|remove", true),
+                Argument.input("words.permission", true));
+
+        var memberName = arguments.asString(0);
+        var method = arguments.asString(1);
+        if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
+            messageSender().sendErrorActionBar(player, "error.invalidAction",
+                    Replacement.create("first", "GIVE", Style.style(NamedTextColor.DARK_RED)),
+                    Replacement.create("second", "REMOVE", Style.style(NamedTextColor.RED)));
+            return;
+        }
+        var permission = arguments.asEnum(2, CompanyPermission.class);
+        if (permission == CompanyPermission.OWNER) {
+            messageSender().sendErrorActionBar(player, "error.ownerPermission");
+            return;
+        }
+
+        companyData.retrievePlayerCompanyProfile(player)
+                .whenComplete(optProfile -> {
+                    if (optProfile.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    var profile = optProfile.get();
+                    var self = profile.member(player).get();
+                    if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
+                        messageSender().sendErrorActionBar(player, "error.permission.givePermissions");
+                        return;
+                    }
+                    var optTarget = profile.memberByName(memberName);
+                    if (optTarget.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.invalidMember");
+                        return;
+                    }
+
+                    var target = optTarget.get();
+
+                    if ("give".equalsIgnoreCase(method)) {
+                        target.addPermission(permission);
+                    } else {
+                        target.removePermission(permission);
+                    }
+                    companyData.submitMemberUpdate(target);
+
+                    renderPermissionInterface(player, target);
+                });
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        if (args.isEmpty()) {
+            return List.of("give", "remove");
+        }
+        if (args.sizeIs(1)) {
+            return Completion.complete(args.asString(0), "give", "remove");
+        }
+        if (args.sizeIs(2)) {
+            var stream = Arrays.stream(CompanyPermission.values())
+                    .filter(p -> p != CompanyPermission.OWNER)
+                    .map(p -> p.name().toLowerCase(Locale.ROOT));
+            return Completion.complete(args.asString(1), stream);
+        }
+        return Collections.emptyList();
     }
 
     private void renderPermissionInterface(Player player, String memberName) {
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var self = profile.member(player).get();
                     if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                        messageSender().sendErrorActionBar( player, "error.permission.managePermissions");
+                        messageSender().sendErrorActionBar(player, "error.permission.managePermissions");
                         return;
                     }
                     var companyMember = profile.memberByName(memberName);
@@ -96,81 +164,6 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         composer.prependLines(25);
-        audiences.player(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        if (arguments.size() == 1) {
-            var memberName = arguments.asString(0);
-            renderPermissionInterface(player, memberName);
-            return;
-        }
-
-        CommandAssertions.invalidArguments(meta(), arguments,
-                Argument.input("words.member", true),
-                Argument.unlocalizedInput("add|remove", true),
-                Argument.input("words.permission", true));
-
-        var memberName = arguments.asString(0);
-        var method = arguments.asString(1);
-        if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
-            messageSender().sendErrorActionBar(player, "error.invalidAction",
-                    Replacement.create("first", "GIVE", Style.style(NamedTextColor.DARK_RED)),
-                    Replacement.create("second", "REMOVE", Style.style(NamedTextColor.RED)));
-            return;
-        }
-        var permission = arguments.asEnum(2, CompanyPermission.class);
-        if (permission == CompanyPermission.OWNER) {
-            messageSender().sendErrorActionBar( player, "error.ownerPermission");
-            return;
-        }
-
-        companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optProfile -> {
-                    if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.noMember");
-                        return;
-                    }
-                    var profile = optProfile.get();
-                    var self = profile.member(player).get();
-                    if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
-                        messageSender().sendErrorActionBar( player, "error.permission.givePermissions");
-                        return;
-                    }
-                    var optTarget = profile.memberByName(memberName);
-                    if (optTarget.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.invalidMember");
-                        return;
-                    }
-
-                    var target = optTarget.get();
-
-                    if ("give".equalsIgnoreCase(method)) {
-                        target.addPermission(permission);
-                    } else {
-                        target.removePermission(permission);
-                    }
-                    companyData.submitMemberUpdate(target);
-
-                    renderPermissionInterface(player, target);
-                });
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        if (args.isEmpty()) {
-            return List.of("give", "remove");
-        }
-        if (args.sizeIs(1)) {
-            return Completion.complete(args.asString(0), "give", "remove");
-        }
-        if (args.sizeIs(2)) {
-            var stream = Arrays.stream(CompanyPermission.values())
-                    .filter(p -> p != CompanyPermission.OWNER)
-                    .map(p -> p.name().toLowerCase(Locale.ROOT));
-            return Completion.complete(args.asString(1), stream);
-        }
-        return Collections.emptyList();
+        messageSender().sendMessage(player, composer.build());
     }
 }

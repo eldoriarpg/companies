@@ -13,7 +13,6 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -25,8 +24,6 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.scheduling.DelayedActions;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -44,8 +41,6 @@ import java.util.logging.Level;
 public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Map<UUID, InviteData> invites = new HashMap<>();
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
     private final DelayedActions delayedActions;
     private final Configuration configuration;
 
@@ -53,8 +48,6 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         super(plugin, CommandMeta.builder("invite")
                 .addArgument("words.name", true)
                 .build());
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         delayedActions = DelayedActions.start(plugin);
         this.companyData = companyData;
         this.configuration = configuration;
@@ -115,6 +108,11 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                     return null;
                 })
         ;
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return Completion.completePlayers(arguments.asString(0));
     }
 
     private void deny(@NotNull Player player) {
@@ -178,7 +176,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                 .newLine()
                 .text("<click:run_command:/company invite accept><add>[").localeCode("accept").text("]</click>")
                 .text("<click:run_command:/company invite deny><remove>[").localeCode("deny").text("]</click>");
-        audiences.sender(target).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
+        messageSender().sendMessage(target, composer.build());
         invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
         delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
     }
@@ -194,11 +192,6 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         if (inviter != null) {
             messageSender().sendMessage(inviter, "company.invite.expired");
         }
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Completion.completePlayers(arguments.asString(0));
     }
 
     private static class InviteData {

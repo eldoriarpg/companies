@@ -16,8 +16,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -27,8 +25,6 @@ import java.util.List;
 public class Top extends AdvancedCommand implements IPlayerTabExecutor {
     private static final int PAGE_SIZE = 15;
     private static final TopOrder DEFAULT_ORDER = TopOrder.ORDERS;
-    private final MiniMessage miniMessage;
-    private final BukkitAudiences audiences;
     private final ACompanyData companyData;
     private final MessageBlocker messageBlocker;
 
@@ -39,8 +35,12 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
                 .build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
-        miniMessage = MiniMessage.miniMessage();
-        audiences = BukkitAudiences.create(plugin);
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+        var order = args.asEnum(1, TopOrder.class, DEFAULT_ORDER);
+        renderPage(player, args.asInt(0, 1), order);
     }
 
     private void renderPage(Player player, int page, TopOrder orders) {
@@ -76,12 +76,6 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         composer.prependLines(25);
-        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
-        var order = args.asEnum(1, TopOrder.class, DEFAULT_ORDER);
-        renderPage(player, args.asInt(0, 1), order);
+        messageSender().sendMessage(player, composer.build());
     }
 }

@@ -9,7 +9,6 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -17,8 +16,6 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -34,17 +31,12 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Set<UUID> leaves = new HashSet<>();
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
 
     public Leave(Plugin plugin, ACompanyData companyData, AOrderData orderData) {
-        super(plugin,
-                CommandMeta.builder("leave")
-                        .build());
+        super(plugin, CommandMeta.builder("leave")
+                .build());
         this.companyData = companyData;
         this.orderData = orderData;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
     }
 
     public void leave(Player player) {
@@ -76,14 +68,14 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                 leave(player);
                 return;
             }
-            messageSender().sendErrorActionBar( player, "error.noConfirm");
+            messageSender().sendErrorActionBar(player, "error.noConfirm");
             return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
                 .whenComplete(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
@@ -95,7 +87,7 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                         composer.localeCode("company.leave.confirm");
                     }
                     composer.text("<click:run_command:/company leave confirm><remove>[").localeCode("words.confirm").text("</click>");
-                    audiences.player(player).sendMessage(miniMessage.deserialize(composer.buildLocalized(localizer())));
+                    messageSender().sendMessage(player, composer.build());
                 });
     }
 

@@ -15,13 +15,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SearchQuery {
-    private String name = null;
+    private String name;
     private List<String> materials = new ArrayList<>();
     private boolean anyMaterial = true;
-    private boolean exactMatch = false;
-    private double minPrice = 0.0;
+    private boolean exactMatch;
+    private double minPrice;
     private double maxPrice = Double.MAX_VALUE;
-    private int minOrderSize = 0;
+    private int minOrderSize;
     private int maxOrderSize = Integer.MAX_VALUE;
     private SortingType sortingType = SortingType.AGE;
     private boolean asc = true;
@@ -110,13 +110,6 @@ public class SearchQuery {
         return materials.stream().map(mat -> "(.*" + regexMat(mat) + ")").collect(Collectors.joining(""));
     }
 
-    private String regexMat(String mat) {
-        if (exactMatch) {
-            return "\\b" + mat + "\\b";
-        }
-        return mat;
-    }
-
     public void anyMaterial(boolean anyMaterial) {
         this.anyMaterial = anyMaterial;
     }
@@ -181,5 +174,12 @@ public class SearchQuery {
                 .text("<click:run_command:%s execute><show>[", queryCmd).localeCode("words.search").text("]</click>")
                 .text("<click:run_command:%s clear><remove>[", queryCmd).localeCode("words.clear").text("]</click>");
         return composer.build();
+    }
+
+    private String regexMat(String mat) {
+        if (exactMatch) {
+            return "\\b" + mat + "\\b";
+        }
+        return mat;
     }
 }

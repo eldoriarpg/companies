@@ -14,8 +14,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -26,9 +24,7 @@ import java.util.logging.Level;
 public class Id extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Configuration configuration;
-    private final BukkitAudiences audiences;
     private final MessageBlocker messageBlocker;
-    private final MiniMessage miniMessage;
 
     public Id(Plugin plugin, ACompanyData companyData, Configuration configuration, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("id")
@@ -36,9 +32,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                 .build());
         this.companyData = companyData;
         this.configuration = configuration;
-        audiences = BukkitAudiences.create(plugin);
         this.messageBlocker = messageBlocker;
-        miniMessage = MiniMessage.miniMessage();
     }
 
     @Override
@@ -53,7 +47,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optComp -> {
                     if (optComp.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.unknownCompany");
+                        messageSender().sendErrorActionBar(player, "error.unknownCompany");
                         return;
                     }
                     var optProfile = companyData.retrieveCompanyProfile(optComp.get())
@@ -70,7 +64,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
-                    audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
+                    messageSender().sendMessage(player, builder.build());
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;

@@ -26,8 +26,6 @@ import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.EnumUtil;
 import de.eldoria.eldoutilities.utils.Parser;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
@@ -46,8 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class Create extends AdvancedCommand implements IPlayerTabExecutor {
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
-    private final BukkitAudiences audience;
     private final Configuration configuration;
     private final Economy economy;
     private final MessageBlocker messageBlocker;
@@ -60,7 +56,6 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("value", false)
                 .withPermission(Permission.Orders.CREATE)
                 .build());
-        audience = BukkitAudiences.create(plugin);
         this.orderData = orderData;
         this.configuration = configuration;
         this.economy = economy;
@@ -104,172 +99,6 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 return;
         }
         sendBuilder(player, getPlayerBuilder(player));
-    }
-
-    private void amount(Player player, Arguments args) throws CommandException {
-        var subMeta = meta().forSubCommand("amount", this)
-                .addArgument("words.material", true)
-                .addArgument("words.amount", true)
-                .build();
-        CommandAssertions.invalidArguments(subMeta, args);
-        var material = args.asMaterial(0);
-        var amount = Math.max(args.asInt(1), 0);
-
-        if (amount == 0) {
-            remove(player, args);
-            return;
-        }
-
-        var builder = getPlayerBuilder(player);
-        builder.changeContentAmount(material, Math.min(configuration.orderSetting().maxItems() - builder.amount(material), amount));
-    }
-
-    private void price(Player player, Arguments args) throws CommandException {
-        var subMeta = meta().forSubCommand("price", this)
-                .addArgument("words.material", true)
-                .addArgument("words.price", true)
-                .build();
-        CommandAssertions.invalidArguments(subMeta, args);
-
-        var material = args.asMaterial(0);
-        var price = args.asDouble(1);
-
-        CommandAssertions.min(price, 0);
-        var builder = getPlayerBuilder(player);
-        builder.changeContentPrice(material, Math.max(0, price));
-    }
-
-    private void name(Player player, Arguments args) throws CommandException {
-        var subMeta = meta().forSubCommand("name", this)
-                .addArgument("words.name", true)
-                .build();
-        CommandAssertions.invalidArguments(subMeta, args);
-        CommandAssertions.invalidLength(args.join(), 32);
-
-        var builder = getPlayerBuilder(player);
-        builder.name(args.join());
-    }
-
-    @NotNull
-    private OrderBuilder getPlayerBuilder(Player player) {
-        var builder = builderCache.getIfPresent(player.getUniqueId());
-        Objects.requireNonNull(builder);
-        return builder;
-    }
-
-
-    private void remove(Player player, Arguments args) throws CommandException {
-        var subMeta = meta().forSubCommand("name", this)
-                .addArgument("words.material", true)
-                .build();
-        CommandAssertions.invalidArguments(subMeta, args);
-
-        var builder = getPlayerBuilder(player);
-        var parse = args.asMaterial(0);
-
-        builder.removeContent(parse);
-    }
-
-    private void cancel(Player player) {
-        messageBlocker.unblockPlayer(player).thenRun(() -> player.sendMessage("words.aborted"));
-        builderCache.invalidate(player.getUniqueId());
-    }
-
-    private void done(Player player) throws CommandException {
-        var order = builderCache.getIfPresent(player.getUniqueId());
-
-        messageBlocker.unblockPlayer(player);
-
-        CommandAssertions.isTrue(order != null, "order.create.error.notActive");
-        CommandAssertions.isFalse(order.elements().isEmpty(), "order.create.error.empty", TagResolver.empty());
-
-        var price = order.price();
-
-        orderData.retrievePlayerOrderCount(player)
-                .whenComplete(count -> {
-                    if (count >= Permission.Orders.getOrderOverride(player).orElse(configuration.userSettings().maxOrders())) {
-                        messageSender().sendErrorActionBar( player, "order.create.error.limitReached");
-                        return;
-                    }
-                    CompletableBukkitFuture.supplyAsync(() -> {
-                        if (!economy.has(player, price)) {
-                            return false;
-                        }
-                        economy.withdrawPlayer(player, price);
-                        return true;
-                    }).whenComplete(result -> {
-                        if (result) {
-                            orderData.submitOrder(player, order.build()).whenComplete(v -> {
-                                messageBlocker.unblockPlayer(player).whenComplete((unused, err) -> {
-                                    messageSender().sendMessage(player, "order.create.created");
-                                    builderCache.invalidate(player.getUniqueId());
-                                });
-                            });
-                        } else {
-                            var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
-                            var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                            messageSender().sendError(player, "error.insufficientCurrency",
-                                    Replacement.create("currency", curr),
-                                    Replacement.create("amount", economy.format(price)));
-                        }
-                    });
-                });
-    }
-
-    private void initCreation(Player player, @NotNull Arguments args) {
-        orderData.retrievePlayerOrderCount(player)
-                .whenComplete(count -> {
-                    if (count >= configuration.userSettings().maxOrders()) {
-                        messageSender().sendError(player, "order.create.error.limitReached");
-                        return;
-                    }
-                    var name = args.join();
-                    var builder = new OrderBuilder(player.getUniqueId(), name);
-                    builderCache.put(player.getUniqueId(), builder);
-                    messageBlocker.blockPlayer(player);
-                    sendBuilder(player, builder);
-                });
-    }
-
-    private void add(Player player, Arguments args) throws CommandException {
-        var subMeta = meta().forSubCommand("name", this)
-                .addArgument("words.material", true)
-                .addArgument("words.amount", true)
-                .addArgument("words.price", true)
-                .build();
-        CommandAssertions.invalidArguments(subMeta, args);
-
-        var builder = getPlayerBuilder(player);
-        var material = args.asMaterial(0);
-        var amount = args.asInt(1);
-        var price = args.asDouble(2);
-
-        amount = Math.max(amount, 1);
-        price = Math.max(price, 0);
-
-        if (builder.materialsAmount() >= configuration.orderSetting().maxMaterials()) {
-            messageSender().sendErrorActionBar(player, "order.create.error.materialLimit");
-            return;
-        }
-        if (builder.amount() >= configuration.orderSetting().maxItems()) {
-            messageSender().sendErrorActionBar(player, "order.create.error.itemLimit");
-            return;
-        }
-
-
-        builder.addContent(new ItemStack(material), Math.min(amount, configuration.orderSetting().maxItems() - Math.max(1, builder.amount())),
-                Math.max(0, price));
-        sendBuilder(player, builder);
-    }
-
-    private void sendBuilder(Player player, OrderBuilder order) {
-        var builder = MessageComposer.create().text(order.asComponent(configuration.orderSetting(), economy, orderData));
-        if (messageBlocker.isBlocked(player)) {
-            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        messageBlocker.announce(player, "[x]");
-        builder.prependLines(25);
-        audience.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
     }
 
     @Override
@@ -350,5 +179,170 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             return Collections.emptyList();
         }
         return Collections.emptyList();
+    }
+
+    private void amount(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("amount", this)
+                .addArgument("words.material", true)
+                .addArgument("words.amount", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+        var material = args.asMaterial(0);
+        var amount = Math.max(args.asInt(1), 0);
+
+        if (amount == 0) {
+            remove(player, args);
+            return;
+        }
+
+        var builder = getPlayerBuilder(player);
+        builder.changeContentAmount(material, Math.min(configuration.orderSetting().maxItems() - builder.amount(material), amount));
+    }
+
+    private void price(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("price", this)
+                .addArgument("words.material", true)
+                .addArgument("words.price", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+
+        var material = args.asMaterial(0);
+        var price = args.asDouble(1);
+
+        CommandAssertions.min(price, 0);
+        var builder = getPlayerBuilder(player);
+        builder.changeContentPrice(material, Math.max(0, price));
+    }
+
+    private void name(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("name", this)
+                .addArgument("words.name", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+        CommandAssertions.invalidLength(args.join(), 32);
+
+        var builder = getPlayerBuilder(player);
+        builder.name(args.join());
+    }
+
+    @NotNull
+    private OrderBuilder getPlayerBuilder(Player player) {
+        var builder = builderCache.getIfPresent(player.getUniqueId());
+        Objects.requireNonNull(builder);
+        return builder;
+    }
+
+    private void remove(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("name", this)
+                .addArgument("words.material", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+
+        var builder = getPlayerBuilder(player);
+        var parse = args.asMaterial(0);
+
+        builder.removeContent(parse);
+    }
+
+    private void cancel(Player player) {
+        messageBlocker.unblockPlayer(player).thenRun(() -> player.sendMessage("words.aborted"));
+        builderCache.invalidate(player.getUniqueId());
+    }
+
+    private void done(Player player) throws CommandException {
+        var order = builderCache.getIfPresent(player.getUniqueId());
+
+        messageBlocker.unblockPlayer(player);
+
+        CommandAssertions.isTrue(order != null, "order.create.error.notActive");
+        CommandAssertions.isFalse(order.elements().isEmpty(), "order.create.error.empty", TagResolver.empty());
+
+        var price = order.price();
+
+        orderData.retrievePlayerOrderCount(player)
+                .whenComplete(count -> {
+                    if (count >= Permission.Orders.getOrderOverride(player).orElse(configuration.userSettings().maxOrders())) {
+                        messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
+                        return;
+                    }
+                    CompletableBukkitFuture.supplyAsync(() -> {
+                        if (!economy.has(player, price)) {
+                            return false;
+                        }
+                        economy.withdrawPlayer(player, price);
+                        return true;
+                    }).whenComplete(result -> {
+                        if (result) {
+                            orderData.submitOrder(player, order.build()).whenComplete(v -> {
+                                messageBlocker.unblockPlayer(player).whenComplete((unused, err) -> {
+                                    messageSender().sendMessage(player, "order.create.created");
+                                    builderCache.invalidate(player.getUniqueId());
+                                });
+                            });
+                        } else {
+                            var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
+                            var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
+                            messageSender().sendError(player, "error.insufficientCurrency",
+                                    Replacement.create("currency", curr),
+                                    Replacement.create("amount", economy.format(price)));
+                        }
+                    });
+                });
+    }
+
+    private void initCreation(Player player, @NotNull Arguments args) {
+        orderData.retrievePlayerOrderCount(player)
+                .whenComplete(count -> {
+                    if (count >= configuration.userSettings().maxOrders()) {
+                        messageSender().sendError(player, "order.create.error.limitReached");
+                        return;
+                    }
+                    var name = args.join();
+                    var builder = new OrderBuilder(player.getUniqueId(), name);
+                    builderCache.put(player.getUniqueId(), builder);
+                    messageBlocker.blockPlayer(player);
+                    sendBuilder(player, builder);
+                });
+    }
+
+    private void add(Player player, Arguments args) throws CommandException {
+        var subMeta = meta().forSubCommand("name", this)
+                .addArgument("words.material", true)
+                .addArgument("words.amount", true)
+                .addArgument("words.price", true)
+                .build();
+        CommandAssertions.invalidArguments(subMeta, args);
+
+        var builder = getPlayerBuilder(player);
+        var material = args.asMaterial(0);
+        var amount = args.asInt(1);
+        var price = args.asDouble(2);
+
+        amount = Math.max(amount, 1);
+        price = Math.max(price, 0);
+
+        if (builder.materialsAmount() >= configuration.orderSetting().maxMaterials()) {
+            messageSender().sendErrorActionBar(player, "order.create.error.materialLimit");
+            return;
+        }
+        if (builder.amount() >= configuration.orderSetting().maxItems()) {
+            messageSender().sendErrorActionBar(player, "order.create.error.itemLimit");
+            return;
+        }
+
+
+        builder.addContent(new ItemStack(material), Math.min(amount, configuration.orderSetting().maxItems() - Math.max(1, builder.amount())),
+                Math.max(0, price));
+        sendBuilder(player, builder);
+    }
+
+    private void sendBuilder(Player player, OrderBuilder order) {
+        var builder = MessageComposer.create().text(order.asComponent(configuration.orderSetting(), economy, orderData));
+        if (messageBlocker.isBlocked(player)) {
+            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+        }
+        messageBlocker.announce(player, "[x]");
+        builder.prependLines(25);
+        messageSender().sendMessage(player, builder.build());
     }
 }

@@ -8,7 +8,6 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -51,15 +50,6 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
         delayedActions = DelayedActions.start(plugin);
     }
 
-    private void expireConfirm(UUID uuid) {
-        if (confirm.remove(uuid) == null) return;
-
-        var player = plugin().getServer().getOfflinePlayer(uuid);
-        if (!player.isOnline()) return;
-
-        messageSender().sendMessage(player.getPlayer(), "company.rename.expired");
-    }
-
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
@@ -77,26 +67,26 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAcceptAsync(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                        messageSender().sendErrorActionBar( player, "error.noOwner");
+                        messageSender().sendErrorActionBar(player, "error.noOwner");
                         return;
                     }
 
                     var name = arguments.join();
                     var company = companyData.retrieveCompanyByName(name).join();
                     if (company.isPresent()) {
-                        messageSender().sendErrorActionBar( player, "error.companyNameUsed");
+                        messageSender().sendErrorActionBar(player, "error.companyNameUsed");
                         return;
                     }
 
                     if (!economy.has(player, configuration.companySettings().renamePrice())) {
                         var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                         var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                        messageSender().sendErrorActionBar( player, "error.insufficientCurrency",
+                        messageSender().sendErrorActionBar(player, "error.insufficientCurrency",
                                 Replacement.create("currency", curr),
                                 Replacement.create("amount", configuration.companySettings().foudingPrice()));
                         return;
@@ -118,6 +108,20 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
         ;
     }
 
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return Completion.completeFreeInput(arguments.join(), MAX_NAME_LENGTH, localizer().localize("words.name"));
+    }
+
+    private void expireConfirm(UUID uuid) {
+        if (confirm.remove(uuid) == null) return;
+
+        var player = plugin().getServer().getOfflinePlayer(uuid);
+        if (!player.isOnline()) return;
+
+        messageSender().sendMessage(player.getPlayer(), "company.rename.expired");
+    }
+
     private void confirm(@NotNull Player player) {
         if (!confirm.containsKey(player.getUniqueId())) {
             messageSender().sendErrorActionBar(player, "error.noConfirm");
@@ -132,18 +136,18 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                        messageSender().sendErrorActionBar( player, "error.noOwner");
+                        messageSender().sendErrorActionBar(player, "error.noOwner");
                         return;
                     }
 
                     var company = companyData.retrieveCompanyByName(name).join();
                     if (company.isPresent()) {
-                        messageSender().sendErrorActionBar( player, "error.companyNameUsed");
+                        messageSender().sendErrorActionBar(player, "error.companyNameUsed");
                         return;
                     }
 
@@ -164,10 +168,5 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                     return null;
                 })
         ;
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Completion.completeFreeInput(arguments.join(), MAX_NAME_LENGTH, localizer().localize("words.name"));
     }
 }

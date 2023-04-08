@@ -36,7 +36,7 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
         orderData.retrieveOrderById(id)
                 .whenComplete(optOrder -> {
                     if (optOrder.isEmpty()) {
-                        messageSender().sendErrorActionBar( player, "error.unkownOrder");
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
                         return;
                     }
 

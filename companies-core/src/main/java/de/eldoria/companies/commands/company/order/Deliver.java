@@ -49,6 +49,41 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         this.messageBlocker = messageBlocker;
     }
 
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var id = arguments.asInt(0);
+        var material = arguments.asMaterial(1);
+        var amount = "max".equalsIgnoreCase(arguments.asString(2)) ? Integer.MAX_VALUE : arguments.asInt(2);
+
+        CommandAssertions.range(amount, 1, Integer.MAX_VALUE);
+
+        companyData.retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(company -> {
+                    if (company.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
+                    if (optOrder.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                        return;
+                    }
+                    orderData.retrieveFullOrder(optOrder.get())
+                            .whenComplete(fullOrder -> {
+                                // This part has to be synced to the mainthread
+                                handleFullOrder(player, material, amount, company.get(), fullOrder);
+                            });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
+    }
+
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
         var optContent = order.content(material);
         if (optContent.isEmpty()) {
@@ -106,40 +141,5 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                 economy.depositPlayer(player, entry.getValue());
             }
         });
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        var id = arguments.asInt(0);
-        var material = arguments.asMaterial(1);
-        var amount = "max".equalsIgnoreCase(arguments.asString(2)) ? Integer.MAX_VALUE : arguments.asInt(2);
-
-        CommandAssertions.range(amount, 1, Integer.MAX_VALUE);
-
-        companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
-                        return;
-                    }
-                    var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
-                    if (optOrder.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
-                        return;
-                    }
-                    orderData.retrieveFullOrder(optOrder.get())
-                            .whenComplete(fullOrder -> {
-                                // This part has to be synced to the mainthread
-                                handleFullOrder(player, material, amount, company.get(), fullOrder);
-                            });
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
     }
 }

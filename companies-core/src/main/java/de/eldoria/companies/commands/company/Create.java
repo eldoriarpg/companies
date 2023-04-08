@@ -9,7 +9,6 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -21,8 +20,6 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.entity.Player;
@@ -41,8 +38,6 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final Economy economy;
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
     private final Map<UUID, String> registrations = new HashMap<>();
 
     public Create(Plugin plugin, ACompanyData companyData, Economy economy, Configuration configuration) {
@@ -50,11 +45,53 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("words.name", true)
                 .withPermission(Permission.Company.CREATE)
                 .build());
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.companyData = companyData;
         this.economy = economy;
         this.configuration = configuration;
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
+            createCompany(player);
+            return;
+        }
+        if ("deny".equalsIgnoreCase(arguments.asString(0))) {
+            var name = registrations.remove(player.getUniqueId());
+            if (name == null) {
+                messageSender().sendErrorActionBar(player, "error.noDeny");
+                return;
+            }
+            messageSender().sendMessage(player, "words.canceled");
+            return;
+        }
+
+        var name = arguments.join();
+        CommandAssertions.invalidLength(name, MAX_NAME_LENGTH);
+
+        companyData.retrieveCompanyByName(name)
+                .whenComplete(company -> {
+                    if (company.isPresent()) {
+                        messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+                        return;
+                    }
+
+                    var composer = MessageComposer.create().text("<neutral>").localeCode("company.create.create",
+                                    Replacement.create("AMOUNT", String.format("<heading>%s<neutral>",
+                                            economy.format(configuration.companySettings().foudingPrice()))),
+                                    Replacement.create("NAME", String.format("<heading>%s<neutral>", name)))
+                            .newLine()
+                            .text("<click:run_command:/company create confirm><add>[").localeCode("words.confirm").text("]</click>")
+                            .space()
+                            .text("<click:run_command:/company create deny><remove>[").localeCode("words.deny").text("]</click>");
+                    messageSender().sendMessage(player, composer.build());
+                    registrations.put(player.getUniqueId(), name);
+                });
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        return Completion.completeFreeInput(arguments.join(), 32, localizer().localize("words.name"));
     }
 
     private void createCompany(Player player) {
@@ -68,7 +105,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.retrieveCompanyByName(name)
                 .whenComplete(company -> {
                     if (company.isPresent()) {
-                        messageSender().sendErrorActionBar( player, "error.companyNameUsed");
+                        messageSender().sendErrorActionBar(player, "error.companyNameUsed");
                         return;
                     }
 
@@ -99,49 +136,5 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendMessage(player, "company.create.created");
                     });
                 });
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
-            createCompany(player);
-            return;
-        }
-        if ("deny".equalsIgnoreCase(arguments.asString(0))) {
-            var name = registrations.remove(player.getUniqueId());
-            if (name == null) {
-                messageSender().sendErrorActionBar(player, "error.noDeny");
-                return;
-            }
-            messageSender().sendMessage(player, "words.canceled");
-            return;
-        }
-
-        var name = arguments.join();
-        CommandAssertions.invalidLength(name, MAX_NAME_LENGTH);
-
-        companyData.retrieveCompanyByName(name)
-                .whenComplete(company -> {
-                    if (company.isPresent()) {
-                        messageSender().sendErrorActionBar( player, "error.companyNameUsed");
-                        return;
-                    }
-
-                    var composer = MessageComposer.create().text("<neutral>").localeCode("company.create.create",
-                                    Replacement.create("AMOUNT", String.format("<heading>%s<neutral>",
-                                            economy.format(configuration.companySettings().foudingPrice()))),
-                                    Replacement.create("NAME", String.format("<heading>%s<neutral>", name)))
-                            .newLine()
-                            .text("<click:run_command:/company create confirm><add>[").localeCode("words.confirm").text("]</click>")
-                            .space()
-                            .text("<click:run_command:/company create deny><remove>[").localeCode("words.deny").text("]</click>");
-                    audiences.sender(player).sendMessage(miniMessage.deserialize(composer.buildLocalized(localizer())));
-                    registrations.put(player.getUniqueId(), name);
-                });
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Completion.completeFreeInput(arguments.join(), 32, localizer().localize("words.name"));
     }
 }

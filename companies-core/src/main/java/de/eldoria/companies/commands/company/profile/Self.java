@@ -12,7 +12,6 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -20,8 +19,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -31,10 +28,8 @@ import java.util.Optional;
 import java.util.logging.Level;
 
 public class Self extends AdvancedCommand implements IPlayerTabExecutor {
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final ACompanyData companyData;
     private final AOrderData orderData;
-    private final BukkitAudiences audiences;
     private final Configuration configuration;
     private final MessageBlocker messageBlocker;
 
@@ -42,7 +37,6 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
         super(plugin, CommandMeta.builder("self").build());
         this.companyData = companyData;
         this.orderData = orderData;
-        audiences = BukkitAudiences.create(plugin);
         this.configuration = configuration;
         this.messageBlocker = messageBlocker;
     }
@@ -97,6 +91,6 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
         }
         composer.prependLines(25);
         messageBlocker.announce(player, "[x]");
-        audiences.player(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
+        messageSender().sendMessage(player, composer.build());
     }
 }

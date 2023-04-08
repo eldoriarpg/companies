@@ -7,7 +7,6 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -16,8 +15,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -31,8 +28,6 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
     private static final int PAGE_SIZE = 10;
     private final Search search;
     private final Economy economy;
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
     private final MessageBlocker messageBlocker;
 
     public Page(Plugin plugin, Search search, Economy economy, MessageBlocker messageBlocker) {
@@ -40,8 +35,6 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("words.page", true)
                 .build());
         this.search = search;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.economy = economy;
         this.messageBlocker = messageBlocker;
     }
@@ -82,7 +75,12 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
-        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
+        messageSender().sendMessage(player, builder.build());
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        renderPage(player, arguments.asInt(0));
     }
 
     private List<FullOrder> page(List<FullOrder> orders, int page) {
@@ -90,10 +88,5 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         var start = page * PAGE_SIZE;
         if (start >= orders.size()) return Collections.emptyList();
         return orders.subList(start, Math.min(start + PAGE_SIZE, orders.size()));
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        renderPage(player, arguments.asInt(0));
     }
 }

@@ -13,24 +13,18 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 public class Render extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
-    private final BukkitAudiences audiences;
     private final MessageBlocker messageBlocker;
-    private final MiniMessage miniMessage;
 
     public Render(Plugin plugin, Query query, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("render")
                 .build());
         this.query = query;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.messageBlocker = messageBlocker;
     }
 
@@ -42,7 +36,7 @@ public class Render extends AdvancedCommand implements IPlayerTabExecutor {
         }
         message.prependLines(25);
         messageBlocker.announce(player, "[x]");
-        audiences.player(player).sendMessage(miniMessage.deserialize(localizer().localize(message.build())));
+        messageSender().sendMessage(player, message.build());
     }
 
     @Override

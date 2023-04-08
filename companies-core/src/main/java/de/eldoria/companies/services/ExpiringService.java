@@ -11,11 +11,9 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
-import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -29,22 +27,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class ExpiringService implements Runnable, Listener {
-    private final MiniMessage miniMessage;
-    private final BukkitAudiences audiences;
-    private final ILocalizer localizer;
     private final Plugin plugin;
     private final AOrderData orderData;
     private final ACompanyData companyData;
     private final Configuration configuration;
+    private final MessageSender messageSender;
 
     private ExpiringService(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration) {
-        this.localizer = ILocalizer.getPluginLocalizer(plugin);
+        messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
-        miniMessage = MiniMessage.miniMessage();
-        audiences = BukkitAudiences.create(plugin);
     }
 
     public static ExpiringService create(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, ScheduledExecutorService executorService) {
@@ -77,7 +71,7 @@ public class ExpiringService implements Runnable, Listener {
                     .text("<click:run_command:/company order info %s>[", order.id()).localeCode("info").text("]</click>")
                     .newLine();
         }
-        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer.localize(composer.build())));
+        messageSender.sendMessage(player, composer.build());
     }
 
     @Override

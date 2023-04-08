@@ -33,6 +33,13 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
         this.companyData = companyData;
     }
 
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        companyData.retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
+    }
+
     private void handleProfile(@NotNull Player sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
         if (optProfile.isEmpty()) {
             messageSender().sendErrorActionBar(sender, "error.noMember");
@@ -64,12 +71,5 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
                 Replacement.create("name", target.player().getName(), Style.style().color(NamedTextColor.GOLD).build()));
 
         plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(optProfile.get(), target.player()));
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
     }
 }
