@@ -18,8 +18,6 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
@@ -51,10 +49,45 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         this.messageBlocker = messageBlocker;
     }
 
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        var id = arguments.asInt(0);
+        var material = arguments.asMaterial(1);
+        var amount = "max".equalsIgnoreCase(arguments.asString(2)) ? Integer.MAX_VALUE : arguments.asInt(2);
+
+        CommandAssertions.range(amount, 1, Integer.MAX_VALUE);
+
+        companyData.retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(company -> {
+                    if (company.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
+                    if (optOrder.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                        return;
+                    }
+                    orderData.retrieveFullOrder(optOrder.get())
+                            .whenComplete(fullOrder -> {
+                                // This part has to be synced to the mainthread
+                                handleFullOrder(player, material, amount, company.get(), fullOrder);
+                            });
+                }).exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
+    }
+
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
         var optContent = order.content(material);
         if (optContent.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.invalidMaterial");
+            messageSender().sendErrorActionBar(player, "error.invalidMaterial");
             return;
         }
 
@@ -108,40 +141,5 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                 economy.depositPlayer(player, entry.getValue());
             }
         });
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        var id = arguments.asInt(0);
-        var material = arguments.asMaterial(1);
-        var amount = "max".equalsIgnoreCase(arguments.asString(2)) ? Integer.MAX_VALUE : arguments.asInt(2);
-
-        CommandAssertions.range(amount, 1, Integer.MAX_VALUE);
-
-        companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
-                        return;
-                    }
-                    var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
-                    if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
-                        return;
-                    }
-                    orderData.retrieveFullOrder(optOrder.get())
-                            .whenComplete(fullOrder -> {
-                                // This part has to be synced to the mainthread
-                                handleFullOrder(player, material, amount, company.get(), fullOrder);
-                            });
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
     }
 }

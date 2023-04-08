@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Argument;
@@ -20,16 +21,12 @@ import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.EnumUtil;
 import de.eldoria.eldoutilities.utils.Parser;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -47,8 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class Create extends AdvancedCommand implements IPlayerTabExecutor {
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
-    private final BukkitAudiences audience;
     private final Configuration configuration;
     private final Economy economy;
     private final MessageBlocker messageBlocker;
@@ -61,7 +56,6 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 .addArgument("value", false)
                 .withPermission(Permission.Orders.CREATE)
                 .build());
-        audience = BukkitAudiences.create(plugin);
         this.orderData = orderData;
         this.configuration = configuration;
         this.economy = economy;
@@ -105,6 +99,86 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 return;
         }
         sendBuilder(player, getPlayerBuilder(player));
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments args) {
+        if (args.isEmpty()) {
+            return List.of("add", "remove", "cancel", "done");
+        }
+        var cmd = args.asString(0);
+        var builder = builderCache.getIfPresent(getPlayerFromSender(sender).getUniqueId());
+
+        if (builder == null)
+            return Completion.completeFreeInput(args.join(), 32, localizer().localize("words.name"));
+
+        if (args.sizeIs(1)) {
+            return Completion.complete(cmd, "name", "add", "remove", "cancel", "done");
+        }
+
+        if ("name".equalsIgnoreCase(cmd) || "create".equalsIgnoreCase(cmd)) {
+            return Completion.completeFreeInput(args.join(1), 32, localizer().localize("words.name"));
+        }
+
+        if ("add".equalsIgnoreCase(cmd)) {
+            if (args.sizeIs(2)) {
+                if (args.asString(1).isEmpty())
+                    return Collections.singletonList(localizer().localize("words.material"));
+                return Completion.completeMaterial(args.asString(1), true);
+            }
+            var price = orderData.getMaterialPrice(args.asString(1));
+            if (args.sizeIs(3)) {
+                if (args.asString(2).isEmpty()) return Collections.singletonList(localizer().localize("words.amount"));
+                var max = configuration.orderSetting().maxItems() - builder.amount();
+                return Completion.completeInt(args.asString(2), 1, max);
+            }
+            var amount = Parser.parseInt(args.asString(2));
+            if (args.sizeIs(4)) {
+                if (args.asString(3).isEmpty()) return Collections.singletonList(localizer().localize("words.price"));
+                var result = Completion.completeMinDouble(args.asString(3), 0);
+                result.add("Avg: " + amount.map(a -> a * price.avgPrice()).orElse(0.0));
+                result.add("Min: " + amount.map(a -> a * price.minPrice()).orElse(0.0));
+                result.add("Max: " + amount.map(a -> a * price.maxPrice()).orElse(0.0));
+                return result;
+            }
+            return Collections.emptyList();
+        }
+
+        if ("price".equalsIgnoreCase(cmd)) {
+            if (args.sizeIs(2)) {
+                if (args.asString(1).isBlank())
+                    return builder.elements().stream().map(OrderContent::materialString).collect(Collectors.toList());
+                return Completion.complete(args.asString(1), builder.elements().stream().map(OrderContent::materialString));
+            }
+            if (args.sizeIs(3)) {
+                return Completion.completeMinDouble(args.asString(2), 0.0);
+            }
+            return Collections.emptyList();
+        }
+
+        if ("amount".equalsIgnoreCase(cmd)) {
+            if (args.sizeIs(2)) {
+                if (args.asString(1).isEmpty())
+                    return builder.elements().stream().map(OrderContent::materialString).collect(Collectors.toList());
+                return Completion.complete(args.asString(1), builder.elements().stream().map(OrderContent::materialString));
+            }
+
+            if (args.sizeIs(3)) {
+                var material = EnumUtil.parse(args.asString(1), Material.class);
+                var max = configuration.orderSetting().maxItems() - builder.amount(material.orElse(null));
+                return Completion.completeInt(args.asString(2), 1, max);
+            }
+
+            return Collections.emptyList();
+        }
+
+        if ("remove".equalsIgnoreCase(cmd)) {
+            if (args.sizeIs(2)) {
+                Completion.complete(args.asString(0), builder.elements().stream().map(OrderContent::materialString));
+            }
+            return Collections.emptyList();
+        }
+        return Collections.emptyList();
     }
 
     private void amount(Player player, Arguments args) throws CommandException {
@@ -158,7 +232,6 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         return builder;
     }
 
-
     private void remove(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("name", this)
                 .addArgument("words.material", true)
@@ -182,14 +255,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         messageBlocker.unblockPlayer(player);
 
         CommandAssertions.isTrue(order != null, "order.create.error.notActive");
-        CommandAssertions.isFalse(order.elements().isEmpty(), "order.create.error.empty");
+        CommandAssertions.isFalse(order.elements().isEmpty(), "order.create.error.empty", TagResolver.empty());
 
         var price = order.price();
 
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
                     if (count >= Permission.Orders.getOrderOverride(player).orElse(configuration.userSettings().maxOrders())) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "order.create.error.limitReached");
+                        messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
                         return;
                     }
                     CompletableBukkitFuture.supplyAsync(() -> {
@@ -202,14 +275,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         if (result) {
                             orderData.submitOrder(player, order.build()).whenComplete(v -> {
                                 messageBlocker.unblockPlayer(player).whenComplete((unused, err) -> {
-                                    messageSender().sendLocalizedMessage(player, "order.create.created");
+                                    messageSender().sendMessage(player, "order.create.created");
                                     builderCache.invalidate(player.getUniqueId());
                                 });
                             });
                         } else {
                             var fallbackCurr = economy.currencyNameSingular().isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                             var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                            messageSender().sendLocalizedError(player, "error.insufficientCurrency",
+                            messageSender().sendError(player, "error.insufficientCurrency",
                                     Replacement.create("currency", curr),
                                     Replacement.create("amount", economy.format(price)));
                         }
@@ -221,7 +294,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
                     if (count >= configuration.userSettings().maxOrders()) {
-                        messageSender().sendLocalizedError(player, "order.create.error.limitReached");
+                        messageSender().sendError(player, "order.create.error.limitReached");
                         return;
                     }
                     var name = args.join();
@@ -249,11 +322,11 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         price = Math.max(price, 0);
 
         if (builder.materialsAmount() >= configuration.orderSetting().maxMaterials()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "order.create.error.materialLimit");
+            messageSender().sendErrorActionBar(player, "order.create.error.materialLimit");
             return;
         }
         if (builder.amount() >= configuration.orderSetting().maxItems()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "order.create.error.itemLimit");
+            messageSender().sendErrorActionBar(player, "order.create.error.itemLimit");
             return;
         }
 
@@ -270,86 +343,6 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
-        audience.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments args) {
-        if (args.isEmpty()) {
-            return List.of("add", "remove", "cancel", "done");
-        }
-        var cmd = args.asString(0);
-        var builder = builderCache.getIfPresent(getPlayerFromSender(sender).getUniqueId());
-
-        if (builder == null)
-            return TabCompleteUtil.completeFreeInput(args.join(), 32, localizer().localize("words.name"));
-
-        if (args.sizeIs(1)) {
-            return TabCompleteUtil.complete(cmd, "name", "add", "remove", "cancel", "done");
-        }
-
-        if ("name".equalsIgnoreCase(cmd) || "create".equalsIgnoreCase(cmd)) {
-            return TabCompleteUtil.completeFreeInput(args.join(1), 32, localizer().localize("words.name"));
-        }
-
-        if ("add".equalsIgnoreCase(cmd)) {
-            if (args.sizeIs(2)) {
-                if (args.asString(1).isEmpty())
-                    return Collections.singletonList(localizer().localize("words.material"));
-                return TabCompleteUtil.completeMaterial(args.asString(1), true);
-            }
-            var price = orderData.getMaterialPrice(args.asString(1));
-            if (args.sizeIs(3)) {
-                if (args.asString(2).isEmpty()) return Collections.singletonList(localizer().localize("words.amount"));
-                var max = configuration.orderSetting().maxItems() - builder.amount();
-                return TabCompleteUtil.completeInt(args.asString(2), 1, max);
-            }
-            var amount = Parser.parseInt(args.asString(2));
-            if (args.sizeIs(4)) {
-                if (args.asString(3).isEmpty()) return Collections.singletonList(localizer().localize("words.price"));
-                var result = TabCompleteUtil.completeMinDouble(args.asString(3), 0);
-                result.add("Avg: " + amount.map(a -> a * price.avgPrice()).orElse(0.0));
-                result.add("Min: " + amount.map(a -> a * price.minPrice()).orElse(0.0));
-                result.add("Max: " + amount.map(a -> a * price.maxPrice()).orElse(0.0));
-                return result;
-            }
-            return Collections.emptyList();
-        }
-
-        if ("price".equalsIgnoreCase(cmd)) {
-            if (args.sizeIs(2)) {
-                if (args.asString(1).isBlank())
-                    return builder.elements().stream().map(OrderContent::materialString).collect(Collectors.toList());
-                return TabCompleteUtil.complete(args.asString(1), builder.elements().stream().map(OrderContent::materialString));
-            }
-            if (args.sizeIs(3)) {
-                return TabCompleteUtil.completeMinDouble(args.asString(2), 0.0);
-            }
-            return Collections.emptyList();
-        }
-
-        if ("amount".equalsIgnoreCase(cmd)) {
-            if (args.sizeIs(2)) {
-                if (args.asString(1).isEmpty())
-                    return builder.elements().stream().map(OrderContent::materialString).collect(Collectors.toList());
-                return TabCompleteUtil.complete(args.asString(1), builder.elements().stream().map(OrderContent::materialString));
-            }
-
-            if (args.sizeIs(3)) {
-                var material = EnumUtil.parse(args.asString(1), Material.class);
-                var max = configuration.orderSetting().maxItems() - builder.amount(material.orElse(null));
-                return TabCompleteUtil.completeInt(args.asString(2), 1, max);
-            }
-
-            return Collections.emptyList();
-        }
-
-        if ("remove".equalsIgnoreCase(cmd)) {
-            if (args.sizeIs(2)) {
-                TabCompleteUtil.complete(args.asString(0), builder.elements().stream().map(OrderContent::materialString));
-            }
-            return Collections.emptyList();
-        }
-        return Collections.emptyList();
+        messageSender().sendMessage(player, builder.build());
     }
 }

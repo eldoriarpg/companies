@@ -7,18 +7,13 @@ package de.eldoria.companies.commands.company.member;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -32,15 +27,11 @@ import java.util.logging.Level;
 public class Id extends AdvancedCommand implements IPlayerTabExecutor {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
     private final ACompanyData companyData;
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
     private final MessageBlocker messageBlocker;
 
     public Id(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("id").build());
         this.companyData = companyData;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.messageBlocker = messageBlocker;
     }
 
@@ -56,7 +47,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optSimple -> {
                     if (optSimple.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unknownCompany");
+                        messageSender().sendErrorActionBar(player, "error.unknownCompany");
                         return;
                     }
                     messageBlocker.blockPlayer(player);
@@ -69,7 +60,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                             .join();
                     if (optProfile.isEmpty()) return;
                     var profile = optProfile.get();
-                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.member.members").text(":").newLine();
+                    var builder = MessageComposer.create().text("<heading>").localeCode("company.member.members").text(":").newLine();
                     List<String> members = new ArrayList<>();
 
                     for (var member : profile.members()) {
@@ -78,7 +69,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                         var hover = MessageComposer.create();
                         hover.text(((CompanyMember) member).statusComponent());
 
-                        var nameComp = MessageComposer.create().space(2).text("<hover:show_text:%s><%s>%s</hover>", hover.build(), Colors.VALUE, mem.getName());
+                        var nameComp = MessageComposer.create().space(2).text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
                         members.add(nameComp.build());
                     }
                     builder.text(members);
@@ -87,7 +78,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
-                    audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
+                    messageSender().sendMessage(player, builder.build());
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;

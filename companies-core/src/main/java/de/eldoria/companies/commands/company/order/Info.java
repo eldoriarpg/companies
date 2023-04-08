@@ -17,11 +17,7 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -32,8 +28,6 @@ import java.util.logging.Level;
 
 public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
-    private final MiniMessage miniMessage;
-    private final BukkitAudiences audiences;
     private final ACompanyData companyData;
     private final Economy economy;
     private final Configuration configuration;
@@ -43,8 +37,6 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         super(plugin, CommandMeta.builder("info")
                 .addArgument("words.id", true)
                 .build());
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.companyData = companyData;
         this.orderData = orderData;
         this.economy = economy;
@@ -63,17 +55,17 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var optOrder = orderData.retrieveOrderById(id).join();
                     if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
                         return;
                     }
                     if (optOrder.get().company() != profile.id() && optOrder.get().state() != OrderState.UNCLAIMED) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
                         return;
                     }
                     var order = optOrder.get();
@@ -94,6 +86,6 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         }
         composer.prependLines(25);
         messageBlocker.announce(player, "[x]");
-        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
+        messageSender().sendMessage(player, composer.build());
     }
 }

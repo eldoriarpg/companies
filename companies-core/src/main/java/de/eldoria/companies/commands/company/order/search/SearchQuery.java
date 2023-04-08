@@ -15,13 +15,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class SearchQuery {
-    private String name = null;
+    private String name;
     private List<String> materials = new ArrayList<>();
     private boolean anyMaterial = true;
-    private boolean exactMatch = false;
-    private double minPrice = 0.0;
+    private boolean exactMatch;
+    private double minPrice;
     private double maxPrice = Double.MAX_VALUE;
-    private int minOrderSize = 0;
+    private int minOrderSize;
     private int maxOrderSize = Integer.MAX_VALUE;
     private SortingType sortingType = SortingType.AGE;
     private boolean asc = true;
@@ -110,13 +110,6 @@ public class SearchQuery {
         return materials.stream().map(mat -> "(.*" + regexMat(mat) + ")").collect(Collectors.joining(""));
     }
 
-    private String regexMat(String mat) {
-        if (exactMatch) {
-            return "\\b" + mat + "\\b";
-        }
-        return mat;
-    }
-
     public void anyMaterial(boolean anyMaterial) {
         this.anyMaterial = anyMaterial;
     }
@@ -135,21 +128,21 @@ public class SearchQuery {
 
     public String asComponent() {
         var queryCmd = "/company order search query";
-        var composer = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.order.search.query.searchQuery.searchSetting").newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.name").text(": %s", name().isBlank() ? "_____" : name())
+        var composer = MessageComposer.create().text("<heading>").localeCode("company.order.search.query.searchQuery.searchSetting").newLine()
+                .text("<name>").localeCode("words.name").text(": %s", name().isBlank() ? "_____" : name())
                 .text("<click:suggest_command:%s name ><gold>[", queryCmd).localeCode("words.change").text("]</click>")
                 .text("<click:run_command:%s name><red>[", queryCmd).localeCode("words.clear").text("]</click>")
                 .newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.materials")
+                .text("<name>").localeCode("words.materials")
                 .text(": <click:suggest_command:%s material_add ><green>[", queryCmd).localeCode("words.add").text("]</click>")
                 .text("<click:run_command:%s material_remove><red>[", queryCmd).localeCode("words.clear").text("]</click>")
                 .newLine();
         for (var material : materials) {
-            composer.space(2).text("<%s>%s", Colors.VALUE, material).text(" <click:run_command:%s material_remove %s><%s>[", queryCmd, material, Colors.REMOVE)
+            composer.space(2).text("<value>%s", material).text(" <click:run_command:%s material_remove %s><remove>[", queryCmd, material)
                     .localeCode("words.remove").text("]</click>").newLine();
         }
         if (materials.size() > 1) {
-            composer.text("<%s>", Colors.NAME).localeCode("company.order.search.query.searchQuery.materialSearch").space()
+            composer.text("<name>").localeCode("company.order.search.query.searchQuery.materialSearch").space()
                     .text("<click:run_command:%s material_search any><%s>[", queryCmd, Colors.active(anyMaterial))
                     .localeCode("words.any").text("]<reset></click> ")
                     .text("<click:run_command:%s material_search all><%s>[", queryCmd, Colors.active(!anyMaterial))
@@ -157,20 +150,20 @@ public class SearchQuery {
                     .newLine();
         }
         if (!materials.isEmpty()) {
-            composer.text("<%s>", Colors.NAME).localeCode("company.order.search.query.searchQuery.materialMatch").space()
+            composer.text("<name>").localeCode("company.order.search.query.searchQuery.materialMatch").space()
                     .text("<click:run_command:%s material_match part><%s>[", queryCmd, Colors.active(!exactMatch)).localeCode("words.part").text("]</click>")
                     .text("<click:run_command:%s material_match exact><%s>[", queryCmd, Colors.active(exactMatch)).localeCode("words.exact").text("]</click>")
                     .newLine();
         }
-        composer.text("<%s>", Colors.NAME).localeCode("company.order.search.query.searchQuery.minPrice").space().text("<%s>%.2f", Colors.VALUE, minPrice).space()
-                .text("<click:suggest_command:%s min_price ><%s>[", queryCmd, Colors.MODIFY).localeCode("words.change").text("]</click>").newLine()
-                .text("<%s>", Colors.NAME).localeCode("company.order.search.query.searchQuery.maxPrice").space().text("<%s>", Colors.VALUE).text(maxPrice == Double.MAX_VALUE ? "MAX" : String.format("%.2f", maxPrice)).space()
-                .text("<click:suggest_command:%s max_price ><%s>[", queryCmd, Colors.MODIFY).localeCode("words.change").text("]</click>").newLine()
-                .text("<%s>", Colors.NAME).localeCode("company.order.search.query.searchQuery.minSize").space().text("<%s>%s", Colors.VALUE, minOrderSize).space()
-                .text("<click:suggest_command:%s min_size ><%s>[", queryCmd, Colors.MODIFY).localeCode("words.change").text("]</click>").newLine()
-                .text("<%s>", Colors.NAME).localeCode("company.order.search.query.searchQuery.maxSize").space().text("<%s>", Colors.VALUE).text(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxOrderSize).space()
-                .text("<click:suggest_command:%s max_size ><%s>[", queryCmd, Colors.MODIFY).localeCode("words.change").text("]</click>").newLine()
-                .text("<%s>", Colors.NAME).localeCode("company.order.search.query.searchQuery.orderBy").text(":").newLine();
+        composer.text("<name>").localeCode("company.order.search.query.searchQuery.minPrice").space().text("<value>%.2f", minPrice).space()
+                .text("<click:suggest_command:%s min_price ><modify>[", queryCmd).localeCode("words.change").text("]</click>").newLine()
+                .text("<name>").localeCode("company.order.search.query.searchQuery.maxPrice").space().text("<value>").text(maxPrice == Double.MAX_VALUE ? "MAX" : String.format("%.2f", maxPrice)).space()
+                .text("<click:suggest_command:%s max_price ><modify>[", queryCmd).localeCode("words.change").text("]</click>").newLine()
+                .text("<name>").localeCode("company.order.search.query.searchQuery.minSize").space().text("<value>%s", minOrderSize).space()
+                .text("<click:suggest_command:%s min_size ><modify>[", queryCmd).localeCode("words.change").text("]</click>").newLine()
+                .text("<name>").localeCode("company.order.search.query.searchQuery.maxSize").space().text("<value>").text(maxOrderSize == Integer.MAX_VALUE ? "MAX" : maxOrderSize).space()
+                .text("<click:suggest_command:%s max_size ><modify>[", queryCmd).localeCode("words.change").text("]</click>").newLine()
+                .text("<name>").localeCode("company.order.search.query.searchQuery.orderBy").text(":").newLine();
         for (var sort : SortingType.values()) {
             composer.space(2).text("<click:run_command:%s sorting %s><%s>[", queryCmd, sort.name(), Colors.active(sort == sortingType))
                     .localeCode(sort.translationKey()).text("]</click>");
@@ -178,8 +171,15 @@ public class SearchQuery {
         composer.newLine().space(2).text("<click:run_command:%s order asc><%s>[", queryCmd, Colors.active(asc)).localeCode("words.ascending").text("]</click>").space()
                 .text("<click:run_command:%s order desc><%s>[", queryCmd, Colors.active(!asc)).localeCode("words.descending").text("]</click>")
                 .newLine()
-                .text("<click:run_command:%s execute><%s>[", queryCmd, Colors.SHOW).localeCode("words.search").text("]</click>")
-                .text("<click:run_command:%s clear><red>[", queryCmd, Colors.REMOVE).localeCode("words.clear").text("]</click>");
+                .text("<click:run_command:%s execute><show>[", queryCmd).localeCode("words.search").text("]</click>")
+                .text("<click:run_command:%s clear><remove>[", queryCmd).localeCode("words.clear").text("]</click>");
         return composer.build();
+    }
+
+    private String regexMat(String mat) {
+        if (exactMatch) {
+            return "\\b" + mat + "\\b";
+        }
+        return mat;
     }
 }

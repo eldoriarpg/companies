@@ -12,9 +12,7 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -38,17 +36,17 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
         orderData.retrieveOrderById(id)
                 .whenComplete(optOrder -> {
                     if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
                         return;
                     }
 
                     var simpleOrder = optOrder.get();
                     if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                        messageSender().sendLocalizedError(player, "error.notYourOrder");
+                        messageSender().sendError(player, "error.notYourOrder");
                         return;
                     }
                     if (simpleOrder.state() != OrderState.DELIVERED) {
-                        messageSender().sendLocalizedError(player, "Not ready");
+                        messageSender().sendError(player, "Not ready");
                         return;
                     }
                     orderData.retrieveFullOrder(optOrder.get())
@@ -60,14 +58,14 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
                                 }
 
                                 if (stacks.size() > empty) {
-                                    messageSender().sendLocalizedError(player, "order.receive.inventoryFull",
+                                    messageSender().sendError(player, "order.receive.inventoryFull",
                                             Replacement.create("amount", stacks.size()));
                                     return;
                                 }
                                 messageBlocker.unblockPlayer(player).thenRun(() -> {
                                     player.getInventory().addItem(stacks.toArray(ItemStack[]::new));
                                     orderData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
-                                    messageSender().sendLocalizedMessage(player, "order.receive.received");
+                                    messageSender().sendError(player, "order.receive.received");
                                 });
                             });
                 });

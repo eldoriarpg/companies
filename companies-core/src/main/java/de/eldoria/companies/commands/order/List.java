@@ -8,7 +8,6 @@ package de.eldoria.companies.commands.order;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -16,8 +15,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -29,8 +26,6 @@ import java.util.logging.Level;
 public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Economy economy;
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
     private final Configuration configuration;
     private final MessageBlocker messageBlocker;
 
@@ -38,8 +33,6 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
         super(plugin, CommandMeta.builder("list").build());
         this.orderData = orderData;
         this.economy = economy;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.miniMessage();
         this.configuration = configuration;
         this.messageBlocker = messageBlocker;
     }
@@ -65,7 +58,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create().localeCode("order.list.orders").text(":").newLine();
                     if (configuration.userSettings().maxOrders() > orders.size()) {
-                        builder.text("<click:suggest_command:/order create ><%s>[", Colors.ADD).localeCode("order.list.newOrder").text("]</click>");
+                        builder.text("<click:suggest_command:/order create ><add>[").localeCode("order.list.newOrder").text("]</click>");
                     }
                     for (var order : orders) {
                         builder.newLine().text(order.userShortInfo(economy));
@@ -75,7 +68,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
-                    audiences.player(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
+                    messageSender().sendMessage(player, builder.build());
                     whenComplete.run();
                 }));
     }

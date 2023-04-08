@@ -29,6 +29,6 @@ public class Reload extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
         configuration.reload();
-        messageSender().sendLocalizedMessage(player, "companyadmin.reload.done");
+        messageSender().sendMessage(player, "companyadmin.reload.done");
     }
 }

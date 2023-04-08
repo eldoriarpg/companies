@@ -6,12 +6,12 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -47,7 +47,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.index"));
             }
-            return TabCompleteUtil.completeInt(args.asString(0), 1, configuration.companySettings().level().size() + 1);
+            return Completion.completeInt(args.asString(0), 1, configuration.companySettings().level().size() + 1);
         }
         return Collections.emptyList();
     }

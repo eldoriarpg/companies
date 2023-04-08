@@ -124,10 +124,10 @@ public class CompanyMember implements ICompanyMember {
     public String statusComponent() {
         var hover = MessageComposer.create();
         if (player().isOnline()) {
-            hover.text("<%s>", Colors.ACTIVE).localeCode("Online");
+            hover.text("<active>").localeCode("Online");
         } else {
             var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastPlayed()), ZoneId.systemDefault());
-            hover.text("<%s>", Colors.NEUTRAL).localeCode("Seen").text(": %s", lastSeen.format(FORMATTER));
+            hover.text("<neutral>").localeCode("Seen").text(": %s", lastSeen.format(FORMATTER));
         }
         return hover.build();
     }

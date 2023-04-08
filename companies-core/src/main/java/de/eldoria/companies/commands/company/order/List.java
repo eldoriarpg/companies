@@ -9,18 +9,13 @@ import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -33,17 +28,13 @@ import java.util.logging.Level;
 public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
-    private final BukkitAudiences audience;
     private final MessageBlocker messageBlocker;
-    private final MiniMessage miniMessage;
     private final Economy economy;
 
     public List(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("list").build());
         this.companyData = companyData;
-        audience = BukkitAudiences.create(plugin);
         this.messageBlocker = messageBlocker;
-        miniMessage = MiniMessage.miniMessage();
         this.orderData = orderData;
         this.economy = economy;
     }
@@ -70,8 +61,8 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                 .thenAccept(fullOrders -> {
                     messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create()
-                            .text("<%s>", Colors.HEADING).localeCode("company.order.list.orders")
-                            .text(": <click:run_command:/company order search query><%s>[", Colors.SHOW)
+                            .text("<heading>").localeCode("company.order.list.orders")
+                            .text(": <click:run_command:/company order search query><show>[")
                             .localeCode("words.search").text("]</click>").newLine();
                     for (var order : fullOrders) {
                         builder.text(order.companyShortInfo(economy)).newLine();
@@ -81,7 +72,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     messageBlocker.announce(player, "[x]");
                     builder.prependLines(25);
-                    audience.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
+                    messageSender().sendMessage(player, builder.build());
                     runnable.run();
                 });
 
@@ -96,7 +87,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     showOrders(company.get(), player);

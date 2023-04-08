@@ -1,6 +1,3 @@
-import java.time.Instant
-import java.time.format.DateTimeFormatter
-
 plugins {
     id("com.github.johnrengelman.shadow") version "8.1.0"
     id("net.minecrell.plugin-yml.bukkit") version "0.5.3"
@@ -13,18 +10,46 @@ repositories {
     mavenCentral()
 }
 
+publishData {
+    addBuildData()
+    useEldoNexusRepos()
+    publishTask("shadowJar")
+    publishTask("javadocJar")
+    publishTask("sourcesJar")
+}
+
+publishing {
+    publications.create<MavenPublication>("maven") {
+        publishData.configurePublication(this)
+    }
+
+    repositories {
+        maven {
+            authentication {
+                credentials(PasswordCredentials::class) {
+                    username = System.getenv("NEXUS_USERNAME")
+                    password = System.getenv("NEXUS_PASSWORD")
+                }
+            }
+
+            setUrl(publishData.getRepository())
+            name = "EldoNexus"
+        }
+    }
+}
+
 dependencies {
     implementation(project(":companies-api"))
-    implementation("de.eldoria", "eldo-util", "1.14.2")
-    implementation("de.chojo.sadu", "sadu-queries", "1.2.0")
-    implementation("de.chojo.sadu", "sadu-updater", "1.2.0")
-    implementation("de.chojo.sadu", "sadu-datasource", "1.2.0")
-    implementation("de.chojo.sadu", "sadu-postgresql", "1.2.0")
-    implementation("de.chojo.sadu", "sadu-mariadb", "1.2.0")
-    implementation("de.chojo.sadu", "sadu-sqlite", "1.2.0")
+    implementation("de.chojo.sadu", "sadu-queries", "1.3.0")
+    implementation("de.chojo.sadu", "sadu-updater", "1.3.0")
+    implementation("de.chojo.sadu", "sadu-datasource", "1.3.0")
+    implementation("de.chojo.sadu", "sadu-postgresql", "1.3.0")
+    implementation("de.chojo.sadu", "sadu-mariadb", "1.3.0")
+    implementation("de.chojo.sadu", "sadu-sqlite", "1.3.0")
+
     // text
-    implementation("net.kyori", "adventure-api", "4.12.0")
-    implementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
+    bukkitLibrary("net.kyori", "adventure-api", "4.12.0")
+    bukkitLibrary("net.kyori", "adventure-platform-bukkit", "4.2.0")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
     compileOnly("me.clip", "placeholderapi", "2.11.2")
@@ -38,34 +63,7 @@ dependencies {
     compileOnly("com.github.MilkBowl", "VaultAPI", "1.7.1")
 }
 
-fun getBuildType(): String {
-    return when {
-        System.getenv("PATREON")?.equals("true", true) == true -> {
-            "PATREON"
-        }
-        publishData.isPublicBuild() -> {
-            "PUBLIC";
-        }
-        else -> "LOCAL"
-    }
-}
-
 tasks {
-    processResources {
-        from(sourceSets.main.get().resources.srcDirs) {
-            filesMatching("build.data") {
-                expand(
-                    "type" to getBuildType(),
-                    "time" to DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
-                    "branch" to publishData.getBranch(),
-                    "commit" to publishData.getCommitHash()
-                )
-            }
-        }
-
-        duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    }
-
     compileJava {
         options.encoding = "UTF-8"
     }

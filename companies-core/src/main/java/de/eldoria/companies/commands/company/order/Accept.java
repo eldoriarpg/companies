@@ -12,15 +12,13 @@ import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -60,30 +58,30 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.noMember");
+                        messageSender().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     var companyMember = profile.member(player).get();
                     if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.permission.acceptOrder");
+                        messageSender().sendErrorActionBar(player, "error.permission.acceptOrder");
                         return;
                     }
 
                     var count = orderData.retrieveCompanyOrderCount(profile).join();
                     if (count >= configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT).settings().maxOrders()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.orderLimit");
+                        messageSender().sendErrorActionBar(player, "error.orderLimit");
                         return;
                     }
 
                     var optOrder = orderData.retrieveOrderById(id).join();
                     if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unkownOrder");
+                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
                     }
 
                     var simpleOrder = optOrder.get();
                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.orderNotClaimable");
+                        messageSender().sendErrorActionBar(player, "error.orderNotClaimable");
                         return;
                     }
 
@@ -93,7 +91,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                         });
                         return;
                     }
-                    messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.couldNotClaim");
+                    messageSender().sendErrorActionBar(player, "error.couldNotClaim");
                 }).exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
@@ -102,6 +100,6 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return TabCompleteUtil.completeMinInt(args.asString(0), 0);
+        return Completion.completeMinInt(args.asString(0), 0);
     }
 }

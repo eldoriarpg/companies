@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.util;
 
-import de.eldoria.eldoutilities.permissions.PermUtil;
+import de.eldoria.eldoutilities.utils.Permissions;
 import org.bukkit.entity.Player;
 
 import java.util.Optional;
@@ -32,7 +32,7 @@ public final class Permission {
         }
 
         public static Optional<Integer> getOrderOverride(Player player) {
-            var limit = PermUtil.findHighestIntPermission(player, LIMIT + ".", -1);
+            var limit = Permissions.findHighestIntPermission(player, LIMIT + ".", -1);
             if (limit == -1) return Optional.empty();
             return Optional.of(limit);
         }
