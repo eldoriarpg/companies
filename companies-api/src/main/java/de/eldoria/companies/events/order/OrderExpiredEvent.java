@@ -15,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
  * A order expired.
  */
 public class OrderExpiredEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyProfile company;
 
@@ -24,6 +24,7 @@ public class OrderExpiredEvent extends OrderEvent<ISimpleOrder> implements Compa
         this.company = company;
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

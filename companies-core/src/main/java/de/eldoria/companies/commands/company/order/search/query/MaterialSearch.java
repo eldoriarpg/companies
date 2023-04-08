@@ -34,7 +34,8 @@ public class MaterialSearch extends AdvancedCommand implements IPlayerTabExecuto
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         var searchType = arguments.asString(0);
         CommandAssertions.isTrue(Completion.isCommand(searchType, "all", "any"), "error.invalidSearchType");
-        query.getPlayerSearch(player).anyMaterial("any".equalsIgnoreCase(searchType));
+        query.getPlayerSearch(player)
+             .anyMaterial("any".equalsIgnoreCase(searchType));
     }
 
     @Override

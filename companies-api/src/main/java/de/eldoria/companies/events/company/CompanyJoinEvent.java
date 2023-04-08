@@ -15,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
  * A user joined a company.
  */
 public class CompanyJoinEvent extends CompanyEvent<ICompanyProfile> implements PlayerProvider<OfflinePlayer> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     private final OfflinePlayer player;
 
@@ -24,6 +24,7 @@ public class CompanyJoinEvent extends CompanyEvent<ICompanyProfile> implements P
         this.player = player;
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

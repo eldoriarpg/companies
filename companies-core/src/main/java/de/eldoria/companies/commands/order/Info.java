@@ -27,7 +27,9 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Info(Plugin plugin, AOrderData orderData, Economy economy, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("info").addArgument("id", true).build());
+        super(plugin, CommandMeta.builder("info")
+                .addArgument("id", true)
+                .build());
         this.orderData = orderData;
         this.economy = economy;
         this.messageBlocker = messageBlocker;
@@ -38,25 +40,29 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         var id = args.asInt(0);
 
         orderData.retrieveOrderById(id)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept((order) -> {
-                    if (order.isPresent()) {
-                        messageBlocker.blockPlayer(player);
-                        var fullOrder = orderData.retrieveFullOrder(order.get()).join();
-                        var builder = MessageComposer.create().text(fullOrder.userDetailInfo(economy));
-                        if (messageBlocker.isBlocked(player)) {
-                            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                        }
-                        messageBlocker.announce(player, "[x]");
-                        builder.prependLines(25);
-                        messageSender().sendMessage(player, builder.build());
-                        return;
-                    }
-                    messageSender().sendErrorActionBar(player, "error.unkownOrder");
-                });
+                 .asFuture()
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return Optional.empty();
+                 })
+                 .thenAccept((order) -> {
+                     if (order.isPresent()) {
+                         messageBlocker.blockPlayer(player);
+                         var fullOrder = orderData.retrieveFullOrder(order.get())
+                                                  .join();
+                         var builder = MessageComposer.create()
+                                                      .text(fullOrder.userDetailInfo(economy));
+                         if (messageBlocker.isBlocked(player)) {
+                             builder.newLine()
+                                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                         }
+                         messageBlocker.announce(player, "[x]");
+                         builder.prependLines(25);
+                         messageSender().sendMessage(player, builder.build());
+                         return;
+                     }
+                     messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                 });
     }
 }

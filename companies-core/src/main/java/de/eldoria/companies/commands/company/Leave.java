@@ -21,7 +21,11 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
@@ -33,28 +37,6 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                 .build());
         this.companyData = companyData;
         this.orderData = orderData;
-    }
-
-    public void leave(Player player) {
-        companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .thenAccept(optProfile -> {
-                    if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
-                        return;
-                    }
-                    var profile = optProfile.get();
-                    if (profile.member(player).get().isOwner()) {
-                        companyData.submitCompanyPurge(profile);
-                        orderData.submitCompanyOrdersPurge(profile).join();
-                        messageSender().sendMessage(player, "company.leave.disbanded");
-                        plugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(optProfile.get()));
-                        return;
-                    }
-                    companyData.submitMemberUpdate(profile.member(player).get().kick()).join();
-                    plugin().getServer().getPluginManager().callEvent(new CompanyLeaveEvent(optProfile.get(), player));
-                    messageSender().sendMessage(player, "company.leave.left");
-                });
     }
 
     @Override
@@ -69,22 +51,59 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
         companyData.retrievePlayerCompanyProfile(player)
-                .whenComplete(optProfile -> {
-                    if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
-                        return;
-                    }
-                    var profile = optProfile.get();
-                    leaves.add(player.getUniqueId());
-                    var composer = MessageComposer.create().text("<neutral>");
-                    if (profile.member(player).get().isOwner()) {
-                        composer.localeCode("company.leave.confirmOwner");
-                    } else {
-                        composer.localeCode("company.leave.confirm");
-                    }
-                    composer.text("<click:run_command:/company leave confirm><remove>[").localeCode("words.confirm").text("</click>");
-                    messageSender().sendMessage(player, composer.build());
-                });
+                   .whenComplete(optProfile -> {
+                       if (optProfile.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.noMember");
+                           return;
+                       }
+                       var profile = optProfile.get();
+                       leaves.add(player.getUniqueId());
+                       var composer = MessageComposer.create()
+                                                     .text("<neutral>");
+                       if (profile.member(player)
+                                  .get()
+                                  .isOwner()) {
+                           composer.localeCode("company.leave.confirmOwner");
+                       } else {
+                           composer.localeCode("company.leave.confirm");
+                       }
+                       composer.text("<click:run_command:/company leave confirm><remove>[")
+                               .localeCode("words.confirm")
+                               .text("</click>");
+                       messageSender().sendMessage(player, composer.build());
+                   });
+    }
+
+    public void leave(Player player) {
+        companyData.retrievePlayerCompanyProfile(player)
+                   .asFuture()
+                   .thenAccept(optProfile -> {
+                       if (optProfile.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.noMember");
+                           return;
+                       }
+                       var profile = optProfile.get();
+                       if (profile.member(player)
+                                  .get()
+                                  .isOwner()) {
+                           companyData.submitCompanyPurge(profile);
+                           orderData.submitCompanyOrdersPurge(profile)
+                                    .join();
+                           messageSender().sendMessage(player, "company.leave.disbanded");
+                           plugin().getServer()
+                                   .getPluginManager()
+                                   .callEvent(new CompanyDisbandEvent(optProfile.get()));
+                           return;
+                       }
+                       companyData.submitMemberUpdate(profile.member(player)
+                                                             .get()
+                                                             .kick())
+                                  .join();
+                       plugin().getServer()
+                               .getPluginManager()
+                               .callEvent(new CompanyLeaveEvent(optProfile.get(), player));
+                       messageSender().sendMessage(player, "company.leave.left");
+                   });
     }
 
     @Override

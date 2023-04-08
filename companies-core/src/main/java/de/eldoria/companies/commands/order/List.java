@@ -30,11 +30,17 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public List(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("list").build());
+        super(plugin, CommandMeta.builder("list")
+                .build());
         this.orderData = orderData;
         this.economy = economy;
         this.configuration = configuration;
         this.messageBlocker = messageBlocker;
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        showOrders(player);
     }
 
     public void showOrders(Player player) {
@@ -44,37 +50,44 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
 
     public void showOrders(Player player, Runnable whenComplete) {
         orderData.retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Collections.emptyList();
-                }).thenApply(orders -> orderData.retrieveFullOrders(orders).asFuture()
-                        .exceptionally(err -> {
-                            plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                            return Collections.emptyList();
-                        })
-                        .join())
-                .thenAccept((orders -> {
-                    messageBlocker.blockPlayer(player);
-                    var builder = MessageComposer.create().localeCode("order.list.orders").text(":").newLine();
-                    if (configuration.userSettings().maxOrders() > orders.size()) {
-                        builder.text("<click:suggest_command:/order create ><add>[").localeCode("order.list.newOrder").text("]</click>");
-                    }
-                    for (var order : orders) {
-                        builder.newLine().text(order.userShortInfo(economy));
-                    }
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    messageBlocker.announce(player, "[x]");
-                    builder.prependLines(25);
-                    messageSender().sendMessage(player, builder.build());
-                    whenComplete.run();
-                }));
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        showOrders(player);
+                 .asFuture()
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return Collections.emptyList();
+                 })
+                 .thenApply(orders -> orderData.retrieveFullOrders(orders)
+                                               .asFuture()
+                                               .exceptionally(err -> {
+                                                   plugin().getLogger()
+                                                           .log(Level.SEVERE, "Something went wrong", err);
+                                                   return Collections.emptyList();
+                                               })
+                                               .join())
+                 .thenAccept((orders -> {
+                     messageBlocker.blockPlayer(player);
+                     var builder = MessageComposer.create()
+                                                  .localeCode("order.list.orders")
+                                                  .text(":")
+                                                  .newLine();
+                     if (configuration.userSettings()
+                                      .maxOrders() > orders.size()) {
+                         builder.text("<click:suggest_command:/order create ><add>[")
+                                .localeCode("order.list.newOrder")
+                                .text("]</click>");
+                     }
+                     for (var order : orders) {
+                         builder.newLine()
+                                .text(order.userShortInfo(economy));
+                     }
+                     if (messageBlocker.isBlocked(player)) {
+                         builder.newLine()
+                                .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                     }
+                     messageBlocker.announce(player, "[x]");
+                     builder.prependLines(25);
+                     messageSender().sendMessage(player, builder.build());
+                     whenComplete.run();
+                 }));
     }
 }

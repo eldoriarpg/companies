@@ -17,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
  * This event will not be called when an order expires. See {@link OrderExpiredEvent}.
  */
 public class OrderRemovedEvent extends OrderEvent<ISimpleOrder> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     public OrderRemovedEvent(ISimpleOrder order) {
         super(order, true);

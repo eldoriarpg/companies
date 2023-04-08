@@ -51,7 +51,8 @@ public class PostgresOrderData extends MariaDbOrderData {
                           AND company IS NOT NULL
                           AND state = ?
                         ORDER BY last_update""")
-                .parameter(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
+                .parameter(stmt -> stmt.setInt(hours)
+                                       .setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
     }
@@ -76,9 +77,30 @@ public class PostgresOrderData extends MariaDbOrderData {
                           AND company = ?
                           AND state = ?
                         ORDER BY last_update""")
-                .parameter(stmt -> stmt.setInt(hours).setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
+                .parameter(stmt -> stmt.setInt(hours)
+                                       .setInt(company.id())
+                                       .setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
+    }
+
+    @Override
+    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        builder()
+                .query("""
+                        INSERT
+                        INTO
+                        	orders_delivered(id, worker_uuid, material, delivered)
+                        VALUES
+                        	(?, ?, ?, ?)
+                        ON CONFLICT(id, worker_uuid, material) DO UPDATE SET
+                        	delivered = delivered + excluded.delivered""")
+                .parameter(stmt -> stmt.setInt(order.id())
+                                       .setUuidAsBytes(player.getUniqueId())
+                                       .setString(material.name())
+                                       .setInt(amount))
+                .update()
+                .sendSync();
     }
 
     @Override
@@ -101,10 +123,13 @@ public class PostgresOrderData extends MariaDbOrderData {
                           AND oc.amount <= ?
                           AND os.state >= ? AND os.state <= ?""")
                 .parameter(stmt -> stmt.setString("%" + searchQuery.name() + "%")
-                        .setString(searchQuery.materialRegex())
-                        .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
-                        .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize())
-                        .setInt(min.stateId()).setInt(max.stateId()))
+                                       .setString(searchQuery.materialRegex())
+                                       .setDouble(searchQuery.minPrice())
+                                       .setDouble(searchQuery.maxPrice())
+                                       .setInt(searchQuery.minOrderSize())
+                                       .setInt(searchQuery.maxOrderSize())
+                                       .setInt(min.stateId())
+                                       .setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
         var fullOrders = toFullOrders(orders);
@@ -113,26 +138,10 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
-        builder()
-                .query("""
-                        INSERT
-                        INTO
-                        	orders_delivered(id, worker_uuid, material, delivered)
-                        VALUES
-                        	(?, ?, ?, ?)
-                        ON CONFLICT(id, worker_uuid, material) DO UPDATE SET
-                        	delivered = delivered + excluded.delivered""")
-                .parameter(stmt -> stmt.setInt(order.id()).setUuidAsBytes(player.getUniqueId())
-                        .setString(material.name()).setInt(amount))
-                .update()
-                .sendSync();
-    }
-
-    @Override
     public void refreshMaterialPrices() {
         builder()
                 .queryWithoutParams("REFRESH MATERIALIZED VIEW material_price;")
-                .update().sendSync();
+                .update()
+                .sendSync();
     }
 }

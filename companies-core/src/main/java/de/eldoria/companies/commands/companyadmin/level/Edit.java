@@ -40,36 +40,31 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args) throws CommandException {
-        var optLevel = configuration.companySettings().level(args.asInt(0));
+        var optLevel = configuration.companySettings()
+                                    .level(args.asInt(0));
         CommandAssertions.isTrue(optLevel.isPresent(), "error.invalidLevel");
 
         var level = optLevel.get();
 
-        switch (args.asString(1).toLowerCase(Locale.ROOT)) {
-            case "name":
-                level.levelName(args.join(2));
-                break;
-            case "order_count":
-                level.requirement().orderCount(args.asInt(2));
-                break;
-            case "member_count":
-                level.requirement().memberCount(args.asInt(2));
-                break;
-            case "earned_money":
-                level.requirement().earnedMoney(args.asDouble(2));
-                break;
-            case "delivered_items":
-                level.requirement().deliveredItems(args.asInt(2));
-                break;
-            case "max_members":
-                level.settings().maxMembers(args.asInt(2));
-                break;
-            case "max_orders":
-                level.settings().maxOrders(args.asInt(2));
-                break;
-            default:
+        switch (args.asString(1)
+                    .toLowerCase(Locale.ROOT)) {
+            case "name" -> level.levelName(args.join(2));
+            case "order_count" -> level.requirement()
+                                       .orderCount(args.asInt(2));
+            case "member_count" -> level.requirement()
+                                        .memberCount(args.asInt(2));
+            case "earned_money" -> level.requirement()
+                                        .earnedMoney(args.asDouble(2));
+            case "delivered_items" -> level.requirement()
+                                           .deliveredItems(args.asInt(2));
+            case "max_members" -> level.settings()
+                                       .maxMembers(args.asInt(2));
+            case "max_orders" -> level.settings()
+                                      .maxOrders(args.asInt(2));
+            default -> {
                 messageSender().sendErrorActionBar(player, "error.unkownField");
                 return;
+            }
         }
         configuration.save();
         info.show(player, level);
@@ -78,10 +73,13 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
         if (args.sizeIs(1)) {
-            if (args.asString(0).isEmpty()) {
+            if (args.asString(0)
+                    .isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.source"));
             }
-            return Completion.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
+            return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
+                                                                            .level()
+                                                                            .size());
         }
 
         var field = args.asString(1);

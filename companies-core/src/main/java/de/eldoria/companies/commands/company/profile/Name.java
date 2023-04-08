@@ -41,28 +41,33 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         companyData.retrieveCompanyByName(arguments.join())
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optComp -> {
-                    if (optComp.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.unknownCompany");
-                        return;
-                    }
-                    var optProfile = companyData.retrieveCompanyProfile(optComp.get()).asFuture().join();
-                    if (optProfile.isEmpty()) return;
-                    messageBlocker.blockPlayer(player);
-                    var companyProfile = optProfile.get();
-                    var builder = MessageComposer.create().text(companyProfile.asExternalProfileComponent(configuration));
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    messageBlocker.announce(player, "[x]");
-                    builder.prependLines(25);
-                    messageSender().sendMessage(player, builder.build());
-                });
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept(optComp -> {
+                       if (optComp.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.unknownCompany");
+                           return;
+                       }
+                       var optProfile = companyData.retrieveCompanyProfile(optComp.get())
+                                                   .asFuture()
+                                                   .join();
+                       if (optProfile.isEmpty()) return;
+                       messageBlocker.blockPlayer(player);
+                       var companyProfile = optProfile.get();
+                       var builder = MessageComposer.create()
+                                                    .text(companyProfile.asExternalProfileComponent(configuration));
+                       if (messageBlocker.isBlocked(player)) {
+                           builder.newLine()
+                                  .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                       }
+                       messageBlocker.announce(player, "[x]");
+                       builder.prependLines(25);
+                       messageSender().sendMessage(player, builder.build());
+                   });
     }
 
     @Override

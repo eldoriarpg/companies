@@ -37,16 +37,20 @@ public class Material extends AdvancedCommand implements IPlayerTabExecutor {
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if ("material_add".equalsIgnoreCase(label)) {
             CommandAssertions.invalidArguments(meta(), arguments, Argument.input("words.material", true));
-            query.getPlayerSearch(player).materials().add(arguments.join("_"));
+            query.getPlayerSearch(player)
+                 .materials()
+                 .add(arguments.join("_"));
             return;
         }
 
         var search = query.getPlayerSearch(player);
         if (arguments.isEmpty()) {
-            search.materials().clear();
+            search.materials()
+                  .clear();
             return;
         }
-        search.materials().remove(arguments.join("_"));
+        search.materials()
+              .remove(arguments.join("_"));
     }
 
     @Override

@@ -30,7 +30,8 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Id(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("id").build());
+        super(plugin, CommandMeta.builder("id")
+                .build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
     }
@@ -40,49 +41,60 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
         var companyId = args.asInt(0);
 
         companyData.retrieveCompanyById(companyId)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optSimple -> {
-                    if (optSimple.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.unknownCompany");
-                        return;
-                    }
-                    messageBlocker.blockPlayer(player);
-                    var optProfile = companyData.retrieveCompanyProfile(optSimple.get())
-                            .asFuture()
-                            .exceptionally(err -> {
-                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                                return Optional.empty();
-                            })
-                            .join();
-                    if (optProfile.isEmpty()) return;
-                    var profile = optProfile.get();
-                    var builder = MessageComposer.create().text("<heading>").localeCode("company.member.members").text(":").newLine();
-                    List<String> members = new ArrayList<>();
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept(optSimple -> {
+                       if (optSimple.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.unknownCompany");
+                           return;
+                       }
+                       messageBlocker.blockPlayer(player);
+                       var optProfile = companyData.retrieveCompanyProfile(optSimple.get())
+                                                   .asFuture()
+                                                   .exceptionally(err -> {
+                                                       plugin().getLogger()
+                                                               .log(Level.SEVERE, "Something went wrong", err);
+                                                       return Optional.empty();
+                                                   })
+                                                   .join();
+                       if (optProfile.isEmpty()) return;
+                       var profile = optProfile.get();
+                       var builder = MessageComposer.create()
+                                                    .text("<heading>")
+                                                    .localeCode("company.member.members")
+                                                    .text(":")
+                                                    .newLine();
+                       List<String> members = new ArrayList<>();
 
-                    for (var member : profile.members()) {
-                        var mem = member.player();
-                        if (mem == null) continue;
-                        var hover = MessageComposer.create();
-                        hover.text(((CompanyMember) member).statusComponent());
+                       for (var member : profile.members()) {
+                           var mem = member.player();
+                           if (mem == null) continue;
+                           var hover = MessageComposer.create();
+                           hover.text(((CompanyMember) member).statusComponent());
 
-                        var nameComp = MessageComposer.create().space(2).text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
-                        members.add(nameComp.build());
-                    }
-                    builder.text(members);
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</click>");
-                    }
-                    messageBlocker.announce(player, "[x]");
-                    builder.prependLines(25);
-                    messageSender().sendMessage(player, builder.build());
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
+                           var nameComp = MessageComposer.create()
+                                                         .space(2)
+                                                         .text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
+                           members.add(nameComp.build());
+                       }
+                       builder.text(members);
+                       if (messageBlocker.isBlocked(player)) {
+                           builder.newLine()
+                                  .text("<click:run_command:/company chatblock false><red>[x]</click>");
+                       }
+                       messageBlocker.announce(player, "[x]");
+                       builder.prependLines(25);
+                       messageSender().sendMessage(player, builder.build());
+                   })
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   })
         ;
     }
 }

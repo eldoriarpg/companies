@@ -96,7 +96,8 @@ public class SimpleOrder implements ISimpleOrder {
     }
 
     public String runningOutTime(Configuration configuration) {
-        var duration = Duration.between(LocalDateTime.now(), claimed().plus(configuration.companySettings().deliveryHours(), ChronoUnit.HOURS));
+        var duration = Duration.between(LocalDateTime.now(), claimed().plus(configuration.companySettings()
+                                                                                         .deliveryHours(), ChronoUnit.HOURS));
         if (duration.toDays() > 0L) {
             return DurationFormatUtils.formatDuration(duration.toMillis(), "dd:HH:mm");
         }

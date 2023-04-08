@@ -37,16 +37,16 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
         var name = args.join();
 
         companyData.retrieveCompanyByName(name)
-                .asFuture()
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
-                        return;
-                    }
+                   .asFuture()
+                   .thenAccept(company -> {
+                       if (company.isEmpty()) {
+                           messageSender().sendError(player, "error.unknownCompany");
+                           return;
+                       }
 
-                    companyData.submitCompanyPurge(company.get());
-                    messageSender().sendMessage(player, "company.leave.disbanded");
-                });
+                       companyData.submitCompanyPurge(company.get());
+                       messageSender().sendMessage(player, "company.leave.disbanded");
+                   });
     }
 
     @Override

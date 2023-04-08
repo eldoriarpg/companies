@@ -72,12 +72,28 @@ public class CompanyStats implements ICompanyStats {
 
     public String asComponent() {
         return MessageComposer.create()
-                .text("<heading>").text(name).newLine()
-                .text("<name>").localeCode("words.founded").text(": <value>%s ", FORMATTER.format(founded)).newLine()
-                .text("<name>").localeCode("words.member").text(": <value>%s", memberCount).newLine()
-                .text("<name>").localeCode("words.orders").text(": <value>%s", orderCount).newLine()
-                .text("<name>").localeCode("level.earnedMoney").text(": <value>%s", price).newLine()
-                .text("<name>").localeCode("level.deliveredItems").text(": <value>%s", deliveredItems)
-                .build();
+                              .text("<heading>")
+                              .text(name)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("words.founded")
+                              .text(": <value>%s ", FORMATTER.format(founded))
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("words.member")
+                              .text(": <value>%s", memberCount)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("words.orders")
+                              .text(": <value>%s", orderCount)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("level.earnedMoney")
+                              .text(": <value>%s", price)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("level.deliveredItems")
+                              .text(": <value>%s", deliveredItems)
+                              .build();
     }
 }

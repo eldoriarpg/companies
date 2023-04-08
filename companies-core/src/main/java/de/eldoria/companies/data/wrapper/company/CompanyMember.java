@@ -33,34 +33,56 @@ public class CompanyMember implements ICompanyMember {
     }
 
     public static CompanyMember forCompany(SimpleCompany company, OfflinePlayer player) {
-        return new CompanyMember(company.id(), player.getUniqueId(), 0);
+        return new CompanyMember(company.id(), player.getUniqueId(), 0L);
     }
 
     public static CompanyMember forCompanyId(int company, OfflinePlayer player) {
-        return new CompanyMember(company, player.getUniqueId(), 0);
+        return new CompanyMember(company, player.getUniqueId(), 0L);
     }
 
     public static CompanyMember withoutCompany(OfflinePlayer player) {
-        return new CompanyMember(-1, player.getUniqueId(), 0);
+        return new CompanyMember(-1, player.getUniqueId(), 0L);
     }
 
     public static CompanyMember of(int company, UUID player, long permission) {
         return new CompanyMember(company, player, permission);
     }
 
-    @Override
+    public void isOwner(boolean state) {
+        if (isOwner() && state) return;
+        if (state) {
+            permission += CompanyPermission.OWNER.mask();
+        } else {
+            permission -= CompanyPermission.OWNER.mask();
+        }
+    }    @Override
     public boolean hasPermission(CompanyPermission permissions) {
         if (isOwner()) return true;
         return permissions.hasPermission(permission);
     }
 
-    @Override
+    public CompanyMember kick() {
+        company = -1;
+        return this;
+    }    @Override
     public boolean hasPermissions(CompanyPermission... permissions) {
         if (isOwner()) return true;
         return CompanyPermission.hasPermission(permission, permissions);
     }
 
-    @Override
+    public String statusComponent() {
+        var hover = MessageComposer.create();
+        if (player().isOnline()) {
+            hover.text("<active>")
+                 .localeCode("Online");
+        } else {
+            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastPlayed()), ZoneId.systemDefault());
+            hover.text("<neutral>")
+                 .localeCode("Seen")
+                 .text(": %s", lastSeen.format(FORMATTER));
+        }
+        return hover.build();
+    }    @Override
     public boolean hasAnyPermissions(CompanyPermission... permissions) {
         if (isOwner()) return true;
         return CompanyPermission.hasAnyPermission(permission, permissions);
@@ -81,14 +103,7 @@ public class CompanyMember implements ICompanyMember {
         return this;
     }
 
-    public void isOwner(boolean state) {
-        if (isOwner() && state) return;
-        if (state) {
-            permission += CompanyPermission.OWNER.mask();
-        } else {
-            permission -= CompanyPermission.OWNER.mask();
-        }
-    }
+
 
     @Override
     public OfflinePlayer player() {
@@ -112,24 +127,14 @@ public class CompanyMember implements ICompanyMember {
 
     @Override
     public List<CompanyPermission> permissions() {
-        return Arrays.stream(CompanyPermission.values()).filter(this::hasPermissions).collect(Collectors.toList());
+        return Arrays.stream(CompanyPermission.values())
+                     .filter(this::hasPermissions)
+                     .collect(Collectors.toList());
     }
 
-    public CompanyMember kick() {
-        company = -1;
-        return this;
-    }
 
-    public String statusComponent() {
-        var hover = MessageComposer.create();
-        if (player().isOnline()) {
-            hover.text("<active>").localeCode("Online");
-        } else {
-            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastPlayed()), ZoneId.systemDefault());
-            hover.text("<neutral>").localeCode("Seen").text(": %s", lastSeen.format(FORMATTER));
-        }
-        return hover.build();
-    }
+
+
 
     @Override
     public boolean isOwner() {

@@ -16,9 +16,9 @@ public class MaterialPrice implements de.eldoria.companies.components.order.IMat
 
     public MaterialPrice(String material) {
         this.material = material;
-        avgPrice = 0;
-        minPrice = 0;
-        maxPrice = 0;
+        avgPrice = 0.0;
+        minPrice = 0.0;
+        maxPrice = 0.0;
     }
 
     public MaterialPrice(String material, double avgPrice, double minPrice, double maxPrice) {
@@ -50,16 +50,24 @@ public class MaterialPrice implements de.eldoria.companies.components.order.IMat
 
     public String asComponent(Economy economy) {
         return MessageComposer.create()
-                .text("<yellow>").localeCode("words.avg").text(": %s", economy.format(avgPrice)).newLine()
-                .text("<green>").localeCode("words.min").text(": %s", economy.format(minPrice)).newLine()
-                .text("<red>").localeCode("words.max").text(": %s", economy.format(maxPrice))
-                .build();
+                              .text("<yellow>")
+                              .localeCode("words.avg")
+                              .text(": %s", economy.format(avgPrice))
+                              .newLine()
+                              .text("<green>")
+                              .localeCode("words.min")
+                              .text(": %s", economy.format(minPrice))
+                              .newLine()
+                              .text("<red>")
+                              .localeCode("words.max")
+                              .text(": %s", economy.format(maxPrice))
+                              .build();
     }
 
     @Override
     public String toString() {
         return "MaterialPrice{" +
-               "material='" + material + '\'' +
+               "material='" + material + "'" +
                ", avgPrice=" + avgPrice +
                ", minPrice=" + minPrice +
                ", maxPrice=" + maxPrice +

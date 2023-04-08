@@ -53,25 +53,32 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         var id = arguments.asInt(0);
 
         companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept((optCompany) -> {
-                    var order = checkOrder(optCompany, player, id);
-                    if (order.isEmpty()) {
-                        return;
-                    }
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept((optCompany) -> {
+                       var order = checkOrder(optCompany, player, id);
+                       if (order.isEmpty()) {
+                           return;
+                       }
 
-                    var composer = MessageComposer.create().text("<neutral>").localeCode("company.order.abort.confirm")
-                            .text("<click:run_command:/company order abort confirm><remove>[").localeCode("words.confirm").text("]</click>");
-                    cancel.put(player.getUniqueId(), order.get());
-                    messageSender().sendMessage(player, composer.build());
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
+                       var composer = MessageComposer.create()
+                                                     .text("<neutral>")
+                                                     .localeCode("company.order.abort.confirm")
+                                                     .text("<click:run_command:/company order abort confirm><remove>[")
+                                                     .localeCode("words.confirm")
+                                                     .text("]</click>");
+                       cancel.put(player.getUniqueId(), order.get());
+                       messageSender().sendMessage(player, composer.build());
+                   })
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   })
         ;
     }
 
@@ -83,25 +90,31 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
         companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optCompany -> {
-                    var id = remove.id();
-                    if (checkOrder(optCompany, player, id).isEmpty()) {
-                        return;
-                    }
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept(optCompany -> {
+                       var id = remove.id();
+                       if (checkOrder(optCompany, player, id).isEmpty()) {
+                           return;
+                       }
 
-                    orderData.submitUnclaimOrder(remove).join();
+                       orderData.submitUnclaimOrder(remove)
+                                .join();
 
-                    list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
-                            plugin().getServer().getPluginManager().callEvent(new OrderCanceledEvent(remove, optCompany.get())));
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
+                       list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
+                               plugin().getServer()
+                                       .getPluginManager()
+                                       .callEvent(new OrderCanceledEvent(remove, optCompany.get())));
+                   })
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   });
         return false;
     }
 
@@ -113,7 +126,8 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
 
         var company = optCompany.get();
 
-        var optOrder = orderData.retrieveOrderById(id).join();
+        var optOrder = orderData.retrieveOrderById(id)
+                                .join();
         if (optOrder.isEmpty()) {
             messageSender().sendErrorActionBar(player, "error.unkownOrder");
             return Optional.empty();
@@ -125,7 +139,9 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
             return Optional.empty();
         }
 
-        if (!company.member(player).get().hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
+        if (!company.member(player)
+                    .get()
+                    .hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
             messageSender().sendErrorActionBar(player, "error.permission.cancelOrder");
             return Optional.empty();
         }

@@ -45,26 +45,34 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void renderPage(Player player, int page, TopOrder orders) {
         companyData.retrieveRanking(orders, page, PAGE_SIZE)
-                .whenComplete(companyRanks -> sendPage(player, page, orders, companyRanks));
+                   .whenComplete(companyRanks -> sendPage(player, page, orders, companyRanks));
     }
 
     private void sendPage(Player player, int page, TopOrder order, List<CompanyRank> ranks) {
         messageBlocker.blockPlayer(player);
-        var composer = MessageComposer.create().text("<heading>").localeCode("company.top.ranking").newLine()
-                .text("<name>").localeCode("Order: ");
+        var composer = MessageComposer.create()
+                                      .text("<heading>")
+                                      .localeCode("company.top.ranking")
+                                      .newLine()
+                                      .text("<name>")
+                                      .localeCode("Order: ");
         for (var value : TopOrder.values()) {
-            composer.text("<click:run_command:/company top %s %s><%s>[", page, value.name(), Colors.active(order == value)).localeCode(value.name()).text("]</click>");
+            composer.text("<click:run_command:/company top %s %s><%s>[", page, value.name(), Colors.active(order == value))
+                    .localeCode(value.name())
+                    .text("]</click>");
         }
         composer.newLine();
         for (var rank : ranks) {
-            composer.text("<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>", rank.rank(), rank.asComponent(), rank.name()).newLine();
+            composer.text("<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>", rank.rank(), rank.asComponent(), rank.name())
+                    .newLine();
         }
         if (page > 1) {
             composer.text("<click:run_command:/company top %s %s><active>%s</click>", page - 1, order.name(), Texts.LEFT_ARROW);
         } else {
             composer.text("<inactive>%s", Texts.LEFT_ARROW);
         }
-        composer.localeCode("words.page").text(" <aqua>%s ", page);
+        composer.localeCode("words.page")
+                .text(" <aqua>%s ", page);
 
         if (ranks.size() < PAGE_SIZE) {
             composer.text("<inactive>%s", Texts.RIGHT_ARROW);
@@ -72,7 +80,8 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
             composer.text("<click:run_command:/company top %s %s><active>%s</click>", page + 1, order.name(), Texts.RIGHT_ARROW);
         }
         if (messageBlocker.isBlocked(player)) {
-            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+            composer.newLine()
+                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         messageBlocker.announce(player, "[x]");
         composer.prependLines(25);

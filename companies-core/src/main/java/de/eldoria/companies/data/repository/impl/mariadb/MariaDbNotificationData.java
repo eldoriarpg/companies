@@ -20,7 +20,7 @@ public class MariaDbNotificationData extends ANotificationData {
      * Create a new QueryFactoryholder
      *
      * @param dataSource      datasource
-     * @param executorService
+     * @param executorService executor for futures
      */
     public MariaDbNotificationData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(plugin, dataSource, executorService);
@@ -32,7 +32,8 @@ public class MariaDbNotificationData extends ANotificationData {
                 .query("SELECT created, notification_data FROM company_notification WHERE user_uuid = ?")
                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
                 .readRow(rs -> new Notification(
-                        rs.getTimestamp("created").toLocalDateTime(),
+                        rs.getTimestamp("created")
+                          .toLocalDateTime(),
                         NotificationData.fromJson(rs.getString("notification_data"))))
                 .allSync();
         return MissedNotifications.create(notifications);
@@ -42,7 +43,8 @@ public class MariaDbNotificationData extends ANotificationData {
     protected void saveNotifications(OfflinePlayer player, NotificationData notificationData) {
         builder()
                 .query("INSERT INTO company_notification(user_uuid, notification_data) VALUES(?,?)")
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()).setString(notificationData.toJson()))
+                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId())
+                                       .setString(notificationData.toJson()))
                 .update()
                 .sendSync();
     }
@@ -50,7 +52,8 @@ public class MariaDbNotificationData extends ANotificationData {
     @Override
     protected void clearNotifications(OfflinePlayer player) {
         builder().query("DELETE FROM company_notification WHERE user_uuid = ?")
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
-                .update().sendSync();
+                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
+                 .update()
+                 .sendSync();
     }
 }

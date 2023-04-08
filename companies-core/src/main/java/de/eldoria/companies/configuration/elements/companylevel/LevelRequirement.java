@@ -8,7 +8,7 @@ package de.eldoria.companies.configuration.elements.companylevel;
 import de.eldoria.companies.components.level.ILevelRequirement;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class LevelRequirement implements ILevelRequirement {
     private int orderCount = 1;
     private double earnedMoney = 1000.0;
@@ -30,17 +30,9 @@ public class LevelRequirement implements ILevelRequirement {
         return orderCount;
     }
 
-    public void orderCount(int orderCount) {
-        this.orderCount = orderCount;
-    }
-
     @Override
     public double earnedMoney() {
         return earnedMoney;
-    }
-
-    public void earnedMoney(double earnedMoney) {
-        this.earnedMoney = earnedMoney;
     }
 
     @Override
@@ -48,13 +40,21 @@ public class LevelRequirement implements ILevelRequirement {
         return deliveredItems;
     }
 
-    public void deliveredItems(int deliveredItems) {
-        this.deliveredItems = deliveredItems;
-    }
-
     @Override
     public int memberCount() {
         return memberCount;
+    }
+
+    public void orderCount(int orderCount) {
+        this.orderCount = orderCount;
+    }
+
+    public void earnedMoney(double earnedMoney) {
+        this.earnedMoney = earnedMoney;
+    }
+
+    public void deliveredItems(int deliveredItems) {
+        this.deliveredItems = deliveredItems;
     }
 
     public void memberCount(int memberCount) {

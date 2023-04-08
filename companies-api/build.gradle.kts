@@ -1,4 +1,4 @@
-plugins{
+plugins {
     `java-library`
     `maven-publish`
 }
@@ -17,7 +17,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
-publishData{
+publishData {
     useEldoNexusRepos()
     publishComponent("java")
 }

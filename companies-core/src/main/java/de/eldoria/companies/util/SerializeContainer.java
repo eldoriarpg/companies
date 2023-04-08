@@ -5,7 +5,12 @@
  */
 package de.eldoria.companies.util;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
@@ -26,26 +31,6 @@ public class SerializeContainer {
     }
 
     /**
-     * Create a container from a serializable object.
-     *
-     * @param obj onbect to serialize
-     * @return container holding the object as a map.
-     */
-    public static SerializeContainer fromObject(ConfigurationSerializable obj) {
-        return new SerializeContainer(obj.serialize());
-    }
-
-    /**
-     * Create a container from a map which was serialized previously
-     *
-     * @param json json string
-     * @return container holding the string as a map
-     */
-    public static SerializeContainer fromJson(String json) {
-        return GSON.fromJson(json, SerializeContainer.class);
-    }
-
-    /**
      * Convert a serializable object to a json string
      *
      * @param obj object to serialize
@@ -53,6 +38,25 @@ public class SerializeContainer {
      */
     public static String serializeToJson(ConfigurationSerializable obj) {
         return fromObject(obj).toJson();
+    }
+
+    /**
+     * Conversts the underlying map to a json string
+     *
+     * @return map as json string
+     */
+    public String toJson() {
+        return GSON.toJson(this);
+    }
+
+    /**
+     * Create a container from a serializable object.
+     *
+     * @param obj onbect to serialize
+     * @return container holding the object as a map.
+     */
+    public static SerializeContainer fromObject(ConfigurationSerializable obj) {
+        return new SerializeContainer(obj.serialize());
     }
 
     /**
@@ -80,12 +84,13 @@ public class SerializeContainer {
     }
 
     /**
-     * Conversts the underlying map to a json string
+     * Create a container from a map which was serialized previously
      *
-     * @return map as json string
+     * @param json json string
+     * @return container holding the string as a map
      */
-    public String toJson() {
-        return GSON.toJson(this);
+    public static SerializeContainer fromJson(String json) {
+        return GSON.fromJson(json, SerializeContainer.class);
     }
 
     private static class SerializeContainerAdapter implements JsonDeserializer<SerializeContainer> {

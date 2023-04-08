@@ -15,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
  * All items for a order are delivered and the order is ready for retrieval.
  */
 public class OrderDoneEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyProfile company;
 
@@ -24,6 +24,7 @@ public class OrderDoneEvent extends OrderEvent<ISimpleOrder> implements CompanyP
         this.company = company;
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

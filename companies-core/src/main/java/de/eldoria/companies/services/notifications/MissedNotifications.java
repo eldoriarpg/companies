@@ -24,7 +24,9 @@ public class MissedNotifications implements Iterable<Map.Entry<LocalDate, List<N
     public static MissedNotifications create(List<Notification> notifications) {
         Map<LocalDate, List<Notification>> missed = new LinkedHashTreeMap<>(LocalDate::compareTo);
         for (var notification : notifications) {
-            missed.computeIfAbsent(notification.created().toLocalDate(), k -> new ArrayList<>()).add(notification);
+            missed.computeIfAbsent(notification.created()
+                                               .toLocalDate(), k -> new ArrayList<>())
+                  .add(notification);
         }
         return new MissedNotifications(missed);
     }
@@ -36,6 +38,7 @@ public class MissedNotifications implements Iterable<Map.Entry<LocalDate, List<N
     @NotNull
     @Override
     public Iterator<Map.Entry<LocalDate, List<Notification>>> iterator() {
-        return missed.entrySet().iterator();
+        return missed.entrySet()
+                     .iterator();
     }
 }

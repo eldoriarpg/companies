@@ -16,7 +16,7 @@ public class PostgresNotificationData extends MariaDbNotificationData {
      * Create a new QueryFactoryholder
      *
      * @param dataSource      datasource
-     * @param executorService
+     * @param executorService executor for futures
      */
     public PostgresNotificationData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(dataSource, plugin, executorService);

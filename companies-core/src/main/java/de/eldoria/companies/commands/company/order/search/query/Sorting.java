@@ -32,7 +32,8 @@ public class Sorting extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        query.getPlayerSearch(player).sortingType(arguments.asEnum(0, SortingType.class));
+        query.getPlayerSearch(player)
+             .sortingType(arguments.asEnum(0, SortingType.class));
     }
 
     @Override

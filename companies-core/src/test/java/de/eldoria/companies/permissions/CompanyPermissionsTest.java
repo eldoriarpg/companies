@@ -65,6 +65,7 @@ class CompanyPermissionsTest {
         permissions = CompanyPermission.getPermissions(1L);
         Assertions.assertTrue(permissions.contains(CompanyPermission.OWNER));
 
-        Assertions.assertTrue(CompanyPermission.getPermissions(0L).isEmpty());
+        Assertions.assertTrue(CompanyPermission.getPermissions(0L)
+                                               .isEmpty());
     }
 }

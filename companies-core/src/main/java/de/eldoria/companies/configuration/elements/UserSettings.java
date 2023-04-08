@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements;
 
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class UserSettings {
     private int maxOrders = 7;
 

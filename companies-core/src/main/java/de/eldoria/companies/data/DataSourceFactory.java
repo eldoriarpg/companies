@@ -29,27 +29,31 @@ public final class DataSourceFactory {
         HikariDataSource dataSource;
         switch (db.storageType()) {
             case SQLITE -> {
-                var path = plugin.getDataFolder().toPath().resolve(Paths.get("data.db"));
+                var path = plugin.getDataFolder()
+                                 .toPath()
+                                 .resolve(Paths.get("data.db"));
                 try {
                     Files.createFile(path);
                 } catch (FileAlreadyExistsException e) {
-                    plugin.getLogger().info("Found sqlite database file.");
+                    plugin.getLogger()
+                          .info("Found sqlite database file.");
                 } catch (IOException e) {
-                    plugin.getLogger().log(Level.SEVERE, "Could not create database file", e);
+                    plugin.getLogger()
+                          .log(Level.SEVERE, "Could not create database file", e);
                     throw new IllegalStateException("Failed to init Database");
                 }
                 dataSource = DataSourceCreator.create(SqLite.get())
-                        .configure(config -> config.path(path))
-                        .create()
-                        .build();
+                                              .configure(config -> config.path(path))
+                                              .create()
+                                              .build();
             }
             case MARIADB -> dataSource = DataSourceCreator
                     .create(MariaDb.get())
                     .configure(config -> config.host(db.host())
-                            .port(db.port())
-                            .database(db.database())
-                            .user(db.user())
-                            .password(db.password()))
+                                               .port(db.port())
+                                               .database(db.database())
+                                               .user(db.user())
+                                               .password(db.password()))
                     .create()
                     .withMaximumPoolSize(5)
                     .withMinimumIdle(2)

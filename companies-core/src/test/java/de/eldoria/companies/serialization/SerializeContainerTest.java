@@ -42,7 +42,9 @@ public class SerializeContainerTest {
         }
 
         public static TestPojo deserialize(Map<String, Object> map) {
-            return new TestPojo(Double.valueOf(map.get("amount").toString()).intValue(),
+            return new TestPojo(Double.valueOf(map.get("amount")
+                                                  .toString())
+                                      .intValue(),
                     Material.valueOf((String) map.get("material")));
         }
 

@@ -9,7 +9,11 @@ import de.chojo.sadu.wrapper.util.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.wrapper.company.*;
+import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.CompanyRank;
+import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 
@@ -32,12 +36,16 @@ public class MariaDbCompanyData extends ACompanyData {
             builder()
                     .query("DELETE FROM company_member WHERE member_uuid = ?")
                     .parameter(stmt -> stmt.setUuidAsBytes(member.uuid()))
-                    .update().sendSync();
+                    .update()
+                    .sendSync();
         } else {
             builder()
                     .query("REPLACE company_member(id, member_uuid, permission) VALUES(?,?,?)")
-                    .parameter(stmt -> stmt.setInt(member.company()).setUuidAsBytes(member.uuid()).setLong(member.permission()))
-                    .update().sendSync();
+                    .parameter(stmt -> stmt.setInt(member.company())
+                                           .setUuidAsBytes(member.uuid())
+                                           .setLong(member.permission()))
+                    .update()
+                    .sendSync();
         }
     }
 
@@ -101,13 +109,15 @@ public class MariaDbCompanyData extends ACompanyData {
                 .query("INSERT INTO companies(name) VALUES(?) RETURNING id")
                 .parameter(stmt -> stmt.setString(name))
                 .readRow(rs -> rs.getInt(1))
-                .firstSync().get();
+                .firstSync()
+                .get();
     }
 
     @Override
     protected SimpleCompany parseCompany(Row rs) throws SQLException {
         return new SimpleCompany(rs.getInt("id"), rs.getString("name"),
-                rs.getTimestamp("founded").toLocalDateTime(), rs.getInt("level"));
+                rs.getTimestamp("founded")
+                  .toLocalDateTime(), rs.getInt("level"));
     }
 
     @Override
@@ -135,14 +145,17 @@ public class MariaDbCompanyData extends ACompanyData {
                         WHERE id = ?""")
                 .parameter(stmt -> stmt.setInt(company.id()))
                 .readRow(this::parseCompanyStats)
-                .firstSync().get();
+                .firstSync()
+                .get();
     }
 
     @Override
     protected void updateCompanyLevel(ISimpleCompany company, int level) {
         builder().query("UPDATE companies SET level = ? WHERE id = ?")
-                .parameter(stmt -> stmt.setInt(level).setInt(company.id()))
-                .update().executeSync();
+                 .parameter(stmt -> stmt.setInt(level)
+                                        .setInt(company.id()))
+                 .update()
+                 .sendSync();
     }
 
     @Override
@@ -156,8 +169,10 @@ public class MariaDbCompanyData extends ACompanyData {
                         	(?, ?)
                         ON DUPLICATE KEY UPDATE
                         	failed_orders = failed_orders + VALUES(failed_orders)""")
-                .parameter(stmt -> stmt.setInt(company.id()).setInt(amount))
-                .update().executeSync();
+                .parameter(stmt -> stmt.setInt(company.id())
+                                       .setInt(amount))
+                .update()
+                .sendSync();
     }
 
     @Override
@@ -177,7 +192,8 @@ public class MariaDbCompanyData extends ACompanyData {
                         	company_stats_view
                         ORDER BY comp_rank
                         LIMIT ? OFFSET ?""", order.orderColumn())
-                .parameter(stmt -> stmt.setInt(pageSize).setInt((page - 1) * pageSize))
+                .parameter(stmt -> stmt.setInt(pageSize)
+                                       .setInt((page - 1) * pageSize))
                 .readRow(rs -> parseCompanyStats(rs).toRank(rs.getInt("comp_rank")))
                 .allSync();
     }
@@ -186,8 +202,10 @@ public class MariaDbCompanyData extends ACompanyData {
     protected void setCompanyName(SimpleCompany company, String name) {
         builder()
                 .query("UPDATE companies SET name = ? WHERE id = ?")
-                .parameter(stmt -> stmt.setString(name).setInt(company.id()))
-                .update().executeSync();
+                .parameter(stmt -> stmt.setString(name)
+                                       .setInt(company.id()))
+                .update()
+                .sendSync();
     }
 
     @Override
@@ -199,7 +217,8 @@ public class MariaDbCompanyData extends ACompanyData {
     }
 
     protected CompanyStats parseCompanyStats(Row rs) throws SQLException {
-        return new CompanyStats(rs.getInt("id"), rs.getString("name"), rs.getTimestamp("founded").toLocalDateTime(),
+        return new CompanyStats(rs.getInt("id"), rs.getString("name"), rs.getTimestamp("founded")
+                                                                         .toLocalDateTime(),
                 rs.getInt("member_count"), rs.getInt("order_count"), rs.getDouble("price"), rs.getInt("amount"));
     }
 

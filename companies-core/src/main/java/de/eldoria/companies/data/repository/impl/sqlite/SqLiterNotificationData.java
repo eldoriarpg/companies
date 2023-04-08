@@ -21,7 +21,7 @@ public class SqLiterNotificationData extends MariaDbNotificationData {
      * Create a new QueryFactoryholder
      *
      * @param dataSource      datasource
-     * @param executorService
+     * @param executorService executor for futures
      */
     public SqLiterNotificationData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(dataSource, plugin, executorService);

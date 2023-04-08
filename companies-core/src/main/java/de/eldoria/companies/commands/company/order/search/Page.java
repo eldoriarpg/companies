@@ -39,15 +39,25 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         this.messageBlocker = messageBlocker;
     }
 
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        renderPage(player, arguments.asInt(0));
+    }
+
     public void renderPage(Player player, int page) {
         messageBlocker.blockPlayer(player);
-        var fullOrders = search.results().get(player.getUniqueId());
+        var fullOrders = search.results()
+                               .get(player.getUniqueId());
 
         var builder = MessageComposer.create()
-                .text("<heading>").localeCode("words.results").text(": <value>%s", fullOrders.size())
-                .space()
-                .text("<click:run_command:/company order search query render><modify>[").localeCode("words.change").text("]</click>")
-                .newLine();
+                                     .text("<heading>")
+                                     .localeCode("words.results")
+                                     .text(": <value>%s", fullOrders.size())
+                                     .space()
+                                     .text("<click:run_command:/company order search query render><modify>[")
+                                     .localeCode("words.change")
+                                     .text("]</click>")
+                                     .newLine();
 
         var pageList = page(fullOrders, page);
         var components = new ArrayList<String>();
@@ -55,7 +65,8 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             components.add(order.companyShortInfo(economy));
         }
 
-        builder.text(components).newLine();
+        builder.text(components)
+               .newLine();
         if (page != 0) {
             builder.text("<click:run_command:/company order search page %s> <active>%s </click>", page - 1, Texts.LEFT_ARROW);
         } else {
@@ -71,16 +82,12 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             builder.text("<inactive> %s ", Texts.RIGHT_ARROW);
         }
         if (messageBlocker.isBlocked(player)) {
-            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+            builder.newLine()
+                   .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
         messageSender().sendMessage(player, builder.build());
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        renderPage(player, arguments.asInt(0));
     }
 
     private List<FullOrder> page(List<FullOrder> orders, int page) {

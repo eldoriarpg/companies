@@ -10,7 +10,11 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class
 OrderContent implements IOrderContent {
@@ -27,11 +31,6 @@ OrderContent implements IOrderContent {
 
     public void parts(List<ContentPart> parts) {
         this.parts = parts;
-    }
-
-    @Override
-    public ItemStack stack() {
-        return stack;
     }
 
     @Override
@@ -54,21 +53,16 @@ OrderContent implements IOrderContent {
         return price;
     }
 
-    public void price(double price) {
-        this.price = price;
-    }
-
-    public String asComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", prettyType(), "blue", amount, "gold", economy.format(price));
-    }
-
-    public String asProgressComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", prettyType(), "blue", delivered(), amount, "gold", economy.format(price));
+    @Override
+    public ItemStack stack() {
+        return stack;
     }
 
     @Override
     public int delivered() {
-        return parts.stream().mapToInt(ContentPart::amount).sum();
+        return parts.stream()
+                    .mapToInt(ContentPart::amount)
+                    .sum();
     }
 
     @Override
@@ -78,7 +72,9 @@ OrderContent implements IOrderContent {
 
     @Override
     public String materialString() {
-        return stack.getType().name().toLowerCase();
+        return stack.getType()
+                    .name()
+                    .toLowerCase();
     }
 
     @Override
@@ -89,6 +85,18 @@ OrderContent implements IOrderContent {
     @Override
     public int missing() {
         return amount - delivered();
+    }
+
+    public void price(double price) {
+        this.price = price;
+    }
+
+    public String asComponent(Economy economy) {
+        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", prettyType(), "blue", amount, "gold", economy.format(price));
+    }
+
+    public String asProgressComponent(Economy economy) {
+        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", prettyType(), "blue", delivered(), amount, "gold", economy.format(price));
     }
 
     public Map<UUID, Double> payments() {

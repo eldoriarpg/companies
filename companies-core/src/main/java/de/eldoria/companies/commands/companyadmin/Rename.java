@@ -40,23 +40,24 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
         CommandAssertions.invalidArguments(meta(), args);
 
         companyData.retrieveCompanyByName(args.asString(0))
-                .asFuture()
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
-                        return;
-                    }
+                   .asFuture()
+                   .thenAccept(company -> {
+                       if (company.isEmpty()) {
+                           messageSender().sendError(player, "error.unknownCompany");
+                           return;
+                       }
 
-                    var other = companyData.retrieveCompanyByName(args.asString(1)).join();
+                       var other = companyData.retrieveCompanyByName(args.asString(1))
+                                              .join();
 
-                    if (other == null || other.isEmpty()) {
-                        messageSender().sendError(player, "error.companyNameUsed");
-                        return;
-                    }
+                       if (other == null || other.isEmpty()) {
+                           messageSender().sendError(player, "error.companyNameUsed");
+                           return;
+                       }
 
-                    companyData.updateCompanyName(company.get(), args.asString(1));
-                    messageSender().sendError(player, "company.rename.changed");
-                });
+                       companyData.updateCompanyName(company.get(), args.asString(1));
+                       messageSender().sendError(player, "company.rename.changed");
+                   });
     }
 
     @Override

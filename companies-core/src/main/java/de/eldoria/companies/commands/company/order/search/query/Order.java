@@ -32,7 +32,8 @@ public class Order extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         var asc = arguments.asBoolean(0, "asc", "desc");
-        query.getPlayerSearch(player).asc(asc);
+        query.getPlayerSearch(player)
+             .asc(asc);
     }
 
     @Override

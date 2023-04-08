@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
+@SuppressWarnings("UnusedReturnValue")
 public abstract class ANotificationData extends QueryFactory {
 
     private final ExecutorService executorService;
@@ -28,7 +29,8 @@ public abstract class ANotificationData extends QueryFactory {
      */
     public ANotificationData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
+                .withExceptionHandler(e -> plugin.getLogger()
+                                                 .log(Level.SEVERE, "Query exception", e))
                 .build());
         this.executorService = executorService;
     }

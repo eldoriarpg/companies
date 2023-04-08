@@ -28,12 +28,28 @@ public enum CompanyPermission implements Translatable {
         rawMask = mask;
     }
 
+    private long toBitMask(int mask) {
+        return 1L << mask;
+    }
+
     public static long composePermissions(CompanyPermission... permissions) {
-        return Arrays.stream(permissions).mapToLong(CompanyPermission::mask).sum();
+        return Arrays.stream(permissions)
+                     .mapToLong(CompanyPermission::mask)
+                     .sum();
+    }
+
+    public long mask() {
+        return mask;
     }
 
     public static Set<CompanyPermission> getPermissions(long mask) {
-        return Arrays.stream(values()).filter(p -> p.hasPermission(mask)).collect(Collectors.toSet());
+        return Arrays.stream(values())
+                     .filter(p -> p.hasPermission(mask))
+                     .collect(Collectors.toSet());
+    }
+
+    public boolean hasPermission(long mask) {
+        return (mask & (mask())) != 0L;
     }
 
     public static boolean hasAnyPermission(long mask, CompanyPermission... permissions) {
@@ -44,18 +60,6 @@ public enum CompanyPermission implements Translatable {
     public static boolean hasPermission(long mask, CompanyPermission... permissions) {
         for (var permission : permissions) if (!permission.hasPermission(mask)) return false;
         return true;
-    }
-
-    public boolean hasPermission(long mask) {
-        return (mask & (mask())) != 0L;
-    }
-
-    private long toBitMask(int mask) {
-        return 1L << mask;
-    }
-
-    public long mask() {
-        return mask;
     }
 
     public int rawMask() {

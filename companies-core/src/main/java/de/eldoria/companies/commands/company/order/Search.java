@@ -33,7 +33,8 @@ public class Search extends AdvancedCommand {
                     commands.add(page);
                     commands.add(query);
                     builder.withDefaultCommand(query);
-                }).build();
+                })
+                .build();
         meta(meta);
     }
 

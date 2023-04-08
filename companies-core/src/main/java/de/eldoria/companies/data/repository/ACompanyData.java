@@ -10,7 +10,11 @@ import de.chojo.sadu.wrapper.QueryBuilderConfig;
 import de.chojo.sadu.wrapper.util.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
-import de.eldoria.companies.data.wrapper.company.*;
+import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.CompanyRank;
+import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.threading.futures.FutureResult;
@@ -25,12 +29,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
+@SuppressWarnings("UnusedReturnValue")
 public abstract class ACompanyData extends QueryFactory {
     private final ExecutorService executorService;
 
     public ACompanyData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
+                .withExceptionHandler(e -> plugin.getLogger()
+                                                 .log(Level.SEVERE, "Query exception", e))
                 .build());
         this.executorService = executorService;
     }
@@ -45,6 +51,8 @@ public abstract class ACompanyData extends QueryFactory {
         return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player), executorService);
     }
 
+    protected abstract Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player);
+
     public BukkitFutureResult<Optional<CompanyProfile>> retrieveCompanyProfile(ISimpleCompany simpleCompany) {
         return CompletableBukkitFuture.supplyAsync(() -> toCompanyProfile((SimpleCompany) simpleCompany));
     }
@@ -54,8 +62,6 @@ public abstract class ACompanyData extends QueryFactory {
     public BukkitFutureResult<Optional<CompanyProfile>> retrievePlayerCompanyProfile(OfflinePlayer player) {
         return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player).map(company -> toCompanyProfile(company).get()));
     }
-
-    protected abstract Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player);
 
     public BukkitFutureResult<Optional<SimpleCompany>> retrieveCompanyByName(String name) {
         return CompletableBukkitFuture.supplyAsync(() -> getCompanyByName(name), executorService);
@@ -74,14 +80,6 @@ public abstract class ACompanyData extends QueryFactory {
     }
 
     protected abstract Integer createCompany(String name);
-
-    protected abstract List<CompanyMember> getCompanyMember(SimpleCompany company);
-
-    protected abstract Optional<CompanyMember> getCompanyMember(OfflinePlayer player);
-
-    protected abstract Optional<SimpleCompany> getSimpleCompany(int companyId);
-
-    protected abstract SimpleCompany parseCompany(Row rs) throws SQLException;
 
     public void submitCompanyPurge(SimpleCompany company) {
         CompletableFuture.runAsync(() -> purgeCompany(company));
@@ -120,4 +118,12 @@ public abstract class ACompanyData extends QueryFactory {
     protected abstract void setCompanyName(SimpleCompany company, String name);
 
     public abstract CompletableFuture<List<SimpleCompany>> getCompanies();
+
+    protected abstract List<CompanyMember> getCompanyMember(SimpleCompany company);
+
+    protected abstract Optional<CompanyMember> getCompanyMember(OfflinePlayer player);
+
+    protected abstract Optional<SimpleCompany> getSimpleCompany(int companyId);
+
+    protected abstract SimpleCompany parseCompany(Row rs) throws SQLException;
 }

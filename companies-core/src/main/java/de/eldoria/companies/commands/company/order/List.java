@@ -32,11 +32,35 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final Economy economy;
 
     public List(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("list").build());
+        super(plugin, CommandMeta.builder("list")
+                .build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
         this.orderData = orderData;
         this.economy = economy;
+    }
+
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        companyData.retrievePlayerCompany(player)
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept(company -> {
+                       if (company.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.noMember");
+                           return;
+                       }
+                       showOrders(company.get(), player);
+                   })
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   });
     }
 
     public void showOrders(ISimpleCompany company, Player player) {
@@ -46,54 +70,43 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
 
     public void showOrders(ISimpleCompany company, Player player, Runnable runnable) {
         orderData.retrieveOrdersByCompany(company, OrderState.CLAIMED, OrderState.CLAIMED)
-                .asFuture().exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Collections.emptyList();
-                })
+                 .asFuture()
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return Collections.emptyList();
+                 })
 
-                .thenApply(orders -> orderData.retrieveFullOrders(orders)
-                        .asFuture()
-                        .exceptionally(err -> {
-                            plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                            return Collections.emptyList();
-                        })
-                        .join())
-                .thenAccept(fullOrders -> {
-                    messageBlocker.blockPlayer(player);
-                    var builder = MessageComposer.create()
-                            .text("<heading>").localeCode("company.order.list.orders")
-                            .text(": <click:run_command:/company order search query><show>[")
-                            .localeCode("words.search").text("]</click>").newLine();
-                    for (var order : fullOrders) {
-                        builder.text(order.companyShortInfo(economy)).newLine();
-                    }
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    messageBlocker.announce(player, "[x]");
-                    builder.prependLines(25);
-                    messageSender().sendMessage(player, builder.build());
-                    runnable.run();
-                });
+                 .thenApply(orders -> orderData.retrieveFullOrders(orders)
+                                               .asFuture()
+                                               .exceptionally(err -> {
+                                                   plugin().getLogger()
+                                                           .log(Level.SEVERE, "Something went wrong", err);
+                                                   return Collections.emptyList();
+                                               })
+                                               .join())
+                 .thenAccept(fullOrders -> {
+                     messageBlocker.blockPlayer(player);
+                     var builder = MessageComposer.create()
+                                                  .text("<heading>")
+                                                  .localeCode("company.order.list.orders")
+                                                  .text(": <click:run_command:/company order search query><show>[")
+                                                  .localeCode("words.search")
+                                                  .text("]</click>")
+                                                  .newLine();
+                     for (var order : fullOrders) {
+                         builder.text(order.companyShortInfo(economy))
+                                .newLine();
+                     }
+                     if (messageBlocker.isBlocked(player)) {
+                         builder.newLine()
+                                .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                     }
+                     messageBlocker.announce(player, "[x]");
+                     builder.prependLines(25);
+                     messageSender().sendMessage(player, builder.build());
+                     runnable.run();
+                 });
 
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        companyData.retrievePlayerCompany(player).asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
-                        return;
-                    }
-                    showOrders(company.get(), player);
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
     }
 }

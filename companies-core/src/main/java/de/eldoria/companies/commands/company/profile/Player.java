@@ -30,7 +30,8 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Player(Plugin plugin, ACompanyData companyData, Configuration configuration, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("player").build());
+        super(plugin, CommandMeta.builder("player")
+                .build());
         this.companyData = companyData;
         this.configuration = configuration;
         this.messageBlocker = messageBlocker;
@@ -41,28 +42,31 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
         var target = args.asPlayer(0);
 
         companyData.retrievePlayerCompanyProfile(target)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optCompany -> {
-                    if (optCompany.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noCompany");
-                        return;
-                    }
-                    messageBlocker.blockPlayer(player);
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept(optCompany -> {
+                       if (optCompany.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.noCompany");
+                           return;
+                       }
+                       messageBlocker.blockPlayer(player);
 
-                    var companyProfile = optCompany.get();
-                    var builder = MessageComposer.create().text(companyProfile.asExternalProfileComponent(configuration));
+                       var companyProfile = optCompany.get();
+                       var builder = MessageComposer.create()
+                                                    .text(companyProfile.asExternalProfileComponent(configuration));
 
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    messageBlocker.announce(player, "[x]");
-                    builder.prependLines(25);
-                    messageSender().sendMessage(player, builder.build());
-                });
+                       if (messageBlocker.isBlocked(player)) {
+                           builder.newLine()
+                                  .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                       }
+                       messageBlocker.announce(player, "[x]");
+                       builder.prependLines(25);
+                       messageSender().sendMessage(player, builder.build());
+                   });
     }
 
     @Override

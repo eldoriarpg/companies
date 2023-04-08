@@ -32,24 +32,56 @@ public class LevelService implements Listener {
 
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
-        companyData.submitFailedOrder(event.company(), configuration.companySettings().abortedOrderPenalty())
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
-                .thenRun(() -> updateCompanyLevel(event.company()));
+        companyData.submitFailedOrder(event.company(), configuration.companySettings()
+                                                                    .abortedOrderPenalty())
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin.getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   })
+                   .thenRun(() -> updateCompanyLevel(event.company()));
+    }
+
+    public void updateCompanyLevel(ICompanyProfile company) {
+        companyData.retrieveCompanyStats(company)
+                   .asFuture()
+                   .thenAccept(stats -> {
+                       var companySettings = configuration.companySettings();
+                       var newLevel = companySettings.calcCompanyLevel(stats);
+                       if (newLevel.level() == company.level()) return;
+                       var oldLevel = companySettings.level(company.level());
+                       if (oldLevel.isEmpty()) return;
+                       companyData.submitCompanyLevelUpdate(company, newLevel.level())
+                                  .join();
+                       if (newLevel.level() > company.level()) {
+                           plugin.getServer()
+                                 .getPluginManager()
+                                 .callEvent(new CompanyLevelUpEvent(company, oldLevel.get(), newLevel));
+                           return;
+                       }
+                       plugin.getServer()
+                             .getPluginManager()
+                             .callEvent(new CompanyLevelDownEvent(company, oldLevel.get(), newLevel));
+                   })
+                   .exceptionally(err -> {
+                       plugin.getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   });
     }
 
     @EventHandler
     public void onOrderExpired(OrderExpiredEvent event) {
-        companyData.submitFailedOrder(event.company(), configuration.companySettings().expiredOrderPenalty())
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
-                .thenRun(() -> updateCompanyLevel(event.company()));
+        companyData.submitFailedOrder(event.company(), configuration.companySettings()
+                                                                    .expiredOrderPenalty())
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin.getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   })
+                   .thenRun(() -> updateCompanyLevel(event.company()));
     }
 
     @EventHandler
@@ -57,35 +89,16 @@ public class LevelService implements Listener {
         updateCompanyLevel(event.company());
     }
 
-    public void updateCompanyLevel(ICompanyProfile company) {
-        companyData.retrieveCompanyStats(company)
-                .asFuture()
-                .thenAccept(stats -> {
-                    var companySettings = configuration.companySettings();
-                    var newLevel = companySettings.calcCompanyLevel(stats);
-                    if (newLevel.level() == company.level()) return;
-                    var oldLevel = companySettings.level(company.level());
-                    if (oldLevel.isEmpty()) return;
-                    companyData.submitCompanyLevelUpdate(company, newLevel.level()).join();
-                    if (newLevel.level() > company.level()) {
-                        plugin.getServer().getPluginManager().callEvent(new CompanyLevelUpEvent(company, oldLevel.get(), newLevel));
-                        return;
-                    }
-                    plugin.getServer().getPluginManager().callEvent(new CompanyLevelDownEvent(company, oldLevel.get(), newLevel));
-                }).exceptionally(err -> {
-                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
-    }
-
     public void updateAllCompanies(Runnable onComplete) {
         companyData.getCompanies()
-                .thenAccept(companies -> {
-                    for (var company : companies) {
-                        var join = companyData.retrieveCompanyProfile(company).join();
-                        if (join == null || join.isEmpty()) continue;
-                        updateCompanyLevel(join.get());
-                    }
-                }).thenRun(onComplete);
+                   .thenAccept(companies -> {
+                       for (var company : companies) {
+                           var join = companyData.retrieveCompanyProfile(company)
+                                                 .join();
+                           if (join == null || join.isEmpty()) continue;
+                           updateCompanyLevel(join.get());
+                       }
+                   })
+                   .thenRun(onComplete);
     }
 }

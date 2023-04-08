@@ -58,30 +58,35 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         CommandAssertions.range(amount, 1, Integer.MAX_VALUE);
 
         companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
-                        return;
-                    }
-                    var optOrder = orderData.retrieveCompanyOrderById(id, company.get().id()).join();
-                    if (optOrder.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.unkownOrder");
-                        return;
-                    }
-                    orderData.retrieveFullOrder(optOrder.get())
-                            .whenComplete(fullOrder -> {
-                                // This part has to be synced to the mainthread
-                                handleFullOrder(player, material, amount, company.get(), fullOrder);
-                            });
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept(company -> {
+                       if (company.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.noMember");
+                           return;
+                       }
+                       var optOrder = orderData.retrieveCompanyOrderById(id, company.get()
+                                                                                    .id())
+                                               .join();
+                       if (optOrder.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                           return;
+                       }
+                       orderData.retrieveFullOrder(optOrder.get())
+                                .whenComplete(fullOrder -> {
+                                    // This part has to be synced to the mainthread
+                                    handleFullOrder(player, material, amount, company.get(), fullOrder);
+                                });
+                   })
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   });
     }
 
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
@@ -94,7 +99,8 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         var content = optContent.get();
         var deliver = Math.min(amount, content.missing());
         var inv = player.getInventory();
-        var slots = inv.all(content.stack().getType());
+        var slots = inv.all(content.stack()
+                                   .getType());
         var contained = 0;
         for (var entry : slots.entrySet()) {
             var stack = entry.getValue();
@@ -108,35 +114,46 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
         orderData.submitDelivery(player, order, material, contained)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
-                .thenAccept((v) -> {
-                    var refreshedOrder = orderData.retrieveFullOrder(order).join();
-                    if (refreshedOrder.isDone()) {
-                        messageBlocker.unblockPlayer(player).thenRun(() -> orderDone(refreshedOrder, company));
-                        return;
-                    }
-                    info.renderOrder(player, company.member(player).get(), refreshedOrder);
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
+                 .asFuture()
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return null;
+                 })
+                 .thenAccept((v) -> {
+                     var refreshedOrder = orderData.retrieveFullOrder(order)
+                                                   .join();
+                     if (refreshedOrder.isDone()) {
+                         messageBlocker.unblockPlayer(player)
+                                       .thenRun(() -> orderDone(refreshedOrder, company));
+                         return;
+                     }
+                     info.renderOrder(player, company.member(player)
+                                                     .get(), refreshedOrder);
+                 })
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return null;
+                 })
         ;
     }
 
     private void orderDone(FullOrder order, CompanyProfile profile) {
         var payments = order.payments(PaymentType.STACK);
         orderData.submitOrderDelivered(order)
-                .asFuture()
-                .thenRun(() -> plugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(order, profile)));
+                 .asFuture()
+                 .thenRun(() -> plugin().getServer()
+                                        .getPluginManager()
+                                        .callEvent(new OrderDoneEvent(order, profile)));
         CompletableBukkitFuture.runAsync(() -> {
             for (var entry : payments.entrySet()) {
-                var player = plugin().getServer().getOfflinePlayer(entry.getKey());
+                var player = plugin().getServer()
+                                     .getOfflinePlayer(entry.getKey());
                 var event = new OrderPaymentEvent(order, player, entry.getValue());
-                plugin().getServer().getPluginManager().callEvent(event);
+                plugin().getServer()
+                        .getPluginManager()
+                        .callEvent(event);
                 if (event.isCancelled()) continue;
                 economy.depositPlayer(player, entry.getValue());
             }

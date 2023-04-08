@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements;
 
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor", "CanBeFinal"})
 public class DatabaseSettings {
     private StorageType storageType = StorageType.SQLITE;
     private String host = "localhost";

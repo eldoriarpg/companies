@@ -7,7 +7,7 @@ package de.eldoria.companies.configuration.elements.companylevel;
 
 import de.eldoria.companies.components.level.ILevelSettings;
 
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class LevelSettings implements ILevelSettings {
     private int maxMembers = 20;
     private int maxOrders = 5;
@@ -20,13 +20,13 @@ public class LevelSettings implements ILevelSettings {
         return maxMembers;
     }
 
-    public void maxMembers(int maxMembers) {
-        this.maxMembers = maxMembers;
-    }
-
     @Override
     public int maxOrders() {
         return maxOrders;
+    }
+
+    public void maxMembers(int maxMembers) {
+        this.maxMembers = maxMembers;
     }
 
     public void maxOrders(int maxOrders) {

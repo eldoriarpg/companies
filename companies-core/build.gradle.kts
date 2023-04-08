@@ -126,9 +126,9 @@ bukkit {
         register("companies.*") {
             description = "gives access to all company commands"
             children = listOf(
-                "companies.order.*",
-                "companies.admin.*",
-                "companies.company.*"
+                    "companies.order.*",
+                    "companies.admin.*",
+                    "companies.company.*"
             )
         }
 

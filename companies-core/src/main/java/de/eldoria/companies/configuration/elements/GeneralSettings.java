@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements;
 
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor", "CanBeFinal"})
 public class GeneralSettings {
     private String language = "en_US";
     private int orderCheckInterval = 60;

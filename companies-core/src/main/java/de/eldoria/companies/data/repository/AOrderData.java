@@ -15,7 +15,11 @@ import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
-import de.eldoria.companies.data.wrapper.order.*;
+import de.eldoria.companies.data.wrapper.order.ContentPart;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.MaterialPrice;
+import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.util.SerializeContainer;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -31,18 +35,28 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("UnusedReturnValue")
 public abstract class AOrderData extends QueryFactory {
     private final ExecutorService executorService;
-    private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).build();
-    private final Cache<String, MaterialPrice> materialPriceCache = CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
+    private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder()
+                                                                                   .expireAfterAccess(5L, TimeUnit.MINUTES)
+                                                                                   .build();
+    private final Cache<String, MaterialPrice> materialPriceCache = CacheBuilder.newBuilder()
+                                                                                .expireAfterAccess(1L, TimeUnit.HOURS)
+                                                                                .build();
 
     public AOrderData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
         super(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
+                .withExceptionHandler(e -> plugin.getLogger()
+                                                 .log(Level.SEVERE, "Query exception", e))
                 .build());
         this.executorService = executorService;
     }
@@ -63,6 +77,14 @@ public abstract class AOrderData extends QueryFactory {
 
     protected abstract void updateOrderState(SimpleOrder order, OrderState state);
 
+    protected void invalidateFullOrder(SimpleOrder order) {
+        invalidateFullOrder(order.id());
+    }
+
+    protected void invalidateFullOrder(int id) {
+        fullOrderCache.invalidate(id);
+    }
+
     public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrders(int hours) {
         return CompletableFuture.supplyAsync(() -> getExpiredOrders(hours), executorService);
     }
@@ -72,8 +94,6 @@ public abstract class AOrderData extends QueryFactory {
     public CompletableFuture<List<SimpleOrder>> retrieveDeadOrders(int hours) {
         return CompletableFuture.supplyAsync(() -> getExpiredOrders(hours), executorService);
     }
-
-    protected abstract List<SimpleOrder> getDeadOrders(int hours);
 
     public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrdersByCompany(int hours, SimpleCompany company) {
         return CompletableFuture.supplyAsync(() -> getExpiredOrdersByCompany(hours, company), executorService);
@@ -144,8 +164,10 @@ public abstract class AOrderData extends QueryFactory {
 
     public SimpleOrder buildSimpleOrder(Row row) throws SQLException {
         return new SimpleOrder(row.getInt("id"), row.getUuidFromBytes("owner_uuid"),
-                row.getString("name"), row.getTimestamp("created").toLocalDateTime(),
-                row.getInt("company"), row.getTimestamp("last_update").toLocalDateTime(),
+                row.getString("name"), row.getTimestamp("created")
+                                          .toLocalDateTime(),
+                row.getInt("company"), row.getTimestamp("last_update")
+                                          .toLocalDateTime(),
                 OrderState.byId(row.getInt("state")));
     }
 
@@ -158,16 +180,36 @@ public abstract class AOrderData extends QueryFactory {
         for (var order : orders) {
             fullOrders.add(CompletableFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))), executorService));
         }
-        return fullOrders.stream().map(CompletableFuture::join).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
+        return fullOrders.stream()
+                         .map(CompletableFuture::join)
+                         .filter(Optional::isPresent)
+                         .map(Optional::get)
+                         .collect(Collectors.toList());
     }
 
-    public BukkitFutureResult<FullOrder> retrieveFullOrder(SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))).get(), executorService);
+    protected Optional<FullOrder> cacheFullOrder(SimpleOrder order, Callable<Optional<FullOrder>> orderCallable) {
+        return cacheFullOrder(order.id(), orderCallable);
     }
 
     public @NotNull FullOrder toFullOrder(SimpleOrder order) {
         var orderContent = getOrderContent(order);
         return order.toFullOrder(orderContent);
+    }
+
+    protected Optional<FullOrder> cacheFullOrder(int id, Callable<Optional<FullOrder>> orderCallable) {
+        try {
+            return fullOrderCache.get(id, orderCallable);
+        } catch (ExecutionException e) {
+            Companies.logger()
+                     .log(Level.SEVERE, "Could not compute value for order " + id);
+        }
+        return Optional.empty();
+    }
+
+    protected abstract List<OrderContent> getOrderContent(SimpleOrder order);
+
+    public BukkitFutureResult<FullOrder> retrieveFullOrder(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))).get(), executorService);
     }
 
     public BukkitFutureResult<Integer> retrievePlayerOrderCount(OfflinePlayer player) {
@@ -182,29 +224,17 @@ public abstract class AOrderData extends QueryFactory {
 
     protected abstract Integer getCompanyOrderCount(ISimpleCompany company);
 
-    protected abstract List<OrderContent> getOrderContent(SimpleOrder order);
-
-    protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);
-
-    protected ItemStack toItemStack(String json) {
-        return SerializeContainer.deserializeFromJson(json, ItemStack.class);
-    }
-
-    protected String toString(ItemStack stack) {
-        return SerializeContainer.serializeToJson(stack);
-    }
-
-    protected abstract void purgeCompanyOrders(SimpleCompany profile);
-
-    protected abstract void purgeOrder(SimpleOrder order);
-
     public BukkitFutureResult<Void> submitCompanyOrdersPurge(SimpleCompany profile) {
         return CompletableBukkitFuture.runAsync(() -> purgeCompanyOrders(profile), executorService);
     }
 
+    protected abstract void purgeCompanyOrders(SimpleCompany profile);
+
     public BukkitFutureResult<Void> submitOrderPurge(SimpleOrder order) {
         return CompletableBukkitFuture.runAsync(() -> purgeOrder(order), executorService);
     }
+
+    protected abstract void purgeOrder(SimpleOrder order);
 
     public BukkitFutureResult<Void> submitOrderDeletion(SimpleOrder order) {
         return CompletableBukkitFuture.runAsync(() -> {
@@ -221,34 +251,11 @@ public abstract class AOrderData extends QueryFactory {
 
     protected abstract List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max);
 
-    protected ExecutorService executorService() {
-        return executorService;
-    }
-
-    protected Optional<FullOrder> cacheFullOrder(SimpleOrder order, Callable<Optional<FullOrder>> orderCallable) {
-        return cacheFullOrder(order.id(), orderCallable);
-    }
-
-    protected Optional<FullOrder> cacheFullOrder(int id, Callable<Optional<FullOrder>> orderCallable) {
-        try {
-            return fullOrderCache.get(id, orderCallable);
-        } catch (ExecutionException e) {
-            Companies.logger().log(Level.SEVERE, "Could not compute value for order " + id);
-        }
-        return Optional.empty();
-    }
-
-    protected void invalidateFullOrder(SimpleOrder order) {
-        invalidateFullOrder(order.id());
-    }
-
-    protected void invalidateFullOrder(int id) {
-        fullOrderCache.invalidate(id);
-    }
-
     public FutureResult<Void> submitMaterialPriceRefresh() {
         return CompletableBukkitFuture.runAsync(this::refreshMaterialPrices, executorService);
     }
+
+    public abstract void refreshMaterialPrices();
 
     /**
      * Get the material price from cache.
@@ -283,9 +290,23 @@ public abstract class AOrderData extends QueryFactory {
 
     protected abstract Optional<MaterialPrice> findMaterialPrice(String material);
 
-    public abstract void refreshMaterialPrices();
-
     public void invalidateMaterialPriceCache() {
         materialPriceCache.invalidateAll();
+    }
+
+    protected abstract List<SimpleOrder> getDeadOrders(int hours);
+
+    protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);
+
+    protected ItemStack toItemStack(String json) {
+        return SerializeContainer.deserializeFromJson(json, ItemStack.class);
+    }
+
+    protected String toString(ItemStack stack) {
+        return SerializeContainer.serializeToJson(stack);
+    }
+
+    protected ExecutorService executorService() {
+        return executorService;
     }
 }

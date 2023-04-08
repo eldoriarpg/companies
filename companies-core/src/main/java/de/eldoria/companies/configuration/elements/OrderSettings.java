@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements;
 
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class OrderSettings {
     private int maxItems = 64 * 8;
     private int maxMaterials = 5;

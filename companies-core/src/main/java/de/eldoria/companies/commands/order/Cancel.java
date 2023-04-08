@@ -41,39 +41,43 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
         var id = arguments.asInt(0);
 
         orderData.retrieveOrderById(id)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optOrder -> {
-                    if (optOrder.isEmpty()) {
-                        messageSender().sendErrorActionBar(sender, "error.unkownOrder");
-                        return;
-                    }
+                 .asFuture()
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return Optional.empty();
+                 })
+                 .thenAccept(optOrder -> {
+                     if (optOrder.isEmpty()) {
+                         messageSender().sendErrorActionBar(sender, "error.unkownOrder");
+                         return;
+                     }
 
-                    var simpleOrder = optOrder.get();
-                    var player = getPlayerFromSender(sender);
-                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                        messageSender().sendError(sender, "error.notYourOrder");
-                        return;
-                    }
-                    if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messageSender().sendError(sender, "error.orderAlreadyClaimed");
-                        return;
-                    }
+                     var simpleOrder = optOrder.get();
+                     var player = getPlayerFromSender(sender);
+                     if (!simpleOrder.owner()
+                                     .equals(player.getUniqueId())) {
+                         messageSender().sendError(sender, "error.notYourOrder");
+                         return;
+                     }
+                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
+                         messageSender().sendError(sender, "error.orderAlreadyClaimed");
+                         return;
+                     }
 
-                    var fullOrder = orderData.retrieveFullOrder(optOrder.get()).join();
-                    CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
-                    orderData.submitOrderDeletion(fullOrder).join();
-                    list.showOrders(player, () -> {
-                        messageSender().sendError(sender, "order.cancel.canceled",
-                                Replacement.create("money", economy.format(fullOrder.price())));
-                    });
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
+                     var fullOrder = orderData.retrieveFullOrder(optOrder.get())
+                                              .join();
+                     CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
+                     orderData.submitOrderDeletion(fullOrder)
+                              .join();
+                     list.showOrders(player, () -> messageSender().sendError(sender, "order.cancel.canceled",
+                             Replacement.create("money", economy.format(fullOrder.price()))));
+                 })
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return null;
+                 })
         ;
     }
 }

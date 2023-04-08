@@ -32,7 +32,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
      *
      * @param dataSource      data source
      * @param plugin          plugin
-     * @param executorService
+     * @param executorService executor for futures
      */
     public SqLiteOrderData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
         super(dataSource, plugin, executorService);
@@ -42,25 +42,33 @@ public class SqLiteOrderData extends MariaDbOrderData {
     protected void putOrder(OfflinePlayer player, FullOrder order) {
         var orderId = builder(Integer.class)
                 .query("INSERT INTO orders(owner_uuid, name) VALUES(?,?)")
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()).setString(order.name()))
+                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId())
+                                       .setString(order.name()))
                 .append()
                 //Workaround until jdbc is updated to 3.35 which will support RETURNING
                 .query("SELECT id FROM orders WHERE owner_uuid = ? ORDER BY created DESC")
                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
                 .readRow(rs -> rs.getInt(1))
-                .firstSync().get();
+                .firstSync()
+                .get();
 
         for (var content : order.contents()) {
             builder()
                     .query("INSERT INTO order_content(id, material, stack, amount, price) VALUES(?,?,?,?,?)")
-                    .parameter(stmt -> stmt.setInt(orderId).setString(content.stack().getType().name())
-                            .setString(toString(content.stack())).setInt(content.amount()).setDouble(content.price()))
+                    .parameter(stmt -> stmt.setInt(orderId)
+                                           .setString(content.stack()
+                                                             .getType()
+                                                             .name())
+                                           .setString(toString(content.stack()))
+                                           .setInt(content.amount())
+                                           .setDouble(content.price()))
                     .update()
                     .sendSync();
         }
         builder()
                 .query("INSERT INTO order_states(id, state) VALUES(?, ?)")
-                .parameter(stmt -> stmt.setInt(orderId).setInt(OrderState.UNCLAIMED.stateId()))
+                .parameter(stmt -> stmt.setInt(orderId)
+                                       .setInt(OrderState.UNCLAIMED.stateId()))
                 .update()
                 .sendSync();
     }
@@ -85,7 +93,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                           AND company IS NOT NULL
                           AND state = ?
                         ORDER BY last_update""")
-                .parameter(stmt -> stmt.setInt(hours).setInt(OrderState.CLAIMED.stateId()))
+                .parameter(stmt -> stmt.setInt(hours)
+                                       .setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
     }
@@ -110,18 +119,11 @@ public class SqLiteOrderData extends MariaDbOrderData {
                           AND company = ?
                           AND state = ?
                         ORDER BY last_update""")
-                .parameter(stmt -> stmt.setInt(hours).setInt(company.id()).setInt(OrderState.CLAIMED.stateId()))
+                .parameter(stmt -> stmt.setInt(hours)
+                                       .setInt(company.id())
+                                       .setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
-    }
-
-    @Override
-    public SimpleOrder buildSimpleOrder(Row row) throws SQLException {
-        return new SimpleOrder(row.getInt("id"), row.getUuidFromBytes("owner_uuid"),
-                // Sqlite cant read its own timestamp as timestamp. We need to parse them
-                row.getString("name"), SqLiteAdapter.getTimestamp(row, "created"),
-                row.getInt("company"), SqLiteAdapter.getTimestamp(row, "last_update"),
-                OrderState.byId(row.getInt("state")));
     }
 
     @Override
@@ -135,17 +137,20 @@ public class SqLiteOrderData extends MariaDbOrderData {
                         	(?, ?, ?, ?)
                         ON CONFLICT(id, worker_uuid, material) DO UPDATE SET
                         	delivered = delivered + excluded.delivered""")
-                .parameter(stmt -> stmt.setInt(order.id()).setUuidAsBytes(player.getUniqueId())
-                        .setString(material.name()).setInt(amount))
+                .parameter(stmt -> stmt.setInt(order.id())
+                                       .setUuidAsBytes(player.getUniqueId())
+                                       .setString(material.name())
+                                       .setInt(amount))
                 .update()
-                .executeSync();
+                .sendSync();
     }
 
     @Override
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         List<List<Integer>> results = new ArrayList<>();
         Set<Integer> materialMatch;
-        var materialFilter = !searchQuery.materials().isEmpty();
+        var materialFilter = !searchQuery.materials()
+                                         .isEmpty();
         // This is pain. SqLite doesn't support regex from stock so we need to do some dirty looping.
         if (materialFilter) {
             for (var material : searchQuery.materials()) {
@@ -166,7 +171,9 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 results.add(ids);
             }
             if (searchQuery.isAnyMaterial()) {
-                materialMatch = results.stream().flatMap(List::stream).collect(Collectors.toSet());
+                materialMatch = results.stream()
+                                       .flatMap(List::stream)
+                                       .collect(Collectors.toSet());
             } else {
                 var first = results.remove(0);
                 if (!results.isEmpty()) {
@@ -197,12 +204,17 @@ public class SqLiteOrderData extends MariaDbOrderData {
                           AND oc.amount <= ?
                           AND os.state >= ? AND os.state <= ?""")
                 .parameter(stmt -> stmt.setString("%" + searchQuery.name() + "%")
-                        .setDouble(searchQuery.minPrice()).setDouble(searchQuery.maxPrice())
-                        .setInt(searchQuery.minOrderSize()).setInt(searchQuery.maxOrderSize())
-                        .setInt(min.stateId()).setInt(max.stateId()))
+                                       .setDouble(searchQuery.minPrice())
+                                       .setDouble(searchQuery.maxPrice())
+                                       .setInt(searchQuery.minOrderSize())
+                                       .setInt(searchQuery.maxOrderSize())
+                                       .setInt(min.stateId())
+                                       .setInt(max.stateId()))
                 .readRow(this::buildSimpleOrder)
                 .allSync();
-        orders = orders.stream().filter(order -> !materialFilter || materialMatch.contains(order.id())).collect(Collectors.toList());
+        orders = orders.stream()
+                       .filter(order -> !materialFilter || materialMatch.contains(order.id()))
+                       .collect(Collectors.toList());
         var fullOrders = toFullOrders(orders);
         searchQuery.sort(fullOrders);
         return fullOrders;
@@ -226,6 +238,16 @@ public class SqLiteOrderData extends MariaDbOrderData {
                               GROUP BY c.material) avg
                         WHERE TRUE
                         ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price""")
-                .update().executeSync();
+                .update()
+                .sendSync();
+    }
+
+    @Override
+    public SimpleOrder buildSimpleOrder(Row row) throws SQLException {
+        return new SimpleOrder(row.getInt("id"), row.getUuidFromBytes("owner_uuid"),
+                // Sqlite cant read its own timestamp as timestamp. We need to parse them
+                row.getString("name"), SqLiteAdapter.getTimestamp(row, "created"),
+                row.getInt("company"), SqLiteAdapter.getTimestamp(row, "last_update"),
+                OrderState.byId(row.getInt("state")));
     }
 }

@@ -36,7 +36,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         var position = arguments.asInt(0, Integer.MAX_VALUE);
 
-        var level = configuration.companySettings().createLevel(position);
+        var level = configuration.companySettings()
+                                 .createLevel(position);
         configuration.save();
         info.show(player, level);
     }
@@ -44,10 +45,13 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
         if (args.sizeIs(1)) {
-            if (args.asString(0).isEmpty()) {
+            if (args.asString(0)
+                    .isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.index"));
             }
-            return Completion.completeInt(args.asString(0), 1, configuration.companySettings().level().size() + 1);
+            return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
+                                                                            .level()
+                                                                            .size() + 1);
         }
         return Collections.emptyList();
     }

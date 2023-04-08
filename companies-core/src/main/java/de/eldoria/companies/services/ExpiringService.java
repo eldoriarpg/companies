@@ -41,34 +41,38 @@ public class ExpiringService implements Runnable, Listener {
         this.configuration = configuration;
     }
 
-    public static ExpiringService create(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, ScheduledExecutorService executorService) {
+    public static void start(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, ScheduledExecutorService executorService) {
         var expiringService = new ExpiringService(plugin, orderData, companyData, configuration);
-        var interval = configuration.generalSettings().orderCheckInterval();
+        var interval = configuration.generalSettings()
+                                    .orderCheckInterval();
         executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);
-        return expiringService;
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        var hours = configuration.companySettings().deliveryHours();
+        var hours = configuration.companySettings()
+                                 .deliveryHours();
         companyData.retrievePlayerCompany(event.getPlayer())
-                .whenComplete(optCompand -> {
-                    if (optCompand.isEmpty()) return;
-                    orderData.retrieveExpiredOrders(hours + hours / 2)
-                            .whenComplete((simpleOrders, throwable) -> {
-                                if (simpleOrders == null || simpleOrders.isEmpty()) return;
-                                reportOrderExpiring(event.getPlayer(), simpleOrders);
-                            });
-                });
+                   .whenComplete(optCompand -> {
+                       if (optCompand.isEmpty()) return;
+                       orderData.retrieveExpiredOrders(hours + hours / 2)
+                                .whenComplete((simpleOrders, throwable) -> {
+                                    if (simpleOrders == null || simpleOrders.isEmpty()) return;
+                                    reportOrderExpiring(event.getPlayer(), simpleOrders);
+                                });
+                   });
     }
 
     private void reportOrderExpiring(Player player, List<SimpleOrder> orders) {
         var composer = MessageComposer.create()
-                .localeCode("expiring.notice").newLine();
+                                      .localeCode("expiring.notice")
+                                      .newLine();
         for (var order : orders) {
             composer.localeCode("expiring.element",
                             Replacement.create("name", order.fullName()), Replacement.create("duration", order.runningOutTime(configuration)))
-                    .text("<click:run_command:/company order info %s>[", order.id()).localeCode("info").text("]</click>")
+                    .text("<click:run_command:/company order info %s>[", order.id())
+                    .localeCode("info")
+                    .text("]</click>")
                     .newLine();
         }
         messageSender.sendMessage(player, composer.build());
@@ -76,25 +80,38 @@ public class ExpiringService implements Runnable, Listener {
 
     @Override
     public void run() {
-        var expired = orderData.retrieveExpiredOrders(configuration.companySettings().deliveryHours()).join();
+        var expired = orderData.retrieveExpiredOrders(configuration.companySettings()
+                                                                   .deliveryHours())
+                               .join();
 
         for (var order : expired) {
-            orderData.submitUnclaimOrder(order).join();
-            var profile = companyData.retrieveCompanyById(order.company()).asFuture()
-                    .exceptionally(err -> {
-                        plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
-                        return Optional.empty();
-                    })
-                    .thenApply(r -> r.map(p -> companyData.retrieveCompanyProfile(p).join().orElse(null))).join();
+            orderData.submitUnclaimOrder(order)
+                     .join();
+            var profile = companyData.retrieveCompanyById(order.company())
+                                     .asFuture()
+                                     .exceptionally(err -> {
+                                         plugin.getLogger()
+                                               .log(Level.SEVERE, "Something went wrong", err);
+                                         return Optional.empty();
+                                     })
+                                     .thenApply(r -> r.flatMap(p -> companyData.retrieveCompanyProfile(p).join()))
+                                     .join();
             if (profile.isEmpty()) continue;
-            plugin.getServer().getPluginManager().callEvent(new OrderExpiredEvent(order, profile.get()));
+            plugin.getServer()
+                  .getPluginManager()
+                  .callEvent(new OrderExpiredEvent(order, profile.get()));
         }
 
-        expired = orderData.retrieveDeadOrders(configuration.orderSetting().maxUnclaimedHours()).join();
+        expired = orderData.retrieveDeadOrders(configuration.orderSetting()
+                                                            .maxUnclaimedHours())
+                           .join();
 
         for (var order : expired) {
-            orderData.submitOrderPurge(order).join();
-            plugin.getServer().getPluginManager().callEvent(new OrderRemovedEvent(order));
+            orderData.submitOrderPurge(order)
+                     .join();
+            plugin.getServer()
+                  .getPluginManager()
+                  .callEvent(new OrderRemovedEvent(order));
         }
     }
 }

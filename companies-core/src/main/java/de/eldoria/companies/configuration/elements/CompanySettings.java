@@ -12,11 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class CompanySettings {
-    private final List<CompanyLevel> level = new ArrayList<>();
+    private List<CompanyLevel> level = new ArrayList<>();
     private int deliveryHours = 48;
-    private double foudingPrice = 20000.0;
+    private double foundingPrice = 20000.0;
     private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
@@ -25,24 +25,31 @@ public class CompanySettings {
         updateLevel();
     }
 
+    private void updateLevel() {
+        for (var i = 0; i < level.size(); i++) {
+            level.get(i)
+                 .level(i + 1);
+        }
+    }
+
     public int deliveryHours() {
         return deliveryHours;
     }
 
-    public double foudingPrice() {
-        return foudingPrice;
+    public double foundingPrice() {
+        return foundingPrice;
     }
 
     public void deliveryHours(int deliveryHours) {
         this.deliveryHours = deliveryHours;
     }
 
-    public void foudingPrice(float foudingPrice) {
-        this.foudingPrice = foudingPrice;
+    public void foundingPrice(float foundingPrice) {
+        this.foundingPrice = foundingPrice;
     }
 
-    public void foudingPrice(double foudingPrice) {
-        this.foudingPrice = foudingPrice;
+    public void foundingPrice(double foundingPrice) {
+        this.foundingPrice = foundingPrice;
     }
 
     public int expiredOrderPenalty() {
@@ -96,21 +103,16 @@ public class CompanySettings {
     public CompanyLevel calcCompanyLevel(CompanyStats stats) {
         var finalLevel = level.get(0);
         for (var level : level) {
-            if (!level.requirement().checkRequirements(stats)) break;
+            if (!level.requirement()
+                      .checkRequirements(stats)) break;
             finalLevel = level;
         }
         return finalLevel;
     }
 
     public boolean deleteLevel(int level) {
-        if (level < 1 || level < this.level.size()) return false;
-        this.level.remove(level);
+        if (level < 1 || level > this.level.size()) return false;
+        this.level.remove(level - 1);
         return true;
-    }
-
-    private void updateLevel() {
-        for (var i = 0; i < level.size(); i++) {
-            level.get(i).level(i + 1);
-        }
     }
 }

@@ -34,7 +34,8 @@ public class Remove extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
         var level = args.asInt(0);
-        var success = configuration.companySettings().deleteLevel(level);
+        var success = configuration.companySettings()
+                                   .deleteLevel(level);
         CommandAssertions.isTrue(success, "error.invalidLevel");
         configuration.save();
         list.sendList(player);
@@ -42,6 +43,8 @@ public class Remove extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable java.util.List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return Completion.completeInt(args.asString(0), 1, configuration.companySettings().level().size());
+        return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
+                                                                        .level()
+                                                                        .size());
     }
 }

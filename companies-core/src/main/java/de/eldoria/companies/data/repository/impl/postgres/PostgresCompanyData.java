@@ -24,7 +24,8 @@ public class PostgresCompanyData extends MariaDbCompanyData {
             builder()
                     .query("DELETE FROM company_member WHERE member_uuid = ?")
                     .parameter(stmt -> stmt.setUuidAsBytes(member.uuid()))
-                    .update().sendSync();
+                    .update()
+                    .sendSync();
         } else {
             builder()
                     .query("""
@@ -37,8 +38,11 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                             	DO UPDATE SET
                             		id         = excluded.id,
                             		permission = excluded.permission""")
-                    .parameter(stmt -> stmt.setInt(member.company()).setUuidAsBytes(member.uuid()).setLong(member.permission()))
-                    .update().sendSync();
+                    .parameter(stmt -> stmt.setInt(member.company())
+                                           .setUuidAsBytes(member.uuid())
+                                           .setLong(member.permission()))
+                    .update()
+                    .sendSync();
         }
     }
 
@@ -53,7 +57,10 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                         	(?, ?)
                         ON CONFLICT(id) DO UPDATE SET
                         	failed_orders = failed_orders + excluded.failed_orders""")
-                .parameter(stmt -> stmt.setInt(company.id()).setInt(amount).setInt(amount))
-                .update().sendSync();
+                .parameter(stmt -> stmt.setInt(company.id())
+                                       .setInt(amount)
+                                       .setInt(amount))
+                .update()
+                .sendSync();
     }
 }

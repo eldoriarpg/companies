@@ -13,12 +13,13 @@ import org.jetbrains.annotations.NotNull;
  * A company gets disbanded by its owner.
  */
 public class CompanyDisbandEvent extends CompanyEvent<ICompanyProfile> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     public CompanyDisbandEvent(ICompanyProfile company) {
         super(company, true);
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

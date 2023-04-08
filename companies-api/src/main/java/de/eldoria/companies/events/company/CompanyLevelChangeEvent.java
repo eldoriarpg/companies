@@ -16,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
  * Use {@link CompanyLevelDownEvent} or {@link CompanyLevelUpEvent}.
  */
 public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyLevel oldLevel;
     private final ICompanyLevel newLevel;
@@ -27,6 +27,7 @@ public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
         this.newLevel = newLevel;
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

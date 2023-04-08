@@ -17,10 +17,9 @@ public class RefreshService implements Runnable {
         this.orderData = orderData;
     }
 
-    public static RefreshService create(AOrderData orderData, ScheduledExecutorService executorService) {
+    public static void start(AOrderData orderData, ScheduledExecutorService executorService) {
         var refreshService = new RefreshService(orderData);
         executorService.scheduleAtFixedRate(refreshService, 5L, 60L, TimeUnit.MINUTES);
-        return refreshService;
     }
 
     @Override

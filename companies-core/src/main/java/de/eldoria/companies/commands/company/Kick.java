@@ -36,8 +36,8 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
+                   .asFuture()
+                   .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
     }
 
     private void handleProfile(@NotNull Player sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
@@ -47,7 +47,9 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
         }
         var profile = optProfile.get();
 
-        if (!profile.member(player).map(r -> r.hasPermissions(CompanyPermission.KICK)).orElse(false)) {
+        if (!profile.member(player)
+                    .map(r -> r.hasPermissions(CompanyPermission.KICK))
+                    .orElse(false)) {
             messageSender().sendErrorActionBar(sender, "error.permission.kick");
             return;
         }
@@ -66,10 +68,16 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        companyData.submitMemberUpdate(target.kick()).join();
+        companyData.submitMemberUpdate(target.kick())
+                   .join();
         messageSender().sendMessage(sender, "company.kick.kicked",
-                Replacement.create("name", target.player().getName(), Style.style().color(NamedTextColor.GOLD).build()));
+                Replacement.create("name", target.player()
+                                                 .getName(), Style.style()
+                                                                  .color(NamedTextColor.GOLD)
+                                                                  .build()));
 
-        plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(optProfile.get(), target.player()));
+        plugin().getServer()
+                .getPluginManager()
+                .callEvent(new CompanyKickEvent(optProfile.get(), target.player()));
     }
 }

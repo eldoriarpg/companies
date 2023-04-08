@@ -35,7 +35,8 @@ public class MaterialMatch extends AdvancedCommand implements IPlayerTabExecutor
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         var matchType = arguments.asString(0);
         CommandAssertions.isTrue(Completion.isCommand(matchType, "exact", "part"), "error.invalidMatchType");
-        query.getPlayerSearch(player).exactMatch("exact".equalsIgnoreCase(arguments.asString(0)));
+        query.getPlayerSearch(player)
+             .exactMatch("exact".equalsIgnoreCase(arguments.asString(0)));
     }
 
     @Override

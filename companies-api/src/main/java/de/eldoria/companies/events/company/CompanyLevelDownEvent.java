@@ -14,12 +14,13 @@ import org.jetbrains.annotations.NotNull;
  * A company level decreases.
  */
 public class CompanyLevelDownEvent extends CompanyLevelChangeEvent {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     public CompanyLevelDownEvent(ICompanyProfile company, ICompanyLevel oldLevel, ICompanyLevel newLevel) {
         super(company, oldLevel, newLevel);
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

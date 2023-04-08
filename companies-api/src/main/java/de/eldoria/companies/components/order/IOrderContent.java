@@ -11,8 +11,6 @@ import org.bukkit.inventory.ItemStack;
 import java.util.List;
 
 public interface IOrderContent {
-    ItemStack stack();
-
     int amount();
 
     void amount(int amount);
@@ -22,8 +20,12 @@ public interface IOrderContent {
     double price();
 
     default String prettyType() {
-        return stack().getType().name().replace("_", " ");
+        return stack().getType()
+                      .name()
+                      .replace("_", " ");
     }
+
+    ItemStack stack();
 
     int delivered();
 
