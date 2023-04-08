@@ -5,12 +5,7 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
-import de.eldoria.companies.commands.companyadmin.level.Create;
-import de.eldoria.companies.commands.companyadmin.level.Edit;
-import de.eldoria.companies.commands.companyadmin.level.Info;
-import de.eldoria.companies.commands.companyadmin.level.List;
-import de.eldoria.companies.commands.companyadmin.level.Move;
-import de.eldoria.companies.commands.companyadmin.level.Remove;
+import de.eldoria.companies.commands.companyadmin.level.*;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;

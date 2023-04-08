@@ -1,24 +1,28 @@
 CREATE TABLE IF NOT EXISTS companies
-( id INT AUTO_INCREMENT,
-    name TEXT NOT NULL,
-    founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP () NOT NULL,
-    LEVEL INT DEFAULT 1 NOT NULL,
+(
+    id      INT AUTO_INCREMENT,
+    name    TEXT                                  NOT NULL,
+    founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
+    LEVEL   INT       DEFAULT 1                   NOT NULL,
     CONSTRAINT companies_id_uindex
-    UNIQUE (id),
+        UNIQUE (id),
     CONSTRAINT companies_name_uindex
-    UNIQUE (name) USING HASH);
+        UNIQUE (name) USING HASH
+);
 
 ALTER TABLE companies
     ADD PRIMARY KEY (id);
 
 CREATE TABLE IF NOT EXISTS company_member
-( id INT NOT NULL,
-    member_uuid BINARY (16) NOT NULL
-    PRIMARY KEY,
-    permission BIGINT DEFAULT 0 NOT NULL,
+(
+    id          INT              NOT NULL,
+    member_uuid BINARY(16)       NOT NULL
+        PRIMARY KEY,
+    permission  BIGINT DEFAULT 0 NOT NULL,
     CONSTRAINT company_member_companies_id_fk
-    FOREIGN KEY (id) REFERENCES companies (id)
-    ON DELETE CASCADE);
+        FOREIGN KEY (id) REFERENCES companies (id)
+            ON DELETE CASCADE
+);
 
 CREATE INDEX IF NOT EXISTS company_member_id_index
     ON company_member (id);
@@ -27,62 +31,74 @@ CREATE INDEX IF NOT EXISTS company_member_id_uuid_index
     ON company_member (id, member_uuid);
 
 CREATE TABLE IF NOT EXISTS orders
-( id INT AUTO_INCREMENT
-    PRIMARY KEY,
-    owner_uuid BINARY (16) NOT NULL,
-    name TEXT NULL,
-    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP () NOT NULL);
+(
+    id         INT AUTO_INCREMENT
+        PRIMARY KEY,
+    owner_uuid BINARY(16)                            NOT NULL,
+    name       TEXT                                  NULL,
+    created    TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS order_content
-( id INT NOT NULL,
-    material TEXT NOT NULL,
-    stack TEXT NOT NULL,
-    amount INT NOT NULL,
-    price FLOAT NOT NULL,
+(
+    id       INT   NOT NULL,
+    material TEXT  NOT NULL,
+    stack    TEXT  NOT NULL,
+    amount   INT   NOT NULL,
+    price    FLOAT NOT NULL,
     CONSTRAINT order_content_orders_id_fk
-    FOREIGN KEY (id) REFERENCES orders (id)
-    ON DELETE CASCADE);
+        FOREIGN KEY (id) REFERENCES orders (id)
+            ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS order_states
-( id INT NOT NULL
-    PRIMARY KEY,
-    company INT NULL,
-    last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP () NOT NULL,
-    state INT DEFAULT 0 NOT NULL,
+(
+    id          INT                                   NOT NULL
+        PRIMARY KEY,
+    company     INT                                   NULL,
+    last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
+    state       INT       DEFAULT 0                   NOT NULL,
     CONSTRAINT order_states_orders_id_fk
-    FOREIGN KEY (id) REFERENCES orders (id)
-    ON DELETE CASCADE);
+        FOREIGN KEY (id) REFERENCES orders (id)
+            ON DELETE CASCADE
+);
 
 CREATE INDEX IF NOT EXISTS orders_owner_uuid_index
     ON orders (owner_uuid);
 
 CREATE TABLE IF NOT EXISTS orders_delivered
-( id INT NOT NULL,
-    worker_uuid BINARY (16) NOT NULL,
-    material TEXT NOT NULL,
-    delivered INT NOT NULL,
+(
+    id          INT        NOT NULL,
+    worker_uuid BINARY(16) NOT NULL,
+    material    TEXT       NOT NULL,
+    delivered   INT        NOT NULL,
     CONSTRAINT orders_delivered_orders_id_fk
-    FOREIGN KEY (id) REFERENCES orders (id)
-    ON DELETE CASCADE);
+        FOREIGN KEY (id) REFERENCES orders (id)
+            ON DELETE CASCADE
+);
 
 CREATE INDEX IF NOT EXISTS orders_delivered_id_index
     ON orders_delivered (id);
 
 CREATE TABLE IF NOT EXISTS company_notification
-( user_uuid BINARY (16) NOT NULL,
-    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP () NOT NULL,
-    notification_data TEXT NOT NULL);
+(
+    user_uuid         BINARY(16)                            NOT NULL,
+    created           TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
+    notification_data TEXT                                  NOT NULL
+);
 
 CREATE INDEX IF NOT EXISTS notification_user_uuid_index
     ON company_notification (user_uuid);
 
 CREATE TABLE IF NOT EXISTS company_stats
-( id INT NOT NULL
-    PRIMARY KEY,
+(
+    id            INT           NOT NULL
+        PRIMARY KEY,
     failed_orders INT DEFAULT 0 NOT NULL,
     CONSTRAINT company_stats_companies_id_fk
-    FOREIGN KEY (id) REFERENCES companies (id)
-    ON DELETE CASCADE);
+        FOREIGN KEY (id) REFERENCES companies (id)
+            ON DELETE CASCADE
+);
 
 CREATE OR REPLACE VIEW company_stats_view AS
 SELECT c.id,

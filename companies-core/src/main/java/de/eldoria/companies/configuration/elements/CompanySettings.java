@@ -14,12 +14,12 @@ import java.util.Optional;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class CompanySettings {
+    private final List<CompanyLevel> level = new ArrayList<>();
     private int deliveryHours = 48;
     private double foudingPrice = 20000.0;
     private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
-    private final List<CompanyLevel> level = new ArrayList<>();
 
     public CompanySettings() {
         updateLevel();

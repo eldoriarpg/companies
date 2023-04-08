@@ -7,7 +7,6 @@ package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;

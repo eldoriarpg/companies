@@ -5,12 +5,7 @@
  */
 package de.eldoria.companies.commands;
 
-import de.eldoria.companies.commands.companyadmin.CalcLevel;
-import de.eldoria.companies.commands.companyadmin.Delete;
-import de.eldoria.companies.commands.companyadmin.Level;
-import de.eldoria.companies.commands.companyadmin.Reload;
-import de.eldoria.companies.commands.companyadmin.Rename;
-import de.eldoria.companies.commands.companyadmin.TransferOwner;
+import de.eldoria.companies.commands.companyadmin.*;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.services.LevelService;

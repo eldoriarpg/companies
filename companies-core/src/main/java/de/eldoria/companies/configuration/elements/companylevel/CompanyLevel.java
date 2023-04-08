@@ -6,17 +6,15 @@
 package de.eldoria.companies.configuration.elements.companylevel;
 
 import de.eldoria.companies.components.level.ICompanyLevel;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
 public class CompanyLevel implements ICompanyLevel {
     public static final CompanyLevel DEFAULT = new CompanyLevel();
-
-    private int level = -1;
-    private String levelName = "none";
     private final LevelRequirement requirement = new LevelRequirement();
     private final LevelSettings settings = new LevelSettings();
+    private int level = -1;
+    private String levelName = "none";
 
     public CompanyLevel() {
     }

@@ -5,11 +5,7 @@
  */
 package de.eldoria.companies.commands;
 
-import de.eldoria.companies.commands.order.Cancel;
-import de.eldoria.companies.commands.order.Create;
-import de.eldoria.companies.commands.order.Info;
-import de.eldoria.companies.commands.order.List;
-import de.eldoria.companies.commands.order.Receive;
+import de.eldoria.companies.commands.order.*;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;

@@ -13,7 +13,7 @@ public class LevelRequirement implements ILevelRequirement {
     private int orderCount = 1;
     private double earnedMoney = 1000.0;
     private int deliveredItems = 1000;
-    private int memberCount =1;
+    private int memberCount = 1;
 
     public LevelRequirement() {
     }

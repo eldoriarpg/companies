@@ -10,15 +10,11 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class
 OrderContent implements IOrderContent {
-    private ItemStack stack;
+    private final ItemStack stack;
     private int amount;
     private List<ContentPart> parts = new ArrayList<>();
     private double price;

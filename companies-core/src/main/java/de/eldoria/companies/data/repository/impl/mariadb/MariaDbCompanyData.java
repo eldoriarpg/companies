@@ -9,11 +9,7 @@ import de.chojo.sadu.wrapper.util.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.company.CompanyRank;
-import de.eldoria.companies.data.wrapper.company.CompanyStats;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.data.wrapper.company.*;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 

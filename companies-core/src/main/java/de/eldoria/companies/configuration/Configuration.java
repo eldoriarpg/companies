@@ -5,11 +5,7 @@
  */
 package de.eldoria.companies.configuration;
 
-import de.eldoria.companies.configuration.elements.CompanySettings;
-import de.eldoria.companies.configuration.elements.DatabaseSettings;
-import de.eldoria.companies.configuration.elements.GeneralSettings;
-import de.eldoria.companies.configuration.elements.OrderSettings;
-import de.eldoria.companies.configuration.elements.UserSettings;
+import de.eldoria.companies.configuration.elements.*;
 import de.eldoria.eldoutilities.config.ConfigKey;
 import de.eldoria.eldoutilities.config.JacksonConfig;
 import org.bukkit.plugin.Plugin;

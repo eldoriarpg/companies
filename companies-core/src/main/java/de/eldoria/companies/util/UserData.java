@@ -9,16 +9,12 @@ import org.bukkit.plugin.Plugin;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class UserData {
 
-    private static UserData data = null;
+    private static UserData data;
     public final String type;
     public final String user = "%%__USER__%%";
     public final String resource = "%%__RESOURCE__%%";

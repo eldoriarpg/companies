@@ -9,7 +9,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import de.chojo.sadu.databases.MariaDb;
 import de.chojo.sadu.databases.PostgreSql;
 import de.chojo.sadu.databases.SqLite;
-import de.chojo.sadu.jdbc.SqLiteJdbc;
 import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
@@ -37,11 +36,7 @@ import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
-import de.eldoria.companies.util.UserData;
-import de.eldoria.eldoutilities.config.JacksonConfig;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
-import de.eldoria.eldoutilities.debug.data.EntryData;
-import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
@@ -51,7 +46,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.milkbowl.vault.economy.Economy;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -80,9 +74,9 @@ public class Companies extends EldoPlugin {
     }
 
     public Configuration configuration() {
-        if(configuration == null){
-        configuration = new Configuration(this);
-                 }
+        if (configuration == null) {
+            configuration = new Configuration(this);
+        }
         return configuration;
     }
 

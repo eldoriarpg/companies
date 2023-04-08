@@ -27,13 +27,13 @@ public class SimpleOrder implements ISimpleOrder {
     private String name;
 
     public SimpleOrder(UUID owner, String name) {
-        this.id = -1;
+        id = -1;
         this.owner = owner;
         this.name = StringUtils.left(name, 32);
-        this.created = null;
-        this.company = -1;
-        this.claimed = null;
-        this.state = null;
+        created = null;
+        company = -1;
+        claimed = null;
+        state = null;
     }
 
     public SimpleOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed, OrderState state) {

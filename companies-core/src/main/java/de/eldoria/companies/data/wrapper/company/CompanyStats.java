@@ -6,7 +6,6 @@
 package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.ICompanyStats;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 
 import java.time.LocalDateTime;

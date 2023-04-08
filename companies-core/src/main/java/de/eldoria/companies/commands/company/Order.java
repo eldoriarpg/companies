@@ -5,12 +5,7 @@
  */
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.companies.commands.company.order.Abort;
-import de.eldoria.companies.commands.company.order.Accept;
-import de.eldoria.companies.commands.company.order.Deliver;
-import de.eldoria.companies.commands.company.order.Info;
-import de.eldoria.companies.commands.company.order.List;
-import de.eldoria.companies.commands.company.order.Search;
+import de.eldoria.companies.commands.company.order.*;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;

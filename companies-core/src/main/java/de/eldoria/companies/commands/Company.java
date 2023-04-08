@@ -5,17 +5,8 @@
  */
 package de.eldoria.companies.commands;
 
-import de.eldoria.companies.commands.company.Chatblock;
-import de.eldoria.companies.commands.company.Create;
-import de.eldoria.companies.commands.company.Invite;
-import de.eldoria.companies.commands.company.Kick;
-import de.eldoria.companies.commands.company.Leave;
-import de.eldoria.companies.commands.company.Member;
 import de.eldoria.companies.commands.company.Order;
-import de.eldoria.companies.commands.company.Permission;
-import de.eldoria.companies.commands.company.Profile;
-import de.eldoria.companies.commands.company.Rename;
-import de.eldoria.companies.commands.company.Top;
+import de.eldoria.companies.commands.company.*;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;

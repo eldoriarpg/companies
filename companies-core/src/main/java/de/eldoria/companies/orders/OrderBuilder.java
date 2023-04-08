@@ -97,9 +97,9 @@ public class OrderBuilder {
                     .text("]</click> <click:suggest_command:%s amount %s ><modify>[", cmd, element.materialString()).localeCode("words.amount").text("]</click>");
         }
         composer.newLine()
-                .text("<name>").localeCode("words.materials").text(": <value>%s/%s",  materialsAmount(), setting.maxMaterials()).newLine()
-                .text("<name>").localeCode("words.items").text(": <value>%s/%s",  amount(), setting.maxItems()).newLine()
-                .text("<name>").localeCode("words.price").text(": <value>%s",  economy.format(price())).newLine()
+                .text("<name>").localeCode("words.materials").text(": <value>%s/%s", materialsAmount(), setting.maxMaterials()).newLine()
+                .text("<name>").localeCode("words.items").text(": <value>%s/%s", amount(), setting.maxItems()).newLine()
+                .text("<name>").localeCode("words.price").text(": <value>%s", economy.format(price())).newLine()
                 .text("<click:run_command:%s done><add>[", cmd).localeCode("words.done").text("]</click>").space()
                 .text("<click:run_command:%s cancel><remove>[", cmd).localeCode("words.cancel").text("]</click>");
         return composer.build();

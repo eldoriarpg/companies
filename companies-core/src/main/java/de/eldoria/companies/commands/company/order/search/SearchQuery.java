@@ -169,7 +169,7 @@ public class SearchQuery {
                     .localeCode(sort.translationKey()).text("]</click>");
         }
         composer.newLine().space(2).text("<click:run_command:%s order asc><%s>[", queryCmd, Colors.active(asc)).localeCode("words.ascending").text("]</click>").space()
-                .text("<click:run_command:%s order desc><%s>[", queryCmd, Colors.active(!asc)).localeCode("words.descending").text("]</click>")
+                .text("<click:run_command:%s order desc><%s>[", queryCmd, Colors.active(!asc)).localeCode("$words.descending$").text("]</click>")
                 .newLine()
                 .text("<click:run_command:%s execute><show>[", queryCmd).localeCode("words.search").text("]</click>")
                 .text("<click:run_command:%s clear><remove>[", queryCmd).localeCode("words.clear").text("]</click>");

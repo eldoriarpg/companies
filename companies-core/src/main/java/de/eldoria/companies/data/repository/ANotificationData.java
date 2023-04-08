@@ -19,7 +19,7 @@ import java.util.logging.Level;
 
 public abstract class ANotificationData extends QueryFactory {
 
-    private ExecutorService executorService;
+    private final ExecutorService executorService;
 
     /**
      * Create a new QueryFactoryholder
