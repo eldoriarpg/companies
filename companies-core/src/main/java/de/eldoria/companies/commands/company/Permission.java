@@ -81,15 +81,15 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
             var permCmd = "/company permission " + member.player().getName();
             var builder = MessageComposer.create();
             if (member.hasPermission(permission)) {
-                builder.text("<click:run_command:%s remove %s><u><%s>[$%s$]</u></click>", permCmd, permission.name(), Colors.ADD, permission.translationKey()).build();
+                builder.text("<click:run_command:%s remove %s><u><add>[$%s$]</u></click>", permCmd, permission.name(), permission.translationKey()).build();
             } else {
-                builder.text("<click:run_command:%s give %s><u><%s>[$%s$]</u></click>", permCmd, permission.name(), Colors.REMOVE, permission.translationKey()).build();
+                builder.text("<click:run_command:%s give %s><u><remove>[$%s$]</u></click>", permCmd, permission.name(), permission.translationKey()).build();
             }
             permissions.add(builder.build());
         }
 
         var composer = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).localeCode("company.permission.permissions").text("<%s> %s:", Colors.VALUE, member.player().getName()).newLine()
+                .text("<heading>").localeCode("company.permission.permissions").text("<value> %s:", member.player().getName()).newLine()
                 .text(permissions, " ");
         if (messageBlocker.isBlocked(player)) {
             composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>").build();

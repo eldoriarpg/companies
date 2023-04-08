@@ -126,10 +126,10 @@ public class NotificationService implements Listener {
     public void onOrderDone(OrderDoneEvent event) {
         var owner = plugin.getServer().getOfflinePlayer(event.order().owner());
         var message = MessageComposer.create()
-                .text("<%s>", Colors.NEUTRAL)
+                .text("<neutral>")
                 .localeCode("notification.orderDone")
                 .space()
-                .text("<click:run_command:/order receive %s><%s>[", event.order().id(), Colors.ADD)
+                .text("<click:run_command:/order receive %s><add>[", event.order().id())
                 .localeCode("notification.recieveItems")
                 .text("]</click>")
                 .build();
@@ -197,10 +197,10 @@ public class NotificationService implements Listener {
             if (orders == null) return;
             for (var order : orders) {
                 var message = MessageComposer.create()
-                        .text("<%s>", Colors.NEUTRAL)
+                        .text("<neutral>")
                         .localeCode("notification.orderDone")
                         .space()
-                        .text("<click:run_command:/order receive %s><%s>[", order.id(), Colors.ADD)
+                        .text("<click:run_command:/order receive %s><add>[", order.id())
                         .localeCode("notification.recieveItems")
                         .text("]</click>")
                         .build();

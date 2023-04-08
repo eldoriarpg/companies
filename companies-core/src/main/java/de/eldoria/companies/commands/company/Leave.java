@@ -88,13 +88,13 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     var profile = optProfile.get();
                     leaves.add(player.getUniqueId());
-                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL);
+                    var composer = MessageComposer.create().text("<neutral>");
                     if (profile.member(player).get().isOwner()) {
                         composer.localeCode("company.leave.confirmOwner");
                     } else {
                         composer.localeCode("company.leave.confirm");
                     }
-                    composer.text("<click:run_command:/company leave confirm><%s>[", Colors.REMOVE).localeCode("words.confirm").text("</click>");
+                    composer.text("<click:run_command:/company leave confirm><remove>[").localeCode("words.confirm").text("</click>");
                     audiences.player(player).sendMessage(miniMessage.deserialize(composer.buildLocalized(localizer())));
                 });
     }

@@ -68,8 +68,8 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                 .thenAccept(fullOrders -> {
                     messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create()
-                            .text("<%s>", Colors.HEADING).localeCode("company.order.list.orders")
-                            .text(": <click:run_command:/company order search query><%s>[", Colors.SHOW)
+                            .text("<heading>").localeCode("company.order.list.orders")
+                            .text(": <click:run_command:/company order search query><show>[")
                             .localeCode("words.search").text("]</click>").newLine();
                     for (var order : fullOrders) {
                         builder.text(order.companyShortInfo(economy)).newLine();

@@ -173,11 +173,11 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {
         messageSender().sendMessage(inviter, "company.invite.inviteSend", Replacement.create("NAME", target));
-        var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.invite.invited",
-                        Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, company.name(), Colors.NEUTRAL)))
+        var composer = MessageComposer.create().text("<neutral>").localeCode("company.invite.invited",
+                        Replacement.create("NAME", String.format("<heading>%s<neutral>", company.name())))
                 .newLine()
-                .text("<click:run_command:/company invite accept><%s>[", Colors.ADD).localeCode("accept").text("]</click>")
-                .text("<click:run_command:/company invite deny><%s>[", Colors.REMOVE).localeCode("deny").text("]</click>");
+                .text("<click:run_command:/company invite accept><add>[").localeCode("accept").text("]</click>")
+                .text("<click:run_command:/company invite deny><remove>[").localeCode("deny").text("]</click>");
         audiences.sender(target).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
         invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
         delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);

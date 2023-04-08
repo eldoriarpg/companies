@@ -58,14 +58,13 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
     public String asExternalProfileComponent(Configuration configuration) {
         var level = configuration.companySettings().level(level()).orElse(CompanyLevel.DEFAULT);
         var composer = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).text(name()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.level").text(": <%s>%s - %s",
-                        Colors.VALUE, level.level(), level.levelName())
+                .text("<heading>").text(name()).newLine()
+                .text("<name>").localeCode("words.level").text(": <value>%s - %s", level.level(), level.levelName())
                 .newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.founded").text(": <%s>%s", Colors.VALUE, foundedString()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.leader").text(": <%s>%s", Colors.VALUE, owner().player().getName()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.member")
-                .text(": <%s>%s <click:run_command:/company member id %s><%s>[", Colors.VALUE, members().size(), id(), Colors.SHOW)
+                .text("<name>").localeCode("words.founded").text(": <value>%s", foundedString()).newLine()
+                .text("<name>").localeCode("words.leader").text(": <value>%s", owner().player().getName()).newLine()
+                .text("<name>").localeCode("words.member")
+                .text(": <value>%s <click:run_command:/company member id %s><show>[", members().size(), id())
                 .localeCode("words.list").text("]</click>").newLine();
 
         return composer.build();

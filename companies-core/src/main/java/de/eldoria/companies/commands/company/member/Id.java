@@ -67,7 +67,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                             .join();
                     if (optProfile.isEmpty()) return;
                     var profile = optProfile.get();
-                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.member.members").text(":").newLine();
+                    var builder = MessageComposer.create().text("<heading>").localeCode("company.member.members").text(":").newLine();
                     List<String> members = new ArrayList<>();
 
                     for (var member : profile.members()) {
@@ -76,7 +76,7 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                         var hover = MessageComposer.create();
                         hover.text(((CompanyMember) member).statusComponent());
 
-                        var nameComp = MessageComposer.create().space(2).text("<hover:show_text:%s><%s>%s</hover>", hover.build(), Colors.VALUE, mem.getName());
+                        var nameComp = MessageComposer.create().space(2).text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
                         members.add(nameComp.build());
                     }
                     builder.text(members);

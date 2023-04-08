@@ -65,7 +65,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create().localeCode("order.list.orders").text(":").newLine();
                     if (configuration.userSettings().maxOrders() > orders.size()) {
-                        builder.text("<click:suggest_command:/order create ><%s>[", Colors.ADD).localeCode("order.list.newOrder").text("]</click>");
+                        builder.text("<click:suggest_command:/order create ><add>[").localeCode("order.list.newOrder").text("]</click>");
                     }
                     for (var order : orders) {
                         builder.newLine().text(order.userShortInfo(economy));

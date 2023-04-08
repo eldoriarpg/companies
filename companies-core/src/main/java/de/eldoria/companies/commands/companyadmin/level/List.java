@@ -23,15 +23,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 
 public class List extends AdvancedCommand implements IPlayerTabExecutor {
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Configuration configuration;
-    private final BukkitAudiences audiences;
     private final MessageBlocker messageBlocker;
 
     public List(Plugin plugin, Configuration configuration, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("list").build());
         this.configuration = configuration;
-        audiences = BukkitAudiences.create(plugin);
         this.messageBlocker = messageBlocker;
     }
 
@@ -39,14 +36,14 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
         var level = new ArrayList<String>();
         messageBlocker.blockPlayer(player);
         for (var companyLevel : configuration.companySettings().level()) {
-            var info = MessageComposer.create().text("<hover:show_text:'%s'><%s>%s - <%s>%s</hover>", companyLevel.asComponent(), Colors.NAME, companyLevel.level(), Colors.VALUE, companyLevel.levelName()).space()
-                    .text("<click:run_command:/companyadmin level info %s><%s>[", companyLevel.level(), Colors.SHOW).localeCode("words.info").text("]</click>").space()
-                    .text("<click:run_command:/companyadmin level remove %s><%s>[", companyLevel.level(), Colors.REMOVE).localeCode("words.remove").text("]</click>").space()
-                    .text("<click:suggest_command:/companyadmin level move %s >[", companyLevel.level(), Colors.MODIFY).localeCode("words.move").text("]</click>")
+            var info = MessageComposer.create().text("<hover:show_text:'%s'><name>%s - <value>%s</hover>", companyLevel.asComponent(), companyLevel.level(), companyLevel.levelName()).space()
+                    .text("<click:run_command:/companyadmin level info %s><show>[", companyLevel.level()).localeCode("words.info").text("]</click>").space()
+                    .text("<click:run_command:/companyadmin level remove %s><remove>[", companyLevel.level()).localeCode("words.remove").text("]</click>").space()
+                    .text("<click:suggest_command:/companyadmin level move %s ><modify>[", companyLevel.level()).localeCode("words.move").text("]</click>")
                     .build();
             level.add(info);
         }
-        var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("words.level").text(" <click:suggest_command:/companyadmin level create ><%s>[", Colors.ADD).localeCode("words.create").text("]</click>").newLine()
+        var builder = MessageComposer.create().text("<heading>").localeCode("words.level").text(" <click:suggest_command:/companyadmin level create ><add>[").localeCode("words.create").text("]</click>").newLine()
                 .text(String.join("\n", level));
         if (messageBlocker.isBlocked(player)) {
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
@@ -54,7 +51,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
 
-        audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(builder.build())));
+        messageSender().sendMessage(player, builder.build());
     }
 
     @Override

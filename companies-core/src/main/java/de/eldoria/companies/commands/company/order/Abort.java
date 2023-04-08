@@ -71,8 +71,8 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
 
-                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.order.abort.confirm")
-                            .text("<click:run_command:/company order abort confirm><%s>[", Colors.REMOVE).localeCode("words.confirm").text("]</click>");
+                    var composer = MessageComposer.create().text("<neutral>").localeCode("company.order.abort.confirm")
+                            .text("<click:run_command:/company order abort confirm><remove>[").localeCode("words.confirm").text("]</click>");
                     cancel.put(player.getUniqueId(), order.get());
                     audiences.sender(player).sendMessage(miniMessage.deserialize(localizer().localize(composer.build())));
                 }).exceptionally(err -> {

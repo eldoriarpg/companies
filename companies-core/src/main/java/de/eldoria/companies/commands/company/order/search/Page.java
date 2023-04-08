@@ -51,9 +51,9 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         var fullOrders = search.results().get(player.getUniqueId());
 
         var builder = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).localeCode("words.results").text(": <%s>%s", Colors.VALUE, fullOrders.size())
+                .text("<heading>").localeCode("words.results").text(": <value>%s", fullOrders.size())
                 .space()
-                .text("<click:run_command:/company order search query render><%s>[", Colors.MODIFY).localeCode("words.change").text("]</click>")
+                .text("<click:run_command:/company order search query render><modify>[").localeCode("words.change").text("]</click>")
                 .newLine();
 
         var pageList = page(fullOrders, page);
@@ -64,18 +64,18 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
 
         builder.text(components).newLine();
         if (page != 0) {
-            builder.text("<click:run_command:/company order search page %s> <%s>%s </click>", page - 1, Colors.ACTIVE, Texts.LEFT_ARROW);
+            builder.text("<click:run_command:/company order search page %s> <active>%s </click>", page - 1, Texts.LEFT_ARROW);
         } else {
-            builder.text(" <%s>%s ", Colors.INACTIVE, Texts.LEFT_ARROW);
+            builder.text(" <inactive>%s ", Texts.LEFT_ARROW);
         }
 
-        var pageString = String.format("<%s>%s/%s", Colors.HEADING, page + 1, fullOrders.size() / PAGE_SIZE + 1);
+        var pageString = String.format("<heading>%s/%s", page + 1, fullOrders.size() / PAGE_SIZE + 1);
         builder.text(pageString);
 
         if (!page(fullOrders, page + 1).isEmpty()) {
-            builder.text("<click:run_command:/company order search page %s> <%s>%s </click>", page + 1, Colors.ACTIVE, Texts.RIGHT_ARROW);
+            builder.text("<click:run_command:/company order search page %s> <active>%s </click>", page + 1, Texts.RIGHT_ARROW);
         } else {
-            builder.text("<%s> %s ", Colors.INACTIVE, Texts.RIGHT_ARROW);
+            builder.text("<inactive> %s ", Texts.RIGHT_ARROW);
         }
         if (messageBlocker.isBlocked(player)) {
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");

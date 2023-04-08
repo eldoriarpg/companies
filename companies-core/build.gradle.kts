@@ -46,6 +46,7 @@ dependencies {
     implementation("de.chojo.sadu", "sadu-postgresql", "1.3.0")
     implementation("de.chojo.sadu", "sadu-mariadb", "1.3.0")
     implementation("de.chojo.sadu", "sadu-sqlite", "1.3.0")
+
     // text
     bukkitLibrary("net.kyori", "adventure-api", "4.12.0")
     bukkitLibrary("net.kyori", "adventure-platform-bukkit", "4.2.0")

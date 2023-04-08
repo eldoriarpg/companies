@@ -127,14 +127,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
 
-                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.create.create",
-                                    Replacement.create("AMOUNT", String.format("<%s>%s<%s>",
-                                            Colors.HEADING, economy.format(configuration.companySettings().foudingPrice()), Colors.NEUTRAL)),
-                                    Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, name, Colors.NEUTRAL)))
+                    var composer = MessageComposer.create().text("<neutral>").localeCode("company.create.create",
+                                    Replacement.create("AMOUNT", String.format("<heading>%s<neutral>",
+                                            economy.format(configuration.companySettings().foudingPrice()))),
+                                    Replacement.create("NAME", String.format("<heading>%s<neutral>", name)))
                             .newLine()
-                            .text("<click:run_command:/company create confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>")
+                            .text("<click:run_command:/company create confirm><add>[").localeCode("words.confirm").text("]</click>")
                             .space()
-                            .text("<click:run_command:/company create deny><%s>[", Colors.REMOVE).localeCode("words.deny").text("]</click>");
+                            .text("<click:run_command:/company create deny><remove>[").localeCode("words.deny").text("]</click>");
                     audiences.sender(player).sendMessage(miniMessage.deserialize(composer.buildLocalized(localizer())));
                     registrations.put(player.getUniqueId(), name);
                 });

@@ -103,12 +103,12 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     confirm.put(player.getUniqueId(), name);
-                    var composer = MessageComposer.create().text("<%s>", Colors.NEUTRAL).localeCode("company.rename.confirm",
-                                    Replacement.create("AMOUNT", String.format("<%s>%s<%s>",
-                                            Colors.HEADING, economy.format(configuration.companySettings().foudingPrice()), Colors.NEUTRAL)),
-                                    Replacement.create("NAME", String.format("<%s>%s<%s>", Colors.HEADING, name, Colors.NEUTRAL)))
+                    var composer = MessageComposer.create().text("<neutral>").localeCode("company.rename.confirm",
+                                    Replacement.create("AMOUNT", String.format("<heading>%s<neutral>",
+                                            economy.format(configuration.companySettings().foudingPrice()))),
+                                    Replacement.create("NAME", String.format("<heading>%s<neutral>", name)))
                             .newLine()
-                            .text("<%s><click:run_command:/company rename confirm><%s>[", Colors.ADD).localeCode("words.confirm").text("]</click>");
+                            .text("<%s><click:run_command:/company rename confirm><add>[").localeCode("words.confirm").text("]</click>");
                     messageSender().sendMessage(player, composer.build());
                     delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
                 }).exceptionally(err -> {

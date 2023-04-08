@@ -20,12 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static de.eldoria.companies.util.Colors.ADD;
-import static de.eldoria.companies.util.Colors.MODIFY;
-import static de.eldoria.companies.util.Colors.NAME;
-import static de.eldoria.companies.util.Colors.REMOVE;
-import static de.eldoria.companies.util.Colors.VALUE;
-
 public class OrderBuilder {
     private final SimpleOrder order;
     private final List<OrderContent> elements = new ArrayList<>();
@@ -85,29 +79,29 @@ public class OrderBuilder {
     public String asComponent(OrderSettings setting, Economy economy, AOrderData orderData) {
         var cmd = "/order create";
         var composer = MessageComposer.create()
-                .text("<%s>%s <click:suggest_command:/order create name ><%s>[", NAME, name(), MODIFY).localeCode("words.change").text("]</click>").newLine()
-                .text("<%s>", NAME).localeCode("words.items").text(": ");
+                .text("<name>%s <click:suggest_command:/order create name ><modify>[", name()).localeCode("words.change").text("]</click>").newLine()
+                .text("<name>").localeCode("words.items").text(": ");
 
         if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
-            composer.space().text("<click:suggest_command:%s add ><%s>[", cmd, ADD).localeCode("words.add").text("]</click>");
+            composer.space().text("<click:suggest_command:%s add ><add>[", cmd).localeCode("words.add").text("]</click>");
         }
 
         for (var element : elements) {
             var materialPrice = orderData.getMaterialPrice(element.materialString());
             composer.newLine().space(2)
-                    .text("<%s><hover:show_text:'%s'>%s</hover>", VALUE, materialPrice.asComponent(economy), element.asComponent(economy))
+                    .text("<value><hover:show_text:'%s'>%s</hover>", materialPrice.asComponent(economy), element.asComponent(economy))
                     .space()
-                    .text("<click:run_command:%s remove %s><%s>[", cmd, element.materialString(), REMOVE)
+                    .text("<click:run_command:%s remove %s><remove>[", cmd, element.materialString())
                     .localeCode("words.remove")
-                    .text("]</click> <click:suggest_command:%s price %s ><%s>[", cmd, element.materialString(), MODIFY).localeCode("words.price")
-                    .text("]</click> <click:suggest_command:%s amount %s ><%s>[", cmd, element.materialString(), MODIFY).localeCode("words.amount").text("]</click>");
+                    .text("]</click> <click:suggest_command:%s price %s ><modify>[", cmd, element.materialString()).localeCode("words.price")
+                    .text("]</click> <click:suggest_command:%s amount %s ><modify>[", cmd, element.materialString()).localeCode("words.amount").text("]</click>");
         }
         composer.newLine()
-                .text("<%s>", NAME).localeCode("words.materials").text(": <%s>%s/%s", VALUE, materialsAmount(), setting.maxMaterials()).newLine()
-                .text("<%s>", NAME).localeCode("words.items").text(": <%s>%s/%s", VALUE, amount(), setting.maxItems()).newLine()
-                .text("<%s>", NAME).localeCode("words.price").text(": <%s>%s", VALUE, economy.format(price())).newLine()
-                .text("<click:run_command:%s done><%s>[", cmd, ADD).localeCode("words.done").text("]</click>").space()
-                .text("<click:run_command:%s cancel><%s>[", cmd, REMOVE).localeCode("words.cancel").text("]</click>");
+                .text("<name>").localeCode("words.materials").text(": <value>%s/%s",  materialsAmount(), setting.maxMaterials()).newLine()
+                .text("<name>").localeCode("words.items").text(": <value>%s/%s",  amount(), setting.maxItems()).newLine()
+                .text("<name>").localeCode("words.price").text(": <value>%s",  economy.format(price())).newLine()
+                .text("<click:run_command:%s done><add>[", cmd).localeCode("words.done").text("]</click>").space()
+                .text("<click:run_command:%s cancel><remove>[", cmd).localeCode("words.cancel").text("]</click>");
         return composer.build();
     }
 

@@ -74,23 +74,23 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
         var level = configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT);
         var optNextLevel = configuration.companySettings().level(profile.level() + 1);
         var composer = MessageComposer.create()
-                .text("<%s>", Colors.HEADING).text(profile.name()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.level")
-                .text(": <hover:show_text:'%s'><%s>%s - %s</hover>", level.asComponent(), Colors.VALUE, level.level(), level.levelName());
+                .text("<heading>").text(profile.name()).newLine()
+                .text("<name>").localeCode("words.level")
+                .text(": <hover:show_text:'%s'><value>%s - %s</hover>", level.asComponent(), level.level(), level.levelName());
         if (optNextLevel.isPresent()) {
             var nextLevel = optNextLevel.get();
-            composer.space().text("<u><hover:show_text:'%s'><%s>", nextLevel.asComponent(), Colors.SHOW).localeCode("company.level.nextLevel").text("</u></hover>");
+            composer.space().text("<u><hover:show_text:'%s'><show>", nextLevel.asComponent()).localeCode("company.level.nextLevel").text("</u></hover>");
         }
         composer.newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.founded")
-                .text(": <%s>%s", Colors.VALUE, profile.foundedString()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.leader")
-                .text(": <%s>%s", Colors.VALUE, profile.owner().player().getName()).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.member")
-                .text(": <%s>%s <click:run_command:/company member><%s>[", Colors.VALUE, profile.members().size(), Colors.SHOW)
+                .text("<name>").localeCode("words.founded")
+                .text(": <value>%s", profile.foundedString()).newLine()
+                .text("<name>").localeCode("words.leader")
+                .text(": <value>%s", profile.owner().player().getName()).newLine()
+                .text("<name>").localeCode("words.member")
+                .text(": <value>%s <click:run_command:/company member><show>[", profile.members().size())
                 .localeCode("words.list").text("]</click>").newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.orders")
-                .text(": <%s>%s <click:run_command:/company order list><%s>[", Colors.VALUE, orders.size(), Colors.SHOW)
+                .text("<name>").localeCode("words.orders")
+                .text(": <value>%s <click:run_command:/company order list><show>[", orders.size())
                 .localeCode("words.list").text("]</click>");
         if (messageBlocker.isBlocked(player)) {
             composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
