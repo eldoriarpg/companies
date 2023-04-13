@@ -43,7 +43,6 @@ publishing {
                 }
             }
         }
-
     }
 
     repositories {

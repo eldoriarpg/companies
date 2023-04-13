@@ -11,25 +11,31 @@ import de.eldoria.companies.services.notifications.Notification;
 import de.eldoria.companies.services.notifications.NotificationData;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
+import org.intellij.lang.annotations.Language;
 
 import javax.sql.DataSource;
 import java.util.concurrent.ExecutorService;
+import static de.eldoria.companies.data.StaticQueryAdapter.builder;
 
 public class MariaDbNotificationData extends ANotificationData {
     /**
      * Create a new QueryFactoryholder
      *
-     * @param dataSource      datasource
      * @param executorService executor for futures
      */
-    public MariaDbNotificationData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
-        super(plugin, dataSource, executorService);
+    public MariaDbNotificationData(ExecutorService executorService) {
+        super( executorService);
     }
 
     @Override
     protected MissedNotifications getMissedNotifications(OfflinePlayer player) {
+        @Language("mariadb")
+        var query = """
+                SELECT created, notification_data
+                FROM company_notification
+                WHERE user_uuid = ?""";
         var notifications = builder(Notification.class)
-                .query("SELECT created, notification_data FROM company_notification WHERE user_uuid = ?")
+                .query(query)
                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
                 .readRow(rs -> new Notification(
                         rs.getTimestamp("created")
@@ -41,8 +47,12 @@ public class MariaDbNotificationData extends ANotificationData {
 
     @Override
     protected void saveNotifications(OfflinePlayer player, NotificationData notificationData) {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO company_notification(user_uuid, notification_data)
+                VALUES (?, ?)""";
         builder()
-                .query("INSERT INTO company_notification(user_uuid, notification_data) VALUES(?,?)")
+                .query(query)
                 .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId())
                                        .setString(notificationData.toJson()))
                 .update()
@@ -51,7 +61,12 @@ public class MariaDbNotificationData extends ANotificationData {
 
     @Override
     protected void clearNotifications(OfflinePlayer player) {
-        builder().query("DELETE FROM company_notification WHERE user_uuid = ?")
+        @Language("mariadb")
+        var query = """
+                DELETE
+                FROM company_notification
+                WHERE user_uuid = ?""";
+        builder().query(query)
                  .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
                  .update()
                  .sendSync();

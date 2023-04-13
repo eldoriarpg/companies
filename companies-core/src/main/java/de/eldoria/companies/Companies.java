@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies;
 
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import de.chojo.sadu.databases.MariaDb;
 import de.chojo.sadu.databases.PostgreSql;
@@ -18,19 +19,25 @@ import de.eldoria.companies.commands.Company;
 import de.eldoria.companies.commands.CompanyAdmin;
 import de.eldoria.companies.commands.Order;
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.DataSourceFactory;
+import de.eldoria.companies.data.StaticQueryAdapter;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANotificationData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNotificationData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
-import de.eldoria.companies.data.repository.impl.sqlite.SqLiterNotificationData;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
@@ -59,16 +66,24 @@ public class Companies extends EldoPlugin {
             (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.getId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
     private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
-    private Configuration configuration;
+    private final Configuration configuration;
     private HikariDataSource dataSource;
     private ACompanyData companyData;
     private AOrderData orderData;
     private ANotificationData notificationData;
+    private ANodeData nodeData;
+
+    public Companies() {
+        configuration = new Configuration(this);
+        configuration.secondary(PluginBaseConfiguration.KEY);
+    }
 
     @Override
     public Level getLogLevel() {
-        return configuration.secondary(PluginBaseConfiguration.KEY)
-                            .logLevel();
+        if (!configuration.exists(PluginBaseConfiguration.KEY)) {
+            return PluginBaseConfiguration.KEY.initValue().get().logLevel();
+        }
+        return configuration.secondary(PluginBaseConfiguration.KEY).logLevel();
     }
 
     @Override
@@ -76,10 +91,11 @@ public class Companies extends EldoPlugin {
         try {
             initDb();
         } catch (SQLException | IOException e) {
-            EldoPlugin.logger()
-                      .log(Level.SEVERE, "Could not init database", e);
+            EldoPlugin.logger().log(Level.SEVERE, "Could not init database", e);
             throw e;
         }
+
+        configuration.syncConfigurations(nodeData).join();
 
         CompaniesApiImpl.create(companyData, orderData);
     }
@@ -87,11 +103,15 @@ public class Companies extends EldoPlugin {
     @Override
     public void onPluginEnable(boolean reload) {
 
+        var localizer = Localizer.create(this, "en_US", "de_DE");
+        localizer.setLocale(configuration.generalSettings().language());
+
         new MessageSenderBuilder(this)
                 .errorColor(TextColor.fromHexString("#f05316"))
                 .messageColor(TextColor.fromHexString("#09ad3a"))
                 // TODO: Make those configurable
                 .prefix("<#00a6ff>[C]")
+                .localizer(localizer)
                 .addTag(builder -> builder
                         .tag("heading", Tag.styling(NamedTextColor.GOLD))
                         .tag("name", Tag.styling(NamedTextColor.AQUA))
@@ -103,10 +123,7 @@ public class Companies extends EldoPlugin {
                         .tag("inactive", Tag.styling(NamedTextColor.DARK_GRAY))
                         .tag("active", Tag.styling(NamedTextColor.GREEN))
                         .tag("neutral", Tag.styling(NamedTextColor.DARK_AQUA)))
-                .build();
-        Localizer.create(this, "en_US", "de_DE")
-                 .setLocale(configuration().generalSettings()
-                                           .language());
+                .register();
 
         var economyProvider = getServer().getServicesManager()
                                          .getRegistration(Economy.class);
@@ -114,8 +131,7 @@ public class Companies extends EldoPlugin {
         if (economyProvider != null) {
             economy = economyProvider.getProvider();
         } else {
-            EldoPlugin.logger()
-                      .severe("No vault provider registered.");
+            getLogger().severe("No vault provider registered.");
             getPluginManager().disablePlugin(this);
             return;
         }
@@ -125,14 +141,16 @@ public class Companies extends EldoPlugin {
                 .addWhitelisted("[C]")
                 .build();
 
-        var levelService = new LevelService(this, configuration(), companyData);
+        var levelService = new LevelService(this, configuration, companyData);
 
-        registerCommand("company", new Company(this, companyData, orderData, economy, configuration(), messageBlocker));
-        registerCommand("order", new Order(this, orderData, configuration(), economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration(), companyData, messageBlocker, levelService));
+        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
+        registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService));
 
-        ExpiringService.start(this, orderData, companyData, configuration(), workerPool);
-        RefreshService.start(orderData, workerPool);
+        if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
+            ExpiringService.start(this, orderData, companyData, configuration, workerPool);
+            RefreshService.start(orderData, workerPool);
+        }
         registerListener(levelService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
@@ -144,13 +162,6 @@ public class Companies extends EldoPlugin {
         }
     }
 
-    public Configuration configuration() {
-        if (configuration == null) {
-            configuration = new Configuration(this);
-        }
-        return configuration;
-    }
-
     @Override
     public void onPluginDisable() {
         workerPool.shutdown();
@@ -159,11 +170,16 @@ public class Companies extends EldoPlugin {
 
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
+        QueryBuilderConfig.defaultConfig().set(QueryBuilderConfig.builder()
+                .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
+                .build());
+
+        StaticQueryAdapter.start(dataSource, QueryBuilderConfig.builder()
+                .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
+                .build());
 
         BaseSqlUpdaterBuilder<?, ?> builder;
-
-        switch (configuration.databaseSettings()
-                             .storageType()) {
+        switch (configuration.databaseSettings().storageType()) {
             case SQLITE -> {
                 getLogger().info("Using SqLite database");
                 builder = SqlUpdater.builder(dataSource, SqLite.get());
@@ -181,8 +197,7 @@ public class Companies extends EldoPlugin {
         }
 
         builder.setVersionTable("companies_db_version")
-               .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings()
-                                                                                      .schema()))
+               .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
                .withConfig(QueryBuilderConfig.builder()
                        .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
                        .build())
@@ -192,22 +207,26 @@ public class Companies extends EldoPlugin {
     }
 
     private void initDataRepositories() {
+        var mapper = configuration.configureDefault(JsonMapper.builder());
         switch (configuration.databaseSettings()
                              .storageType()) {
             case SQLITE:
-                companyData = new SqLiteCompanyData(dataSource, this, workerPool);
-                orderData = new SqLiteOrderData(dataSource, this, workerPool);
-                notificationData = new SqLiterNotificationData(dataSource, this, workerPool);
+                companyData = new SqLiteCompanyData(workerPool);
+                orderData = new SqLiteOrderData(workerPool, mapper);
+                notificationData = new SqLiteNotificationData(workerPool);
+                nodeData = new SqLiteNodeData(configuration.nodeSettings());
                 break;
             case MARIADB:
-                companyData = new MariaDbCompanyData(dataSource, this, workerPool);
-                orderData = new MariaDbOrderData(dataSource, this, workerPool);
-                notificationData = new MariaDbNotificationData(dataSource, this, workerPool);
+                companyData = new MariaDbCompanyData(workerPool);
+                orderData = new MariaDbOrderData(workerPool, mapper);
+                notificationData = new MariaDbNotificationData(workerPool);
+                nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 break;
             case POSTGRES:
-                companyData = new PostgresCompanyData(dataSource, this, workerPool);
-                orderData = new PostgresOrderData(dataSource, this, workerPool);
-                notificationData = new PostgresNotificationData(dataSource, this, workerPool);
+                companyData = new PostgresCompanyData(workerPool);
+                orderData = new PostgresOrderData(workerPool, mapper);
+                notificationData = new PostgresNotificationData(workerPool);
+                nodeData = new PostgresNodeData(configuration.nodeSettings());
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
                                                                                     .storageType());

@@ -69,7 +69,7 @@ tasks {
     }
 
     shadowJar {
-        relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
+        //relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
         relocate("net.kyori", shadebase + "kyori")
         relocate("de.chojo.sqlutil", shadebase + "sqlutil")
         mergeServiceFiles()

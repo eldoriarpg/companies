@@ -153,10 +153,10 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
                                                          .getName();
             var builder = MessageComposer.create();
             if (member.hasPermission(permission)) {
-                builder.text("<click:run_command:%s remove %s><u><add>[$%s$]</u></click>", permCmd, permission.name(), permission.translationKey())
+                builder.text("<click:run_command:%s remove %s><u><add>[<l18n:%s>]</u></click>", permCmd, permission.name(), permission.translationKey())
                        .build();
             } else {
-                builder.text("<click:run_command:%s give %s><u><remove>[$%s$]</u></click>", permCmd, permission.name(), permission.translationKey())
+                builder.text("<click:run_command:%s give %s><u><remove>[<l18n:%s>]</u></click>", permCmd, permission.name(), permission.translationKey())
                        .build();
             }
             permissions.add(builder.build());

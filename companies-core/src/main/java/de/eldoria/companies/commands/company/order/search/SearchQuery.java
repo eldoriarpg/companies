@@ -245,7 +245,7 @@ public class SearchQuery {
                 .text("]</click>")
                 .space()
                 .text("<click:run_command:%s order desc><%s>[", queryCmd, Colors.active(!asc))
-                .localeCode("$words.descending$")
+                .localeCode("words.descending")
                 .text("]</click>")
                 .newLine()
                 .text("<click:run_command:%s execute><show>[", queryCmd)

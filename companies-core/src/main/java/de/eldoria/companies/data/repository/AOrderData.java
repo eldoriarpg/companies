@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.data.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import de.chojo.sadu.base.QueryFactory;
@@ -20,7 +22,6 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.companies.util.SerializeContainer;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.threading.futures.FutureResult;
@@ -44,7 +45,7 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("UnusedReturnValue")
-public abstract class AOrderData extends QueryFactory {
+public abstract class AOrderData {
     private final ExecutorService executorService;
     private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder()
                                                                                    .expireAfterAccess(5L, TimeUnit.MINUTES)
@@ -52,13 +53,11 @@ public abstract class AOrderData extends QueryFactory {
     private final Cache<String, MaterialPrice> materialPriceCache = CacheBuilder.newBuilder()
                                                                                 .expireAfterAccess(1L, TimeUnit.HOURS)
                                                                                 .build();
+    private final ObjectMapper mapper;
 
-    public AOrderData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
-        super(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger()
-                                                 .log(Level.SEVERE, "Query exception", e))
-                .build());
+    public AOrderData(ExecutorService executorService, ObjectMapper mapper) {
         this.executorService = executorService;
+        this.mapper = mapper;
     }
 
     // Order Management
@@ -298,12 +297,20 @@ public abstract class AOrderData extends QueryFactory {
 
     protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);
 
-    protected ItemStack toItemStack(String json) {
-        return SerializeContainer.deserializeFromJson(json, ItemStack.class);
+    protected ItemStack toItemStack(String json) throws SQLException {
+        try {
+            return mapper.readValue(json, ItemStack.class);
+        } catch (JsonProcessingException e) {
+            throw new SQLException("Could not parse json to item stack", e);
+        }
     }
 
-    protected String toString(ItemStack stack) {
-        return SerializeContainer.serializeToJson(stack);
+    protected String toJson(ItemStack stack) throws SQLException {
+        try {
+            return mapper.writeValueAsString(stack);
+        } catch (JsonProcessingException e) {
+            throw new SQLException("Could not parse item stack to json", e);
+        }
     }
 
     protected ExecutorService executorService() {
