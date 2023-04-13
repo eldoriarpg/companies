@@ -148,3 +148,27 @@ CREATE TABLE material_price
     CONSTRAINT material_price_pk
         PRIMARY KEY (material)
 );
+
+create table node
+(
+    id      INTEGER PRIMARY KEY AUTOINCREMENT                   not null,
+    uid     blob                  not null,
+    type    text default 'PRIMARY' not null,
+    version text                   not null,
+    constraint node_id_uindex
+        unique (uid)
+);
+
+create table node_configuration
+(
+    node_id int not null,
+    path    text  not null,
+    content text  not null,
+    constraint node_configuration_node_id_fk
+        foreign key (node_id) references node (id)
+            on delete cascade
+
+);
+
+create unique index node_configuration_node_id_path_uindex
+    on node_configuration (node_id, path);

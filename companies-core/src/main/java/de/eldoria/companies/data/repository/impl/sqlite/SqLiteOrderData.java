@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.chojo.sadu.wrapper.util.Row;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
@@ -15,6 +16,8 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
+import org.intellij.lang.annotations.Language;
+import static de.eldoria.companies.data.StaticQueryAdapter.builder;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
@@ -30,69 +33,33 @@ public class SqLiteOrderData extends MariaDbOrderData {
     /**
      * Create a new QueryBuilderFactory
      *
-     * @param dataSource      data source
-     * @param plugin          plugin
      * @param executorService executor for futures
+     * @param mapper
      */
-    public SqLiteOrderData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
-        super(dataSource, plugin, executorService);
-    }
-
-    @Override
-    protected void putOrder(OfflinePlayer player, FullOrder order) {
-        var orderId = builder(Integer.class)
-                .query("INSERT INTO orders(owner_uuid, name) VALUES(?,?)")
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId())
-                                       .setString(order.name()))
-                .append()
-                //Workaround until jdbc is updated to 3.35 which will support RETURNING
-                .query("SELECT id FROM orders WHERE owner_uuid = ? ORDER BY created DESC")
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
-                .readRow(rs -> rs.getInt(1))
-                .firstSync()
-                .get();
-
-        for (var content : order.contents()) {
-            builder()
-                    .query("INSERT INTO order_content(id, material, stack, amount, price) VALUES(?,?,?,?,?)")
-                    .parameter(stmt -> stmt.setInt(orderId)
-                                           .setString(content.stack()
-                                                             .getType()
-                                                             .name())
-                                           .setString(toString(content.stack()))
-                                           .setInt(content.amount())
-                                           .setDouble(content.price()))
-                    .update()
-                    .sendSync();
-        }
-        builder()
-                .query("INSERT INTO order_states(id, state) VALUES(?, ?)")
-                .parameter(stmt -> stmt.setInt(orderId)
-                                       .setInt(OrderState.UNCLAIMED.stateId()))
-                .update()
-                .sendSync();
+    public SqLiteOrderData(ExecutorService executorService, ObjectMapper mapper) {
+        super(executorService, mapper);
     }
 
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
+        @Language("sqlite")
+        var query = """
+                SELECT o.id,
+                       last_update,
+                       company,
+                       state,
+                       owner_uuid,
+                       name,
+                       created
+                FROM order_states s
+                         LEFT JOIN orders o
+                                   ON o.id = s.id
+                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                  AND company IS NOT NULL
+                  AND state = ?
+                ORDER BY last_update""";
         return builder(SimpleOrder.class)
-                .query("""
-                        SELECT
-                        	o.id,
-                        	last_update,
-                        	company,
-                        	state,
-                        	owner_uuid,
-                        	name,
-                        	created
-                        FROM
-                        	order_states s
-                        		LEFT JOIN orders o
-                        		ON o.id = s.id
-                        WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
-                          AND company IS NOT NULL
-                          AND state = ?
-                        ORDER BY last_update""")
+                .query(query)
                 .parameter(stmt -> stmt.setInt(hours)
                                        .setInt(OrderState.CLAIMED.stateId()))
                 .readRow(this::buildSimpleOrder)
@@ -101,24 +68,25 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
     @Override
     protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
+        @Language("sqlite")
+        var query = """
+                SELECT o.id,
+                       last_update,
+                       company,
+                       state,
+                       owner_uuid,
+                       name,
+                       created
+                FROM order_states s
+                         LEFT JOIN orders o
+                                   ON o.id = s.id
+                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                  AND company = ?
+                  AND state = ?
+                ORDER BY last_update
+                """;
         return builder(SimpleOrder.class)
-                .query("""
-                        SELECT
-                        	o.id,
-                        	last_update,
-                        	company,
-                        	state,
-                        	owner_uuid,
-                        	name,
-                        	created
-                        FROM
-                        	order_states s
-                        		LEFT JOIN orders o
-                        		ON o.id = s.id
-                        WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
-                          AND company = ?
-                          AND state = ?
-                        ORDER BY last_update""")
+                .query(query)
                 .parameter(stmt -> stmt.setInt(hours)
                                        .setInt(company.id())
                                        .setInt(OrderState.CLAIMED.stateId()))
@@ -128,15 +96,14 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
     @Override
     protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        @Language("sqlite")
+        var query = """
+                INSERT
+                INTO orders_delivered(id, worker_uuid, material, delivered)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered""";
         builder()
-                .query("""
-                        INSERT
-                        INTO
-                        	orders_delivered(id, worker_uuid, material, delivered)
-                        VALUES
-                        	(?, ?, ?, ?)
-                        ON CONFLICT(id, worker_uuid, material) DO UPDATE SET
-                        	delivered = delivered + excluded.delivered""")
+                .query(query)
                 .parameter(stmt -> stmt.setInt(order.id())
                                        .setUuidAsBytes(player.getUniqueId())
                                        .setString(material.name())
@@ -151,20 +118,20 @@ public class SqLiteOrderData extends MariaDbOrderData {
         Set<Integer> materialMatch;
         var materialFilter = !searchQuery.materials()
                                          .isEmpty();
-        // This is pain. SqLite doesn't support regex from stock so we need to do some dirty looping.
+        // This is pain. SqLite doesn't support regex from stock, so we need to do some dirty looping.
         if (materialFilter) {
             for (var material : searchQuery.materials()) {
+                @Language("sqlite")
+                var select = """
+                        SELECT DISTINCT c.id
+                        FROM order_content c
+                                 LEFT JOIN order_states s
+                                           ON s.id = c.id
+                        WHERE material LIKE ?
+                          AND s.state >= ?
+                          AND s.state <= ?""";
                 var ids = builder(Integer.class)
-                        .query("""
-                                SELECT DISTINCT
-                                	c.id
-                                FROM
-                                	order_content c
-                                		LEFT JOIN order_states s
-                                		ON s.id = c.id
-                                WHERE material LIKE ?
-                                  AND s.state >= ?
-                                  AND s.state <= ?""")
+                        .query(select)
                         .parameter(stmt -> stmt.setString(searchQuery.isExactMatch() ? material : "%" + material + "%"))
                         .readRow(rs -> rs.getInt(1))
                         .allSync();
@@ -187,22 +154,25 @@ public class SqLiteOrderData extends MariaDbOrderData {
             materialMatch = new HashSet<>();
         }
 
+        @Language("sqlite")
+        var query = """
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state
+                FROM orders o
+                         LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
+                                    FROM order_content c
+                                    GROUP BY id) oc
+                                   ON o.id = oc.id
+                         LEFT JOIN order_states os
+                                   ON o.id = os.id
+                WHERE o.name LIKE ?
+                  AND oc.price >= ?
+                  AND oc.price <= ?
+                  AND oc.amount >= ?
+                  AND oc.amount <= ?
+                  AND os.state >= ?
+                  AND os.state <= ?""";
         var orders = builder(SimpleOrder.class)
-                .query("""
-                        SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state
-                        FROM orders o
-                                 LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
-                                            FROM order_content c
-                                            GROUP BY id) oc
-                                           ON o.id = oc.id
-                                 LEFT JOIN order_states os
-                                           ON o.id = os.id
-                        WHERE o.name LIKE ?
-                          AND oc.price >= ?
-                          AND oc.price <= ?
-                          AND oc.amount >= ?
-                          AND oc.amount <= ?
-                          AND os.state >= ? AND os.state <= ?""")
+                .query(query)
                 .parameter(stmt -> stmt.setString("%" + searchQuery.name() + "%")
                                        .setDouble(searchQuery.minPrice())
                                        .setDouble(searchQuery.maxPrice())
@@ -222,22 +192,28 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
     @Override
     public void refreshMaterialPrices() {
+        @Language("sqlite")
+        var query = """
+                INSERT INTO material_price(material, avg_price, min_price, max_price)
+                SELECT material, avg_price, min_price, max_price
+                FROM (SELECT c.material,
+                             AVG(c.price / c.amount) AS avg_price,
+                             MIN(c.price / c.amount) AS min_price,
+                             MAX(c.price / c.amount) AS max_price
+                      FROM (SELECT ROW_NUMBER() OVER (PARTITION BY material ORDER BY last_update DESC) AS id,
+                                   material,
+                                   amount,
+                                   price,
+                                   last_update
+                            FROM order_content c
+                                     LEFT JOIN order_states s ON c.id = s.id
+                            WHERE s.state >= 200) c
+                      WHERE c.id < 100
+                      GROUP BY c.material) avg
+                WHERE TRUE
+                ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price""";
         builder()
-                .queryWithoutParams("""
-                        INSERT INTO material_price(material, avg_price, min_price, max_price)
-                        SELECT material, avg_price, min_price, max_price
-                        FROM (SELECT c.material,
-                                     AVG(c.price / c.amount) AS avg_price,
-                                     MIN(c.price / c.amount) AS min_price,
-                                     MAX(c.price / c.amount) AS max_price
-                              FROM (SELECT ROW_NUMBER() OVER (PARTITION BY material ORDER BY last_update DESC) AS id, material, amount, price, last_update
-                                    FROM order_content c
-                                             LEFT JOIN order_states s ON c.id = s.id
-                                    WHERE s.state >= 200) c
-                              WHERE c.id < 100
-                              GROUP BY c.material) avg
-                        WHERE TRUE
-                        ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price""")
+                .queryWithoutParams(query)
                 .update()
                 .sendSync();
     }

@@ -157,3 +157,29 @@ FROM (SELECT c.material,
             WHERE s.state >= 200) c
       WHERE c.id < 100
       GROUP BY c.material) avg;
+
+create table companies_schema.node
+(
+    id      SERIAL                    not null
+        constraint node_pk
+            primary key,
+    uid     bytea                  not null,
+    type    text default 'PRIMARY' not null,
+    version text                   not null,
+    constraint node_id_uindex
+        unique (uid)
+);
+
+create table companies_schema.node_configuration
+(
+    node_id int not null,
+    path    text  not null,
+    content text  not null,
+    constraint node_configuration_node_id_fk
+        foreign key (node_id) references companies_schema.node (id)
+            on delete cascade
+
+);
+
+create unique index node_configuration_node_id_path_uindex
+    on companies_schema.node_configuration (node_id, path);

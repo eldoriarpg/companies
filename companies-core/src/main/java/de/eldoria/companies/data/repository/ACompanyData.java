@@ -30,14 +30,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
 @SuppressWarnings("UnusedReturnValue")
-public abstract class ACompanyData extends QueryFactory {
+public abstract class ACompanyData {
     private final ExecutorService executorService;
 
-    public ACompanyData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
-        super(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger()
-                                                 .log(Level.SEVERE, "Query exception", e))
-                .build());
+    public ACompanyData(ExecutorService executorService) {
         this.executorService = executorService;
     }
 

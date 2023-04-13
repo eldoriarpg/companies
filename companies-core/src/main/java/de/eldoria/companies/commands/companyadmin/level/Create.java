@@ -6,10 +6,12 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
+import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import org.bukkit.entity.Player;
@@ -34,6 +36,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        CommandAssertions.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
         var position = arguments.asInt(0, Integer.MAX_VALUE);
 
         var level = configuration.companySettings()

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS companies
     CONSTRAINT companies_id_uindex
         UNIQUE (id),
     CONSTRAINT companies_name_uindex
-        UNIQUE (name) USING HASH
+        UNIQUE (name(120)) USING HASH
 );
 
 ALTER TABLE companies
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS company_member
             ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS company_member_id_index
+CREATE INDEX company_member_id_index
     ON company_member (id);
 
 CREATE INDEX IF NOT EXISTS company_member_id_uuid_index
@@ -138,3 +138,33 @@ CREATE TABLE material_price
     CONSTRAINT material_price_pk
         PRIMARY KEY (material)
 );
+
+create table node
+(
+    id      int AUTO_INCREMENT,
+    uid     tinyblob               not null,
+    type    text default 'PRIMARY' not null,
+    version text                   not null,
+    CONSTRAINT node_id_uindex
+        UNIQUE (id),
+    constraint node_uid_uindex
+        unique (uid) using hash
+);
+
+create table node_configuration
+(
+    node_id int  not null,
+    path    text not null,
+    content text not null,
+    constraint node_configuration_node_id_fk
+        foreign key (node_id) references node (id)
+            on delete cascade
+
+);
+
+create index node_configuration_node_id_index
+    on node_configuration (node_id);
+
+create unique index node_configuration_node_id_path_uindex
+    on node_configuration (node_id, path(126));
+

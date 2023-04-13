@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -35,6 +36,7 @@ public class Move extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments args) throws CommandException {
+        CommandAssertions.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
         var optLevel = configuration.companySettings()
                                     .level(args.asInt(0));
         CommandAssertions.isTrue(optLevel.isPresent(), "error.invalidLevel");

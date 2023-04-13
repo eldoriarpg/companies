@@ -31,6 +31,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -97,8 +98,7 @@ public class NotificationService implements Listener {
         sendCompanyMessage(event.company(), "notification.companyLeave",
                 member -> member.uuid()
                                 .equals(event.player()
-                                             .getUniqueId()), Replacement.create("name", event.player()
-                                                                                              .getName()));
+                                             .getUniqueId()), Replacement.create("name", event.player().getName()));
     }
 
     public void sendCompanyMessage(ICompanyProfile company, String message, Predicate<ICompanyMember> filter, TagResolver... replacements) {
@@ -119,8 +119,7 @@ public class NotificationService implements Listener {
         sendCompanyMessage(event.company(), "notification.companyJoin",
                 member -> member.uuid()
                                 .equals(event.player()
-                                             .getUniqueId()), Replacement.create("name", event.player()
-                                                                                              .getName()));
+                                             .getUniqueId()), Replacement.create("name", event.player().getName()));
     }
 
     @EventHandler
@@ -130,8 +129,7 @@ public class NotificationService implements Listener {
         sendCompanyMessage(event.company(), "notification.kicked",
                 member -> member.uuid()
                                 .equals(event.player()
-                                             .getUniqueId()), Replacement.create("name", event.player()
-                                                                                              .getName()));
+                                             .getUniqueId()), Replacement.create("name", event.player().getName()));
     }
 
     @EventHandler
@@ -224,48 +222,52 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         workerPool.schedule(() -> {
-            var notifications = notificationData.retrieveNotifications(event.getPlayer())
-                                                .join();
-            List<String> components = new ArrayList<>();
-
-            for (var currDate : notifications) {
-                var date = currDate.getKey();
-                if (date.equals(LocalDate.now())) {
-                    // Today
-                    components.add("<heading>$words.today$:<neutral>");
-                } else if (date.equals(LocalDate.now()
-                                                .minusDays(1L))) {
-                    // Yesterday
-                    components.add("<heading>$words.yesterday$:<neutral>");
-                } else {
-                    components.add(String.format("<heading>$%s$:<neutral>", DATE_FORMATTER.format(date)));
-                }
-                for (var notification : currDate.getValue()) {
-                    var time = TIME_FORMATTER.format(notification.created());
-                    var data = notification.data();
-                    components.add(String.format("<name>%s:<neutral> %s", time, localizer.localize(data.message())));
-                }
-            }
-            notificationData.submitNotificationClear(event.getPlayer());
-            if (!notifications.isEmpty()) {
-                sender.sendMessage(event.getPlayer(), String.join("\n", components));
-            }
-
-            var orders = orderData.retrieveOrdersByPlayer(event.getPlayer(), OrderState.DELIVERED, OrderState.DELIVERED)
-                                  .join();
-            if (orders == null) return;
-            for (var order : orders) {
-                var message = MessageComposer.create()
-                                             .text("<neutral>")
-                                             .localeCode("notification.orderDone")
-                                             .space()
-                                             .text("<click:run_command:/order receive %s><add>[", order.id())
-                                             .localeCode("notification.recieveItems")
-                                             .text("]</click>")
-                                             .build();
-                sendMessage(event.getPlayer(), message, miniOrderReplacement(order),
-                        Replacement.create("order_name", order.name()));
-            }
+            sendNotifications(event.getPlayer());
+            sendDeliveredOrders(event.getPlayer());
         }, 1L, TimeUnit.SECONDS);
+    }
+
+    private void sendDeliveredOrders(Player player) {
+        var orders = orderData.retrieveOrdersByPlayer(player, OrderState.DELIVERED, OrderState.DELIVERED).join();
+        if (orders == null) return;
+        for (var order : orders) {
+            var message = MessageComposer.create()
+                                         .text("<neutral>")
+                                         .localeCode("notification.orderDone")
+                                         .space()
+                                         .text("<click:run_command:/order receive %s><add>[", order.id())
+                                         .localeCode("notification.recieveItems")
+                                         .text("]</click>")
+                                         .build();
+            sendMessage(player, message, miniOrderReplacement(order),
+                    Replacement.create("order_name", order.name()));
+        }
+    }
+
+    private void sendNotifications(Player player) {
+        var notifications = notificationData.retrieveNotifications(player).join();
+        List<String> components = new ArrayList<>();
+
+        for (var currDate : notifications) {
+            var date = currDate.getKey();
+            if (date.equals(LocalDate.now())) {
+                // Today
+                components.add("<heading><l18n:words.today>:<neutral>");
+            } else if (date.equals(LocalDate.now().minusDays(1L))) {
+                // Yesterday
+                components.add("<heading><l18n:words.yesterday>:<neutral>");
+            } else {
+                components.add(String.format("<heading>%s:<neutral>", DATE_FORMATTER.format(date)));
+            }
+            for (var notification : currDate.getValue()) {
+                var time = TIME_FORMATTER.format(notification.created());
+                var data = notification.data();
+                components.add(String.format("<name>%s:<neutral> %s", time, localizer.localize(data.message())));
+            }
+        }
+        notificationData.submitNotificationClear(player);
+        if (!notifications.isEmpty()) {
+            sender.sendMessage(player, String.join("\n", components));
+        }
     }
 }

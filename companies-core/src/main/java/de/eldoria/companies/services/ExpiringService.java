@@ -43,8 +43,7 @@ public class ExpiringService implements Runnable, Listener {
 
     public static void start(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, ScheduledExecutorService executorService) {
         var expiringService = new ExpiringService(plugin, orderData, companyData, configuration);
-        var interval = configuration.generalSettings()
-                                    .orderCheckInterval();
+        var interval = configuration.generalSettings().orderCheckInterval();
         executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);
     }
 
