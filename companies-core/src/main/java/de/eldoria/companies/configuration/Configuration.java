@@ -15,7 +15,6 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.eldoutilities.config.ConfigKey;
 import de.eldoria.eldoutilities.config.JacksonConfig;
-import de.eldoria.eldoutilities.config.exceptions.ConfigurationException;
 import org.bukkit.plugin.Plugin;
 
 import java.nio.file.Path;
@@ -58,29 +57,37 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         return secondary(NODE_SETTINGS);
     }
 
-    public CompletableFuture<Void> syncConfigurations(ANodeData nodeData) {
+    public <V extends Object> CompletableFuture<Void> syncConfigurations(ANodeData nodeData) {
         return CompletableFuture.runAsync(() -> {
             // Setup database shards
             var nodeSettings = nodeSettings();
             nodeData.updateNode(plugin());
             nodeData.assertPrimaryNode(plugin());
 
-            if(databaseSettings().storageType() == DatabaseSettings.StorageType.SQLITE && nodeSettings.nodeType() == NodeType.SECONDARY){
+            if (databaseSettings().storageType() == DatabaseSettings.StorageType.SQLITE && nodeSettings.nodeType() == NodeType.SECONDARY) {
                 throw new IllegalStateException("Secondary nodes can not be used with SqLite.");
             }
 
+            plugin().getLogger().info("Plugin is running as " + nodeData.nodeType() + " node.");
             // List configurations to sync
-            List<ConfigKey<?>> sync = List.of(Configuration.COMPANY_SETTINGS, Configuration.USER_SETTINGS, Configuration.ORDER_SETTINGS, Configuration.CONFIG_YML);
-
-            for (ConfigKey<?> configKey : sync) {
-                if (nodeSettings.nodeType() == NodeType.PRIMARY) {
-                    // primary nodes always write into database
-                    nodeData.savePrimaryConfiguration(configKey, this);
-                } else {
-                    // secondary nodes always override their settings with database values
-                    replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
-                }
-            }
+            // Generic hell c:
+            sync(nodeData, COMPANY_SETTINGS);
+            sync(nodeData, USER_SETTINGS);
+            sync(nodeData, ORDER_SETTINGS);
+            sync(nodeData, CONFIG_YML);
         });
+    }
+
+    private <V> void sync(ANodeData nodeData, ConfigKey<V> configKey) {
+        if (nodeSettings().nodeType() == NodeType.PRIMARY) {
+            // primary nodes always write into database
+            plugin().getLogger().info("Syncing " + configKey.path() + " to database.");
+            nodeData.savePrimaryConfiguration(configKey, this);
+        } else {
+            // secondary nodes always override their settings with database values
+            plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
+            replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
+            save(configKey);
+        }
     }
 }

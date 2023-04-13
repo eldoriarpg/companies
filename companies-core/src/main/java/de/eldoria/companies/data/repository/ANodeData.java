@@ -75,11 +75,11 @@ public abstract class ANodeData {
      */
     public abstract List<Node> getPrimaryNodes();
 
-    public final <T> Optional<T> loadPrimaryConfiguration(ConfigKey<T> key, JacksonConfig<?> config) {
+    public final <T> T loadPrimaryConfiguration(ConfigKey<T> key, JacksonConfig<?> config) {
         var content = loadPrimaryConfiguration(key.path().toString());
-        if (content.isEmpty()) return Optional.empty();
+        if (content.isEmpty()) new IllegalStateException("No configuration present. Did you start the main node once already?");
         try {
-            return Optional.ofNullable(config.reader().readValue(content.get(), key.configClazz()));
+            return config.reader().readValue(content.get(), key.configClazz());
         } catch (JsonProcessingException e) {
             throw new ConfigurationException("Could not parse configuration " + key.path(), e);
         }

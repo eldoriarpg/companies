@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS companies
     CONSTRAINT companies_id_uindex
         UNIQUE (id),
     CONSTRAINT companies_name_uindex
-        UNIQUE (name) USING HASH
+        UNIQUE (name(120)) USING HASH
 );
 
 ALTER TABLE companies
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS company_member
             ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS company_member_id_index
+CREATE INDEX company_member_id_index
     ON company_member (id);
 
 CREATE INDEX IF NOT EXISTS company_member_id_uuid_index
