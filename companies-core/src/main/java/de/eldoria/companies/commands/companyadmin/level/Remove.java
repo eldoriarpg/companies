@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -33,6 +34,7 @@ public class Remove extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+        CommandAssertions.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
         var level = args.asInt(0);
         var success = configuration.companySettings()
                                    .deleteLevel(level);
