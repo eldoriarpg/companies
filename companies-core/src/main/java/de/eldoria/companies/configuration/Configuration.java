@@ -61,6 +61,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         return CompletableFuture.runAsync(() -> {
             // Setup database shards
             var nodeSettings = nodeSettings();
+            save(NODE_SETTINGS);
             nodeData.updateNode(plugin());
             nodeData.assertPrimaryNode(plugin());
 

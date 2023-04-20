@@ -70,7 +70,7 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                        composer.text("<click:run_command:/company leave confirm><remove>[")
                                .localeCode("words.confirm")
                                .text("</click>");
-                       messageSender().sendMessage(player, composer.build());
+                       messageSender().sendMessage(player, composer);
                    });
     }
 

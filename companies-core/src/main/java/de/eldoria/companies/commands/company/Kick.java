@@ -71,10 +71,7 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.submitMemberUpdate(target.kick())
                    .join();
         messageSender().sendMessage(sender, "company.kick.kicked",
-                Replacement.create("name", target.player()
-                                                 .getName(), Style.style()
-                                                                  .color(NamedTextColor.GOLD)
-                                                                  .build()));
+                Replacement.create("name", target.player().getName()));
 
         plugin().getServer()
                 .getPluginManager()

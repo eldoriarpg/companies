@@ -118,6 +118,6 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
         }
         composer.prependLines(25);
         messageBlocker.announce(player, "[x]");
-        messageSender().sendMessage(player, composer.build());
+        messageSender().sendMessage(player, composer);
     }
 }

@@ -173,7 +173,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                                       .text("<click:run_command:/company invite deny><remove>[")
                                       .localeCode("deny")
                                       .text("]</click>");
-        messageSender().sendMessage(target, composer.build());
+        messageSender().sendMessage(target, composer);
         invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
         delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
     }

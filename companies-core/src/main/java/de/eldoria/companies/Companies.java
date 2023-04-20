@@ -108,7 +108,7 @@ public class Companies extends EldoPlugin {
 
         new MessageSenderBuilder(this)
                 .errorColor(TextColor.fromHexString("#f05316"))
-                .messageColor(TextColor.fromHexString("#09ad3a"))
+                .messageColor(NamedTextColor.DARK_AQUA)
                 // TODO: Make those configurable
                 .prefix("<#00a6ff>[C]")
                 .localizer(localizer)
