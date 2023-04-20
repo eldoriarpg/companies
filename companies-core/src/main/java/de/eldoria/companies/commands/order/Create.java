@@ -348,7 +348,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                                     orderData.submitOrder(player, order.build())
                                                              .whenComplete(v -> messageBlocker.unblockPlayer(player)
                                                                                           .whenComplete((unused, err) -> {
-                                                                               messageSender().sendMessage(player, "order.create.created");
+                                                                               messageSender().sendMessage(player, MessageComposer.escape("order.create.created"));
                                                                                builderCache.invalidate(player.getUniqueId());
                                                                            }));
                                                 } else {
@@ -379,7 +379,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
-        messageSender().sendMessage(player, builder.build());
+        messageSender().sendMessage(player, builder);
     }
 
     @NotNull

@@ -74,8 +74,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                                      .space(2)
                                      .text("<name>")
                                      .localeCode("level.orderCount")
-                                     .text(": <value>%s ", level.requirement()
-                                                                .orderCount())
+                                     .text(": <value>%s ", level.requirement().orderCount())
                                      .text("<click:suggest_command:%s order_count ><modify>[", edit)
                                      .localeCode("words.change")
                                      .text("]</click>")
@@ -83,8 +82,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                                      .space(2)
                                      .text("<name>")
                                      .localeCode("level.memberCount")
-                                     .text(": <value>%s ", level.requirement()
-                                                                .memberCount())
+                                     .text(": <value>%s ", level.requirement().memberCount())
                                      .text("<click:suggest_command:%s member_count ><modify>[", edit)
                                      .localeCode("words.change")
                                      .text("]</click>")
@@ -92,8 +90,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                                      .space(2)
                                      .text("<name>")
                                      .localeCode("level.earnedMoney")
-                                     .text(": <value>%s ", level.requirement()
-                                                                .earnedMoney())
+                                     .text(": <value>%s ", level.requirement().earnedMoney())
                                      .text("<click:suggest_command:%s earned_money ><modify>[", edit)
                                      .localeCode("words.change")
                                      .text("]</click>")
@@ -101,8 +98,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                                      .space(2)
                                      .text("<name>")
                                      .localeCode("level.deliveredItems")
-                                     .text(": <value>%s ", level.requirement()
-                                                                .deliveredItems())
+                                     .text(": <value>%s ", level.requirement().deliveredItems())
                                      .text("<click:suggest_command:%s delivered_items ><modify>[", edit)
                                      .localeCode("words.change")
                                      .text("]</click>")
@@ -113,8 +109,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                                      .space(2)
                                      .text("<name>")
                                      .localeCode("level.maxMember")
-                                     .text(": <value>%s", level.settings()
-                                                               .maxMembers())
+                                     .text(": <value>%s", level.settings().maxMembers())
                                      .text("<click:suggest_command:%s max_members ><modify>[", edit)
                                      .localeCode("words.change")
                                      .text("]</click>")
@@ -122,8 +117,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                                      .space(2)
                                      .text("<name>")
                                      .localeCode("level.maxOrders")
-                                     .text(": <value>%s", level.settings()
-                                                               .maxOrders())
+                                     .text(": <value>%s", level.settings().maxOrders())
                                      .text("<click:suggest_command:%s max_orders ><modify>[", edit)
                                      .localeCode("words.change")
                                      .text("]</click>");
@@ -133,7 +127,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
-        messageSender().sendMessage(player, builder.build());
+        messageSender().sendMessage(player, builder);
     }
 
     @Override

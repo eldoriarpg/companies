@@ -87,7 +87,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
-        messageSender().sendMessage(player, builder.build());
+        messageSender().sendMessage(player, builder);
     }
 
     private List<FullOrder> page(List<FullOrder> orders, int page) {

@@ -61,15 +61,14 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
                                                    .join();
                        if (optProfile.isEmpty()) return;
                        var builder = MessageComposer.create()
-                                                    .text(optProfile.get()
-                                                                    .asExternalProfileComponent(configuration));
+                                                    .text(optProfile.get().asExternalProfileComponent(configuration));
                        if (messageBlocker.isBlocked(player)) {
                            builder.newLine()
                                   .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
                        }
                        messageBlocker.announce(player, "[x]");
                        builder.prependLines(25);
-                       messageSender().sendMessage(player, builder.build());
+                       messageSender().sendMessage(player, builder);
                    })
                    .exceptionally(err -> {
                        plugin().getLogger()
