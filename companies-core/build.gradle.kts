@@ -8,7 +8,7 @@ val shadebase = project.group as String + ".companies.libs."
 
 publishData {
     addBuildData()
-    useEldoNexusRepos()
+    useInternalEldoNexusRepos()
     publishTask("shadowJar")
     publishTask("javadocJar")
     publishTask("sourcesJar")
