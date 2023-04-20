@@ -47,6 +47,10 @@ dependencies {
     bukkitLibrary("net.kyori", "adventure-api", "4.12.0")
     bukkitLibrary("net.kyori", "adventure-platform-bukkit", "4.2.0")
 
+    bukkitLibrary("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml","2.14.2")
+    bukkitLibrary("com.fasterxml.jackson.core", "jackson-core","2.14.2")
+    bukkitLibrary("com.fasterxml.jackson.core:jackson-databind:2.14.2")
+
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
     compileOnly("me.clip", "placeholderapi", "2.11.2")
 
@@ -122,9 +126,9 @@ bukkit {
         register("companies.*") {
             description = "gives access to all company commands"
             children = listOf(
-                    "companies.order.*",
-                    "companies.admin.*",
-                    "companies.company.*"
+                "companies.order.*",
+                "companies.admin.*",
+                "companies.company.*"
             )
         }
 
