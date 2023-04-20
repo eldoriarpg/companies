@@ -22,9 +22,14 @@ subprojects {
 
 allprojects {
     repositories {
+//        mavenLocal {
+//            content {
+//                includeGroup("de.eldoria.util")
+//            }
+//        }
         mavenCentral()
-        maven("https://eldonexus.de/repository/maven-public/")
         maven("https://eldonexus.de/repository/maven-proxies/")
+        maven("https://eldonexus.de/repository/maven-public/")
         maven("https://jitpack.io")
         maven("https://repo.dmulloy2.net/repository/public/")
         maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")

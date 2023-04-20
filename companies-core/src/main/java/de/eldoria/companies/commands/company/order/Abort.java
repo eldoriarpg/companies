@@ -72,7 +72,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                                                      .localeCode("words.confirm")
                                                      .text("]</click>");
                        cancel.put(player.getUniqueId(), order.get());
-                       messageSender().sendMessage(player, composer.build());
+                       messageSender().sendMessage(player, composer);
                    })
                    .exceptionally(err -> {
                        plugin().getLogger()

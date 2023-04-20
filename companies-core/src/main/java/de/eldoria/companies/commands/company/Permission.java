@@ -61,8 +61,8 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         var method = arguments.asString(1);
         if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
             messageSender().sendErrorActionBar(player, "error.invalidAction",
-                    Replacement.create("first", "GIVE", Style.style(NamedTextColor.DARK_RED)),
-                    Replacement.create("second", "REMOVE", Style.style(NamedTextColor.RED)));
+                    Replacement.create("first", "GIVE"),
+                    Replacement.create("second", "REMOVE"));
             return;
         }
         var permission = arguments.asEnum(2, CompanyPermission.class);
@@ -176,6 +176,6 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         composer.prependLines(25);
-        messageSender().sendMessage(player, composer.build());
+        messageSender().sendMessage(player, composer);
     }
 }

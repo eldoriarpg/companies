@@ -44,6 +44,6 @@ public class Render extends AdvancedCommand implements IPlayerTabExecutor {
         }
         message.prependLines(25);
         messageBlocker.announce(player, "[x]");
-        messageSender().sendMessage(player, message.build());
+        messageSender().sendMessage(player, message);
     }
 }

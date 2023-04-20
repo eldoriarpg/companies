@@ -79,10 +79,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                        var composer = MessageComposer.create()
                                                      .text("<neutral>")
                                                      .localeCode("company.create.create",
-                                                             Replacement.create("AMOUNT", String.format("<heading>%s<neutral>",
+                                                             Replacement.create("AMOUNT", String.format("%s",
                                                                      economy.format(configuration.companySettings()
                                                                                                  .foundingPrice()))),
-                                                             Replacement.create("NAME", String.format("<heading>%s<neutral>", name)))
+                                                             Replacement.create("NAME", String.format("%s", name)))
                                                      .newLine()
                                                      .text("<click:run_command:/company create confirm><add>[")
                                                      .localeCode("words.confirm")
@@ -91,7 +91,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                                      .text("<click:run_command:/company create deny><remove>[")
                                                      .localeCode("words.deny")
                                                      .text("]</click>");
-                       messageSender().sendMessage(player, composer.build());
+                       messageSender().sendMessage(player, composer);
                        registrations.put(player.getUniqueId(), name);
                    });
     }

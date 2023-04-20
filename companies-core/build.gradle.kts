@@ -6,10 +6,6 @@ plugins {
 group = "de.eldoria"
 val shadebase = project.group as String + ".companies.libs."
 
-repositories {
-    mavenCentral()
-}
-
 publishData {
     addBuildData()
     useEldoNexusRepos()

@@ -51,15 +51,14 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                          messageBlocker.blockPlayer(player);
                          var fullOrder = orderData.retrieveFullOrder(order.get())
                                                   .join();
-                         var builder = MessageComposer.create()
-                                                      .text(fullOrder.userDetailInfo(economy));
+                         var builder = MessageComposer.create().text(fullOrder.userDetailInfo(economy));
                          if (messageBlocker.isBlocked(player)) {
                              builder.newLine()
                                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
                          }
                          messageBlocker.announce(player, "[x]");
                          builder.prependLines(25);
-                         messageSender().sendMessage(player, builder.build());
+                         messageSender().sendMessage(player, builder);
                          return;
                      }
                      messageSender().sendErrorActionBar(player, "error.unkownOrder");

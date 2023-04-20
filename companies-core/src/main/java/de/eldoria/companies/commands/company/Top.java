@@ -85,6 +85,6 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
         }
         messageBlocker.announce(player, "[x]");
         composer.prependLines(25);
-        messageSender().sendMessage(player, composer.build());
+        messageSender().sendMessage(player, composer);
     }
 }

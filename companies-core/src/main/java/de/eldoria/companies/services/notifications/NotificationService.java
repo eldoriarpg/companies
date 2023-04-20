@@ -154,8 +154,7 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
         sendCompanyMessage(event.company(), "notification.orderCanceled",
-                Replacement.create("order_name", event.order()
-                                                      .fullName(), Style.style(NamedTextColor.GOLD)));
+                Replacement.create("order_name", event.order().fullName()));
     }
 
     @EventHandler
@@ -163,8 +162,7 @@ public class NotificationService implements Listener {
         sendMessage(plugin.getServer()
                           .getOfflinePlayer(event.order()
                                                  .owner()), "notification.orderRemoved",
-                Replacement.create("order_name", event.order()
-                                                      .fullName(), Style.style(NamedTextColor.GOLD)));
+                Replacement.create("order_name", event.order().fullName()));
     }
 
     @EventHandler
@@ -186,8 +184,7 @@ public class NotificationService implements Listener {
                                                                                            .name()));
 
         sendCompanyMessage(event.company(), "notification.orderDelivered",
-                Replacement.create("order_name", event.order()
-                                                      .fullName(), Style.style(NamedTextColor.GOLD)));
+                Replacement.create("order_name", event.order().fullName()));
     }
 
     @EventHandler
@@ -200,23 +197,20 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
         sendMessage(event.player(), "notification.orderPayment",
-                Replacement.create("amount", event.amount(), Style.style(NamedTextColor.GOLD)),
-                Replacement.create("order_name", event.order()
-                                                      .fullName(), Style.style(NamedTextColor.GOLD)));
+                Replacement.create("amount", event.amount()),
+                Replacement.create("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onCompanyLevelUp(CompanyLevelUpEvent event) {
         sendCompanyMessage(event.company(), "notification.companyLevelUp",
-                Replacement.create("NEW_LEVEL", event.newLevel()
-                                                     .levelName(), Style.style(NamedTextColor.GOLD)));
+                Replacement.create("NEW_LEVEL", event.newLevel().levelName()));
     }
 
     @EventHandler
     public void onCompanyLevelDown(CompanyLevelDownEvent event) {
         sendCompanyMessage(event.company(), "notification.companyLevelDown",
-                Replacement.create("NEW_LEVEL", event.newLevel()
-                                                     .levelName(), Style.style(NamedTextColor.GOLD)));
+                Replacement.create("NEW_LEVEL", event.newLevel().levelName()));
     }
 
     @EventHandler

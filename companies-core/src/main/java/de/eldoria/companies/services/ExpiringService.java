@@ -74,7 +74,7 @@ public class ExpiringService implements Runnable, Listener {
                     .text("]</click>")
                     .newLine();
         }
-        messageSender.sendMessage(player, composer.build());
+        messageSender.sendMessage(player, composer);
     }
 
     @Override
