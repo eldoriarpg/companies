@@ -13,7 +13,7 @@ dependencies {
     }
     api("de.eldoria.util", "plugin", "2.0.0-DEV")
     api("de.eldoria.util", "localization", "2.0.0-DEV")
-    api("de.eldoria.util", "messaging", "2.0.0-DEV")
+    api("de.eldoria.util", "messaging", "2.0.0-SNAPSHOT")
     api("de.eldoria.util", "threading", "2.0.0-DEV")
     api("de.eldoria", "messageblocker", "1.1.1")
 
