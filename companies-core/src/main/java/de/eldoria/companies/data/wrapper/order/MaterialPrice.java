@@ -48,19 +48,19 @@ public class MaterialPrice implements de.eldoria.companies.components.order.IMat
         return maxPrice;
     }
 
-    public String asComponent(Economy economy) {
+    public String asComponent(int amount, Economy economy) {
         return MessageComposer.create()
                               .text("<yellow>")
                               .localeCode("words.avg")
-                              .text(": %s", economy.format(avgPrice))
+                              .text(": %s", economy.format(avgPrice * amount))
                               .newLine()
                               .text("<green>")
                               .localeCode("words.min")
-                              .text(": %s", economy.format(minPrice))
+                              .text(": %s", economy.format(minPrice * amount))
                               .newLine()
                               .text("<red>")
                               .localeCode("words.max")
-                              .text(": %s", economy.format(maxPrice))
+                              .text(": %s", economy.format(maxPrice * amount))
                               .build();
     }
 

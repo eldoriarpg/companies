@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.IOrderContent;
+import de.eldoria.companies.util.Features;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -16,8 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class
-OrderContent implements IOrderContent {
+public class OrderContent implements IOrderContent {
     private final ItemStack stack;
     private int amount;
     private List<ContentPart> parts = new ArrayList<>();
@@ -61,8 +61,8 @@ OrderContent implements IOrderContent {
     @Override
     public int delivered() {
         return parts.stream()
-                    .mapToInt(ContentPart::amount)
-                    .sum();
+                .mapToInt(ContentPart::amount)
+                .sum();
     }
 
     @Override
@@ -71,10 +71,24 @@ OrderContent implements IOrderContent {
     }
 
     @Override
-    public String materialString() {
+    public String materialIdentifier() {
         return stack.getType()
-                    .name()
-                    .toLowerCase();
+                .name()
+                .toLowerCase();
+    }
+
+    @Override
+    public String translatedMaterialString() {
+        if (Features.HAS_TRANSLATION_KEY) {
+            return "<tr:%s>".formatted(stack.getType().translationKey());
+        }
+        if (Features.HAS_GET_TRANSLATION_KEY) {
+            return "<tr:%s>".formatted(stack.getType().getTranslationKey());
+        }
+        return stack().getType()
+                .name()
+                .toLowerCase()
+                .replace("_", " ");
     }
 
     @Override
@@ -92,11 +106,11 @@ OrderContent implements IOrderContent {
     }
 
     public String asComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", prettyType(), "blue", amount, "gold", economy.format(price));
+        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", translatedMaterialString(), "blue", amount, "gold", economy.format(price));
     }
 
     public String asProgressComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", prettyType(), "blue", delivered(), amount, "gold", economy.format(price));
+        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", translatedMaterialString(), "blue", delivered(), amount, "gold", economy.format(price));
     }
 
     public Map<UUID, Double> payments() {

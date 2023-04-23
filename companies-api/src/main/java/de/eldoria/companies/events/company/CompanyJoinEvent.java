@@ -7,6 +7,7 @@ package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.events.components.PlayerProvider;
+import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
@@ -20,7 +21,7 @@ public class CompanyJoinEvent extends CompanyEvent<ICompanyProfile> implements P
     private final OfflinePlayer player;
 
     public CompanyJoinEvent(ICompanyProfile company, OfflinePlayer player) {
-        super(company, true);
+        super(company, !Bukkit.isPrimaryThread());
         this.player = player;
     }
 

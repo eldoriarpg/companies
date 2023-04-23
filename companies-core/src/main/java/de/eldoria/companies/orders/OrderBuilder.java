@@ -82,16 +82,16 @@ public class OrderBuilder {
         }
 
         for (var element : elements) {
-            var materialPrice = orderData.getMaterialPrice(element.materialString());
+            var materialPrice = orderData.getMaterialPrice(element.materialIdentifier());
             composer.newLine()
                     .space(2)
-                    .text("<value><hover:show_text:'%s'>%s</hover>", materialPrice.asComponent(economy), element.asComponent(economy))
+                    .text("<value><hover:show_text:'%s'>%s</hover>", materialPrice.asComponent(element.amount(), economy), element.asComponent(economy))
                     .space()
-                    .text("<click:run_command:%s remove %s><remove>[", cmd, element.materialString())
+                    .text("<click:run_command:%s remove %s><remove>[", cmd, element.materialIdentifier())
                     .localeCode("words.remove")
-                    .text("]</click> <click:suggest_command:%s price %s ><modify>[", cmd, element.materialString())
+                    .text("]</click> <click:suggest_command:%s price %s ><modify>[", cmd, element.materialIdentifier())
                     .localeCode("words.price")
-                    .text("]</click> <click:suggest_command:%s amount %s ><modify>[", cmd, element.materialString())
+                    .text("]</click> <click:suggest_command:%s amount %s ><modify>[", cmd, element.materialIdentifier())
                     .localeCode("words.amount")
                     .text("]</click>");
         }

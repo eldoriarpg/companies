@@ -37,7 +37,8 @@ allprojects {
 
 
     dependencies {
-        compileOnly("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
+        compileOnly("org.spigotmc", "spigot-api", "1.19.4-R0.1-SNAPSHOT")
+        compileOnly("io.papermc.paper", "paper-api", "1.17.1-R0.1-SNAPSHOT")
         compileOnly("org.jetbrains", "annotations", "24.0.1")
 
         testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")

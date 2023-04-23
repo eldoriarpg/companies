@@ -181,7 +181,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                     composer.text("<add>")
                             .text("<click:run_command:%s 1>[1]</click>", baseCommand)
                             .text("<click:run_command:%s 8>[8]</click>", baseCommand)
-                            .text("<click:run_command:%s 16>[32]</click>", baseCommand)
+                            .text("<click:run_command:%s 32>[32]</click>", baseCommand)
                             .text("<click:run_command:%s 64>[64]</click>", baseCommand)
                             .text("<click:run_command:%s max>[", baseCommand)
                             .localeCode("words.max")

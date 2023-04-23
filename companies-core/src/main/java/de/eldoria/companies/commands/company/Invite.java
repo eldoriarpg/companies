@@ -161,11 +161,11 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {
-        messageSender().sendMessage(inviter, "company.invite.inviteSend", Replacement.create("NAME", target));
+        messageSender().sendMessage(inviter, "company.invite.inviteSend", Replacement.create("name", target));
         var composer = MessageComposer.create()
                                       .text("<neutral>")
                                       .localeCode("company.invite.invited",
-                                              Replacement.create("NAME", String.format("<heading>%s<neutral>", company.name())))
+                                              Replacement.create("name", String.format("<heading>%s<neutral>", company.name())))
                                       .newLine()
                                       .text("<click:run_command:/company invite accept><add>[")
                                       .localeCode("accept")
@@ -199,7 +199,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
         messageSender().sendMessage(player, "company.invite.joined");
         if (inviter.isOnline()) {
-            messageSender().sendMessage(inviter.getPlayer(), "company.invite.accepted", Replacement.create("NAME", player));
+            messageSender().sendMessage(inviter.getPlayer(), "company.invite.accepted", Replacement.create("name", player));
         }
 
         plugin().getServer()

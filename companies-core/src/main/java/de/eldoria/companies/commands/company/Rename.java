@@ -104,10 +104,10 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                        var composer = MessageComposer.create()
                                                      .text("<neutral>")
                                                      .localeCode("company.rename.confirm",
-                                                             Replacement.create("AMOUNT", String.format("<heading>%s<neutral>",
+                                                             Replacement.create("amount", String.format("<heading>%s<neutral>",
                                                                      economy.format(configuration.companySettings()
                                                                                                  .foundingPrice()))),
-                                                             Replacement.create("NAME", String.format("<heading>%s<neutral>", name)))
+                                                             Replacement.create("name", String.format("<heading>%s<neutral>", name)))
                                                      .newLine()
                                                      .text("<%s><click:run_command:/company rename confirm><add>[")
                                                      .localeCode("words.confirm")

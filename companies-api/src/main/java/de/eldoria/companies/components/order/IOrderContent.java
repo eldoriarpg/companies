@@ -19,19 +19,15 @@ public interface IOrderContent {
 
     double price();
 
-    default String prettyType() {
-        return stack().getType()
-                      .name()
-                      .replace("_", " ");
-    }
-
     ItemStack stack();
 
     int delivered();
 
     double percent();
 
-    String materialString();
+    String materialIdentifier();
+
+    String translatedMaterialString();
 
     Material material();
 

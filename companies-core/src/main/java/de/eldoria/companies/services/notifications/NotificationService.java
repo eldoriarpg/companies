@@ -204,13 +204,13 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onCompanyLevelUp(CompanyLevelUpEvent event) {
         sendCompanyMessage(event.company(), "notification.companyLevelUp",
-                Replacement.create("NEW_LEVEL", event.newLevel().levelName()));
+                Replacement.create("new_level", event.newLevel().levelName()));
     }
 
     @EventHandler
     public void onCompanyLevelDown(CompanyLevelDownEvent event) {
         sendCompanyMessage(event.company(), "notification.companyLevelDown",
-                Replacement.create("NEW_LEVEL", event.newLevel().levelName()));
+                Replacement.create("new_level", event.newLevel().levelName()));
     }
 
     @EventHandler

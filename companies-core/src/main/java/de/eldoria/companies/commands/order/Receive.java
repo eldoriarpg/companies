@@ -71,7 +71,7 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
                                                     player.getInventory()
                                                           .addItem(stacks.toArray(ItemStack[]::new));
                                                     orderData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
-                                                    messageSender().sendError(player, "order.receive.received");
+                                                    messageSender().sendMessage(player, "order.receive.received");
                                                 });
                               });
                  });

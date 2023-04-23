@@ -49,8 +49,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
     private final AOrderData orderData;
     private final Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder()
-                                                                       .expireAfterAccess(5L, TimeUnit.MINUTES)
-                                                                       .build();
+            .expireAfterAccess(5L, TimeUnit.MINUTES)
+            .build();
 
     public Create(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("create")
@@ -66,8 +66,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args) throws CommandException {
-        if (!builderCache.asMap()
-                         .containsKey(player.getUniqueId())) {
+        if (!builderCache.asMap().containsKey(player.getUniqueId())) {
             CommandAssertions.invalidArguments(meta(), args, Argument.input("words.name", true));
             initCreation(player, args);
             return;
@@ -130,8 +129,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         if ("remove".equalsIgnoreCase(cmd)) {
             if (args.sizeIs(2)) {
                 Completion.complete(args.asString(0), builder.elements()
-                                                             .stream()
-                                                             .map(OrderContent::materialString));
+                        .stream()
+                        .map(OrderContent::materialIdentifier));
             }
             return Collections.emptyList();
         }
@@ -140,15 +139,14 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private static List<String> completePrice(@NotNull Arguments args, OrderBuilder builder) {
         if (args.sizeIs(2)) {
-            if (args.asString(1)
-                    .isBlank())
+            if (args.asString(1).isBlank())
                 return builder.elements()
-                              .stream()
-                              .map(OrderContent::materialString)
-                              .collect(Collectors.toList());
-            return Completion.complete(args.asString(1), builder.elements()
-                                                                .stream()
-                                                                .map(OrderContent::materialString));
+                        .stream()
+                        .map(OrderContent::materialIdentifier)
+                        .collect(Collectors.toList());
+            return Completion.complete(args.asString(1),
+                    builder.elements().stream()
+                            .map(OrderContent::materialIdentifier));
         }
         if (args.sizeIs(3)) {
             return Completion.completeMinDouble(args.asString(2), 0.0);
@@ -161,18 +159,18 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             if (args.asString(1)
                     .isEmpty())
                 return builder.elements()
-                              .stream()
-                              .map(OrderContent::materialString)
-                              .collect(Collectors.toList());
+                        .stream()
+                        .map(OrderContent::materialIdentifier)
+                        .collect(Collectors.toList());
             return Completion.complete(args.asString(1), builder.elements()
-                                                                .stream()
-                                                                .map(OrderContent::materialString));
+                    .stream()
+                    .map(OrderContent::materialIdentifier));
         }
 
         if (args.sizeIs(3)) {
             var material = EnumUtil.parse(args.asString(1), Material.class);
             var max = configuration.orderSetting()
-                                   .maxItems() - builder.amount(material.orElse(null));
+                    .maxItems() - builder.amount(material.orElse(null));
             return Completion.completeInt(args.asString(2), 1, max);
         }
 
@@ -191,7 +189,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             if (args.asString(2)
                     .isEmpty()) return Collections.singletonList(localizer().localize("words.amount"));
             var max = configuration.orderSetting()
-                                   .maxItems() - builder.amount();
+                    .maxItems() - builder.amount();
             return Completion.completeInt(args.asString(2), 1, max);
         }
         var amount = Parser.parseInt(args.asString(2));
@@ -199,12 +197,12 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             if (args.asString(3)
                     .isEmpty()) return Collections.singletonList(localizer().localize("words.price"));
             var result = Completion.completeMinDouble(args.asString(3), 0.0);
-            result.add("Avg: " + amount.map(a -> a * price.avgPrice())
-                                       .orElse(0.0));
-            result.add("Min: " + amount.map(a -> a * price.minPrice())
-                                       .orElse(0.0));
-            result.add("Max: " + amount.map(a -> a * price.maxPrice())
-                                       .orElse(0.0));
+            result.add("Avg: %.02f".formatted(amount.map(a -> a * price.avgPrice())
+                    .orElse(0.0)));
+            result.add("Min: %.02f".formatted(amount.map(a -> a * price.minPrice())
+                    .orElse(0.0)));
+            result.add("Max: %.02f".formatted(amount.map(a -> a * price.maxPrice())
+                    .orElse(0.0)));
             return result;
         }
         return Collections.emptyList();
@@ -212,24 +210,24 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void initCreation(Player player, @NotNull Arguments args) {
         orderData.retrievePlayerOrderCount(player)
-                 .whenComplete(count -> {
-                     if (count >= configuration.userSettings()
-                                               .maxOrders()) {
-                         messageSender().sendError(player, "order.create.error.limitReached");
-                         return;
-                     }
-                     var name = args.join();
-                     var builder = new OrderBuilder(player.getUniqueId(), name);
-                     builderCache.put(player.getUniqueId(), builder);
-                     messageBlocker.blockPlayer(player);
-                     sendBuilder(player, builder);
-                 });
+                .whenComplete(count -> {
+                    if (count >= configuration.userSettings()
+                            .maxOrders()) {
+                        messageSender().sendError(player, "order.create.error.limitReached");
+                        return;
+                    }
+                    var name = args.join();
+                    var builder = new OrderBuilder(player.getUniqueId(), name);
+                    builderCache.put(player.getUniqueId(), builder);
+                    messageBlocker.blockPlayer(player);
+                    sendBuilder(player, builder);
+                });
     }
 
     private void name(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("name", this)
-                            .addArgument("words.name", true)
-                            .build();
+                .addArgument("words.name", true)
+                .build();
         CommandAssertions.invalidArguments(subMeta, args);
         CommandAssertions.invalidLength(args.join(), 32);
 
@@ -239,10 +237,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void completeAdd(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("name", this)
-                            .addArgument("words.material", true)
-                            .addArgument("words.amount", true)
-                            .addArgument("words.price", true)
-                            .build();
+                .addArgument("words.material", true)
+                .addArgument("words.amount", true)
+                .addArgument("words.price", true)
+                .build();
         CommandAssertions.invalidArguments(subMeta, args);
 
         var builder = getPlayerBuilder(player);
@@ -253,28 +251,25 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         amount = Math.max(amount, 1);
         price = Math.max(price, 0.0);
 
-        if (builder.materialsAmount() >= configuration.orderSetting()
-                                                      .maxMaterials()) {
+        if (builder.materialsAmount() >= configuration.orderSetting().maxMaterials()) {
             messageSender().sendErrorActionBar(player, "order.create.error.materialLimit");
             return;
         }
-        if (builder.amount() >= configuration.orderSetting()
-                                             .maxItems()) {
+        if (builder.amount() >= configuration.orderSetting().maxItems()) {
             messageSender().sendErrorActionBar(player, "order.create.error.itemLimit");
             return;
         }
 
 
-        builder.addContent(new ItemStack(material), Math.min(amount, configuration.orderSetting()
-                                                                                  .maxItems() - Math.max(1, builder.amount())),
+        builder.addContent(new ItemStack(material), Math.min(amount, configuration.orderSetting().maxItems() - Math.max(1, builder.amount())),
                 Math.max(0.0, price));
         sendBuilder(player, builder);
     }
 
     private void remove(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("name", this)
-                            .addArgument("words.material", true)
-                            .build();
+                .addArgument("words.material", true)
+                .build();
         CommandAssertions.invalidArguments(subMeta, args);
 
         var builder = getPlayerBuilder(player);
@@ -285,9 +280,9 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void price(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("price", this)
-                            .addArgument("words.material", true)
-                            .addArgument("words.price", true)
-                            .build();
+                .addArgument("words.material", true)
+                .addArgument("words.price", true)
+                .build();
         CommandAssertions.invalidArguments(subMeta, args);
 
         var material = args.asMaterial(0);
@@ -300,9 +295,9 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
     private void amount(Player player, Arguments args) throws CommandException {
         var subMeta = meta().forSubCommand("amount", this)
-                            .addArgument("words.material", true)
-                            .addArgument("words.amount", true)
-                            .build();
+                .addArgument("words.material", true)
+                .addArgument("words.amount", true)
+                .build();
         CommandAssertions.invalidArguments(subMeta, args);
         var material = args.asMaterial(0);
         var amount = Math.max(args.asInt(1), 0);
@@ -314,7 +309,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         var builder = getPlayerBuilder(player);
         builder.changeContentAmount(material, Math.min(configuration.orderSetting()
-                                                                    .maxItems() - builder.amount(material), amount));
+                .maxItems() - builder.amount(material), amount));
     }
 
     private void done(Player player) throws CommandException {
@@ -324,58 +319,57 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         CommandAssertions.isTrue(order != null, "order.create.error.notActive");
         CommandAssertions.isFalse(order.elements()
-                                       .isEmpty(), "order.create.error.empty", TagResolver.empty());
+                .isEmpty(), "order.create.error.empty", TagResolver.empty());
 
         var price = order.price();
 
         orderData.retrievePlayerOrderCount(player)
-                 .whenComplete(count -> {
-                     if (count >= Permission.Orders.getOrderOverride(player)
-                                                   .orElse(configuration.userSettings()
-                                                                        .maxOrders())) {
-                         messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
-                         return;
-                     }
-                     CompletableBukkitFuture.supplyAsync(() -> {
-                                                if (!economy.has(player, price)) {
-                                                    return false;
-                                                }
-                                                economy.withdrawPlayer(player, price);
-                                                return true;
-                                            })
-                                            .whenComplete(result -> {
-                                                if (result) {
-                                                    orderData.submitOrder(player, order.build())
-                                                             .whenComplete(v -> messageBlocker.unblockPlayer(player)
-                                                                                          .whenComplete((unused, err) -> {
-                                                                               messageSender().sendMessage(player, MessageComposer.escape("order.create.created"));
-                                                                               builderCache.invalidate(player.getUniqueId());
-                                                                           }));
-                                                } else {
-                                                    var fallbackCurr = economy.currencyNameSingular()
-                                                                              .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
-                                                    var curr = economy.currencyNamePlural()
-                                                                      .isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                                                    messageSender().sendError(player, "error.insufficientCurrency",
-                                                            Replacement.create("currency", curr),
-                                                            Replacement.create("amount", economy.format(price)));
-                                                }
-                                            });
-                 });
+                .whenComplete(count -> {
+                    if (count >= Permission.Orders.getOrderOverride(player)
+                            .orElse(configuration.userSettings().maxOrders())) {
+                        messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
+                        return;
+                    }
+                    CompletableBukkitFuture.supplyAsync(() -> {
+                                if (!economy.has(player, price)) {
+                                    return false;
+                                }
+                                economy.withdrawPlayer(player, price);
+                                return true;
+                            })
+                            .whenComplete(result -> {
+                                if (result) {
+                                    orderData.submitOrder(player, order.build())
+                                            .whenComplete(v -> messageBlocker.unblockPlayer(player)
+                                                    .whenComplete((unused, err) -> {
+                                                        messageSender().sendMessage(player, MessageComposer.escape("order.create.created"));
+                                                        builderCache.invalidate(player.getUniqueId());
+                                                    }));
+                                } else {
+                                    var fallbackCurr = economy.currencyNameSingular()
+                                            .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
+                                    var curr = economy.currencyNamePlural()
+                                            .isBlank() ? fallbackCurr : economy.currencyNamePlural();
+                                    messageSender().sendError(player, "error.insufficientCurrency",
+                                            Replacement.create("currency", curr),
+                                            Replacement.create("amount", economy.format(price)));
+                                }
+                            });
+                });
     }
 
     private void cancel(Player player) {
         messageBlocker.unblockPlayer(player)
-                      .thenRun(() -> player.sendMessage("words.aborted"));
+                .thenRun(() -> messageSender().sendMessage(player, "words.aborted"));
         builderCache.invalidate(player.getUniqueId());
     }
 
     private void sendBuilder(Player player, OrderBuilder order) {
         var builder = MessageComposer.create()
-                                     .text(order.asComponent(configuration.orderSetting(), economy, orderData));
+                .text(order.asComponent(configuration.orderSetting(), economy, orderData));
         if (messageBlocker.isBlocked(player)) {
             builder.newLine()
-                   .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
