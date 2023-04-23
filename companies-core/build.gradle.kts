@@ -52,7 +52,7 @@ dependencies {
     bukkitLibrary("com.fasterxml.jackson.core:jackson-databind:2.14.2")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
-    compileOnly("me.clip", "placeholderapi", "2.11.2")
+    compileOnly("me.clip", "placeholderapi", "2.11.3")
 
     // database
     bukkitLibrary("com.zaxxer", "HikariCP", "5.0.1")
