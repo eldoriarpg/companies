@@ -8,8 +8,7 @@ package de.eldoria.companies.data.wrapper.order;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DurationFormatUtils;
+import de.eldoria.companies.util.Texts;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -29,7 +28,7 @@ public class SimpleOrder implements ISimpleOrder {
     public SimpleOrder(UUID owner, String name) {
         id = -1;
         this.owner = owner;
-        this.name = StringUtils.left(name, 32);
+        this.name = Texts.trimLeft(name, 32);
         created = null;
         company = -1;
         claimed = null;
@@ -39,7 +38,7 @@ public class SimpleOrder implements ISimpleOrder {
     public SimpleOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed, OrderState state) {
         this.id = id;
         this.owner = owner;
-        this.name = StringUtils.left(name, 32);
+        this.name = Texts.trimLeft(name, 32);
         this.created = created;
         this.company = company;
         this.claimed = claimed;
@@ -67,7 +66,7 @@ public class SimpleOrder implements ISimpleOrder {
 
     @Override
     public String name() {
-        return StringUtils.left(name, 32);
+        return Texts.trimLeft(name, 32);
     }
 
     @Override
@@ -96,11 +95,7 @@ public class SimpleOrder implements ISimpleOrder {
     }
 
     public String runningOutTime(Configuration configuration) {
-        var duration = Duration.between(LocalDateTime.now(), claimed().plus(configuration.companySettings()
-                                                                                         .deliveryHours(), ChronoUnit.HOURS));
-        if (duration.toDays() > 0L) {
-            return DurationFormatUtils.formatDuration(duration.toMillis(), "dd:HH:mm");
-        }
-        return DurationFormatUtils.formatDuration(duration.toMillis(), "HH:mm");
+        var duration = Duration.between(LocalDateTime.now(), claimed().plus(configuration.companySettings().deliveryHours(), ChronoUnit.HOURS));
+        return Texts.prettyDuration(duration);
     }
 }

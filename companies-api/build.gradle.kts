@@ -1,22 +1,10 @@
 plugins {
     `java-library`
+    java
     `maven-publish`
 }
 
 dependencies {
-    api("net.kyori", "adventure-platform-bukkit", "4.2.0")
-    api("net.kyori", "adventure-text-minimessage", "4.12.0")
-    api("de.eldoria.util", "jackson-configuration", "2.0.0-DEV"){
-        exclude("com.fasterxml.jackson.dataformat")
-        exclude("com.fasterxml.jackson.core")
-        exclude("com.fasterxml.jackson")
-    }
-    api("de.eldoria.util", "plugin", "2.0.0-DEV")
-    api("de.eldoria.util", "localization", "2.0.0-DEV")
-    api("de.eldoria.util", "messaging", "2.0.0-DEV")
-    api("de.eldoria.util", "threading", "2.0.0-DEV")
-    api("de.eldoria", "messageblocker", "1.1.1")
-
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
