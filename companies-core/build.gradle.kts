@@ -21,7 +21,7 @@ dependencies {
         exclude("net.kyori")
     }
     api("de.eldoria.util", "threading", "2.0.0-DEV")
-    api("de.eldoria", "messageblocker", "1.1.1")
+    api("de.eldoria", "messageblocker", "1.1.2")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
     compileOnly("me.clip", "placeholderapi", "2.11.3")
