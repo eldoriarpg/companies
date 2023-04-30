@@ -1,7 +1,12 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.IOrderContent;
-import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.Features;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -12,9 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class
-OrderContent implements IOrderContent {
-    private ItemStack stack;
+public class OrderContent implements IOrderContent {
+    private final ItemStack stack;
     private int amount;
     private List<ContentPart> parts = new ArrayList<>();
     private double price;
@@ -27,11 +31,6 @@ OrderContent implements IOrderContent {
 
     public void parts(List<ContentPart> parts) {
         this.parts = parts;
-    }
-
-    @Override
-    public ItemStack stack() {
-        return stack;
     }
 
     @Override
@@ -54,21 +53,16 @@ OrderContent implements IOrderContent {
         return price;
     }
 
-    public void price(double price) {
-        this.price = price;
-    }
-
-    public String asComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", prettyType(), "blue", amount, "gold", economy.format(price));
-    }
-
-    public String asProgressComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", prettyType(), "blue", delivered(), amount, "gold", economy.format(price));
+    @Override
+    public ItemStack stack() {
+        return stack;
     }
 
     @Override
     public int delivered() {
-        return parts.stream().mapToInt(ContentPart::amount).sum();
+        return parts.stream()
+                .mapToInt(ContentPart::amount)
+                .sum();
     }
 
     @Override
@@ -77,8 +71,27 @@ OrderContent implements IOrderContent {
     }
 
     @Override
-    public String materialString() {
-        return stack.getType().name().toLowerCase();
+    public String materialIdentifier() {
+        return stack.getType()
+                .name()
+                .toLowerCase();
+    }
+
+    @Override
+    public String translatedMaterialString() {
+        if (Features.HAS_TRANSLATION_KEY) {
+            // paper
+            return "<tr:%s>".formatted(stack.getType().translationKey());
+        }
+        if (Features.HAS_GET_TRANSLATION_KEY) {
+            // spigot
+            return "<tr:%s>".formatted(stack.getType().getTranslationKey());
+        }
+        // legacy spigot and paper
+        return stack().getType()
+                .name()
+                .toLowerCase()
+                .replace("_", " ");
     }
 
     @Override
@@ -89,6 +102,18 @@ OrderContent implements IOrderContent {
     @Override
     public int missing() {
         return amount - delivered();
+    }
+
+    public void price(double price) {
+        this.price = price;
+    }
+
+    public String asComponent(Economy economy) {
+        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", translatedMaterialString(), "blue", amount, "gold", economy.format(price));
+    }
+
+    public String asProgressComponent(Economy economy) {
+        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", translatedMaterialString(), "blue", delivered(), amount, "gold", economy.format(price));
     }
 
     public Map<UUID, Double> payments() {

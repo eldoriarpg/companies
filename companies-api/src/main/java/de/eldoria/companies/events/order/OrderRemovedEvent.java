@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
@@ -12,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
  * This event will not be called when an order expires. See {@link OrderExpiredEvent}.
  */
 public class OrderRemovedEvent extends OrderEvent<ISimpleOrder> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     public OrderRemovedEvent(ISimpleOrder order) {
         super(order, true);

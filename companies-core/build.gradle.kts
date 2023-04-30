@@ -1,83 +1,45 @@
 plugins {
     java
-    id("com.github.johnrengelman.shadow") version "7.0.0"
-    id("de.eldoria.java-conventions")
-}
-
-group = "de.eldoria"
-val shadebase = project.group as String + ".companies.libs."
-
-repositories {
-    mavenCentral()
+    `java-library`
 }
 
 dependencies {
-    implementation(project(":companies-api"))
-    implementation("de.eldoria", "eldo-util", "1.10.2b-SNAPSHOT")
-    implementation("de.chojo", "sql-util", "1.1.4-DEV") {
-        exclude("org.jetbrains")
-        exclude("org.slf4j")
-        exclude("com.zaxxer")
+    api(project(":companies-api"))
+    api("de.chojo.sadu", "sadu-queries", "1.3.0")
+    api("de.chojo.sadu", "sadu-updater", "1.3.0")
+    api("de.chojo.sadu", "sadu-datasource", "1.3.0")
+    api("de.chojo.sadu", "sadu-postgresql", "1.3.0")
+    api("de.chojo.sadu", "sadu-mariadb", "1.3.0")
+    api("de.chojo.sadu", "sadu-sqlite", "1.3.0")
+
+    api("de.eldoria.util", "jackson-configuration", "2.0.0-DEV") {
+        exclude("com.fasterxml.jackson.dataformat")
+        exclude("com.fasterxml.jackson.core")
+        exclude("com.fasterxml.jackson")
     }
+    api("de.eldoria.util", "plugin", "2.0.0-DEV"){
+        exclude("net.kyori")
+    }
+    api("de.eldoria.util", "threading", "2.0.0-DEV")
+    api("de.eldoria", "messageblocker", "1.1.1")
 
-    // text
-    implementation("net.kyori", "adventure-api", "4.9.1")
-    implementation("net.kyori", "adventure-platform-bukkit", "4.0.0")
-    implementation("net.kyori", "adventure-text-minimessage", "4.1.0-SNAPSHOT")
+    compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
+    compileOnly("me.clip", "placeholderapi", "2.11.3")
+    compileOnly("com.github.MilkBowl", "VaultAPI", "1.7.1")
 
-    compileOnly("com.comphenix.protocol", "ProtocolLib", "4.7.0")
-    compileOnly("me.clip", "placeholderapi", "2.10.10")
+    compileOnly("net.kyori", "adventure-api", "4.12.0")
+    compileOnly("net.kyori", "adventure-platform-bukkit", "4.2.0")
+
+    compileOnly("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")
+    compileOnly("com.fasterxml.jackson.core", "jackson-core", "2.14.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.14.2")
 
     // database
-    compileOnly("com.zaxxer", "HikariCP", "5.0.0")
-    compileOnly("org.mariadb.jdbc", "mariadb-java-client", "2.7.2")
-    compileOnly("org.xerial", "sqlite-jdbc", "3.36.0.3")
-    compileOnly("org.postgresql", "postgresql", "42.2.23")
+    compileOnly("com.zaxxer", "HikariCP", "5.0.1")
+    compileOnly("org.mariadb.jdbc", "mariadb-java-client", "3.1.2")
+    compileOnly("org.xerial", "sqlite-jdbc", "3.41.0.0")
+    compileOnly("org.postgresql", "postgresql", "42.5.4")
 
-    compileOnly("com.github.MilkBowl", "VaultAPI", "1.7")
-}
-
-tasks {
-    val data = PublishData(project)
-    processResources {
-        from(sourceSets.main.get().resources.srcDirs) {
-            filesMatching("plugin.yml") {
-                expand(
-                    "name" to project.rootProject.name,
-                    "version" to data.getVersion(true),
-                    "description" to project.description
-                )
-            }
-            duplicatesStrategy = DuplicatesStrategy.INCLUDE
-        }
-    }
-
-    compileJava {
-        options.encoding = "UTF-8"
-    }
-
-    shadowJar {
-        //relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
-        relocate("net.kyori", shadebase + "kyori")
-        //relocate("de.chojo.sqlutil", shadebase + "sqlutil")
-        mergeServiceFiles()
-        minimize()
-        archiveClassifier.set("")
-    }
-
-    test {
-        useJUnit()
-        testLogging {
-            events("passed", "skipped", "failed")
-        }
-    }
-    register<Copy>("copyToServer") {
-        val path = project.property("targetDir") ?: "";
-        if (path.toString().isEmpty()) {
-            println("targetDir is not set in gradle properties")
-            return@register
-        }
-        from(shadowJar)
-        destinationDir = File(path.toString())
-    }
+    testImplementation("net.kyori", "adventure-api", "4.12.0")
+    testImplementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
 }

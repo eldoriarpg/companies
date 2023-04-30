@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands;
 
 import de.eldoria.companies.commands.order.Cancel;
@@ -7,14 +12,14 @@ import de.eldoria.companies.commands.order.List;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 public class Order extends AdvancedCommand {
-    public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy, IMessageBlockerService messageBlocker) {
+    public Order(Plugin plugin, AOrderData orderData, Configuration configuration, Economy economy, MessageBlocker messageBlocker) {
         super(plugin,
                 new CommandMetaBuilder("order")
                         .buildSubCommands((cmds, builder) -> {

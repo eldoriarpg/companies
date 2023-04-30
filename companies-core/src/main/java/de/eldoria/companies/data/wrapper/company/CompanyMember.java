@@ -1,8 +1,12 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -29,34 +33,56 @@ public class CompanyMember implements ICompanyMember {
     }
 
     public static CompanyMember forCompany(SimpleCompany company, OfflinePlayer player) {
-        return new CompanyMember(company.id(), player.getUniqueId(), 0);
+        return new CompanyMember(company.id(), player.getUniqueId(), 0L);
     }
 
     public static CompanyMember forCompanyId(int company, OfflinePlayer player) {
-        return new CompanyMember(company, player.getUniqueId(), 0);
+        return new CompanyMember(company, player.getUniqueId(), 0L);
     }
 
     public static CompanyMember withoutCompany(OfflinePlayer player) {
-        return new CompanyMember(-1, player.getUniqueId(), 0);
+        return new CompanyMember(-1, player.getUniqueId(), 0L);
     }
 
     public static CompanyMember of(int company, UUID player, long permission) {
         return new CompanyMember(company, player, permission);
     }
 
-    @Override
+    public void isOwner(boolean state) {
+        if (isOwner() && state) return;
+        if (state) {
+            permission += CompanyPermission.OWNER.mask();
+        } else {
+            permission -= CompanyPermission.OWNER.mask();
+        }
+    }    @Override
     public boolean hasPermission(CompanyPermission permissions) {
         if (isOwner()) return true;
         return permissions.hasPermission(permission);
     }
 
-    @Override
+    public CompanyMember kick() {
+        company = -1;
+        return this;
+    }    @Override
     public boolean hasPermissions(CompanyPermission... permissions) {
         if (isOwner()) return true;
         return CompanyPermission.hasPermission(permission, permissions);
     }
 
-    @Override
+    public String statusComponent() {
+        var hover = MessageComposer.create();
+        if (player().isOnline()) {
+            hover.text("<active>")
+                 .localeCode("Online");
+        } else {
+            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastPlayed()), ZoneId.systemDefault());
+            hover.text("<neutral>")
+                 .localeCode("Seen")
+                 .text(": %s", lastSeen.format(FORMATTER));
+        }
+        return hover.build();
+    }    @Override
     public boolean hasAnyPermissions(CompanyPermission... permissions) {
         if (isOwner()) return true;
         return CompanyPermission.hasAnyPermission(permission, permissions);
@@ -77,14 +103,7 @@ public class CompanyMember implements ICompanyMember {
         return this;
     }
 
-    public void isOwner(boolean state) {
-        if (isOwner() && state) return;
-        if (state) {
-            permission += CompanyPermission.OWNER.mask();
-        } else {
-            permission -= CompanyPermission.OWNER.mask();
-        }
-    }
+
 
     @Override
     public OfflinePlayer player() {
@@ -108,24 +127,14 @@ public class CompanyMember implements ICompanyMember {
 
     @Override
     public List<CompanyPermission> permissions() {
-        return Arrays.stream(CompanyPermission.values()).filter(this::hasPermissions).collect(Collectors.toList());
+        return Arrays.stream(CompanyPermission.values())
+                     .filter(this::hasPermissions)
+                     .collect(Collectors.toList());
     }
 
-    public CompanyMember kick() {
-        company = -1;
-        return this;
-    }
 
-    public String statusComponent() {
-        var hover = MessageComposer.create();
-        if (player().isOnline()) {
-            hover.text("<%s>", Colors.ACTIVE).localeCode("Online");
-        } else {
-            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastPlayed()), ZoneId.systemDefault());
-            hover.text("<%s>", Colors.NEUTRAL).localeCode("Seen").text(": %s", lastSeen.format(FORMATTER));
-        }
-        return hover.build();
-    }
+
+
 
     @Override
     public boolean isOwner() {

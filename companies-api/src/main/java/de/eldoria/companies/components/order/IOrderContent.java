@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.components.order;
 
 import org.bukkit.Material;
@@ -6,8 +11,6 @@ import org.bukkit.inventory.ItemStack;
 import java.util.List;
 
 public interface IOrderContent {
-    ItemStack stack();
-
     int amount();
 
     void amount(int amount);
@@ -16,15 +19,15 @@ public interface IOrderContent {
 
     double price();
 
-    default String prettyType() {
-        return stack().getType().name().replace("_", " ");
-    }
+    ItemStack stack();
 
     int delivered();
 
     double percent();
 
-    String materialString();
+    String materialIdentifier();
+
+    String translatedMaterialString();
 
     Material material();
 

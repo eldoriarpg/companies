@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.Search;
@@ -19,7 +24,8 @@ public class Execute extends AdvancedCommand implements IPlayerTabExecutor {
     private final Search search;
 
     public Execute(Plugin plugin, Query query, Search search, AOrderData orderData) {
-        super(plugin, CommandMeta.builder("execute").build());
+        super(plugin, CommandMeta.builder("execute")
+                .build());
         this.query = query;
         this.orderData = orderData;
         this.search = search;
@@ -28,9 +34,11 @@ public class Execute extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         orderData.retrieveOrdersByQuery(query.getPlayerSearch(player), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
-                .whenComplete(fullOrders -> {
-                    search.results().put(player.getUniqueId(), fullOrders);
-                    search.page().renderPage(player, 0);
-                });
+                 .whenComplete(fullOrders -> {
+                     search.results()
+                           .put(player.getUniqueId(), fullOrders);
+                     search.page()
+                           .renderPage(player, 0);
+                 });
     }
 }

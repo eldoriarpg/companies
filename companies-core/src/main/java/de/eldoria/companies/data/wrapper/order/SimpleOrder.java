@@ -1,10 +1,14 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.time.DurationFormatUtils;
+import de.eldoria.companies.util.Texts;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -22,19 +26,19 @@ public class SimpleOrder implements ISimpleOrder {
     private String name;
 
     public SimpleOrder(UUID owner, String name) {
-        this.id = -1;
+        id = -1;
         this.owner = owner;
-        this.name = StringUtils.left(name, 32);
-        this.created = null;
-        this.company = -1;
-        this.claimed = null;
-        this.state = null;
+        this.name = Texts.trimLeft(name, 32);
+        created = null;
+        company = -1;
+        claimed = null;
+        state = null;
     }
 
     public SimpleOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed, OrderState state) {
         this.id = id;
         this.owner = owner;
-        this.name = StringUtils.left(name, 32);
+        this.name = Texts.trimLeft(name, 32);
         this.created = created;
         this.company = company;
         this.claimed = claimed;
@@ -62,7 +66,7 @@ public class SimpleOrder implements ISimpleOrder {
 
     @Override
     public String name() {
-        return StringUtils.left(name, 32);
+        return Texts.trimLeft(name, 32);
     }
 
     @Override
@@ -92,9 +96,6 @@ public class SimpleOrder implements ISimpleOrder {
 
     public String runningOutTime(Configuration configuration) {
         var duration = Duration.between(LocalDateTime.now(), claimed().plus(configuration.companySettings().deliveryHours(), ChronoUnit.HOURS));
-        if (duration.toDays() > 0L) {
-            return DurationFormatUtils.formatDuration(duration.toMillis(), "dd:HH:mm");
-        }
-        return DurationFormatUtils.formatDuration(duration.toMillis(), "HH:mm");
+        return Texts.prettyDuration(duration);
     }
 }

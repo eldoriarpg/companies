@@ -1,7 +1,11 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.ICompanyStats;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 
 import java.time.LocalDateTime;
@@ -68,12 +72,28 @@ public class CompanyStats implements ICompanyStats {
 
     public String asComponent() {
         return MessageComposer.create()
-                .text("<%s>", Colors.HEADING).text(name).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.founded").text(": <%s>%s ", Colors.VALUE, FORMATTER.format(founded)).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.member").text(": <%s>%s", Colors.VALUE, memberCount).newLine()
-                .text("<%s>", Colors.NAME).localeCode("words.orders").text(": <%s>%s", Colors.VALUE, orderCount).newLine()
-                .text("<%s>", Colors.NAME).localeCode("level.earnedMoney").text(": <%s>%s", Colors.VALUE, price).newLine()
-                .text("<%s>", Colors.NAME).localeCode("level.deliveredItems").text(": <%s>%s", Colors.VALUE, deliveredItems)
-                .build();
+                              .text("<heading>")
+                              .text(name)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("words.founded")
+                              .text(": <value>%s ", FORMATTER.format(founded))
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("words.member")
+                              .text(": <value>%s", memberCount)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("words.orders")
+                              .text(": <value>%s", orderCount)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("level.earnedMoney")
+                              .text(": <value>%s", price)
+                              .newLine()
+                              .text("<name>")
+                              .localeCode("level.deliveredItems")
+                              .text(": <value>%s", deliveredItems)
+                              .build();
     }
 }

@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.services;
 
 import de.eldoria.companies.Companies;
@@ -41,32 +46,14 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
 
     @Override
     public @NotNull String getAuthor() {
-        return String.join(", ", companies.getDescription().getAuthors());
+        return String.join(", ", companies.getDescription()
+                                          .getAuthors());
     }
 
     @Override
     public @NotNull String getVersion() {
-        return companies.getDescription().getVersion();
-    }
-
-    @Override
-    public String onRequest(OfflinePlayer player, @NotNull String params) {
-        if ("company_name".equalsIgnoreCase(params)) {
-            return getCompanyCache(player).map(CompanyCacheData::name).orElse(null);
-        }
-
-        if ("company_size".equalsIgnoreCase(params)) {
-            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::size).orElse(0));
-        }
-
-        if ("company_level".equalsIgnoreCase(params)) {
-            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::level).orElse(0));
-        }
-
-        if ("active_orders".equalsIgnoreCase(params)) {
-            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::orderCount).orElse(0));
-        }
-        return null;
+        return companies.getDescription()
+                        .getVersion();
     }
 
     @Override
@@ -74,19 +61,87 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
         return true;
     }
 
+    @Override
+    public String onRequest(OfflinePlayer player, @NotNull String params) {
+        if ("company_name".equalsIgnoreCase(params)) {
+            return getCompanyCache(player).map(CompanyCacheData::name)
+                                          .orElse(null);
+        }
+
+        if ("company_size".equalsIgnoreCase(params)) {
+            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::size)
+                                                         .orElse(0));
+        }
+
+        if ("company_level".equalsIgnoreCase(params)) {
+            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::level)
+                                                         .orElse(0));
+        }
+
+        if ("active_orders".equalsIgnoreCase(params)) {
+            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::orderCount)
+                                                         .orElse(0));
+        }
+        return null;
+    }
+
+    private Optional<CompanyCacheData> getCompanyCache(OfflinePlayer player) {
+        var id = companyGraph.get(player.getUniqueId());
+        if (id == null) return Optional.empty();
+        return Optional.ofNullable(companyCache.get(id));
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         refreshPlayerCache(event.getPlayer());
     }
 
+    private void refreshPlayerCache(OfflinePlayer player) {
+        companyData.retrievePlayerCompanyProfile(player)
+                   .asFuture()
+                   .thenAccept(company -> {
+                       if (company.isEmpty()) {
+                           companyGraph.remove(player.getUniqueId());
+                           return;
+                       }
+                       companyGraph.put(player.getUniqueId(), company.get()
+                                                                     .id());
+
+                       if (companyCache.containsKey(company.get()
+                                                           .id())) return;
+                       refreshCompanyCache(company.get());
+                   });
+    }
+
+    private void refreshCompanyCache(ICompanyProfile profile) {
+        orderData.retrieveCompanyOrderCount(profile)
+                 .asFuture()
+                 .thenAccept(orders -> companyCache.put(profile.id(), new CompanyCacheData(profile.name(), profile.level(), profile.members()
+                                                                                                                               .size(), orders)));
+
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        companyGraph.remove(event.getPlayer().getUniqueId());
+        companyGraph.remove(event.getPlayer()
+                                 .getUniqueId());
     }
 
     @EventHandler
     public void onCompanyJoin(CompanyJoinEvent event) {
         loadAndRefreshCompanyCache(event.company());
+    }
+
+    private void loadAndRefreshCompanyCache(ICompanyProfile profile) {
+        companyData.retrieveCompanyProfile(profile)
+                   .asFuture()
+                   .thenAccept(newProfile -> {
+                       if (newProfile.isEmpty()) {
+                           companyCache.remove(profile.id());
+                           return;
+                       }
+                       refreshCompanyCache(newProfile.get());
+                   });
     }
 
     @EventHandler
@@ -104,75 +159,6 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
         loadAndRefreshCompanyCache(event.company());
     }
 
-    private void refreshPlayerCache(OfflinePlayer player) {
-        companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        companyGraph.remove(player.getUniqueId());
-                        return;
-                    }
-                    companyGraph.put(player.getUniqueId(), company.get().id());
-
-                    if (companyCache.containsKey(company.get().id())) return;
-                    refreshCompanyCache(company.get());
-                });
-    }
-
-    private void loadAndRefreshCompanyCache(ICompanyProfile profile) {
-        companyData.retrieveCompanyProfile(profile)
-                .asFuture()
-                .thenAccept(newProfile -> {
-                    if (newProfile.isEmpty()) {
-                        companyCache.remove(profile.id());
-                        return;
-                    }
-                    refreshCompanyCache(newProfile.get());
-                });
-    }
-
-    private void refreshCompanyCache(ICompanyProfile profile) {
-        orderData.retrieveCompanyOrderCount(profile)
-                .asFuture()
-                .thenAccept(orders -> {
-                    companyCache.put(profile.id(), new CompanyCacheData(profile.name(), profile.level(), profile.members().size(), orders));
-                });
-
-    }
-
-    private Optional<CompanyCacheData> getCompanyCache(OfflinePlayer player) {
-        var id = companyGraph.get(player.getUniqueId());
-        if (id == null) return Optional.empty();
-        return Optional.ofNullable(companyCache.get(id));
-    }
-
-    private static class CompanyCacheData {
-        private final String name;
-        private final int level;
-        private final int size;
-        private final int orderCount;
-
-        private CompanyCacheData(String name, int level, int size, int orderCount) {
-            this.name = name;
-            this.level = level;
-            this.size = size;
-            this.orderCount = orderCount;
-        }
-
-        public String name() {
-            return name;
-        }
-
-        public int size() {
-            return size;
-        }
-
-        public int orderCount() {
-            return orderCount;
-        }
-
-        public int level() {
-            return level;
-        }
+    private record CompanyCacheData(String name, int level, int size, int orderCount) {
     }
 }

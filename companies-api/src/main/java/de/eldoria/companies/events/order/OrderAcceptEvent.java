@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
@@ -10,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
  * A company has accepted a order.
  */
 public class OrderAcceptEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyProfile company;
 
@@ -19,6 +24,7 @@ public class OrderAcceptEvent extends OrderEvent<ISimpleOrder> implements Compan
         this.company = company;
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

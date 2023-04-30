@@ -1,74 +1,55 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.configuration.elements;
 
-import de.eldoria.companies.Companies;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
-import de.eldoria.eldoutilities.serialization.SerializationUtil;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-public class CompanySettings implements ConfigurationSerializable {
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
+public class CompanySettings {
+    private List<CompanyLevel> level = new ArrayList<>();
     private int deliveryHours = 48;
-    private double foudingPrice = 20000.0;
+    private double foundingPrice = 20000.0;
     private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
-    private List<CompanyLevel> level = new ArrayList<>();
 
-    public CompanySettings(Map<String, Object> objectMap) {
-        var map = SerializationUtil.mapOf(objectMap);
-        deliveryHours = map.getValueOrDefault("deliveryHours", deliveryHours);
-        foudingPrice = map.getValueOrDefault("foudingPrice", foudingPrice);
-        renamePrice = map.getValueOrDefault("renamePrice", renamePrice);
-        expiredOrderPenalty = map.getValueOrDefault("expiredOrderPenalty", expiredOrderPenalty);
-        abortedOrderPenalty = map.getValueOrDefault("abortedOrderPenalty", abortedOrderPenalty);
-        level = map.getValueOrDefault("level", level);
-        if (level.isEmpty()) {
-            Companies.logger().info("No company level set. Creating default level.");
-            level.add(new CompanyLevel());
-        }
+    public CompanySettings() {
         updateLevel();
     }
 
-    public CompanySettings() {
-    }
-
-    @Override
-    @NotNull
-    public Map<String, Object> serialize() {
-        return SerializationUtil.newBuilder()
-                .add("deliveryHours", deliveryHours)
-                .add("foudingPrice", foudingPrice)
-                .add("renamePrice", renamePrice)
-                .add("expiredOrderPenalty", expiredOrderPenalty)
-                .add("abortedOrderPenalty", abortedOrderPenalty)
-                .add("level", level)
-                .build();
+    private void updateLevel() {
+        for (var i = 0; i < level.size(); i++) {
+            level.get(i)
+                 .level(i + 1);
+        }
     }
 
     public int deliveryHours() {
         return deliveryHours;
     }
 
-    public double foudingPrice() {
-        return foudingPrice;
+    public double foundingPrice() {
+        return foundingPrice;
     }
 
     public void deliveryHours(int deliveryHours) {
         this.deliveryHours = deliveryHours;
     }
 
-    public void foudingPrice(float foudingPrice) {
-        this.foudingPrice = foudingPrice;
+    public void foundingPrice(float foundingPrice) {
+        this.foundingPrice = foundingPrice;
     }
 
-    public void foudingPrice(double foudingPrice) {
-        this.foudingPrice = foudingPrice;
+    public void foundingPrice(double foundingPrice) {
+        this.foundingPrice = foundingPrice;
     }
 
     public int expiredOrderPenalty() {
@@ -122,21 +103,16 @@ public class CompanySettings implements ConfigurationSerializable {
     public CompanyLevel calcCompanyLevel(CompanyStats stats) {
         var finalLevel = level.get(0);
         for (var level : level) {
-            if (!level.requirement().checkRequirements(stats)) break;
+            if (!level.requirement()
+                      .checkRequirements(stats)) break;
             finalLevel = level;
         }
         return finalLevel;
     }
 
-    private void updateLevel() {
-        for (var i = 0; i < level.size(); i++) {
-            level.get(i).level(i + 1);
-        }
-    }
-
     public boolean deleteLevel(int level) {
-        if (level < 1 || level < this.level.size()) return false;
-        this.level.remove(level);
+        if (level < 1 || level > this.level.size()) return false;
+        this.level.remove(level - 1);
         return true;
     }
 }

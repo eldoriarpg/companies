@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.components.order.OrderState;
@@ -7,14 +12,11 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
+import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -39,44 +41,43 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
         var id = arguments.asInt(0);
 
         orderData.retrieveOrderById(id)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optOrder -> {
-                    if (optOrder.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.unkownOrder");
-                        return;
-                    }
+                 .asFuture()
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return Optional.empty();
+                 })
+                 .thenAccept(optOrder -> {
+                     if (optOrder.isEmpty()) {
+                         messageSender().sendErrorActionBar(sender, "error.unkownOrder");
+                         return;
+                     }
 
-                    var simpleOrder = optOrder.get();
-                    var player = getPlayerFromSender(sender);
-                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                        messageSender().sendLocalizedError(sender, "error.notYourOrder");
-                        return;
-                    }
-                    if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messageSender().sendLocalizedError(sender, "error.orderAlreadyClaimed");
-                        return;
-                    }
+                     var simpleOrder = optOrder.get();
+                     var player = getPlayerFromSender(sender);
+                     if (!simpleOrder.owner()
+                                     .equals(player.getUniqueId())) {
+                         messageSender().sendError(sender, "error.notYourOrder");
+                         return;
+                     }
+                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
+                         messageSender().sendError(sender, "error.orderAlreadyClaimed");
+                         return;
+                     }
 
-                    var fullOrder = orderData.retrieveFullOrder(optOrder.get()).join();
-                    CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
-                    orderData.submitOrderDeletion(fullOrder).join();
-                    list.showOrders(player, () -> {
-                        messageSender().sendLocalizedMessage(sender, "order.cancel.canceled",
-                                Replacement.create("money", economy.format(fullOrder.price())));
-                    });
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
+                     var fullOrder = orderData.retrieveFullOrder(optOrder.get())
+                                              .join();
+                     CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
+                     orderData.submitOrderDeletion(fullOrder)
+                              .join();
+                     list.showOrders(player, () -> messageSender().sendError(sender, "order.cancel.canceled",
+                             Replacement.create("money", economy.format(fullOrder.price()))));
+                 })
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return null;
+                 })
         ;
-    }
-
-    @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments arguments) {
-        return null;
     }
 }

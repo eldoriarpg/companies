@@ -1,7 +1,13 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.repository;
 
-import de.chojo.sqlutil.base.QueryFactoryHolder;
-import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.base.QueryFactory;
+import de.chojo.sadu.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.wrapper.util.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
@@ -16,7 +22,6 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 
 import javax.sql.DataSource;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
@@ -24,13 +29,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
-public abstract class ACompanyData extends QueryFactoryHolder {
+@SuppressWarnings("UnusedReturnValue")
+public abstract class ACompanyData {
     private final ExecutorService executorService;
 
-    public ACompanyData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
-        super(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
-                .build());
+    public ACompanyData(ExecutorService executorService) {
         this.executorService = executorService;
     }
 
@@ -44,6 +47,8 @@ public abstract class ACompanyData extends QueryFactoryHolder {
         return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player), executorService);
     }
 
+    protected abstract Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player);
+
     public BukkitFutureResult<Optional<CompanyProfile>> retrieveCompanyProfile(ISimpleCompany simpleCompany) {
         return CompletableBukkitFuture.supplyAsync(() -> toCompanyProfile((SimpleCompany) simpleCompany));
     }
@@ -53,8 +58,6 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     public BukkitFutureResult<Optional<CompanyProfile>> retrievePlayerCompanyProfile(OfflinePlayer player) {
         return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player).map(company -> toCompanyProfile(company).get()));
     }
-
-    protected abstract Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player);
 
     public BukkitFutureResult<Optional<SimpleCompany>> retrieveCompanyByName(String name) {
         return CompletableBukkitFuture.supplyAsync(() -> getCompanyByName(name), executorService);
@@ -73,14 +76,6 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     }
 
     protected abstract Integer createCompany(String name);
-
-    protected abstract List<CompanyMember> getCompanyMember(SimpleCompany company);
-
-    protected abstract Optional<CompanyMember> getCompanyMember(OfflinePlayer player);
-
-    protected abstract Optional<SimpleCompany> getSimpleCompany(int companyId);
-
-    protected abstract SimpleCompany parseCompany(ResultSet rs) throws SQLException;
 
     public void submitCompanyPurge(SimpleCompany company) {
         CompletableFuture.runAsync(() -> purgeCompany(company));
@@ -119,4 +114,12 @@ public abstract class ACompanyData extends QueryFactoryHolder {
     protected abstract void setCompanyName(SimpleCompany company, String name);
 
     public abstract CompletableFuture<List<SimpleCompany>> getCompanies();
+
+    protected abstract List<CompanyMember> getCompanyMember(SimpleCompany company);
+
+    protected abstract Optional<CompanyMember> getCompanyMember(OfflinePlayer player);
+
+    protected abstract Optional<SimpleCompany> getSimpleCompany(int companyId);
+
+    protected abstract SimpleCompany parseCompany(Row rs) throws SQLException;
 }

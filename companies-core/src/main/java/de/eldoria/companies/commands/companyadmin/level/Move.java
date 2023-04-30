@@ -1,13 +1,19 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.simplecommands.TabCompleteUtil;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -30,28 +36,36 @@ public class Move extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments args) throws CommandException {
-        var optLevel = configuration.companySettings().level(args.asInt(0));
+        CommandAssertions.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
+        var optLevel = configuration.companySettings()
+                                    .level(args.asInt(0));
         CommandAssertions.isTrue(optLevel.isPresent(), "error.invalidLevel");
-        configuration.companySettings().moveLevel(args.asInt(0), args.asInt(1));
+        configuration.companySettings()
+                     .moveLevel(args.asInt(0), args.asInt(1));
         configuration.save();
         list.sendList(sender);
     }
 
     @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments arguments) {
-        var args = arguments.asArray();
-        if (args.length == 1) {
-            if (args[0].isEmpty()) {
-                return Collections.singletonList("<source>");
+    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments args) {
+        if (args.sizeIs(1)) {
+            if (args.asString(0)
+                    .isEmpty()) {
+                return Collections.singletonList(localizer().localize("words.source"));
             }
-            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
+            return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
+                                                                            .level()
+                                                                            .size());
         }
 
-        if (args.length == 2) {
-            if (args[0].isEmpty()) {
-                return Collections.singletonList("<target>");
+        if (args.sizeIs(2)) {
+            if (args.asString(0)
+                    .isEmpty()) {
+                return Collections.singletonList(localizer().localize("words.target"));
             }
-            return TabCompleteUtil.completeInt(args[0], 1, configuration.companySettings().level().size(), localizer());
+            return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
+                                                                            .level()
+                                                                            .size());
         }
         return Collections.emptyList();
     }

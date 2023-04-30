@@ -1,75 +1,93 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies;
 
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import de.chojo.sqlutil.logging.JavaLogger;
-import de.chojo.sqlutil.updater.SqlType;
-import de.chojo.sqlutil.updater.SqlUpdater;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.zaxxer.hikari.HikariDataSource;
+import de.chojo.sadu.databases.MariaDb;
+import de.chojo.sadu.databases.PostgreSql;
+import de.chojo.sadu.databases.SqLite;
+import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
+import de.chojo.sadu.updater.QueryReplacement;
+import de.chojo.sadu.updater.SqlUpdater;
+import de.chojo.sadu.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.Company;
 import de.eldoria.companies.commands.CompanyAdmin;
 import de.eldoria.companies.commands.Order;
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.configuration.elements.CompanySettings;
-import de.eldoria.companies.configuration.elements.DatabaseSettings;
-import de.eldoria.companies.configuration.elements.GeneralSettings;
-import de.eldoria.companies.configuration.elements.OrderSettings;
-import de.eldoria.companies.configuration.elements.UserSettings;
-import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
-import de.eldoria.companies.configuration.elements.companylevel.LevelRequirement;
-import de.eldoria.companies.configuration.elements.companylevel.LevelSettings;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.DataSourceFactory;
+import de.eldoria.companies.data.StaticQueryAdapter;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANotificationData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNotificationData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
-import de.eldoria.companies.data.repository.impl.sqlite.SqLiterNotificationData;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
-import de.eldoria.companies.services.messages.MessageBlockerService;
 import de.eldoria.companies.services.notifications.NotificationService;
-import de.eldoria.eldoutilities.localization.ILocalizer;
-import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
+import de.eldoria.eldoutilities.localization.Localizer;
+import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
+import de.eldoria.messageblocker.MessageBlockerAPI;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
 
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.logging.Level;
 
+@SuppressWarnings("InstanceVariableMayNotBeInitialized")
 public class Companies extends EldoPlugin {
     private final Thread.UncaughtExceptionHandler exceptionHandler =
-            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occured in " + t.getName() + "-" + t.getId() + ".", e);
+            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.getId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
     private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
-    private Configuration configuration = null;
-    private DataSource dataSource = null;
-    private ACompanyData companyData = null;
-    private AOrderData orderData = null;
-    private ANotificationData notificationData = null;
-    private Economy economy = null;
-    private ProtocolManager protocolManager;
-    private IMessageBlockerService messageBlocker = null;
+    private final Configuration configuration;
+    private HikariDataSource dataSource;
+    private ACompanyData companyData;
+    private AOrderData orderData;
+    private ANotificationData notificationData;
+    private ANodeData nodeData;
+
+    public Companies() {
+        configuration = new Configuration(this);
+        configuration.secondary(PluginBaseConfiguration.KEY);
+    }
 
     @Override
-    public void onPluginLoad() throws Throwable {
-        configuration = new Configuration(this);
+    public Level getLogLevel() {
+        if (!configuration.exists(PluginBaseConfiguration.KEY)) {
+            return PluginBaseConfiguration.KEY.initValue().get().logLevel();
+        }
+        return configuration.secondary(PluginBaseConfiguration.KEY).logLevel();
+    }
+
+    @Override
+    public void onPluginLoad() throws SQLException, IOException {
         try {
             initDb();
         } catch (SQLException | IOException e) {
@@ -77,45 +95,67 @@ public class Companies extends EldoPlugin {
             throw e;
         }
 
+        configuration.syncConfigurations(nodeData).join();
+
         CompaniesApiImpl.create(companyData, orderData);
     }
 
     @Override
-    public void onPluginEnable(boolean reload) throws Exception {
+    public void onPluginEnable(boolean reload) {
 
-        // TODO: Make those configurable
-        MessageSender.create(this, "§c[C]");
-        ILocalizer.create(this, "en_US", "de_DE").setLocale(configuration.generalSettings().language());
+        var localizer = Localizer.create(this, "en_US", "de_DE");
+        localizer.setLocale(configuration.generalSettings().language());
 
-        var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
+        new MessageSenderBuilder(this)
+                .errorColor(TextColor.fromHexString("#f05316"))
+                .messageColor(NamedTextColor.DARK_AQUA)
+                // TODO: Make those configurable
+                .prefix("<#00a6ff>[C]")
+                .localizer(localizer)
+                .addTag(builder -> builder
+                        .tag("heading", Tag.styling(NamedTextColor.GOLD))
+                        .tag("name", Tag.styling(NamedTextColor.AQUA))
+                        .tag("value", Tag.styling(NamedTextColor.DARK_GREEN))
+                        .tag("remove", Tag.styling(NamedTextColor.RED))
+                        .tag("add", Tag.styling(NamedTextColor.GREEN))
+                        .tag("modify", Tag.styling(NamedTextColor.YELLOW))
+                        .tag("show", Tag.styling(NamedTextColor.GREEN))
+                        .tag("inactive", Tag.styling(NamedTextColor.DARK_GRAY))
+                        .tag("active", Tag.styling(NamedTextColor.GREEN))
+                        .tag("neutral", Tag.styling(NamedTextColor.DARK_AQUA)))
+                .register();
+
+        var economyProvider = getServer().getServicesManager()
+                                         .getRegistration(Economy.class);
+        Economy economy;
         if (economyProvider != null) {
             economy = economyProvider.getProvider();
         } else {
-            EldoPlugin.logger().severe("No vault provider registered.");
+            getLogger().severe("No vault provider registered.");
             getPluginManager().disablePlugin(this);
             return;
         }
 
-        if (getPluginManager().isPluginEnabled("ProtocolLib")) {
-            protocolManager = ProtocolLibrary.getProtocolManager();
-            messageBlocker = MessageBlockerService.create(this, workerPool, protocolManager);
-            EldoPlugin.logger().info("Found protocol lib. Initializing Message Blocker.");
-        } else {
-            messageBlocker = IMessageBlockerService.dummy();
-        }
+        var messageBlocker = MessageBlockerAPI.builder(this)
+                .withExectuor(workerPool)
+                .addWhitelisted("[C]")
+                .build();
 
         var levelService = new LevelService(this, configuration, companyData);
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService, nodeData));
 
-        ExpiringService.create(this, orderData, companyData, configuration, workerPool);
-        RefreshService.create(orderData, workerPool);
+        if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
+            ExpiringService.start(this, orderData, companyData, configuration, workerPool);
+            RefreshService.start(orderData, workerPool);
+        }
         registerListener(levelService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
-        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+        if (getServer().getPluginManager()
+                       .isPluginEnabled("PlaceholderAPI")) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
             registerListener(placeholderService);
@@ -124,61 +164,72 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
-    }
-
-    @Override
-    public List<Class<? extends ConfigurationSerializable>> getConfigSerialization() {
-        return List.of(CompanySettings.class, DatabaseSettings.class, GeneralSettings.class, OrderSettings.class, UserSettings.class,
-                CompanyLevel.class, LevelSettings.class, LevelRequirement.class);
+        workerPool.shutdown();
+        dataSource.close();
     }
 
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
+        QueryBuilderConfig.defaultConfig().set(QueryBuilderConfig.builder()
+                .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
+                .build());
 
-        SqlUpdater.SqlUpdaterBuilder builder;
+        StaticQueryAdapter.start(dataSource, QueryBuilderConfig.builder()
+                .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
+                .build());
 
+        BaseSqlUpdaterBuilder<?, ?> builder;
         switch (configuration.databaseSettings().storageType()) {
-            case SQLITE:
-                EldoPlugin.logger().info("Using SqLite database");
-                builder = SqlUpdater.builder(dataSource, SqlType.SQLITE);
-                break;
-            case MARIADB:
-                EldoPlugin.logger().info("Using MariaDB database");
-                builder = SqlUpdater.builder(dataSource, SqlType.MARIADB);
-                break;
-            case POSTGRES:
-                EldoPlugin.logger().info("Using Postgres database");
-                builder = SqlUpdater.builder(dataSource, SqlType.POSTGRES);
-                break;
-            default:
-                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
+            case SQLITE -> {
+                getLogger().info("Using SqLite database");
+                builder = SqlUpdater.builder(dataSource, SqLite.get());
+            }
+            case MARIADB -> {
+                getLogger().info("Using MariaDB database");
+                builder = SqlUpdater.builder(dataSource, MariaDb.get());
+            }
+            case POSTGRES -> {
+                getLogger().info("Using Postgres database");
+                builder = SqlUpdater.builder(dataSource, PostgreSql.get());
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
+                                                                                           .storageType());
         }
 
         builder.setVersionTable("companies_db_version")
-                .withLogger(new JavaLogger(EldoPlugin.logger()))
-                .execute();
+               .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
+               .withConfig(QueryBuilderConfig.builder()
+                       .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
+                       .build())
+               .execute();
 
         initDataRepositories();
     }
 
     private void initDataRepositories() {
-        switch (configuration.databaseSettings().storageType()) {
+        var mapper = configuration.configureDefault(JsonMapper.builder());
+        switch (configuration.databaseSettings()
+                             .storageType()) {
             case SQLITE:
-                companyData = new SqLiteCompanyData(dataSource, this, workerPool);
-                orderData = new SqLiteOrderData(dataSource, this, workerPool);
-                notificationData = new SqLiterNotificationData(dataSource, this, workerPool);
+                companyData = new SqLiteCompanyData(workerPool);
+                orderData = new SqLiteOrderData(workerPool, mapper);
+                notificationData = new SqLiteNotificationData(workerPool);
+                nodeData = new SqLiteNodeData(configuration.nodeSettings());
                 break;
             case MARIADB:
-                companyData = new MariaDbCompanyData(dataSource, this, workerPool);
-                orderData = new MariaDbOrderData(dataSource, this, workerPool);
-                notificationData = new MariaDbNotificationData(dataSource, this, workerPool);
+                companyData = new MariaDbCompanyData(workerPool);
+                orderData = new MariaDbOrderData(workerPool, mapper);
+                notificationData = new MariaDbNotificationData(workerPool);
+                nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 break;
             case POSTGRES:
-                companyData = new PostgresCompanyData(dataSource, this, workerPool);
-                orderData = new PostgresOrderData(dataSource, this, workerPool);
-                notificationData = new PostgresNotificationData(dataSource, this, workerPool);
+                companyData = new PostgresCompanyData(workerPool);
+                orderData = new PostgresOrderData(workerPool, mapper);
+                notificationData = new PostgresNotificationData(workerPool);
+                nodeData = new PostgresNodeData(configuration.nodeSettings());
             default:
-                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
+                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
+                                                                                    .storageType());
         }
     }
 

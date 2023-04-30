@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
@@ -14,7 +19,8 @@ public class Clear extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Clear(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("clear").build());
+        super(plugin, CommandMeta.builder("clear")
+                .build());
         this.query = query;
     }
 

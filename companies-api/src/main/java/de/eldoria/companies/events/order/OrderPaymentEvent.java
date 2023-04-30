@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.events.order;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
@@ -13,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
  * This event may be executed multiple times for the same order.
  */
 public class OrderPaymentEvent extends OrderEvent<ISimpleOrder> implements Cancellable, PlayerProvider<OfflinePlayer> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     private final OfflinePlayer player;
     private final double amount;

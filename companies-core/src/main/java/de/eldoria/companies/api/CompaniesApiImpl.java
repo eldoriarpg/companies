@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.api;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
@@ -15,6 +20,7 @@ import org.bukkit.OfflinePlayer;
 import java.util.List;
 import java.util.Optional;
 
+@SuppressWarnings("UnusedReturnValue")
 public class CompaniesApiImpl extends CompaniesApi {
     private final ACompanyData companyData;
     private final AOrderData orderData;
@@ -31,46 +37,55 @@ public class CompaniesApiImpl extends CompaniesApi {
 
     @Override
     public Optional<? extends ICompanyProfile> getPlayerCompanyProfile(OfflinePlayer player) {
-        return companyData.retrievePlayerCompanyProfile(player).join();
+        return companyData.retrievePlayerCompanyProfile(player)
+                          .join();
     }
 
     @Override
     public Optional<? extends ISimpleCompany> getPlayerCompany(OfflinePlayer player) {
-        return companyData.retrievePlayerCompany(player).join();
+        return companyData.retrievePlayerCompany(player)
+                          .join();
     }
 
     @Override
     public ICompanyStats getCompanyStats(ISimpleCompany company) {
-        return companyData.retrieveCompanyStats(company).join();
+        return companyData.retrieveCompanyStats(company)
+                          .join();
     }
 
     @Override
     public Optional<? extends ISimpleCompany> getCompanyByName(String name) {
-        return companyData.retrieveCompanyByName(name).join();
+        return companyData.retrieveCompanyByName(name)
+                          .join();
     }
 
     @Override
     public Optional<? extends ISimpleCompany> getCompanyById(int id) {
-        return companyData.retrieveCompanyById(id).join();
+        return companyData.retrieveCompanyById(id)
+                          .join();
     }
 
     @Override
     public Optional<? extends ISimpleOrder> retrieveOrderById(int id) {
-        return orderData.retrieveOrderById(id).join();
+        return orderData.retrieveOrderById(id)
+                        .join();
     }
 
     @Override
     public List<? extends ISimpleOrder> retrieveOrdersByCompany(ISimpleCompany company, OrderState min, OrderState max) {
-        return orderData.retrieveOrdersByCompany(company, min, max).join();
+        return orderData.retrieveOrdersByCompany(company, min, max)
+                        .join();
     }
 
     @Override
     public List<? extends SimpleOrder> retrieveOrdersByPlayer(OfflinePlayer player, OrderState min, OrderState max) {
-        return orderData.retrieveOrdersByPlayer(player, min, max).join();
+        return orderData.retrieveOrdersByPlayer(player, min, max)
+                        .join();
     }
 
     @Override
     public IMaterialPrice retrieveMaterialPrice(Material material) {
-        return orderData.retrieveMaterialPrice(material.name()).join();
+        return orderData.retrieveMaterialPrice(material.name())
+                        .join();
     }
 }

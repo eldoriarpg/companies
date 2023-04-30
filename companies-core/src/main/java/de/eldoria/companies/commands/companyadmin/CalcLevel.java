@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.services.LevelService;
@@ -30,10 +35,10 @@ public class CalcLevel extends AdvancedCommand implements ITabExecutor {
             if (sender instanceof Player) {
                 var offlinePlayer = Bukkit.getOfflinePlayer(((Entity) sender).getUniqueId());
                 if (offlinePlayer.isOnline()) {
-                    messageSender().sendLocalizedMessage(sender, "companyadmin.calcLevel.done");
+                    messageSender().sendMessage(sender, "companyadmin.calcLevel.done");
                 }
             }
         });
-        messageSender().sendLocalizedMessage(sender, "companyadmin.calcLevel.start");
+        messageSender().sendMessage(sender, "companyadmin.calcLevel.start");
     }
 }

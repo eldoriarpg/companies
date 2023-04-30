@@ -1,6 +1,12 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import net.kyori.adventure.translation.Translatable;
 import org.jetbrains.annotations.NotNull;
 
@@ -10,10 +16,10 @@ import java.util.List;
 import java.util.Locale;
 
 public enum SortingType implements Translatable {
-    AGE((o1, o2) -> o1.created().compareTo(o2.created())),
+    AGE(Comparator.comparing(SimpleOrder::created)),
     NAME((o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.name(), o2.name())),
-    PRICE((o1, o2) -> Double.compare(o1.price(), o2.price())),
-    SIZE((o1, o2) -> Integer.compare(o1.amount(), o2.amount()));
+    PRICE(Comparator.comparingDouble(FullOrder::price)),
+    SIZE(Comparator.comparingInt(FullOrder::amount));
 
     private final Comparator<FullOrder> comparator;
 

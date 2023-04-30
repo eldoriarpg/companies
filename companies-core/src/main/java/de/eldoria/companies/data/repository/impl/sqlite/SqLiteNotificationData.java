@@ -1,33 +1,42 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
-import de.chojo.sqlutil.conversion.UUIDConverter;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
 import de.eldoria.companies.services.notifications.MissedNotifications;
 import de.eldoria.companies.services.notifications.Notification;
 import de.eldoria.companies.services.notifications.NotificationData;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.plugin.Plugin;
+import org.intellij.lang.annotations.Language;
 
-import javax.sql.DataSource;
 import java.util.concurrent.ExecutorService;
 
-public class SqLiterNotificationData extends MariaDbNotificationData {
+import static de.eldoria.companies.data.StaticQueryAdapter.builder;
+
+public class SqLiteNotificationData extends MariaDbNotificationData {
 
     /**
      * Create a new QueryFactoryholder
      *
-     * @param dataSource      datasource
-     * @param executorService
+     * @param executorService executor for futures
      */
-    public SqLiterNotificationData(DataSource dataSource, Plugin plugin, ExecutorService executorService) {
-        super(dataSource, plugin, executorService);
+    public SqLiteNotificationData(ExecutorService executorService) {
+        super(executorService);
     }
 
     @Override
     protected MissedNotifications getMissedNotifications(OfflinePlayer player) {
+        @Language("sqlite")
+        var query = """
+                SELECT created, notification_data
+                FROM company_notification
+                WHERE user_uuid = ?""";
         var notifications = builder(Notification.class)
-                .query("SELECT created, notification_data FROM company_notification WHERE user_uuid = ?")
-                .paramsBuilder(stmt -> stmt.setBytes(UUIDConverter.convert(player.getUniqueId())))
+                .query(query)
+                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
                 .readRow(rs -> new Notification(
                         SqLiteAdapter.getTimestamp(rs, "created"),
                         NotificationData.fromJson(rs.getString("notification_data"))))

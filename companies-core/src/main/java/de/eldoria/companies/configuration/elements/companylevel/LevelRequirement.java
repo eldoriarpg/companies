@@ -1,39 +1,21 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.configuration.elements.companylevel;
 
 import de.eldoria.companies.components.level.ILevelRequirement;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
-import de.eldoria.eldoutilities.serialization.SerializationUtil;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
-
-public class LevelRequirement implements ConfigurationSerializable, ILevelRequirement {
-    private int orderCount = 0;
-    private double earnedMoney = 0.0;
-    private int deliveredItems = 0;
-    private int memberCount = 0;
+@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
+public class LevelRequirement implements ILevelRequirement {
+    private int orderCount = 1;
+    private double earnedMoney = 1000.0;
+    private int deliveredItems = 1000;
+    private int memberCount = 1;
 
     public LevelRequirement() {
-    }
-
-    public LevelRequirement(Map<String, Object> objectMap) {
-        var map = SerializationUtil.mapOf(objectMap);
-        orderCount = map.getValueOrDefault("orderCount", orderCount);
-        earnedMoney = map.getValueOrDefault("earnedMoney", earnedMoney);
-        deliveredItems = map.getValueOrDefault("deliveredItems", deliveredItems);
-        memberCount = map.getValueOrDefault("memberCount", memberCount);
-    }
-
-    @Override
-    @NotNull
-    public Map<String, Object> serialize() {
-        return SerializationUtil.newBuilder()
-                .add("orderCount", orderCount)
-                .add("earnedMoney", earnedMoney)
-                .add("deliveredItems", deliveredItems)
-                .add("memberCount", memberCount)
-                .build();
     }
 
     public boolean checkRequirements(CompanyStats stats) {
@@ -48,17 +30,9 @@ public class LevelRequirement implements ConfigurationSerializable, ILevelRequir
         return orderCount;
     }
 
-    public void orderCount(int orderCount) {
-        this.orderCount = orderCount;
-    }
-
     @Override
     public double earnedMoney() {
         return earnedMoney;
-    }
-
-    public void earnedMoney(double earnedMoney) {
-        this.earnedMoney = earnedMoney;
     }
 
     @Override
@@ -66,13 +40,21 @@ public class LevelRequirement implements ConfigurationSerializable, ILevelRequir
         return deliveredItems;
     }
 
-    public void deliveredItems(int deliveredItems) {
-        this.deliveredItems = deliveredItems;
-    }
-
     @Override
     public int memberCount() {
         return memberCount;
+    }
+
+    public void orderCount(int orderCount) {
+        this.orderCount = orderCount;
+    }
+
+    public void earnedMoney(double earnedMoney) {
+        this.earnedMoney = earnedMoney;
+    }
+
+    public void deliveredItems(int deliveredItems) {
+        this.deliveredItems = deliveredItems;
     }
 
     public void memberCount(int memberCount) {

@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
@@ -11,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
  * Use {@link CompanyLevelDownEvent} or {@link CompanyLevelUpEvent}.
  */
 public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
-    public static HandlerList HANDLERS = new HandlerList();
+    public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyLevel oldLevel;
     private final ICompanyLevel newLevel;
@@ -22,6 +27,7 @@ public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
         this.newLevel = newLevel;
     }
 
+    @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }

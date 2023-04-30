@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.configuration.Configuration;
@@ -24,6 +29,6 @@ public class Reload extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
         configuration.reload();
-        messageSender().sendLocalizedMessage(player, "companyadmin.reload.done");
+        messageSender().sendMessage(player, "companyadmin.reload.done");
     }
 }

@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.components.company;
 
 import net.kyori.adventure.translation.Translatable;
@@ -16,17 +21,35 @@ public enum CompanyPermission implements Translatable {
     MANAGE_PERMISSIONS(4);
 
     private final long mask;
+    private final int rawMask;
 
     CompanyPermission(int mask) {
         this.mask = toBitMask(mask);
+        rawMask = mask;
+    }
+
+    private long toBitMask(int mask) {
+        return 1L << mask;
     }
 
     public static long composePermissions(CompanyPermission... permissions) {
-        return Arrays.stream(permissions).mapToLong(CompanyPermission::mask).sum();
+        return Arrays.stream(permissions)
+                     .mapToLong(CompanyPermission::mask)
+                     .sum();
+    }
+
+    public long mask() {
+        return mask;
     }
 
     public static Set<CompanyPermission> getPermissions(long mask) {
-        return Arrays.stream(values()).filter(p -> p.hasPermission(mask)).collect(Collectors.toSet());
+        return Arrays.stream(values())
+                     .filter(p -> p.hasPermission(mask))
+                     .collect(Collectors.toSet());
+    }
+
+    public boolean hasPermission(long mask) {
+        return (mask & (mask())) != 0L;
     }
 
     public static boolean hasAnyPermission(long mask, CompanyPermission... permissions) {
@@ -39,16 +62,8 @@ public enum CompanyPermission implements Translatable {
         return true;
     }
 
-    public boolean hasPermission(long mask) {
-        return (mask & (mask())) != 0L;
-    }
-
-    private long toBitMask(int mask) {
-        return 1L << mask;
-    }
-
-    public long mask() {
-        return mask;
+    public int rawMask() {
+        return rawMask;
     }
 
     @Override

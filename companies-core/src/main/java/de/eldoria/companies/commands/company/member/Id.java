@@ -1,23 +1,22 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company.member;
 
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.services.messages.IMessageBlockerService;
-import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -28,15 +27,12 @@ import java.util.logging.Level;
 public class Id extends AdvancedCommand implements IPlayerTabExecutor {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
     private final ACompanyData companyData;
-    private final BukkitAudiences audiences;
-    private final MiniMessage miniMessage;
-    private final IMessageBlockerService messageBlocker;
+    private final MessageBlocker messageBlocker;
 
-    public Id(Plugin plugin, ACompanyData companyData, IMessageBlockerService messageBlocker) {
-        super(plugin, CommandMeta.builder("id").build());
+    public Id(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
+        super(plugin, CommandMeta.builder("id")
+                .build());
         this.companyData = companyData;
-        audiences = BukkitAudiences.create(plugin);
-        miniMessage = MiniMessage.get();
         this.messageBlocker = messageBlocker;
     }
 
@@ -45,54 +41,60 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
         var companyId = args.asInt(0);
 
         companyData.retrieveCompanyById(companyId)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optSimple -> {
-                    if (optSimple.isEmpty()) {
-                        messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, player, "error.unknownCompany");
-                        return;
-                    }
-                    messageBlocker.blockPlayer(player);
-                    var optProfile = companyData.retrieveCompanyProfile(optSimple.get())
-                            .asFuture()
-                            .exceptionally(err -> {
-                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                                return Optional.empty();
-                            })
-                            .join();
-                    if (optProfile.isEmpty()) return;
-                    var profile = optProfile.get();
-                    var builder = MessageComposer.create().text("<%s>", Colors.HEADING).localeCode("company.member.members").text(":").newLine();
-                    List<String> members = new ArrayList<>();
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return Optional.empty();
+                   })
+                   .thenAccept(optSimple -> {
+                       if (optSimple.isEmpty()) {
+                           messageSender().sendErrorActionBar(player, "error.unknownCompany");
+                           return;
+                       }
+                       messageBlocker.blockPlayer(player);
+                       var optProfile = companyData.retrieveCompanyProfile(optSimple.get())
+                                                   .asFuture()
+                                                   .exceptionally(err -> {
+                                                       plugin().getLogger()
+                                                               .log(Level.SEVERE, "Something went wrong", err);
+                                                       return Optional.empty();
+                                                   })
+                                                   .join();
+                       if (optProfile.isEmpty()) return;
+                       var profile = optProfile.get();
+                       var builder = MessageComposer.create()
+                                                    .text("<heading>")
+                                                    .localeCode("company.member.members")
+                                                    .text(":")
+                                                    .newLine();
+                       List<String> members = new ArrayList<>();
 
-                    for (var member : profile.members()) {
-                        var mem = member.player();
-                        if (mem == null) continue;
-                        var hover = MessageComposer.create();
-                        hover.text(((CompanyMember) member).statusComponent());
+                       for (var member : profile.members()) {
+                           var mem = member.player();
+                           if (mem == null) continue;
+                           var hover = MessageComposer.create();
+                           hover.text(((CompanyMember) member).statusComponent());
 
-                        var nameComp = MessageComposer.create().space(2).text("<hover:show_text:%s><%s>%s</hover>", hover.build(), Colors.VALUE, mem.getName());
-                        members.add(nameComp.build());
-                    }
-                    builder.text(members);
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</click>");
-                    }
-                    messageBlocker.announce(player, "[x]");
-                    builder.prependLines(25);
-                    audiences.sender(player).sendMessage(miniMessage.parse(localizer().localize(builder.build())));
-                }).exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                })
+                           var nameComp = MessageComposer.create()
+                                                         .space(2)
+                                                         .text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
+                           members.add(nameComp.build());
+                       }
+                       builder.text(members);
+                       if (messageBlocker.isBlocked(player)) {
+                           builder.newLine()
+                                  .text("<click:run_command:/company chatblock false><red>[x]</click>");
+                       }
+                       messageBlocker.announce(player, "[x]");
+                       builder.prependLines(25);
+                       messageSender().sendMessage(player, builder);
+                   })
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return null;
+                   })
         ;
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return IPlayerTabExecutor.super.onTabComplete(player, alias, args);
     }
 }

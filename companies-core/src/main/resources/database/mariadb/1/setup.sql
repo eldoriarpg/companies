@@ -1,19 +1,19 @@
-CREATE OR REPLACE TABLE companies
+CREATE TABLE IF NOT EXISTS companies
 (
     id      INT AUTO_INCREMENT,
     name    TEXT                                  NOT NULL,
     founded TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
-    level   INT       DEFAULT 1                   NOT NULL,
+    LEVEL   INT       DEFAULT 1                   NOT NULL,
     CONSTRAINT companies_id_uindex
         UNIQUE (id),
     CONSTRAINT companies_name_uindex
-        UNIQUE (name) USING HASH
+        UNIQUE (name(120)) USING HASH
 );
 
 ALTER TABLE companies
     ADD PRIMARY KEY (id);
 
-CREATE OR REPLACE TABLE company_member
+CREATE TABLE IF NOT EXISTS company_member
 (
     id          INT              NOT NULL,
     member_uuid BINARY(16)       NOT NULL
@@ -24,13 +24,13 @@ CREATE OR REPLACE TABLE company_member
             ON DELETE CASCADE
 );
 
-CREATE OR REPLACE INDEX company_member_id_index
+CREATE INDEX company_member_id_index
     ON company_member (id);
 
-CREATE OR REPLACE INDEX company_member_id_uuid_index
+CREATE INDEX IF NOT EXISTS company_member_id_uuid_index
     ON company_member (id, member_uuid);
 
-CREATE OR REPLACE TABLE orders
+CREATE TABLE IF NOT EXISTS orders
 (
     id         INT AUTO_INCREMENT
         PRIMARY KEY,
@@ -39,7 +39,7 @@ CREATE OR REPLACE TABLE orders
     created    TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL
 );
 
-CREATE OR REPLACE TABLE order_content
+CREATE TABLE IF NOT EXISTS order_content
 (
     id       INT   NOT NULL,
     material TEXT  NOT NULL,
@@ -51,7 +51,7 @@ CREATE OR REPLACE TABLE order_content
             ON DELETE CASCADE
 );
 
-CREATE OR REPLACE TABLE order_states
+CREATE TABLE IF NOT EXISTS order_states
 (
     id          INT                                   NOT NULL
         PRIMARY KEY,
@@ -63,10 +63,10 @@ CREATE OR REPLACE TABLE order_states
             ON DELETE CASCADE
 );
 
-CREATE OR REPLACE INDEX orders_owner_uuid_index
+CREATE INDEX IF NOT EXISTS orders_owner_uuid_index
     ON orders (owner_uuid);
 
-CREATE OR REPLACE TABLE orders_delivered
+CREATE TABLE IF NOT EXISTS orders_delivered
 (
     id          INT        NOT NULL,
     worker_uuid BINARY(16) NOT NULL,
@@ -77,20 +77,20 @@ CREATE OR REPLACE TABLE orders_delivered
             ON DELETE CASCADE
 );
 
-CREATE OR REPLACE INDEX orders_delivered_id_index
+CREATE INDEX IF NOT EXISTS orders_delivered_id_index
     ON orders_delivered (id);
 
-CREATE OR REPLACE TABLE company_notification
+CREATE TABLE IF NOT EXISTS company_notification
 (
     user_uuid         BINARY(16)                            NOT NULL,
     created           TIMESTAMP DEFAULT CURRENT_TIMESTAMP() NOT NULL,
     notification_data TEXT                                  NOT NULL
 );
 
-CREATE OR REPLACE INDEX notification_user_uuid_index
+CREATE INDEX IF NOT EXISTS notification_user_uuid_index
     ON company_notification (user_uuid);
 
-CREATE OR REPLACE TABLE company_stats
+CREATE TABLE IF NOT EXISTS company_stats
 (
     id            INT           NOT NULL
         PRIMARY KEY,
@@ -105,7 +105,7 @@ SELECT c.id,
        c.name,
        c.founded,
        m.member_count,
-       o.order_count - coalesce(s.failed_orders, 0) AS order_count,
+       o.order_count - COALESCE(s.failed_orders, 0) AS order_count,
        o.price,
        o.amount
 FROM companies c
@@ -138,3 +138,33 @@ CREATE TABLE material_price
     CONSTRAINT material_price_pk
         PRIMARY KEY (material)
 );
+
+create table node
+(
+    id      int AUTO_INCREMENT,
+    uid     tinyblob               not null,
+    type    text default 'PRIMARY' not null,
+    version text                   not null,
+    CONSTRAINT node_id_uindex
+        UNIQUE (id),
+    constraint node_uid_uindex
+        unique (uid) using hash
+);
+
+create table node_configuration
+(
+    node_id int  not null,
+    path    text not null,
+    content text not null,
+    constraint node_configuration_node_id_fk
+        foreign key (node_id) references node (id)
+            on delete cascade
+
+);
+
+create index node_configuration_node_id_index
+    on node_configuration (node_id);
+
+create unique index node_configuration_node_id_path_uindex
+    on node_configuration (node_id, path(126));
+

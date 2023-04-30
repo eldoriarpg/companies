@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
@@ -9,17 +14,13 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.localization.Replacement;
-import de.eldoria.eldoutilities.messages.MessageChannel;
-import de.eldoria.eldoutilities.messages.MessageType;
-import org.bukkit.command.CommandSender;
+import de.eldoria.eldoutilities.messages.Replacement;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
 public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
@@ -32,48 +33,48 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
         this.companyData = companyData;
     }
 
-    private void handleProfile(@NotNull CommandSender sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
+    @Override
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+        companyData.retrievePlayerCompanyProfile(player)
+                   .asFuture()
+                   .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
+    }
+
+    private void handleProfile(@NotNull Player sender, @NotNull String arg, Player player, Optional<CompanyProfile> optProfile) {
         if (optProfile.isEmpty()) {
-            messageSender().send(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.noMember");
+            messageSender().sendErrorActionBar(sender, "error.noMember");
             return;
         }
         var profile = optProfile.get();
 
-        if (!profile.member(player).map(r -> r.hasPermissions(CompanyPermission.KICK)).orElse(false)) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.permission.kick");
+        if (!profile.member(player)
+                    .map(r -> r.hasPermissions(CompanyPermission.KICK))
+                    .orElse(false)) {
+            messageSender().sendErrorActionBar(sender, "error.permission.kick");
             return;
         }
 
         var optMember = profile.memberByName(arg);
 
         if (optMember.isEmpty()) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.noCompanyMember");
+            messageSender().sendErrorActionBar(sender, "error.noCompanyMember");
             return;
         }
 
         var target = optMember.get();
 
         if (target.hasPermission(CompanyPermission.KICK)) {
-            messageSender().sendLocalized(MessageChannel.ACTION_BAR, MessageType.ERROR, sender, "error.cantKick");
+            messageSender().sendErrorActionBar(sender, "error.cantKick");
             return;
         }
 
-        companyData.submitMemberUpdate(target.kick()).join();
-        messageSender().sendLocalizedMessage(sender, "company.kick.kicked",
-                Replacement.create("name", target.player().getName()).addFormatting('c'));
+        companyData.submitMemberUpdate(target.kick())
+                   .join();
+        messageSender().sendMessage(sender, "company.kick.kicked",
+                Replacement.create("name", target.player().getName()));
 
-        plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(optProfile.get(), target.player()));
-    }
-
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        companyData.retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .thenAccept(optProfile -> handleProfile(player, arguments.asString(0), player, optProfile));
-    }
-
-    @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Collections.emptyList();
+        plugin().getServer()
+                .getPluginManager()
+                .callEvent(new CompanyKickEvent(optProfile.get(), target.player()));
     }
 }

@@ -1,7 +1,12 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
 package de.eldoria.companies.data.repository;
 
-import de.chojo.sqlutil.base.QueryFactoryHolder;
-import de.chojo.sqlutil.wrapper.QueryBuilderConfig;
+import de.chojo.sadu.base.QueryFactory;
+import de.chojo.sadu.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.services.notifications.MissedNotifications;
 import de.eldoria.companies.services.notifications.NotificationData;
 import org.bukkit.OfflinePlayer;
@@ -12,19 +17,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 
-public abstract class ANotificationData extends QueryFactoryHolder {
+@SuppressWarnings("UnusedReturnValue")
+public abstract class ANotificationData {
 
-    private ExecutorService executorService;
+    private final ExecutorService executorService;
 
     /**
      * Create a new QueryFactoryholder
-     *
-     * @param dataSource datasource
      */
-    public ANotificationData(Plugin plugin, DataSource dataSource, ExecutorService executorService) {
-        super(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(e -> plugin.getLogger().log(Level.SEVERE, "Query exception", e))
-                .build());
+    public ANotificationData(ExecutorService executorService) {
         this.executorService = executorService;
     }
 
