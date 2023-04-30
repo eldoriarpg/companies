@@ -137,7 +137,7 @@ public class Companies extends EldoPlugin {
         }
 
         var messageBlocker = MessageBlockerAPI.builder(this)
-                .withExectuor(workerPool)
+                .withExecutor(workerPool)
                 .addWhitelisted("[C]")
                 .build();
 
