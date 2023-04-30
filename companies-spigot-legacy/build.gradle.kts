@@ -38,7 +38,6 @@ tasks {
         relocate("com.fasterxml", shadebase + "fasterxml")
         relocate("org.yaml", shadebase + "yaml")
         relocate("de.chojo", shadebase + "chojo")
-        relocate("javax", shadebase + "javax")
         mergeServiceFiles()
     }
 

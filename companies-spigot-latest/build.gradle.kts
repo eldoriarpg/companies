@@ -60,7 +60,6 @@ tasks {
         relocate("de.eldoria.messageblocker", shadebase + "messageblocker")
         relocate("de.eldoria.jacksonbukkit", shadebase + "jacksonbukkit")
         relocate("de.chojo", shadebase + "chojo")
-        relocate("javax", shadebase + "javax")
         mergeServiceFiles()
     }
 

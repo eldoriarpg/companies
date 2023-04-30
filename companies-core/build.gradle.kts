@@ -39,4 +39,7 @@ dependencies {
     compileOnly("org.mariadb.jdbc", "mariadb-java-client", "3.1.2")
     compileOnly("org.xerial", "sqlite-jdbc", "3.41.0.0")
     compileOnly("org.postgresql", "postgresql", "42.5.4")
+
+    testImplementation("net.kyori", "adventure-api", "4.12.0")
+    testImplementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
 }
