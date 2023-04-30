@@ -43,6 +43,7 @@ import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
@@ -145,7 +146,10 @@ public class Companies extends EldoPlugin {
         var levelService = new LevelService(this, configuration, companyData);
 
         if (configuration.generalSettings().checkUpdates()) {
-            LynaUpdateChecker.lyna(LynaUpdateData.builder(this, 2).build()).start();
+            LynaUpdateChecker.lyna(LynaUpdateData.builder(this, 2)
+                    .updateUrl("https://discord.gg/EYMWzgWdq8")
+                    .notifyPermission(Permission.Admin.ADMIN)
+                    .build()).start();
         }
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
