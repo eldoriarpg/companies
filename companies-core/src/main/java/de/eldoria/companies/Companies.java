@@ -127,8 +127,7 @@ public class Companies extends EldoPlugin {
                         .tag("neutral", Tag.styling(NamedTextColor.DARK_AQUA)))
                 .register();
 
-        var economyProvider = getServer().getServicesManager()
-                .getRegistration(Economy.class);
+        var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
         Economy economy;
         if (economyProvider != null) {
             economy = economyProvider.getProvider();
@@ -160,8 +159,7 @@ public class Companies extends EldoPlugin {
         registerListener(levelService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
-        if (getServer().getPluginManager()
-                .isPluginEnabled("PlaceholderAPI")) {
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
             registerListener(placeholderService);
@@ -198,8 +196,9 @@ public class Companies extends EldoPlugin {
                 getLogger().info("Using Postgres database");
                 builder = SqlUpdater.builder(dataSource, PostgreSql.get());
             }
-            default -> throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                    .storageType());
+            default -> {
+                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
+            }
         }
 
         builder.setVersionTable("companies_db_version")
