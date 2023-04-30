@@ -46,77 +46,7 @@ The plugin is plug & play. However, you can do several configurations.
 * [ProtocolLib](https://www.spigotmc.org/resources/1997/) for the best experience with the text UIs. **This is highly recommended.**
 
 ## Configuration
-The configuration needs to be done in the `config.yml`
-### Company Settings
-**DeliveryHours**\
-Amount of hours after an order was claimed. After this time the order will be claimable again.
-
-**FoundingPrice**\
-Price to found a company
-
-**RenamePrice**\
-Price to rename a existing companies (Does not count for the admin commands)
-
-**ExpiredOrdersPenalty**\
-The penalty which is applied to the order count in the company statistic when a order is expired.
-
-**AbortedOrdersPenalty**\
-The penalty which is applied to the order count in the company statistic when a order is aborted.
-
-**Level**\
-Definition of company levels. One level needs to be defined all the time and will be regenerated.\
-Please use the ingame command to modify this.
-
-### User Settings
-**MaxOrders**\
-Max amount of orders one user can have. This countrs for claimed and unclaimed orders.
-
-### Order Settings
-**MaxItems**\
-Max amount of items in one order.
-
-**MaxMaterials**\
-Amount of materials in one orders.
-
-**MaxUnclaimedHours**\
-The amount of time after an unclaimed order gets removed and the money is refunded.
-
-### General Settings
-**OrderCheckInterval**\
-The interval in minutes which is used to check for expired orders
-
-**Language**\
-The language which should be used. Needs to be one of the languages in the messages directory.
-
-### Database Settings
-
-**StorageType**\
-The choosen storage type.\
-One of: `postgres`, `sqlite` or `mariadb`. **Postgres is recommended for best performance**.
-
-**Host**\
-Host of your database. Should be localhost all the time.\
-Required for `postgres`, `mariadb`
-
-**Port**\
-Port of the database\
-Required for `postgres`, `mariadb`
-
-**User**\
-User to log in.\
-Required for `postgres`, `mariadb`
-
-**Password**\
-Password to log in.\
-Required for `postgres`, `mariadb`
-
-**Database**\
-Database to use. This database needs to exist and will not be created by the plugin.\
-Required for `postgres`, `mariadb`
-
-**Schema**\
-Schema to use. This schema needs to exist or the database user needs permission to create a schema.\
-Required for `postgres`
+A detailed guide on the configuration can be found at the [wiki](https://github.com/eldoriarpg/companies/wiki/Configuration)
 
 [wakatime]: https://wakatime.com/badge/github/eldoriarpg/companies
 [publish]: https://github.com/eldoriarpg/companies/actions/workflows/publish_to_nexus.yml
