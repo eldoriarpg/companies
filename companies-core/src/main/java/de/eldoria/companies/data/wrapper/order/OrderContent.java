@@ -80,11 +80,14 @@ public class OrderContent implements IOrderContent {
     @Override
     public String translatedMaterialString() {
         if (Features.HAS_TRANSLATION_KEY) {
+            // paper
             return "<tr:%s>".formatted(stack.getType().translationKey());
         }
         if (Features.HAS_GET_TRANSLATION_KEY) {
+            // spigot
             return "<tr:%s>".formatted(stack.getType().getTranslationKey());
         }
+        // legacy spigot and paper
         return stack().getType()
                 .name()
                 .toLowerCase()

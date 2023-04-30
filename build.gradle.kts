@@ -37,8 +37,7 @@ allprojects {
 
 
     dependencies {
-        compileOnly("org.spigotmc", "spigot-api", "1.19.4-R0.1-SNAPSHOT")
-        compileOnly("io.papermc.paper", "paper-api", "1.17.1-R0.1-SNAPSHOT")
+        compileOnly("io.papermc.paper", "paper-api", "1.19.4-R0.1-SNAPSHOT")
         compileOnly("org.jetbrains", "annotations", "24.0.1")
 
         testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
@@ -46,6 +45,7 @@ allprojects {
         testImplementation("com.github.seeseemelk", "MockBukkit-v1.16", "1.5.2")
         testImplementation("org.junit.jupiter", "junit-jupiter")
     }
+
     spotless {
         java {
             licenseHeaderFile(rootProject.file("HEADER.txt"))
@@ -54,11 +54,12 @@ allprojects {
     }
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_17
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        }
         withSourcesJar()
         withJavadocJar()
     }
-
 
     tasks {
         compileJava {
@@ -68,7 +69,6 @@ allprojects {
         compileTestJava {
             options.encoding = "UTF-8"
         }
-
 
         test {
             useJUnitPlatform()
