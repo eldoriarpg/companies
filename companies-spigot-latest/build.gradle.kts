@@ -23,7 +23,7 @@ dependencies {
     // database
     bukkitLibrary("com.zaxxer", "HikariCP", "5.0.1")
     bukkitLibrary("org.mariadb.jdbc", "mariadb-java-client", "3.1.2")
-    bukkitLibrary("org.xerial", "sqlite-jdbc", "3.41.0.0")
+    bukkitLibrary("org.xerial", "sqlite-jdbc", "3.41.2.1")
     bukkitLibrary("org.postgresql", "postgresql", "42.5.4")
 }
 

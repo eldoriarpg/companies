@@ -21,7 +21,7 @@ dependencies {
         exclude("net.kyori")
     }
     api("de.eldoria.util", "threading", "2.0.0-DEV")
-    api("de.eldoria", "messageblocker", "1.1.1")
+    api("de.eldoria", "messageblocker", "1.1.2")
 
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
     compileOnly("me.clip", "placeholderapi", "2.11.3")
@@ -37,7 +37,7 @@ dependencies {
     // database
     compileOnly("com.zaxxer", "HikariCP", "5.0.1")
     compileOnly("org.mariadb.jdbc", "mariadb-java-client", "3.1.2")
-    compileOnly("org.xerial", "sqlite-jdbc", "3.41.0.0")
+    compileOnly("org.xerial", "sqlite-jdbc", "3.41.2.1")
     compileOnly("org.postgresql", "postgresql", "42.5.4")
 
     testImplementation("net.kyori", "adventure-api", "4.12.0")
