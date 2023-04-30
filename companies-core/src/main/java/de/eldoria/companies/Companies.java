@@ -47,6 +47,8 @@ import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
+import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateChecker;
+import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateData;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -126,7 +128,7 @@ public class Companies extends EldoPlugin {
                 .register();
 
         var economyProvider = getServer().getServicesManager()
-                                         .getRegistration(Economy.class);
+                .getRegistration(Economy.class);
         Economy economy;
         if (economyProvider != null) {
             economy = economyProvider.getProvider();
@@ -143,6 +145,10 @@ public class Companies extends EldoPlugin {
 
         var levelService = new LevelService(this, configuration, companyData);
 
+        if (configuration.generalSettings().checkUpdates()) {
+            LynaUpdateChecker.lyna(LynaUpdateData.builder(this, 2).build()).start();
+        }
+
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
         registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService, nodeData));
@@ -155,7 +161,7 @@ public class Companies extends EldoPlugin {
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
         if (getServer().getPluginManager()
-                       .isPluginEnabled("PlaceholderAPI")) {
+                .isPluginEnabled("PlaceholderAPI")) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
             registerListener(placeholderService);
@@ -193,15 +199,15 @@ public class Companies extends EldoPlugin {
                 builder = SqlUpdater.builder(dataSource, PostgreSql.get());
             }
             default -> throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                                                                                           .storageType());
+                    .storageType());
         }
 
         builder.setVersionTable("companies_db_version")
-               .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
-               .withConfig(QueryBuilderConfig.builder()
-                       .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
-                       .build())
-               .execute();
+                .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
+                .withConfig(QueryBuilderConfig.builder()
+                        .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
+                        .build())
+                .execute();
 
         initDataRepositories();
     }
@@ -209,7 +215,7 @@ public class Companies extends EldoPlugin {
     private void initDataRepositories() {
         var mapper = configuration.configureDefault(JsonMapper.builder());
         switch (configuration.databaseSettings()
-                             .storageType()) {
+                .storageType()) {
             case SQLITE:
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
@@ -229,7 +235,7 @@ public class Companies extends EldoPlugin {
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                                                                                    .storageType());
+                        .storageType());
         }
     }
 

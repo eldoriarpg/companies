@@ -9,6 +9,7 @@ package de.eldoria.companies.configuration.elements;
 public class GeneralSettings {
     private String language = "en_US";
     private int orderCheckInterval = 60;
+    private boolean checkUpdates = true;
 
     public GeneralSettings() {
     }
@@ -19,5 +20,9 @@ public class GeneralSettings {
 
     public String language() {
         return language;
+    }
+
+    public boolean checkUpdates() {
+        return checkUpdates;
     }
 }
