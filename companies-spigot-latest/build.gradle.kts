@@ -16,7 +16,7 @@ dependencies {
     bukkitLibrary("net.kyori", "adventure-platform-bukkit", "4.2.0")
 
     bukkitLibrary("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")
-    bukkitLibrary("com.fasterxml.jackson.core", "jackson-core", "2.14.2")
+    bukkitLibrary("com.fasterxml.jackson.core", "jackson-core", "2.15.2")
     bukkitLibrary("com.fasterxml.jackson.core:jackson-databind:2.14.2")
 
 
