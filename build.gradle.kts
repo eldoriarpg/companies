@@ -3,7 +3,7 @@ import de.chojo.PublishData
 
 plugins {
     java
-    id("com.diffplug.spotless") version "6.16.0"
+    id("com.diffplug.spotless") version "6.19.0"
     id("de.chojo.publishdata") version "1.2.4"
     `maven-publish`
 }
