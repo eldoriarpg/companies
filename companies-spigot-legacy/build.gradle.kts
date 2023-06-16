@@ -13,18 +13,13 @@ dependencies {
     }
 
     // text
-    implementation("net.kyori", "adventure-api", "4.12.0")
-    implementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
+    implementation(libs.adventure.minimessage)
+    implementation(libs.adventure.bukkit)
 
-    implementation("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")
-    implementation("com.fasterxml.jackson.core", "jackson-core", "2.14.2")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2")
+    implementation(libs.bundles.jackson)
 
     // database
-    bukkitLibrary("com.zaxxer", "HikariCP", "5.0.1")
-    bukkitLibrary("org.mariadb.jdbc", "mariadb-java-client", "3.1.2")
-    bukkitLibrary("org.xerial", "sqlite-jdbc", "3.41.2.1")
-    bukkitLibrary("org.postgresql", "postgresql", "42.5.4")
+    bukkitLibrary(libs.bundles.database)
 }
 
 
