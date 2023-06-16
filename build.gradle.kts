@@ -3,13 +3,13 @@ import de.chojo.PublishData
 
 plugins {
     java
-    id("com.diffplug.spotless") version "6.16.0"
-    id("de.chojo.publishdata") version "1.2.4"
+    alias(libs.plugins.spotless)
+    alias(libs.plugins.publishdata)
     `maven-publish`
 }
 
 group = "de.eldoria"
-version = "1.0.4"
+version = "1.0.5"
 
 subprojects {
     apply {
@@ -37,12 +37,14 @@ allprojects {
 
 
     dependencies {
-        compileOnly("io.papermc.paper", "paper-api", "1.19.4-R0.1-SNAPSHOT")
-        compileOnly("org.jetbrains", "annotations", "24.0.1")
+        val libs = rootProject.libs
+        val testlibs = rootProject.testlibs
+        compileOnly(libs.paper.latest)
+        compileOnly(libs.jetbrains.annotations)
 
-        testImplementation("org.spigotmc", "spigot-api", "1.16.5-R0.1-SNAPSHOT")
-        testImplementation(platform("org.junit:junit-bom:5.9.2"))
-        testImplementation("com.github.seeseemelk", "MockBukkit-v1.16", "1.5.2")
+        testImplementation(libs.spigot.v16)
+        testImplementation(platform("org.junit:junit-bom:5.9.3"))
+        testImplementation(testlibs.mockbukkit)
         testImplementation("org.junit.jupiter", "junit-jupiter")
     }
 
