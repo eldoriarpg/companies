@@ -39,7 +39,7 @@ dependencies {
     compileOnly("com.zaxxer", "HikariCP", "5.0.1")
     compileOnly("org.mariadb.jdbc", "mariadb-java-client", "3.1.4")
     compileOnly("org.xerial", "sqlite-jdbc", "3.41.2.1")
-    compileOnly("org.postgresql", "postgresql", "42.5.4")
+    compileOnly("org.postgresql", "postgresql", "42.6.0")
 
     testImplementation("net.kyori", "adventure-api", "4.12.0")
     testImplementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
