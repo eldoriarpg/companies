@@ -43,7 +43,7 @@ allprojects {
         compileOnly(libs.jetbrains.annotations)
 
         testImplementation(libs.spigot.v16)
-        testImplementation(platform("org.junit:junit-bom:5.9.2"))
+        testImplementation(platform("org.junit:junit-bom:5.9.3"))
         testImplementation(testlibs.mockbukkit)
         testImplementation("org.junit.jupiter", "junit-jupiter")
     }
