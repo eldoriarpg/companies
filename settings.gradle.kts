@@ -72,10 +72,10 @@ dependencyResolutionManagement {
             // minecraft
             version("minecraft-latest", "1.20.1-R0.1-SNAPSHOT")
             library("paper-latest", "io.papermc.paper", "paper-api").versionRef("minecraft-latest")
-            library("spigot-latest", "io.papermc.paper", "paper-api").versionRef("minecraft-latest")
+            library("spigot-latest", "org.spigotmc", "spigot-api").versionRef("minecraft-latest")
             bundle("minecraft-latest", listOf("paper-latest", "spigot-latest"))
             library("paper-v17", "io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT")
-            library("spigot-v16", "io.papermc.paper:paper-api:1.17.1-R0.1-SNAPSHOT")
+            library("spigot-v16", "org.spigotmc:spigot-api:1.16.1-R0.1-SNAPSHOT")
             // world edit
             library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.2.15")
             library("fawe-core", "com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.6.3")
