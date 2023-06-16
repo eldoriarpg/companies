@@ -31,10 +31,11 @@ dependencyResolutionManagement {
             library("snakeyaml", "org.yaml:snakeyaml:2.0")
             bundle("jackson", listOf("jackson-databind", "jackson-annotations", "jackson-yaml"))
 
-            library("jackson-configuration", "de.eldoria.util:jackson-configuration:2.0.0-DEV")
-            library("plugin", "de.eldoria.util:plugin:2.0.0-DEV")
-            library("threading", "de.eldoria.util:threading:2.0.0-DEV")
-            library("updater", "de.eldoria.util:updater:2.0.0-DEV")
+            version("eldoutil", "2.0.0-DEV")
+            library("jackson-configuration", "de.eldoria.util","jackson-configuration").versionRef("eldoutil")
+            library("plugin", "de.eldoria.util","plugin").versionRef("eldoutil")
+            library("threading", "de.eldoria.util","threading").versionRef("eldoutil")
+            library("updater", "de.eldoria.util","updater").versionRef("eldoutil")
             bundle("eldoria-utilities", listOf("jackson-configuration", "plugin", "threading", "updater"))
 
             // external dependencies
@@ -48,8 +49,6 @@ dependencyResolutionManagement {
             library("adventure-minimessage", "net.kyori:adventure-text-minimessage:4.14.0")
             bundle("adventure", listOf("adventure-bukkit", "adventure-minimessage"))
             // utilities
-            library("eldoutil-legacy", "de.eldoria:eldo-util:1.14.4")
-            library("eldoutil-jackson", "de.eldoria.util:jackson-configuration:2.0.0-DEV")
             library("messageblocker", "de.eldoria:messageblocker:1.1.2")
 
             // database
@@ -79,8 +78,9 @@ dependencyResolutionManagement {
             library("spigot-v16", "org.spigotmc:spigot-api:1.16.1-R0.1-SNAPSHOT")
             // world edit
             library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.2.15")
-            library("fawe-core", "com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.6.3")
-            library("fawe-bukkit", "com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit:2.6.3")
+            version("fawe", "2.6.3")
+            library("fawe-core", "com.fastasyncworldedit","FastAsyncWorldEdit-Core").versionRef("fawe")
+            library("fawe-bukkit", "com.fastasyncworldedit","FastAsyncWorldEdit-Bukkit").versionRef("fawe")
 
             // plugins
             plugin("publishdata", "de.chojo.publishdata").version("1.2.4")
