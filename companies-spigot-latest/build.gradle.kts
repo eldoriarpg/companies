@@ -11,19 +11,9 @@ dependencies {
         exclude("org.jetbrains")
         exclude("org.slf4j")
     }
-    // text
-    bukkitLibrary(libs.adventure.bukkit)
-    bukkitLibrary(libs.adventure.minimessage)
-
-    bukkitLibrary(libs.jackson.yaml)
-    bukkitLibrary(libs.jackson.core)
-    bukkitLibrary(libs.jackson.databind)
-
-    // database
-    bukkitLibrary(libs.postgres)
-    bukkitLibrary(libs.mariadb)
-    bukkitLibrary(libs.sqlite)
-    bukkitLibrary(libs.hikari)
+    bukkitLibrary(libs.bundles.adventure)
+    bukkitLibrary(libs.bundles.jackson)
+    bukkitLibrary(libs.bundles.database)
 }
 
 publishData {

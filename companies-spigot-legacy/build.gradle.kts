@@ -12,13 +12,8 @@ dependencies {
         exclude("org.slf4j")
     }
 
-    // text
-    implementation(libs.adventure.minimessage)
-    implementation(libs.adventure.bukkit)
-
+    implementation(libs.bundles.adventure)
     implementation(libs.bundles.jackson)
-
-    // database
     bukkitLibrary(libs.bundles.database)
 }
 
