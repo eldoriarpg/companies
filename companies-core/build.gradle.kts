@@ -24,7 +24,7 @@ dependencies {
     api("de.eldoria.util", "updater", "2.0.0-DEV")
     api("de.eldoria", "messageblocker", "1.1.2")
 
-    compileOnly("com.comphenix.protocol", "ProtocolLib", "4.8.0")
+    compileOnly("com.comphenix.protocol", "ProtocolLib", "5.0.0")
     compileOnly("me.clip", "placeholderapi", "2.11.3")
     compileOnly("com.github.MilkBowl", "VaultAPI", "1.7.1")
 
