@@ -16,7 +16,7 @@ dependencies {
     implementation("net.kyori", "adventure-api", "4.12.0")
     implementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
 
-    implementation("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")
+    implementation("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.15.2")
     implementation("com.fasterxml.jackson.core", "jackson-core", "2.15.2")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2")
 
