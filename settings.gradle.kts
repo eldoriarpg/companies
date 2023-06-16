@@ -24,10 +24,10 @@ dependencyResolutionManagement {
         create("libs") {
             // jackson & serialization
             version("jackson", "2.15.2")
-            library("jackson-core", "com.fasterxml.jackson.core:jackson-core:2.15.2")
-            library("jackson-databind", "com.fasterxml.jackson.core:jackson-databind:2.15.2")
-            library("jackson-annotations", "com.fasterxml.jackson.core:jackson-annotations:2.15.2")
-            library("jackson-yaml", "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.2")
+            library("jackson-core", "com.fasterxml.jackson.core","jackson-core").versionRef("jackson")
+            library("jackson-databind", "com.fasterxml.jackson.core","jackson-databind").versionRef("jackson")
+            library("jackson-annotations", "com.fasterxml.jackson.core","jackson-annotations").versionRef("jackson")
+            library("jackson-yaml", "com.fasterxml.jackson.dataformat","jackson-dataformat-yaml").versionRef("jackson")
             library("snakeyaml", "org.yaml:snakeyaml:2.0")
             bundle("jackson", listOf("jackson-databind", "jackson-annotations", "jackson-yaml"))
 
@@ -58,12 +58,13 @@ dependencyResolutionManagement {
             library("sqlite", "org.xerial:sqlite-jdbc:3.42.0.0")
             library("postgres", "org.postgresql:postgresql:42.5.4")
             bundle("database", listOf("hikari", "mariadb", "sqlite", "postgres"))
-            library("sadu-queries", "de.chojo.sadu:sadu-queries:1.3.0")
-            library("sadu-updater", "de.chojo.sadu:sadu-updater:1.3.0")
-            library("sadu-datasource", "de.chojo.sadu:sadu-datasource:1.3.0")
-            library("sadu-postgresql", "de.chojo.sadu:sadu-postgresql:1.3.0")
-            library("sadu-mariadb", "de.chojo.sadu:sadu-mariadb:1.3.0")
-            library("sadu-sqlite", "de.chojo.sadu:sadu-sqlite:1.3.0")
+            version("sadu", "1.3.0")
+            library("sadu-queries", "de.chojo.sadu","sadu-queries").versionRef("sadu")
+            library("sadu-updater", "de.chojo.sadu","sadu-updater").versionRef("sadu")
+            library("sadu-datasource", "de.chojo.sadu","sadu-datasource").versionRef("sadu")
+            library("sadu-postgresql", "de.chojo.sadu","sadu-postgresql").versionRef("sadu")
+            library("sadu-mariadb", "de.chojo.sadu","sadu-mariadb").versionRef("sadu")
+            library("sadu-sqlite", "de.chojo.sadu","sadu-sqlite").versionRef("sadu")
             bundle("sadu", listOf("sadu-queries", "sadu-updater", "sadu-datasource", "sadu-postgresql", "sadu-mariadb", "sadu-sqlite"))
 
 
