@@ -10,7 +10,6 @@ dependencies {
         exclude("org.jetbrains")
         exclude("org.slf4j")
     }
-
     bukkitLibrary(libs.bundles.adventure)
     bukkitLibrary(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
