@@ -33,7 +33,7 @@ dependencies {
 
     compileOnly("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")
     compileOnly("com.fasterxml.jackson.core", "jackson-core", "2.15.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.14.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
 
     // database
     compileOnly("com.zaxxer", "HikariCP", "5.0.1")
