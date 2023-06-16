@@ -39,7 +39,7 @@ dependencyResolutionManagement {
             bundle("eldoria-utilities", listOf("jackson-configuration", "plugin", "threading", "updater"))
 
             // external dependencies
-            library("protocollib","com.comphenix.protocol:ProtocolLib:4.8.0")
+            library("protocollib","com.comphenix.protocol:ProtocolLib:5.0.0")
             library("papi","me.clip:placeholderapi:2.11.3")
             library("vault","com.github.MilkBowl:VaultAPI:1.7.1")
 
