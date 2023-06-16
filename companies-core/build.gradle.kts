@@ -29,7 +29,7 @@ dependencies {
     compileOnly("com.github.MilkBowl", "VaultAPI", "1.7.1")
 
     compileOnly("net.kyori", "adventure-api", "4.12.0")
-    compileOnly("net.kyori", "adventure-platform-bukkit", "4.2.0")
+    compileOnly("net.kyori", "adventure-platform-bukkit", "4.3.0")
 
     compileOnly("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")
     compileOnly("com.fasterxml.jackson.core", "jackson-core", "2.14.2")
@@ -42,5 +42,5 @@ dependencies {
     compileOnly("org.postgresql", "postgresql", "42.5.4")
 
     testImplementation("net.kyori", "adventure-api", "4.12.0")
-    testImplementation("net.kyori", "adventure-platform-bukkit", "4.2.0")
+    testImplementation("net.kyori", "adventure-platform-bukkit", "4.3.0")
 }
