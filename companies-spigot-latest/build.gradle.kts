@@ -12,7 +12,7 @@ dependencies {
         exclude("org.slf4j")
     }
     // text
-    bukkitLibrary("net.kyori", "adventure-api", "4.12.0")
+    bukkitLibrary("net.kyori", "adventure-api", "4.14.0")
     bukkitLibrary("net.kyori", "adventure-platform-bukkit", "4.3.0")
 
     bukkitLibrary("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")

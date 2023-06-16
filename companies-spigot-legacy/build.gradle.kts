@@ -13,7 +13,7 @@ dependencies {
     }
 
     // text
-    implementation("net.kyori", "adventure-api", "4.12.0")
+    implementation("net.kyori", "adventure-api", "4.14.0")
     implementation("net.kyori", "adventure-platform-bukkit", "4.3.0")
 
     implementation("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", "2.14.2")
