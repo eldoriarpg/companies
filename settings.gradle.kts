@@ -88,7 +88,7 @@ dependencyResolutionManagement {
             plugin("publishdata", "de.chojo.publishdata").version("1.2.4")
             plugin("spotless", "com.diffplug.spotless").version("6.19.0")
             plugin("shadow", "com.github.johnrengelman.shadow").version("8.1.1")
-            plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.5.3")
+            plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.6.0")
         }
 
         create("testlibs") {
