@@ -57,7 +57,7 @@ dependencyResolutionManagement {
             library("sqlite", "org.xerial:sqlite-jdbc:3.42.0.0")
             library("postgres", "org.postgresql:postgresql:42.6.0")
             bundle("database", listOf("hikari", "mariadb", "sqlite", "postgres"))
-            version("sadu", "1.3.0")
+            version("sadu", "1.3.1")
             library("sadu-queries", "de.chojo.sadu","sadu-queries").versionRef("sadu")
             library("sadu-updater", "de.chojo.sadu","sadu-updater").versionRef("sadu")
             library("sadu-datasource", "de.chojo.sadu","sadu-datasource").versionRef("sadu")
