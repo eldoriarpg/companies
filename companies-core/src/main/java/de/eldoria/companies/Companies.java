@@ -45,6 +45,7 @@ import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
+import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
@@ -55,9 +56,11 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.milkbowl.vault.economy.Economy;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -147,7 +150,7 @@ public class Companies extends EldoPlugin {
 
         if (configuration.generalSettings().checkUpdates()) {
             LynaUpdateChecker.lyna(LynaUpdateData.builder(this, 2)
-                    .updateUrl("https://discord.gg/EYMWzgWdq8")
+                    .updateUrl("https://companies.discord.eldoria.de/")
                     .notifyPermission(Permission.Admin.ADMIN)
                     .build()).start();
         }
@@ -168,6 +171,11 @@ public class Companies extends EldoPlugin {
             placeholderService.register();
             registerListener(placeholderService);
         }
+    }
+
+    @Override
+    public @NotNull List<DebugDataProvider> getDebugProviders() {
+        return List.of(configuration);
     }
 
     @Override
