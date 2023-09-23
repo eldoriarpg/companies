@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.configuration;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
@@ -15,13 +16,19 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.eldoutilities.config.ConfigKey;
 import de.eldoria.eldoutilities.config.JacksonConfig;
+import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
+import de.eldoria.eldoutilities.debug.DebugDataProvider;
+import de.eldoria.eldoutilities.debug.data.EntryData;
+import de.eldoria.eldoutilities.debug.data.PluginMetaData;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class Configuration extends JacksonConfig<ConfigFile> {
+public class Configuration extends JacksonConfig<ConfigFile> implements DebugDataProvider {
     public static final ConfigKey<ConfigFile> CONFIG_YML = ConfigKey.defaultConfig(ConfigFile.class, ConfigFile::new);
     public static final ConfigKey<DatabaseSettings> DATABASE = ConfigKey.of("Database config", Path.of("database.yml"), DatabaseSettings.class, DatabaseSettings::new);
     public static final ConfigKey<NodeSettings> NODE_SETTINGS = ConfigKey.of("Node config", Path.of("node.yml"), NodeSettings.class, NodeSettings::new);
@@ -90,5 +97,18 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
             save(configKey);
         }
+    }
+
+    @Override
+    public @NotNull EntryData[] getDebugInformations() {
+        var data = new ArrayList<>();
+        for (var conf : List.of(NODE_SETTINGS, DATABASE, ORDER_SETTINGS, USER_SETTINGS, COMPANY_SETTINGS, CONFIG_YML, PluginBaseConfiguration.KEY)){
+            try {
+                data.add(new EntryData(conf.name(), reader().writeValueAsString(secondary(conf))));
+            } catch (JsonProcessingException e) {
+                // ignore
+            }
+        }
+        return data.toArray(EntryData[]::new);
     }
 }

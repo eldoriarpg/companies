@@ -6,7 +6,6 @@ plugins {
 dependencies {
     implementation(project(":companies-core")) {
         exclude("com.zaxxer")
-        exclude("com.zaxxer")
         exclude("com.google.code")
         exclude("org.jetbrains")
         exclude("org.slf4j")
@@ -14,6 +13,8 @@ dependencies {
     bukkitLibrary(libs.bundles.adventure)
     bukkitLibrary(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
+    bukkitLibrary(libs.bundles.sadu)
+    implementation(libs.bundles.eldoria.utilities)
 }
 
 publishData {

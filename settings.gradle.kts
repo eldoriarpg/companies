@@ -16,7 +16,7 @@ pluginManagement {
 }
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version ("0.5.0")
+    id("org.gradle.toolchains.foojay-resolver-convention") version ("0.7.0")
 }
 
 dependencyResolutionManagement {
@@ -33,7 +33,7 @@ dependencyResolutionManagement {
 
             // utilities
             library("messageblocker", "de.eldoria:messageblocker:1.1.2")
-            version("eldoutil", "2.0.0-DEV")
+            version("eldoutil", "2.0.2-SNAPSHOT")
             library("jackson-configuration", "de.eldoria.util","jackson-configuration").versionRef("eldoutil")
             library("plugin", "de.eldoria.util","plugin").versionRef("eldoutil")
             library("threading", "de.eldoria.util","threading").versionRef("eldoutil")
@@ -41,7 +41,7 @@ dependencyResolutionManagement {
             bundle("eldoria-utilities", listOf("jackson-configuration", "plugin", "threading", "updater"))
 
             // external dependencies
-            library("protocollib","com.comphenix.protocol:ProtocolLib:5.0.0")
+            library("protocollib","com.comphenix.protocol:ProtocolLib:5.1.0")
             library("papi","me.clip:placeholderapi:2.11.3")
             library("vault","com.github.MilkBowl:VaultAPI:1.7.1")
 
@@ -53,11 +53,11 @@ dependencyResolutionManagement {
 
             // database
             library("hikari", "com.zaxxer:HikariCP:5.0.1")
-            library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.1.4")
-            library("sqlite", "org.xerial:sqlite-jdbc:3.42.0.0")
+            library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.2.0")
+            library("sqlite", "org.xerial:sqlite-jdbc:3.43.0.0")
             library("postgres", "org.postgresql:postgresql:42.6.0")
             bundle("database", listOf("hikari", "mariadb", "sqlite", "postgres"))
-            version("sadu", "1.3.0")
+            version("sadu", "1.3.1")
             library("sadu-queries", "de.chojo.sadu","sadu-queries").versionRef("sadu")
             library("sadu-updater", "de.chojo.sadu","sadu-updater").versionRef("sadu")
             library("sadu-datasource", "de.chojo.sadu","sadu-datasource").versionRef("sadu")
@@ -80,15 +80,15 @@ dependencyResolutionManagement {
 
             // world edit
             library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.2.15")
-            version("fawe", "2.6.3")
+            version("fawe", "2.7.1")
             library("fawe-core", "com.fastasyncworldedit","FastAsyncWorldEdit-Core").versionRef("fawe")
             library("fawe-bukkit", "com.fastasyncworldedit","FastAsyncWorldEdit-Bukkit").versionRef("fawe")
 
             // plugins
-            plugin("publishdata", "de.chojo.publishdata").version("1.2.4")
-            plugin("spotless", "com.diffplug.spotless").version("6.19.0")
+            plugin("publishdata", "de.chojo.publishdata").version("1.2.5")
+            plugin("spotless", "com.diffplug.spotless").version("6.21.0")
             plugin("shadow", "com.github.johnrengelman.shadow").version("8.1.1")
-            plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.5.3")
+            plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.6.0")
         }
 
         create("testlibs") {

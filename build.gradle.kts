@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "de.eldoria"
-version = "1.0.5"
+version = "1.0.6"
 
 subprojects {
     apply {
@@ -22,11 +22,11 @@ subprojects {
 
 allprojects {
     repositories {
-//        mavenLocal {
-//            content {
-//                includeGroup("de.eldoria.util")
-//            }
-//        }
+        mavenLocal {
+            content {
+                includeGroup("de.eldoria.util")
+            }
+        }
         mavenCentral()
         maven("https://eldonexus.de/repository/maven-proxies/")
         maven("https://eldonexus.de/repository/maven-public/")
@@ -43,7 +43,7 @@ allprojects {
         compileOnly(libs.jetbrains.annotations)
 
         testImplementation(libs.spigot.v16)
-        testImplementation(platform("org.junit:junit-bom:5.9.3"))
+        testImplementation(platform("org.junit:junit-bom:5.10.0"))
         testImplementation(testlibs.mockbukkit)
         testImplementation("org.junit.jupiter", "junit-jupiter")
     }

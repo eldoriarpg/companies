@@ -15,6 +15,7 @@ dependencies {
     implementation(libs.bundles.adventure)
     implementation(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
+    bukkitLibrary(libs.bundles.sadu)
 }
 
 
@@ -27,7 +28,6 @@ tasks {
         relocate("de.eldoria.messageblocker", shadebase + "messageblocker")
         relocate("com.fasterxml", shadebase + "fasterxml")
         relocate("org.yaml", shadebase + "yaml")
-        relocate("de.chojo", shadebase + "chojo")
         mergeServiceFiles()
     }
 
