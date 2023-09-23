@@ -12,6 +12,7 @@ dependencies {
         exclude("org.slf4j")
     }
 
+    implementation(libs.bundles.eldoria.utilities)
     implementation(libs.bundles.adventure)
     implementation(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
