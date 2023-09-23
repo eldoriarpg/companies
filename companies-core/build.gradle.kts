@@ -5,7 +5,7 @@ plugins {
 
 dependencies {
     api(project(":companies-api"))
-    api(libs.bundles.sadu)
+    implementation(libs.bundles.sadu)
 
     api(libs.bundles.eldoria.utilities) {
         exclude("com.fasterxml.jackson.dataformat")
