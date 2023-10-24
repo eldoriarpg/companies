@@ -47,7 +47,7 @@ dependencyResolutionManagement {
 
 
             // adventure
-            library("adventure-bukkit", "net.kyori:adventure-platform-bukkit:4.3.0")
+            library("adventure-bukkit", "net.kyori:adventure-platform-bukkit:4.3.1")
             library("adventure-minimessage", "net.kyori:adventure-text-minimessage:4.14.0")
             bundle("adventure", listOf("adventure-bukkit", "adventure-minimessage"))
 
