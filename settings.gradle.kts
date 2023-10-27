@@ -23,12 +23,12 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             // jackson & serialization
-            version("jackson", "2.15.2")
+            version("jackson", "2.15.3")
             library("jackson-core", "com.fasterxml.jackson.core","jackson-core").versionRef("jackson")
             library("jackson-databind", "com.fasterxml.jackson.core","jackson-databind").versionRef("jackson")
             library("jackson-annotations", "com.fasterxml.jackson.core","jackson-annotations").versionRef("jackson")
             library("jackson-yaml", "com.fasterxml.jackson.dataformat","jackson-dataformat-yaml").versionRef("jackson")
-            library("snakeyaml", "org.yaml:snakeyaml:2.0")
+            library("snakeyaml", "org.yaml:snakeyaml:2.2")
             bundle("jackson", listOf("jackson-databind", "jackson-annotations", "jackson-yaml"))
 
             // utilities
@@ -42,12 +42,12 @@ dependencyResolutionManagement {
 
             // external dependencies
             library("protocollib","com.comphenix.protocol:ProtocolLib:5.1.0")
-            library("papi","me.clip:placeholderapi:2.11.3")
+            library("papi","me.clip:placeholderapi:2.11.4")
             library("vault","com.github.MilkBowl:VaultAPI:1.7.1")
 
 
             // adventure
-            library("adventure-bukkit", "net.kyori:adventure-platform-bukkit:4.3.0")
+            library("adventure-bukkit", "net.kyori:adventure-platform-bukkit:4.3.1")
             library("adventure-minimessage", "net.kyori:adventure-text-minimessage:4.14.0")
             bundle("adventure", listOf("adventure-bukkit", "adventure-minimessage"))
 
@@ -79,14 +79,14 @@ dependencyResolutionManagement {
             library("spigot-v16", "org.spigotmc:spigot-api:1.16.1-R0.1-SNAPSHOT")
 
             // world edit
-            library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.2.15")
-            version("fawe", "2.7.1")
+            library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.2.17")
+            version("fawe", "2.8.1")
             library("fawe-core", "com.fastasyncworldedit","FastAsyncWorldEdit-Core").versionRef("fawe")
             library("fawe-bukkit", "com.fastasyncworldedit","FastAsyncWorldEdit-Bukkit").versionRef("fawe")
 
             // plugins
             plugin("publishdata", "de.chojo.publishdata").version("1.2.5")
-            plugin("spotless", "com.diffplug.spotless").version("6.21.0")
+            plugin("spotless", "com.diffplug.spotless").version("6.22.0")
             plugin("shadow", "com.github.johnrengelman.shadow").version("8.1.1")
             plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.6.0")
         }
