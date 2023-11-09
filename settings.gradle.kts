@@ -53,7 +53,7 @@ dependencyResolutionManagement {
 
             // database
             library("hikari", "com.zaxxer:HikariCP:5.1.0")
-            library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.2.0")
+            library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.3.0")
             library("sqlite", "org.xerial:sqlite-jdbc:3.43.0.0")
             library("postgres", "org.postgresql:postgresql:42.6.0")
             bundle("database", listOf("hikari", "mariadb", "sqlite", "postgres"))
