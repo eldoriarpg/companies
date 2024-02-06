@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "de.eldoria"
-version = "1.0.7"
+version = "1.0.8"
 
 subprojects {
     apply {
@@ -43,7 +43,7 @@ allprojects {
         compileOnly(libs.jetbrains.annotations)
 
         testImplementation(libs.spigot.v16)
-        testImplementation(platform("org.junit:junit-bom:5.10.0"))
+        testImplementation(platform("org.junit:junit-bom:5.10.2"))
         testImplementation(testlibs.mockbukkit)
         testImplementation("org.junit.jupiter", "junit-jupiter")
     }
