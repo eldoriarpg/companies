@@ -80,7 +80,7 @@ dependencyResolutionManagement {
 
             // world edit
             library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.2.19")
-            version("fawe", "2.8.4")
+            version("fawe", "2.9.0")
             library("fawe-core", "com.fastasyncworldedit","FastAsyncWorldEdit-Core").versionRef("fawe")
             library("fawe-bukkit", "com.fastasyncworldedit","FastAsyncWorldEdit-Bukkit").versionRef("fawe")
 
