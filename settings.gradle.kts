@@ -48,7 +48,7 @@ dependencyResolutionManagement {
 
             // adventure
             library("adventure-bukkit", "net.kyori:adventure-platform-bukkit:4.3.2")
-            library("adventure-minimessage", "net.kyori:adventure-text-minimessage:4.15.0")
+            library("adventure-minimessage", "net.kyori:adventure-text-minimessage:4.16.0")
             bundle("adventure", listOf("adventure-bukkit", "adventure-minimessage"))
 
             // database
