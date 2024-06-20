@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.mariadb;
 
-import de.chojo.sadu.wrapper.util.Row;
+import de.chojo.sadu.mapper.wrapper.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -15,16 +15,16 @@ import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.plugin.Plugin;
 import org.intellij.lang.annotations.Language;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import static de.eldoria.companies.data.StaticQueryAdapter.builder;
+
+import static de.chojo.sadu.queries.api.call.Call.call;
+import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class MariaDbCompanyData extends ACompanyData {
 
@@ -37,26 +37,22 @@ public class MariaDbCompanyData extends ACompanyData {
         if (member.company() == -1) {
             @Language("mariadb")
             var query = """
-                DELETE
-                FROM company_member
-                WHERE member_uuid = ?""";
-            builder()
-                    .query(query)
-                    .parameter(stmt -> stmt.setUuidAsBytes(member.uuid()))
-                    .update()
-                    .sendSync();
+                    DELETE
+                    FROM company_member
+                    WHERE member_uuid = ?""";
+            query(query)
+                    .single(call().bind(member.uuid(), UUID_BYTES))
+                    .update();
         } else {
             @Language("mariadb")
             var query = """
                     REPLACE company_member(id, member_uuid, permission)
                     VALUES (?, ?, ?)""";
-            builder()
-                    .query(query)
-                    .parameter(stmt -> stmt.setInt(member.company())
-                                           .setUuidAsBytes(member.uuid())
-                                           .setLong(member.permission()))
-                    .update()
-                    .sendSync();
+            query(query)
+                    .single(call().bind(member.company())
+                            .bind(member.uuid(), UUID_BYTES)
+                            .bind(member.permission()))
+                    .update();
         }
     }
 
@@ -79,11 +75,10 @@ public class MariaDbCompanyData extends ACompanyData {
                          LEFT JOIN companies c
                                    ON c.id = company_member.id
                 WHERE member_uuid = ?""";
-        return builder(SimpleCompany.class)
-                .query(query)
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
-                .readRow(this::parseCompany)
-                .firstSync();
+        return query(query)
+                .single(call().bind(player.getUniqueId(), UUID_BYTES))
+                .map(this::parseCompany)
+                .first();
     }
 
     @Override
@@ -98,11 +93,10 @@ public class MariaDbCompanyData extends ACompanyData {
                          LEFT JOIN companies c
                                    ON c.id = company_member.id
                 WHERE c.name LIKE ?""";
-        return builder(SimpleCompany.class)
-                .query(query)
-                .parameter(stmt -> stmt.setString(name))
-                .readRow(this::parseCompany)
-                .firstSync();
+        return query(query)
+                .single(call().bind(name))
+                .map(this::parseCompany)
+                .first();
     }
 
     @Override
@@ -112,11 +106,10 @@ public class MariaDbCompanyData extends ACompanyData {
                 SELECT id, name, founded, level
                 FROM companies
                 WHERE id = ?""";
-        return builder(SimpleCompany.class)
-                .query(query)
-                .parameter(stmt -> stmt.setInt(id))
-                .readRow(this::parseCompany)
-                .firstSync();
+        return query(query)
+                .single(call().bind(id))
+                .map(this::parseCompany)
+                .first();
     }
 
     @Override
@@ -126,11 +119,10 @@ public class MariaDbCompanyData extends ACompanyData {
                 INSERT INTO companies(name)
                 VALUES (?)
                 RETURNING id""";
-        return builder(Integer.class)
-                .query(query)
-                .parameter(stmt -> stmt.setString(name))
-                .readRow(rs -> rs.getInt(1))
-                .firstSync()
+        return query(query)
+                .single(call().bind(name))
+                .map(rs -> rs.getInt(1))
+                .first()
                 .get();
     }
 
@@ -138,7 +130,7 @@ public class MariaDbCompanyData extends ACompanyData {
     protected SimpleCompany parseCompany(Row rs) throws SQLException {
         return new SimpleCompany(rs.getInt("id"), rs.getString("name"),
                 rs.getTimestamp("founded")
-                  .toLocalDateTime(), rs.getInt("level"));
+                        .toLocalDateTime(), rs.getInt("level"));
     }
 
     @Override
@@ -162,11 +154,10 @@ public class MariaDbCompanyData extends ACompanyData {
                        amount
                 FROM company_stats_view
                 WHERE id = ?""";
-        return builder(CompanyStats.class)
-                .query(query)
-                .parameter(stmt -> stmt.setInt(company.id()))
-                .readRow(this::parseCompanyStats)
-                .firstSync()
+        return query(query)
+                .single(call().bind(company.id()))
+                .map(this::parseCompanyStats)
+                .first()
                 .get();
     }
 
@@ -177,11 +168,10 @@ public class MariaDbCompanyData extends ACompanyData {
                 UPDATE companies
                 SET level = ?
                 WHERE id = ?""";
-        builder().query(query)
-                 .parameter(stmt -> stmt.setInt(level)
-                                        .setInt(company.id()))
-                 .update()
-                 .sendSync();
+        query(query)
+                .single(call().bind(level)
+                        .bind(company.id()))
+                .update();
     }
 
     @Override
@@ -192,12 +182,10 @@ public class MariaDbCompanyData extends ACompanyData {
                 INTO company_stats(id, failed_orders)
                 VALUES (?, ?)
                 ON DUPLICATE KEY UPDATE failed_orders = failed_orders + VALUES(failed_orders)""";
-        builder()
-                .query(query)
-                .parameter(stmt -> stmt.setInt(company.id())
-                                       .setInt(amount))
-                .update()
-                .sendSync();
+        query(query)
+                .single(call().bind(company.id())
+                        .bind(amount))
+                .update();
     }
 
     @Override
@@ -215,12 +203,11 @@ public class MariaDbCompanyData extends ACompanyData {
                 FROM company_stats_view
                 ORDER BY comp_rank
                 LIMIT ? OFFSET ?""";
-        return builder(CompanyRank.class)
-                .query(query, order.orderColumn())
-                .parameter(stmt -> stmt.setInt(pageSize)
-                                       .setInt((page - 1) * pageSize))
-                .readRow(rs -> parseCompanyStats(rs).toRank(rs.getInt("comp_rank")))
-                .allSync();
+        return query(query, order.orderColumn())
+                .single(call().bind(pageSize)
+                        .bind((page - 1) * pageSize))
+                .map(rs -> parseCompanyStats(rs).toRank(rs.getInt("comp_rank")))
+                .all();
     }
 
     @Override
@@ -230,29 +217,27 @@ public class MariaDbCompanyData extends ACompanyData {
                 UPDATE companies
                 SET name = ?
                 WHERE id = ?""";
-        builder()
-                .query(query)
-                .parameter(stmt -> stmt.setString(name)
-                                       .setInt(company.id()))
-                .update()
-                .sendSync();
+        query(query)
+                .single(call().bind(name)
+                        .bind(company.id()))
+                .update();
     }
 
     @Override
-    public CompletableFuture<List<SimpleCompany>> getCompanies() {
+    public List<SimpleCompany> getCompanies() {
         @Language("mariadb")
         var query = """
                 SELECT id, name, founded, level
                 FROM companies""";
-        return builder(SimpleCompany.class)
-                .queryWithoutParams(query)
-                .readRow(this::parseCompany)
+        return query(query)
+                .single()
+                .map(this::parseCompany)
                 .all();
     }
 
     protected CompanyStats parseCompanyStats(Row rs) throws SQLException {
         return new CompanyStats(rs.getInt("id"), rs.getString("name"), rs.getTimestamp("founded")
-                                                                         .toLocalDateTime(),
+                .toLocalDateTime(),
                 rs.getInt("member_count"), rs.getInt("order_count"), rs.getDouble("price"), rs.getInt("amount"));
     }
 
@@ -263,12 +248,11 @@ public class MariaDbCompanyData extends ACompanyData {
                 SELECT member_uuid, permission
                 FROM company_member
                 WHERE id = ?""";
-        return builder(CompanyMember.class)
-                .query(query)
-                .parameter(stmt -> stmt.setInt(company.id()))
-                .readRow(rs -> CompanyMember.of(company.id(), rs.getUuidFromBytes("member_uuid"),
+        return query(query)
+                .single(call().bind(company.id()))
+                .map(rs -> CompanyMember.of(company.id(), rs.get("member_uuid", UUID_BYTES),
                         rs.getLong("permission")))
-                .allSync();
+                .all();
     }
 
     @Override
@@ -278,12 +262,11 @@ public class MariaDbCompanyData extends ACompanyData {
                 SELECT id, member_uuid, permission
                 FROM company_member
                 WHERE member_uuid = ?""";
-        return builder(CompanyMember.class)
-                .query(query)
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
-                .readRow(rs -> CompanyMember.of(rs.getInt("id"), rs.getUuidFromBytes("member_uuid"),
+        return query(query)
+                .single(call().bind(player.getUniqueId(), UUID_BYTES))
+                .map(rs -> CompanyMember.of(rs.getInt("id"), rs.get("member_uuid", UUID_BYTES),
                         rs.getLong("permission")))
-                .firstSync();
+                .first();
     }
 
     @Override
@@ -293,10 +276,9 @@ public class MariaDbCompanyData extends ACompanyData {
                 SELECT id, name, founded, level
                 FROM companies
                 WHERE id = ?""";
-        return builder(SimpleCompany.class)
-                .query(query)
-                .parameter(stmt -> stmt.setInt(companyId))
-                .readRow(this::parseCompany)
-                .firstSync();
+        return query(query)
+                .single(call().bind(companyId))
+                .map(this::parseCompany)
+                .first();
     }
 }

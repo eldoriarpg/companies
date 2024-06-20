@@ -8,12 +8,13 @@ package de.eldoria.companies.data.repository.impl.postgres;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import org.bukkit.plugin.Plugin;
 import org.intellij.lang.annotations.Language;
 
-import javax.sql.DataSource;
 import java.util.concurrent.ExecutorService;
-import static de.eldoria.companies.data.StaticQueryAdapter.builder;
+
+import static de.chojo.sadu.queries.api.call.Call.call;
+import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class PostgresCompanyData extends MariaDbCompanyData {
     public PostgresCompanyData(ExecutorService executorService) {
@@ -28,11 +29,9 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                     DELETE
                     FROM company_member
                     WHERE member_uuid = ?""";
-            builder()
-                    .query(query)
-                    .parameter(stmt -> stmt.setUuidAsBytes(member.uuid()))
-                    .update()
-                    .sendSync();
+            query(query)
+                    .single(call().bind(member.uuid(), UUID_BYTES))
+                    .update();
         } else {
             @Language("postgresql")
             var query = """
@@ -42,13 +41,11 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                     ON CONFLICT(member_uuid)
                         DO UPDATE SET id         = excluded.id,
                                       permission = excluded.permission""";
-            builder()
-                    .query(query)
-                    .parameter(stmt -> stmt.setInt(member.company())
-                                           .setUuidAsBytes(member.uuid())
-                                           .setLong(member.permission()))
-                    .update()
-                    .sendSync();
+            query(query)
+                    .single(call().bind(member.company())
+                            .bind(member.uuid(), UUID_BYTES)
+                            .bind(member.permission()))
+                    .update();
         }
     }
 
@@ -60,12 +57,10 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                 INTO company_stats(id, failed_orders)
                 VALUES (?, ?)
                 ON CONFLICT(id) DO UPDATE SET failed_orders = failed_orders + excluded.failed_orders""";
-        builder()
-                .query(query)
-                .parameter(stmt -> stmt.setInt(company.id())
-                                       .setInt(amount)
-                                       .setInt(amount))
-                .update()
-                .sendSync();
+        query(query)
+                .single(call().bind(company.id())
+                        .bind(amount)
+                        .bind(amount))
+                .update();
     }
 }

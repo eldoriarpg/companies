@@ -14,7 +14,9 @@ import org.intellij.lang.annotations.Language;
 
 import java.util.concurrent.ExecutorService;
 
-import static de.eldoria.companies.data.StaticQueryAdapter.builder;
+import static de.chojo.sadu.queries.api.call.Call.call;
+import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class SqLiteNotificationData extends MariaDbNotificationData {
 
@@ -34,13 +36,12 @@ public class SqLiteNotificationData extends MariaDbNotificationData {
                 SELECT created, notification_data
                 FROM company_notification
                 WHERE user_uuid = ?""";
-        var notifications = builder(Notification.class)
-                .query(query)
-                .parameter(stmt -> stmt.setUuidAsBytes(player.getUniqueId()))
-                .readRow(rs -> new Notification(
+        var notifications = query(query)
+                .single(call().bind(player.getUniqueId(), UUID_BYTES))
+                .map(rs -> new Notification(
                         SqLiteAdapter.getTimestamp(rs, "created"),
                         NotificationData.fromJson(rs.getString("notification_data"))))
-                .allSync();
+                .all();
         return MissedNotifications.create(notifications);
     }
 }
