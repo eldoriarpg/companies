@@ -16,3 +16,4 @@ gradle-app.setting
 *.iml
 gradle.properties
 data.db
+.direnv
