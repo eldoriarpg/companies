@@ -87,7 +87,7 @@ dependencyResolutionManagement {
             // plugins
             plugin("publishdata", "de.chojo.publishdata").version("1.2.5")
             plugin("spotless", "com.diffplug.spotless").version("6.25.0")
-            plugin("shadow", "com.github.johnrengelman.shadow").version("8.1.1")
+            plugin("shadow", "io.github.goooler.shadow").version("8.1.7")
             plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.6.0")
         }
 
