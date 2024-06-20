@@ -6,6 +6,7 @@
 package de.eldoria.companies.configuration.elements;
 
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.configuration.elements.companysettings.CompanyTaxes;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ public class CompanySettings {
     private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
+    private CompanyTaxes taxes = new CompanyTaxes();
 
     public CompanySettings() {
         updateLevel();
@@ -30,6 +32,10 @@ public class CompanySettings {
             level.get(i)
                  .level(i + 1);
         }
+    }
+
+    public CompanyTaxes taxes() {
+        return taxes;
     }
 
     public int deliveryHours() {

@@ -170,7 +170,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         if (args.sizeIs(3)) {
             var material = EnumUtil.parse(args.asString(1), Material.class);
             var max = configuration.orderSetting()
-                    .maxItems() - builder.amount(material.orElse(null));
+                              .maxItems() - builder.amount(material.orElse(null));
             return Completion.completeInt(args.asString(2), 1, max);
         }
 
@@ -189,7 +189,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             if (args.asString(2)
                     .isEmpty()) return Collections.singletonList(localizer().localize("words.amount"));
             var max = configuration.orderSetting()
-                    .maxItems() - builder.amount();
+                              .maxItems() - builder.amount();
             return Completion.completeInt(args.asString(2), 1, max);
         }
         var amount = Parser.parseInt(args.asString(2));
@@ -309,7 +309,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         var builder = getPlayerBuilder(player);
         builder.changeContentAmount(material, Math.min(configuration.orderSetting()
-                .maxItems() - builder.amount(material), amount));
+                                                               .maxItems() - builder.amount(material), amount));
     }
 
     private void done(Player player) throws CommandException {
@@ -322,6 +322,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 .isEmpty(), "order.create.error.empty", TagResolver.empty());
 
         var price = order.price();
+        var fee = configuration.orderSetting().fees().orderFee(price);
+        var fullPrice = price + fee;
 
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
@@ -331,10 +333,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
                     CompletableBukkitFuture.supplyAsync(() -> {
-                                if (!economy.has(player, price)) {
+                                if (!economy.has(player, fullPrice)) {
                                     return false;
                                 }
-                                economy.withdrawPlayer(player, price);
+                                economy.withdrawPlayer(player, fullPrice);
                                 return true;
                             })
                             .whenComplete(result -> {
@@ -352,7 +354,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                             .isBlank() ? fallbackCurr : economy.currencyNamePlural();
                                     messageSender().sendError(player, "error.insufficientCurrency",
                                             Replacement.create("currency", curr),
-                                            Replacement.create("amount", economy.format(price)));
+                                            Replacement.create("amount", economy.format(fullPrice)));
                                 }
                             });
                 });
