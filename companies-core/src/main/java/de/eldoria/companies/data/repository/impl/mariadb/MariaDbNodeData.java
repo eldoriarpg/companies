@@ -14,9 +14,10 @@ import org.intellij.lang.annotations.Language;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
 
-import static de.eldoria.companies.data.StaticQueryAdapter.builder;
+import static de.chojo.sadu.queries.api.call.Call.call;
+import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class MariaDbNodeData extends ANodeData {
     public MariaDbNodeData(NodeSettings nodeSettings) {
@@ -32,10 +33,9 @@ public class MariaDbNodeData extends ANodeData {
                 ON DUPLICATE KEY UPDATE type    = VALUES(type),
                                         version = VALUES(version)""";
 
-        builder().query(insert)
-                 .parameter(stmt -> stmt.setUuidAsBytes(nodeId).setEnum(type).setString(version))
-                 .insert()
-                 .sendSync();
+        query(insert)
+                 .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version))
+                 .insert();
     }
 
     @Override
@@ -46,11 +46,10 @@ public class MariaDbNodeData extends ANodeData {
                 FROM node
                 WHERE type = 'PRIMARY'""";
 
-        return builder(Node.class)
-                .query(select)
-                .emptyParams()
-                .readRow(row -> new Node(row.getInt("id"), row.getUuidFromBytes("uid"), row.getString("version")))
-                .allSync();
+        return query(select)
+                .single()
+                .map(row -> new Node(row.getInt("id"), row.get("uid", UUID_BYTES), row.getString("version")))
+                .all();
     }
 
     @Override
@@ -63,11 +62,10 @@ public class MariaDbNodeData extends ANodeData {
               WHERE n.type = 'PRIMARY'
                 AND path = ?""";
 
-        return builder(String.class)
-                .query(select)
-                .parameter(stmt -> stmt.setString(path))
-                .readRow(row -> row.getString(1))
-                .firstSync();
+        return query(select)
+                .single(call().bind(path))
+                .map(row -> row.getString(1))
+                .first();
     }
 
     @Override
@@ -77,10 +75,9 @@ public class MariaDbNodeData extends ANodeData {
               INSERT INTO node_configuration(node_id, path, content) VALUES (?, ?, ?)
               ON DUPLICATE KEY UPDATE content = VALUES(content)""";
 
-        builder().query(insert)
-                .parameter(stmt -> stmt.setInt(getNodeId()).setString(path).setString(content))
-                .insert()
-                .sendSync();
+        query(insert)
+                .single(call().bind(getNodeId()).bind(path).bind(content))
+                .insert();
     }
 
     @Override
@@ -91,10 +88,9 @@ public class MariaDbNodeData extends ANodeData {
               FROM node
               where uid = ?""";
 
-        return builder(Integer.class)
-                .query(select)
-                .parameter(stmt -> stmt.setUuidAsBytes(nodeUid()))
-                .readRow(row -> row.getInt(1))
-                .firstSync();
+        return query(select)
+                .single(call().bind(nodeUid(), UUID_BYTES))
+                .map(row -> row.getInt(1))
+                .first();
     }
 }

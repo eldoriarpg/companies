@@ -5,7 +5,8 @@
  */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
-import de.chojo.sadu.wrapper.util.Row;
+import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.mapper.wrapper.Row;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;

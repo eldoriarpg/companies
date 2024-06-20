@@ -5,9 +5,7 @@
  */
 package de.eldoria.companies.data.repository;
 
-import de.chojo.sadu.base.QueryFactory;
-import de.chojo.sadu.wrapper.QueryBuilderConfig;
-import de.chojo.sadu.wrapper.util.Row;
+import de.chojo.sadu.mapper.wrapper.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
@@ -19,15 +17,12 @@ import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.plugin.Plugin;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.logging.Level;
 
 @SuppressWarnings("UnusedReturnValue")
 public abstract class ACompanyData {
@@ -113,7 +108,7 @@ public abstract class ACompanyData {
 
     protected abstract void setCompanyName(SimpleCompany company, String name);
 
-    public abstract CompletableFuture<List<SimpleCompany>> getCompanies();
+    public abstract List<SimpleCompany> getCompanies();
 
     protected abstract List<CompanyMember> getCompanyMember(SimpleCompany company);
 

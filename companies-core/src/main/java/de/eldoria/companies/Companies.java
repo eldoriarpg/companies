@@ -7,13 +7,13 @@ package de.eldoria.companies;
 
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.zaxxer.hikari.HikariDataSource;
-import de.chojo.sadu.databases.MariaDb;
-import de.chojo.sadu.databases.PostgreSql;
-import de.chojo.sadu.databases.SqLite;
+import de.chojo.sadu.mariadb.databases.MariaDb;
+import de.chojo.sadu.postgresql.databases.PostgreSql;
+import de.chojo.sadu.queries.configuration.QueryConfiguration;
+import de.chojo.sadu.sqlite.databases.SqLite;
 import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
-import de.chojo.sadu.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.Company;
 import de.eldoria.companies.commands.CompanyAdmin;
@@ -21,7 +21,6 @@ import de.eldoria.companies.commands.Order;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.DataSourceFactory;
-import de.eldoria.companies.data.StaticQueryAdapter;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANotificationData;
@@ -186,12 +185,8 @@ public class Companies extends EldoPlugin {
 
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
-        QueryBuilderConfig.defaultConfig().set(QueryBuilderConfig.builder()
-                .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
-                .build());
-
-        StaticQueryAdapter.start(dataSource, QueryBuilderConfig.builder()
-                .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
+        QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource)
+                .setExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
                 .build());
 
         BaseSqlUpdaterBuilder<?, ?> builder;
@@ -215,9 +210,6 @@ public class Companies extends EldoPlugin {
 
         builder.setVersionTable("companies_db_version")
                 .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
-                .withConfig(QueryBuilderConfig.builder()
-                        .withExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during update", err))
-                        .build())
                 .execute();
 
         initDataRepositories();
@@ -235,7 +227,7 @@ public class Companies extends EldoPlugin {
                 break;
             case MARIADB:
                 companyData = new MariaDbCompanyData(workerPool);
-                orderData = new MariaDbOrderData(workerPool, mapper);
+                orderData = new MariaDbOrderData(mapper);
                 notificationData = new MariaDbNotificationData(workerPool);
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 break;
