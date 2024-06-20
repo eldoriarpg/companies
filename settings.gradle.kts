@@ -42,7 +42,7 @@ dependencyResolutionManagement {
 
             // external dependencies
             library("protocollib","com.comphenix.protocol:ProtocolLib:5.1.0")
-            library("papi","me.clip:placeholderapi:2.11.5")
+            library("papi","me.clip:placeholderapi:2.11.6")
             library("vault","com.github.MilkBowl:VaultAPI:1.7.1")
 
 
