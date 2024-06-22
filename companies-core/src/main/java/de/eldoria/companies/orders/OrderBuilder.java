@@ -6,6 +6,7 @@
 package de.eldoria.companies.orders;
 
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.ordersettings.FeeMode;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
@@ -110,7 +111,7 @@ public class OrderBuilder {
 
         double fee = setting.fees().orderFee(this);
 
-        if (fee > 0) {
+        if (setting.fees().mode() != FeeMode.NONE) {
             composer.newLine()
                     .text("<name>")
                     .localeCode("words.fee")
