@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.pluginyml.bukkit)
     alias(libs.plugins.shadow)
+    id("xyz.jpenilla.run-paper") version "2.3.0"
 }
 
 dependencies {
@@ -66,6 +67,10 @@ tasks {
     build {
         dependsOn(shadowJar)
     }
+
+    runServer {
+        minecraftVersion("1.20.6")
+    }
 }
 
 bukkit {
@@ -98,9 +103,9 @@ bukkit {
         register("companies.*") {
             description = "gives access to all company commands"
             children = listOf(
-                    "companies.order.*",
-                    "companies.admin.*",
-                    "companies.company.*"
+                "companies.order.*",
+                "companies.admin.*",
+                "companies.company.*"
             )
         }
 

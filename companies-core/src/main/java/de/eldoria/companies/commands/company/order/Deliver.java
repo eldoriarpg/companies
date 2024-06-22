@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands.company.order;
 
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -35,8 +36,9 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Info info;
     private final MessageBlocker messageBlocker;
+    private final Configuration configuration;
 
-    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Info info, MessageBlocker messageBlocker) {
+    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Info info, MessageBlocker messageBlocker, Configuration configuration) {
         super(plugin, CommandMeta.builder("deliver")
                 .addArgument("words.id", true)
                 .addArgument("words.material", true)
@@ -47,6 +49,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         this.companyData = companyData;
         this.info = info;
         this.messageBlocker = messageBlocker;
+        this.configuration = configuration;
     }
 
     @Override
@@ -148,14 +151,15 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                                         .callEvent(new OrderDoneEvent(order, profile)));
         CompletableBukkitFuture.runAsync(() -> {
             for (var entry : payments.entrySet()) {
+                double taxed = configuration.companySettings().taxes().take(entry.getValue());
                 var player = plugin().getServer()
                                      .getOfflinePlayer(entry.getKey());
-                var event = new OrderPaymentEvent(order, player, entry.getValue());
+                var event = new OrderPaymentEvent(order, player, taxed);
                 plugin().getServer()
                         .getPluginManager()
                         .callEvent(event);
                 if (event.isCancelled()) continue;
-                economy.depositPlayer(player, entry.getValue());
+                economy.depositPlayer(player, taxed);
             }
         });
     }

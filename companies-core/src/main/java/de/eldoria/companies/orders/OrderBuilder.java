@@ -6,6 +6,7 @@
 package de.eldoria.companies.orders;
 
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.ordersettings.FeeMode;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
@@ -30,8 +31,8 @@ public class OrderBuilder {
 
     public void addContent(ItemStack stack, int amount, double price) {
         var first = elements.stream()
-                            .filter(orderContent -> orderContent.material() == stack.getType())
-                            .findFirst();
+                .filter(orderContent -> orderContent.material() == stack.getType())
+                .findFirst();
         first.ifPresentOrElse(o -> {
             o.amount(o.amount() + amount);
             o.price(o.price() + price);
@@ -52,27 +53,27 @@ public class OrderBuilder {
 
     public int amount(@Nullable Material material) {
         return elements.stream()
-                       .filter(m -> m.material() != material)
-                       .mapToInt(OrderContent::amount)
-                       .sum();
+                .filter(m -> m.material() != material)
+                .mapToInt(OrderContent::amount)
+                .sum();
     }
 
     public boolean hasMaterial(Material material) {
         return elements.stream()
-                       .anyMatch(e -> e.stack()
+                .anyMatch(e -> e.stack()
                                        .getType() == material);
     }
 
     public String asComponent(OrderSettings setting, Economy economy, AOrderData orderData) {
         var cmd = "/order create";
         var composer = MessageComposer.create()
-                                      .text("<name>%s <click:suggest_command:/order create name ><modify>[", name())
-                                      .localeCode("words.change")
-                                      .text("]</click>")
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.items")
-                                      .text(": ");
+                .text("<name>%s <click:suggest_command:/order create name ><modify>[", name())
+                .localeCode("words.change")
+                .text("]</click>")
+                .newLine()
+                .text("<name>")
+                .localeCode("words.items")
+                .text(": ");
 
         if (setting.maxItems() != amount() && elements.size() != setting.maxMaterials()) {
             composer.space()
@@ -106,8 +107,18 @@ public class OrderBuilder {
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
-                .text(": <value>%s", economy.format(price()))
-                .newLine()
+                .text(": <value>%s", economy.format(price()));
+
+        double fee = setting.fees().orderFee(this);
+
+        if (setting.fees().mode() != FeeMode.NONE) {
+            composer.newLine()
+                    .text("<name>")
+                    .localeCode("words.fee")
+                    .text(": <value>%s", economy.format(fee));
+        }
+
+        composer.newLine()
                 .text("<click:run_command:%s done><add>[", cmd)
                 .localeCode("words.done")
                 .text("]</click>")
@@ -124,8 +135,8 @@ public class OrderBuilder {
 
     public int amount() {
         return elements.stream()
-                       .mapToInt(OrderContent::amount)
-                       .sum();
+                .mapToInt(OrderContent::amount)
+                .sum();
     }
 
     public int materialsAmount() {
@@ -134,8 +145,8 @@ public class OrderBuilder {
 
     public double price() {
         return elements.stream()
-                       .mapToDouble(OrderContent::price)
-                       .sum();
+                .mapToDouble(OrderContent::price)
+                .sum();
     }
 
     public void removeContent(Material parse) {
@@ -144,9 +155,9 @@ public class OrderBuilder {
 
     public void changeContentAmount(Material material, int amount) {
         elements().stream()
-                  .filter(mat -> mat.material() == material)
-                  .findAny()
-                  .ifPresent(mat -> mat.amount(amount));
+                .filter(mat -> mat.material() == material)
+                .findAny()
+                .ifPresent(mat -> mat.amount(amount));
     }
 
     public List<OrderContent> elements() {
@@ -155,8 +166,8 @@ public class OrderBuilder {
 
     public void changeContentPrice(Material material, double price) {
         elements().stream()
-                  .filter(mat -> mat.material() == material)
-                  .findAny()
-                  .ifPresent(mat -> mat.price(price));
+                .filter(mat -> mat.material() == material)
+                .findAny()
+                .ifPresent(mat -> mat.price(price));
     }
 }
