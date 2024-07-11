@@ -5,11 +5,14 @@
  */
 package de.eldoria.companies.configuration.elements;
 
+import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
+
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor", "CanBeFinal"})
 public class GeneralSettings {
     private String language = "en_US";
     private int orderCheckInterval = 60;
     private boolean checkUpdates = true;
+    private Hooks hooks = new Hooks();
 
     public GeneralSettings() {
     }
@@ -24,5 +27,9 @@ public class GeneralSettings {
 
     public boolean checkUpdates() {
         return checkUpdates;
+    }
+
+    public Hooks hooks() {
+        return hooks;
     }
 }
