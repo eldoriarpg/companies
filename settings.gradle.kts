@@ -32,7 +32,7 @@ dependencyResolutionManagement {
             bundle("jackson", listOf("jackson-databind", "jackson-annotations", "jackson-yaml"))
 
             // utilities
-            library("messageblocker", "de.eldoria:messageblocker:1.1.2")
+            library("messageblocker", "de.eldoria:messageblocker:1.1.3")
             version("eldoutil", "2.0.11")
             library("jackson-configuration", "de.eldoria.util","jackson-configuration").versionRef("eldoutil")
             library("plugin", "de.eldoria.util","plugin").versionRef("eldoutil")
