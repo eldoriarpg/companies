@@ -55,7 +55,7 @@ dependencyResolutionManagement {
             library("hikari", "com.zaxxer:HikariCP:5.1.0")
             library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.4.0")
             library("sqlite", "org.xerial:sqlite-jdbc:3.46.0.0")
-            library("postgres", "org.postgresql:postgresql:42.7.3")
+            library("postgres", "org.postgresql:postgresql:42.7.5")
             bundle("database", listOf("hikari", "mariadb", "sqlite", "postgres"))
             version("sadu", "2.2.1")
             library("sadu-queries", "de.chojo.sadu","sadu-queries").versionRef("sadu")
