@@ -14,7 +14,7 @@ dependencies {
     bukkitLibrary(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
     bukkitLibrary(libs.bundles.sadu)
-    implementation(libs.bundles.eldoria.utilities)
+    bukkitLibrary(libs.bundles.eldoria.utilities)
 }
 
 publishData {

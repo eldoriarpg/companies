@@ -22,11 +22,11 @@ subprojects {
 
 allprojects {
     repositories {
-        mavenLocal {
-            content {
-                includeGroup("de.eldoria.util")
-            }
-        }
+//        mavenLocal {
+//            content {
+//                includeGroup("de.eldoria.util")
+//            }
+//        }
         mavenCentral()
         maven("https://eldonexus.de/repository/maven-proxies/")
         maven("https://eldonexus.de/repository/maven-public/")

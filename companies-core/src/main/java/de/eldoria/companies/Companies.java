@@ -165,7 +165,7 @@ public class Companies extends EldoPlugin {
         registerListener(levelService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
-        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI") && configuration.generalSettings().hooks().placeholderapi()) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
             registerListener(placeholderService);
