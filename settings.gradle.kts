@@ -33,7 +33,7 @@ dependencyResolutionManagement {
 
             // utilities
             library("messageblocker", "de.eldoria:messageblocker:1.1.3")
-            version("eldoutil", "2.0.11")
+            version("eldoutil", "2.1.10")
             library("jackson-configuration", "de.eldoria.util","jackson-configuration").versionRef("eldoutil")
             library("plugin", "de.eldoria.util","plugin").versionRef("eldoutil")
             library("threading", "de.eldoria.util","threading").versionRef("eldoutil")
