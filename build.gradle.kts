@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "de.eldoria"
-version = "1.0.8"
+version = "1.0.10"
 
 subprojects {
     apply {
