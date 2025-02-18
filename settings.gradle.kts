@@ -52,7 +52,7 @@ dependencyResolutionManagement {
             bundle("adventure", listOf("adventure-bukkit", "adventure-minimessage"))
 
             // database
-            library("hikari", "com.zaxxer:HikariCP:5.1.0")
+            library("hikari", "com.zaxxer:HikariCP:6.2.1")
             library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.5.2")
             library("sqlite", "org.xerial:sqlite-jdbc:3.46.0.0")
             library("postgres", "org.postgresql:postgresql:42.7.5")
