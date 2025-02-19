@@ -11,9 +11,10 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import org.intellij.lang.annotations.Language;
 
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
 
-import static de.eldoria.companies.data.StaticQueryAdapter.builder;
+import static de.chojo.sadu.queries.api.call.Call.call;
+import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class PostgresNodeData extends MariaDbNodeData {
     public PostgresNodeData(NodeSettings nodeSettings) {
@@ -29,10 +30,9 @@ public class PostgresNodeData extends MariaDbNodeData {
                 ON CONFLICT(uid) DO UPDATE SET type    = excluded.type,
                                                version = excluded.version""";
 
-        builder().query(insert)
-                 .parameter(stmt -> stmt.setUuidAsBytes(nodeId).setEnum(type).setString(version))
-                 .insert()
-                 .sendSync();
+        query(insert)
+                .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version))
+                .insert();
     }
 
     @Override
@@ -43,9 +43,8 @@ public class PostgresNodeData extends MariaDbNodeData {
                 VALUES (?, ?, ?)
                 ON CONFLICT(node_id, path) DO UPDATE SET content = excluded.content""";
 
-        builder().query(insert)
-                 .parameter(stmt -> stmt.setInt(getNodeId()).setString(path).setString(content))
-                 .insert()
-                 .sendSync();
+        query(insert)
+                .single(call().bind(getNodeId()).bind(path).bind(content))
+                .insert();
     }
 }

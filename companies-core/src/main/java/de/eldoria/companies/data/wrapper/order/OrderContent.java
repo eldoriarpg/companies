@@ -85,6 +85,7 @@ public class OrderContent implements IOrderContent {
         }
         if (Features.HAS_GET_TRANSLATION_KEY) {
             // spigot
+            //noinspection removal
             return "<tr:%s>".formatted(stack.getType().getTranslationKey());
         }
         // legacy spigot and paper

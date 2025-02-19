@@ -5,17 +5,12 @@
  */
 package de.eldoria.companies.data.repository;
 
-import de.chojo.sadu.base.QueryFactory;
-import de.chojo.sadu.wrapper.QueryBuilderConfig;
 import de.eldoria.companies.services.notifications.MissedNotifications;
 import de.eldoria.companies.services.notifications.NotificationData;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.plugin.Plugin;
 
-import javax.sql.DataSource;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.logging.Level;
 
 @SuppressWarnings("UnusedReturnValue")
 public abstract class ANotificationData {

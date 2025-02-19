@@ -6,7 +6,7 @@
 package de.eldoria.companies.data.repository.impl.sqlite;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.chojo.sadu.wrapper.util.Row;
+import de.chojo.sadu.mapper.wrapper.Row;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
@@ -15,11 +15,8 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.plugin.Plugin;
 import org.intellij.lang.annotations.Language;
-import static de.eldoria.companies.data.StaticQueryAdapter.builder;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,6 +24,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
+
+import static de.chojo.sadu.queries.api.call.Call.call;
+import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class SqLiteOrderData extends MariaDbOrderData {
 
@@ -37,7 +38,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
      * @param mapper
      */
     public SqLiteOrderData(ExecutorService executorService, ObjectMapper mapper) {
-        super(executorService, mapper);
+        super(mapper);
     }
 
     @Override
@@ -58,12 +59,11 @@ public class SqLiteOrderData extends MariaDbOrderData {
                   AND company IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
-        return builder(SimpleOrder.class)
-                .query(query)
-                .parameter(stmt -> stmt.setInt(hours)
-                                       .setInt(OrderState.CLAIMED.stateId()))
-                .readRow(this::buildSimpleOrder)
-                .allSync();
+        return query(query)
+                .single(call().bind(hours)
+                        .bind(OrderState.CLAIMED.stateId()))
+                .map(this::buildSimpleOrder)
+                .all();
     }
 
     @Override
@@ -85,13 +85,12 @@ public class SqLiteOrderData extends MariaDbOrderData {
                   AND state = ?
                 ORDER BY last_update
                 """;
-        return builder(SimpleOrder.class)
-                .query(query)
-                .parameter(stmt -> stmt.setInt(hours)
-                                       .setInt(company.id())
-                                       .setInt(OrderState.CLAIMED.stateId()))
-                .readRow(this::buildSimpleOrder)
-                .allSync();
+        return query(query)
+                .single(call().bind(hours)
+                        .bind(company.id())
+                        .bind(OrderState.CLAIMED.stateId()))
+                .map(this::buildSimpleOrder)
+                .all();
     }
 
     @Override
@@ -102,14 +101,12 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 INTO orders_delivered(id, worker_uuid, material, delivered)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered""";
-        builder()
-                .query(query)
-                .parameter(stmt -> stmt.setInt(order.id())
-                                       .setUuidAsBytes(player.getUniqueId())
-                                       .setString(material.name())
-                                       .setInt(amount))
-                .update()
-                .sendSync();
+        query(query)
+                .single(call().bind(order.id())
+                        .bind(player.getUniqueId(), UUID_BYTES)
+                        .bind(material.name())
+                        .bind(amount))
+                .update();
     }
 
     @Override
@@ -117,7 +114,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
         List<List<Integer>> results = new ArrayList<>();
         Set<Integer> materialMatch;
         var materialFilter = !searchQuery.materials()
-                                         .isEmpty();
+                .isEmpty();
         // This is pain. SqLite doesn't support regex from stock, so we need to do some dirty looping.
         if (materialFilter) {
             for (var material : searchQuery.materials()) {
@@ -130,17 +127,16 @@ public class SqLiteOrderData extends MariaDbOrderData {
                         WHERE material LIKE ?
                           AND s.state >= ?
                           AND s.state <= ?""";
-                var ids = builder(Integer.class)
-                        .query(select)
-                        .parameter(stmt -> stmt.setString(searchQuery.isExactMatch() ? material : "%" + material + "%"))
-                        .readRow(rs -> rs.getInt(1))
-                        .allSync();
+                var ids = query(select)
+                        .single(call().bind(searchQuery.isExactMatch() ? material : "%" + material + "%"))
+                        .map(rs -> rs.getInt(1))
+                        .all();
                 results.add(ids);
             }
             if (searchQuery.isAnyMaterial()) {
                 materialMatch = results.stream()
-                                       .flatMap(List::stream)
-                                       .collect(Collectors.toSet());
+                        .flatMap(List::stream)
+                        .collect(Collectors.toSet());
             } else {
                 var first = results.remove(0);
                 if (!results.isEmpty()) {
@@ -171,20 +167,19 @@ public class SqLiteOrderData extends MariaDbOrderData {
                   AND oc.amount <= ?
                   AND os.state >= ?
                   AND os.state <= ?""";
-        var orders = builder(SimpleOrder.class)
-                .query(query)
-                .parameter(stmt -> stmt.setString("%" + searchQuery.name() + "%")
-                                       .setDouble(searchQuery.minPrice())
-                                       .setDouble(searchQuery.maxPrice())
-                                       .setInt(searchQuery.minOrderSize())
-                                       .setInt(searchQuery.maxOrderSize())
-                                       .setInt(min.stateId())
-                                       .setInt(max.stateId()))
-                .readRow(this::buildSimpleOrder)
-                .allSync();
+        var orders = query(query)
+                .single(call().bind("%" + searchQuery.name() + "%")
+                        .bind(searchQuery.minPrice())
+                        .bind(searchQuery.maxPrice())
+                        .bind(searchQuery.minOrderSize())
+                        .bind(searchQuery.maxOrderSize())
+                        .bind(min.stateId())
+                        .bind(max.stateId()))
+                .map(this::buildSimpleOrder)
+                .all();
         orders = orders.stream()
-                       .filter(order -> !materialFilter || materialMatch.contains(order.id()))
-                       .collect(Collectors.toList());
+                .filter(order -> !materialFilter || materialMatch.contains(order.id()))
+                .collect(Collectors.toList());
         var fullOrders = toFullOrders(orders);
         searchQuery.sort(fullOrders);
         return fullOrders;
@@ -212,15 +207,13 @@ public class SqLiteOrderData extends MariaDbOrderData {
                       GROUP BY c.material) avg
                 WHERE TRUE
                 ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price""";
-        builder()
-                .queryWithoutParams(query)
-                .update()
-                .sendSync();
+        query(query).single()
+                .update();
     }
 
     @Override
     public SimpleOrder buildSimpleOrder(Row row) throws SQLException {
-        return new SimpleOrder(row.getInt("id"), row.getUuidFromBytes("owner_uuid"),
+        return new SimpleOrder(row.getInt("id"), row.get("owner_uuid", UUID_BYTES),
                 // Sqlite cant read its own timestamp as timestamp. We need to parse them
                 row.getString("name"), SqLiteAdapter.getTimestamp(row, "created"),
                 row.getInt("company"), SqLiteAdapter.getTimestamp(row, "last_update"),

@@ -16,24 +16,24 @@ pluginManagement {
 }
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version ("0.8.0")
+    id("org.gradle.toolchains.foojay-resolver-convention") version ("0.9.0")
 }
 
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             // jackson & serialization
-            version("jackson", "2.16.0")
+            version("jackson", "2.18.2")
             library("jackson-core", "com.fasterxml.jackson.core","jackson-core").versionRef("jackson")
             library("jackson-databind", "com.fasterxml.jackson.core","jackson-databind").versionRef("jackson")
             library("jackson-annotations", "com.fasterxml.jackson.core","jackson-annotations").versionRef("jackson")
             library("jackson-yaml", "com.fasterxml.jackson.dataformat","jackson-dataformat-yaml").versionRef("jackson")
-            library("snakeyaml", "org.yaml:snakeyaml:2.2")
+            library("snakeyaml", "org.yaml:snakeyaml:2.4")
             bundle("jackson", listOf("jackson-databind", "jackson-annotations", "jackson-yaml"))
 
             // utilities
-            library("messageblocker", "de.eldoria:messageblocker:1.1.2")
-            version("eldoutil", "2.0.3")
+            library("messageblocker", "de.eldoria:messageblocker:1.1.3")
+            version("eldoutil", "2.1.10")
             library("jackson-configuration", "de.eldoria.util","jackson-configuration").versionRef("eldoutil")
             library("plugin", "de.eldoria.util","plugin").versionRef("eldoutil")
             library("threading", "de.eldoria.util","threading").versionRef("eldoutil")
@@ -41,23 +41,23 @@ dependencyResolutionManagement {
             bundle("eldoria-utilities", listOf("jackson-configuration", "plugin", "threading", "updater"))
 
             // external dependencies
-            library("protocollib","com.comphenix.protocol:ProtocolLib:5.1.0")
-            library("papi","me.clip:placeholderapi:2.11.5")
+            library("protocollib","com.comphenix.protocol:ProtocolLib:5.3.0")
+            library("papi","me.clip:placeholderapi:2.11.6")
             library("vault","com.github.MilkBowl:VaultAPI:1.7.1")
 
 
             // adventure
-            library("adventure-bukkit", "net.kyori:adventure-platform-bukkit:4.3.2")
-            library("adventure-minimessage", "net.kyori:adventure-text-minimessage:4.15.0")
+            library("adventure-bukkit", "net.kyori:adventure-platform-bukkit:4.3.4")
+            library("adventure-minimessage", "net.kyori:adventure-text-minimessage:4.19.0")
             bundle("adventure", listOf("adventure-bukkit", "adventure-minimessage"))
 
             // database
-            library("hikari", "com.zaxxer:HikariCP:5.1.0")
-            library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.3.2")
-            library("sqlite", "org.xerial:sqlite-jdbc:3.45.1.0")
-            library("postgres", "org.postgresql:postgresql:42.7.1")
+            library("hikari", "com.zaxxer:HikariCP:6.2.1")
+            library("mariadb", "org.mariadb.jdbc:mariadb-java-client:3.5.2")
+            library("sqlite", "org.xerial:sqlite-jdbc:3.49.0.0")
+            library("postgres", "org.postgresql:postgresql:42.7.5")
             bundle("database", listOf("hikari", "mariadb", "sqlite", "postgres"))
-            version("sadu", "1.4.1")
+            version("sadu", "2.3.1")
             library("sadu-queries", "de.chojo.sadu","sadu-queries").versionRef("sadu")
             library("sadu-updater", "de.chojo.sadu","sadu-updater").versionRef("sadu")
             library("sadu-datasource", "de.chojo.sadu","sadu-datasource").versionRef("sadu")
@@ -68,7 +68,7 @@ dependencyResolutionManagement {
 
 
             // misc
-            library("jetbrains-annotations", "org.jetbrains:annotations:24.1.0")
+            library("jetbrains-annotations", "org.jetbrains:annotations:26.0.2")
             // minecraft
             version("minecraft-latest", "1.20.1-R0.1-SNAPSHOT")
             library("paper-latest", "io.papermc.paper", "paper-api").versionRef("minecraft-latest")
@@ -79,15 +79,15 @@ dependencyResolutionManagement {
             library("spigot-v16", "org.spigotmc:spigot-api:1.16.1-R0.1-SNAPSHOT")
 
             // world edit
-            library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.2.19")
-            version("fawe", "2.8.4")
+            library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.3.10")
+            version("fawe", "2.12.3")
             library("fawe-core", "com.fastasyncworldedit","FastAsyncWorldEdit-Core").versionRef("fawe")
             library("fawe-bukkit", "com.fastasyncworldedit","FastAsyncWorldEdit-Bukkit").versionRef("fawe")
 
             // plugins
             plugin("publishdata", "de.chojo.publishdata").version("1.2.5")
-            plugin("spotless", "com.diffplug.spotless").version("6.25.0")
-            plugin("shadow", "com.github.johnrengelman.shadow").version("8.1.1")
+            plugin("spotless", "com.diffplug.spotless").version("7.0.2")
+            plugin("shadow", "io.github.goooler.shadow").version("8.1.8")
             plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.6.0")
         }
 
