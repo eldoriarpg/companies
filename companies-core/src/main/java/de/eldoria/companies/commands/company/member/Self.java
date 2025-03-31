@@ -75,7 +75,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                                       .isEmpty()) {
                                var permissions = member.permissions()
                                                        .stream()
-                                                       .map(perm -> "  " + perm.name()
+                                                       .map(perm -> perm.name()
                                                                                .toLowerCase(Locale.ROOT))
                                                        .collect(Collectors.toList());
                                hover.newLine()
@@ -87,7 +87,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                                     .text(permissions, ", ");
                            }
                            var nameComp = MessageComposer.create()
-                                                         .text("<hover:show_text:'%s'>%s</hover>", hover.build(), mem.getName());
+                                                         .text("<hover:show_text:'%s'><value>%s</hover>", hover.build(), mem.getName());
 
                            if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
                                nameComp = nameComp.space()

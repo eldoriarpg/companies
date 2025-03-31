@@ -1,17 +1,15 @@
 plugins {
     alias(libs.plugins.pluginyml.bukkit)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.runserver)
 }
 
 dependencies {
     implementation(project(":companies-core")) {
-        exclude("com.zaxxer")
-        exclude("com.zaxxer")
-        exclude("com.google.code")
-        exclude("org.jetbrains")
-        exclude("org.slf4j")
+        exclude("*")
     }
-
+    implementation(project(":companies-api"))
+    implementation(libs.messageblocker)
     implementation(libs.bundles.eldoria.utilities)
     implementation(libs.bundles.adventure)
     implementation(libs.bundles.jackson)
@@ -34,6 +32,26 @@ tasks {
 
     build {
         dependsOn(shadowJar)
+    }
+
+    register<Copy>("copyToServer") {
+        val path = project.property("targetDir") ?: ""
+        if (path.toString().isEmpty()) {
+            println("targetDir is not set in gradle properties")
+            return@register
+        }
+        from(shadowJar)
+        destinationDir = File(path.toString())
+    }
+
+    runServer {
+        minecraftVersion("1.21.4")
+        downloadPlugins {
+            url("https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar")
+            url("https://download.luckperms.net/1569/bukkit/loader/LuckPerms-Bukkit-5.4.152.jar")
+        }
+
+        jvmArgs("-Dcom.mojang.eula.agree=true")
     }
 }
 
@@ -93,9 +111,9 @@ bukkit {
         register("companies.*") {
             description = "gives access to all company commands"
             children = listOf(
-                    "companies.order.*",
-                    "companies.admin.*",
-                    "companies.company.*"
+                "companies.order.*",
+                "companies.admin.*",
+                "companies.company.*"
             )
         }
 
