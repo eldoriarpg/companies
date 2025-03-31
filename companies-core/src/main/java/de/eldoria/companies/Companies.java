@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import de.chojo.sadu.mariadb.databases.MariaDb;
 import de.chojo.sadu.postgresql.databases.PostgreSql;
-import de.chojo.sadu.queries.configuration.QueryConfiguration;
+import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.chojo.sadu.sqlite.databases.SqLite;
 import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
@@ -108,8 +108,10 @@ public class Companies extends EldoPlugin {
     @Override
     public void onPluginEnable(boolean reload) {
 
-        var localizer = Localizer.create(this, "en_US", "de_DE");
-        localizer.setLocale(configuration.generalSettings().language());
+        var localizer = Localizer.builder(this, "en_US")
+                                 .setIncludedLocales("en_US", "de_DE", "fr_FR")
+                                 .setUserLocale(p -> configuration.generalSettings().language())
+                                 .build();
 
         new MessageSenderBuilder(this)
                 .errorColor(TextColor.fromHexString("#f05316"))
@@ -141,17 +143,17 @@ public class Companies extends EldoPlugin {
         }
 
         var messageBlocker = MessageBlockerAPI.builder(this)
-                .withExecutor(workerPool)
-                .addWhitelisted("[C]")
-                .build();
+                                              .withExecutor(workerPool)
+                                              .addWhitelisted("[C]")
+                                              .build();
 
         var levelService = new LevelService(this, configuration, companyData);
 
         if (configuration.generalSettings().checkUpdates()) {
             LynaUpdateChecker.lyna(LynaUpdateData.builder(this, 2)
-                    .updateUrl("https://companies.discord.eldoria.de/")
-                    .notifyPermission(Permission.Admin.ADMIN)
-                    .build()).start();
+                                                 .updateUrl("https://companies.discord.eldoria.de/")
+                                                 .notifyPermission(Permission.Admin.ADMIN)
+                                                 .build()).start();
         }
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
@@ -186,8 +188,8 @@ public class Companies extends EldoPlugin {
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource)
-                .setExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
-                .build());
+                                                        .setExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
+                                                        .build());
 
         BaseSqlUpdaterBuilder<?, ?> builder;
         switch (configuration.databaseSettings().storageType()) {
@@ -209,8 +211,8 @@ public class Companies extends EldoPlugin {
         }
 
         builder.setVersionTable("companies_db_version")
-                .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
-                .execute();
+               .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
+               .execute();
 
         initDataRepositories();
     }
@@ -218,7 +220,7 @@ public class Companies extends EldoPlugin {
     private void initDataRepositories() {
         var mapper = configuration.configureDefault(JsonMapper.builder());
         switch (configuration.databaseSettings()
-                .storageType()) {
+                             .storageType()) {
             case SQLITE:
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
@@ -238,7 +240,7 @@ public class Companies extends EldoPlugin {
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
             default:
                 throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                        .storageType());
+                                                                                    .storageType());
         }
     }
 

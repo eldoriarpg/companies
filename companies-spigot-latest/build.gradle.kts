@@ -11,10 +11,10 @@ dependencies {
         exclude("org.slf4j")
     }
     bukkitLibrary(libs.bundles.adventure)
-    bukkitLibrary(libs.bundles.jackson)
+    implementation(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
     bukkitLibrary(libs.bundles.sadu)
-    bukkitLibrary(libs.bundles.eldoria.utilities)
+    implementation(libs.bundles.eldoria.utilities)
 }
 
 publishData {
@@ -49,6 +49,7 @@ tasks {
         relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
         relocate("de.eldoria.messageblocker", shadebase + "messageblocker")
         relocate("de.eldoria.jacksonbukkit", shadebase + "jacksonbukkit")
+        relocate("com.fasterxml", shadebase + "fasterxml")
         relocate("de.chojo", shadebase + "chojo")
         mergeServiceFiles()
     }
