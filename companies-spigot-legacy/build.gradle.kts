@@ -8,7 +8,8 @@ dependencies {
     implementation(project(":companies-core")) {
         exclude("*")
     }
-
+    implementation(project(":companies-api"))
+    implementation(libs.messageblocker)
     implementation(libs.bundles.eldoria.utilities)
     implementation(libs.bundles.adventure)
     implementation(libs.bundles.jackson)
@@ -31,6 +32,16 @@ tasks {
 
     build {
         dependsOn(shadowJar)
+    }
+
+    register<Copy>("copyToServer") {
+        val path = project.property("targetDir") ?: ""
+        if (path.toString().isEmpty()) {
+            println("targetDir is not set in gradle properties")
+            return@register
+        }
+        from(shadowJar)
+        destinationDir = File(path.toString())
     }
 
     runServer {

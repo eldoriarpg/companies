@@ -101,6 +101,7 @@ public class CompanySettings {
     }
 
     public CompanyLevel calcCompanyLevel(CompanyStats stats) {
+        if (level.isEmpty()) return null;
         var finalLevel = level.get(0);
         for (var level : level) {
             if (!level.requirement()

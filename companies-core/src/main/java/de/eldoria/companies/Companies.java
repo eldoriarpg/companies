@@ -211,6 +211,7 @@ public class Companies extends EldoPlugin {
         }
 
         builder.setVersionTable("companies_db_version")
+                .withClassLoader(this.getClass().getClassLoader())
                .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
                .execute();
 

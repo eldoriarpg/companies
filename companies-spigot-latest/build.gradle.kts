@@ -10,11 +10,13 @@ dependencies {
         exclude("org.jetbrains")
         exclude("org.slf4j")
     }
-    bukkitLibrary(libs.bundles.adventure)
+    implementation(project(":companies-api"))
+    implementation(libs.messageblocker)
+    implementation(libs.bundles.eldoria.utilities)
     implementation(libs.bundles.jackson)
+    bukkitLibrary(libs.bundles.adventure)
     bukkitLibrary(libs.bundles.database)
     bukkitLibrary(libs.bundles.sadu)
-    implementation(libs.bundles.eldoria.utilities)
 }
 
 publishData {
@@ -52,16 +54,6 @@ tasks {
         relocate("com.fasterxml", shadebase + "fasterxml")
         relocate("de.chojo", shadebase + "chojo")
         mergeServiceFiles()
-    }
-
-    register<Copy>("copyToServer") {
-        val path = project.property("targetDir") ?: ""
-        if (path.toString().isEmpty()) {
-            println("targetDir is not set in gradle properties")
-            return@register
-        }
-        from(shadowJar)
-        destinationDir = File(path.toString())
     }
 
     build {

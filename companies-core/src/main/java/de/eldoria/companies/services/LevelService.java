@@ -42,14 +42,16 @@ public class LevelService implements Listener {
                         .abortedOrderPenalty())
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin.getLogger()
-                            .log(Level.SEVERE, "Something went wrong", err);
+                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 })
                 .thenRun(() -> updateCompanyLevel(event.company()));
     }
 
     public void updateCompanyLevel(ICompanyProfile company) {
+        if(configuration.companySettings().level().isEmpty()){
+            return;
+        }
         companyData.retrieveCompanyStats(company)
                 .asFuture()
                 .thenAccept(stats -> {
@@ -71,8 +73,7 @@ public class LevelService implements Listener {
                             .callEvent(new CompanyLevelDownEvent(company, oldLevel.get(), newLevel));
                 })
                 .exceptionally(err -> {
-                    plugin.getLogger()
-                            .log(Level.SEVERE, "Something went wrong", err);
+                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
     }
@@ -83,8 +84,7 @@ public class LevelService implements Listener {
                         .expiredOrderPenalty())
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin.getLogger()
-                            .log(Level.SEVERE, "Something went wrong", err);
+                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 })
                 .thenRun(() -> updateCompanyLevel(event.company()));
@@ -106,6 +106,10 @@ public class LevelService implements Listener {
                     }
 
                 }, VIRTUAL)
+                .exceptionally(ex -> {
+                    plugin.getLogger().log(Level.SEVERE, "Something went wrong during level calculation", ex);
+                    return null;
+                })
                 .thenRun(onComplete);
     }
 }
