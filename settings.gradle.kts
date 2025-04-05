@@ -90,7 +90,7 @@ dependencyResolutionManagement {
             library("spigot-v16", "org.spigotmc:spigot-api:1.16.1-R0.1-SNAPSHOT")
 
             // world edit
-            library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.3.10")
+            library("worldedit", "com.sk89q.worldedit:worldedit-bukkit:7.3.11")
             version("fawe", "2.12.3")
             library("fawe-core", "com.fastasyncworldedit", "FastAsyncWorldEdit-Core").versionRef("fawe")
             library("fawe-bukkit", "com.fastasyncworldedit", "FastAsyncWorldEdit-Bukkit").versionRef("fawe")
