@@ -12,6 +12,7 @@ public class GeneralSettings {
     private String language = "en_US";
     private int orderCheckInterval = 60;
     private boolean checkUpdates = true;
+    private boolean messageBlocking = true;
     private Hooks hooks = new Hooks();
 
     public GeneralSettings() {
@@ -31,5 +32,9 @@ public class GeneralSettings {
 
     public Hooks hooks() {
         return hooks;
+    }
+
+    public boolean messageBlocking() {
+        return messageBlocking;
     }
 }
