@@ -51,6 +51,7 @@ import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateChecker;
 import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateData;
 import de.eldoria.messageblocker.MessageBlockerAPI;
+import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.tag.Tag;
@@ -142,10 +143,15 @@ public class Companies extends EldoPlugin {
             return;
         }
 
-        var messageBlocker = MessageBlockerAPI.builder(this)
+            MessageBlocker messageBlocker;
+        if (configuration.main().generalSettings().messageBlocking()) {
+            messageBlocker = MessageBlockerAPI.builder(this)
                                               .withExecutor(workerPool)
                                               .addWhitelisted("[C]")
                                               .build();
+        } else {
+            messageBlocker = MessageBlocker.dummy(this);
+        }
 
         var levelService = new LevelService(this, configuration, companyData);
 
@@ -211,7 +217,7 @@ public class Companies extends EldoPlugin {
         }
 
         builder.setVersionTable("companies_db_version")
-                .withClassLoader(this.getClass().getClassLoader())
+               .withClassLoader(this.getClass().getClassLoader())
                .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
                .execute();
 
