@@ -97,7 +97,7 @@ dependencyResolutionManagement {
 
             // plugins
             plugin("publishdata", "de.chojo.publishdata").version("1.2.5")
-            plugin("spotless", "com.diffplug.spotless").version("7.0.2")
+            plugin("spotless", "com.diffplug.spotless").version("7.0.3")
             plugin("shadow", "io.github.goooler.shadow").version("8.1.8")
             plugin("pluginyml-bukkit", "net.minecrell.plugin-yml.bukkit").version("0.6.0")
             plugin("runserver", "xyz.jpenilla.run-paper").version("2.3.1")
