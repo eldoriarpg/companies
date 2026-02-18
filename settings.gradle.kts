@@ -79,7 +79,7 @@ dependencyResolutionManagement {
 
 
             // misc
-            library("jetbrains-annotations", "org.jetbrains:annotations:26.0.2")
+            library("jetbrains-annotations", "org.jetbrains:annotations:26.1.0")
             // minecraft
             version("minecraft-latest", "1.20.1-R0.1-SNAPSHOT")
             library("paper-latest", "io.papermc.paper", "paper-api").versionRef("minecraft-latest")
