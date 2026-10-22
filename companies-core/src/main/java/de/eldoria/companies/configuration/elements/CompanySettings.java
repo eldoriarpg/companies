@@ -22,6 +22,7 @@ public class CompanySettings {
     private int abortedOrderPenalty = 1;
     private boolean allowMemberOrders = false;
     private int inviteHours = 24;
+    private int expiryWarningHours = 12;
 
     public CompanySettings() {
         updateLevel();
@@ -140,5 +141,14 @@ public class CompanySettings {
      */
     public int inviteHours() {
         return inviteHours;
+    }
+
+    /**
+     * How long before its deadline a claimed order is shown to the company's members when they join.
+     *
+     * @return warning window in hours
+     */
+    public int expiryWarningHours() {
+        return expiryWarningHours;
     }
 }

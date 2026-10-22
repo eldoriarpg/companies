@@ -170,10 +170,12 @@ public class Companies extends EldoPlugin {
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
         registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, orderData, messageBlocker, levelService, nodeData, itemReturnService, updates));
 
+        var expiringService = new ExpiringService(this, orderData, companyData, configuration, itemReturnService, economy);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
-            ExpiringService.start(this, orderData, companyData, configuration, workerPool, itemReturnService, economy);
+            expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
         }
+        registerListener(expiringService);
         registerListener(levelService);
         registerListener(itemReturnService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
