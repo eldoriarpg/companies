@@ -29,3 +29,32 @@ DROP TABLE orders_delivered_merged;
 ALTER TABLE orders_delivered
     ADD CONSTRAINT orders_delivered_uindex
         UNIQUE (id, worker_uuid, material(100));
+
+CREATE OR REPLACE VIEW company_stats_view AS
+SELECT c.id,
+       c.name,
+       c.founded,
+       m.member_count,
+       o.order_count - COALESCE(s.failed_orders, 0) AS order_count,
+       o.price,
+       o.amount
+FROM companies c
+         LEFT JOIN (SELECT company,
+                           COUNT(1)    AS order_count,
+                           SUM(price)  AS price,
+                           SUM(amount) AS amount
+                    FROM orders o
+                             LEFT JOIN order_states os ON o.id = os.id
+                             LEFT JOIN (SELECT id,
+                                               SUM(amount) AS amount,
+                                               SUM(price)  AS price
+                                        FROM order_content
+                                        GROUP BY id) oc
+                                       ON o.id = oc.id
+                    WHERE os.state >= 200
+                    GROUP BY company) o ON c.id = o.company
+         LEFT JOIN company_stats s ON c.id = s.id
+         LEFT JOIN (SELECT id,
+                           COUNT(1) AS member_count
+                    FROM company_member
+                    GROUP BY id) m ON c.id = m.id;
