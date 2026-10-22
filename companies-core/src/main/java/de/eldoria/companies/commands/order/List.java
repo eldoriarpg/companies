@@ -5,85 +5,96 @@
  */
 package de.eldoria.companies.commands.order;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.util.Menus;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
-import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.milkbowl.vault.economy.Economy;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.logging.Level;
 
-public class List extends AdvancedCommand implements IPlayerTabExecutor {
-    private final AOrderData orderData;
-    private final Economy economy;
-    private final OrderLimits orderLimits;
-    private final MessageBlocker messageBlocker;
+/**
+ * {@code /order list}: the sender's orders which are not received yet, with the order limit and the items waiting
+ * to be collected.
+ */
+@Subcommand("list")
+@PlayerOnly
+public final class List {
+    private final CommandDependencies deps;
 
-    public List(
-            Plugin plugin,
-            AOrderData orderData,
-            OrderLimits orderLimits,
-            Economy economy,
-            MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("list").build());
-        this.orderData = orderData;
-        this.economy = economy;
-        this.orderLimits = orderLimits;
-        this.messageBlocker = messageBlocker;
+    /**
+     * @param deps what the commands need
+     */
+    public List(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
+    /**
+     * @param sender sender of the command
+     */
+    @Executes
+    public void list(CommandSender sender) {
+        var player = Senders.player(sender);
+        deps.requireReady();
         showOrders(player);
     }
 
+    /**
+     * Shows the orders of a player.
+     *
+     * @param player owner of the orders
+     */
     public void showOrders(Player player) {
         showOrders(player, () -> {});
     }
 
+    /**
+     * Shows the orders of a player and runs an action once they are shown.
+     *
+     * @param player       owner of the orders
+     * @param whenComplete runs after the menu was sent
+     */
     public void showOrders(Player player, Runnable whenComplete) {
-        var usage = orderLimits.usage(player).asFuture();
+        var services = deps.services();
+        var economy = services.economy();
+        var messageBlocker = services.messageBlocker();
+        var orderData = deps.orderData();
+        var usage = deps.drafts().limits().usage(player).asFuture();
         var waiting = orderData
                 .retrieveItemReturnCount(player.getUniqueId(), ReturnKind.OWNER)
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Could not count waiting order items", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Could not count waiting order items", err);
                     return 0;
                 });
         orderData
                 .retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED)
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return Collections.emptyList();
                 })
                 .thenApply(orders -> orderData
                         .retrieveFullOrders(orders)
                         .asFuture()
                         .exceptionally(err -> {
-                            plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                            deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                             return Collections.emptyList();
                         })
                         .join())
                 .thenCombine(usage, OrdersView::new)
                 .thenCombine(waiting, OrdersView::withWaiting)
                 .thenAccept(view -> {
-                    var orders = view.orders();
                     var limits = view.usage();
                     messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create()
@@ -106,7 +117,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                                 .localeCode("words.collect")
                                 .text("]</click>");
                     }
-                    for (var order : orders) {
+                    for (var order : view.orders()) {
                         builder.newLine().text(order.userShortInfo(economy));
                     }
                     if (messageBlocker.isBlocked(player)) {
@@ -117,7 +128,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     whenComplete.run();
                 })
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
     }

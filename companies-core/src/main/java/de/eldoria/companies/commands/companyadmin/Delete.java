@@ -5,73 +5,75 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
-import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.services.DisbandService;
-import de.eldoria.companies.util.Permission;
-import de.eldoria.eldoutilities.commands.Completion;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.CompanyNames;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.util.Permission.Admin;
+import de.eldoria.eldoutilities.messages.MessageSender;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.arguments.StringArg;
+import net.strokkur.commands.arguments.StringArgType;
+import net.strokkur.commands.permission.Permission;
+import org.bukkit.command.CommandSender;
 
-import java.util.List;
 import java.util.logging.Level;
 
-public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
-    private final ACompanyData companyData;
-    private final DisbandService disbandService;
+/**
+ * {@code /companyadmin delete <name>}: dissolves a company.
+ */
+@Subcommand("delete")
+@Permission(Admin.DELETE)
+@PlayerOnly
+public final class Delete {
+    private final CommandDependencies deps;
 
-    public Delete(Plugin plugin, ACompanyData companyData, DisbandService disbandService) {
-        super(
-                plugin,
-                CommandMeta.builder("delete")
-                        .withPermission(Permission.Admin.DELETE)
-                        .addArgument("words.name", true)
-                        .build());
-        this.companyData = companyData;
-        this.disbandService = disbandService;
+    /**
+     * @param deps what the commands need
+     */
+    public Delete(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
-            throws CommandException {
-        var name = args.join();
+    /**
+     * @param sender sender of the command
+     * @param name   name of the company
+     */
+    @Executes
+    public void delete(CommandSender sender, @CompanyNames @StringArg(StringArgType.GREEDY) String name) {
+        var player = Senders.player(sender);
+        var disbandService = deps.services().disbandService();
+        var companyData = deps.companyData();
 
         companyData
                 .retrieveCompanyByName(name)
                 .asFuture()
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
+                        messages().sendError(player, "error.unknownCompany");
                         return;
                     }
 
                     var profile =
                             companyData.retrieveCompanyProfile(company.get()).join();
                     if (profile == null || profile.isEmpty()) {
-                        messageSender().sendError(player, "error.unknownCompany");
+                        messages().sendError(player, "error.unknownCompany");
                         return;
                     }
                     if (!disbandService.disband(profile.get())) {
-                        messageSender().sendError(player, "company.disband.failed");
+                        messages().sendError(player, "company.disband.failed");
                         return;
                     }
-                    messageSender().sendMessage(player, "company.disband.disbanded");
+                    messages().sendMessage(player, "company.disband.disbanded");
                 })
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
     }
 
-    @Override
-    public @Nullable List<String> onTabComplete(
-            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return Completion.completeFreeInput(args.join(), 32, localizer().localize("words.name"));
+    private MessageSender messages() {
+        return deps.messages();
     }
 }

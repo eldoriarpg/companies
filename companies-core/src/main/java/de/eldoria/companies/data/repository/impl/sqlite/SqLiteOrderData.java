@@ -134,15 +134,6 @@ public class SqLiteOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected String deliveryUpsertQuery() {
-        return """
-                INSERT
-                INTO orders_delivered(id, worker_uuid, material, delivered)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = orders_delivered.delivered + excluded.delivered""";
-    }
-
-    @Override
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         List<List<Integer>> results = new ArrayList<>();
         Set<Integer> materialMatch;
@@ -234,7 +225,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                                    last_update
                             FROM order_content c
                                      LEFT JOIN order_states s ON c.id = s.id
-                            WHERE s.state >= 200) c
+                            WHERE s.state >= 200
+                              AND c.exact = 0) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE

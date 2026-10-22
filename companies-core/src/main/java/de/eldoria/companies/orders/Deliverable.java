@@ -6,78 +6,53 @@
 package de.eldoria.companies.orders;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import org.bukkit.Material;
-import org.bukkit.block.ShulkerBox;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.BlockStateMeta;
 
-import java.util.Arrays;
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
+import java.util.List;
 
 /**
  * Works out how much of an order a player could deliver with the items they carry.
  * <p>
- * Plain items in the inventory count, and so do plain items inside a shulker box held in the main hand. Items with a
- * custom name, enchantments or other data do not count, since a delivery would not accept them.
+ * The items are those a delivery would take: the storage slots and the content of a shulker box held in the main
+ * hand. Whether an item counts for a line is decided by the {@link ItemMatcher}, like on delivery.
  */
 public final class Deliverable {
-    private Deliverable() {}
-
-    /**
-     * Counts the plain items a player carries. Has to be called on the main thread.
-     *
-     * @param player player to count the items of
-     * @return amount per material
-     */
-    public static Map<Material, Integer> available(Player player) {
-        var inventory = player.getInventory();
-        return available(inventory.getStorageContents(), inventory.getItemInMainHand());
+    private Deliverable() {
+        throw new UnsupportedOperationException("This is a utility class.");
     }
 
     /**
-     * Counts plain items in storage slots and in the shulker box held in the main hand.
+     * Copies the items a player could deliver. Has to be called on the main thread.
      *
-     * @param storage  storage slots
-     * @param mainHand item in the main hand, which may be a shulker box
-     * @return amount per material
+     * @param player player to copy the items of
+     * @return copies of the items
      */
-    public static Map<Material, Integer> available(ItemStack[] storage, ItemStack mainHand) {
-        Map<Material, Integer> available = new EnumMap<>(Material.class);
-        Stream.concat(Arrays.stream(storage), shulkerContents(mainHand))
-                .filter(Objects::nonNull)
-                .filter(Deliverable::isPlain)
-                .forEach(stack -> available.merge(stack.getType(), stack.getAmount(), Integer::sum));
-        return available;
+    public static List<ItemStack> available(Player player) {
+        return ItemSources.snapshot(ItemSources.collect(player));
     }
 
     /**
-     * The amount of items of an order the player could deliver.
+     * The amount of items of an order the player could deliver. Every item counts for one line only.
      *
-     * @param available items the player carries, per material
+     * @param matcher   decides which items match a line
+     * @param available items the player carries
      * @param order     order to fill
-     * @return sum over all contents of what is missing and available
+     * @return sum over all lines of what is missing and available
      */
-    public static int amount(Map<Material, Integer> available, FullOrder order) {
-        return order.contents().stream()
-                .mapToInt(content ->
-                        Math.min(Math.max(0, content.missing()), available.getOrDefault(content.material(), 0)))
-                .sum();
-    }
-
-    private static Stream<ItemStack> shulkerContents(ItemStack stack) {
-        if (stack == null
-                || !(stack.getItemMeta() instanceof BlockStateMeta meta)
-                || !(meta.getBlockState() instanceof ShulkerBox box)) {
-            return Stream.empty();
+    public static int amount(ItemMatcher matcher, List<ItemStack> available, FullOrder order) {
+        var left = available.stream().mapToInt(ItemStack::getAmount).toArray();
+        var total = 0;
+        for (var content : order.contents()) {
+            var missing = Math.max(0, content.missing());
+            for (var index = 0; index < left.length && missing > 0; index++) {
+                if (left[index] <= 0 || !matcher.matches(content.stack(), available.get(index))) continue;
+                var counted = Math.min(missing, left[index]);
+                left[index] -= counted;
+                missing -= counted;
+                total += counted;
+            }
         }
-        return Arrays.stream(box.getInventory().getContents());
-    }
-
-    private static boolean isPlain(ItemStack stack) {
-        return !stack.getType().isAir() && stack.isSimilar(new ItemStack(stack.getType()));
+        return total;
     }
 }

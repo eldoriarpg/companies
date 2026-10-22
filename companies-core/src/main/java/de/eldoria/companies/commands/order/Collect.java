@@ -5,31 +5,35 @@
  */
 package de.eldoria.companies.commands.order;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
-import de.eldoria.companies.services.ItemReturnService;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 
 /**
- * Hands out items of received orders which did not fit into the player's inventory.
+ * {@code /order collect}: hands out items of received orders which did not fit into the player's inventory.
  */
-public class Collect extends AdvancedCommand implements IPlayerTabExecutor {
-    private final ItemReturnService itemReturnService;
+@Subcommand("collect")
+@PlayerOnly
+public final class Collect {
+    private final CommandDependencies deps;
 
-    public Collect(Plugin plugin, ItemReturnService itemReturnService) {
-        super(plugin, CommandMeta.builder("collect").build());
-        this.itemReturnService = itemReturnService;
+    /**
+     * @param deps what the commands need
+     */
+    public Collect(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        itemReturnService.handOut(player, ReturnKind.OWNER, false);
+    /**
+     * @param sender sender of the command
+     */
+    @Executes
+    public void collect(CommandSender sender) {
+        var player = Senders.player(sender);
+        deps.services().itemReturnService().handOut(player, ReturnKind.OWNER, false);
     }
 }

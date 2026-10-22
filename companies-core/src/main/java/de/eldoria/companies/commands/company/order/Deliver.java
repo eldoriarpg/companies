@@ -5,213 +5,180 @@
  */
 package de.eldoria.companies.commands.company.order;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.CompanyOrderIds;
+import de.eldoria.companies.commands.suggest.CompanyOrderSources;
+import de.eldoria.companies.commands.suggest.OrderLines;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.data.wrapper.order.ReturnKind;
-import de.eldoria.companies.events.order.OrderDoneEvent;
-import de.eldoria.companies.events.order.OrderPaymentEvent;
-import de.eldoria.companies.orders.Collector;
-import de.eldoria.companies.orders.PaymentType;
-import de.eldoria.companies.orders.Payout;
-import de.eldoria.companies.util.Inventories;
+import de.eldoria.companies.orders.DeliveryResult;
+import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.milkbowl.vault.economy.Economy;
-import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Literal;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.arguments.IntArg;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
-public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
-    private final Economy economy;
-    private final ACompanyData companyData;
-    private final AOrderData orderData;
-    private final Info info;
-    private final MessageBlocker messageBlocker;
-    private final Configuration configuration;
-    private final Collector collector;
+/**
+ * {@code /company order deliver <id> <line> <amount|max>} and {@code /company order deliver <id> all}: delivers items
+ * from the inventory and from a shulker box in the main hand to an order the company works on.
+ * <p>
+ * Lines are numbered from one. A delivery to one line takes up to the given amount, {@code max} takes what the line
+ * misses, and {@code all} takes every matching item for every line.
+ */
+@Subcommand("deliver")
+@PlayerOnly
+public final class Deliver {
+    private final CommandDependencies deps;
+    private final CompanyOrderViews views;
 
-    public Deliver(
-            Plugin plugin,
-            ACompanyData companyData,
-            AOrderData orderData,
-            Economy economy,
-            Configuration configuration,
-            Collector collector,
-            Info info,
-            MessageBlocker messageBlocker) {
-        super(
-                plugin,
-                CommandMeta.builder("deliver")
-                        .addArgument("words.id", true)
-                        .addArgument("words.material", true)
-                        .addArgument("words.amount", true)
-                        .build());
-        this.orderData = orderData;
-        this.economy = economy;
-        this.companyData = companyData;
-        this.info = info;
-        this.messageBlocker = messageBlocker;
-        this.configuration = configuration;
-        this.collector = collector;
+    /**
+     * @param deps  what the commands need
+     * @param views the menus of the company orders
+     */
+    public Deliver(CommandDependencies deps, CompanyOrderViews views) {
+        this.deps = deps;
+        this.views = views;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        var id = arguments.asInt(0);
-        var material = arguments.asMaterial(1);
-        var amount = "max".equalsIgnoreCase(arguments.asString(2)) ? Integer.MAX_VALUE : arguments.asInt(2);
+    /**
+     * Delivers an amount of items to one line.
+     *
+     * @param sender sender of the command
+     * @param id     id of the order
+     * @param line   line of the order, from one
+     * @param amount the most items to deliver
+     */
+    @Executes
+    public void deliver(
+            CommandSender sender,
+            @CompanyOrderIds int id,
+            @OrderLines @IntArg(min = 1) int line,
+            @IntArg(min = 1) int amount) {
+        deliverLine(sender, id, line, amount);
+    }
 
-        CommandAssertions.range(amount, 1, Integer.MAX_VALUE);
+    /**
+     * Delivers as many items to one line as it misses.
+     *
+     * @param sender sender of the command
+     * @param id     id of the order
+     * @param line   line of the order, from one
+     * @param max    the literal {@code max}
+     */
+    @Executes
+    public void deliverMax(
+            CommandSender sender,
+            @CompanyOrderIds int id,
+            @OrderLines @IntArg(min = 1) int line,
+            @Literal("max") String max) {
+        deliverLine(sender, id, line, Integer.MAX_VALUE);
+    }
 
-        companyData
+    /**
+     * Delivers every matching item to every line.
+     *
+     * @param sender sender of the command
+     * @param id     id of the order
+     * @param all    the literal {@code all}
+     */
+    @Executes
+    public void deliverAll(CommandSender sender, @CompanyOrderIds int id, @Literal("all") String all) {
+        var player = Senders.player(sender);
+        var service = deps.services().deliveryService();
+        start(player, id, (company, order) -> Optional.of(service.deliverAll(player, company, order)));
+    }
+
+    private void deliverLine(CommandSender sender, int id, int line, int amount) {
+        var player = Senders.player(sender);
+        var service = deps.services().deliveryService();
+        start(player, id, (company, order) -> {
+            if (order.line(line - 1).isEmpty()) {
+                deps.messages().sendErrorActionBar(player, "error.unknownLine");
+                return Optional.empty();
+            }
+            return Optional.of(service.deliver(player, company, order, line - 1, amount));
+        });
+    }
+
+    /**
+     * Loads the order of the company and runs the delivery on the main thread.
+     *
+     * @param player   delivering player
+     * @param id       id of the order
+     * @param delivery takes the items; empty when it refused
+     */
+    private void start(Player player, int id, Delivery delivery) {
+        var messages = deps.messages();
+        var orderData = deps.orderData();
+        deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return Optional.empty();
                 })
                 .thenAccept(company -> {
                     if (company.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        messages.sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var optOrder = orderData
                             .retrieveCompanyOrderById(id, company.get().id())
                             .join();
                     if (optOrder == null || optOrder.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                        messages.sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
                     if (optOrder.get().state() != OrderState.CLAIMED) {
-                        messageSender().sendErrorActionBar(player, "error.orderNotActive");
+                        messages.sendErrorActionBar(player, "error.orderNotActive");
                         return;
                     }
-                    orderData.retrieveFullOrder(optOrder.get()).whenComplete(fullOrder -> {
-                        // This part has to be synced to the mainthread
-                        handleFullOrder(player, material, amount, company.get(), fullOrder);
-                    });
+                    var order = orderData.retrieveFullOrder(optOrder.get()).join();
+                    Threading.mainThread(deps.plugin())
+                            .execute(() -> deliverOnMainThread(player, company.get(), order, delivery));
                 })
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
     }
 
-    private void handleFullOrder(
-            Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
+    private void deliverOnMainThread(Player player, CompanyProfile company, FullOrder order, Delivery delivery) {
         if (!player.isOnline()) return;
-        var optContent = order.content(material);
-        if (optContent.isEmpty()) {
-            messageSender().sendErrorActionBar(player, "error.invalidMaterial");
-            return;
-        }
-
-        var content = optContent.get();
-        var deliver = Math.min(amount, content.missing());
-        var inv = player.getInventory();
-        var slots = inv.all(content.stack().getType());
-        var contained = 0;
-        for (var entry : slots.entrySet()) {
-            var stack = entry.getValue();
-            if (!stack.isSimilar(content.stack())) continue;
-            var take = Math.min(stack.getAmount(), deliver - contained);
-            stack.setAmount(stack.getAmount() - take);
-            contained += take;
-            if (contained == deliver) {
-                break;
-            }
-        }
-
-        var removed = contained;
-        orderData
-                .submitDelivery(player, order, material, removed)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return 0;
-                })
-                .thenAcceptAsync(
-                        delivered -> giveBack(player, content.stack(), removed - delivered),
-                        Threading.mainThread(plugin()))
-                .thenCompose(v -> orderData.retrieveFullOrder(order).asFuture())
-                .thenAccept(refreshedOrder -> {
-                    if (refreshedOrder.isDone()) {
-                        messageBlocker.unblockPlayer(player).thenRun(() -> orderDone(refreshedOrder, company));
+        delivery.run(company, order).ifPresent(result -> result.thenAccept(delivered -> {
+                    CompanyOrderSources.invalidate(player.getUniqueId());
+                    if (delivered.orderDone()) {
+                        deps.services().messageBlocker().unblockPlayer(player);
                         return;
                     }
-                    info.renderOrder(player, company, company.member(player).get(), refreshedOrder);
+                    views.renderOrder(player, company, company.member(player).get(), delivered.order());
                 })
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
-                });
-    }
-
-    private void giveBack(Player player, ItemStack stack, int amount) {
-        if (amount <= 0) return;
-        if (player.isOnline()) {
-            Inventories.give(player, Inventories.split(stack, amount));
-            return;
-        }
-        orderData.submitItemReturn(player.getUniqueId(), ReturnKind.WORKER, stack, amount);
-    }
-
-    private void orderDone(FullOrder order, CompanyProfile profile) {
-        orderData
-                .submitOrderDelivered(order)
-                .asFuture()
-                .thenAccept(delivered -> delivered.ifPresent(deliveredOrder -> {
-                    plugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(deliveredOrder, profile));
-                    pay(deliveredOrder, profile);
-                }))
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
+                }));
     }
 
     /**
-     * Pays the workers of a delivered order their share minus the tax of the company's level.
-     * <p>
-     * The fee of the order and the tax of every payout that is not cancelled go to the collector.
-     *
-     * @param order   delivered order
-     * @param company company which delivered the order
+     * One kind of delivery, run by {@link DeliveryService} on the main thread.
      */
-    private void pay(FullOrder order, CompanyProfile company) {
-        var taxPercent = configuration.companySettings().taxPercent(company.level());
-        Map<OfflinePlayer, Double> payments = new HashMap<>();
-        var collected = BigDecimal.valueOf(order.fee());
-        for (var entry : order.payments(PaymentType.STACK).entrySet()) {
-            var player = plugin().getServer().getOfflinePlayer(entry.getKey());
-            var payout = Payout.split(entry.getValue(), taxPercent);
-            var event = new OrderPaymentEvent(order, player, payout.net(), payout.gross(), payout.tax());
-            plugin().getServer().getPluginManager().callEvent(event);
-            if (event.isCancelled()) continue;
-            payments.put(player, payout.net());
-            collected = collected.add(BigDecimal.valueOf(payout.tax()));
-        }
-        Threading.mainThread(plugin()).execute(() -> payments.forEach(economy::depositPlayer));
-        collector.collect(collected.doubleValue());
+    @FunctionalInterface
+    private interface Delivery {
+        /**
+         * @param company company of the worker
+         * @param order   order to deliver to
+         * @return the running delivery, or empty when it was refused
+         */
+        Optional<CompletableFuture<DeliveryResult>> run(CompanyProfile company, FullOrder order);
     }
 }

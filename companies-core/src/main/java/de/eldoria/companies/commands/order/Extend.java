@@ -5,80 +5,84 @@
  */
 package de.eldoria.companies.commands.order;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.OwnOpenOrderIds;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.messages.Replacement;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 
 import java.time.Duration;
 import java.util.Optional;
 import java.util.logging.Level;
 
 /**
- * Restarts the purge timer of an order nobody accepted yet, up to {@code maxExtensions} times per order.
+ * {@code /order extend <id>}: restarts the purge timer of an order nobody accepted yet, up to {@code maxExtensions}
+ * times per order.
  */
-public class Extend extends AdvancedCommand implements IPlayerTabExecutor {
-    private final AOrderData orderData;
-    private final Configuration configuration;
+@Subcommand("extend")
+@PlayerOnly
+public final class Extend {
+    private final CommandDependencies deps;
 
-    public Extend(Plugin plugin, AOrderData orderData, Configuration configuration) {
-        super(
-                plugin,
-                CommandMeta.builder("extend").addArgument("words.id", true).build());
-        this.orderData = orderData;
-        this.configuration = configuration;
+    /**
+     * @param deps what the commands need
+     */
+    public Extend(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        var id = arguments.asInt(0);
-        var maxExtensions = configuration.orderSetting().maxExtensions();
+    /**
+     * @param sender sender of the command
+     * @param id     id of the order
+     */
+    @Executes
+    public void extend(CommandSender sender, @OwnOpenOrderIds int id) {
+        var player = Senders.player(sender);
+        deps.requireReady();
+        var orderSettings = deps.configuration().orderSetting();
+        var maxExtensions = orderSettings.maxExtensions();
+        var orderData = deps.orderData();
+        var messages = deps.messages();
 
         orderData
                 .retrieveOrderById(id)
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return Optional.empty();
                 })
                 .thenAccept(optOrder -> {
                     if (optOrder.isEmpty() || !optOrder.get().owner().equals(player.getUniqueId())) {
-                        messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                        messages.sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
                     var order = optOrder.get();
                     if (order.state() != OrderState.UNCLAIMED) {
-                        messageSender().sendError(player, "error.orderAlreadyClaimed");
+                        messages.sendError(player, "error.orderAlreadyClaimed");
                         return;
                     }
                     if (order.extensionsLeft(maxExtensions) == 0
                             || !Boolean.TRUE.equals(orderData
                                     .submitOrderExtension(order, maxExtensions)
                                     .join())) {
-                        messageSender().sendError(player, "order.extend.noneLeft");
+                        messages.sendError(player, "order.extend.noneLeft");
                         return;
                     }
-                    var refundIn = Duration.ofHours(configuration.orderSetting().maxUnclaimedHours());
-                    messageSender()
-                            .sendMessage(
-                                    player,
-                                    "order.extend.extended",
-                                    Replacement.unparsed("order_name", order.fullName()),
-                                    Replacement.create("duration", Texts.prettyDuration(refundIn)),
-                                    Replacement.create("left", order.extensionsLeft(maxExtensions) - 1));
+                    var refundIn = Duration.ofHours(orderSettings.maxUnclaimedHours());
+                    messages.sendMessage(
+                            player,
+                            "order.extend.extended",
+                            Replacement.unparsed("order_name", order.fullName()),
+                            Replacement.create("duration", Texts.prettyDuration(refundIn)),
+                            Replacement.create("left", order.extensionsLeft(maxExtensions) - 1));
                 })
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
     }

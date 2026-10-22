@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,8 +35,10 @@ class OrderContentTest {
     private final UUID second = UUID.randomUUID();
 
     private OrderContent content(int amount, double price, ContentPart... parts) {
-        var content = new OrderContent(new ItemStack(Material.STONE), amount, price);
-        content.parts(List.of(parts));
+        var content = new OrderContent(0, new ItemStack(Material.STONE), false, amount, price);
+        content.deliveries(Arrays.stream(parts)
+                .map(part -> new DeliveredStack(0, part.worker(), new ItemStack(Material.STONE), part.amount()))
+                .toList());
         return content;
     }
 

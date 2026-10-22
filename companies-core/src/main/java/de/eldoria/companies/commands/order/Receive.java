@@ -5,58 +5,67 @@
  */
 package de.eldoria.companies.commands.order;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.OwnDeliveredOrderIds;
+import de.eldoria.companies.commands.suggest.SuggestionSources;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.util.Inventories;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
+/**
+ * {@code /order receive <id>}: hands the owner of a delivered order the stacks as they were delivered.
+ */
+@Subcommand("receive")
+@PlayerOnly
+public final class Receive {
+    private final CommandDependencies deps;
 
-public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
-    private final AOrderData orderData;
-    private final MessageBlocker messageBlocker;
-
-    public Receive(Plugin plugin, AOrderData orderData, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("receive").addArgument("id", true).build());
-        this.orderData = orderData;
-        this.messageBlocker = messageBlocker;
+    /**
+     * @param deps what the commands need
+     */
+    public Receive(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        var id = arguments.asInt(0);
+    /**
+     * @param sender sender of the command
+     * @param id     id of the order
+     */
+    @Executes
+    public void receive(CommandSender sender, @OwnDeliveredOrderIds int id) {
+        var player = Senders.player(sender);
+        var messageBlocker = deps.services().messageBlocker();
+        var orderData = deps.orderData();
 
         orderData.retrieveOrderById(id).whenComplete(optOrder -> {
             if (optOrder.isEmpty()) {
-                messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                deps.messages().sendErrorActionBar(player, "error.unknownOrder");
                 return;
             }
-
             var simpleOrder = optOrder.get();
             if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                messageSender().sendError(player, "error.notYourOrder");
+                deps.messages().sendError(player, "error.notYourOrder");
                 return;
             }
             if (simpleOrder.state() != OrderState.DELIVERED) {
-                messageSender().sendError(player, "error.orderNotDelivered");
+                deps.messages().sendError(player, "error.orderNotDelivered");
                 return;
             }
-            orderData.retrieveFullOrder(optOrder.get()).whenComplete(fullOrder -> receive(player, fullOrder));
+            orderData
+                    .retrieveFullOrder(simpleOrder)
+                    .whenComplete(fullOrder -> receive(player, fullOrder, messageBlocker));
         });
     }
 
@@ -64,20 +73,22 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
      * Receives a delivered order. What fits goes into the inventory; the rest is stored with the state change, so it
      * can be collected later with {@code /order collect}.
      *
-     * @param player owner receiving the order
-     * @param order  delivered order
+     * @param player         owner receiving the order
+     * @param order          delivered order
+     * @param messageBlocker blocker to release once the order is received
      */
-    private void receive(Player player, FullOrder order) {
+    private void receive(Player player, FullOrder order, MessageBlocker messageBlocker) {
         if (!player.isOnline()) return;
-        var items = order.contents().stream()
-                .map(content -> new ItemAmount(content.stack(), content.amount()))
+        var items = order.deliveredStacks().stream()
+                .map(stack -> new ItemAmount(stack, stack.getAmount()))
                 .toList();
         var placement = Inventories.place(Inventories.storageCopy(player), items);
-        orderData.submitOrderReceive(order, placement.remaining()).whenComplete(received -> {
+        deps.orderData().submitOrderReceive(order, placement.remaining()).whenComplete(received -> {
             if (!received) {
-                messageSender().sendError(player, "error.orderNotDelivered");
+                deps.messages().sendError(player, "error.orderNotDelivered");
                 return;
             }
+            SuggestionSources.current().ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
             if (!player.isOnline()) {
                 keep(player, placement.fitting());
                 return;
@@ -97,15 +108,15 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
         });
     }
 
-    private void keep(Player player, List<ItemAmount> items) {
+    private void keep(Player player, java.util.List<ItemAmount> items) {
         for (var item : items) {
-            orderData.submitItemReturn(player.getUniqueId(), ReturnKind.OWNER, item.stack(), item.amount());
+            deps.orderData().submitItemReturn(player.getUniqueId(), ReturnKind.OWNER, item.stack(), item.amount());
         }
     }
 
     private void sendReceived(Player player, int total, int waiting) {
         if (waiting <= 0) {
-            messageSender().sendMessage(player, "order.receive.received");
+            deps.messages().sendMessage(player, "order.receive.received");
             return;
         }
         var composer = MessageComposer.create()
@@ -117,6 +128,6 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
                 .text("<click:run_command:/order collect><add>[")
                 .localeCode("words.collect")
                 .text("]</click>");
-        messageSender().sendMessage(player, composer);
+        deps.messages().sendMessage(player, composer);
     }
 }

@@ -111,15 +111,6 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected String deliveryUpsertQuery() {
-        return """
-                INSERT
-                INTO orders_delivered(id, worker_uuid, material, delivered)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = orders_delivered.delivered + excluded.delivered""";
-    }
-
-    @Override
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("postgresql")
         var query = """

@@ -5,97 +5,103 @@
  */
 package de.eldoria.companies.commands.order;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.OwnOpenOrderIds;
+import de.eldoria.companies.commands.suggest.SuggestionSources;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 import java.util.logging.Level;
 
 /**
- * Cancels an unaccepted order of the player. The price is refunded, the fee goes to the collector.
+ * {@code /order cancel <id>}: cancels an unaccepted order of the sender. The price is refunded, the fee goes to the
+ * collector.
  */
-public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
-    private final AOrderData orderData;
-    private final Economy economy;
-    private final Collector collector;
+@Subcommand("cancel")
+@PlayerOnly
+public final class Cancel {
+    private final CommandDependencies deps;
     private final List list;
 
-    public Cancel(Plugin plugin, AOrderData orderData, Economy economy, Collector collector, List list) {
-        super(
-                plugin,
-                new CommandMetaBuilder("cancel").addArgument("words.id", true).build());
-        this.orderData = orderData;
-        this.economy = economy;
-        this.collector = collector;
+    /**
+     * @param deps what the commands need
+     * @param list shows the orders once the order is canceled
+     */
+    public Cancel(CommandDependencies deps, List list) {
+        this.deps = deps;
         this.list = list;
     }
 
-    @Override
-    public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        var id = arguments.asInt(0);
+    /**
+     * @param sender sender of the command
+     * @param id     id of the order
+     */
+    @Executes
+    public void cancel(CommandSender sender, @OwnOpenOrderIds int id) {
+        var player = Senders.player(sender);
+        var economy = deps.services().economy();
+        var collector = new Collector(deps.plugin(), economy, deps.configuration());
+        var orderData = deps.orderData();
+        var messages = deps.messages();
 
         orderData
                 .retrieveOrderById(id)
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return Optional.empty();
                 })
                 .thenAccept(optOrder -> {
                     if (optOrder.isEmpty()) {
-                        messageSender().sendErrorActionBar(sender, "error.unknownOrder");
+                        messages.sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
-
                     var simpleOrder = optOrder.get();
-                    var player = getPlayerFromSender(sender);
                     if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                        messageSender().sendError(sender, "error.notYourOrder");
+                        messages.sendError(player, "error.notYourOrder");
                         return;
                     }
                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messageSender().sendError(sender, "error.orderAlreadyClaimed");
+                        messages.sendError(player, "error.orderAlreadyClaimed");
                         return;
                     }
-
-                    var fullOrder = orderData.retrieveFullOrder(optOrder.get()).join();
+                    var fullOrder = orderData.retrieveFullOrder(simpleOrder).join();
                     if (fullOrder == null) {
-                        messageSender().sendErrorActionBar(sender, "error.unknownOrder");
+                        messages.sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
                     if (!Boolean.TRUE.equals(
                             orderData.submitOrderDeletion(fullOrder).join())) {
-                        messageSender().sendError(sender, "error.orderAlreadyClaimed");
+                        messages.sendError(player, "error.orderAlreadyClaimed");
                         return;
                     }
-                    Threading.mainThread(plugin()).execute(() -> economy.depositPlayer(player, fullOrder.price()));
+                    SuggestionSources.current()
+                            .ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
+                    Threading.mainThread(deps.plugin()).execute(() -> economy.depositPlayer(player, fullOrder.price()));
                     collector.collect(fullOrder.fee());
-                    list.showOrders(player, () -> sendCanceled(sender, fullOrder));
+                    list.showOrders(player, () -> sendCanceled(player, fullOrder, economy));
                 })
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
     }
 
-    private void sendCanceled(Player player, FullOrder order) {
+    private void sendCanceled(Player player, FullOrder order, Economy economy) {
         var money = Replacement.create("money", economy.format(order.price()));
         if (order.fee() > 0) {
-            messageSender()
+            deps.messages()
                     .sendMessage(
                             player,
                             "order.cancel.canceledFeeKept",
@@ -103,6 +109,6 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                             Replacement.create("fee", economy.format(order.fee())));
             return;
         }
-        messageSender().sendMessage(player, "order.cancel.canceled", money);
+        deps.messages().sendMessage(player, "order.cancel.canceled", money);
     }
 }

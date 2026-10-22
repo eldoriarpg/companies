@@ -9,8 +9,10 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.orders.PriceLines;
+import de.eldoria.companies.util.Inventories;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
@@ -215,10 +217,15 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
      * @param configuration configuration providing the delivery time
      * @param economy       economy formatting the amounts
      * @param taxPercent    tax of the member's company, where 5 means 5 %
+     * @param matcher       item matcher, which tells whether damaged items are accepted and how worn they are
      * @return MiniMessage view
      */
     public String companyDetailInfo(
-            CompanyMember member, Configuration configuration, Economy economy, double taxPercent) {
+            CompanyMember member,
+            Configuration configuration,
+            Economy economy,
+            double taxPercent,
+            ItemMatcher matcher) {
         var composer = MessageComposer.create()
                 .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                 .newLine()
@@ -227,7 +234,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 .text(": <value>")
                 .localeCode(state().translationKey())
                 .newLine()
-                .text(companyActionContent(economy, state()))
+                .text(companyActionContent(economy, state(), matcher))
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
@@ -248,6 +255,12 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                         .space()
                         .text("<value>%s", runningOutTime(configuration))
                         .newLine();
+                if (!isDone()) {
+                    composer.text("<click:run_command:/company order deliver %s all><add>[", id())
+                            .localeCode("company.order.info.deliverAll")
+                            .text("]</click>")
+                            .space();
+                }
                 if (member.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
                     composer.text("<click:run_command:/company order abort %s><remove>[", id())
                             .localeCode("words.abort")
@@ -260,38 +273,69 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
         return composer.build();
     }
 
-    private String companyActionContent(Economy economy, OrderState state) {
+    private String companyActionContent(Economy economy, OrderState state, ItemMatcher matcher) {
         List<String> contents = new ArrayList<>();
         for (var content : this.contents) {
             if (state == OrderState.UNCLAIMED) {
                 contents.add(content.asComponent(economy));
-            } else {
-                var composer = MessageComposer.create()
-                        .text(content.asProgressComponent(economy))
-                        .space();
-                if (content.missing() != 0) {
-
-                    var baseCommand = String.format(
-                            "/company order deliver %s %s ",
-                            id(), content.stack().getType());
-                    composer.text("<add>")
-                            .text("<click:run_command:%s 1>[1]</click>", baseCommand)
-                            .text("<click:run_command:%s 8>[8]</click>", baseCommand)
-                            .text("<click:run_command:%s 32>[32]</click>", baseCommand)
-                            .text("<click:run_command:%s 64>[64]</click>", baseCommand)
-                            .text("<click:run_command:%s max>[", baseCommand)
-                            .localeCode("words.max")
-                            .text("]</click>")
-                            .text("<click:suggest_command:%s >[", baseCommand)
-                            .localeCode("words.add")
-                            .text("]</click>");
-                } else {
-                    composer.text("<value>").localeCode("words.done");
-                }
-                contents.add(composer.build());
+                continue;
             }
+            var composer = MessageComposer.create()
+                    .text(content.asProgressComponent(economy))
+                    .space();
+            if (content.missing() > 0) {
+                deliverButtons(composer, content);
+            } else {
+                composer.text("<value>").localeCode("words.done");
+            }
+            if (matcher.allowDamaged()) damage(composer, content, matcher);
+            contents.add(composer.build());
         }
         return String.join("\n", contents);
+    }
+
+    /**
+     * Adds the buttons delivering to a line. Lines are numbered from one in commands.
+     *
+     * @param composer composer to add the buttons to
+     * @param content  line to deliver to
+     */
+    private void deliverButtons(MessageComposer composer, OrderContent content) {
+        var baseCommand = String.format("/company order deliver %s %s", id(), content.line() + 1);
+        composer.text("<add>")
+                .text("<click:run_command:%s 1>[1]</click>", baseCommand)
+                .text("<click:run_command:%s 8>[8]</click>", baseCommand)
+                .text("<click:run_command:%s 32>[32]</click>", baseCommand)
+                .text("<click:run_command:%s 64>[64]</click>", baseCommand)
+                .text("<click:run_command:%s max>[", baseCommand)
+                .localeCode("words.max")
+                .text("]</click>")
+                .text("<click:suggest_command:%s >[", baseCommand)
+                .localeCode("words.add")
+                .text("]</click>");
+    }
+
+    /**
+     * Adds how many of the delivered items of a line are damaged and the wear of the most worn one in percent.
+     *
+     * @param composer composer to add the damage to
+     * @param content  line with its delivered stacks
+     * @param matcher  matcher measuring the damage
+     */
+    private static void damage(MessageComposer composer, OrderContent content, ItemMatcher matcher) {
+        var damaged = 0;
+        var worst = 0.0;
+        for (var delivery : content.deliveries()) {
+            var damage = matcher.damage(delivery.stack());
+            if (damage <= 0) continue;
+            damaged += delivery.amount();
+            worst = Math.max(worst, damage);
+        }
+        if (damaged == 0) return;
+        composer.space()
+                .text("<inactive>")
+                .localeCode("company.order.info.damaged")
+                .text(": <value>%s <inactive>(%s %%)", damaged, Math.round(worst * 100));
     }
 
     @Override
@@ -332,9 +376,15 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
     }
 
     @Override
+    public Optional<OrderContent> line(int line) {
+        return contents.stream().filter(content -> content.line() == line).findFirst();
+    }
+
+    @Override
+    @Deprecated
     public Optional<OrderContent> content(Material material) {
         return contents.stream()
-                .filter(content -> content.material() == material)
+                .filter(content -> !content.exact() && content.material() == material)
                 .findFirst();
     }
 
@@ -343,17 +393,16 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
         return delivered() >= amount();
     }
 
-    public List<ItemStack> createStacks() {
+    /**
+     * The delivered items of every line, as they were delivered, split into stacks of at most their max stack size.
+     *
+     * @return delivered stacks
+     */
+    public List<ItemStack> deliveredStacks() {
         List<ItemStack> stacks = new ArrayList<>();
         for (var content : contents) {
-            var baseStack = content.stack();
-            var amount = content.amount();
-            while (amount != 0) {
-                var size = Math.min(baseStack.getType().getMaxStackSize(), amount);
-                amount -= size;
-                var currStack = baseStack.clone();
-                currStack.setAmount(size);
-                stacks.add(currStack);
+            for (var delivery : content.deliveries()) {
+                stacks.addAll(Inventories.split(delivery.stack(), delivery.amount()));
             }
         }
         return stacks;
