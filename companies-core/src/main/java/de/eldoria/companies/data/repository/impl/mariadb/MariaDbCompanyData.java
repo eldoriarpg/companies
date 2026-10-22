@@ -206,16 +206,17 @@ public class MariaDbCompanyData extends ACompanyData {
     }
 
     @Override
-    protected void setCompanyName(SimpleCompany company, String name) {
+    protected boolean setCompanyName(SimpleCompany company, String name) {
         @Language("mariadb")
         var query = """
                 UPDATE companies
                 SET name = ?
                 WHERE id = ?""";
-        query(query)
+        return query(query)
                 .single(call().bind(name)
                         .bind(company.id()))
-                .update();
+                .update()
+                .changed();
     }
 
     @Override

@@ -8,6 +8,8 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -25,16 +27,16 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
     public static final int MAX_NAME_LENGTH = 32;
-    private final Map<UUID, String> confirm = new HashMap<>();
+    private final Map<UUID, String> confirm = new ConcurrentHashMap<>();
     private final Configuration configuration;
     private final Economy economy;
     private final ACompanyData companyData;
@@ -87,33 +89,8 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
 
-                       if (!economy.has(player, configuration.companySettings()
-                                                             .renamePrice())) {
-                           var fallbackCurr = economy.currencyNameSingular()
-                                                     .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
-                           var curr = economy.currencyNamePlural()
-                                             .isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                           messageSender().sendErrorActionBar(player, "error.insufficientCurrency",
-                                   Replacement.create("currency", curr),
-                                   Replacement.create("amount", configuration.companySettings()
-                                                                             .foundingPrice()));
-                           return;
-                       }
-
-                       confirm.put(player.getUniqueId(), name);
-                       var composer = MessageComposer.create()
-                                                     .text("<neutral>")
-                                                     .localeCode("company.rename.confirm",
-                                                             Replacement.create("amount", String.format("<heading>%s<neutral>",
-                                                                     economy.format(configuration.companySettings()
-                                                                                                 .foundingPrice()))),
-                                                             Replacement.create("name", String.format("<heading>%s<neutral>", name)))
-                                                     .newLine()
-                                                     .text("<%s><click:run_command:/company rename confirm><add>[")
-                                                     .localeCode("words.confirm")
-                                                     .text("]</click>");
-                       messageSender().sendMessage(player, composer);
-                       delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
+                       Threading.mainThread(plugin())
+                                .execute(() -> requestConfirmation(player, name));
                    })
                    .exceptionally(err -> {
                        plugin().getLogger()
@@ -128,12 +105,45 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
         return Completion.completeFreeInput(arguments.join(), MAX_NAME_LENGTH, localizer().localize("words.name"));
     }
 
+    private void requestConfirmation(Player player, String name) {
+        var price = configuration.companySettings()
+                                 .renamePrice();
+        if (!economy.has(player, price)) {
+            sendInsufficientCurrency(player, price);
+            return;
+        }
+
+        confirm.put(player.getUniqueId(), name);
+        var composer = MessageComposer.create()
+                                      .text("<neutral>")
+                                      .localeCode("company.rename.confirm",
+                                              Replacement.create("amount", String.format("<heading>%s<neutral>",
+                                                      economy.format(price))),
+                                              Replacement.create("name", String.format("<heading>%s<neutral>", name)))
+                                      .newLine()
+                                      .text("<click:run_command:/company rename confirm><add>[")
+                                      .localeCode("words.confirm")
+                                      .text("]</click>");
+        messageSender().sendMessage(player, composer);
+        delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
+    }
+
+    private void sendInsufficientCurrency(Player player, double price) {
+        var fallbackCurr = economy.currencyNameSingular()
+                                  .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
+        var curr = economy.currencyNamePlural()
+                          .isBlank() ? fallbackCurr : economy.currencyNamePlural();
+        messageSender().sendErrorActionBar(player, "error.insufficientCurrency",
+                Replacement.create("currency", curr),
+                Replacement.create("amount", price));
+    }
+
     private void confirm(@NotNull Player player) {
-        if (!confirm.containsKey(player.getUniqueId())) {
+        var name = confirm.remove(player.getUniqueId());
+        if (name == null) {
             messageSender().sendErrorActionBar(player, "error.noConfirm");
             return;
         }
-        var name = confirm.get(player.getUniqueId());
         companyData.retrievePlayerCompanyProfile(player)
                    .asFuture()
                    .exceptionally(err -> {
@@ -161,22 +171,8 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
 
-                       var response = economy.withdrawPlayer(player, configuration.companySettings()
-                                                                                  .renamePrice());
-                       if (response.type != EconomyResponse.ResponseType.SUCCESS) {
-                           var fallbackCurr = economy.currencyNameSingular()
-                                                     .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
-                           var curr = economy.currencyNamePlural()
-                                             .isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                           messageSender().sendErrorActionBar(player, "error.insufficientCurrency",
-                                   Replacement.create("currency", curr),
-                                   Replacement.create("amount", configuration.companySettings()
-                                                                             .foundingPrice()));
-                           return;
-                       }
-
-                       companyData.updateCompanyName(profile, name);
-                       messageSender().sendMessage(player, "company.rename.changed");
+                       Threading.mainThread(plugin())
+                                .execute(() -> rename(player, profile, name));
                    })
                    .exceptionally(err -> {
                        plugin().getLogger()
@@ -184,6 +180,32 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                        return null;
                    })
         ;
+    }
+
+    private void rename(Player player, SimpleCompany company, String name) {
+        var price = configuration.companySettings()
+                                 .renamePrice();
+        var response = economy.withdrawPlayer(player, price);
+        if (response.type != EconomyResponse.ResponseType.SUCCESS) {
+            sendInsufficientCurrency(player, price);
+            return;
+        }
+
+        companyData.updateCompanyName(company, name)
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return false;
+                   })
+                   .thenAcceptAsync(renamed -> {
+                       if (!renamed) {
+                           economy.depositPlayer(player, price);
+                           messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+                           return;
+                       }
+                       messageSender().sendMessage(player, "company.rename.changed");
+                   }, Threading.mainThread(plugin()));
     }
 
     private void expireConfirm(UUID uuid) {

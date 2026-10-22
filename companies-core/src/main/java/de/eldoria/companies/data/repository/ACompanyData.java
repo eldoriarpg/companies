@@ -102,11 +102,18 @@ public abstract class ACompanyData {
 
     protected abstract List<CompanyRank> getRanking(TopOrder order, int page, int pageSize);
 
-    public FutureResult<Void> updateCompanyName(SimpleCompany company, String name) {
-        return CompletableBukkitFuture.runAsync(() -> setCompanyName(company, name));
+    public FutureResult<Boolean> updateCompanyName(SimpleCompany company, String name) {
+        return CompletableBukkitFuture.supplyAsync(() -> setCompanyName(company, name), executorService);
     }
 
-    protected abstract void setCompanyName(SimpleCompany company, String name);
+    /**
+     * Changes the name of a company.
+     *
+     * @param company company to rename
+     * @param name    new name
+     * @return true if the name was changed
+     */
+    protected abstract boolean setCompanyName(SimpleCompany company, String name);
 
     public abstract List<SimpleCompany> getCompanies();
 
