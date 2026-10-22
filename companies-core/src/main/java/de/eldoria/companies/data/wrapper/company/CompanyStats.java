@@ -6,15 +6,10 @@
 package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.ICompanyStats;
-import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.localization.MessageComposer;
-import net.milkbowl.vault.economy.Economy;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 public class CompanyStats implements ICompanyStats {
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy");
     private final int id;
     private final String name;
     private final LocalDateTime founded;
@@ -77,38 +72,5 @@ public class CompanyStats implements ICompanyStats {
 
     public CompanyRank toRank(int rank) {
         return new CompanyRank(rank, id, name, founded, memberCount, orderCount, price, deliveredItems);
-    }
-
-    /**
-     * The statistics as hover text.
-     *
-     * @param economy economy formatting the earned money
-     * @return MiniMessage text
-     */
-    public String asComponent(Economy economy) {
-        return MessageComposer.create()
-                .text("<heading>")
-                .text(Texts.escape(name))
-                .newLine()
-                .text("<name>")
-                .localeCode("words.founded")
-                .text(": <value>%s ", FORMATTER.format(founded))
-                .newLine()
-                .text("<name>")
-                .localeCode("words.member")
-                .text(": <value>%s", memberCount)
-                .newLine()
-                .text("<name>")
-                .localeCode("words.orders")
-                .text(": <value>%s", orderCount)
-                .newLine()
-                .text("<name>")
-                .localeCode("level.earnedMoney")
-                .text(": <value>%s", economy.format(price))
-                .newLine()
-                .text("<name>")
-                .localeCode("level.deliveredItems")
-                .text(": <value>%s", deliveredItems)
-                .build();
     }
 }
