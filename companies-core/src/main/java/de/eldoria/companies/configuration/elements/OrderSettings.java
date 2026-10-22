@@ -15,6 +15,7 @@ public class OrderSettings {
     private OrderFee fee = new OrderFee();
     private int maxExtensions = 2;
     private int purgeWarningHours = 24;
+    private ItemMatchSettings matching = new ItemMatchSettings();
 
     public OrderSettings() {}
 
@@ -26,6 +27,11 @@ public class OrderSettings {
         this.maxItems = maxItems;
     }
 
+    /**
+     * How many lines an order may have.
+     *
+     * @return maximum number of lines
+     */
     public int maxMaterials() {
         return maxMaterials;
     }
@@ -75,5 +81,14 @@ public class OrderSettings {
 
     public void purgeWarningHours(int purgeWarningHours) {
         this.purgeWarningHours = purgeWarningHours;
+    }
+
+    /**
+     * How delivered items are matched against the requested items.
+     *
+     * @return matching settings
+     */
+    public ItemMatchSettings matching() {
+        return matching;
     }
 }
