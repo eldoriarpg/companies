@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.milkbowl.vault.economy.Economy;
@@ -37,6 +39,30 @@ public final class PriceLines {
                 .text("<name>")
                 .localeCode("words.total")
                 .text(": <value>%s", economy.format(price + fee));
+    }
+
+    /**
+     * Adds the fee and the total below the price, when there is a fee, as named placeholders {@code fee} and
+     * {@code total}.
+     *
+     * @param text    text ending with the price line
+     * @param economy economy formatting the amounts
+     * @param price   price of the order
+     * @param fee     fee of the order
+     * @return the text
+     */
+    public static MenuText fee(MenuText text, Economy economy, double price, double fee) {
+        if (!(fee > 0)) return text;
+        return text.newLine()
+                .text("<name>")
+                .locale("words.fee")
+                .text(": <value><fee> <inactive>(", Values.money("fee", economy, fee))
+                .locale("order.fee.nonRefundable")
+                .text(")")
+                .newLine()
+                .text("<name>")
+                .locale("words.total")
+                .text(": <value><total>", Values.money("total", economy, price + fee));
     }
 
     /**
