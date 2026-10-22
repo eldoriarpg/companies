@@ -115,14 +115,21 @@ public abstract class AOrderData {
 
     protected abstract void orderDelivered(SimpleOrder order);
 
-    public FutureResult<Void> submitUnclaimOrder(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            unclaimOrder(order);
+    public BukkitFutureResult<Boolean> submitUnclaimOrder(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var result = unclaimOrder(order);
             invalidateFullOrder(order);
-        });
+            return result;
+        }, VIRTUAL);
     }
 
-    protected abstract void unclaimOrder(SimpleOrder order);
+    /**
+     * Releases a claimed order back to the market.
+     *
+     * @param order order to release
+     * @return true if the order was claimed and is now unclaimed
+     */
+    protected abstract boolean unclaimOrder(SimpleOrder order);
 
     public BukkitFutureResult<Void> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
         return CompletableBukkitFuture.runAsync(() -> {

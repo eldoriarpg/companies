@@ -84,8 +84,10 @@ public class ExpiringService implements Runnable, Listener {
                                .join();
 
         for (var order : expired) {
-            orderData.submitUnclaimOrder(order)
-                     .join();
+            if (!orderData.submitUnclaimOrder(order)
+                          .join()) {
+                continue;
+            }
             var profile = companyData.retrieveCompanyById(order.company())
                                      .asFuture()
                                      .exceptionally(err -> {

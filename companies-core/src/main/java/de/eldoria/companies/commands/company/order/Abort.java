@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -22,16 +23,16 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
-    private final Map<UUID, SimpleOrder> cancel = new HashMap<>();
+    private final Map<UUID, SimpleOrder> cancel = new ConcurrentHashMap<>();
     private final List list;
 
 
@@ -47,7 +48,8 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
-            if (confirm(player)) return;
+            confirm(player);
+            return;
         }
 
         var id = arguments.asInt(0);
@@ -82,11 +84,11 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         ;
     }
 
-    private boolean confirm(@NotNull Player player) {
+    private void confirm(@NotNull Player player) {
         var remove = cancel.remove(player.getUniqueId());
         if (remove == null) {
             messageSender().sendErrorActionBar(player, "error.noConfirm");
-            return true;
+            return;
         }
 
         companyData.retrievePlayerCompanyProfile(player)
@@ -102,8 +104,11 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
 
-                       orderData.submitUnclaimOrder(remove)
-                                .join();
+                       if (!orderData.submitUnclaimOrder(remove)
+                                     .join()) {
+                           messageSender().sendErrorActionBar(player, "error.orderNotActive");
+                           return;
+                       }
 
                        list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
                                plugin().getServer()
@@ -115,7 +120,6 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                                .log(Level.SEVERE, "Something went wrong", err);
                        return null;
                    });
-        return false;
     }
 
     private Optional<SimpleOrder> checkOrder(Optional<CompanyProfile> optCompany, Player player, int id) {
@@ -136,6 +140,11 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         var order = optOrder.get();
         if (order.company() != company.id()) {
             messageSender().sendErrorActionBar(player, "error.orderNotOwned");
+            return Optional.empty();
+        }
+
+        if (order.state() != OrderState.CLAIMED) {
+            messageSender().sendErrorActionBar(player, "error.orderNotActive");
             return Optional.empty();
         }
 

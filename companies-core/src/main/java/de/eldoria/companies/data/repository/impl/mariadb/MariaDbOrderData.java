@@ -221,24 +221,29 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void unclaimOrder(SimpleOrder order) {
+    protected boolean unclaimOrder(SimpleOrder order) {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
                 SET state       = ?,
                     company     = NULL,
                     last_update = CURRENT_TIMESTAMP
-                WHERE id = ?""";
+                WHERE id = ?
+                  AND state = ?""";
         @Language("mariadb")
         var delete = """
                 DELETE FROM orders_delivered WHERE id = ?""";
         try (var conf = QueryConfiguration.getDefault().withSingleTransaction()) {
-            conf.query(query)
-                    .single(call().bind(OrderState.UNCLAIMED.stateId()).bind(order.id()))
+            var unclaimed = conf.query(query)
+                    .single(call().bind(OrderState.UNCLAIMED.stateId())
+                            .bind(order.id())
+                            .bind(OrderState.CLAIMED.stateId()))
                     .update();
-            conf.query(delete)
+            if (!unclaimed.changed()) return false;
+            var deleted = conf.query(delete)
                     .single(call().bind(order.id()))
                     .delete();
+            return !deleted.hasExceptions();
         }
     }
 
