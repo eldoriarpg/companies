@@ -9,8 +9,10 @@ import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.repository.ANotificationData;
+import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
+import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyKickEvent;
@@ -38,9 +40,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -49,12 +54,15 @@ import java.util.function.Predicate;
 /**
  * Sends notifications based on internal events.
  * <p>
- * Money is formatted by the Vault economy, which is registered before this service is created.
+ * Money is formatted by the Vault economy, which is registered before this service is created. A notification for a
+ * player who is not online here is rendered and stored in the inbox as a pending legacy entry; the player sees the
+ * pending entries of this kind on their next join, which marks them read.
  */
 public class NotificationService implements Listener {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-    private final ANotificationData notificationData;
+    private static final int JOIN_LIMIT = 500;
+    private final AInboxData inboxData;
     private final AOrderData orderData;
     private final ScheduledExecutorService workerPool;
     private final MessageSender sender;
@@ -63,11 +71,8 @@ public class NotificationService implements Listener {
     private final Economy economy;
 
     public NotificationService(
-            ANotificationData notificationData,
-            AOrderData orderData,
-            ScheduledExecutorService workerPool,
-            Plugin plugin) {
-        this.notificationData = notificationData;
+            AInboxData inboxData, AOrderData orderData, ScheduledExecutorService workerPool, Plugin plugin) {
+        this.inboxData = inboxData;
         this.orderData = orderData;
         this.workerPool = workerPool;
         sender = MessageSender.getPluginMessageSender(plugin);
@@ -113,9 +118,13 @@ public class NotificationService implements Listener {
     }
 
     private void saveNotification(OfflinePlayer player, String message, TagResolver... replacements) {
-        var container =
-                new NotificationData(sender.miniMessage().serialize(sender.serializeMessage(message, replacements)));
-        notificationData.submitNotifications(player, container);
+        var serialized = sender.miniMessage().serialize(sender.serializeMessage(message, replacements));
+        inboxData.submit(
+                player.getUniqueId(),
+                NotificationType.LEGACY,
+                NotificationArgs.create().text(NotificationArgs.LEGACY_MESSAGE, serialized),
+                LocalDateTime.now(),
+                InboxStatus.PENDING);
     }
 
     /**
@@ -335,29 +344,36 @@ public class NotificationService implements Listener {
     }
 
     private void sendNotifications(Player player) {
-        var notifications = notificationData.retrieveNotifications(player).join();
-        List<String> components = new ArrayList<>();
+        var pending = inboxData
+                .retrievePending(List.of(player.getUniqueId()), JOIN_LIMIT)
+                .join();
+        Map<LocalDate, List<InboxEntry>> byDate = new TreeMap<>();
+        var now = LocalDateTime.now();
+        for (var entry : pending) {
+            if (entry.type() != NotificationType.LEGACY) continue;
+            if (!inboxData.submitClaim(entry.id(), now).join()) continue;
+            byDate.computeIfAbsent(entry.created().toLocalDate(), date -> new ArrayList<>())
+                    .add(entry);
+        }
+        if (byDate.isEmpty()) return;
 
-        for (var currDate : notifications) {
+        List<String> components = new ArrayList<>();
+        for (var currDate : byDate.entrySet()) {
             var date = currDate.getKey();
             if (date.equals(LocalDate.now())) {
-                // Today
                 components.add("<heading><l18n:words.today>:<neutral>");
             } else if (date.equals(LocalDate.now().minusDays(1L))) {
-                // Yesterday
                 components.add("<heading><l18n:words.yesterday>:<neutral>");
             } else {
                 components.add(String.format("<heading>%s:<neutral>", DATE_FORMATTER.format(date)));
             }
-            for (var notification : currDate.getValue()) {
-                var time = TIME_FORMATTER.format(notification.created());
-                var data = notification.data();
-                components.add(String.format("<name>%s:<neutral> %s", time, localizer.localize(data.message())));
+            for (var entry : currDate.getValue()) {
+                var time = TIME_FORMATTER.format(entry.created());
+                var message = entry.args().values().get(NotificationArgs.LEGACY_MESSAGE);
+                var text = message == null ? "" : localizer.localize(message.value());
+                components.add(String.format("<name>%s:<neutral> %s", time, text));
             }
         }
-        notificationData.submitNotificationClear(player);
-        if (!notifications.isEmpty()) {
-            sender.sendMessage(player, String.join("\n", components));
-        }
+        sender.sendMessage(player, String.join("\n", components));
     }
 }

@@ -26,7 +26,6 @@ import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
-import de.eldoria.companies.data.repository.ANotificationData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
@@ -34,7 +33,6 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
-import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
@@ -42,7 +40,6 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
-import de.eldoria.companies.data.repository.impl.postgres.PostgresNotificationData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
@@ -50,7 +47,6 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
-import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.debug.CompaniesDebug;
@@ -100,7 +96,6 @@ public class Companies extends EldoPlugin {
     private HikariDataSource dataSource;
     private ACompanyData companyData;
     private AOrderData orderData;
-    private ANotificationData notificationData;
     private InformationData information;
     private ANodeData nodeData;
     private AMembershipData membershipData;
@@ -199,7 +194,7 @@ public class Companies extends EldoPlugin {
 
         var itemReturnService = new ItemReturnService(this, orderData);
 
-        var notificationService = new NotificationService(notificationData, orderData, workerPool, this);
+        var notificationService = new NotificationService(information.inbox(), orderData, workerPool, this);
         var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
         var membershipService = MembershipService.create(
                 this,
@@ -317,7 +312,6 @@ public class Companies extends EldoPlugin {
         switch (configuration.databaseSettings().storageType()) {
             case SQLITE -> {
                 companyData = new SqLiteCompanyData(workerPool);
-                notificationData = new SqLiteNotificationData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
@@ -328,7 +322,6 @@ public class Companies extends EldoPlugin {
             }
             case MARIADB -> {
                 companyData = new MariaDbCompanyData(workerPool);
-                notificationData = new MariaDbNotificationData(workerPool);
                 orderData = new MariaDbOrderData(mapper);
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
@@ -339,7 +332,6 @@ public class Companies extends EldoPlugin {
             }
             case POSTGRES -> {
                 companyData = new PostgresCompanyData(workerPool);
-                notificationData = new PostgresNotificationData(workerPool);
                 orderData = new PostgresOrderData(workerPool, mapper);
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
