@@ -11,7 +11,7 @@ jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 jackson-yaml = { module = "tools.jackson.dataformat:jackson-dataformat-yaml" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 
-messageblocker = "de.eldoria:messageblocker:2.0.0-SNAPSHOT"
+messageblocker = "de.eldoria:messageblocker:2.0.0"
 jackson-configuration = { module = "de.eldoria.util:jackson-configuration", version.ref = "eldoutil" }
 plugin = { module = "de.eldoria.util:plugin", version.ref = "eldoutil" }
 threading = { module = "de.eldoria.util:threading", version.ref = "eldoutil" }
