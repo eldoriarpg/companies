@@ -43,10 +43,94 @@ The plugin is plug & play. However, you can do several configurations.
 ## Requirements
 * [Paper](https://papermc.io/) 1.21.11 or newer, running on Java 25
 * [Vault](https://github.com/MilkBowl/Vault) and an economy plugin
+* One of these databases:
+  * SQLite (default, nothing to set up)
+  * MariaDB 10.5 or newer. MySQL is not supported.
+  * PostgreSQL 13 or newer. The configured schema has to exist.
 
 ## Optional Dependencies
 * [PAPI](https://www.spigotmc.org/resources/6245/) for Placeholders
 * [ProtocolLib](https://www.spigotmc.org/resources/1997/) for the best experience with the text UIs. **This is highly recommended.**
+
+## Commands
+
+Every argument has tab completion. Order ids, line numbers and company names are suggested.
+Line numbers start at 1.
+
+### Orders: `/order`
+
+| Command                                          | Description                                                   |
+|--------------------------------------------------|---------------------------------------------------------------|
+| `/order` or `/order list`                        | List your orders                                              |
+| `/order info <id>`                               | Show an order                                                 |
+| `/order create <name>`                           | Start a new order draft                                       |
+| `/order draft name <name>`                       | Rename the draft                                              |
+| `/order draft add <item> <amount> <unit price>`  | Add a line, e.g. `stone` or `diamond_sword[enchantments={sharpness:5}]` |
+| `/order draft add hand <amount> <unit price>`    | Add the item in your main hand as an exact line               |
+| `/order draft amount <line> <amount>`            | Change the amount of a line                                   |
+| `/order draft price <line> <unit price>`         | Change the unit price of a line                               |
+| `/order draft price <line> market`               | Use the market average as unit price (material lines only)    |
+| `/order draft remove <line>`                     | Remove a line                                                 |
+| `/order draft done` / `cancel`                   | Place the order and pay for it, or drop the draft             |
+| `/order cancel <id>`                             | Cancel an order nobody accepted yet                           |
+| `/order extend <id>`                             | Extend an order nobody accepted yet                           |
+| `/order raise <id> <amount>`                     | Raise the price of an open order                              |
+| `/order receive <id>`                            | Receive the items of a delivered order                        |
+| `/order collect`                                 | Collect items that did not fit into your inventory            |
+
+Drafts expire after 15 minutes.
+
+### Companies: `/company` (alias `/comp`)
+
+| Command                                                   | Description                                         |
+|-----------------------------------------------------------|-----------------------------------------------------|
+| `/company` or `/company profile [id <id>\|name <name>\|player <player>]` | Show a company profile          |
+| `/company create <name>`                                  | Found a company                                     |
+| `/company invite <player>` / `invite accept\|deny`         | Invite a player, or answer an invite                |
+| `/company kick <member>`                                  | Kick a member                                       |
+| `/company leave`                                          | Leave your company                                  |
+| `/company transfer <member>`                              | Hand the company to another member                  |
+| `/company disband`                                        | Disband your company                                |
+| `/company rename <name>`                                  | Rename your company                                 |
+| `/company member [id <id>]`                               | List the members                                    |
+| `/company permission <member> [give\|remove <permission>]` | Show or change the permissions of a member          |
+| `/company top [page] [ordering]`                          | Show the company ranking                            |
+| `/company returns`                                        | Take back items returned from aborted orders        |
+| `/company chatblock <true\|false>`                        | Block or allow chat while a menu is open            |
+
+Confirmations are given with `confirm` after the command, e.g. `/company leave confirm`.
+
+### Company orders: `/company order`
+
+| Command                                      | Description                                                       |
+|----------------------------------------------|-------------------------------------------------------------------|
+| `/company order` or `/company order list`    | List the orders your company works on                             |
+| `/company order info <id>`                   | Show an order with its lines and what was delivered               |
+| `/company order search`                      | Show the search; `search query <field> <value>` changes a field, `search query execute` runs it and `search page <n>` pages through the results |
+| `/company order accept <id>`                 | Accept an order from the search results                           |
+| `/company order deliver <id> <line> <amount>` | Deliver up to `amount` items to a line                           |
+| `/company order deliver <id> <line> max`     | Deliver as many items as the line misses                          |
+| `/company order deliver <id> all`            | Deliver every matching item to every line                         |
+| `/company order abort <id>`                  | Abort an order. Delivered items go back to the workers            |
+
+Delivery takes items from your inventory and from a shulker box held in the main hand. Plain items are used before
+items with extra data such as enchantments or names.
+
+### Administration: `/companyadmin`
+
+| Command                                                  | Permission                      |
+|----------------------------------------------------------|---------------------------------|
+| `/companyadmin level [list\|info\|create\|edit\|move\|remove]` | `companies.admin.level`      |
+| `/companyadmin calclevel`                                | `companies.admin.calcLevel`     |
+| `/companyadmin delete <company>`                         | `companies.admin.delete`        |
+| `/companyadmin rename <company> <name>`                  | `companies.admin.rename`        |
+| `/companyadmin transferowner <company> <player>`         | `companies.admin.transferOwner` |
+| `/companyadmin reload`                                   | `companies.admin.reload`        |
+| `/companyadmin syncconfiguration`                        | `companies.admin`               |
+| `/companyadmin debug`                                    | `companies.admin`               |
+
+Company names with spaces are quoted in `rename` and `transferowner`.
+Update notifications link to `/companies:eldo-update`, which is available to `companies.updates`.
 
 ## Permissions
 
@@ -67,9 +151,37 @@ The plugin is plug & play. However, you can do several configurations.
 
 `companies.orders.*`, `companies.company.*`, `companies.admin.*` and `companies.*` grant the permissions below them.
 Without a `companies.orders.limit.<n>` permission a player may have `maxOrders` active orders, as set in `user.yml`.
+`companies.orders.create` covers `/order create` and `/order draft`. `/companyadmin` is shown to holders of any admin
+permission, and each subcommand checks its own. Commands a player may not use are hidden from them.
 
 ## Configuration
 A detailed guide on the configuration can be found at the [wiki](https://github.com/eldoriarpg/companies/wiki/Configuration)
+
+### Item matching
+An order line is either a **material line** (`/order draft add stone 64 1`), which any item of that material fills,
+or an **exact line** (`/order draft add hand …` or an item with components), which requires the components of the
+ordered item. Extra components on a delivered item, like enchantments, are always accepted.
+
+The `matching` section in `order.yml` decides what counts:
+
+```yaml
+matching:
+  ignoredComponents:
+    - minecraft:custom_name
+    - minecraft:repair_cost
+    - minecraft:lore
+  allowDamaged: false
+```
+
+* `ignoredComponents` are data component types that never decide a match. They are also removed from items put into
+  an order, so a name or lore on the ordered item is not shown to workers. Any vanilla component type can be listed,
+  including `minecraft:custom_data`, which holds the data of plugin items. Unknown keys are logged and skipped.
+* `allowDamaged` is off by default, so only undamaged items can be delivered. With it on, damaged items are accepted
+  and the order info shows workers how worn the delivered items are.
+
+The owner receives exactly the items that were delivered, with all their data: enchantments, names, lore and, with
+`allowDamaged`, their damage. A worker's custom name or lore on a delivered item is therefore visible to the owner.
+Items with content, like filled shulker boxes or bundles, can neither be ordered nor delivered.
 
 ### Menus
 `menus` in `config.yml` sets how menus such as the order builder, the order search, order views and confirmations are
