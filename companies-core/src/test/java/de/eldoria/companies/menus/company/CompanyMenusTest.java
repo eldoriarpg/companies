@@ -7,13 +7,11 @@ package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
-import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
@@ -33,12 +31,9 @@ import org.mockbukkit.mockbukkit.entity.PlayerMock;
 
 import java.lang.reflect.Proxy;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -187,34 +182,7 @@ class CompanyMenusTest {
         assertTrue(shown.contains("invite"));
     }
 
-    @Test
-    void theRankingSwitchesOrderingsAndPagesThroughCallbacks() {
-        List<CompanyRank> ranks = new ArrayList<>();
-        for (var i = 1; i <= 3; i++) ranks.add(new CompanyRank(i, i, HOSTILE, FOUNDED, i, i, i, i, 1, null, null));
-        var view = TopView.of(TopOrder.EARNED, 2, ranks, 3);
-
-        var text = new TopMenu(messages, economy(), new NoNavigation()).chat(owner, view, actions);
-
-        assertNoCommands(text);
-        assertTrue(text.build().contains("<act_ordering_items_delivered>"));
-        assertTrue(text.build().contains("<act_rank_2>"));
-        assertTrue(text.build().contains("<act_previous>"));
-        assertTrue(text.build().contains("<act_next>"));
-        assertTrue(plain(text).contains("3 | " + HOSTILE));
-    }
-
-    @Test
-    void theLastRankingPageHasNoNextButton() {
-        var view = TopView.of(TopOrder.ORDERS, 1, List.of(), 15);
-
-        var text = new TopMenu(messages, economy(), new NoNavigation()).chat(owner, view, actions);
-
-        assertFalse(text.build().contains("<act_previous>"));
-        assertFalse(text.build().contains("<act_next>"));
-        assertEquals(Optional.empty(), view.ranks().stream().findAny());
-    }
-
-    private static final class NoNavigation implements ProfileMenu.Navigation, TopMenu.Navigation {
+    private static final class NoNavigation implements ProfileMenu.Navigation {
         @Override
         public void members(Player viewer, ProfileView profile) {}
 
@@ -223,11 +191,5 @@ class CompanyMenusTest {
 
         @Override
         public void edit(Player viewer) {}
-
-        @Override
-        public void show(Player viewer, int page, TopOrder ordering) {}
-
-        @Override
-        public void profile(Player viewer, int company) {}
     }
 }

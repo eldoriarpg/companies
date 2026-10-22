@@ -7,6 +7,7 @@ package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
@@ -213,9 +214,15 @@ class CompanyViewsTest {
     void aFullRankingPageMayHaveASuccessor() {
         var rank = new CompanyRank(1, 7, "Acme", FOUNDED, 1, 1, 1, 1, 1, null, null);
 
-        assertTrue(TopView.of(TopOrder.ORDERS, 1, List.of(rank, rank), 2).hasNext());
-        assertFalse(TopView.of(TopOrder.ORDERS, 1, List.of(rank), 2).hasNext());
-        assertFalse(TopView.of(TopOrder.ORDERS, 1, List.of(rank), 2).paging().hasPrevious());
-        assertTrue(TopView.of(TopOrder.ORDERS, 2, List.of(rank), 2).paging().hasPrevious());
+        assertTrue(TopView.of(TopOrder.ORDERS, TimeRange.ALL, 1, List.of(rank, rank), 2, Optional.empty())
+                .hasNext());
+        assertFalse(TopView.of(TopOrder.ORDERS, TimeRange.ALL, 1, List.of(rank), 2, Optional.empty())
+                .hasNext());
+        assertFalse(TopView.of(TopOrder.ORDERS, TimeRange.ALL, 1, List.of(rank), 2, Optional.empty())
+                .paging()
+                .hasPrevious());
+        assertTrue(TopView.of(TopOrder.ORDERS, TimeRange.ALL, 2, List.of(rank), 2, Optional.empty())
+                .paging()
+                .hasPrevious());
     }
 }

@@ -18,7 +18,7 @@ import de.eldoria.companies.commands.company.Leave;
 import de.eldoria.companies.commands.company.Permission;
 import de.eldoria.companies.commands.company.Rename;
 import de.eldoria.companies.commands.company.Returns;
-import de.eldoria.companies.commands.company.Top;
+import de.eldoria.companies.commands.company.TopCommand;
 import de.eldoria.companies.commands.company.Transfer;
 import de.eldoria.companies.commands.company.member.MemberCommand;
 import de.eldoria.companies.commands.company.order.CompanyOrderCommand;
@@ -86,7 +86,7 @@ final class CompanyCommand {
     final Permission permission;
 
     @Subcommand
-    final Top top;
+    final TopCommand top;
 
     @Subcommand
     final Rename rename;
@@ -110,7 +110,7 @@ final class CompanyCommand {
         disband = new Disband(deps);
         leave = new Leave(deps, disband::disband);
         transfer = new Transfer(deps);
-        top = new Top(deps, profile);
+        top = new TopCommand(deps, profile);
         rename = new Rename(deps);
         returns = new Returns(deps);
     }
