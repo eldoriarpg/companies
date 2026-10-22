@@ -6,30 +6,26 @@
 package de.eldoria.companies.commands.company.profile;
 
 import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.company.member.MemberCommand;
 import de.eldoria.companies.commands.suggest.CompanyNames;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
-import de.eldoria.companies.configuration.elements.companylevel.LevelProgress;
-import de.eldoria.companies.configuration.elements.companylevel.LevelRequirement;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
-import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.companies.menus.MenuService;
-import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.companies.menus.company.ProfileMenu;
+import de.eldoria.companies.menus.company.ProfileView;
 import de.eldoria.eldoutilities.messages.MessageSender;
-import net.milkbowl.vault.economy.Economy;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.StringArg;
 import net.strokkur.commands.arguments.StringArgType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 /**
@@ -40,12 +36,18 @@ import java.util.logging.Level;
 @PlayerOnly
 public final class ProfileCommand {
     private final CommandDependencies deps;
+    private final MemberCommand members;
+    private final Consumer<Player> orders;
 
     /**
-     * @param deps what the commands need
+     * @param deps    what the commands need
+     * @param members shows the member list of a company
+     * @param orders  shows the orders the viewer's company works on
      */
-    public ProfileCommand(CommandDependencies deps) {
+    public ProfileCommand(CommandDependencies deps, MemberCommand members, Consumer<Player> orders) {
         this.deps = deps;
+        this.members = members;
+        this.orders = orders;
     }
 
     /**
@@ -57,7 +59,6 @@ public final class ProfileCommand {
     @Executes("self")
     public void self(CommandSender sender) {
         var player = Senders.player(sender);
-        var services = deps.services();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
@@ -78,13 +79,7 @@ public final class ProfileCommand {
                             .retrieveCompanyStats(optProfile.get())
                             .asFuture()
                             .join();
-                    sendProfile(
-                            player,
-                            optProfile.get(),
-                            orders == null ? List.of() : orders,
-                            stats,
-                            services.menus(),
-                            services.economy());
+                    showOwn(player, optProfile.get(), orders == null ? 0 : orders.size(), stats);
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -101,7 +96,6 @@ public final class ProfileCommand {
     @Executes("id")
     public void id(CommandSender sender, int id) {
         var player = Senders.player(sender);
-        var menus = deps.services().menus();
         deps.companyData()
                 .retrieveCompanyById(id)
                 .asFuture()
@@ -123,7 +117,7 @@ public final class ProfileCommand {
                             })
                             .join();
                     if (optProfile.isEmpty()) return;
-                    showExternal(player, optProfile.get(), menus);
+                    showExternal(player, optProfile.get());
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -140,7 +134,6 @@ public final class ProfileCommand {
     @Executes("name")
     public void name(CommandSender sender, @CompanyNames @StringArg(StringArgType.GREEDY) String name) {
         var player = Senders.player(sender);
-        var menus = deps.services().menus();
         deps.companyData()
                 .retrieveCompanyByName(name)
                 .asFuture()
@@ -158,7 +151,7 @@ public final class ProfileCommand {
                             .asFuture()
                             .join();
                     if (optProfile.isEmpty()) return;
-                    showExternal(player, optProfile.get(), menus);
+                    showExternal(player, optProfile.get());
                 });
     }
 
@@ -171,7 +164,6 @@ public final class ProfileCommand {
     @Executes("player")
     public void player(CommandSender sender, Player target) {
         var player = Senders.player(sender);
-        var menus = deps.services().menus();
         deps.companyData()
                 .retrievePlayerCompanyProfile(target)
                 .asFuture()
@@ -184,120 +176,32 @@ public final class ProfileCommand {
                         messages().sendErrorActionBar(player, "error.noCompany");
                         return;
                     }
-                    showExternal(player, optCompany.get(), menus);
+                    showExternal(player, optCompany.get());
                 });
     }
 
-    private void showExternal(Player player, CompanyProfile profile, MenuService menus) {
-        var builder = MessageComposer.create().text(profile.asExternalProfileComponent(deps.configuration()));
-        menus.show(player, builder);
+    private void showExternal(Player player, CompanyProfile profile) {
+        var view = ProfileView.external(profile, deps.configuration().companySettings());
+        deps.services().menus().show(player, menu(), view);
     }
 
-    private void sendProfile(
-            Player player,
-            CompanyProfile profile,
-            List<SimpleOrder> orders,
-            CompanyStats stats,
-            MenuService menus,
-            Economy economy) {
-        var companySettings = deps.configuration().companySettings();
-        var level = companySettings.level(profile.level()).orElse(CompanyLevel.DEFAULT);
-        var optNextLevel = companySettings.level(profile.level() + 1);
-        var composer = MessageComposer.create()
-                .text("<heading>")
-                .text(Texts.escape(profile.name()))
-                .newLine()
-                .text("<name>")
-                .localeCode("words.level")
-                .text(
-                        ": <hover:show_text:'%s'><value>%s - %s</hover>",
-                        level.asComponent(), level.level(), level.levelName());
-        if (optNextLevel.isPresent()) {
-            var nextLevel = optNextLevel.get();
-            composer.space()
-                    .text("<u><hover:show_text:'%s'><show>", nextLevel.asComponent())
-                    .localeCode("company.level.nextLevel")
-                    .text("</u></hover>");
-            if (stats != null) nextLevelProgress(composer, nextLevel.requirement(), stats, economy);
-        }
-        composer.newLine()
-                .text("<name>")
-                .localeCode("words.founded")
-                .text(": <value>%s", profile.foundedString())
-                .newLine()
-                .text("<name>")
-                .localeCode("words.leader")
-                .text(": <value>%s", profile.owner().player().getName())
-                .newLine()
-                .text("<name>")
-                .localeCode("words.member")
-                .text(
-                        ": <value>%s <click:run_command:/company member><show>[",
-                        profile.members().size())
-                .localeCode("words.list")
-                .text("]</click>")
-                .newLine()
-                .text("<name>")
-                .localeCode("words.orders")
-                .text(": <value>%s <click:run_command:/company order list><show>[", orders.size())
-                .localeCode("words.list")
-                .text("]</click>");
-        menus.show(player, composer);
+    private void showOwn(Player player, CompanyProfile profile, int orderCount, @Nullable CompanyStats stats) {
+        var view = ProfileView.own(profile, deps.configuration().companySettings(), stats, orderCount);
+        deps.services().menus().show(player, menu(), view);
     }
 
-    /**
-     * Adds a line with the company's value, the required value and a bar for each requirement of the next level.
-     *
-     * @param composer    composer to add the lines to
-     * @param requirement requirements of the next level
-     * @param stats       current values of the company
-     * @param economy     economy formatting the earned money
-     */
-    private static void nextLevelProgress(
-            MessageComposer composer, LevelRequirement requirement, CompanyStats stats, Economy economy) {
-        progressLine(
-                composer,
-                "words.member",
-                stats.memberCount(),
-                requirement.memberCount(),
-                String.valueOf(stats.memberCount()),
-                String.valueOf(requirement.memberCount()));
-        progressLine(
-                composer,
-                "level.orderCount",
-                stats.orderCount(),
-                requirement.orderCount(),
-                String.valueOf(stats.orderCount()),
-                String.valueOf(requirement.orderCount()));
-        progressLine(
-                composer,
-                "level.deliveredItems",
-                stats.deliveredItems(),
-                requirement.deliveredItems(),
-                String.valueOf(stats.deliveredItems()),
-                String.valueOf(requirement.deliveredItems()));
-        progressLine(
-                composer,
-                "level.earnedMoney",
-                stats.price(),
-                requirement.earnedMoney(),
-                economy.format(stats.price()),
-                economy.format(requirement.earnedMoney()));
-    }
+    private ProfileMenu menu() {
+        return new ProfileMenu(deps.messages(), deps.services().economy(), new ProfileMenu.Navigation() {
+            @Override
+            public void members(Player viewer, ProfileView profile) {
+                members.id(viewer, profile.id());
+            }
 
-    private static void progressLine(
-            MessageComposer composer,
-            String label,
-            double value,
-            double required,
-            String valueText,
-            String requiredText) {
-        composer.newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode(label)
-                .text(": <value>%s/%s ", valueText, requiredText)
-                .text(Texts.progressBar(LevelProgress.of(value, required)));
+            @Override
+            public void orders(Player viewer) {
+                orders.accept(viewer);
+            }
+        });
     }
 
     private MessageSender messages() {
