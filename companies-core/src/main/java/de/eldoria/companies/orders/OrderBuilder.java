@@ -38,7 +38,7 @@ public class OrderBuilder {
                     o.amount(o.amount() + amount);
                     o.price(o.price() + price);
                 },
-                () -> elements.add(new OrderContent(stack, amount, price)));
+                () -> elements.add(new OrderContent(elements.size(), stack, false, amount, price)));
     }
 
     /**

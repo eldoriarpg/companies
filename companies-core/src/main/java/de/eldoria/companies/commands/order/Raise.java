@@ -24,7 +24,6 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -155,12 +154,12 @@ public class Raise extends AdvancedCommand implements IPlayerTabExecutor {
         return configuration.orderSetting().fee().raise(order.fee(), increase);
     }
 
-    private static Map<Material, Double> increases(FullOrder order, double increase) {
+    private static Map<Integer, Double> increases(FullOrder order, double increase) {
         var contents = order.contents();
         var shares = PriceRaise.split(contents.stream().map(OrderContent::price).toList(), increase);
-        Map<Material, Double> increases = new HashMap<>();
+        Map<Integer, Double> increases = new HashMap<>();
         for (var i = 0; i < contents.size(); i++) {
-            increases.merge(contents.get(i).material(), shares.get(i), Double::sum);
+            increases.merge(contents.get(i).line(), shares.get(i), Double::sum);
         }
         return increases;
     }

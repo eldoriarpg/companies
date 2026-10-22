@@ -6,7 +6,7 @@
 package de.eldoria.companies.orders;
 
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.wrapper.order.ContentPart;
+import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import net.kyori.adventure.text.Component;
@@ -52,8 +52,11 @@ class DeliverableTest {
     }
 
     private static OrderContent content(Material material, int amount, int delivered) {
-        var content = new OrderContent(new ItemStack(material), amount, 10.0);
-        content.parts(delivered == 0 ? List.of() : List.of(new ContentPart(UUID.randomUUID(), delivered)));
+        var content = new OrderContent(0, new ItemStack(material), false, amount, 10.0);
+        content.deliveries(
+                delivered == 0
+                        ? List.of()
+                        : List.of(new DeliveredStack(0, UUID.randomUUID(), new ItemStack(material), delivered)));
         return content;
     }
 

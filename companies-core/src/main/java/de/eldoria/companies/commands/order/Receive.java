@@ -69,8 +69,8 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
      */
     private void receive(Player player, FullOrder order) {
         if (!player.isOnline()) return;
-        var items = order.contents().stream()
-                .map(content -> new ItemAmount(content.stack(), content.amount()))
+        var items = order.deliveredStacks().stream()
+                .map(stack -> new ItemAmount(stack, stack.getAmount()))
                 .toList();
         var placement = Inventories.place(Inventories.storageCopy(player), items);
         orderData.submitOrderReceive(order, placement.remaining()).whenComplete(received -> {

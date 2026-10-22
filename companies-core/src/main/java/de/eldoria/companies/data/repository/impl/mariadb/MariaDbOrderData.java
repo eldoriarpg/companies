@@ -13,7 +13,7 @@ import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
-import de.eldoria.companies.data.wrapper.order.ContentPart;
+import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
@@ -22,13 +22,14 @@ import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import org.bukkit.Material;
+import de.eldoria.companies.orders.DeliveryPart;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -75,13 +77,19 @@ public class MariaDbOrderData extends AOrderData {
             var orderId = optOrderId.get();
 
             query = """
-                    INSERT INTO order_content(id, material, stack, amount, price)
-                    VALUES (?, ?, ?, ?, ?)""";
-            Stream<Call> calls = order.contents().stream().map(content -> call().bind(orderId)
-                    .bind(content.stack().getType().name())
-                    .bind(toJson(content.stack()))
-                    .bind(content.amount())
-                    .bind(content.price()));
+                    INSERT INTO order_content(id, line, material, stack, exact, amount, price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""";
+            var contents = order.contents();
+            Stream<Call> calls = IntStream.range(0, contents.size()).mapToObj(line -> {
+                var content = contents.get(line);
+                return call().bind(orderId)
+                        .bind(line)
+                        .bind(content.stack().getType().name())
+                        .bind(toJson(content.stack()))
+                        .bind(content.exact())
+                        .bind(content.amount())
+                        .bind(content.price());
+            });
             conf.query(query).batch(calls).insert();
 
             query = """
@@ -197,10 +205,10 @@ public class MariaDbOrderData extends AOrderData {
                   AND NOT EXISTS(SELECT 1
                                  FROM order_content c
                                  WHERE c.id = order_states.id
-                                   AND c.amount > COALESCE((SELECT SUM(d.delivered)
-                                                            FROM orders_delivered d
-                                                            WHERE d.id = c.id
-                                                              AND d.material = c.material), 0))""";
+                                   AND c.amount > COALESCE((SELECT SUM(d.amount)
+                                                            FROM order_deliveries d
+                                                            WHERE d.order_id = c.id
+                                                              AND d.line = c.line), 0))""";
         return query(update)
                 .single(call().bind(OrderState.DELIVERED.stateId())
                         .bind(order.id())
@@ -223,23 +231,26 @@ public class MariaDbOrderData extends AOrderData {
         @Language("mariadb")
         var workerQuery = """
                 SELECT DISTINCT worker_uuid
-                FROM orders_delivered
-                WHERE id = ?
-                  AND delivered > 0""";
+                FROM order_deliveries
+                WHERE order_id = ?
+                  AND amount > 0""";
         @Language("mariadb")
         var returnItems = """
                 INSERT INTO item_returns(worker_uuid, material, stack, amount)
                 SELECT d.worker_uuid,
-                       d.material,
-                       (SELECT MIN(c.stack) FROM order_content c WHERE c.id = d.id AND c.material = d.material),
-                       d.delivered
-                FROM orders_delivered d
-                WHERE d.id = ?
-                  AND d.delivered > 0
-                  AND EXISTS(SELECT 1 FROM order_content c WHERE c.id = d.id AND c.material = d.material)""";
+                       c.material,
+                       d.stack,
+                       d.amount
+                FROM order_deliveries d
+                         JOIN order_content c
+                              ON c.id = d.order_id
+                                  AND c.line = d.line
+                WHERE d.order_id = ?
+                  AND d.amount > 0
+                ORDER BY d.id""";
         @Language("mariadb")
         var delete = """
-                DELETE FROM orders_delivered WHERE id = ?""";
+                DELETE FROM order_deliveries WHERE order_id = ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         List<UUID> workers;
         try (conf) {
@@ -323,13 +334,13 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected boolean raisePrice(SimpleOrder order, Map<Material, Double> increases, double extraFee) {
+    protected boolean raisePrice(SimpleOrder order, Map<Integer, Double> increases, double extraFee) {
         @Language("mariadb")
         var raise = """
                 UPDATE order_content
                 SET price = price + ?
                 WHERE id = ?
-                  AND material = ?""";
+                  AND line = ?""";
         @Language("mariadb")
         var fee = """
                 UPDATE orders
@@ -342,7 +353,7 @@ public class MariaDbOrderData extends AOrderData {
                 conf.query(raise)
                         .single(call().bind(increase.getValue())
                                 .bind(order.id())
-                                .bind(increase.getKey().name()))
+                                .bind(increase.getKey()))
                         .update();
             }
             conf.query(fee).single(call().bind(extraFee).bind(order.id())).update();
@@ -449,35 +460,56 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected int deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+    protected List<Integer> deliver(OfflinePlayer player, SimpleOrder order, List<DeliveryPart> parts) {
         @Language("mariadb")
         var missingQuery = """
-                SELECT c.amount - COALESCE((SELECT SUM(d.delivered)
-                                            FROM orders_delivered d
-                                            WHERE d.id = c.id
-                                              AND d.material = c.material), 0) AS missing
+                SELECT c.line,
+                       c.amount - COALESCE((SELECT SUM(d.amount)
+                                            FROM order_deliveries d
+                                            WHERE d.order_id = c.id
+                                              AND d.line = c.line), 0) AS missing
                 FROM order_content c
-                WHERE c.id = ?
-                  AND c.material = ?""";
+                WHERE c.id = ?""";
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO order_deliveries(order_id, line, worker_uuid, stack, amount)
+                VALUES (?, ?, ?, ?, ?)""";
+        List<Integer> recorded = new ArrayList<>();
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
-        int delivered;
         try (conf) {
-            if (!lockOrder(conf, order, OrderState.CLAIMED)) return 0;
-            var missing = conf.query(missingQuery)
-                    .single(call().bind(order.id()).bind(material.name()))
-                    .map(row -> row.getInt("missing"))
-                    .first();
-            if (missing.isEmpty()) return 0;
-            delivered = Math.min(amount, missing.get());
-            if (delivered <= 0) return 0;
-            conf.query(deliveryUpsertQuery())
-                    .single(call().bind(order.id())
-                            .bind(player.getUniqueId(), UUID_BYTES)
-                            .bind(material.name())
-                            .bind(delivered))
-                    .insert();
+            if (!lockOrder(conf, order, OrderState.CLAIMED)) return nothingRecorded(parts);
+            Map<Integer, Integer> missing = new HashMap<>();
+            conf.query(missingQuery)
+                    .single(call().bind(order.id()))
+                    .map(row -> Map.entry(row.getInt("line"), row.getInt("missing")))
+                    .all()
+                    .forEach(entry -> missing.put(entry.getKey(), entry.getValue()));
+            for (var part : parts) {
+                var left = missing.getOrDefault(part.line(), 0);
+                var amount = Math.max(0, Math.min(part.amount(), left));
+                recorded.add(amount);
+                if (amount == 0) continue;
+                missing.put(part.line(), left - amount);
+                conf.query(insert)
+                        .single(call().bind(order.id())
+                                .bind(part.line())
+                                .bind(player.getUniqueId(), UUID_BYTES)
+                                .bind(toJson(single(part.stack())))
+                                .bind(amount))
+                        .insert();
+            }
         }
-        return conf.context().exceptions().isEmpty() ? delivered : 0;
+        return conf.context().exceptions().isEmpty() ? recorded : nothingRecorded(parts);
+    }
+
+    private static List<Integer> nothingRecorded(List<DeliveryPart> parts) {
+        return parts.stream().map(part -> 0).toList();
+    }
+
+    private static ItemStack single(ItemStack stack) {
+        var single = stack.clone();
+        single.setAmount(1);
+        return single;
     }
 
     /**
@@ -504,21 +536,6 @@ public class MariaDbOrderData extends AOrderData {
                 .map(row -> row.getInt("id"))
                 .first()
                 .isPresent();
-    }
-
-    /**
-     * Query which adds a delivered amount to the deliveries of a worker.
-     * <p>
-     * Parameters are the order id, worker id, material and amount.
-     *
-     * @return upsert query
-     */
-    protected String deliveryUpsertQuery() {
-        return """
-                INSERT
-                INTO orders_delivered(id, worker_uuid, material, delivered)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE delivered = delivered + VALUES(delivered)""";
     }
 
     @Override
@@ -671,32 +688,42 @@ public class MariaDbOrderData extends AOrderData {
     protected List<OrderContent> getOrderContent(SimpleOrder order) {
         @Language("mariadb")
         var query = """
-                SELECT material, stack, amount, price
+                SELECT line, stack, exact, amount, price
                 FROM order_content
-                WHERE id = ?""";
+                WHERE id = ?
+                ORDER BY line""";
         var orderContents = query(query)
                 .single(call().bind(order.id()))
                 .map(row -> new OrderContent(
-                        toItemStack(row.getString("stack")), row.getInt("amount"), row.getDouble("price")))
+                        row.getInt("line"),
+                        toItemStack(row.getString("stack")),
+                        row.getBoolean("exact"),
+                        row.getInt("amount"),
+                        row.getDouble("price")))
                 .all();
 
         for (var orderContent : orderContents) {
-            orderContent.parts(getContentParts(order, orderContent.stack().getType()));
+            orderContent.deliveries(getDeliveredStacks(order, orderContent.line()));
         }
         return orderContents;
     }
 
     @Override
-    protected List<ContentPart> getContentParts(SimpleOrder order, Material material) {
+    protected List<DeliveredStack> getDeliveredStacks(SimpleOrder order, int line) {
         @Language("mariadb")
         var query = """
-                SELECT worker_uuid, delivered
-                FROM orders_delivered
-                WHERE id = ?
-                  AND material = ?""";
+                SELECT id, worker_uuid, stack, amount
+                FROM order_deliveries
+                WHERE order_id = ?
+                  AND line = ?
+                ORDER BY id""";
         return query(query)
-                .single(call().bind(order.id()).bind(material.name()))
-                .map(row -> new ContentPart(row.get("worker_uuid", UUID_BYTES), row.getInt("delivered")))
+                .single(call().bind(order.id()).bind(line))
+                .map(row -> new DeliveredStack(
+                        row.getInt("id"),
+                        row.get("worker_uuid", UUID_BYTES),
+                        toItemStack(row.getString("stack")),
+                        row.getInt("amount")))
                 .all();
     }
 
@@ -813,7 +840,8 @@ public class MariaDbOrderData extends AOrderData {
                                    last_update
                             FROM order_content c
                                      LEFT JOIN order_states s ON c.id = s.id
-                            WHERE s.state >= 200) c
+                            WHERE s.state >= 200
+                              AND NOT c.exact) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE

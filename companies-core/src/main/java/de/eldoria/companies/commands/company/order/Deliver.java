@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.orders.Collector;
+import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.orders.Payout;
 import de.eldoria.companies.util.Inventories;
@@ -36,6 +37,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -143,15 +145,16 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
         var removed = contained;
+        var part = new DeliveryPart(content.line(), content.stack(), removed);
         orderData
-                .submitDelivery(player, order, material, removed)
+                .submitDeliveries(player, order, List.of(part))
                 .asFuture()
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return 0;
+                    return List.of(0);
                 })
                 .thenAcceptAsync(
-                        delivered -> giveBack(player, content.stack(), removed - delivered),
+                        delivered -> giveBack(player, content.stack(), removed - delivered.get(0)),
                         Threading.mainThread(plugin()))
                 .thenCompose(v -> orderData.retrieveFullOrder(order).asFuture())
                 .thenAccept(refreshedOrder -> {

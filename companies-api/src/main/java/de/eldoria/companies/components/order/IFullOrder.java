@@ -28,6 +28,22 @@ public interface IFullOrder extends ISimpleOrder {
      */
     double progress();
 
+    /**
+     * The line with the given number.
+     *
+     * @param line line number, starting at 0
+     * @return the line, or empty when the order has no such line
+     */
+    Optional<? extends IOrderContent> line(int line);
+
+    /**
+     * The first material line of a material.
+     *
+     * @param material material of the line
+     * @return the line, or empty when no material line requests the material
+     * @deprecated an order may hold several lines of the same material; use {@link #line(int)}
+     */
+    @Deprecated
     Optional<? extends IOrderContent> content(Material material);
 
     boolean isDone();
