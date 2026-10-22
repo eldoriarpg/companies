@@ -16,6 +16,7 @@ import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
+import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.configuration.Configuration;
@@ -134,6 +135,8 @@ public class Companies extends EldoPlugin {
         commands = dependencies;
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
         SuggestionSources.use(new SuggestionSources(companyData, configuration, Threading.VIRTUAL));
+        CompanyOrderSources.use(
+                new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
         getLifecycleManager()
                 .registerEventHandler(LifecycleEvents.COMMANDS.newHandler(
                         event -> CommandRegistration.register(event.registrar(), dependencies)));
@@ -212,6 +215,7 @@ public class Companies extends EldoPlugin {
     public void onPluginDisable() {
         if (commands != null) commands.withdraw();
         SuggestionSources.clear();
+        CompanyOrderSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         workerPool.shutdown();
