@@ -52,12 +52,12 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
+import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
-import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
@@ -233,10 +233,16 @@ public class Companies extends EldoPlugin {
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
                 && configuration.generalSettings().hooks().placeholderapi()) {
-            var placeholderService = new PlaceholderService(this, companyData, orderData);
-            placeholderService.register();
-            placeholderService.startRefreshing();
-            registerListener(placeholderService);
+            var placeholders = Placeholders.create(
+                    this,
+                    configuration,
+                    companyData,
+                    orderData,
+                    information.stats(),
+                    economy,
+                    ILocalizer.getPluginLocalizer(this));
+            placeholders.start();
+            registerListener(placeholders.events());
         }
     }
 
