@@ -1,0 +1,108 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
+package de.eldoria.companies.commands;
+
+import de.eldoria.companies.commands.company.Chatblock;
+import de.eldoria.companies.commands.company.Create;
+import de.eldoria.companies.commands.company.Disband;
+import de.eldoria.companies.commands.company.Invite;
+import de.eldoria.companies.commands.company.Kick;
+import de.eldoria.companies.commands.company.Leave;
+import de.eldoria.companies.commands.company.Permission;
+import de.eldoria.companies.commands.company.Rename;
+import de.eldoria.companies.commands.company.Returns;
+import de.eldoria.companies.commands.company.Top;
+import de.eldoria.companies.commands.company.Transfer;
+import de.eldoria.companies.commands.company.member.MemberCommand;
+import de.eldoria.companies.commands.company.order.CompanyOrderCommand;
+import de.eldoria.companies.commands.company.profile.ProfileCommand;
+import de.eldoria.companies.commands.support.HandleFailures;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import net.strokkur.commands.Aliases;
+import net.strokkur.commands.Command;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.paper.Description;
+import org.bukkit.command.CommandSender;
+
+/**
+ * {@code /company}: founding, joining and running a company. Without a subcommand it shows the sender's company.
+ */
+@Command("company")
+@Aliases("comp")
+@Description("Manage your company")
+@HandleFailures
+final class CompanyCommand {
+    @Subcommand
+    final ProfileCommand profile;
+
+    @Subcommand
+    final Create create;
+
+    @Subcommand
+    final Invite invite;
+
+    @Subcommand
+    final Kick kick;
+
+    @Subcommand
+    final Leave leave;
+
+    @Subcommand
+    final Transfer transfer;
+
+    @Subcommand
+    final Disband disband;
+
+    @Subcommand
+    final MemberCommand member;
+
+    @Subcommand
+    final CompanyOrderCommand order;
+
+    @Subcommand
+    final Permission permission;
+
+    @Subcommand
+    final Top top;
+
+    @Subcommand
+    final Rename rename;
+
+    @Subcommand
+    final Chatblock chatblock;
+
+    @Subcommand
+    final Returns returns;
+
+    CompanyCommand(CommandDependencies deps) {
+        profile = new ProfileCommand(deps);
+        create = new Create(deps);
+        invite = new Invite(deps);
+        kick = new Kick(deps);
+        leave = new Leave(deps);
+        transfer = new Transfer(deps);
+        disband = new Disband(deps);
+        member = new MemberCommand(deps);
+        order = new CompanyOrderCommand(deps);
+        permission = new Permission(deps);
+        top = new Top(deps);
+        rename = new Rename(deps);
+        chatblock = new Chatblock(deps);
+        returns = new Returns(deps);
+    }
+
+    /**
+     * Shows the profile of the sender's company.
+     *
+     * @param sender sender of the command
+     */
+    @Executes
+    @PlayerOnly
+    void profile(CommandSender sender) {
+        profile.self(sender);
+    }
+}

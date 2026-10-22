@@ -1,0 +1,78 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
+package de.eldoria.companies.commands;
+
+import de.eldoria.companies.commands.companyadmin.CalcLevel;
+import de.eldoria.companies.commands.companyadmin.Delete;
+import de.eldoria.companies.commands.companyadmin.Reload;
+import de.eldoria.companies.commands.companyadmin.Rename;
+import de.eldoria.companies.commands.companyadmin.SyncConfiguration;
+import de.eldoria.companies.commands.companyadmin.TransferOwner;
+import de.eldoria.companies.commands.companyadmin.level.LevelCommand;
+import de.eldoria.companies.commands.support.AdminAccess;
+import de.eldoria.companies.commands.support.DebugAccess;
+import de.eldoria.companies.commands.support.HandleFailures;
+import de.eldoria.eldoutilities.debug.DebugSettings;
+import de.eldoria.eldoutilities.debug.DebugUtil;
+import net.strokkur.commands.Command;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.paper.Description;
+import org.bukkit.command.CommandSender;
+
+/**
+ * {@code /companyadmin}: administration of the plugin. Every subcommand has its own permission.
+ */
+@Command("companyadmin")
+@Description("Manage the plugin")
+@HandleFailures
+@AdminAccess
+final class CompanyAdminCommand {
+    private final CommandDependencies deps;
+
+    @Subcommand
+    final LevelCommand level;
+
+    @Subcommand
+    final CalcLevel calcLevel;
+
+    @Subcommand
+    final Delete delete;
+
+    @Subcommand
+    final Reload reload;
+
+    @Subcommand
+    final TransferOwner transferOwner;
+
+    @Subcommand
+    final Rename rename;
+
+    @Subcommand
+    final SyncConfiguration syncConfiguration;
+
+    CompanyAdminCommand(CommandDependencies deps) {
+        this.deps = deps;
+        level = new LevelCommand(deps);
+        calcLevel = new CalcLevel(deps);
+        delete = new Delete(deps);
+        reload = new Reload(deps);
+        transferOwner = new TransferOwner(deps);
+        rename = new Rename(deps);
+        syncConfiguration = new SyncConfiguration(deps);
+    }
+
+    /**
+     * Creates a debug report.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("debug")
+    @DebugAccess
+    void debug(CommandSender sender) {
+        DebugUtil.dispatchDebug(sender, deps.plugin(), DebugSettings.DEFAULT);
+    }
+}

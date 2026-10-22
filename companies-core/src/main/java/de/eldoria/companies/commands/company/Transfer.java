@@ -5,53 +5,82 @@
  */
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.CompanyMembers;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Confirmations;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * Hands the company to another member after the owner confirmed it. The new owner is notified.
+ * {@code /company transfer <member>}: hands the company to another member after the owner confirmed it. The new
+ * owner is notified.
  */
-public class Transfer extends AdvancedCommand implements IPlayerTabExecutor {
-    private final ACompanyData companyData;
-    private final NotificationService notificationService;
+@Subcommand("transfer")
+@PlayerOnly
+public final class Transfer {
+    private final CommandDependencies deps;
     private final Confirmations<Pending> transfers = new Confirmations<>();
 
-    public Transfer(Plugin plugin, ACompanyData companyData, NotificationService notificationService) {
-        super(
-                plugin,
-                CommandMeta.builder("transfer").addArgument("words.name", true).build());
-        this.companyData = companyData;
-        this.notificationService = notificationService;
+    /**
+     * @param deps what the commands need
+     */
+    public Transfer(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
-            confirm(player);
+    /**
+     * Asks the owner to confirm handing the company to a member.
+     *
+     * @param sender sender of the command
+     * @param member name of the member
+     */
+    @Executes
+    public void transfer(CommandSender sender, @CompanyMembers String member) {
+        var player = Senders.player(sender);
+        deps.requireReady();
+        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> check(
+                        player, optProfile, profile -> profile.memberByName(member))
+                .ifPresent(target -> request(player, optProfile.get(), target)));
+    }
+
+    /**
+     * Hands the company to the member the owner confirmed.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("confirm")
+    public void confirm(CommandSender sender) {
+        var player = Senders.player(sender);
+        var notificationService = deps.services().notificationService();
+        var optPending = transfers.confirm(player.getUniqueId());
+        if (optPending.isEmpty()) {
+            messages().sendErrorActionBar(player, "error.confirmationExpired");
             return;
         }
-        var name = arguments.asString(0);
-        companyData.retrievePlayerCompanyProfile(player).whenComplete(optProfile -> check(
-                        player, optProfile, profile -> profile.memberByName(name))
-                .ifPresent(target -> request(player, optProfile.get(), target)));
+        var pending = optPending.get();
+        var targetPlayer = deps.plugin().getServer().getOfflinePlayer(pending.target());
+        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
+            if (optProfile.isPresent() && optProfile.get().id() != pending.company()) {
+                messages().sendErrorActionBar(player, "error.noMember");
+                return;
+            }
+            check(player, optProfile, profile -> profile.member(targetPlayer))
+                    .ifPresent(target -> transfer(player, optProfile.get(), target, notificationService));
+        });
     }
 
     private void request(Player player, CompanyProfile company, CompanyMember target) {
@@ -66,38 +95,21 @@ public class Transfer extends AdvancedCommand implements IPlayerTabExecutor {
                 .text("<click:run_command:/company transfer confirm><remove>[")
                 .localeCode("words.confirm")
                 .text("]</click>");
-        messageSender().sendMessage(player, composer);
+        messages().sendMessage(player, composer);
     }
 
-    private void confirm(Player player) {
-        var optPending = transfers.confirm(player.getUniqueId());
-        if (optPending.isEmpty()) {
-            messageSender().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var pending = optPending.get();
-        var targetPlayer = plugin().getServer().getOfflinePlayer(pending.target());
-        companyData.retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
-            if (optProfile.isPresent() && optProfile.get().id() != pending.company()) {
-                messageSender().sendErrorActionBar(player, "error.noMember");
-                return;
-            }
-            check(player, optProfile, profile -> profile.member(targetPlayer))
-                    .ifPresent(target -> transfer(player, optProfile.get(), target));
-        });
-    }
-
-    private void transfer(Player player, CompanyProfile company, CompanyMember target) {
-        companyData
+    private void transfer(
+            Player player, CompanyProfile company, CompanyMember target, NotificationService notificationService) {
+        deps.companyData()
                 .submitOwnerTransfer(company, player.getUniqueId(), target.uuid())
                 .whenComplete(transferred -> {
                     if (!Boolean.TRUE.equals(transferred)) {
-                        messageSender().sendError(player, "company.transfer.failed");
+                        messages().sendError(player, "company.transfer.failed");
                         return;
                     }
                     var name = Replacement.unparsed(
                             "name", String.valueOf(target.player().getName()));
-                    messageSender().sendMessage(player, "company.transfer.done", name);
+                    messages().sendMessage(player, "company.transfer.done", name);
                     notificationService.sendMessage(
                             target.player(),
                             "notification.ownerTransferred",
@@ -110,21 +122,25 @@ public class Transfer extends AdvancedCommand implements IPlayerTabExecutor {
             Optional<CompanyProfile> optProfile,
             Function<CompanyProfile, Optional<CompanyMember>> lookup) {
         if (optProfile.isEmpty()) {
-            messageSender().sendErrorActionBar(player, "error.noMember");
+            messages().sendErrorActionBar(player, "error.noMember");
             return Optional.empty();
         }
         var profile = optProfile.get();
         var member = profile.member(player).orElseThrow();
         var target = lookup.apply(profile);
         switch (Ownership.transferCheck(member, target)) {
-            case NOT_OWNER -> messageSender().sendErrorActionBar(player, "error.noOwner");
-            case NOT_MEMBER -> messageSender().sendErrorActionBar(player, "error.noCompanyMember");
-            case SELF -> messageSender().sendErrorActionBar(player, "company.transfer.self");
+            case NOT_OWNER -> messages().sendErrorActionBar(player, "error.noOwner");
+            case NOT_MEMBER -> messages().sendErrorActionBar(player, "error.noCompanyMember");
+            case SELF -> messages().sendErrorActionBar(player, "company.transfer.self");
             case ALLOWED -> {
                 return target;
             }
         }
         return Optional.empty();
+    }
+
+    private MessageSender messages() {
+        return deps.messages();
     }
 
     private record Pending(int company, UUID target) {}
