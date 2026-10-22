@@ -158,7 +158,9 @@ public class SqLiteOrderData extends MariaDbOrderData {
                           AND s.state >= ?
                           AND s.state <= ?""";
                 var ids = query(select)
-                        .single(call().bind(searchQuery.isExactMatch() ? material : "%" + material + "%"))
+                        .single(call().bind(searchQuery.isExactMatch() ? material : "%" + material + "%")
+                                .bind(min.stateId())
+                                .bind(max.stateId()))
                         .map(rs -> rs.getInt(1))
                         .all();
                 results.add(ids);

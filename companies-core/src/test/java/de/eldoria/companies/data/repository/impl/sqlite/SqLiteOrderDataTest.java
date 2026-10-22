@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
+import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -189,5 +190,18 @@ class SqLiteOrderDataTest {
         Assertions.assertTrue(orderData.submitOrderPurge(deadOrders.get(0)).join());
         Assertions.assertFalse(orderData.submitOrderPurge(deadOrders.get(0)).join());
         Assertions.assertTrue(orderData.retrieveOrderById(fresh.id()).join().isPresent());
+    }
+
+    @Test
+    void searchFiltersByMaterial() {
+        var order = createOrder(10, 5);
+        var query = new SearchQuery();
+        query.materials(List.of("STONE"));
+
+        var found = orderData.retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED).join();
+        Assertions.assertEquals(List.of(order.id()), found.stream().map(SimpleOrder::id).toList());
+
+        query.materials(List.of("GRAVEL"));
+        Assertions.assertTrue(orderData.retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED).join().isEmpty());
     }
 }
