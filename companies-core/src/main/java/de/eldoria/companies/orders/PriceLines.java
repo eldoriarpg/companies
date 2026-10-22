@@ -66,26 +66,26 @@ public final class PriceLines {
     }
 
     /**
-     * Adds the tax and the net payout below the price, when the company pays tax.
+     * Adds the tax and the net payout below the price, when the company pays tax, as named placeholders
+     * {@code order_tax}, {@code tax_percent} and {@code order_net}.
      * <p>
      * The values are for the whole price; the payout rounds each worker's share separately.
      *
-     * @param composer   composer ending with the price line
+     * @param text       text ending with the price line
      * @param economy    economy formatting the amounts
      * @param price      price of the order
      * @param taxPercent tax of the company, where 5 means 5 %
-     * @return the composer
+     * @return the text
      */
-    public static MessageComposer tax(MessageComposer composer, Economy economy, double price, double taxPercent) {
+    public static MenuText tax(MenuText text, Economy economy, double price, double taxPercent) {
         var payout = Payout.split(price, taxPercent);
-        if (!(payout.tax() > 0)) return composer;
-        return composer.newLine()
-                .text("<name>")
-                .localeCode("words.tax")
-                .text(": <value>%s (%s %%)", economy.format(payout.tax()), Texts.percent(taxPercent))
+        if (!(payout.tax() > 0)) return text;
+        return text.newLine()
+                .text(
+                        "<name><i18n:words.tax>: <value><order_tax> (<tax_percent> %)",
+                        Values.money("order_tax", economy, payout.tax()),
+                        Values.text("tax_percent", Texts.percent(taxPercent)))
                 .newLine()
-                .text("<name>")
-                .localeCode("words.net")
-                .text(": <value>%s", economy.format(payout.net()));
+                .text("<name><i18n:words.net>: <value><order_net>", Values.money("order_net", economy, payout.net()));
     }
 }
