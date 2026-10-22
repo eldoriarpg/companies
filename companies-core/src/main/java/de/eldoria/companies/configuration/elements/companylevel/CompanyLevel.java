@@ -6,8 +6,7 @@
 package de.eldoria.companies.configuration.elements.companylevel;
 
 import de.eldoria.companies.components.level.ICompanyLevel;
-import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.companies.menus.admin.LevelDescription;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor", "CanBeFinal"})
 public class CompanyLevel implements ICompanyLevel {
@@ -23,68 +22,15 @@ public class CompanyLevel implements ICompanyLevel {
         this.level = level;
     }
 
+    /**
+     * The description of the level as MiniMessage text with its values written in, for API users. Menus use
+     * {@link LevelDescription#of(CompanyLevel)}, which keeps the values as placeholders.
+     *
+     * @return MiniMessage text using the style and locale tags of the plugin
+     */
     @Override
     public String asComponent() {
-        var composer = MessageComposer.create()
-                .text("<name>%s - <value>%s", level, levelName)
-                .newLine()
-                .text("<heading>")
-                .localeCode("level.requirements")
-                .text(":")
-                .newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode("words.member")
-                .text(": <value>%s", requirement.memberCount())
-                .newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode("level.orderCount")
-                .text(": <value>%s", requirement.orderCount())
-                .newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode("level.deliveredItems")
-                .text(": <value>%s", requirement.deliveredItems())
-                .newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode("level.earnedMoney")
-                .text(": <value>%s", requirement.earnedMoney())
-                .newLine()
-                .text("<heading>")
-                .localeCode("level.limits")
-                .text(":")
-                .newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode("level.maxMember")
-                .text(": <value>%s ", settings.maxMembers())
-                .newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode("level.maxOrders")
-                .text(": <value>%s ", settings.maxOrders());
-        if (settings.maxOrderSize() > 0) {
-            composer.newLine()
-                    .space(2)
-                    .text("<name>")
-                    .localeCode("level.maxOrderSize")
-                    .text(": <value>%s", settings.maxOrderSize());
-        }
-        if (settings.deliveryHoursBonus() > 0) {
-            composer.newLine()
-                    .space(2)
-                    .text("<name>")
-                    .localeCode("level.deliveryHoursBonus")
-                    .text(": <value>+%s h", settings.deliveryHoursBonus());
-        }
-        settings.taxPercent().ifPresent(percent -> composer.newLine()
-                .space(2)
-                .text("<name>")
-                .localeCode("level.tax")
-                .text(": <value>%s %%", Texts.percent(percent)));
-        return composer.build();
+        return LevelDescription.miniMessage(this);
     }
 
     @Override
