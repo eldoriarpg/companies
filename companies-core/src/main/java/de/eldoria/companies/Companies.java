@@ -164,8 +164,9 @@ public class Companies extends EldoPlugin {
                         itemReturnService,
                         updates));
 
-        var expiringService =
-                new ExpiringService(this, orderData, companyData, configuration, itemReturnService, economy);
+        var notificationService = new NotificationService(notificationData, orderData, workerPool, this);
+        var expiringService = new ExpiringService(
+                this, orderData, companyData, configuration, itemReturnService, economy, notificationService);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
@@ -173,7 +174,7 @@ public class Companies extends EldoPlugin {
         registerListener(expiringService);
         registerListener(levelService);
         registerListener(itemReturnService);
-        registerListener(new NotificationService(notificationData, orderData, workerPool, this));
+        registerListener(notificationService);
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
                 && configuration.generalSettings().hooks().placeholderapi()) {

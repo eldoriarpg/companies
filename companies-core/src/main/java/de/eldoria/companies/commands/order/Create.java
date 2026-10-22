@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.util.Menus;
+import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
@@ -363,16 +364,12 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             }
             if (!economy.has(player, total)
                     || !economy.withdrawPlayer(player, total).transactionSuccess()) {
-                var fallbackCurr = economy.currencyNameSingular().isBlank()
-                        ? MessageComposer.escape("words.money")
-                        : economy.currencyNameSingular();
-                var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
                 restoreDraft(player, order);
                 messageSender()
                         .sendError(
                                 player,
                                 "error.insufficientCurrency",
-                                Replacement.create("currency", curr),
+                                Replacement.create("currency", Money.currencyName(economy)),
                                 Replacement.create("amount", economy.format(total)));
                 return;
             }

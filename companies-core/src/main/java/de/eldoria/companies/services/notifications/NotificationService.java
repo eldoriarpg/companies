@@ -165,6 +165,33 @@ public class NotificationService implements Listener {
                 message,
                 miniOrderReplacement(order),
                 Replacement.unparsed("order_name", order.name()));
+        var ownerMessage = MessageComposer.create()
+                .text("<neutral>")
+                .localeCode("notification.ownerOrderAccepted")
+                .space()
+                .text("<click:run_command:/order info %s><add>[", order.id())
+                .localeCode("words.info")
+                .text("]</click>")
+                .build();
+        sendMessage(plugin.getServer().getOfflinePlayer(order.owner()), ownerMessage, miniOrderReplacement(order));
+    }
+
+    /**
+     * Tells the owner that an order is open again after the company working on it gave it up. The company is not
+     * named.
+     *
+     * @param order order which is open again
+     */
+    public void notifyOrderOpen(ISimpleOrder order) {
+        var message = MessageComposer.create()
+                .text("<neutral>")
+                .localeCode("notification.ownerOrderOpen")
+                .space()
+                .text("<click:run_command:/order info %s><add>[", order.id())
+                .localeCode("words.info")
+                .text("]</click>")
+                .build();
+        sendMessage(plugin.getServer().getOfflinePlayer(order.owner()), message, miniOrderReplacement(order));
     }
 
     private TagResolver miniOrderReplacement(ISimpleOrder order) {
@@ -177,6 +204,7 @@ public class NotificationService implements Listener {
                 event.company(),
                 "notification.orderCanceled",
                 Replacement.unparsed("order_name", event.order().fullName()));
+        notifyOrderOpen(event.order());
     }
 
     @EventHandler
@@ -218,6 +246,7 @@ public class NotificationService implements Listener {
                 event.company(),
                 "notification.companyOrderExpired",
                 Replacement.unparsed("order_name", event.order().fullName()));
+        notifyOrderOpen(event.order());
     }
 
     /**

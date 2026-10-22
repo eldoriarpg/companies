@@ -5,6 +5,9 @@
  */
 package de.eldoria.companies.util;
 
+import de.eldoria.eldoutilities.localization.MessageComposer;
+import net.milkbowl.vault.economy.Economy;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -43,5 +46,17 @@ public final class Money {
      */
     public static BigDecimal percentOf(double amount, double percent) {
         return BigDecimal.valueOf(amount).multiply(BigDecimal.valueOf(percent)).movePointLeft(2);
+    }
+
+    /**
+     * The name of the currency for messages: the plural, else the singular, else the localized word for money.
+     *
+     * @param economy economy providing the names
+     * @return currency name or locale tag
+     */
+    public static String currencyName(Economy economy) {
+        if (!economy.currencyNamePlural().isBlank()) return economy.currencyNamePlural();
+        if (!economy.currencyNameSingular().isBlank()) return economy.currencyNameSingular();
+        return MessageComposer.escape("words.money");
     }
 }

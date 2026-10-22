@@ -139,7 +139,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 .text(": <value>%s", economy.format(price()));
         PriceLines.fee(composer, economy, price(), fee()).newLine();
         switch (state()) {
-            case UNCLAIMED ->
+            case UNCLAIMED -> {
                 composer.text("<name>")
                         .localeCode(
                                 "order.info.refundIn",
@@ -150,6 +150,8 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                         .text("<click:run_command:/order cancel %s><remove>[", id())
                         .localeCode("words.cancel")
                         .text("]</click>");
+                ownerActions(composer, configuration.orderSetting().maxExtensions());
+            }
             case CLAIMED ->
                 composer.text("<name>")
                         .localeCode(
@@ -162,6 +164,27 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
             case RECEIVED -> {}
         }
         return composer;
+    }
+
+    /**
+     * Adds the buttons an owner has for an order nobody accepted: extend while extensions are left, and raise the
+     * price.
+     *
+     * @param composer      composer to add the buttons to
+     * @param maxExtensions extensions an order may have
+     */
+    private void ownerActions(MessageComposer composer, int maxExtensions) {
+        var left = Math.max(0, maxExtensions - extensions());
+        if (left > 0) {
+            composer.space()
+                    .text("<click:run_command:/order extend %s><modify>[", id())
+                    .localeCode("order.info.extend", Replacement.create("left", left))
+                    .text("]</click>");
+        }
+        composer.space()
+                .text("<click:suggest_command:/order raise %s ><modify>[", id())
+                .localeCode("order.info.raise")
+                .text("]</click>");
     }
 
     private String userProgressContent(Economy economy) {

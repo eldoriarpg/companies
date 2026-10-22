@@ -8,8 +8,10 @@ package de.eldoria.companies.commands;
 import de.eldoria.companies.commands.order.Cancel;
 import de.eldoria.companies.commands.order.Collect;
 import de.eldoria.companies.commands.order.Create;
+import de.eldoria.companies.commands.order.Extend;
 import de.eldoria.companies.commands.order.Info;
 import de.eldoria.companies.commands.order.List;
+import de.eldoria.companies.commands.order.Raise;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
@@ -45,6 +47,8 @@ public class Order extends AdvancedCommand {
                             cmds.add(new Info(plugin, orderData, economy, configuration, messageBlocker));
                             cmds.add(new Receive(plugin, orderData, messageBlocker));
                             cmds.add(new Collect(plugin, itemReturnService));
+                            cmds.add(new Extend(plugin, orderData, configuration));
+                            cmds.add(new Raise(plugin, orderData, economy, configuration));
                         })
                         .build());
     }
