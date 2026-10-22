@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands.company.order;
 
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -12,20 +13,25 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.util.Inventories;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 
@@ -76,6 +82,10 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                            messageSender().sendErrorActionBar(player, "error.unkownOrder");
                            return;
                        }
+                       if (optOrder.get().state() != OrderState.CLAIMED) {
+                           messageSender().sendErrorActionBar(player, "error.orderNotActive");
+                           return;
+                       }
                        orderData.retrieveFullOrder(optOrder.get())
                                 .whenComplete(fullOrder -> {
                                     // This part has to be synced to the mainthread
@@ -90,6 +100,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
+        if (!player.isOnline()) return;
         var optContent = order.content(material);
         if (optContent.isEmpty()) {
             messageSender().sendErrorActionBar(player, "error.invalidMaterial");
@@ -113,16 +124,18 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
             }
         }
 
-        orderData.submitDelivery(player, order, material, contained)
+        var removed = contained;
+        orderData.submitDelivery(player, order, material, removed)
                  .asFuture()
                  .exceptionally(err -> {
                      plugin().getLogger()
                              .log(Level.SEVERE, "Something went wrong", err);
-                     return null;
+                     return 0;
                  })
-                 .thenAccept((v) -> {
-                     var refreshedOrder = orderData.retrieveFullOrder(order)
-                                                   .join();
+                 .thenAcceptAsync(delivered -> giveBack(player, content.stack(), removed - delivered), Threading.mainThread(plugin()))
+                 .thenCompose(v -> orderData.retrieveFullOrder(order)
+                                            .asFuture())
+                 .thenAccept(refreshedOrder -> {
                      if (refreshedOrder.isDone()) {
                          messageBlocker.unblockPlayer(player)
                                        .thenRun(() -> orderDone(refreshedOrder, company));
@@ -139,24 +152,44 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         ;
     }
 
+    private void giveBack(Player player, ItemStack stack, int amount) {
+        if (amount <= 0) return;
+        if (player.isOnline()) {
+            Inventories.give(player, Inventories.split(stack, amount));
+            return;
+        }
+        orderData.submitItemReturn(player.getUniqueId(), stack, amount);
+    }
+
     private void orderDone(FullOrder order, CompanyProfile profile) {
-        var payments = order.payments(PaymentType.STACK);
         orderData.submitOrderDelivered(order)
                  .asFuture()
-                 .thenRun(() -> plugin().getServer()
-                                        .getPluginManager()
-                                        .callEvent(new OrderDoneEvent(order, profile)));
-        CompletableBukkitFuture.runAsync(() -> {
-            for (var entry : payments.entrySet()) {
-                var player = plugin().getServer()
-                                     .getOfflinePlayer(entry.getKey());
-                var event = new OrderPaymentEvent(order, player, entry.getValue());
-                plugin().getServer()
-                        .getPluginManager()
-                        .callEvent(event);
-                if (event.isCancelled()) continue;
-                economy.depositPlayer(player, entry.getValue());
-            }
-        });
+                 .thenAccept(delivered -> delivered.ifPresent(deliveredOrder -> {
+                     plugin().getServer()
+                             .getPluginManager()
+                             .callEvent(new OrderDoneEvent(deliveredOrder, profile));
+                     pay(deliveredOrder);
+                 }))
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return null;
+                 });
+    }
+
+    private void pay(FullOrder order) {
+        Map<OfflinePlayer, Double> payments = new HashMap<>();
+        for (var entry : order.payments(PaymentType.STACK).entrySet()) {
+            var player = plugin().getServer()
+                                 .getOfflinePlayer(entry.getKey());
+            var event = new OrderPaymentEvent(order, player, entry.getValue());
+            plugin().getServer()
+                    .getPluginManager()
+                    .callEvent(event);
+            if (event.isCancelled()) continue;
+            payments.put(player, entry.getValue());
+        }
+        Threading.mainThread(plugin())
+                 .execute(() -> payments.forEach(economy::depositPlayer));
     }
 }

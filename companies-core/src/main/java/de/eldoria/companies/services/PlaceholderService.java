@@ -9,10 +9,15 @@ import de.eldoria.companies.Companies;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.events.company.CompanyLevelDownEvent;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
+import de.eldoria.companies.events.order.OrderAcceptEvent;
+import de.eldoria.companies.events.order.OrderCanceledEvent;
+import de.eldoria.companies.events.order.OrderDoneEvent;
+import de.eldoria.companies.events.order.OrderExpiredEvent;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventHandler;
@@ -21,17 +26,24 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Provides company placeholders for PlaceholderAPI.
+ * <p>
+ * Values are cached, refreshed on company and order events and periodically for all online players to pick up changes without an event,
+ * like renames or newly founded companies.
+ */
 public class PlaceholderService extends PlaceholderExpansion implements Listener {
+    private static final long REFRESH_INTERVAL = 20L * 60L * 5L;
     private final Companies companies;
     private final ACompanyData companyData;
     private final AOrderData orderData;
-    private final Map<UUID, Integer> companyGraph = new HashMap<>();
-    private final Map<Integer, CompanyCacheData> companyCache = new HashMap<>();
+    private final Map<UUID, Integer> companyGraph = new ConcurrentHashMap<>();
+    private final Map<Integer, CompanyCacheData> companyCache = new ConcurrentHashMap<>();
 
     public PlaceholderService(Companies companies, ACompanyData companyData, AOrderData orderData) {
         this.companies = companies;
@@ -46,13 +58,13 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
 
     @Override
     public @NotNull String getAuthor() {
-        return String.join(", ", companies.getDescription()
+        return String.join(", ", companies.getPluginMeta()
                                           .getAuthors());
     }
 
     @Override
     public @NotNull String getVersion() {
-        return companies.getDescription()
+        return companies.getPluginMeta()
                         .getVersion();
     }
 
@@ -65,7 +77,7 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
     public String onRequest(OfflinePlayer player, @NotNull String params) {
         if ("company_name".equalsIgnoreCase(params)) {
             return getCompanyCache(player).map(CompanyCacheData::name)
-                                          .orElse(null);
+                                          .orElse("");
         }
 
         if ("company_size".equalsIgnoreCase(params)) {
@@ -106,9 +118,6 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
                        }
                        companyGraph.put(player.getUniqueId(), company.get()
                                                                      .id());
-
-                       if (companyCache.containsKey(company.get()
-                                                           .id())) return;
                        refreshCompanyCache(company.get());
                    });
     }
@@ -127,8 +136,22 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
                                  .getUniqueId());
     }
 
+    /**
+     * Refreshes the cache of all online players periodically.
+     */
+    public void startRefreshing() {
+        companies.getServer()
+                 .getScheduler()
+                 .runTaskTimer(companies, () -> companies.getServer()
+                                                         .getOnlinePlayers()
+                                                         .forEach(this::refreshPlayerCache), REFRESH_INTERVAL, REFRESH_INTERVAL);
+    }
+
     @EventHandler
     public void onCompanyJoin(CompanyJoinEvent event) {
+        companyGraph.put(event.player()
+                              .getUniqueId(), event.company()
+                                                   .id());
         loadAndRefreshCompanyCache(event.company());
     }
 
@@ -146,6 +169,37 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
 
     @EventHandler
     public void onCompanyLeave(CompanyLeaveEvent event) {
+        companyGraph.remove(event.player()
+                                 .getUniqueId());
+        loadAndRefreshCompanyCache(event.company());
+    }
+
+    @EventHandler
+    public void onCompanyDisband(CompanyDisbandEvent event) {
+        companyCache.remove(event.company()
+                                 .id());
+        companyGraph.values()
+                    .removeIf(id -> id == event.company()
+                                               .id());
+    }
+
+    @EventHandler
+    public void onOrderAccept(OrderAcceptEvent event) {
+        loadAndRefreshCompanyCache(event.company());
+    }
+
+    @EventHandler
+    public void onOrderDone(OrderDoneEvent event) {
+        loadAndRefreshCompanyCache(event.company());
+    }
+
+    @EventHandler
+    public void onOrderCanceled(OrderCanceledEvent event) {
+        loadAndRefreshCompanyCache(event.company());
+    }
+
+    @EventHandler
+    public void onOrderExpired(OrderExpiredEvent event) {
         loadAndRefreshCompanyCache(event.company());
     }
 

@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -43,7 +44,6 @@ public class Render extends AdvancedCommand implements IPlayerTabExecutor {
                    .build();
         }
         message.prependLines(25);
-        messageBlocker.announce(player, "[x]");
-        messageSender().sendMessage(player, message);
+        Menus.show(messageBlocker, player, message);
     }
 }

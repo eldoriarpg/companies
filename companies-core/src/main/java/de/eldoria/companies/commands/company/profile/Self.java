@@ -12,6 +12,8 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.util.Menus;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -77,7 +79,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                                         .level(profile.level() + 1);
         var composer = MessageComposer.create()
                                       .text("<heading>")
-                                      .text(profile.name())
+                                      .text(Texts.escape(profile.name()))
                                       .newLine()
                                       .text("<name>")
                                       .localeCode("words.level")
@@ -117,7 +119,6 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         composer.prependLines(25);
-        messageBlocker.announce(player, "[x]");
-        messageSender().sendMessage(player, composer);
+        Menus.show(messageBlocker, player, composer);
     }
 }

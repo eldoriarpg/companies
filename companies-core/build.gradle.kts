@@ -1,6 +1,5 @@
 plugins {
-    java
-    `java-library`
+    id("companies.java-conventions")
 }
 
 dependencies {
@@ -8,23 +7,17 @@ dependencies {
     implementation(libs.bundles.sadu)
 
     api(libs.bundles.eldoria.utilities) {
-        exclude("com.fasterxml.jackson.dataformat")
-        exclude("com.fasterxml.jackson.core")
-        exclude("com.fasterxml.jackson")
         exclude("net.kyori")
     }
     api(libs.messageblocker)
 
-    compileOnly(libs.protocollib)
     compileOnly(libs.papi)
     compileOnly(libs.vault)
-
-    compileOnly(libs.bundles.adventure)
-
+    compileOnly(platform(libs.jackson.bom))
     compileOnly(libs.bundles.jackson)
-
-    // database
     compileOnly(libs.bundles.database)
 
-    testImplementation(libs.bundles.adventure)
+    testImplementation(libs.sqlite)
+    testImplementation(platform(libs.jackson.bom))
+    testImplementation(libs.bundles.jackson)
 }

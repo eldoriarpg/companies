@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.util;
 
+import net.kyori.adventure.text.minimessage.MiniMessage;
+
 import java.time.Duration;
 
 public final class Texts {
@@ -32,5 +34,25 @@ public final class Texts {
     public static String trimLeft(String text, int length) {
         if (text == null) return null;
         return text.substring(0, Math.min(length, text.length()));
+    }
+
+    /**
+     * Escapes tags, so text entered by a player is shown as written instead of being parsed as MiniMessage.
+     *
+     * @param text text entered by a player
+     * @return text that renders literally in MiniMessage
+     */
+    public static String escape(String text) {
+        return MiniMessage.miniMessage().escapeTags(text);
+    }
+
+    /**
+     * Escapes quotes and backslashes, so the content stays inside a single-quoted tag argument such as a hover text.
+     *
+     * @param argument argument content
+     * @return content that can be placed between single quotes of a tag argument
+     */
+    public static String argument(String argument) {
+        return argument.replace("\\", "\\\\").replace("'", "\\'");
     }
 }

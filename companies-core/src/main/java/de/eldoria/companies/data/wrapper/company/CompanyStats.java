@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.ICompanyStats;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 
 import java.time.LocalDateTime;
@@ -73,7 +74,7 @@ public class CompanyStats implements ICompanyStats {
     public String asComponent() {
         return MessageComposer.create()
                               .text("<heading>")
-                              .text(name)
+                              .text(Texts.escape(name))
                               .newLine()
                               .text("<name>")
                               .localeCode("words.founded")

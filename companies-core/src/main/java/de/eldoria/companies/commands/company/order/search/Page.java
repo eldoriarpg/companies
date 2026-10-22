@@ -7,6 +7,7 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -47,7 +48,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
     public void renderPage(Player player, int page) {
         messageBlocker.blockPlayer(player);
         var fullOrders = search.results()
-                               .get(player.getUniqueId());
+                               .getOrDefault(player.getUniqueId(), List.of());
 
         var builder = MessageComposer.create()
                                      .text("<heading>")
@@ -73,7 +74,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             builder.text(" <inactive>%s ", Texts.LEFT_ARROW);
         }
 
-        var pageString = String.format("<heading>%s/%s", page + 1, fullOrders.size() / PAGE_SIZE + 1);
+        var pageString = String.format("<heading>%s/%s", page + 1, Math.max(1, (fullOrders.size() + PAGE_SIZE - 1) / PAGE_SIZE));
         builder.text(pageString);
 
         if (!page(fullOrders, page + 1).isEmpty()) {
@@ -85,9 +86,8 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             builder.newLine()
                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
-        messageBlocker.announce(player, "[x]");
         builder.prependLines(25);
-        messageSender().sendMessage(player, builder);
+        Menus.show(messageBlocker, player, builder);
     }
 
     private List<FullOrder> page(List<FullOrder> orders, int page) {

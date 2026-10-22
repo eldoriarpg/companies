@@ -10,6 +10,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
@@ -44,7 +45,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                               .text("<name>")
                               .localeCode("words.price")
                               .text(": <value>%s'>", economy.format(price()))
-                              .text(" <name>%s | <%s>%s", id(), name())
+                              .text(" <name>%s | <value>%s", id(), Texts.escape(name()))
                               .text("</hover>")
                               .space()
                               .text("<click:run_command:/order info %s><add>[", id())
@@ -69,7 +70,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                               .localeCode("words.price")
                               .text(": <value>%s'", economy.format(price()))
                               .text(">")
-                              .text("<name>%s | <value>%s", id(), name())
+                              .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                               .text("</hover>")
                               .space()
                               .text("<click:run_command:/company order info %s><add>[", id())
@@ -92,7 +93,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     public String userDetailInfo(Economy economy) {
         var composer = MessageComposer.create()
-                                      .text("<name>%s | <value>%s", id(), name())
+                                      .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                                       .newLine()
                                       .text("<name>")
                                       .localeCode("words.status")
@@ -125,7 +126,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     public String companyDetailInfo(CompanyMember member, Configuration configuration, Economy economy) {
         var composer = MessageComposer.create()
-                                      .text("<name>%s | <value>%s", id(), name())
+                                      .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                                       .newLine()
                                       .text("<name>")
                                       .localeCode("words.status")
@@ -244,7 +245,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     @Override
     public boolean isDone() {
-        return amount() == delivered();
+        return delivered() >= amount();
     }
 
     public List<ItemStack> createStacks() {

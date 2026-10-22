@@ -23,6 +23,7 @@ import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -93,8 +94,16 @@ public class NotificationService implements Listener {
         notificationData.submitNotifications(player, container);
     }
 
+    /**
+     * Announces a member leaving the company.
+     * <p>
+     * Kicks share the handler list of leaves and are announced by {@link #onCompanyKick(CompanyKickEvent)} instead.
+     *
+     * @param event leave event
+     */
     @EventHandler
     public void onCompanyLeaveEvent(CompanyLeaveEvent event) {
+        if (event instanceof CompanyKickEvent) return;
         sendCompanyMessage(event.company(), "notification.companyLeave",
                 member -> member.uuid()
                                 .equals(event.player()
@@ -107,7 +116,7 @@ public class NotificationService implements Listener {
             if (!member.player()
                        .isOnline()) {
                 saveNotification(member.player(), message, replacements);
-                return;
+                continue;
             }
             sender.sendMessage(member.player()
                                      .getPlayer(), message, replacements);
@@ -144,17 +153,17 @@ public class NotificationService implements Listener {
                                      .text("]</click>")
                                      .build();
         sendCompanyMessage(event.company(), message,
-                miniOrderReplacement(order), Replacement.create("order_name", order.name()));
+                miniOrderReplacement(order), Replacement.unparsed("order_name", order.name()));
     }
 
     private TagResolver miniOrderReplacement(ISimpleOrder order) {
-        return Replacement.create("order_name", String.format("<name>%s<neutral>", order.fullName()));
+        return Replacement.create("order_name", String.format("<name>%s<neutral>", Texts.escape(order.fullName())));
     }
 
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
         sendCompanyMessage(event.company(), "notification.orderCanceled",
-                Replacement.create("order_name", event.order().fullName()));
+                Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
@@ -162,7 +171,7 @@ public class NotificationService implements Listener {
         sendMessage(plugin.getServer()
                           .getOfflinePlayer(event.order()
                                                  .owner()), "notification.orderRemoved",
-                Replacement.create("order_name", event.order().fullName()));
+                Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
@@ -180,17 +189,17 @@ public class NotificationService implements Listener {
                                      .text("]</click>")
                                      .build();
         sendMessage(owner, message,
-                miniOrderReplacement(event.order()), Replacement.create("order_name", event.order()
+                miniOrderReplacement(event.order()), Replacement.unparsed("order_name", event.order()
                                                                                            .name()));
 
         sendCompanyMessage(event.company(), "notification.orderDelivered",
-                Replacement.create("order_name", event.order().fullName()));
+                Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onOrderExpiredEvent(OrderExpiredEvent event) {
         sendCompanyMessage(event.company(), "notification.companyOrderExpired",
-                Replacement.create("order_name", event.order()
+                Replacement.unparsed("order_name", event.order()
                                                       .fullName()));
     }
 
@@ -198,7 +207,7 @@ public class NotificationService implements Listener {
     public void onOrderPayment(OrderPaymentEvent event) {
         sendMessage(event.player(), "notification.orderPayment",
                 Replacement.create("amount", event.amount()),
-                Replacement.create("order_name", event.order().fullName()));
+                Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
@@ -234,7 +243,7 @@ public class NotificationService implements Listener {
                                          .text("]</click>")
                                          .build();
             sendMessage(player, message, miniOrderReplacement(order),
-                    Replacement.create("order_name", order.name()));
+                    Replacement.unparsed("order_name", order.name()));
         }
     }
 

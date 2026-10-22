@@ -21,7 +21,6 @@ import org.bukkit.OfflinePlayer;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 @SuppressWarnings("UnusedReturnValue")
@@ -72,11 +71,17 @@ public abstract class ACompanyData {
 
     protected abstract Integer createCompany(String name);
 
-    public void submitCompanyPurge(SimpleCompany company) {
-        CompletableFuture.runAsync(() -> purgeCompany(company));
+    public BukkitFutureResult<Boolean> submitCompanyPurge(SimpleCompany company) {
+        return CompletableBukkitFuture.supplyAsync(() -> purgeCompany(company), executorService);
     }
 
-    protected abstract void purgeCompany(SimpleCompany company);
+    /**
+     * Deletes a company together with its members.
+     *
+     * @param company company to delete
+     * @return true if the company was deleted
+     */
+    protected abstract boolean purgeCompany(SimpleCompany company);
 
     public FutureResult<CompanyStats> retrieveCompanyStats(ISimpleCompany company) {
         return CompletableBukkitFuture.supplyAsync(() -> getCompanyStats(company));
@@ -102,11 +107,18 @@ public abstract class ACompanyData {
 
     protected abstract List<CompanyRank> getRanking(TopOrder order, int page, int pageSize);
 
-    public FutureResult<Void> updateCompanyName(SimpleCompany company, String name) {
-        return CompletableBukkitFuture.runAsync(() -> setCompanyName(company, name));
+    public FutureResult<Boolean> updateCompanyName(SimpleCompany company, String name) {
+        return CompletableBukkitFuture.supplyAsync(() -> setCompanyName(company, name), executorService);
     }
 
-    protected abstract void setCompanyName(SimpleCompany company, String name);
+    /**
+     * Changes the name of a company.
+     *
+     * @param company company to rename
+     * @param name    new name
+     * @return true if the name was changed
+     */
+    protected abstract boolean setCompanyName(SimpleCompany company, String name);
 
     public abstract List<SimpleCompany> getCompanies();
 

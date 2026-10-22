@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies;
 
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import de.chojo.sadu.mariadb.databases.MariaDb;
 import de.chojo.sadu.postgresql.databases.PostgreSql;
@@ -37,19 +36,20 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
-import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
-import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateChecker;
-import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateData;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -61,15 +61,17 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 @SuppressWarnings("InstanceVariableMayNotBeInitialized")
 public class Companies extends EldoPlugin {
     private final Thread.UncaughtExceptionHandler exceptionHandler =
-            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.getId() + ".", e);
+            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
     private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
     private final Configuration configuration;
@@ -78,6 +80,7 @@ public class Companies extends EldoPlugin {
     private AOrderData orderData;
     private ANotificationData notificationData;
     private ANodeData nodeData;
+    private Updates updates;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -132,22 +135,25 @@ public class Companies extends EldoPlugin {
                         .tag("active", Tag.styling(NamedTextColor.GREEN))
                         .tag("neutral", Tag.styling(NamedTextColor.DARK_AQUA)))
                 .register();
+    }
 
+    /**
+     * Sets up everything that needs the Vault economy. This runs one tick after enabling, once every plugin is
+     * enabled, because economy plugins may register their provider after this plugin. Without a provider the plugin
+     * fails into the failsafe mode instead of disabling itself.
+     */
+    @Override
+    public void onPostStart(boolean reload) {
         var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
-        Economy economy;
-        if (economyProvider != null) {
-            economy = economyProvider.getProvider();
-        } else {
-            getLogger().severe("No vault provider registered.");
-            getPluginManager().disablePlugin(this);
-            return;
+        if (economyProvider == null) {
+            throw new IllegalStateException("No Vault economy provider is registered. Install an economy plugin that supports Vault.");
         }
+        var economy = economyProvider.getProvider();
 
-            MessageBlocker messageBlocker;
+        MessageBlocker messageBlocker;
         if (configuration.main().generalSettings().messageBlocking()) {
             messageBlocker = MessageBlockerAPI.builder(this)
-                                              .withExecutor(workerPool)
-                                              .addWhitelisted("[C]")
+                                              .executor(workerPool)
                                               .build();
         } else {
             messageBlocker = MessageBlocker.dummy(this);
@@ -155,40 +161,56 @@ public class Companies extends EldoPlugin {
 
         var levelService = new LevelService(this, configuration, companyData);
 
-        if (configuration.generalSettings().checkUpdates()) {
-            LynaUpdateChecker.lyna(LynaUpdateData.builder(this, 2)
-                                                 .updateUrl("https://companies.discord.eldoria.de/")
-                                                 .notifyPermission(Permission.Admin.ADMIN)
-                                                 .build()).start();
-        }
+        updates = new Updates(this, configuration);
+        updates.apply();
 
-        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
+        var itemReturnService = new ItemReturnService(this, orderData);
+
+        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker, itemReturnService));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService, nodeData));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, orderData, messageBlocker, levelService, nodeData, itemReturnService, updates));
 
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
-            ExpiringService.start(this, orderData, companyData, configuration, workerPool);
+            ExpiringService.start(this, orderData, companyData, configuration, workerPool, itemReturnService, economy);
             RefreshService.start(orderData, workerPool);
         }
         registerListener(levelService);
+        registerListener(itemReturnService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI") && configuration.generalSettings().hooks().placeholderapi()) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
+            placeholderService.startRefreshing();
             registerListener(placeholderService);
         }
     }
 
     @Override
     public @NotNull List<DebugDataProvider> getDebugProviders() {
-        return List.of(configuration);
+        return List.of(configuration, new CompaniesDebug(this, configuration, dataSource));
     }
 
     @Override
     public void onPluginDisable() {
+        if (updates != null) updates.stop();
         workerPool.shutdown();
-        dataSource.close();
+        Threading.VIRTUAL.shutdown();
+        awaitTermination(workerPool);
+        awaitTermination(Threading.VIRTUAL);
+        if (dataSource != null) dataSource.close();
+    }
+
+    private void awaitTermination(ExecutorService executor) {
+        try {
+            if (!executor.awaitTermination(10L, TimeUnit.SECONDS)) {
+                getLogger().warning("Pending tasks did not finish in time and were cancelled.");
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void initDb() throws SQLException, IOException {
@@ -225,29 +247,29 @@ public class Companies extends EldoPlugin {
     }
 
     private void initDataRepositories() {
-        var mapper = configuration.configureDefault(JsonMapper.builder());
+        var mapper = configuration.storageMapper();
         switch (configuration.databaseSettings()
                              .storageType()) {
-            case SQLITE:
+            case SQLITE -> {
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
                 notificationData = new SqLiteNotificationData(workerPool);
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
-                break;
-            case MARIADB:
+            }
+            case MARIADB -> {
                 companyData = new MariaDbCompanyData(workerPool);
                 orderData = new MariaDbOrderData(mapper);
                 notificationData = new MariaDbNotificationData(workerPool);
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
-                break;
-            case POSTGRES:
+            }
+            case POSTGRES -> {
                 companyData = new PostgresCompanyData(workerPool);
                 orderData = new PostgresOrderData(workerPool, mapper);
                 notificationData = new PostgresNotificationData(workerPool);
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
-            default:
-                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                                                                                    .storageType());
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
+                                                                                          .storageType());
         }
     }
 

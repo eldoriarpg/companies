@@ -6,7 +6,6 @@
 package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.IOrderContent;
-import de.eldoria.companies.util.Features;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -79,20 +78,7 @@ public class OrderContent implements IOrderContent {
 
     @Override
     public String translatedMaterialString() {
-        if (Features.HAS_TRANSLATION_KEY) {
-            // paper
-            return "<tr:%s>".formatted(stack.getType().translationKey());
-        }
-        if (Features.HAS_GET_TRANSLATION_KEY) {
-            // spigot
-            //noinspection removal
-            return "<tr:%s>".formatted(stack.getType().getTranslationKey());
-        }
-        // legacy spigot and paper
-        return stack().getType()
-                .name()
-                .toLowerCase()
-                .replace("_", " ");
+        return "<tr:%s>".formatted(stack.translationKey());
     }
 
     @Override
@@ -120,7 +106,7 @@ public class OrderContent implements IOrderContent {
     public Map<UUID, Double> payments() {
         Map<UUID, Double> payments = new HashMap<>();
         for (var part : parts) {
-            payments.put(part.worker(), (part.amount() / (double) amount) * price);
+            payments.merge(part.worker(), (part.amount() / (double) amount) * price, Double::sum);
         }
         return payments;
     }
@@ -128,7 +114,7 @@ public class OrderContent implements IOrderContent {
     public Map<UUID, Integer> workerAmount() {
         Map<UUID, Integer> workerAmount = new HashMap<>();
         for (var part : parts) {
-            workerAmount.put(part.worker(), part.amount());
+            workerAmount.merge(part.worker(), part.amount(), Integer::sum);
         }
         return workerAmount;
     }

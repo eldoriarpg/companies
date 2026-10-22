@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -31,16 +32,16 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
-    private final Map<UUID, InviteData> invites = new HashMap<>();
+    private final Map<UUID, InviteData> invites = new ConcurrentHashMap<>();
     private final DelayedActions delayedActions;
     private final Configuration configuration;
 
@@ -141,8 +142,15 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
                        var inviter = Bukkit.getOfflinePlayer(data.inviter);
-                       companyData.retrieveCompanyProfile(data.company)
-                                  .whenComplete(profile -> handleInviteAccept(player, data, inviter, profile));
+                       companyData.retrieveCompanyById(data.company.id())
+                                  .whenComplete(current -> {
+                                      if (current.isEmpty()) {
+                                          messageSender().sendErrorActionBar(player, "error.unknownCompany");
+                                          return;
+                                      }
+                                      companyData.retrieveCompanyProfile(current.get())
+                                                 .whenComplete(profile -> handleInviteAccept(player, data, inviter, profile));
+                                  });
 
                    });
     }
@@ -165,7 +173,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         var composer = MessageComposer.create()
                                       .text("<neutral>")
                                       .localeCode("company.invite.invited",
-                                              Replacement.create("name", String.format("<heading>%s<neutral>", company.name())))
+                                              Replacement.create("name", String.format("<heading>%s<neutral>", Texts.escape(company.name()))))
                                       .newLine()
                                       .text("<click:run_command:/company invite accept><add>[")
                                       .localeCode("accept")
@@ -174,8 +182,9 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                                       .localeCode("deny")
                                       .text("]</click>");
         messageSender().sendMessage(target, composer);
-        invites.put(target.getUniqueId(), new InviteData(company, inviter.getUniqueId()));
-        delayedActions.schedule(() -> expiredInvite(target.getUniqueId()), 600);
+        var invite = new InviteData(company, inviter.getUniqueId());
+        invites.put(target.getUniqueId(), invite);
+        delayedActions.schedule(() -> expiredInvite(target.getUniqueId(), invite), 600);
     }
 
     private void handleInviteAccept(Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
@@ -207,9 +216,8 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                 .callEvent(new CompanyJoinEvent(profile.get(), player));
     }
 
-    private void expiredInvite(UUID uuid) {
-        var data = invites.get(uuid);
-        if (data == null) return;
+    private void expiredInvite(UUID uuid, InviteData data) {
+        if (invites.get(uuid) != data || !invites.remove(uuid, data)) return;
         var target = plugin().getServer()
                              .getPlayer(uuid);
         if (target != null) {

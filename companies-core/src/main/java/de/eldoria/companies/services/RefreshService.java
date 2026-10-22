@@ -5,10 +5,12 @@
  */
 package de.eldoria.companies.services;
 
+import de.eldoria.companies.Companies;
 import de.eldoria.companies.data.repository.AOrderData;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class RefreshService implements Runnable {
     private final AOrderData orderData;
@@ -24,7 +26,11 @@ public class RefreshService implements Runnable {
 
     @Override
     public void run() {
-        orderData.refreshMaterialPrices();
-        orderData.invalidateMaterialPriceCache();
+        try {
+            orderData.refreshMaterialPrices();
+            orderData.invalidateMaterialPriceCache();
+        } catch (RuntimeException e) {
+            Companies.logger().log(Level.SEVERE, "Could not refresh material prices", e);
+        }
     }
 }

@@ -8,6 +8,7 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -174,8 +175,7 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>")
                     .build();
         }
-        messageBlocker.announce(player, "[x]");
         composer.prependLines(25);
-        messageSender().sendMessage(player, composer);
+        Menus.show(messageBlocker, player, composer);
     }
 }
