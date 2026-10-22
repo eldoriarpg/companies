@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.order.List;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
@@ -34,7 +35,8 @@ public class Order extends AdvancedCommand {
                             var list = new List(plugin, orderData, orderLimits, economy, messageBlocker);
                             builder.withDefaultCommand(list);
                             cmds.add(list);
-                            cmds.add(new Cancel(plugin, orderData, economy, list));
+                            cmds.add(new Cancel(
+                                    plugin, orderData, economy, new Collector(plugin, economy, configuration), list));
                             cmds.add(
                                     new Create(plugin, orderData, orderLimits, economy, configuration, messageBlocker));
                             cmds.add(new Info(plugin, orderData, economy, configuration, messageBlocker));

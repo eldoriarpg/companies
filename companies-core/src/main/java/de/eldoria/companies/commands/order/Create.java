@@ -332,7 +332,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     /**
-     * Charges the player and saves the draft as an order.
+     * Charges the player the price and the fee and saves the draft as an order.
      * <p>
      * The draft leaves the cache before anything is charged, so only the first of several clicks on done goes on. A draft
      * which could not be turned into an order is put back, so the player can fix it.
@@ -352,6 +352,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         if (order == null) return;
 
         var price = order.price();
+        var fee = configuration.orderSetting().fee().of(price);
+        var total = price + fee;
 
         orderLimits.usage(player).whenComplete(usage -> {
             if (usage.reached()) {
@@ -359,8 +361,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
                 return;
             }
-            if (!economy.has(player, price)
-                    || !economy.withdrawPlayer(player, price).transactionSuccess()) {
+            if (!economy.has(player, total)
+                    || !economy.withdrawPlayer(player, total).transactionSuccess()) {
                 var fallbackCurr = economy.currencyNameSingular().isBlank()
                         ? MessageComposer.escape("words.money")
                         : economy.currencyNameSingular();
@@ -371,11 +373,11 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                 player,
                                 "error.insufficientCurrency",
                                 Replacement.create("currency", curr),
-                                Replacement.create("amount", economy.format(price)));
+                                Replacement.create("amount", economy.format(total)));
                 return;
             }
             orderData
-                    .submitOrder(player, order.build(0.0))
+                    .submitOrder(player, order.build(fee))
                     .asFuture()
                     .exceptionally(err -> {
                         plugin().getLogger().log(Level.SEVERE, "Could not save order", err);
@@ -384,7 +386,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                     .thenAcceptAsync(
                             created -> {
                                 if (!created) {
-                                    economy.depositPlayer(player, price);
+                                    economy.depositPlayer(player, total);
                                     restoreDraft(player, order);
                                     messageSender().sendError(player, "error.saveFailed");
                                     return;
