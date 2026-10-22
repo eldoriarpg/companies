@@ -26,12 +26,12 @@ import java.util.function.Consumer;
  * @param hasPrevious whether a page comes before this one
  * @param hasNext     whether a page follows this one
  */
-record Paging(int number, OptionalInt count, boolean hasPrevious, boolean hasNext) {
+public record Paging(int number, OptionalInt count, boolean hasPrevious, boolean hasNext) {
     /**
      * @param page a page of a list held in memory
      * @return the controls of the page
      */
-    static Paging of(Page<?> page) {
+    public static Paging of(Page<?> page) {
         return new Paging(page.number() + 1, OptionalInt.of(page.count()), page.hasPrevious(), page.hasNext());
     }
 
@@ -40,7 +40,7 @@ record Paging(int number, OptionalInt count, boolean hasPrevious, boolean hasNex
      * @param hasNext whether a page follows
      * @return the controls of a page of a list whose length is unknown
      */
-    static Paging open(int number, boolean hasNext) {
+    public static Paging open(int number, boolean hasNext) {
         return new Paging(number, OptionalInt.empty(), number > 1, hasNext);
     }
 
@@ -52,7 +52,7 @@ record Paging(int number, OptionalInt count, boolean hasPrevious, boolean hasNex
      * @param next     shows the next page
      * @return the line
      */
-    MenuText chat(MenuActions actions, Consumer<Player> previous, Consumer<Player> next) {
+    public MenuText chat(MenuActions actions, Consumer<Player> previous, Consumer<Player> next) {
         var text = MenuText.create();
         if (hasPrevious) {
             text.text(
@@ -75,7 +75,7 @@ record Paging(int number, OptionalInt count, boolean hasPrevious, boolean hasNex
      *
      * @return the label
      */
-    MenuText label() {
+    public MenuText label() {
         var text = MenuText.create().text("<aqua><page_number>", Values.number("page_number", number));
         count.ifPresent(pages -> text.text("/<page_count>", Values.number("page_count", pages)));
         return text;
@@ -89,7 +89,8 @@ record Paging(int number, OptionalInt count, boolean hasPrevious, boolean hasNex
      * @param previous shows the previous page
      * @param next     shows the next page
      */
-    void addButtons(List<ActionButton> buttons, MenuActions actions, Consumer<Player> previous, Consumer<Player> next) {
+    public void addButtons(
+            List<ActionButton> buttons, MenuActions actions, Consumer<Player> previous, Consumer<Player> next) {
         if (hasPrevious) {
             buttons.add(actions.button(
                     Component.text(Texts.LEFT_ARROW), null, (clicker, response) -> previous.accept(clicker)));
