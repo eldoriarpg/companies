@@ -5,26 +5,24 @@
  */
 package de.eldoria.companies.commands.companyadmin.level;
 
-import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.LevelNumbers;
-import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.Senders;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 
 /**
- * {@code /companyadmin level remove <level>}: removes a level.
+ * {@code /companyadmin level remove <level>}: removes a level at once. The menus ask for a confirmation first.
  */
 @Subcommand("remove")
 public final class Remove {
-    private final CommandDependencies deps;
+    private final LevelEditor editor;
 
     /**
-     * @param deps what the commands need
+     * @param editor runs the level editor
      */
-    public Remove(CommandDependencies deps) {
-        this.deps = deps;
+    public Remove(LevelEditor editor) {
+        this.editor = editor;
     }
 
     /**
@@ -34,11 +32,7 @@ public final class Remove {
     @Executes
     public void remove(CommandSender sender, @LevelNumbers int level) {
         var player = Senders.player(sender);
-        var menus = deps.services().menus();
-        var configuration = deps.configuration();
-        Levels.requirePrimary(configuration);
-        Checks.isTrue(configuration.companySettings().deleteLevel(level), "error.invalidLevel");
-        configuration.save();
-        LevelMenus.list(player, configuration, menus);
+        editor.remove(level);
+        editor.list(player);
     }
 }
