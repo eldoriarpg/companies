@@ -7,7 +7,7 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.queries.api.call.Call;
 import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
-import de.chojo.sadu.queries.configuration.QueryConfiguration;
+import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
