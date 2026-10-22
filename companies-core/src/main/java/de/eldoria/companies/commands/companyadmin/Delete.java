@@ -6,9 +6,7 @@
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.events.company.CompanyDisbandEvent;
-import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -26,10 +24,9 @@ import java.util.logging.Level;
 
 public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
-    private final AOrderData orderData;
-    private final ItemReturnService itemReturnService;
+    private final DisbandService disbandService;
 
-    public Delete(Plugin plugin, ACompanyData companyData, AOrderData orderData, ItemReturnService itemReturnService) {
+    public Delete(Plugin plugin, ACompanyData companyData, DisbandService disbandService) {
         super(
                 plugin,
                 CommandMeta.builder("delete")
@@ -37,8 +34,7 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
                         .addArgument("words.name", true)
                         .build());
         this.companyData = companyData;
-        this.orderData = orderData;
-        this.itemReturnService = itemReturnService;
+        this.disbandService = disbandService;
     }
 
     @Override
@@ -57,19 +53,15 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
 
                     var profile =
                             companyData.retrieveCompanyProfile(company.get()).join();
-                    var released =
-                            orderData.submitCompanyOrdersPurge(company.get()).join();
-                    if (released != null) {
-                        itemReturnService.notifyWorkers(released.workers());
-                    }
-                    if (!Boolean.TRUE.equals(
-                            companyData.submitCompanyPurge(company.get()).join())) {
-                        messageSender().sendError(player, "error.saveFailed");
+                    if (profile == null || profile.isEmpty()) {
+                        messageSender().sendError(player, "error.unknownCompany");
                         return;
                     }
-                    messageSender().sendMessage(player, "company.leave.disbanded");
-                    profile.ifPresent(disbanded ->
-                            plugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(disbanded)));
+                    if (!disbandService.disband(profile.get())) {
+                        messageSender().sendError(player, "company.disband.failed");
+                        return;
+                    }
+                    messageSender().sendMessage(player, "company.disband.disbanded");
                 })
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

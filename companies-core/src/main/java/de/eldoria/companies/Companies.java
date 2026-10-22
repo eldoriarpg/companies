@@ -37,6 +37,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.debug.CompaniesDebug;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
@@ -147,9 +148,21 @@ public class Companies extends EldoPlugin {
 
         var itemReturnService = new ItemReturnService(this, orderData);
 
+        var notificationService = new NotificationService(notificationData, orderData, workerPool, this);
+        var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
+
         registerCommand(
                 "company",
-                new Company(this, companyData, orderData, economy, configuration, messageBlocker, itemReturnService));
+                new Company(
+                        this,
+                        companyData,
+                        orderData,
+                        economy,
+                        configuration,
+                        messageBlocker,
+                        itemReturnService,
+                        notificationService,
+                        disbandService));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker, itemReturnService));
         registerCommand(
                 "companyadmin",
@@ -161,10 +174,9 @@ public class Companies extends EldoPlugin {
                         messageBlocker,
                         levelService,
                         nodeData,
-                        itemReturnService,
+                        disbandService,
                         updates));
 
-        var notificationService = new NotificationService(notificationData, orderData, workerPool, this);
         var expiringService = new ExpiringService(
                 this, orderData, companyData, configuration, itemReturnService, economy, notificationService);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {

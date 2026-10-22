@@ -6,11 +6,10 @@
 package de.eldoria.companies.commands.company;
 
 import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.events.company.CompanyDisbandEvent;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
-import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.Confirmations;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -26,17 +25,18 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Removes a member from their company after they confirmed it.
+ * <p>
+ * The owner can not leave: with other members left they have to transfer the company first, alone they disband it.
+ */
 public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
-    private final AOrderData orderData;
-    private final ItemReturnService itemReturnService;
     private final Confirmations<Integer> leaves = new Confirmations<>();
 
-    public Leave(Plugin plugin, ACompanyData companyData, AOrderData orderData, ItemReturnService itemReturnService) {
+    public Leave(Plugin plugin, ACompanyData companyData) {
         super(plugin, CommandMeta.builder("leave").build());
         this.companyData = companyData;
-        this.orderData = orderData;
-        this.itemReturnService = itemReturnService;
     }
 
     @Override
@@ -55,14 +55,12 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                 return;
             }
             var profile = optProfile.get();
+            if (refuseOwner(player, profile)) return;
             leaves.request(player.getUniqueId(), profile.id());
-            var composer = MessageComposer.create().text("<neutral>");
-            if (profile.member(player).get().isOwner()) {
-                composer.localeCode("company.leave.confirmOwner");
-            } else {
-                composer.localeCode("company.leave.confirm");
-            }
-            composer.space()
+            var composer = MessageComposer.create()
+                    .text("<neutral>")
+                    .localeCode("company.leave.confirm")
+                    .space()
                     .text("<click:run_command:/company leave confirm><remove>[")
                     .localeCode("words.confirm")
                     .text("]</click>");
@@ -71,7 +69,42 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     /**
-     * Removes a player from the company they confirmed to leave. An owner leaving disbands the company.
+     * Tells an owner how to give up the company instead of leaving it.
+     *
+     * @param player  player who wants to leave
+     * @param company company of the player
+     * @return true when the player owns the company and may not leave
+     */
+    private boolean refuseOwner(Player player, CompanyProfile company) {
+        var member = company.member(player).orElseThrow();
+        var composer = MessageComposer.create().text("<neutral>");
+        switch (Ownership.leaveCheck(member, company.members().size())) {
+            case ALLOWED -> {
+                return false;
+            }
+            case TRANSFER_FIRST ->
+                composer.localeCode("company.leave.transferFirst")
+                        .space()
+                        .text("<click:suggest_command:/company transfer ><modify>[")
+                        .localeCode("words.transfer")
+                        .text("]</click>")
+                        .space()
+                        .text("<click:run_command:/company disband><remove>[")
+                        .localeCode("words.disband")
+                        .text("]</click>");
+            case DISBAND_INSTEAD ->
+                composer.localeCode("company.leave.ownerAlone")
+                        .space()
+                        .text("<click:run_command:/company disband><remove>[")
+                        .localeCode("words.disband")
+                        .text("]</click>");
+        }
+        messageSender().sendMessage(player, composer);
+        return true;
+    }
+
+    /**
+     * Removes a player from the company they confirmed to leave.
      *
      * @param player    player who leaves
      * @param companyId company the player confirmed to leave
@@ -83,18 +116,11 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                 return;
             }
             var profile = optProfile.get();
-            if (profile.member(player).get().isOwner()) {
-                var released = orderData.submitCompanyOrdersPurge(profile).join();
-                if (released != null) {
-                    itemReturnService.notifyWorkers(released.workers());
-                }
-                companyData.submitCompanyPurge(profile).join();
-                messageSender().sendMessage(player, "company.leave.disbanded");
-                plugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(optProfile.get()));
-                return;
-            }
+            if (refuseOwner(player, profile)) return;
             companyData.submitMemberUpdate(profile.member(player).get().kick()).join();
-            plugin().getServer().getPluginManager().callEvent(new CompanyLeaveEvent(optProfile.get(), player));
+            Threading.mainThread(plugin())
+                    .execute(() ->
+                            plugin().getServer().getPluginManager().callEvent(new CompanyLeaveEvent(profile, player)));
             messageSender().sendMessage(player, "company.leave.left");
         });
     }
