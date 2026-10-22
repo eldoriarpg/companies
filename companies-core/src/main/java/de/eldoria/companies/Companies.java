@@ -50,6 +50,7 @@ import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
+import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
@@ -132,7 +133,13 @@ public class Companies extends EldoPlugin {
         var dependencies = new CommandDependencies(this, configuration, companyData, orderData, nodeData);
         commands = dependencies;
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
-        SuggestionSources.use(new SuggestionSources(companyData, configuration, Threading.VIRTUAL));
+        SuggestionSources.use(new SuggestionSources(
+                companyData,
+                orderData,
+                dependencies.drafts(),
+                configuration,
+                ILocalizer.getPluginLocalizer(this),
+                Threading.VIRTUAL));
         getLifecycleManager()
                 .registerEventHandler(LifecycleEvents.COMMANDS.newHandler(
                         event -> CommandRegistration.register(event.registrar(), dependencies)));
