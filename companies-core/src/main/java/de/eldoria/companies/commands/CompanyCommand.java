@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.company.ApplicationsCommand;
 import de.eldoria.companies.commands.company.ApplyCommand;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Disband;
+import de.eldoria.companies.commands.company.InboxCommand;
 import de.eldoria.companies.commands.company.InviteCommand;
 import de.eldoria.companies.commands.company.InvitesCommand;
 import de.eldoria.companies.commands.company.JoinCommand;
@@ -94,6 +95,9 @@ final class CompanyCommand {
     @Subcommand
     final Returns returns;
 
+    @Subcommand
+    final InboxCommand inbox;
+
     CompanyCommand(CommandDependencies deps) {
         order = new CompanyOrderCommand(deps);
         permission = new Permission(deps);
@@ -113,6 +117,7 @@ final class CompanyCommand {
         top = new TopCommand(deps, profile);
         rename = new Rename(deps);
         returns = new Returns(deps);
+        inbox = new InboxCommand(deps);
     }
 
     /**

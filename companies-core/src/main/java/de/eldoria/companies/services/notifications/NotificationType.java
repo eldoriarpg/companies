@@ -12,9 +12,8 @@ import java.util.Optional;
 /**
  * The kinds of notifications sent through {@link NotificationService#send}.
  * <p>
- * Ids are stable and never reused; new types append. Ids below 20 are reserved for the notifications that are still
- * sent as plain messages. The arguments a type expects are named in its documentation and used as placeholders in its
- * message.
+ * Ids are stable and never reused; new types append. The arguments a type expects are named in its documentation and
+ * used as placeholders in its message and action.
  */
 public enum NotificationType {
     /**
@@ -23,9 +22,117 @@ public enum NotificationType {
      */
     LEGACY(0, "", NotificationCategory.COMPANY, false, null),
     /**
+     * The player's company was disbanded. No arguments.
+     */
+    COMPANY_DISBANDED(1, "notification.companyDisband", NotificationCategory.COMPANY, true, null),
+    /**
+     * A player joined the company. Arguments: {@code player_name}.
+     */
+    MEMBER_JOINED(2, "notification.companyJoin", NotificationCategory.MEMBERS, false, null),
+    /**
+     * A member left the company. Arguments: {@code player_name}.
+     */
+    MEMBER_LEFT(3, "notification.companyLeave", NotificationCategory.MEMBERS, false, null),
+    /**
+     * A member was kicked from the company. Arguments: {@code player_name}.
+     */
+    MEMBER_KICKED(4, "notification.kicked", NotificationCategory.MEMBERS, false, null),
+    /**
+     * The player was kicked from their company. No arguments.
+     */
+    KICKED(5, "notification.kickedTarget", NotificationCategory.COMPANY, true, null),
+    /**
+     * The company accepted an order. Arguments: {@code order_name}, {@code order_id}.
+     */
+    ORDER_ACCEPTED(
+            6,
+            "notification.orderAccepted",
+            NotificationCategory.ORDERS,
+            false,
+            new Action("/company order info <order_id>", "words.info")),
+    /**
+     * The company gave an order up. Arguments: {@code order_name}.
+     */
+    ORDER_ABORTED(7, "notification.orderCanceled", NotificationCategory.ORDERS, false, null),
+    /**
+     * An order of the company expired. Arguments: {@code order_name}.
+     */
+    ORDER_EXPIRED(8, "notification.companyOrderExpired", NotificationCategory.ORDERS, true, null),
+    /**
+     * The company delivered an order. Arguments: {@code order_name}.
+     */
+    ORDER_DELIVERED(9, "notification.orderDelivered", NotificationCategory.ORDERS, false, null),
+    /**
+     * The player was paid for an order. Arguments: {@code amount}, {@code order_name}.
+     */
+    PAYMENT(10, "notification.orderPayment", NotificationCategory.PAYMENTS, false, null),
+    /**
+     * The player was paid for an order after tax. Arguments: {@code amount}, {@code order_name}, {@code gross},
+     * {@code tax}.
+     */
+    PAYMENT_TAXED(11, "notification.orderPaymentTaxed", NotificationCategory.PAYMENTS, false, null),
+    /**
+     * The company reached a higher level. Arguments: {@code new_level}.
+     */
+    LEVEL_UP(12, "notification.companyLevelUp", NotificationCategory.LEVEL, false, null),
+    /**
+     * The company fell to a lower level. Arguments: {@code new_level}.
+     */
+    LEVEL_DOWN(13, "notification.companyLevelDown", NotificationCategory.LEVEL, false, null),
+    /**
+     * The player's order was delivered. Arguments: {@code order_name}, {@code order_id}.
+     */
+    MY_ORDER_DONE(
+            14,
+            "notification.orderDone",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order receive <order_id>", "notification.receiveItems")),
+    /**
+     * The player's order was removed because nobody accepted it. Arguments: {@code order_name}.
+     */
+    MY_ORDER_REMOVED(15, "notification.orderRemoved", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * A company accepted the player's order. Arguments: {@code order_name}, {@code order_id}.
+     */
+    MY_ORDER_ACCEPTED(
+            16,
+            "notification.ownerOrderAccepted",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order info <order_id>", "words.info")),
+    /**
+     * The player's order is open again. Arguments: {@code order_name}, {@code order_id}.
+     */
+    MY_ORDER_REOPENED(
+            17,
+            "notification.ownerOrderOpen",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order info <order_id>", "words.info")),
+    /**
+     * The player's order is removed soon unless somebody accepts it. Arguments: {@code order_name}, {@code duration},
+     * {@code order_id}.
+     */
+    MY_ORDER_PURGE_WARNING(
+            18,
+            "notification.orderPurgeWarning",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order info <order_id>", "words.info")),
+    /**
+     * The player became the owner of their company. Arguments: {@code company}.
+     */
+    OWNERSHIP_TRANSFERRED(19, "notification.ownerTransferred", NotificationCategory.COMPANY, true, null),
+    /**
      * A player was invited. Arguments: {@code company_name}, {@code player_name} (inviter).
      */
-    INVITE_RECEIVED(20, "notification.inviteReceived", NotificationCategory.INVITES, true, "/company invites"),
+    INVITE_RECEIVED(
+            20,
+            "notification.inviteReceived",
+            NotificationCategory.INVITES,
+            true,
+            new Action("/company invites", "words.open")),
     /**
      * An invite was taken back. Arguments: {@code company_name}.
      */
@@ -50,7 +157,11 @@ public enum NotificationType {
      * A player applied to the company. Arguments: {@code player_name} (applicant).
      */
     APPLICATION_RECEIVED(
-            26, "notification.applicationReceived", NotificationCategory.INVITES, false, "/company applications"),
+            26,
+            "notification.applicationReceived",
+            NotificationCategory.INVITES,
+            false,
+            new Action("/company applications", "words.open")),
     /**
      * The player's application was accepted. Arguments: {@code company_name}.
      */
@@ -74,9 +185,9 @@ public enum NotificationType {
     private final boolean important;
 
     @Nullable
-    private final String action;
+    private final Action action;
 
-    NotificationType(int id, String key, NotificationCategory category, boolean important, @Nullable String action) {
+    NotificationType(int id, String key, NotificationCategory category, boolean important, @Nullable Action action) {
         this.id = id;
         this.key = key;
         this.category = category;
@@ -132,11 +243,20 @@ public enum NotificationType {
     }
 
     /**
-     * The command a button next to the message runs. Placeholders {@code <name>} are replaced by the arguments.
+     * The button next to the message.
      *
-     * @return command with leading slash, or empty when the message has no button
+     * @return the button, or empty when the message has none
      */
-    public Optional<String> action() {
+    public Optional<Action> action() {
         return Optional.ofNullable(action);
     }
+
+    /**
+     * A button running a real command, so it still works when the notification is read days later on another
+     * server.
+     *
+     * @param command command with leading slash; placeholders {@code <name>} are replaced by the arguments
+     * @param label   locale key of the button text
+     */
+    public record Action(String command, String label) {}
 }

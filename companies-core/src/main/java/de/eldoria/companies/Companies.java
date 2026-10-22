@@ -59,6 +59,8 @@ import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.RefreshService;
+import de.eldoria.companies.services.notifications.InboxPoller;
+import de.eldoria.companies.services.notifications.InboxRetention;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.StyledMessageSender;
@@ -194,7 +196,8 @@ public class Companies extends EldoPlugin {
 
         var itemReturnService = new ItemReturnService(this, orderData);
 
-        var notificationService = new NotificationService(information.inbox(), orderData, workerPool, this);
+        var notificationService = NotificationService.create(
+                this, information.inbox(), orderData, workerPool, configuration::notificationSettings);
         var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
         var membershipService = MembershipService.create(
                 this,
@@ -225,7 +228,10 @@ public class Companies extends EldoPlugin {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
             membershipService.start(workerPool);
+            new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
         }
+        new InboxPoller(information.inbox(), notificationService, getLogger())
+                .start(workerPool, configuration.notificationSettings());
         registerListener(expiringService);
         registerListener(levelService);
         registerListener(itemReturnService);

@@ -9,9 +9,9 @@ import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
@@ -25,110 +25,287 @@ import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
-import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
-import de.eldoria.eldoutilities.messages.Replacement;
 import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.logging.Level;
 
 /**
- * Sends notifications based on internal events.
+ * Sends notifications and turns the plugin's events into notifications.
  * <p>
- * Money is formatted by the Vault economy, which is registered before this service is created. A notification for a
- * player who is not online here is rendered and stored in the inbox as a pending legacy entry; the player sees the
- * pending entries of this kind on their next join, which marks them read.
+ * Every notification is written to the inbox, whether its recipient is online or not:
+ * <ul>
+ *     <li>a muted category is stored delivered but unread: never shown live, not in the join summary, unread in the
+ *     inbox;</li>
+ *     <li>a recipient online on this server sees it live, which counts as read;</li>
+ *     <li>otherwise it is stored pending. The {@link InboxPoller} of the server the recipient is on shows it, or their
+ *     next join summary counts it.</li>
+ * </ul>
+ * Whether the recipient is online is decided on the main thread, where it is shown as well.
  */
 public class NotificationService implements Listener {
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.");
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-    private static final int JOIN_LIMIT = 500;
+    private static final String INBOX_COMMAND = "/company inbox";
+    private static final String OPEN_KEY = "inbox_open";
+
+    private final Plugin plugin;
     private final AInboxData inboxData;
     private final AOrderData orderData;
     private final ScheduledExecutorService workerPool;
+    private final Executor mainThread;
     private final MessageSender sender;
-    private final ILocalizer localizer;
-    private final Plugin plugin;
+    private final NotificationRenderer renderer;
+    private final LiveDisplay display;
+    private final Inbox inbox;
+
+    @Nullable
     private final Economy economy;
 
+    /**
+     * @param plugin     the plugin
+     * @param inboxData  the stored notifications
+     * @param orderData  orders, for the delivered orders reminded of on join
+     * @param workerPool runs the join tasks
+     * @param settings   current notification settings
+     * @param display    shows notifications live
+     * @param mainThread runs tasks on the main thread
+     */
     public NotificationService(
-            AInboxData inboxData, AOrderData orderData, ScheduledExecutorService workerPool, Plugin plugin) {
+            Plugin plugin,
+            AInboxData inboxData,
+            AOrderData orderData,
+            ScheduledExecutorService workerPool,
+            Supplier<NotificationSettings> settings,
+            LiveDisplay display,
+            Executor mainThread) {
+        this.plugin = plugin;
         this.inboxData = inboxData;
         this.orderData = orderData;
         this.workerPool = workerPool;
+        this.mainThread = mainThread;
+        this.display = display;
         sender = MessageSender.getPluginMessageSender(plugin);
-        localizer = ILocalizer.getPluginLocalizer(plugin);
-        this.plugin = plugin;
+        renderer = renderer(plugin);
+        inbox = new Inbox(inboxData, settings);
         economy = plugin.getServer().getServicesManager().load(Economy.class);
     }
 
-    @EventHandler
-    public void onCompanyDisband(CompanyDisbandEvent event) {
-        sendCompanyMessage(event.company(), "notification.companyDisband");
+    /**
+     * The service of the running server: live notifications in chat, on the action bar and with a sound.
+     *
+     * @param plugin     the plugin
+     * @param inboxData  the stored notifications
+     * @param orderData  orders, for the delivered orders reminded of on join
+     * @param workerPool runs the join tasks
+     * @param settings   current notification settings
+     * @return the service
+     */
+    public static NotificationService create(
+            Plugin plugin,
+            AInboxData inboxData,
+            AOrderData orderData,
+            ScheduledExecutorService workerPool,
+            Supplier<NotificationSettings> settings) {
+        var display = LiveDisplay.paper(
+                MessageSender.getPluginMessageSender(plugin), renderer(plugin), settings, plugin.getLogger());
+        return new NotificationService(
+                plugin, inboxData, orderData, workerPool, settings, display, Threading.mainThread(plugin));
+    }
+
+    private static NotificationRenderer renderer(Plugin plugin) {
+        var localizer = ILocalizer.getPluginLocalizer(plugin);
+        return new NotificationRenderer(localizer::localize);
     }
 
     /**
-     * Sends a typed notification: shown in chat when the recipient is online on this server, stored for their next
-     * join otherwise. Important types and categories are not treated differently yet.
+     * @return the player's side of the inbox
+     */
+    public Inbox inbox() {
+        return inbox;
+    }
+
+    /**
+     * @return turns notifications into texts
+     */
+    public NotificationRenderer renderer() {
+        return renderer;
+    }
+
+    /**
+     * Sends a notification.
      *
      * @param recipient player to notify
      * @param type      kind of notification
      * @param args      values for the placeholders of the type's message and action
+     * @return completes once the notification is stored
      */
-    public void send(UUID recipient, NotificationType type, NotificationArgs args) {
-        var message = MenuText.create().text("<neutral>").locale(type.key(), args.resolvers());
-        type.action().map(args::fill).ifPresent(command -> message.space()
-                .text(
-                        "<notification_action><add>[",
-                        Values.click("notification_action", ClickEvent.runCommand(command)))
-                .locale("words.open")
-                .text("]</notification_action>"));
-        sendMessage(plugin.getServer().getOfflinePlayer(recipient), message);
+    public CompletableFuture<Void> send(UUID recipient, NotificationType type, NotificationArgs args) {
+        var now = LocalDateTime.now();
+        return inboxData
+                .retrieveMuted(recipient)
+                .thenCompose(mask -> type.category().mutedBy(mask)
+                        ? store(recipient, type, args, now, InboxStatus.DELIVERED)
+                        : CompletableFuture.supplyAsync(() -> showIfOnline(recipient, type, args), mainThread)
+                                .thenCompose(shown -> store(
+                                        recipient, type, args, now, shown ? InboxStatus.READ : InboxStatus.PENDING)))
+                .exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Could not send a notification", err);
+                    return null;
+                });
     }
 
-    public void sendCompanyMessage(ICompanyProfile company, String message, TagResolver... replacements) {
+    /**
+     * Sends a notification to every member of a company.
+     *
+     * @param company company to notify
+     * @param type    kind of notification
+     * @param args    values of the notification
+     * @param exclude members who are left out
+     */
+    public void sendCompany(
+            ICompanyProfile company, NotificationType type, NotificationArgs args, Predicate<ICompanyMember> exclude) {
         for (var member : company.members()) {
-            sendMessage(member.player(), message, replacements);
+            if (exclude.test(member)) continue;
+            send(member.uuid(), type, args);
         }
     }
 
-    public void sendMessage(OfflinePlayer player, String message, TagResolver... replacements) {
-        if (!player.isOnline()) {
-            saveNotification(player, message, replacements);
-            return;
-        }
-        sender.sendMessage(player.getPlayer(), message, replacements);
+    /**
+     * Sends a notification to every member of a company.
+     *
+     * @param company company to notify
+     * @param type    kind of notification
+     * @param args    values of the notification
+     */
+    public void sendCompany(ICompanyProfile company, NotificationType type, NotificationArgs args) {
+        sendCompany(company, type, args, member -> false);
     }
 
-    private void saveNotification(OfflinePlayer player, String message, TagResolver... replacements) {
-        var serialized = sender.miniMessage().serialize(sender.serializeMessage(message, replacements));
-        inboxData.submit(
-                player.getUniqueId(),
-                NotificationType.LEGACY,
-                NotificationArgs.create().text(NotificationArgs.LEGACY_MESSAGE, serialized),
-                LocalDateTime.now(),
-                InboxStatus.PENDING);
+    private CompletableFuture<Void> store(
+            UUID recipient, NotificationType type, NotificationArgs args, LocalDateTime now, InboxStatus status) {
+        return inboxData.submit(recipient, type, args, now, status).thenAccept(id -> {
+            if (id.isEmpty()) plugin.getLogger().warning("A notification could not be stored for " + recipient);
+        });
+    }
+
+    /**
+     * Shows a notification live when its recipient is online on this server. Runs on the main thread.
+     *
+     * @param recipient player to show it to
+     * @param type      kind of notification
+     * @param args      values of the notification
+     * @return true when it was shown
+     */
+    boolean showIfOnline(UUID recipient, NotificationType type, NotificationArgs args) {
+        var player = plugin.getServer().getPlayer(recipient);
+        if (player == null) return false;
+        display.show(player, type, args);
+        return true;
+    }
+
+    /**
+     * The players online on this server, read on the main thread.
+     *
+     * @return their ids
+     */
+    CompletableFuture<List<UUID>> onlineHere() {
+        return CompletableFuture.supplyAsync(
+                () -> plugin.getServer().getOnlinePlayers().stream()
+                        .map(Player::getUniqueId)
+                        .toList(),
+                mainThread);
+    }
+
+    /**
+     * Shows a notification on the main thread when its recipient is still online here.
+     *
+     * @param recipient player to show it to
+     * @param type      kind of notification
+     * @param args      values of the notification
+     */
+    void showLater(UUID recipient, NotificationType type, NotificationArgs args) {
+        mainThread.execute(() -> showIfOnline(recipient, type, args));
+    }
+
+    /**
+     * Tells a player how many unread notifications wait in the inbox. Pending ones count as delivered from now on, so
+     * no other server shows them live any more; muted categories are not counted.
+     *
+     * @param player player who joined
+     * @return number of unread notifications counted
+     */
+    public CompletableFuture<Integer> summarize(Player player) {
+        var uuid = player.getUniqueId();
+        return inboxData
+                .submitDelivered(uuid)
+                .thenCompose(marked -> inboxData.retrieveMuted(uuid))
+                .thenCompose(mask -> inboxData.retrieveUnreadCount(uuid, mask))
+                .thenApply(count -> {
+                    if (count > 0) sender.sendMessage(player, summary(count));
+                    return count;
+                });
+    }
+
+    /**
+     * The join summary.
+     *
+     * @param count number of unread notifications
+     * @return the summary with a button opening the inbox
+     */
+    static MenuText summary(int count) {
+        return MenuText.create()
+                .text("<neutral>")
+                .locale("inbox.summary", Values.number("count", count))
+                .space()
+                .text("<" + OPEN_KEY + "><add>[", Values.click(OPEN_KEY, ClickEvent.runCommand(INBOX_COMMAND)))
+                .locale("words.open")
+                .text("]</" + OPEN_KEY + ">");
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        var player = event.getPlayer();
+        workerPool.schedule(
+                () -> {
+                    summarize(player).join();
+                    sendDeliveredOrders(player);
+                },
+                1L,
+                TimeUnit.SECONDS);
+    }
+
+    private void sendDeliveredOrders(Player player) {
+        var orders = orderData
+                .retrieveOrdersByPlayer(player, OrderState.DELIVERED, OrderState.DELIVERED)
+                .join();
+        if (orders == null) return;
+        for (var order : orders) {
+            sender.sendMessage(player, renderer.message(NotificationType.MY_ORDER_DONE, orderArgs(order)));
+        }
+    }
+
+    @EventHandler
+    public void onCompanyDisband(CompanyDisbandEvent event) {
+        sendCompany(event.company(), NotificationType.COMPANY_DISBANDED, NotificationArgs.create());
     }
 
     /**
@@ -141,54 +318,40 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onCompanyLeaveEvent(CompanyLeaveEvent event) {
         if (event instanceof CompanyKickEvent) return;
-        sendCompanyMessage(
+        var leaver = event.player().getUniqueId();
+        sendCompany(
                 event.company(),
-                "notification.companyLeave",
-                member -> member.uuid().equals(event.player().getUniqueId()),
-                Replacement.create("name", event.player().getName()));
-    }
-
-    public void sendCompanyMessage(
-            ICompanyProfile company, String message, Predicate<ICompanyMember> filter, TagResolver... replacements) {
-        for (var member : company.members()) {
-            if (filter.test(member)) continue;
-            if (!member.player().isOnline()) {
-                saveNotification(member.player(), message, replacements);
-                continue;
-            }
-            sender.sendMessage(member.player().getPlayer(), message, replacements);
-        }
+                NotificationType.MEMBER_LEFT,
+                playerArgs(event.player().getName()),
+                member -> member.uuid().equals(leaver));
     }
 
     @EventHandler
     public void onCompanyJoin(CompanyJoinEvent event) {
-        sendCompanyMessage(
+        var joined = event.player().getUniqueId();
+        sendCompany(
                 event.company(),
-                "notification.companyJoin",
-                member -> member.uuid().equals(event.player().getUniqueId()),
-                Replacement.create("name", event.player().getName()));
+                NotificationType.MEMBER_JOINED,
+                playerArgs(event.player().getName()),
+                member -> member.uuid().equals(joined));
     }
 
     @EventHandler
     public void onCompanyKick(CompanyKickEvent event) {
-        sendMessage(event.player(), "notification.kickedTarget");
-
-        sendCompanyMessage(
+        var kicked = event.player().getUniqueId();
+        send(kicked, NotificationType.KICKED, NotificationArgs.create());
+        sendCompany(
                 event.company(),
-                "notification.kicked",
-                member -> member.uuid().equals(event.player().getUniqueId()),
-                Replacement.create("name", event.player().getName()));
+                NotificationType.MEMBER_KICKED,
+                playerArgs(event.player().getName()),
+                member -> member.uuid().equals(kicked));
     }
 
     @EventHandler
     public void onOrderAccept(OrderAcceptEvent event) {
         var order = event.order();
-        var message =
-                orderNotice("notification.orderAccepted", order, "/company order info " + order.id(), "words.info");
-        sendCompanyMessage(event.company(), message.build(), resolvers(message));
-        sendMessage(
-                plugin.getServer().getOfflinePlayer(order.owner()),
-                orderNotice("notification.ownerOrderAccepted", order, "/order info " + order.id(), "words.info"));
+        sendCompany(event.company(), NotificationType.ORDER_ACCEPTED, orderArgs(order));
+        send(order.owner(), NotificationType.MY_ORDER_ACCEPTED, orderArgs(order));
     }
 
     /**
@@ -198,79 +361,29 @@ public class NotificationService implements Listener {
      * @param order order which is open again
      */
     public void notifyOrderOpen(ISimpleOrder order) {
-        sendMessage(
-                plugin.getServer().getOfflinePlayer(order.owner()),
-                orderNotice("notification.ownerOrderOpen", order, "/order info " + order.id(), "words.info"));
-    }
-
-    /**
-     * Sends a message, or stores it when the player is offline. Click actions of the message survive the storing.
-     *
-     * @param player  receiving player
-     * @param message the message with its placeholders
-     */
-    public void sendMessage(OfflinePlayer player, MenuText message) {
-        sendMessage(player, message.build(), resolvers(message));
-    }
-
-    /**
-     * A notice about an order with a button running a command on it, using the placeholders {@code order_name} and
-     * {@code order_action}.
-     *
-     * @param key     locale text of the notice
-     * @param order   order the notice is about
-     * @param command command the button runs
-     * @param button  locale text of the button
-     * @return the notice
-     */
-    private static MenuText orderNotice(String key, ISimpleOrder order, String command, String button) {
-        return MenuText.create()
-                .text("<neutral>")
-                .locale(key, Values.text("order_name", order.fullName()))
-                .space()
-                .text("<order_action><add>[", Values.click("order_action", ClickEvent.runCommand(command)))
-                .locale(button)
-                .text("]</order_action>");
-    }
-
-    private static TagResolver[] resolvers(MenuText message) {
-        return message.replacements().toArray(TagResolver[]::new);
+        send(order.owner(), NotificationType.MY_ORDER_REOPENED, orderArgs(order));
     }
 
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
-        sendCompanyMessage(
-                event.company(),
-                "notification.orderCanceled",
-                Replacement.unparsed("order_name", event.order().fullName()));
+        sendCompany(event.company(), NotificationType.ORDER_ABORTED, orderArgs(event.order()));
         notifyOrderOpen(event.order());
     }
 
     @EventHandler
-    public void onOrderCanceled(OrderRemovedEvent event) {
-        sendMessage(
-                plugin.getServer().getOfflinePlayer(event.order().owner()),
-                "notification.orderRemoved",
-                Replacement.unparsed("order_name", event.order().fullName()));
+    public void onOrderRemoved(OrderRemovedEvent event) {
+        send(event.order().owner(), NotificationType.MY_ORDER_REMOVED, orderArgs(event.order()));
     }
 
     @EventHandler
     public void onOrderDone(OrderDoneEvent event) {
-        var owner = plugin.getServer().getOfflinePlayer(event.order().owner());
-        sendMessage(owner, orderDoneNotice(event.order()));
-
-        sendCompanyMessage(
-                event.company(),
-                "notification.orderDelivered",
-                Replacement.unparsed("order_name", event.order().fullName()));
+        send(event.order().owner(), NotificationType.MY_ORDER_DONE, orderArgs(event.order()));
+        sendCompany(event.company(), NotificationType.ORDER_DELIVERED, orderArgs(event.order()));
     }
 
     @EventHandler
     public void onOrderExpiredEvent(OrderExpiredEvent event) {
-        sendCompanyMessage(
-                event.company(),
-                "notification.companyOrderExpired",
-                Replacement.unparsed("order_name", event.order().fullName()));
+        sendCompany(event.company(), NotificationType.ORDER_EXPIRED, orderArgs(event.order()));
         notifyOrderOpen(event.order());
     }
 
@@ -281,113 +394,48 @@ public class NotificationService implements Listener {
      */
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
-        var amount = Replacement.create("amount", economy.format(event.amount()));
-        var orderName = Replacement.unparsed("order_name", event.order().fullName());
+        var args = NotificationArgs.create()
+                .money("amount", format(event.amount()))
+                .text("order_name", event.order().fullName());
         if (event.tax() > 0) {
-            sendMessage(
-                    event.player(),
-                    "notification.orderPaymentTaxed",
-                    amount,
-                    orderName,
-                    Replacement.create("gross", economy.format(event.gross())),
-                    Replacement.create("tax", economy.format(event.tax())));
+            args.money("gross", format(event.gross())).money("tax", format(event.tax()));
+            send(event.player().getUniqueId(), NotificationType.PAYMENT_TAXED, args);
             return;
         }
-        sendMessage(event.player(), "notification.orderPayment", amount, orderName);
+        send(event.player().getUniqueId(), NotificationType.PAYMENT, args);
     }
 
     @EventHandler
     public void onCompanyLevelUp(CompanyLevelUpEvent event) {
-        sendCompanyMessage(
+        sendCompany(
                 event.company(),
-                "notification.companyLevelUp",
-                Replacement.create("new_level", event.newLevel().levelName()));
+                NotificationType.LEVEL_UP,
+                NotificationArgs.create().text("new_level", event.newLevel().levelName()));
     }
 
     @EventHandler
     public void onCompanyLevelDown(CompanyLevelDownEvent event) {
-        sendCompanyMessage(
+        sendCompany(
                 event.company(),
-                "notification.companyLevelDown",
-                Replacement.create("new_level", event.newLevel().levelName()));
+                NotificationType.LEVEL_DOWN,
+                NotificationArgs.create().text("new_level", event.newLevel().levelName()));
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        workerPool.schedule(
-                () -> {
-                    sendNotifications(event.getPlayer());
-                    sendDeliveredOrders(event.getPlayer());
-                },
-                1L,
-                TimeUnit.SECONDS);
-    }
-
-    private void sendDeliveredOrders(Player player) {
-        var orders = orderData
-                .retrieveOrdersByPlayer(player, OrderState.DELIVERED, OrderState.DELIVERED)
-                .join();
-        if (orders == null) return;
-        for (var order : orders) {
-            sendMessage(player, orderDoneNotice(order));
-        }
-    }
-
-    private static MenuText orderDoneNotice(ISimpleOrder order) {
-        return orderNotice(
-                "notification.orderDone", order, "/order receive " + order.id(), "notification.receiveItems");
-    }
-
-    private void sendNotifications(Player player) {
-        var byDate = claimLegacyEntries(player);
-        if (byDate.isEmpty()) return;
-        var text = MenuText.create();
-        var day = 0;
-        for (var currDate : byDate.entrySet()) {
-            if (day > 0) text.newLine();
-            text.text("<heading>").append(dayLabel(currDate.getKey(), day)).text(":<neutral>");
-            var entry = 0;
-            for (var notification : currDate.getValue()) {
-                var time = Values.text(Keys.of("time", day, entry++), TIME_FORMATTER.format(notification.created()));
-                text.newLine()
-                        .text("<name><" + time.key() + ">:<neutral> ", time)
-                        .text(legacyMessage(notification));
-            }
-            day++;
-        }
-        sender.sendMessage(player, text);
+    private String format(double amount) {
+        return economy == null ? String.valueOf(amount) : economy.format(amount);
     }
 
     /**
-     * Claims the pending legacy inbox entries of a player, so that another server does not show them again.
+     * The arguments naming an order: {@code order_name} and {@code order_id}.
      *
-     * @param player player who joined
-     * @return the claimed entries by the day they were created, oldest first
+     * @param order the order
+     * @return arguments
      */
-    private Map<LocalDate, List<InboxEntry>> claimLegacyEntries(Player player) {
-        var pending = inboxData
-                .retrievePending(List.of(player.getUniqueId()), JOIN_LIMIT)
-                .join();
-        Map<LocalDate, List<InboxEntry>> byDate = new TreeMap<>();
-        var now = LocalDateTime.now();
-        for (var entry : pending) {
-            if (entry.type() != NotificationType.LEGACY) continue;
-            if (!inboxData.submitClaim(entry.id(), now).join()) continue;
-            byDate.computeIfAbsent(entry.created().toLocalDate(), date -> new ArrayList<>())
-                    .add(entry);
-        }
-        return byDate;
+    public static NotificationArgs orderArgs(ISimpleOrder order) {
+        return NotificationArgs.create().text("order_name", order.fullName()).number("order_id", order.id());
     }
 
-    private String legacyMessage(InboxEntry entry) {
-        var message = entry.args().values().get(NotificationArgs.LEGACY_MESSAGE);
-        return message == null ? "" : localizer.localize(message.value());
-    }
-
-    private static MenuText dayLabel(LocalDate date, int day) {
-        if (date.equals(LocalDate.now())) return MenuText.create().locale("words.today");
-        if (date.equals(LocalDate.now().minusDays(1L))) return MenuText.create().locale("words.yesterday");
-        var key = Keys.of("date", day);
-        return MenuText.create().text("<" + key + ">", Values.text(key, DATE_FORMATTER.format(date)));
+    private static NotificationArgs playerArgs(@Nullable String name) {
+        return NotificationArgs.create().text("player_name", String.valueOf(name));
     }
 }
