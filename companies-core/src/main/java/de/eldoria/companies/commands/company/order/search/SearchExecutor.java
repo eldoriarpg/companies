@@ -13,6 +13,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.Deliverable;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -55,7 +56,10 @@ public class SearchExecutor {
         return BukkitFutureResult.of(companyData
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
-                .thenCombine(orders, (company, found) -> results(player, company, filled(found, query, available))));
+                .thenCombineAsync(
+                        orders,
+                        (company, found) -> results(player, company, filled(found, query, available)),
+                        Threading.VIRTUAL));
     }
 
     private static List<FullOrder> filled(List<FullOrder> orders, SearchQuery query, Map<Material, Integer> available) {
