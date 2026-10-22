@@ -14,7 +14,9 @@ import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.eldoutilities.config.JacksonConfig;
@@ -88,6 +90,20 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public NotificationSettings notificationSettings() {
         return main().notifications();
+    }
+
+    /**
+     * @return how the PlaceholderAPI values are cached
+     */
+    public PlaceholderSettings placeholderSettings() {
+        return main().placeholders();
+    }
+
+    /**
+     * @return how the company ranking is cached
+     */
+    public TopSettings topSettings() {
+        return main().top();
     }
 
     public DatabaseSettings databaseSettings() {

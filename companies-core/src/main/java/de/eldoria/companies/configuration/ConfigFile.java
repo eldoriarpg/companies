@@ -9,7 +9,9 @@ import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.MenuSettings;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
+import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.menus.MenuMode;
 
 @SuppressWarnings({"FieldMayBeFinal", "CanBeFinal"})
@@ -19,6 +21,8 @@ public class ConfigFile {
     private MenuSettings menus = new MenuSettings();
     private EconomySettings economy = new EconomySettings();
     private NotificationSettings notifications = new NotificationSettings();
+    private PlaceholderSettings placeholders = new PlaceholderSettings();
+    private TopSettings top = new TopSettings();
 
     /**
      * The configuration written for a new installation, which shows menus as dialogs.
@@ -58,5 +62,19 @@ public class ConfigFile {
      */
     public NotificationSettings notifications() {
         return notifications;
+    }
+
+    /**
+     * @return how the PlaceholderAPI values are cached
+     */
+    public PlaceholderSettings placeholders() {
+        return placeholders;
+    }
+
+    /**
+     * @return how the company ranking is cached
+     */
+    public TopSettings top() {
+        return top;
     }
 }
