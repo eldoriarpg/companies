@@ -23,7 +23,8 @@ import java.util.Set;
  * <p>
  * MockBukkit's item stacks implement neither {@code matchesWithoutData} nor {@code resetData}, and their clones drop
  * every component. This stack keeps its components through clones, resets a component by removing it from the patch,
- * and compares two stacks by type and patch without the excluded types.
+ * and compares two stacks by type and patch without the excluded types. Two stacks are similar when type and patch
+ * are equal.
  */
 @SuppressWarnings("UnstableApiUsage")
 final class ComponentStack extends ItemStackMock {
@@ -86,6 +87,11 @@ final class ComponentStack extends ItemStackMock {
         if (getType() != other.getType()) return false;
         if (!ignoreCount && getAmount() != other.getAmount()) return false;
         return Objects.equals(without(patch, excludeTypes), without(other.patch, excludeTypes));
+    }
+
+    @Override
+    public boolean isSimilar(@Nullable ItemStack stack) {
+        return stack != null && matchesWithoutData(stack, Set.of(), true);
     }
 
     private static Map<DataComponentType, Object> without(

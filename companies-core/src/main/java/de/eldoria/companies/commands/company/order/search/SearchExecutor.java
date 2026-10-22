@@ -13,16 +13,17 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.Deliverable;
+import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Runs a search for a player and keeps only the orders the player's company could accept.
@@ -34,11 +35,23 @@ public class SearchExecutor {
     private final AOrderData orderData;
     private final ACompanyData companyData;
     private final Configuration configuration;
+    private final Supplier<ItemMatcher> matcher;
 
-    public SearchExecutor(AOrderData orderData, ACompanyData companyData, Configuration configuration) {
+    /**
+     * @param orderData     order repository
+     * @param companyData   company repository
+     * @param configuration configuration of the plugin
+     * @param matcher       the current item matcher, which decides what the player can deliver
+     */
+    public SearchExecutor(
+            AOrderData orderData,
+            ACompanyData companyData,
+            Configuration configuration,
+            Supplier<ItemMatcher> matcher) {
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
+        this.matcher = matcher;
     }
 
     /**
@@ -49,7 +62,8 @@ public class SearchExecutor {
      * @return the orders the player's company could accept
      */
     public BukkitFutureResult<SearchResults> execute(Player player, SearchQuery query) {
-        Map<Material, Integer> available = query.fillable() ? Deliverable.available(player) : Map.of();
+        List<ItemStack> available = query.fillable() ? Deliverable.available(player) : List.of();
+        var itemMatcher = matcher.get();
         var orders = orderData
                 .retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
                 .asFuture();
@@ -58,16 +72,17 @@ public class SearchExecutor {
                 .asFuture()
                 .thenCombineAsync(
                         orders,
-                        (company, found) -> results(player, company, filled(found, query, available)),
+                        (company, found) -> results(player, company, filled(found, query, itemMatcher, available)),
                         Threading.VIRTUAL));
     }
 
-    private static List<FullOrder> filled(List<FullOrder> orders, SearchQuery query, Map<Material, Integer> available) {
+    private static List<FullOrder> filled(
+            List<FullOrder> orders, SearchQuery query, ItemMatcher matcher, List<ItemStack> available) {
         if (!query.fillable()) return orders;
         var fillable = new ArrayList<>(orders.stream()
-                .filter(order -> Deliverable.amount(available, order) > 0)
+                .filter(order -> Deliverable.amount(matcher, available, order) > 0)
                 .toList());
-        fillable.sort(Comparator.comparingInt((FullOrder order) -> Deliverable.amount(available, order))
+        fillable.sort(Comparator.comparingInt((FullOrder order) -> Deliverable.amount(matcher, available, order))
                 .reversed());
         return fillable;
     }
