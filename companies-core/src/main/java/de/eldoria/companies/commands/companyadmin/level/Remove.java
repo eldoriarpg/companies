@@ -34,11 +34,11 @@ public final class Remove {
     @Executes
     public void remove(CommandSender sender, @LevelNumbers int level) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         var configuration = deps.configuration();
         Levels.requirePrimary(configuration);
         Checks.isTrue(configuration.companySettings().deleteLevel(level), "error.invalidLevel");
         configuration.save();
-        LevelMenus.list(player, configuration, messageBlocker);
+        LevelMenus.list(player, configuration, menus);
     }
 }

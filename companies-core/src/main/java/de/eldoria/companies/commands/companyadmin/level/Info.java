@@ -34,11 +34,11 @@ public final class Info {
     @Executes
     public void info(CommandSender sender, @LevelNumbers int level) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         var companyLevel = deps.configuration()
                 .companySettings()
                 .level(level)
                 .orElseThrow(() -> CommandFailure.actionBar("error.invalidLevel"));
-        LevelMenus.info(player, companyLevel, messageBlocker);
+        LevelMenus.info(player, companyLevel, menus);
     }
 }

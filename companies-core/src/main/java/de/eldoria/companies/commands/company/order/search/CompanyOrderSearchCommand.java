@@ -13,7 +13,6 @@ import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.strokkur.commands.Executes;
@@ -267,25 +266,22 @@ public final class CompanyOrderSearchCommand {
     }
 
     /**
-     * The search query of a player, created when missing. Holds the chat of the player, since a search menu follows.
+     * The search query of a player, created when missing. Refuses while the services do not exist, since a search
+     * menu follows.
      *
      * @param player player searching
      * @return the query
      */
     private SearchQuery playerSearch(Player player) {
-        deps.services().messageBlocker().blockPlayer(player);
+        deps.requireReady();
         return sessions.query(player.getUniqueId());
     }
 
     private void renderSearch(Player player) {
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         var playerSearch = playerSearch(player);
         var message = MessageComposer.create().text(playerSearch.asComponent());
-        if (messageBlocker.isBlocked(player)) {
-            message.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        message.prependLines(25);
-        Menus.show(messageBlocker, player, message);
+        menus.show(player, message);
     }
 
     /**
@@ -309,8 +305,7 @@ public final class CompanyOrderSearchCommand {
 
     private void renderPage(Player player, int requestedPage) {
         var services = deps.services();
-        var messageBlocker = services.messageBlocker();
-        messageBlocker.blockPlayer(player);
+        var menus = services.menus();
         var results = sessions.results(player.getUniqueId());
         var fullOrders = results.orders();
         var page = Math.min(requestedPage, Math.max(0, (fullOrders.size() - 1) / PAGE_SIZE));
@@ -354,11 +349,7 @@ public final class CompanyOrderSearchCommand {
         } else {
             builder.text("<inactive> %s ", Texts.RIGHT_ARROW);
         }
-        if (messageBlocker.isBlocked(player)) {
-            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        builder.prependLines(25);
-        Menus.show(messageBlocker, player, builder);
+        menus.show(player, builder);
     }
 
     private static List<FullOrder> page(List<FullOrder> orders, int page) {

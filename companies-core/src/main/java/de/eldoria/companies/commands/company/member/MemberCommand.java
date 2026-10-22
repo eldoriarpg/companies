@@ -10,7 +10,6 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.strokkur.commands.Executes;
@@ -49,7 +48,7 @@ public final class MemberCommand {
     @Executes("self")
     public void self(CommandSender sender) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
@@ -62,7 +61,6 @@ public final class MemberCommand {
                         messages().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
-                    messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create()
                             .text("<heading>")
                             .localeCode("company.member.members")
@@ -103,11 +101,7 @@ public final class MemberCommand {
                         members.add(nameComp.build());
                     }
                     builder.text(members);
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    builder.prependLines(25);
-                    Menus.show(messageBlocker, player, builder);
+                    menus.show(player, builder);
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -124,7 +118,7 @@ public final class MemberCommand {
     @Executes("id")
     public void id(CommandSender sender, int id) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         deps.companyData()
                 .retrieveCompanyById(id)
                 .asFuture()
@@ -137,7 +131,6 @@ public final class MemberCommand {
                         messages().sendErrorActionBar(player, "error.unknownCompany");
                         return;
                     }
-                    messageBlocker.blockPlayer(player);
                     var optProfile = deps.companyData()
                             .retrieveCompanyProfile(optSimple.get())
                             .asFuture()
@@ -167,11 +160,7 @@ public final class MemberCommand {
                         members.add(nameComp.build());
                     }
                     builder.text(members);
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</click>");
-                    }
-                    builder.prependLines(25);
-                    Menus.show(messageBlocker, player, builder);
+                    menus.show(player, builder);
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

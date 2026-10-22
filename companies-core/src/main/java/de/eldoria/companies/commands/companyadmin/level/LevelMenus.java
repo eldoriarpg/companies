@@ -7,9 +7,8 @@ package de.eldoria.companies.commands.companyadmin.level;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
-import de.eldoria.companies.util.Menus;
+import de.eldoria.companies.menus.MenuService;
 import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -27,11 +26,10 @@ final class LevelMenus {
      *
      * @param player         player who opened the menu
      * @param configuration  configuration holding the levels
-     * @param messageBlocker blocker holding the chat while the menu is open
+     * @param menus          shows the menu
      */
-    static void list(Player player, Configuration configuration, MessageBlocker messageBlocker) {
+    static void list(Player player, Configuration configuration, MenuService menus) {
         var level = new ArrayList<String>();
-        messageBlocker.blockPlayer(player);
         for (var companyLevel : configuration.companySettings().level()) {
             var info = MessageComposer.create()
                     .text(
@@ -60,11 +58,7 @@ final class LevelMenus {
                 .text("]</click>")
                 .newLine()
                 .text(String.join("\n", level));
-        if (messageBlocker.isBlocked(player)) {
-            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        builder.prependLines(25);
-        Menus.show(messageBlocker, player, builder);
+        menus.show(player, builder);
     }
 
     /**
@@ -72,10 +66,9 @@ final class LevelMenus {
      *
      * @param player         player who opened the menu
      * @param level          the level
-     * @param messageBlocker blocker holding the chat while the menu is open
+     * @param menus          shows the menu
      */
-    static void info(Player player, CompanyLevel level, MessageBlocker messageBlocker) {
-        messageBlocker.blockPlayer(player);
+    static void info(Player player, CompanyLevel level, MenuService menus) {
         var cmd = "/companyadmin level";
         var edit = cmd + " edit " + level.level();
         var builder = MessageComposer.create()
@@ -162,10 +155,6 @@ final class LevelMenus {
                 .text("<click:suggest_command:%s delivery_hours_bonus ><modify>[", edit)
                 .localeCode("words.change")
                 .text("]</click>");
-        if (messageBlocker.isBlocked(player)) {
-            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        builder.prependLines(25);
-        Menus.show(messageBlocker, player, builder);
+        menus.show(player, builder);
     }
 }

@@ -14,10 +14,9 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Menus;
+import de.eldoria.companies.menus.MenuService;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
-import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Literal;
 import net.strokkur.commands.Subcommand;
@@ -51,7 +50,7 @@ public final class Permission {
     @Executes
     public void show(CommandSender sender, @CompanyMembers String member) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
             if (optProfile.isEmpty()) {
                 messages().sendErrorActionBar(player, "error.noMember");
@@ -68,7 +67,7 @@ public final class Permission {
                 messages().sendMessage(player, "error.invalidMember");
                 return;
             }
-            renderPermissionInterface(player, companyMember.get(), messageBlocker);
+            renderPermissionInterface(player, companyMember.get(), menus);
         });
     }
 
@@ -87,7 +86,7 @@ public final class Permission {
             @Literal({"give", "remove"}) String action,
             @CompanyPermissions String permission) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         var companyPermission = Checks.enumValue(permission, CompanyPermission.class);
         if (companyPermission == CompanyPermission.OWNER) {
             throw CommandFailure.actionBar("error.ownerPermission");
@@ -119,12 +118,11 @@ public final class Permission {
             }
             deps.companyData().submitMemberUpdate(target);
 
-            renderPermissionInterface(player, target, messageBlocker);
+            renderPermissionInterface(player, target, menus);
         });
     }
 
-    private void renderPermissionInterface(Player player, CompanyMember member, MessageBlocker messageBlocker) {
-        messageBlocker.blockPlayer(player);
+    private void renderPermissionInterface(Player player, CompanyMember member, MenuService menus) {
         List<String> permissions = new ArrayList<>();
         for (var permission : CompanyPermission.values()) {
             if (permission == CompanyPermission.OWNER) continue;
@@ -150,13 +148,7 @@ public final class Permission {
                 .text("<value> %s:", member.player().getName())
                 .newLine()
                 .text(permissions, " ");
-        if (messageBlocker.isBlocked(player)) {
-            composer.newLine()
-                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>")
-                    .build();
-        }
-        composer.prependLines(25);
-        Menus.show(messageBlocker, player, composer);
+        menus.show(player, composer);
     }
 
     private MessageSender messages() {

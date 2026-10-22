@@ -10,7 +10,6 @@ import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.entity.Player;
 
@@ -40,8 +39,7 @@ public final class CompanyOrderViews {
      */
     public void renderOrder(Player player, ISimpleCompany company, CompanyMember member, FullOrder order) {
         var services = deps.services();
-        var messageBlocker = services.messageBlocker();
-        messageBlocker.blockPlayer(player);
+        var menus = services.menus();
         var configuration = deps.configuration();
         var taxPercent = configuration.companySettings().taxPercent(company.level());
         var component = order.companyDetailInfo(
@@ -51,11 +49,7 @@ public final class CompanyOrderViews {
                 taxPercent,
                 services.deliveryService().matcher());
         var composer = MessageComposer.create().text(component);
-        if (messageBlocker.isBlocked(player)) {
-            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        composer.prependLines(25);
-        Menus.show(messageBlocker, player, composer);
+        menus.show(player, composer);
     }
 
     /**
@@ -95,8 +89,7 @@ public final class CompanyOrderViews {
                         .join())
                 .thenAccept(fullOrders -> {
                     var taxPercent = deps.configuration().companySettings().taxPercent(company.level());
-                    var messageBlocker = services.messageBlocker();
-                    messageBlocker.blockPlayer(player);
+                    var menus = services.menus();
                     var builder = MessageComposer.create()
                             .text("<heading>")
                             .localeCode("company.order.list.orders")
@@ -108,11 +101,7 @@ public final class CompanyOrderViews {
                         builder.text(order.companyShortInfo(services.economy(), taxPercent, false))
                                 .newLine();
                     }
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    builder.prependLines(25);
-                    Menus.show(messageBlocker, player, builder);
+                    menus.show(player, builder);
                     after.run();
                 })
                 .exceptionally(err -> {

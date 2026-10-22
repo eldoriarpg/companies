@@ -14,7 +14,6 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderDraftService;
-import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Permission.Orders;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
@@ -183,20 +182,15 @@ public final class OrderDraftCommand {
     }
 
     /**
-     * Shows the builder of a draft past the message blocker.
+     * Shows the builder of a draft.
      *
      * @param player owner of the draft
      * @param draft  the draft
      */
     public void show(Player player, OrderBuilder draft) {
         var services = deps.services();
-        var blocker = services.messageBlocker();
         var composer = draft.asComponent(deps.configuration().orderSetting(), services.economy(), deps.orderData());
-        if (blocker.isBlocked(player)) {
-            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        composer.prependLines(25);
-        Menus.show(blocker, player, composer);
+        services.menus().show(player, composer);
     }
 
     private void edit(CommandSender sender, BiConsumer<Player, OrderBuilder> action) {
@@ -207,7 +201,6 @@ public final class OrderDraftCommand {
             expired(player, blocker);
             return;
         }
-        blocker.blockPlayer(player);
         try {
             action.accept(player, draft.get());
         } finally {

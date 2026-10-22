@@ -9,7 +9,6 @@ import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.OwnOrderIds;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.util.Menus;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
@@ -40,7 +39,7 @@ public final class Info {
     public void info(CommandSender sender, @OwnOrderIds int id) {
         var player = Senders.player(sender);
         var services = deps.services();
-        var messageBlocker = services.messageBlocker();
+        var menus = services.menus();
         var orderData = deps.orderData();
 
         orderData
@@ -60,13 +59,8 @@ public final class Info {
                         deps.messages().sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
-                    messageBlocker.blockPlayer(player);
                     var builder = fullOrder.userDetailInfo(services.economy(), deps.configuration());
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    builder.prependLines(25);
-                    Menus.show(messageBlocker, player, builder);
+                    menus.show(player, builder);
                 });
     }
 }

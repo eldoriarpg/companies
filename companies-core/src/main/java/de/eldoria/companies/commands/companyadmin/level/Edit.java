@@ -47,7 +47,7 @@ public final class Edit {
             @LevelFields String field,
             @LevelValues @StringArg(StringArgType.GREEDY) String value) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         var configuration = deps.configuration();
         Levels.requirePrimary(configuration);
         var companyLevel = Levels.level(configuration, level);
@@ -67,7 +67,7 @@ public final class Edit {
             default -> throw CommandFailure.actionBar("error.unkownField");
         }
         configuration.save();
-        LevelMenus.info(player, companyLevel, messageBlocker);
+        LevelMenus.info(player, companyLevel, menus);
     }
 
     /**

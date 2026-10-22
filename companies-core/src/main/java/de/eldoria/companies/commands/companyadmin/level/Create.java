@@ -45,10 +45,10 @@ public final class Create {
     @Executes
     public void create(CommandSender sender, @LevelNumbers int index) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         Levels.requirePrimary(deps.configuration());
         var level = deps.configuration().companySettings().createLevel(index);
         deps.configuration().save();
-        LevelMenus.info(player, level, messageBlocker);
+        LevelMenus.info(player, level, menus);
     }
 }

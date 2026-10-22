@@ -12,7 +12,6 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.orders.OrderLimits;
-import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.strokkur.commands.Executes;
@@ -67,7 +66,7 @@ public final class List {
     public void showOrders(Player player, Runnable whenComplete) {
         var services = deps.services();
         var economy = services.economy();
-        var messageBlocker = services.messageBlocker();
+        var menus = services.menus();
         var orderData = deps.orderData();
         var usage = deps.drafts().limits().usage(player).asFuture();
         var waiting = orderData
@@ -96,7 +95,6 @@ public final class List {
                 .thenCombine(waiting, OrdersView::withWaiting)
                 .thenAccept(view -> {
                     var limits = view.usage();
-                    messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create()
                             .localeCode("order.list.orders")
                             .text(" (%s/%s):", limits.active(), limits.limit())
@@ -120,11 +118,7 @@ public final class List {
                     for (var order : view.orders()) {
                         builder.newLine().text(order.userShortInfo(economy));
                     }
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    builder.prependLines(25);
-                    Menus.show(messageBlocker, player, builder);
+                    menus.show(player, builder);
                     whenComplete.run();
                 })
                 .exceptionally(err -> {

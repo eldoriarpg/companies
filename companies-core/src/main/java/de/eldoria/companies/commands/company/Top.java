@@ -12,7 +12,6 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.util.Colors;
-import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.strokkur.commands.Executes;
@@ -82,8 +81,7 @@ public final class Top {
 
     private void sendPage(
             Player player, int page, TopOrder order, List<CompanyRank> ranks, CommandDependencies.Services services) {
-        var messageBlocker = services.messageBlocker();
-        messageBlocker.blockPlayer(player);
+        var menus = services.menus();
         var composer = MessageComposer.create()
                 .text("<heading>")
                 .localeCode("company.top.ranking")
@@ -123,10 +121,6 @@ public final class Top {
                     "<click:run_command:/company top %s %s><active>%s</click>",
                     page + 1, order.name(), Texts.RIGHT_ARROW);
         }
-        if (messageBlocker.isBlocked(player)) {
-            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        composer.prependLines(25);
-        Menus.show(messageBlocker, player, composer);
+        menus.show(player, composer);
     }
 }

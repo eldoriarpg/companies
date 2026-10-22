@@ -59,6 +59,6 @@ public final class LevelCommand {
     @Executes("list")
     public void list(CommandSender sender) {
         var player = Senders.player(sender);
-        LevelMenus.list(player, deps.configuration(), deps.services().messageBlocker());
+        LevelMenus.list(player, deps.configuration(), deps.services().menus());
     }
 }

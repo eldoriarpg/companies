@@ -34,12 +34,12 @@ public final class Move {
     @Executes
     public void move(CommandSender sender, @LevelNumbers int source, @LevelNumbers int target) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         var configuration = deps.configuration();
         Levels.requirePrimary(configuration);
         Levels.level(configuration, source);
         configuration.companySettings().moveLevel(source, target);
         configuration.save();
-        LevelMenus.list(player, configuration, messageBlocker);
+        LevelMenus.list(player, configuration, menus);
     }
 }
