@@ -85,6 +85,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                                                .join();
                        if (optOrder.isEmpty()) {
                            messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                           return;
                        }
 
                        var simpleOrder = optOrder.get();
