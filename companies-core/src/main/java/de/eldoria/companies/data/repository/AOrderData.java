@@ -15,9 +15,12 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -32,6 +35,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -110,21 +114,108 @@ public abstract class AOrderData {
         return CompletableFuture.supplyAsync(() -> getDeadOrders(hours), VIRTUAL);
     }
 
-    public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrdersByCompany(int hours, SimpleCompany company) {
-        return CompletableFuture.supplyAsync(() -> getExpiredOrdersByCompany(hours, company), VIRTUAL);
-    }
-
-    protected abstract List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company);
-
-    public BukkitFutureResult<Boolean> submitOrderClaim(SimpleCompany company, SimpleOrder order) {
+    public BukkitFutureResult<Boolean> submitOrderClaim(SimpleCompany company, SimpleOrder order, int deliveryBonus) {
         return CompletableBukkitFuture.supplyAsync(() -> {
-            var result = claimOrder(company, order);
+            var result = claimOrder(company, order, deliveryBonus);
             invalidateFullOrder(order);
             return result;
         });
     }
 
-    protected abstract boolean claimOrder(SimpleCompany company, SimpleOrder order);
+    /**
+     * Claims an unclaimed order for a company.
+     *
+     * @param company       company claiming the order
+     * @param order         order to claim
+     * @param deliveryBonus extra delivery hours the company gets from its level
+     * @return true if the order was unclaimed and is now claimed
+     */
+    protected abstract boolean claimOrder(SimpleCompany company, SimpleOrder order, int deliveryBonus);
+
+    public BukkitFutureResult<Boolean> submitOrderExtension(SimpleOrder order, int maxExtensions) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var extended = extendOrder(order, maxExtensions);
+                    invalidateFullOrder(order);
+                    return extended;
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Restarts the purge timer of an unclaimed order and counts the extension.
+     *
+     * @param order         order to extend
+     * @param maxExtensions extensions an order may have
+     * @return true if the order was unclaimed and had extensions left
+     */
+    protected abstract boolean extendOrder(SimpleOrder order, int maxExtensions);
+
+    public CompletableFuture<List<SimpleOrder>> retrievePurgeWarnings(int maxUnclaimedHours, int warningHours) {
+        return CompletableFuture.supplyAsync(
+                () -> getPurgeWarnings(Math.max(0, maxUnclaimedHours - warningHours)), VIRTUAL);
+    }
+
+    /**
+     * Unclaimed orders whose owner has to be warned about the purge: older than the given hours and not warned since
+     * their last update.
+     *
+     * @param hours hours since the last update after which the owner is warned
+     * @return orders to warn about
+     */
+    protected abstract List<SimpleOrder> getPurgeWarnings(int hours);
+
+    public BukkitFutureResult<Boolean> submitPurgeWarning(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> markPurgeWarning(order), VIRTUAL);
+    }
+
+    /**
+     * Records that the owner of an unclaimed order was warned about the purge.
+     *
+     * @param order order the owner is warned about
+     * @return true if the order is unclaimed and was not warned about since its last update
+     */
+    protected abstract boolean markPurgeWarning(SimpleOrder order);
+
+    public BukkitFutureResult<Boolean> submitPriceRaise(
+            SimpleOrder order, Map<Material, Double> increases, double extraFee) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var raised = raisePrice(order, increases, extraFee);
+                    invalidateFullOrder(order);
+                    return raised;
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Raises the prices of the contents of an unclaimed order and adds to its fee.
+     *
+     * @param order     order to raise the price of
+     * @param increases amount to add to the price of each material
+     * @param extraFee  amount to add to the fee
+     * @return true if the order was unclaimed and is now changed
+     */
+    protected abstract boolean raisePrice(SimpleOrder order, Map<Material, Double> increases, double extraFee);
+
+    public BukkitFutureResult<Boolean> submitOrderReceive(SimpleOrder order, List<ItemAmount> pending) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var received = receiveOrder(order, pending);
+                    invalidateFullOrder(order);
+                    return received;
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Marks a delivered order as received and stores the items which wait for the owner.
+     *
+     * @param order   order to receive
+     * @param pending items that did not fit into the owner's inventory
+     * @return true if the order was delivered and is now received
+     */
+    protected abstract boolean receiveOrder(SimpleOrder order, List<ItemAmount> pending);
 
     /**
      * Marks a claimed and completely delivered order as delivered.
@@ -171,11 +262,24 @@ public abstract class AOrderData {
      */
     protected abstract Optional<Set<UUID>> unclaimOrder(SimpleOrder order);
 
-    public BukkitFutureResult<List<ItemReturn>> retrieveItemReturns(UUID worker) {
-        return CompletableBukkitFuture.supplyAsync(() -> getItemReturns(worker), VIRTUAL);
+    public BukkitFutureResult<List<ItemReturn>> retrieveItemReturns(UUID player, ReturnKind kind) {
+        return CompletableBukkitFuture.supplyAsync(() -> getItemReturns(player, kind), VIRTUAL);
     }
 
-    protected abstract List<ItemReturn> getItemReturns(UUID worker);
+    protected abstract List<ItemReturn> getItemReturns(UUID player, ReturnKind kind);
+
+    public BukkitFutureResult<Integer> retrieveItemReturnCount(UUID player, ReturnKind kind) {
+        return CompletableBukkitFuture.supplyAsync(() -> countItemReturns(player, kind), VIRTUAL);
+    }
+
+    /**
+     * Counts the stored items of a kind waiting for a player.
+     *
+     * @param player player owning the items
+     * @param kind   kind of the items
+     * @return amount of items
+     */
+    protected abstract int countItemReturns(UUID player, ReturnKind kind);
 
     public BukkitFutureResult<Boolean> submitItemReturnTake(ItemReturn itemReturn, int amount) {
         return CompletableBukkitFuture.supplyAsync(() -> takeItemReturn(itemReturn, amount), VIRTUAL);
@@ -190,19 +294,20 @@ public abstract class AOrderData {
      */
     protected abstract boolean takeItemReturn(ItemReturn itemReturn, int amount);
 
-    public BukkitFutureResult<Boolean> submitItemReturn(UUID worker, ItemStack stack, int amount) {
-        return CompletableBukkitFuture.supplyAsync(() -> addItemReturn(worker, stack, amount), VIRTUAL);
+    public BukkitFutureResult<Boolean> submitItemReturn(UUID player, ReturnKind kind, ItemStack stack, int amount) {
+        return CompletableBukkitFuture.supplyAsync(() -> addItemReturn(player, kind, stack, amount), VIRTUAL);
     }
 
     /**
-     * Stores items which have to be handed to a worker later.
+     * Stores items which have to be handed to a player later.
      *
-     * @param worker worker owning the items
+     * @param player player owning the items
+     * @param kind   why the items wait
      * @param stack  item to store
      * @param amount amount of items
      * @return true if the items were stored
      */
-    protected abstract boolean addItemReturn(UUID worker, ItemStack stack, int amount);
+    protected abstract boolean addItemReturn(UUID player, ReturnKind kind, ItemStack stack, int amount);
 
     public BukkitFutureResult<Integer> submitDelivery(
             OfflinePlayer player, SimpleOrder order, Material material, int amount) {
@@ -263,7 +368,9 @@ public abstract class AOrderData {
                 row.getInt("company"),
                 row.getTimestamp("last_update").toLocalDateTime(),
                 OrderState.byId(row.getInt("state")),
-                row.getDouble("fee"));
+                row.getDouble("fee"),
+                row.getInt("extensions"),
+                row.getInt("delivery_bonus"));
     }
 
     public BukkitFutureResult<List<FullOrder>> retrieveFullOrders(List<SimpleOrder> orders) {
@@ -322,7 +429,7 @@ public abstract class AOrderData {
 
     protected abstract Integer getCompanyOrderCount(ISimpleCompany company);
 
-    public BukkitFutureResult<Set<UUID>> submitCompanyOrdersPurge(SimpleCompany profile) {
+    public BukkitFutureResult<ReleasedOrders> submitCompanyOrdersPurge(SimpleCompany profile) {
         return CompletableBukkitFuture.supplyAsync(() -> purgeCompanyOrders(profile), VIRTUAL);
     }
 
@@ -330,9 +437,9 @@ public abstract class AOrderData {
      * Releases all orders claimed by the company.
      *
      * @param profile company to release the orders of
-     * @return the workers who got items returned
+     * @return the released orders and the workers who got items returned
      */
-    protected abstract Set<UUID> purgeCompanyOrders(SimpleCompany profile);
+    protected abstract ReleasedOrders purgeCompanyOrders(SimpleCompany profile);
 
     public BukkitFutureResult<Boolean> submitOrderPurge(SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(

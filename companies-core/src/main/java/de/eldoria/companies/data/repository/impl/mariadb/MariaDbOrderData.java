@@ -15,9 +15,12 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -25,9 +28,11 @@ import org.bukkit.inventory.ItemStack;
 import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -114,12 +119,14 @@ public class MariaDbOrderData extends AOrderData {
                     owner_uuid,
                     name,
                     created,
-                    o.fee
+                    o.fee,
+                    extensions,
+                    delivery_bonus
                 FROM
                     order_states s
                         LEFT JOIN orders o
                         ON o.id = s.id
-                WHERE last_update < NOW() - INTERVAL ? HOUR
+                WHERE last_update < NOW() - INTERVAL (? + delivery_bonus) HOUR
                   AND company IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
@@ -141,7 +148,9 @@ public class MariaDbOrderData extends AOrderData {
                     owner_uuid,
                     name,
                     created,
-                    o.fee
+                    o.fee,
+                    extensions,
+                    delivery_bonus
                 FROM
                     order_states s
                         JOIN orders o
@@ -156,46 +165,20 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
-        @Language("mariadb")
-        var query = """
-                SELECT
-                    o.id,
-                    last_update,
-                    company,
-                    state,
-                    owner_uuid,
-                    name,
-                    created,
-                    o.fee
-                FROM
-                    order_states s
-                        LEFT JOIN orders o
-                        ON o.id = s.id
-                WHERE last_update < NOW() - INTERVAL ? HOUR
-                  AND company = ?
-                  AND state = ?
-                ORDER BY last_update
-                """;
-        return query(query)
-                .single(call().bind(hours).bind(company.id()).bind(OrderState.CLAIMED.stateId()))
-                .map(this::buildSimpleOrder)
-                .all();
-    }
-
-    @Override
-    protected boolean claimOrder(SimpleCompany company, SimpleOrder order) {
+    protected boolean claimOrder(SimpleCompany company, SimpleOrder order, int deliveryBonus) {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
-                SET state       = ?,
-                    company     = ?,
-                    last_update = CURRENT_TIMESTAMP
+                SET state          = ?,
+                    company        = ?,
+                    delivery_bonus = ?,
+                    last_update    = CURRENT_TIMESTAMP
                 WHERE id = ?
                   AND state = ?""";
         return query(query)
                 .single(call().bind(OrderState.CLAIMED.stateId())
                         .bind(company.id())
+                        .bind(deliveryBonus)
                         .bind(order.id())
                         .bind(OrderState.UNCLAIMED.stateId()))
                 .update()
@@ -231,9 +214,10 @@ public class MariaDbOrderData extends AOrderData {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
-                SET state       = ?,
-                    company     = NULL,
-                    last_update = CURRENT_TIMESTAMP
+                SET state          = ?,
+                    company        = NULL,
+                    delivery_bonus = 0,
+                    last_update    = CURRENT_TIMESTAMP
                 WHERE id = ?
                   AND state = ?""";
         @Language("mariadb")
@@ -277,15 +261,131 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected List<ItemReturn> getItemReturns(UUID worker) {
+    protected boolean extendOrder(SimpleOrder order, int maxExtensions) {
+        @Language("mariadb")
+        var query = """
+                UPDATE order_states
+                SET last_update = CURRENT_TIMESTAMP,
+                    extensions  = extensions + 1
+                WHERE id = ?
+                  AND state = ?
+                  AND extensions < ?""";
+        return query(query)
+                .single(call().bind(order.id())
+                        .bind(OrderState.UNCLAIMED.stateId())
+                        .bind(maxExtensions))
+                .update()
+                .changed();
+    }
+
+    @Override
+    protected List<SimpleOrder> getPurgeWarnings(int hours) {
+        @Language("mariadb")
+        var query = """
+                SELECT
+                    o.id,
+                    last_update,
+                    company,
+                    state,
+                    owner_uuid,
+                    name,
+                    created,
+                    o.fee,
+                    extensions,
+                    delivery_bonus
+                FROM
+                    order_states s
+                        JOIN orders o
+                        ON o.id = s.id
+                WHERE last_update < NOW() - INTERVAL ? HOUR
+                  AND state = ?
+                  AND (purge_warning IS NULL OR purge_warning <= last_update)
+                ORDER BY last_update""";
+        return query(query)
+                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
+                .map(this::buildSimpleOrder)
+                .all();
+    }
+
+    @Override
+    protected boolean markPurgeWarning(SimpleOrder order) {
+        @Language("mariadb")
+        var query = """
+                UPDATE order_states
+                SET purge_warning = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND state = ?
+                  AND (purge_warning IS NULL OR purge_warning <= last_update)""";
+        return query(query)
+                .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    protected boolean raisePrice(SimpleOrder order, Map<Material, Double> increases, double extraFee) {
+        @Language("mariadb")
+        var raise = """
+                UPDATE order_content
+                SET price = price + ?
+                WHERE id = ?
+                  AND material = ?""";
+        @Language("mariadb")
+        var fee = """
+                UPDATE orders
+                SET fee = fee + ?
+                WHERE id = ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            if (!lockOrder(conf, order, OrderState.UNCLAIMED)) return false;
+            for (var increase : increases.entrySet()) {
+                conf.query(raise)
+                        .single(call().bind(increase.getValue())
+                                .bind(order.id())
+                                .bind(increase.getKey().name()))
+                        .update();
+            }
+            conf.query(fee).single(call().bind(extraFee).bind(order.id())).update();
+        }
+        return conf.context().exceptions().isEmpty();
+    }
+
+    @Override
+    protected boolean receiveOrder(SimpleOrder order, List<ItemAmount> pending) {
+        @Language("mariadb")
+        var receive = """
+                UPDATE order_states
+                SET state = ?
+                WHERE id = ?
+                  AND state = ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            var received = conf.query(receive)
+                    .single(call().bind(OrderState.RECEIVED.stateId())
+                            .bind(order.id())
+                            .bind(OrderState.DELIVERED.stateId()))
+                    .update();
+            if (!received.changed()) return false;
+            for (var item : pending) {
+                conf.query(itemReturnInsert())
+                        .single(itemReturnCall(order.owner(), ReturnKind.OWNER, item.stack(), item.amount()))
+                        .insert();
+            }
+        }
+        return conf.context().exceptions().isEmpty();
+    }
+
+    @Override
+    protected List<ItemReturn> getItemReturns(UUID player, ReturnKind kind) {
         @Language("mariadb")
         var query = """
                 SELECT id, stack, amount
                 FROM item_returns
                 WHERE worker_uuid = ?
+                  AND kind = ?
                 ORDER BY id""";
         return query(query)
-                .single(call().bind(worker, UUID_BYTES))
+                .single(call().bind(player, UUID_BYTES).bind(kind.id()))
                 .map(row -> new ItemReturn(row.getInt("id"), toItemStack(row.getString("stack")), row.getInt("amount")))
                 .all();
     }
@@ -312,18 +412,40 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected boolean addItemReturn(UUID worker, ItemStack stack, int amount) {
+    protected int countItemReturns(UUID player, ReturnKind kind) {
         @Language("mariadb")
         var query = """
-                INSERT INTO item_returns(worker_uuid, material, stack, amount)
-                VALUES (?, ?, ?, ?)""";
+                SELECT COALESCE(SUM(amount), 0) AS amount
+                FROM item_returns
+                WHERE worker_uuid = ?
+                  AND kind = ?""";
         return query(query)
-                .single(call().bind(worker, UUID_BYTES)
-                        .bind(stack.getType().name())
-                        .bind(toJson(stack))
-                        .bind(amount))
+                .single(call().bind(player, UUID_BYTES).bind(kind.id()))
+                .map(row -> row.getInt("amount"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
+    protected boolean addItemReturn(UUID player, ReturnKind kind, ItemStack stack, int amount) {
+        return query(itemReturnInsert())
+                .single(itemReturnCall(player, kind, stack, amount))
                 .insert()
                 .changed();
+    }
+
+    private static String itemReturnInsert() {
+        return """
+                INSERT INTO item_returns(worker_uuid, kind, material, stack, amount)
+                VALUES (?, ?, ?, ?, ?)""";
+    }
+
+    private Call itemReturnCall(UUID player, ReturnKind kind, ItemStack stack, int amount) {
+        return call().bind(player, UUID_BYTES)
+                .bind(kind.id())
+                .bind(stack.getType().name())
+                .bind(toJson(stack))
+                .bind(amount);
     }
 
     @Override
@@ -340,7 +462,7 @@ public class MariaDbOrderData extends AOrderData {
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         int delivered;
         try (conf) {
-            if (!lockClaimedOrder(conf, order)) return 0;
+            if (!lockOrder(conf, order, OrderState.CLAIMED)) return 0;
             var missing = conf.query(missingQuery)
                     .single(call().bind(order.id()).bind(material.name()))
                     .map(row -> row.getInt("missing"))
@@ -359,15 +481,17 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     /**
-     * Locks the state of the order for the rest of the transaction if the order is claimed.
+     * Locks the state of the order for the rest of the transaction if the order is in the given state.
      * <p>
-     * Concurrent deliveries to the same order wait for each other, so the missing amount can not be exceeded.
+     * Concurrent changes to the same order wait for each other, so a delivery can not exceed the missing amount and a
+     * price raise can not overlap with an accept.
      *
      * @param conf  transaction to lock in
      * @param order order to lock
-     * @return true if the order is claimed
+     * @param state state the order has to be in
+     * @return true if the order is in the state
      */
-    protected boolean lockClaimedOrder(ConnectedQueryConfiguration conf, SimpleOrder order) {
+    protected boolean lockOrder(ConnectedQueryConfiguration conf, SimpleOrder order, OrderState state) {
         @Language("mariadb")
         var query = """
                 SELECT id
@@ -376,7 +500,7 @@ public class MariaDbOrderData extends AOrderData {
                   AND state = ?
                     FOR UPDATE""";
         return conf.query(query)
-                .single(call().bind(order.id()).bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(order.id()).bind(state.stateId()))
                 .map(row -> row.getInt("id"))
                 .first()
                 .isPresent();
@@ -409,7 +533,9 @@ public class MariaDbOrderData extends AOrderData {
                     company,
                     last_update,
                     state,
-                    o.fee
+                    o.fee,
+                    extensions,
+                    delivery_bonus
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -430,7 +556,9 @@ public class MariaDbOrderData extends AOrderData {
                     company,
                     last_update,
                     state,
-                    o.fee
+                    o.fee,
+                    extensions,
+                    delivery_bonus
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -455,7 +583,9 @@ public class MariaDbOrderData extends AOrderData {
                     company,
                     last_update,
                     state,
-                    o.fee
+                    o.fee,
+                    extensions,
+                    delivery_bonus
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -481,7 +611,9 @@ public class MariaDbOrderData extends AOrderData {
                     company,
                     last_update,
                     state,
-                    o.fee
+                    o.fee,
+                    extensions,
+                    delivery_bonus
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -569,13 +701,17 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected Set<UUID> purgeCompanyOrders(SimpleCompany profile) {
+    protected ReleasedOrders purgeCompanyOrders(SimpleCompany profile) {
         Set<UUID> workers = new HashSet<>();
+        List<SimpleOrder> released = new ArrayList<>();
         for (var simpleOrder : ordersByCompany(profile, OrderState.CLAIMED, OrderState.CLAIMED)) {
-            unclaimOrder(simpleOrder).ifPresent(workers::addAll);
+            var returned = unclaimOrder(simpleOrder);
             invalidateFullOrder(simpleOrder);
+            if (returned.isEmpty()) continue;
+            workers.addAll(returned.get());
+            released.add(simpleOrder);
         }
-        return workers;
+        return new ReleasedOrders(released, workers);
     }
 
     @Override
@@ -611,7 +747,7 @@ public class MariaDbOrderData extends AOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("mariadb")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus
                 FROM orders o
                          LEFT JOIN (SELECT c.id, GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c

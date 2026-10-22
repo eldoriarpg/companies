@@ -21,6 +21,7 @@ import org.bukkit.OfflinePlayer;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 @SuppressWarnings("UnusedReturnValue")
@@ -120,6 +121,20 @@ public abstract class ACompanyData {
      * @return true if the name was changed
      */
     protected abstract boolean setCompanyName(SimpleCompany company, String name);
+
+    public BukkitFutureResult<Boolean> submitOwnerTransfer(ISimpleCompany company, UUID owner, UUID target) {
+        return CompletableBukkitFuture.supplyAsync(() -> transferOwner(company, owner, target), executorService);
+    }
+
+    /**
+     * Moves the ownership of a company from its owner to another member in one step.
+     *
+     * @param company company to transfer
+     * @param owner   current owner
+     * @param target  member who becomes the owner
+     * @return true if the owner still owned the company, the target was a member and the ownership moved
+     */
+    protected abstract boolean transferOwner(ISimpleCompany company, UUID owner, UUID target);
 
     public abstract List<SimpleCompany> getCompanies();
 

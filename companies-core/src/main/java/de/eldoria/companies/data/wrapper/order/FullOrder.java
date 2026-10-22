@@ -39,8 +39,10 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
             LocalDateTime claimed,
             OrderState state,
             double fee,
+            int extensions,
+            int deliveryBonus,
             List<OrderContent> contents) {
-        super(id, owner, name, created, company, claimed, state, fee);
+        super(id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus);
         this.contents = contents;
     }
 
@@ -152,9 +154,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 composer.text("<name>")
                         .localeCode(
                                 "order.info.dueIn",
-                                Replacement.create(
-                                        "duration",
-                                        timeLeft(configuration.companySettings().deliveryHours())));
+                                Replacement.create("duration", timeLeft(deliveryHours(configuration))));
             case DELIVERED ->
                 composer.text("<click:run_command:/order receive %s><add>[", id())
                         .localeCode("words.receive")

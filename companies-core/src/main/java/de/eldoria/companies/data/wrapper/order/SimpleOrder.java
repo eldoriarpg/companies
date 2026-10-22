@@ -24,6 +24,8 @@ public class SimpleOrder implements ISimpleOrder {
     private final LocalDateTime claimed;
     private final OrderState state;
     private final double fee;
+    private final int extensions;
+    private final int deliveryBonus;
     private String name;
 
     public SimpleOrder(UUID owner, String name) {
@@ -46,8 +48,24 @@ public class SimpleOrder implements ISimpleOrder {
         claimed = null;
         state = null;
         this.fee = fee;
+        extensions = 0;
+        deliveryBonus = 0;
     }
 
+    /**
+     * Creates a saved order.
+     *
+     * @param id            id of the order
+     * @param owner         owner of the order
+     * @param name          name of the order
+     * @param created       when the order was placed
+     * @param company       company working on the order, or 0 when none
+     * @param claimed       last state change, which is when the order was accepted while it is claimed
+     * @param state         state of the order
+     * @param fee           fee the owner paid
+     * @param extensions    how often the owner extended the purge timer
+     * @param deliveryBonus extra delivery hours the accepting company got from its level
+     */
     public SimpleOrder(
             int id,
             UUID owner,
@@ -56,7 +74,9 @@ public class SimpleOrder implements ISimpleOrder {
             int company,
             LocalDateTime claimed,
             OrderState state,
-            double fee) {
+            double fee,
+            int extensions,
+            int deliveryBonus) {
         this.id = id;
         this.owner = owner;
         this.name = Texts.trimLeft(name, 32);
@@ -65,10 +85,13 @@ public class SimpleOrder implements ISimpleOrder {
         this.claimed = claimed;
         this.state = state;
         this.fee = fee;
+        this.extensions = extensions;
+        this.deliveryBonus = deliveryBonus;
     }
 
     public FullOrder toFullOrder(List<OrderContent> contents) {
-        return new FullOrder(id, owner, name, created, company, claimed, state, fee, contents);
+        return new FullOrder(
+                id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus, contents);
     }
 
     @Override
@@ -121,10 +144,37 @@ public class SimpleOrder implements ISimpleOrder {
         return fee;
     }
 
+    /**
+     * How often the owner extended the purge timer of this order.
+     *
+     * @return extensions used
+     */
+    public int extensions() {
+        return extensions;
+    }
+
+    /**
+     * Extra delivery hours the accepting company got from its level.
+     *
+     * @return bonus hours, 0 while the order is not claimed
+     */
+    public int deliveryBonus() {
+        return deliveryBonus;
+    }
+
+    /**
+     * Hours the company has to deliver this order once it accepted it.
+     *
+     * @param configuration configuration providing the base delivery time
+     * @return delivery hours including the level bonus
+     */
+    public int deliveryHours(Configuration configuration) {
+        return configuration.companySettings().deliveryHours() + deliveryBonus;
+    }
+
     public String runningOutTime(Configuration configuration) {
-        var duration = Duration.between(
-                LocalDateTime.now(),
-                claimed().plus(configuration.companySettings().deliveryHours(), ChronoUnit.HOURS));
+        var duration =
+                Duration.between(LocalDateTime.now(), claimed().plus(deliveryHours(configuration), ChronoUnit.HOURS));
         return Texts.prettyDuration(duration);
     }
 }

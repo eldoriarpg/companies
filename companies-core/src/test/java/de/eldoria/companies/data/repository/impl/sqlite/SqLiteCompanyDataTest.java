@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
+import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,5 +67,58 @@ class SqLiteCompanyDataTest {
         companyData.upcountFailedOrders(company, 3);
 
         Assertions.assertEquals(1, SqLiteTestDatabase.count("company_stats", "id = " + id + " AND failed_orders = 5"));
+    }
+
+    private boolean isOwner(int company, UUID member) {
+        return companyData
+                .retrieveCompanyProfile(
+                        companyData.retrieveCompanyById(company).join().orElseThrow())
+                .join()
+                .orElseThrow()
+                .members()
+                .stream()
+                .filter(m -> m.uuid().equals(member))
+                .findFirst()
+                .orElseThrow()
+                .isOwner();
+    }
+
+    @Test
+    void ownershipMovesToTheTarget() {
+        var owner = UUID.randomUUID();
+        var member = UUID.randomUUID();
+        var id = companyData.submitCompanyCreation("Miners").join();
+        companyData
+                .submitMemberUpdate(CompanyMember.of(id, owner, CompanyPermission.OWNER.mask()))
+                .join();
+        companyData.submitMemberUpdate(CompanyMember.of(id, member, 0)).join();
+        var company = companyData.retrieveCompanyById(id).join().orElseThrow();
+
+        Assertions.assertTrue(
+                companyData.submitOwnerTransfer(company, owner, member).join());
+        Assertions.assertFalse(isOwner(id, owner));
+        Assertions.assertTrue(isOwner(id, member));
+        Assertions.assertFalse(
+                companyData.submitOwnerTransfer(company, owner, member).join());
+    }
+
+    @Test
+    void ownershipStaysWhenTheTargetIsNoMember() {
+        var owner = UUID.randomUUID();
+        var id = companyData.submitCompanyCreation("Miners").join();
+        companyData
+                .submitMemberUpdate(CompanyMember.of(id, owner, CompanyPermission.OWNER.mask()))
+                .join();
+        var otherCompany = createCompany("Farmers");
+        var outsider = UUID.randomUUID();
+        companyData
+                .submitMemberUpdate(CompanyMember.of(otherCompany, outsider, 0))
+                .join();
+        var company = companyData.retrieveCompanyById(id).join().orElseThrow();
+
+        Assertions.assertFalse(
+                companyData.submitOwnerTransfer(company, owner, outsider).join());
+        Assertions.assertTrue(isOwner(id, owner));
+        Assertions.assertFalse(isOwner(otherCompany, outsider));
     }
 }

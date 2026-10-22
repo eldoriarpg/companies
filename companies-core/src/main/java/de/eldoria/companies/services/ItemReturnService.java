@@ -7,6 +7,7 @@ package de.eldoria.companies.services;
 
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.util.Inventories;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -81,7 +82,7 @@ public class ItemReturnService implements Listener {
      */
     public void handOut(Player player, boolean silent) {
         orderData
-                .retrieveItemReturns(player.getUniqueId())
+                .retrieveItemReturns(player.getUniqueId(), ReturnKind.WORKER)
                 .whenComplete(
                         returns -> {
                             if (returns.isEmpty()) {
@@ -123,7 +124,8 @@ public class ItemReturnService implements Listener {
     private void give(Player player, List<Map.Entry<ItemReturn, Integer>> taken, int total) {
         if (!player.isOnline()) {
             for (var entry : taken) {
-                orderData.submitItemReturn(player.getUniqueId(), entry.getKey().stack(), entry.getValue());
+                orderData.submitItemReturn(
+                        player.getUniqueId(), ReturnKind.WORKER, entry.getKey().stack(), entry.getValue());
             }
             return;
         }

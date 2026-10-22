@@ -8,6 +8,7 @@ package de.eldoria.companies.commands.order;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.util.Inventories;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -74,7 +75,8 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     if (!player.isOnline()) {
                         for (var content : order.contents()) {
-                            orderData.submitItemReturn(player.getUniqueId(), content.stack(), content.amount());
+                            orderData.submitItemReturn(
+                                    player.getUniqueId(), ReturnKind.OWNER, content.stack(), content.amount());
                         }
                         return;
                     }

@@ -8,7 +8,6 @@ package de.eldoria.companies.data.repository.impl.postgres;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.intellij.lang.annotations.Language;
@@ -42,11 +41,13 @@ public class PostgresOrderData extends MariaDbOrderData {
                        owner_uuid,
                        name,
                        created,
-                       o.fee
+                       o.fee,
+                       extensions,
+                       delivery_bonus
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
-                WHERE last_update < now() - (? || ' HOUR')::INTERVAL
+                WHERE last_update < now() - ((? + delivery_bonus) || ' HOUR')::INTERVAL
                   AND company IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
@@ -67,7 +68,9 @@ public class PostgresOrderData extends MariaDbOrderData {
                        owner_uuid,
                        name,
                        created,
-                       o.fee
+                       o.fee,
+                       extensions,
+                       delivery_bonus
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -81,7 +84,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
+    protected List<SimpleOrder> getPurgeWarnings(int hours) {
         @Language("postgresql")
         var query = """
                 SELECT o.id,
@@ -91,16 +94,18 @@ public class PostgresOrderData extends MariaDbOrderData {
                        owner_uuid,
                        name,
                        created,
-                       o.fee
+                       o.fee,
+                       extensions,
+                       delivery_bonus
                 FROM order_states s
-                         LEFT JOIN orders o
-                                   ON o.id = s.id
+                         JOIN orders o
+                              ON o.id = s.id
                 WHERE last_update < now() - (? || ' HOUR')::INTERVAL
-                  AND company = ?
                   AND state = ?
+                  AND (purge_warning IS NULL OR purge_warning <= last_update)
                 ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours).bind(company.id()).bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -118,7 +123,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("postgresql")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus
                 FROM orders o
                          LEFT JOIN (SELECT c.id, string_agg(c.material, ' ') AS materials, sum(amount) AS amount, sum(price) AS price
                                     FROM order_content c
