@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -19,7 +20,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
-import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.entity.Player;
@@ -69,31 +69,41 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var name = arguments.join();
         CommandAssertions.invalidLength(name, MAX_NAME_LENGTH);
 
-        companyData.retrieveCompanyByName(name)
-                   .whenComplete(company -> {
-                       if (company.isPresent()) {
-                           messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+        companyData.retrievePlayerCompany(player)
+                   .whenComplete(current -> {
+                       if (current.isPresent()) {
+                           messageSender().sendErrorActionBar(player, "error.alreadyMember");
                            return;
                        }
-
-                       var composer = MessageComposer.create()
-                                                     .text("<neutral>")
-                                                     .localeCode("company.create.create",
-                                                             Replacement.create("amount", String.format("%s",
-                                                                     economy.format(configuration.companySettings()
-                                                                                                 .foundingPrice()))),
-                                                             Replacement.create("name", String.format("%s", name)))
-                                                     .newLine()
-                                                     .text("<click:run_command:/company create confirm><add>[")
-                                                     .localeCode("words.confirm")
-                                                     .text("]</click>")
-                                                     .space()
-                                                     .text("<click:run_command:/company create deny><remove>[")
-                                                     .localeCode("words.deny")
-                                                     .text("]</click>");
-                       messageSender().sendMessage(player, composer);
-                       registrations.put(player.getUniqueId(), name);
+                       companyData.retrieveCompanyByName(name)
+                                  .whenComplete(company -> {
+                                      if (company.isPresent()) {
+                                          messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+                                          return;
+                                      }
+                                      requestConfirmation(player, name);
+                                  });
                    });
+    }
+
+    private void requestConfirmation(Player player, String name) {
+        var composer = MessageComposer.create()
+                                      .text("<neutral>")
+                                      .localeCode("company.create.create",
+                                              Replacement.create("amount", String.format("%s",
+                                                      economy.format(configuration.companySettings()
+                                                                                  .foundingPrice()))),
+                                              Replacement.create("name", String.format("%s", name)))
+                                      .newLine()
+                                      .text("<click:run_command:/company create confirm><add>[")
+                                      .localeCode("words.confirm")
+                                      .text("]</click>")
+                                      .space()
+                                      .text("<click:run_command:/company create deny><remove>[")
+                                      .localeCode("words.deny")
+                                      .text("]</click>");
+        messageSender().sendMessage(player, composer);
+        registrations.put(player.getUniqueId(), name);
     }
 
     @Override
@@ -109,47 +119,57 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        companyData.retrieveCompanyByName(name)
-                   .whenComplete(company -> {
-                       if (company.isPresent()) {
-                           messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+        companyData.retrievePlayerCompany(player)
+                   .whenComplete(current -> {
+                       if (current.isPresent()) {
+                           messageSender().sendErrorActionBar(player, "error.alreadyMember");
                            return;
                        }
-
-                       CompletableBukkitFuture.supplyAsync(() -> {
-                                                  if (!economy.has(player, configuration.companySettings()
-                                                                                        .foundingPrice())) {
-                                                      return false;
-                                                  }
-                                                  return economy.withdrawPlayer(player, configuration.companySettings()
-                                                                                                     .foundingPrice()).type == EconomyResponse.ResponseType.SUCCESS;
-                                              })
-                                              .whenComplete(result -> {
-                                                  if (!result) {
-                                                      var fallbackCurr = economy.currencyNameSingular()
-                                                                                .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
-                                                      var curr = economy.currencyNamePlural()
-                                                                        .isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                                                      messageSender().sendErrorActionBar(player, "error.insufficientCurrency",
-                                                              Replacement.create("currency", curr),
-                                                              Replacement.create("amount", configuration.companySettings()
-                                                                                                        .foundingPrice()));
-                                                      return;
-                                                  }
-                                                  companyData.submitCompanyCreation(name)
-                                                             .asFuture()
-                                                             .exceptionally(err -> {
-                                                                 plugin().getLogger()
-                                                                         .log(Level.SEVERE, "Something went wrong", err);
-                                                                 return -1;
-                                                             })
-                                                             .thenAccept(id -> {
-                                                                 if (id == -1) return;
-                                                                 companyData.submitMemberUpdate(CompanyMember.forCompanyId(id, player)
-                                                                                                             .addPermission(CompanyPermission.OWNER));
-                                                             });
-                                                  messageSender().sendMessage(player, "company.create.created");
-                                              });
+                       companyData.retrieveCompanyByName(name)
+                                  .whenComplete(company -> {
+                                      if (company.isPresent()) {
+                                          messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+                                          return;
+                                      }
+                                      foundCompany(player, name);
+                                  });
                    });
+    }
+
+    private void foundCompany(Player player, String name) {
+        var price = configuration.companySettings()
+                                 .foundingPrice();
+        if (!economy.has(player, price) || economy.withdrawPlayer(player, price).type != EconomyResponse.ResponseType.SUCCESS) {
+            var fallbackCurr = economy.currencyNameSingular()
+                                      .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
+            var curr = economy.currencyNamePlural()
+                              .isBlank() ? fallbackCurr : economy.currencyNamePlural();
+            messageSender().sendErrorActionBar(player, "error.insufficientCurrency",
+                    Replacement.create("currency", curr),
+                    Replacement.create("amount", price));
+            return;
+        }
+        companyData.submitCompanyCreation(name)
+                   .asFuture()
+                   .exceptionally(err -> {
+                       plugin().getLogger()
+                               .log(Level.SEVERE, "Something went wrong", err);
+                       return -1;
+                   })
+                   .thenApply(id -> {
+                       if (id == -1) return false;
+                       companyData.submitMemberUpdate(CompanyMember.forCompanyId(id, player)
+                                                                   .addPermission(CompanyPermission.OWNER))
+                                  .join();
+                       return true;
+                   })
+                   .thenAcceptAsync(created -> {
+                       if (!created) {
+                           economy.depositPlayer(player, price);
+                           messageSender().sendErrorActionBar(player, "error.saveFailed");
+                           return;
+                       }
+                       messageSender().sendMessage(player, "company.create.created");
+                   }, Threading.mainThread(plugin()));
     }
 }

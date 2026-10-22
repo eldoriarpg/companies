@@ -85,14 +85,9 @@ public class MariaDbCompanyData extends ACompanyData {
     protected Optional<SimpleCompany> getCompanyByName(String name) {
         @Language("mariadb")
         var query = """
-                SELECT c.id,
-                       c.name,
-                       c.founded,
-                       c.level
-                FROM company_member
-                         LEFT JOIN companies c
-                                   ON c.id = company_member.id
-                WHERE c.name LIKE ?""";
+                SELECT id, name, founded, level
+                FROM companies
+                WHERE LOWER(name) = LOWER(?)""";
         return query(query)
                 .single(call().bind(name))
                 .map(this::parseCompany)
