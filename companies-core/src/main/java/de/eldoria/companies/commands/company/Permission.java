@@ -5,9 +5,12 @@
  */
 package de.eldoria.companies.commands.company;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -32,10 +35,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final MessageBlocker messageBlocker;
+    private final Cache<UUID, List<String>> memberNames = CacheBuilder.newBuilder()
+                                                                     .expireAfterWrite(1, TimeUnit.MINUTES)
+                                                                     .build();
 
     public Permission(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("permission")
@@ -55,7 +64,7 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
 
         CommandAssertions.invalidArguments(meta(), arguments,
                 Argument.input("words.member", true),
-                Argument.unlocalizedInput("add|remove", true),
+                Argument.unlocalizedInput("give|remove", true),
                 Argument.input("words.permission", true));
 
         var memberName = arguments.asString(0);
@@ -104,22 +113,46 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
                    });
     }
 
+    /**
+     * Completes the member names of the player's company, then the action and then the permission.
+     * <p>
+     * Member names come from a short-lived cache, because completion must not wait for the database. On a miss the
+     * names are loaded in the background and offered on the next completion.
+     */
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        if (args.isEmpty()) {
-            return List.of("give", "remove");
-        }
         if (args.sizeIs(1)) {
-            return Completion.complete(args.asString(0), "give", "remove");
+            return Completion.complete(args.asString(0), cachedMemberNames(player));
         }
         if (args.sizeIs(2)) {
+            return Completion.complete(args.asString(1), "give", "remove");
+        }
+        if (args.sizeIs(3)) {
             var stream = Arrays.stream(CompanyPermission.values())
                                .filter(p -> p != CompanyPermission.OWNER)
                                .map(p -> p.name()
                                           .toLowerCase(Locale.ROOT));
-            return Completion.complete(args.asString(1), stream);
+            return Completion.complete(args.asString(2), stream);
         }
         return Collections.emptyList();
+    }
+
+    private List<String> cachedMemberNames(Player player) {
+        var names = memberNames.getIfPresent(player.getUniqueId());
+        if (names != null) return names;
+        companyData.retrievePlayerCompanyProfile(player)
+                   .asFuture()
+                   .thenAccept(optProfile -> memberNames.put(player.getUniqueId(), optProfile.map(Permission::memberNames)
+                                                                                           .orElse(List.of())));
+        return List.of();
+    }
+
+    private static List<String> memberNames(CompanyProfile profile) {
+        return profile.members()
+                      .stream()
+                      .map(member -> member.player().getName())
+                      .filter(Objects::nonNull)
+                      .toList();
     }
 
     private void renderPermissionInterface(Player player, String memberName) {
