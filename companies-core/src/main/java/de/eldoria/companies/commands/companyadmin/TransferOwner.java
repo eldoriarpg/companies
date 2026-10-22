@@ -5,96 +5,90 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
-import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.util.Permission;
-import de.eldoria.eldoutilities.commands.Completion;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.KnownPlayers;
+import de.eldoria.companies.commands.suggest.QuotedCompanyNames;
+import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.util.Permission.Admin;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.arguments.StringArg;
+import net.strokkur.commands.arguments.StringArgType;
+import net.strokkur.commands.permission.Permission;
+import org.bukkit.command.CommandSender;
 
-import java.util.Collections;
-import java.util.List;
+/**
+ * {@code /companyadmin transferowner <company> <player>}: makes a member the owner of a company. The player may be
+ * offline if the server knows them.
+ */
+@Subcommand("transferowner")
+@Permission(Admin.TRANSFER_OWNER)
+@PlayerOnly
+public final class TransferOwner {
+    private final CommandDependencies deps;
 
-public class TransferOwner extends AdvancedCommand implements IPlayerTabExecutor {
-    private final ACompanyData companyData;
-
-    public TransferOwner(Plugin plugin, ACompanyData companyData) {
-        super(
-                plugin,
-                CommandMeta.builder("transferOwner")
-                        .addArgument("words.name", true)
-                        .addArgument("words.target", true)
-                        .withPermission(Permission.Admin.TRANSFER_OWNER)
-                        .build());
-        this.companyData = companyData;
+    /**
+     * @param deps what the commands need
+     */
+    public TransferOwner(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
-            throws CommandException {
-        args.parseQuoted();
-        companyData.retrieveCompanyByName(args.asString(0)).asFuture().thenAccept(optCompany -> {
+    /**
+     * @param sender  sender of the command
+     * @param company name of the company
+     * @param player  name of the new owner
+     */
+    @Executes
+    public void transferOwner(
+            CommandSender sender,
+            @QuotedCompanyNames @StringArg(StringArgType.STRING) String company,
+            @KnownPlayers String player) {
+        var admin = Senders.player(sender);
+        deps.requireReady();
+        var target = deps.plugin().getServer().getOfflinePlayerIfCached(player);
+        if (target == null) throw CommandFailure.of("error.unknownPlayer");
+        var companyData = deps.companyData();
+
+        companyData.retrieveCompanyByName(company).asFuture().thenAccept(optCompany -> {
             if (optCompany.isEmpty()) {
-                messageSender().sendError(player, "error.unknownCompany");
+                messages().sendError(admin, "error.unknownCompany");
                 return;
             }
 
             var optProfile =
                     companyData.retrieveCompanyProfile(optCompany.get()).join();
             if (optProfile == null || optProfile.isEmpty()) {
-                messageSender().sendError(player, "error.unknownCompany");
+                messages().sendError(admin, "error.unknownCompany");
                 return;
             }
-            var company = optProfile.get();
+            var profile = optProfile.get();
 
-            var owner = company.owner();
+            var owner = profile.owner();
             owner.isOwner(false);
 
-            OfflinePlayer target;
-            try {
-                target = args.asOfflinePlayer(1);
-            } catch (CommandException e) {
-                messageSender().sendError(player, e.getMessage(), e.replacements());
-                return;
-            }
-
-            var newOwner = company.member(target);
+            var newOwner = profile.member(target);
             if (newOwner.isEmpty()) {
-                messageSender().sendError(player, "error.noCompanyMember");
+                messages().sendError(admin, "error.noCompanyMember");
                 return;
             }
 
             newOwner.get().isOwner(true);
             companyData.submitMemberUpdate(newOwner.get());
             companyData.submitMemberUpdate(owner);
-            messageSender()
+            messages()
                     .sendMessage(
-                            player,
+                            admin,
                             "companyadmin.transferOwner.done",
                             Replacement.create("name", newOwner.get().player().getName()));
         });
     }
 
-    @Override
-    public @Nullable List<String> onTabComplete(
-            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        args.parseQuoted();
-        if (args.size() == 1) {
-            var name = args.asString(0);
-            return Completion.completeFreeInput(name, 34, localizer().localize("words.name"));
-        }
-
-        if (args.size() == 2) {
-            return Completion.completePlayers(args.asString(1));
-        }
-        return Collections.emptyList();
+    private MessageSender messages() {
+        return deps.messages();
     }
 }

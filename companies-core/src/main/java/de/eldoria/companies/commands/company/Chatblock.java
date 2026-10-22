@@ -5,36 +5,41 @@
  */
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.messageblocker.blocker.MessageBlocker;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 
-public class Chatblock extends AdvancedCommand implements IPlayerTabExecutor {
-    private final MessageBlocker messageBlockerService;
+/**
+ * {@code /company chatblock <state>}: holds or releases the chat of the sender while a menu is open. Reached from the
+ * {@code [x]} of chat menus.
+ */
+@Subcommand("chatblock")
+@PlayerOnly
+public final class Chatblock {
+    private final CommandDependencies deps;
 
-    public Chatblock(Plugin plugin, MessageBlocker messageBlockerService) {
-        super(
-                plugin,
-                CommandMeta.builder("chatblock")
-                        .addArgument("state", true)
-                        .hidden()
-                        .build());
-        this.messageBlockerService = messageBlockerService;
+    /**
+     * @param deps what the commands need
+     */
+    public Chatblock(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
-            throws CommandException {
-        if (args.asBoolean(0)) {
-            messageBlockerService.blockPlayer(player);
+    /**
+     * @param sender sender of the command
+     * @param state  true to hold the chat, false to release it
+     */
+    @Executes
+    public void chatblock(CommandSender sender, boolean state) {
+        var player = Senders.player(sender);
+        var messageBlocker = deps.services().messageBlocker();
+        if (state) {
+            messageBlocker.blockPlayer(player);
         } else {
-            messageBlockerService.unblockPlayer(player);
+            messageBlocker.unblockPlayer(player);
         }
     }
 }

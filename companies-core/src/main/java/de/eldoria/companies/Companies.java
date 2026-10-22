@@ -14,9 +14,10 @@ import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
-import de.eldoria.companies.commands.Company;
-import de.eldoria.companies.commands.CompanyAdmin;
-import de.eldoria.companies.commands.Order;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.CommandRegistration;
+import de.eldoria.companies.commands.suggest.SuggestionSources;
+import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.DataSourceFactory;
@@ -50,9 +51,11 @@ import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.Localizer;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.milkbowl.vault.economy.Economy;
 import org.jetbrains.annotations.NotNull;
 
@@ -80,6 +83,7 @@ public class Companies extends EldoPlugin {
     private ANotificationData notificationData;
     private ANodeData nodeData;
     private Updates updates;
+    private CommandDependencies commands;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -117,6 +121,21 @@ public class Companies extends EldoPlugin {
                 .build();
 
         StyledMessageSender.register(this, localizer, configuration::styleSettings);
+        registerCommands();
+    }
+
+    /**
+     * Registers the command trees with the commands lifecycle event. The commands refuse until the post start hands
+     * them the services built on the economy.
+     */
+    private void registerCommands() {
+        var dependencies = new CommandDependencies(this, configuration, companyData, orderData, nodeData);
+        commands = dependencies;
+        CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
+        SuggestionSources.use(new SuggestionSources(companyData, configuration, Threading.VIRTUAL));
+        getLifecycleManager()
+                .registerEventHandler(LifecycleEvents.COMMANDS.newHandler(
+                        event -> CommandRegistration.register(event.registrar(), dependencies)));
     }
 
     /**
@@ -151,31 +170,16 @@ public class Companies extends EldoPlugin {
         var notificationService = new NotificationService(notificationData, orderData, workerPool, this);
         var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
 
-        registerCommand(
-                "company",
-                new Company(
-                        this,
-                        companyData,
-                        orderData,
-                        economy,
-                        configuration,
-                        messageBlocker,
-                        itemReturnService,
-                        notificationService,
-                        disbandService));
-        registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker, itemReturnService));
-        registerCommand(
-                "companyadmin",
-                new CompanyAdmin(
-                        this,
-                        configuration,
-                        companyData,
-                        orderData,
-                        messageBlocker,
-                        levelService,
-                        nodeData,
-                        disbandService,
-                        updates));
+        if (commands != null) {
+            commands.provide(new CommandDependencies.Services(
+                    economy,
+                    messageBlocker,
+                    itemReturnService,
+                    levelService,
+                    notificationService,
+                    disbandService,
+                    updates));
+        }
 
         var expiringService = new ExpiringService(
                 this, orderData, companyData, configuration, itemReturnService, economy, notificationService);
@@ -204,6 +208,9 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
+        if (commands != null) commands.withdraw();
+        SuggestionSources.clear();
+        CommandFailures.clear();
         if (updates != null) updates.stop();
         workerPool.shutdown();
         Threading.VIRTUAL.shutdown();

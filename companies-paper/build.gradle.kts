@@ -88,21 +88,6 @@ bukkit {
     depend = listOf("Vault")
     softDepend = listOf("PlaceholderAPI", "ProtocolLib")
 
-    commands {
-        register("company") {
-            description = "Manage your company"
-            aliases = listOf("comp")
-        }
-
-        register("order") {
-            description = "Manage your orders"
-        }
-
-        register("companyadmin") {
-            description = "Manage the plugin"
-        }
-    }
-
     permissions {
         register("companies.*") {
             description = "Gives access to all company commands"

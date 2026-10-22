@@ -5,31 +5,36 @@
  */
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
-import de.eldoria.companies.services.ItemReturnService;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 
 /**
- * Hands out items which were returned to the player after an order they delivered to was released.
+ * {@code /company returns}: hands out items which were returned to the player after an order they delivered to was
+ * released.
  */
-public class Returns extends AdvancedCommand implements IPlayerTabExecutor {
-    private final ItemReturnService itemReturnService;
+@Subcommand("returns")
+@PlayerOnly
+public final class Returns {
+    private final CommandDependencies deps;
 
-    public Returns(Plugin plugin, ItemReturnService itemReturnService) {
-        super(plugin, CommandMeta.builder("returns").build());
-        this.itemReturnService = itemReturnService;
+    /**
+     * @param deps what the commands need
+     */
+    public Returns(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        itemReturnService.handOut(player, ReturnKind.WORKER, false);
+    /**
+     * @param sender sender of the command
+     */
+    @Executes
+    public void returns(CommandSender sender) {
+        var player = Senders.player(sender);
+        deps.services().itemReturnService().handOut(player, ReturnKind.WORKER, false);
     }
 }
