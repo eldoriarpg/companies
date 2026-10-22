@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -34,15 +35,17 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Map<UUID, SimpleOrder> cancel = new ConcurrentHashMap<>();
     private final List list;
+    private final ItemReturnService itemReturnService;
 
 
-    public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData, List list) {
+    public Abort(Plugin plugin, ACompanyData companyData, AOrderData orderData, List list, ItemReturnService itemReturnService) {
         super(plugin, CommandMeta.builder("abort")
                 .addArgument("words.id", true)
                 .build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.list = list;
+        this.itemReturnService = itemReturnService;
     }
 
     @Override
@@ -104,11 +107,13 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
 
-                       if (!orderData.submitUnclaimOrder(remove)
-                                     .join()) {
+                       var workers = orderData.submitUnclaimOrder(remove)
+                                              .join();
+                       if (workers.isEmpty()) {
                            messageSender().sendErrorActionBar(player, "error.orderNotActive");
                            return;
                        }
+                       itemReturnService.notifyWorkers(workers.get());
 
                        list.showOrders(SimpleCompany.forId(remove.company()), player, () ->
                                plugin().getServer()

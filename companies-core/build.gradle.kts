@@ -27,4 +27,6 @@ dependencies {
     compileOnly(libs.bundles.database)
 
     testImplementation(libs.bundles.adventure)
+    testImplementation(libs.sqlite)
+    testImplementation(libs.jackson.databind)
 }

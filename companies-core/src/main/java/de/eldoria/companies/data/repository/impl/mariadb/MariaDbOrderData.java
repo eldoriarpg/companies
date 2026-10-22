@@ -15,16 +15,21 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.inventory.ItemStack;
 import org.intellij.lang.annotations.Language;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -221,7 +226,7 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected boolean unclaimOrder(SimpleOrder order) {
+    protected Optional<Set<UUID>> unclaimOrder(SimpleOrder order) {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
@@ -231,20 +236,99 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE id = ?
                   AND state = ?""";
         @Language("mariadb")
+        var workerQuery = """
+                SELECT DISTINCT worker_uuid
+                FROM orders_delivered
+                WHERE id = ?
+                  AND delivered > 0""";
+        @Language("mariadb")
+        var returnItems = """
+                INSERT INTO item_returns(worker_uuid, material, stack, amount)
+                SELECT d.worker_uuid,
+                       d.material,
+                       (SELECT MIN(c.stack) FROM order_content c WHERE c.id = d.id AND c.material = d.material),
+                       d.delivered
+                FROM orders_delivered d
+                WHERE d.id = ?
+                  AND d.delivered > 0
+                  AND EXISTS(SELECT 1 FROM order_content c WHERE c.id = d.id AND c.material = d.material)""";
+        @Language("mariadb")
         var delete = """
                 DELETE FROM orders_delivered WHERE id = ?""";
-        try (var conf = QueryConfiguration.getDefault().withSingleTransaction()) {
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        List<UUID> workers;
+        try (conf) {
             var unclaimed = conf.query(query)
                     .single(call().bind(OrderState.UNCLAIMED.stateId())
                             .bind(order.id())
                             .bind(OrderState.CLAIMED.stateId()))
                     .update();
-            if (!unclaimed.changed()) return false;
-            var deleted = conf.query(delete)
+            if (!unclaimed.changed()) return Optional.empty();
+            workers = conf.query(workerQuery)
+                    .single(call().bind(order.id()))
+                    .map(row -> row.get("worker_uuid", UUID_BYTES))
+                    .all();
+            conf.query(returnItems)
+                    .single(call().bind(order.id()))
+                    .insert();
+            conf.query(delete)
                     .single(call().bind(order.id()))
                     .delete();
-            return !deleted.hasExceptions();
         }
+        if (!conf.context().exceptions().isEmpty()) return Optional.empty();
+        return Optional.of(Set.copyOf(workers));
+    }
+
+    @Override
+    protected List<ItemReturn> getItemReturns(UUID worker) {
+        @Language("mariadb")
+        var query = """
+                SELECT id, stack, amount
+                FROM item_returns
+                WHERE worker_uuid = ?
+                ORDER BY id""";
+        return query(query)
+                .single(call().bind(worker, UUID_BYTES))
+                .map(row -> new ItemReturn(row.getInt("id"), toItemStack(row.getString("stack")), row.getInt("amount")))
+                .all();
+    }
+
+    @Override
+    protected boolean takeItemReturn(ItemReturn itemReturn, int amount) {
+        @Language("mariadb")
+        var take = """
+                UPDATE item_returns
+                SET amount = amount - ?
+                WHERE id = ?
+                  AND amount >= ?""";
+        @Language("mariadb")
+        var delete = """
+                DELETE FROM item_returns WHERE id = ? AND amount <= 0""";
+        var taken = query(take)
+                .single(call().bind(amount).bind(itemReturn.id()).bind(amount))
+                .update()
+                .changed();
+        if (taken) {
+            query(delete)
+                    .single(call().bind(itemReturn.id()))
+                    .delete();
+        }
+        return taken;
+    }
+
+    @Override
+    protected boolean addItemReturn(UUID worker, ItemStack stack, int amount) {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO item_returns(worker_uuid, material, stack, amount)
+                VALUES (?, ?, ?, ?)""";
+        return query(query)
+                .single(call().bind(worker, UUID_BYTES)
+                        .bind(stack.getType().name())
+                        .bind(toJson(stack))
+                        .bind(amount))
+                .insert()
+                .changed();
     }
 
     @Override
@@ -439,10 +523,13 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void purgeCompanyOrders(SimpleCompany profile) {
+    protected Set<UUID> purgeCompanyOrders(SimpleCompany profile) {
+        Set<UUID> workers = new HashSet<>();
         for (var simpleOrder : ordersByCompany(profile, OrderState.CLAIMED, OrderState.CLAIMED)) {
-            unclaimOrder(simpleOrder);
+            unclaimOrder(simpleOrder).ifPresent(workers::addAll);
+            invalidateFullOrder(simpleOrder);
         }
+        return workers;
     }
 
     @Override

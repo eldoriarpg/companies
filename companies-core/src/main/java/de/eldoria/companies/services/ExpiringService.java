@@ -32,17 +32,21 @@ public class ExpiringService implements Runnable, Listener {
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final MessageSender messageSender;
+    private final ItemReturnService itemReturnService;
 
-    private ExpiringService(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration) {
+    private ExpiringService(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
+                            ItemReturnService itemReturnService) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
+        this.itemReturnService = itemReturnService;
     }
 
-    public static void start(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, ScheduledExecutorService executorService) {
-        var expiringService = new ExpiringService(plugin, orderData, companyData, configuration);
+    public static void start(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
+                             ScheduledExecutorService executorService, ItemReturnService itemReturnService) {
+        var expiringService = new ExpiringService(plugin, orderData, companyData, configuration, itemReturnService);
         var interval = configuration.generalSettings().orderCheckInterval();
         executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);
     }
@@ -84,10 +88,10 @@ public class ExpiringService implements Runnable, Listener {
                                .join();
 
         for (var order : expired) {
-            if (!orderData.submitUnclaimOrder(order)
-                          .join()) {
-                continue;
-            }
+            var workers = orderData.submitUnclaimOrder(order)
+                                   .join();
+            if (workers.isEmpty()) continue;
+            itemReturnService.notifyWorkers(workers.get());
             var profile = companyData.retrieveCompanyById(order.company())
                                      .asFuture()
                                      .exceptionally(err -> {

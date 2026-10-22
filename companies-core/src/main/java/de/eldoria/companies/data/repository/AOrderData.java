@@ -17,6 +17,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -32,6 +33,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -115,7 +118,7 @@ public abstract class AOrderData {
 
     protected abstract void orderDelivered(SimpleOrder order);
 
-    public BukkitFutureResult<Boolean> submitUnclaimOrder(SimpleOrder order) {
+    public BukkitFutureResult<Optional<Set<UUID>>> submitUnclaimOrder(SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(() -> {
             var result = unclaimOrder(order);
             invalidateFullOrder(order);
@@ -125,11 +128,46 @@ public abstract class AOrderData {
 
     /**
      * Releases a claimed order back to the market.
+     * <p>
+     * Items already delivered to the order are moved to the item returns of the workers who delivered them.
      *
      * @param order order to release
-     * @return true if the order was claimed and is now unclaimed
+     * @return the workers who got items returned, or an empty optional if the order was not claimed
      */
-    protected abstract boolean unclaimOrder(SimpleOrder order);
+    protected abstract Optional<Set<UUID>> unclaimOrder(SimpleOrder order);
+
+    public BukkitFutureResult<List<ItemReturn>> retrieveItemReturns(UUID worker) {
+        return CompletableBukkitFuture.supplyAsync(() -> getItemReturns(worker), VIRTUAL);
+    }
+
+    protected abstract List<ItemReturn> getItemReturns(UUID worker);
+
+    public BukkitFutureResult<Boolean> submitItemReturnTake(ItemReturn itemReturn, int amount) {
+        return CompletableBukkitFuture.supplyAsync(() -> takeItemReturn(itemReturn, amount), VIRTUAL);
+    }
+
+    /**
+     * Removes items from a stored return.
+     *
+     * @param itemReturn return to take the items from
+     * @param amount     amount of items to take
+     * @return true if the items were still stored and are now removed
+     */
+    protected abstract boolean takeItemReturn(ItemReturn itemReturn, int amount);
+
+    public BukkitFutureResult<Boolean> submitItemReturn(UUID worker, ItemStack stack, int amount) {
+        return CompletableBukkitFuture.supplyAsync(() -> addItemReturn(worker, stack, amount), VIRTUAL);
+    }
+
+    /**
+     * Stores items which have to be handed to a worker later.
+     *
+     * @param worker worker owning the items
+     * @param stack  item to store
+     * @param amount amount of items
+     * @return true if the items were stored
+     */
+    protected abstract boolean addItemReturn(UUID worker, ItemStack stack, int amount);
 
     public BukkitFutureResult<Void> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
         return CompletableBukkitFuture.runAsync(() -> {
@@ -226,11 +264,17 @@ public abstract class AOrderData {
 
     protected abstract Integer getCompanyOrderCount(ISimpleCompany company);
 
-    public BukkitFutureResult<Void> submitCompanyOrdersPurge(SimpleCompany profile) {
-        return CompletableBukkitFuture.runAsync(() -> purgeCompanyOrders(profile), VIRTUAL);
+    public BukkitFutureResult<Set<UUID>> submitCompanyOrdersPurge(SimpleCompany profile) {
+        return CompletableBukkitFuture.supplyAsync(() -> purgeCompanyOrders(profile), VIRTUAL);
     }
 
-    protected abstract void purgeCompanyOrders(SimpleCompany profile);
+    /**
+     * Releases all orders claimed by the company.
+     *
+     * @param profile company to release the orders of
+     * @return the workers who got items returned
+     */
+    protected abstract Set<UUID> purgeCompanyOrders(SimpleCompany profile);
 
     public BukkitFutureResult<Void> submitOrderPurge(SimpleOrder order) {
         return CompletableBukkitFuture.runAsync(() -> purgeOrder(order), VIRTUAL);

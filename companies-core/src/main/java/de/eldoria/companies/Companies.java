@@ -38,6 +38,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
@@ -162,15 +163,18 @@ public class Companies extends EldoPlugin {
                                                  .build()).start();
         }
 
-        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
+        var itemReturnService = new ItemReturnService(this, orderData);
+
+        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker, itemReturnService));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
         registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService, nodeData));
 
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
-            ExpiringService.start(this, orderData, companyData, configuration, workerPool);
+            ExpiringService.start(this, orderData, companyData, configuration, workerPool, itemReturnService);
             RefreshService.start(orderData, workerPool);
         }
         registerListener(levelService);
+        registerListener(itemReturnService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI") && configuration.generalSettings().hooks().placeholderapi()) {
