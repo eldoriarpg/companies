@@ -8,6 +8,7 @@ package de.eldoria.companies.commands.company.order.search;
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.commands.company.order.search.query.Clear;
 import de.eldoria.companies.commands.company.order.search.query.Execute;
+import de.eldoria.companies.commands.company.order.search.query.Fillable;
 import de.eldoria.companies.commands.company.order.search.query.Material;
 import de.eldoria.companies.commands.company.order.search.query.MaterialMatch;
 import de.eldoria.companies.commands.company.order.search.query.MaterialSearch;
@@ -17,9 +18,6 @@ import de.eldoria.companies.commands.company.order.search.query.Price;
 import de.eldoria.companies.commands.company.order.search.query.Render;
 import de.eldoria.companies.commands.company.order.search.query.Size;
 import de.eldoria.companies.commands.company.order.search.query.Sorting;
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -40,13 +38,7 @@ public class Query extends AdvancedCommand {
     private final MessageBlocker messageBlocker;
     private Render render;
 
-    public Query(
-            Plugin plugin,
-            AOrderData orderData,
-            ACompanyData companyData,
-            Configuration configuration,
-            Search search,
-            MessageBlocker messageBlocker) {
+    public Query(Plugin plugin, Search search, MessageBlocker messageBlocker) {
         super(plugin);
         this.messageBlocker = messageBlocker;
         var meta = CommandMeta.builder("query")
@@ -54,7 +46,8 @@ public class Query extends AdvancedCommand {
                     render = new Render(plugin, this, messageBlocker);
                     builder.withDefaultCommand(render);
                     commands.add(new Clear(plugin, this));
-                    commands.add(new Execute(plugin, this, search, orderData, companyData, configuration));
+                    commands.add(new Execute(plugin, this, search));
+                    commands.add(new Fillable(plugin, this));
                     commands.add(new Material(plugin, this));
                     commands.add(new MaterialMatch(plugin, this));
                     commands.add(new MaterialSearch(plugin, this));

@@ -80,24 +80,31 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
      *
      * @param economy    economy formatting the amounts
      * @param taxPercent tax of the viewing company, where 5 means 5 %
+     * @param acceptable whether to add a button which accepts the order
      * @return MiniMessage line
      */
-    public String companyShortInfo(Economy economy, double taxPercent) {
+    public String companyShortInfo(Economy economy, double taxPercent, boolean acceptable) {
         var composer = MessageComposer.create()
                 .text("<hover:show_text:'%s", companySimpleContent(economy, state()))
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
                 .text(": <value>%s", economy.format(price()));
-        return PriceLines.tax(composer, economy, price(), taxPercent)
+        PriceLines.tax(composer, economy, price(), taxPercent)
                 .text("'>")
                 .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                 .text("</hover>")
                 .space()
                 .text("<click:run_command:/company order info %s><add>[", id())
                 .localeCode("words.info")
-                .text("]</click>")
-                .build();
+                .text("]</click>");
+        if (acceptable) {
+            composer.space()
+                    .text("<click:run_command:/company order accept %s><add>[", id())
+                    .localeCode("words.accept")
+                    .text("]</click>");
+        }
+        return composer.build();
     }
 
     private String companySimpleContent(Economy economy, OrderState state) {
