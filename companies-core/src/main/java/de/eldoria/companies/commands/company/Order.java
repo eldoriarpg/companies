@@ -35,7 +35,7 @@ public class Order extends AdvancedCommand {
                     commands.add(new Deliver(plugin, companyData, orderData, economy, info, messageBlocker));
                     commands.add(list);
                     commands.add(info);
-                    commands.add(new Search(plugin, orderData, economy, messageBlocker));
+                    commands.add(new Search(plugin, orderData, companyData, configuration, economy, messageBlocker));
                 })
                 .build();
         meta(meta);

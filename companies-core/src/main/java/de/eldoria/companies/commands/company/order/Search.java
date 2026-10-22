@@ -7,6 +7,8 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.commands.company.order.search.Page;
 import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -24,12 +26,13 @@ public class Search extends AdvancedCommand {
     private final Page page;
     private final Map<UUID, List<FullOrder>> results = new HashMap<>();
 
-    public Search(Plugin plugin, AOrderData orderData, Economy economy, MessageBlocker messageBlocker) {
+    public Search(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, Economy economy,
+                  MessageBlocker messageBlocker) {
         super(plugin);
         page = new Page(plugin, this, economy, messageBlocker);
         var meta = CommandMeta.builder("search")
                 .buildSubCommands((commands, builder) -> {
-                    var query = new Query(plugin, orderData, this, messageBlocker);
+                    var query = new Query(plugin, orderData, companyData, configuration, this, messageBlocker);
                     commands.add(page);
                     commands.add(query);
                     builder.withDefaultCommand(query);

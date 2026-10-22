@@ -17,6 +17,7 @@ import org.bukkit.OfflinePlayer;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
@@ -63,6 +64,29 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
                                                 .map(n -> n.equalsIgnoreCase(name))
                                                 .orElse(false))
                       .findFirst();
+    }
+
+    /**
+     * Whether the player is a member of this company.
+     *
+     * @param player id of the player
+     * @return true when the player is a member
+     */
+    public boolean isMember(UUID player) {
+        return members.stream()
+                      .anyMatch(member -> member.uuid()
+                                                .equals(player));
+    }
+
+    /**
+     * Whether this company may work on an order of the given owner.
+     *
+     * @param owner             id of the order owner
+     * @param allowMemberOrders whether companies may accept orders of their own members
+     * @return false when the owner is a member and member orders are not allowed
+     */
+    public boolean mayAcceptOrderOf(UUID owner, boolean allowMemberOrders) {
+        return allowMemberOrders || !isMember(owner);
     }
 
     public String asExternalProfileComponent(Configuration configuration) {

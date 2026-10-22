@@ -20,6 +20,7 @@ public class CompanySettings {
     private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
+    private boolean allowMemberOrders = false;
 
     public CompanySettings() {
         updateLevel();
@@ -74,6 +75,19 @@ public class CompanySettings {
 
     public void renamePrice(double renamePrice) {
         this.renamePrice = renamePrice;
+    }
+
+    /**
+     * Whether a company may accept orders placed by its own members.
+     *
+     * @return true when companies may work on their members' orders
+     */
+    public boolean allowMemberOrders() {
+        return allowMemberOrders;
+    }
+
+    public void allowMemberOrders(boolean allowMemberOrders) {
+        this.allowMemberOrders = allowMemberOrders;
     }
 
     public CompanyLevel createLevel(int level) {

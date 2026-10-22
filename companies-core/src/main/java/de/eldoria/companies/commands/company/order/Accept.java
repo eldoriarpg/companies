@@ -94,6 +94,11 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
 
+                       if (!profile.mayAcceptOrderOf(simpleOrder.owner(), configuration.companySettings().allowMemberOrders())) {
+                           messageSender().sendErrorActionBar(player, "error.ownMemberOrder");
+                           return;
+                       }
+
                        if (orderData.submitOrderClaim(profile, simpleOrder)
                                     .join()) {
                            messageBlocker.unblockPlayer(player)

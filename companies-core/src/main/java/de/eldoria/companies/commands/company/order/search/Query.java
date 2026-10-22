@@ -17,6 +17,8 @@ import de.eldoria.companies.commands.company.order.search.query.Price;
 import de.eldoria.companies.commands.company.order.search.query.Render;
 import de.eldoria.companies.commands.company.order.search.query.Size;
 import de.eldoria.companies.commands.company.order.search.query.Sorting;
+import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -38,7 +40,8 @@ public class Query extends AdvancedCommand {
     private final MessageBlocker messageBlocker;
     private Render render;
 
-    public Query(Plugin plugin, AOrderData orderData, Search search, MessageBlocker messageBlocker) {
+    public Query(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, Search search,
+                 MessageBlocker messageBlocker) {
         super(plugin);
         this.messageBlocker = messageBlocker;
         var meta = CommandMeta.builder("query")
@@ -46,7 +49,7 @@ public class Query extends AdvancedCommand {
                     render = new Render(plugin, this, messageBlocker);
                     builder.withDefaultCommand(render);
                     commands.add(new Clear(plugin, this));
-                    commands.add(new Execute(plugin, this, search, orderData));
+                    commands.add(new Execute(plugin, this, search, orderData, companyData, configuration));
                     commands.add(new Material(plugin, this));
                     commands.add(new MaterialMatch(plugin, this));
                     commands.add(new MaterialSearch(plugin, this));
