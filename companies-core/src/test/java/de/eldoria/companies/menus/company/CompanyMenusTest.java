@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
@@ -73,6 +74,7 @@ class CompanyMenusTest {
                 HOSTILE,
                 FOUNDED,
                 1,
+                CompanyDetails.NONE,
                 List.of(
                         CompanyMember.of(7, owner.getUniqueId(), CompanyPermission.OWNER.mask()),
                         CompanyMember.of(7, member.getUniqueId(), CompanyPermission.INVITE.mask())));
