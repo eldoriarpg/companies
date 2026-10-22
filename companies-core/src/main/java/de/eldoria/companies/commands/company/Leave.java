@@ -89,10 +89,11 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                        if (profile.member(player)
                                   .get()
                                   .isOwner()) {
-                           companyData.submitCompanyPurge(profile);
                            var workers = orderData.submitCompanyOrdersPurge(profile)
                                                   .join();
                            itemReturnService.notifyWorkers(workers);
+                           companyData.submitCompanyPurge(profile)
+                                      .join();
                            messageSender().sendMessage(player, "company.leave.disbanded");
                            plugin().getServer()
                                    .getPluginManager()

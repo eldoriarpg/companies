@@ -141,8 +141,15 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
                        var inviter = Bukkit.getOfflinePlayer(data.inviter);
-                       companyData.retrieveCompanyProfile(data.company)
-                                  .whenComplete(profile -> handleInviteAccept(player, data, inviter, profile));
+                       companyData.retrieveCompanyById(data.company.id())
+                                  .whenComplete(current -> {
+                                      if (current.isEmpty()) {
+                                          messageSender().sendErrorActionBar(player, "error.unknownCompany");
+                                          return;
+                                      }
+                                      companyData.retrieveCompanyProfile(current.get())
+                                                 .whenComplete(profile -> handleInviteAccept(player, data, inviter, profile));
+                                  });
 
                    });
     }

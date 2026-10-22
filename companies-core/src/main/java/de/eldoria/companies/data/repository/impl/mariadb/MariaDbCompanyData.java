@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -129,11 +130,29 @@ public class MariaDbCompanyData extends ACompanyData {
     }
 
     @Override
-    public void purgeCompany(SimpleCompany company) {
-        var members = getCompanyMember(company);
-        for (var member : members) {
-            updateMember(member.kick());
+    public boolean purgeCompany(SimpleCompany company) {
+        @Language("mariadb")
+        var deleteMembers = """
+                DELETE FROM company_member WHERE id = ?""";
+        @Language("mariadb")
+        var deleteStats = """
+                DELETE FROM company_stats WHERE id = ?""";
+        @Language("mariadb")
+        var deleteCompany = """
+                DELETE FROM companies WHERE id = ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            conf.query(deleteMembers)
+                    .single(call().bind(company.id()))
+                    .delete();
+            conf.query(deleteStats)
+                    .single(call().bind(company.id()))
+                    .delete();
+            conf.query(deleteCompany)
+                    .single(call().bind(company.id()))
+                    .delete();
         }
+        return conf.context().exceptions().isEmpty();
     }
 
     @Override
