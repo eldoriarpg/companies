@@ -17,6 +17,7 @@ import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
+import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.configuration.Configuration;
@@ -49,6 +50,7 @@ import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
+import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -138,7 +140,8 @@ public class Companies extends EldoPlugin {
      * them the services built on the economy.
      */
     private void registerCommands() {
-        var dependencies = new CommandDependencies(this, configuration, companyData, orderData, nodeData);
+        var dependencies =
+                new CommandDependencies(this, configuration, companyData, orderData, nodeData, membershipData);
         commands = dependencies;
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
         SuggestionSources.use(new SuggestionSources(
@@ -148,6 +151,7 @@ public class Companies extends EldoPlugin {
                 configuration,
                 ILocalizer.getPluginLocalizer(this),
                 Threading.VIRTUAL));
+        MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
         CompanyOrderSources.use(
                 new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
         getLifecycleManager()
@@ -186,6 +190,13 @@ public class Companies extends EldoPlugin {
 
         var notificationService = new NotificationService(notificationData, orderData, workerPool, this);
         var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
+        var membershipService = MembershipService.create(
+                this,
+                companyData,
+                membershipData,
+                configuration::companySettings,
+                notificationService,
+                Threading.VIRTUAL);
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -198,7 +209,8 @@ public class Companies extends EldoPlugin {
                     updates,
                     new DeliveryService(this, orderData, economy, configuration),
                     new MenuService(
-                            messageBlocker, () -> configuration.menuSettings().mode())));
+                            messageBlocker, () -> configuration.menuSettings().mode()),
+                    membershipService));
         }
 
         var expiringService = new ExpiringService(
@@ -206,6 +218,7 @@ public class Companies extends EldoPlugin {
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
+            membershipService.start(workerPool);
         }
         registerListener(expiringService);
         registerListener(levelService);
@@ -231,6 +244,7 @@ public class Companies extends EldoPlugin {
         if (commands != null) commands.withdraw();
         SuggestionSources.clear();
         CompanyOrderSources.clear();
+        MembershipSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         workerPool.shutdown();
