@@ -107,7 +107,7 @@ public class NotificationService implements Listener {
             if (!member.player()
                        .isOnline()) {
                 saveNotification(member.player(), message, replacements);
-                return;
+                continue;
             }
             sender.sendMessage(member.player()
                                      .getPlayer(), message, replacements);
