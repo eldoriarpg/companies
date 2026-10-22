@@ -13,9 +13,6 @@ import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 
-import java.util.Optional;
-import java.util.logging.Level;
-
 /**
  * {@code /company order}: the orders of the sender's company. Without a subcommand it lists the orders the company
  * works on.
@@ -51,7 +48,8 @@ public final class CompanyOrderCommand {
         accept = new Accept(deps, views);
         abort = new Abort(deps, views);
         deliver = new Deliver(deps, views);
-        search = new CompanyOrderSearchCommand(deps);
+        search = new CompanyOrderSearchCommand(deps, info::info, accept::accept);
+        views.bind(new CompanyOrderViews.Commands(info, accept, abort, deliver, search));
     }
 
     /**
@@ -64,23 +62,6 @@ public final class CompanyOrderCommand {
     public void list(CommandSender sender) {
         var player = Senders.player(sender);
         deps.requireReady();
-        deps.companyData()
-                .retrievePlayerCompany(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(company -> {
-                    if (company.isEmpty()) {
-                        deps.messages().sendErrorActionBar(player, "error.noMember");
-                        return;
-                    }
-                    views.showOrders(company.get(), player);
-                })
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
+        views.showOrders(player);
     }
 }

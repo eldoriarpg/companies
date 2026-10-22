@@ -5,9 +5,6 @@
  */
 package de.eldoria.companies.data.wrapper.order;
 
-import de.eldoria.eldoutilities.localization.MessageComposer;
-import net.milkbowl.vault.economy.Economy;
-
 public class MaterialPrice implements de.eldoria.companies.components.order.IMaterialPrice {
     private final String material;
     private final double avgPrice;
@@ -55,22 +52,6 @@ public class MaterialPrice implements de.eldoria.companies.components.order.IMat
      */
     public boolean hasData() {
         return avgPrice > 0;
-    }
-
-    public String asComponent(int amount, Economy economy) {
-        return MessageComposer.create()
-                .text("<yellow>")
-                .localeCode("words.avg")
-                .text(": %s", economy.format(avgPrice * amount))
-                .newLine()
-                .text("<green>")
-                .localeCode("words.min")
-                .text(": %s", economy.format(minPrice * amount))
-                .newLine()
-                .text("<red>")
-                .localeCode("words.max")
-                .text(": %s", economy.format(maxPrice * amount))
-                .build();
     }
 
     @Override

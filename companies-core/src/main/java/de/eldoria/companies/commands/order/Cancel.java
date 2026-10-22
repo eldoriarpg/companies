@@ -32,15 +32,15 @@ import java.util.logging.Level;
 @PlayerOnly
 public final class Cancel {
     private final CommandDependencies deps;
-    private final List list;
+    private final OwnerOrderViews views;
 
     /**
-     * @param deps what the commands need
-     * @param list shows the orders once the order is canceled
+     * @param deps  what the commands need
+     * @param views shows the orders once the order is canceled
      */
-    public Cancel(CommandDependencies deps, List list) {
+    public Cancel(CommandDependencies deps, OwnerOrderViews views) {
         this.deps = deps;
-        this.list = list;
+        this.views = views;
     }
 
     /**
@@ -90,7 +90,7 @@ public final class Cancel {
                             .ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
                     Threading.mainThread(deps.plugin()).execute(() -> economy.depositPlayer(player, fullOrder.price()));
                     collector.collect(fullOrder.fee());
-                    list.showOrders(player, () -> sendCanceled(player, fullOrder, economy));
+                    views.showOrders(player, () -> sendCanceled(player, fullOrder, economy));
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

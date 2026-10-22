@@ -14,18 +14,21 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Menus;
-import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.menus.company.PermissionEdit;
+import de.eldoria.companies.menus.company.PermissionMenu;
 import de.eldoria.eldoutilities.messages.MessageSender;
-import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Literal;
 import net.strokkur.commands.Subcommand;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * {@code /company permission <member> [give|remove <permission>]}: shows and changes the permissions of a member.
@@ -43,7 +46,7 @@ public final class Permission {
     }
 
     /**
-     * Shows the permissions of a member, each a button that gives or removes it.
+     * Shows the permissions of a member in the permission editor.
      *
      * @param sender sender of the command
      * @param member name of the member
@@ -51,24 +54,16 @@ public final class Permission {
     @Executes
     public void show(CommandSender sender, @CompanyMembers String member) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menu = menu();
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
-            if (optProfile.isEmpty()) {
-                messages().sendErrorActionBar(player, "error.noMember");
-                return;
-            }
-            var profile = optProfile.get();
-            var self = profile.member(player).get();
-            if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                messages().sendErrorActionBar(player, "error.permission.managePermissions");
-                return;
-            }
-            var companyMember = profile.memberByName(member);
-            if (companyMember.isEmpty()) {
+            var editor = editor(player, optProfile, "error.permission.managePermissions");
+            if (editor.isEmpty()) return;
+            var target = optProfile.get().memberByName(member);
+            if (target.isEmpty()) {
                 messages().sendMessage(player, "error.invalidMember");
                 return;
             }
-            renderPermissionInterface(player, companyMember.get(), messageBlocker);
+            deps.services().menus().show(player, menu, new PermissionEdit(editor.get(), target.get()));
         });
     }
 
@@ -87,76 +82,81 @@ public final class Permission {
             @Literal({"give", "remove"}) String action,
             @CompanyPermissions String permission) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menu = menu();
         var companyPermission = Checks.enumValue(permission, CompanyPermission.class);
         if (companyPermission == CompanyPermission.OWNER) {
             throw CommandFailure.actionBar("error.ownerPermission");
         }
+        var wanted = Map.of(companyPermission, "give".equals(action));
 
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
-            if (optProfile.isEmpty()) {
-                messages().sendErrorActionBar(player, "error.noMember");
-                return;
-            }
-            var profile = optProfile.get();
-            var self = profile.member(player).get();
-            if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, companyPermission)) {
-                messages().sendErrorActionBar(player, "error.permission.givePermissions");
-                return;
-            }
-            var optTarget = profile.memberByName(member);
-            if (optTarget.isEmpty()) {
+            var editor = editor(player, optProfile, "error.permission.givePermissions");
+            if (editor.isEmpty()) return;
+            var target = optProfile.get().memberByName(member);
+            if (target.isEmpty()) {
                 messages().sendErrorActionBar(player, "error.invalidMember");
                 return;
             }
-
-            var target = optTarget.get();
-
-            if ("give".equals(action)) {
-                target.addPermission(companyPermission);
-            } else {
-                target.removePermission(companyPermission);
-            }
-            deps.companyData().submitMemberUpdate(target);
-
-            renderPermissionInterface(player, target, messageBlocker);
+            apply(player, editor.get(), target.get(), wanted, edit -> deps.services()
+                    .menus()
+                    .show(player, menu, edit));
         });
     }
 
-    private void renderPermissionInterface(Player player, CompanyMember member, MessageBlocker messageBlocker) {
-        messageBlocker.blockPlayer(player);
-        List<String> permissions = new ArrayList<>();
-        for (var permission : CompanyPermission.values()) {
-            if (permission == CompanyPermission.OWNER) continue;
-            var permCmd = "/company permission " + member.player().getName();
-            var builder = MessageComposer.create();
-            if (member.hasPermission(permission)) {
-                builder.text(
-                                "<click:run_command:%s remove %s><u><add>[<l18n:%s>]</u></click>",
-                                permCmd, permission.name(), permission.translationKey())
-                        .build();
-            } else {
-                builder.text(
-                                "<click:run_command:%s give %s><u><remove>[<l18n:%s>]</u></click>",
-                                permCmd, permission.name(), permission.translationKey())
-                        .build();
-            }
-            permissions.add(builder.build());
-        }
+    private PermissionMenu menu() {
+        return new PermissionMenu(messages(), deps.services().menus(), this::change);
+    }
 
-        var composer = MessageComposer.create()
-                .text("<heading>")
-                .localeCode("company.permission.permissions")
-                .text("<value> %s:", member.player().getName())
-                .newLine()
-                .text(permissions, " ");
-        if (messageBlocker.isBlocked(player)) {
-            composer.newLine()
-                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>")
-                    .build();
+    private void change(
+            Player player, UUID target, Map<CompanyPermission, Boolean> wanted, Consumer<PermissionEdit> onApplied) {
+        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
+            var editor = editor(player, optProfile, "error.permission.givePermissions");
+            if (editor.isEmpty()) return;
+            var member = optProfile.get().member(Bukkit.getOfflinePlayer(target));
+            if (member.isEmpty()) {
+                messages().sendErrorActionBar(player, "error.invalidMember");
+                return;
+            }
+            apply(player, editor.get(), member.get(), wanted, onApplied);
+        });
+    }
+
+    private void apply(
+            Player player,
+            CompanyMember editor,
+            CompanyMember target,
+            Map<CompanyPermission, Boolean> wanted,
+            Consumer<PermissionEdit> onApplied) {
+        var edit = new PermissionEdit(editor, target);
+        if (!wanted.keySet().stream().allMatch(edit::editable)) {
+            messages().sendErrorActionBar(player, "error.permission.givePermissions");
+            return;
         }
-        composer.prependLines(25);
-        Menus.show(messageBlocker, player, composer);
+        if (!edit.apply(wanted).isEmpty()) {
+            deps.companyData().submitMemberUpdate(target);
+        }
+        onApplied.accept(edit);
+    }
+
+    /**
+     * The member editing permissions, after checking that the player is in a company and may manage permissions.
+     *
+     * @param player       editing player
+     * @param profile      company of the player
+     * @param deniedLocale error shown when the player may not manage permissions
+     * @return the editing member, or empty after the error was shown
+     */
+    private Optional<CompanyMember> editor(Player player, Optional<CompanyProfile> profile, String deniedLocale) {
+        if (profile.isEmpty()) {
+            messages().sendErrorActionBar(player, "error.noMember");
+            return Optional.empty();
+        }
+        var editor = profile.get().member(player);
+        if (editor.isEmpty() || !editor.get().hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
+            messages().sendErrorActionBar(player, deniedLocale);
+            return Optional.empty();
+        }
+        return editor;
     }
 
     private MessageSender messages() {

@@ -17,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * Holds the actions players were asked to confirm.
  * <p>
  * A confirmation belongs to one player, is valid for {@link #VALIDITY} and can be used once. Requesting a new one
- * replaces the pending one of that player.
+ * replaces the pending one of that player. A button that belongs to one request confirms it by its {@link Ticket}, so
+ * a button left over from an earlier request can not confirm a newer one.
  *
  * @param <T> the value the confirmation carries until it is confirmed
  */
@@ -51,11 +52,14 @@ public final class Confirmations<T> {
      *
      * @param player player who has to confirm
      * @param value  value returned once the player confirms
+     * @return identifies this request among later ones of the same player
      */
-    public void request(UUID player, T value) {
+    public Ticket request(UUID player, T value) {
         var now = clock.instant();
         pending.values().removeIf(entry -> !now.isBefore(entry.expiry()));
-        pending.put(player, new Pending<>(value, now.plus(VALIDITY)));
+        var ticket = new Ticket();
+        pending.put(player, new Pending<>(value, now.plus(VALIDITY), ticket));
+        return ticket;
     }
 
     /**
@@ -66,8 +70,22 @@ public final class Confirmations<T> {
      */
     public Optional<T> confirm(UUID player) {
         var entry = pending.remove(player);
-        if (entry == null || !clock.instant().isBefore(entry.expiry())) return Optional.empty();
-        return Optional.of(entry.value());
+        if (entry == null) return Optional.empty();
+        return valid(entry);
+    }
+
+    /**
+     * Takes the pending confirmation of a player when it is the one the ticket was issued for. A newer request of the
+     * player stays pending.
+     *
+     * @param player player who confirms
+     * @param ticket ticket of the request being confirmed
+     * @return the value, or empty when that request is no longer pending or expired
+     */
+    public Optional<T> confirm(UUID player, Ticket ticket) {
+        var entry = pending.get(player);
+        if (entry == null || entry.ticket() != ticket || !pending.remove(player, entry)) return Optional.empty();
+        return valid(entry);
     }
 
     /**
@@ -81,5 +99,17 @@ public final class Confirmations<T> {
         return entry != null && clock.instant().isBefore(entry.expiry());
     }
 
-    private record Pending<T>(T value, Instant expiry) {}
+    private Optional<T> valid(Pending<T> entry) {
+        if (!clock.instant().isBefore(entry.expiry())) return Optional.empty();
+        return Optional.of(entry.value());
+    }
+
+    /**
+     * Identifies one request. Only the request it was issued for accepts it.
+     */
+    public static final class Ticket {
+        private Ticket() {}
+    }
+
+    private record Pending<T>(T value, Instant expiry, Ticket ticket) {}
 }

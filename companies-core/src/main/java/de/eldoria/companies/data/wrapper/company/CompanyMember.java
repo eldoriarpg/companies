@@ -7,21 +7,15 @@ package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class CompanyMember implements ICompanyMember {
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm");
     private final UUID uuid;
     private int company;
     private long permission;
@@ -72,18 +66,6 @@ public class CompanyMember implements ICompanyMember {
     public boolean hasPermissions(CompanyPermission... permissions) {
         if (isOwner()) return true;
         return CompanyPermission.hasPermission(permission, permissions);
-    }
-
-    public String statusComponent() {
-        var hover = MessageComposer.create();
-        if (player().isOnline()) {
-            hover.text("<active>").localeCode("words.online");
-        } else {
-            var lastSeen =
-                    LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastSeen()), ZoneId.systemDefault());
-            hover.text("<neutral>").localeCode("words.lastSeen").text(": %s", lastSeen.format(FORMATTER));
-        }
-        return hover.build();
     }
 
     @Override

@@ -8,10 +8,6 @@ package de.eldoria.companies.data.wrapper.company;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.ICompanyProfile;
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
-import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.OfflinePlayer;
 
 import java.time.LocalDateTime;
@@ -81,35 +77,5 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
      */
     public boolean mayAcceptOrderOf(UUID owner, boolean allowMemberOrders) {
         return allowMemberOrders || !isMember(owner);
-    }
-
-    public String asExternalProfileComponent(Configuration configuration) {
-        var level = configuration.companySettings().level(level()).orElse(CompanyLevel.DEFAULT);
-        var composer = MessageComposer.create()
-                .text("<heading>")
-                .text(Texts.escape(name()))
-                .newLine()
-                .text("<name>")
-                .localeCode("words.level")
-                .text(": <value>%s - %s", level.level(), level.levelName())
-                .newLine()
-                .text("<name>")
-                .localeCode("words.founded")
-                .text(": <value>%s", foundedString())
-                .newLine()
-                .text("<name>")
-                .localeCode("words.leader")
-                .text(": <value>%s", owner().player().getName())
-                .newLine()
-                .text("<name>")
-                .localeCode("words.member")
-                .text(
-                        ": <value>%s <click:run_command:/company member id %s><show>[",
-                        members().size(), id())
-                .localeCode("words.list")
-                .text("]</click>")
-                .newLine();
-
-        return composer.build();
     }
 }

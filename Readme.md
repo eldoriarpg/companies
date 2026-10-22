@@ -183,6 +183,22 @@ The owner receives exactly the items that were delivered, with all their data: e
 `allowDamaged`, their damage. A worker's custom name or lore on a delivered item is therefore visible to the owner.
 Items with content, like filled shulker boxes or bundles, can neither be ordered nor delivered.
 
+### Menus
+`menus` in `config.yml` sets how menus such as the order builder, the order search, order views and confirmations are
+shown:
+
+| Value    | Menus are shown as                                                                    |
+|----------|---------------------------------------------------------------------------------------|
+| `DIALOG` | Dialog windows with input fields and buttons. Needs a Minecraft 1.21.6 client or newer |
+| `CHAT`   | Clickable chat messages                                                               |
+
+New installations use `DIALOG`. A `config.yml` from an older version has no `menus` entry and keeps showing chat menus
+until `menus: DIALOG` is added.
+
+Players whose client is older than 1.21.6, for example when joining through ViaVersion, always get chat menus. While a
+chat menu is open, other chat messages are held back and delivered once the menu is closed with `[x]`. This needs
+ProtocolLib and can be turned off with `generalSettings.messageBlocking: false`. Dialogs never hold back chat.
+
 [wakatime]: https://wakatime.com/badge/github/eldoriarpg/companies
 [publish]: https://github.com/eldoriarpg/companies/actions/workflows/publish_to_nexus.yml
 [verify]: https://github.com/eldoriarpg/companies/actions/workflows/verify.yml

@@ -7,13 +7,30 @@ package de.eldoria.companies.configuration;
 
 import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
+import de.eldoria.companies.configuration.elements.MenuSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.menus.MenuMode;
 
 @SuppressWarnings({"FieldMayBeFinal", "CanBeFinal"})
 public class ConfigFile {
     private GeneralSettings generalSettings = new GeneralSettings();
     private StyleSettings style = new StyleSettings();
+    private MenuSettings menus = new MenuSettings();
     private EconomySettings economy = new EconomySettings();
+
+    /**
+     * The configuration written for a new installation, which shows menus as dialogs.
+     * <p>
+     * A file without the {@code menus} setting was written before menus had dialogs. It is read with chat menus, so
+     * an existing installation keeps showing menus the way it did until the setting is changed.
+     *
+     * @return the configuration of a new installation
+     */
+    public static ConfigFile fresh() {
+        var config = new ConfigFile();
+        config.menus = new MenuSettings(MenuMode.DIALOG);
+        return config;
+    }
 
     public GeneralSettings generalSettings() {
         return generalSettings;
@@ -21,6 +38,13 @@ public class ConfigFile {
 
     public StyleSettings style() {
         return style;
+    }
+
+    /**
+     * @return how menus are shown
+     */
+    public MenuSettings menus() {
+        return menus;
     }
 
     public EconomySettings economy() {

@@ -11,9 +11,11 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuService;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.notifications.NotificationService;
-import de.eldoria.companies.util.Confirmations;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.strokkur.commands.Executes;
@@ -33,13 +35,14 @@ import java.util.function.Function;
 @PlayerOnly
 public final class Transfer {
     private final CommandDependencies deps;
-    private final Confirmations<Pending> transfers = new Confirmations<>();
+    private final ConfirmFlow<Pending> transfers;
 
     /**
      * @param deps what the commands need
      */
     public Transfer(CommandDependencies deps) {
         this.deps = deps;
+        this.transfers = ConfirmFlow.create(deps.plugin(), this::transferConfirmed);
     }
 
     /**
@@ -51,10 +54,10 @@ public final class Transfer {
     @Executes
     public void transfer(CommandSender sender, @CompanyMembers String member) {
         var player = Senders.player(sender);
-        deps.requireReady();
+        var menus = deps.services().menus();
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> check(
                         player, optProfile, profile -> profile.memberByName(member))
-                .ifPresent(target -> request(player, optProfile.get(), target)));
+                .ifPresent(target -> request(menus, player, optProfile.get(), target)));
     }
 
     /**
@@ -65,13 +68,12 @@ public final class Transfer {
     @Executes("confirm")
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
+        deps.requireReady();
+        transfers.confirm(player);
+    }
+
+    private void transferConfirmed(Player player, Pending pending) {
         var notificationService = deps.services().notificationService();
-        var optPending = transfers.confirm(player.getUniqueId());
-        if (optPending.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var pending = optPending.get();
         var targetPlayer = deps.plugin().getServer().getOfflinePlayer(pending.target());
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
             if (optProfile.isPresent() && optProfile.get().id() != pending.company()) {
@@ -83,19 +85,13 @@ public final class Transfer {
         });
     }
 
-    private void request(Player player, CompanyProfile company, CompanyMember target) {
-        transfers.request(player.getUniqueId(), new Pending(company.id(), target.uuid()));
-        var composer = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode(
+    private void request(MenuService menus, Player player, CompanyProfile company, CompanyMember target) {
+        var question = MenuText.create()
+                .locale(
                         "company.transfer.confirm",
-                        Replacement.unparsed(
-                                "name", String.valueOf(target.player().getName())))
-                .space()
-                .text("<click:run_command:/company transfer confirm><remove>[")
-                .localeCode("words.confirm")
-                .text("]</click>");
-        messages().sendMessage(player, composer);
+                        Values.text(
+                                "member_name", String.valueOf(target.player().getName())));
+        transfers.ask(menus, player, new Pending(company.id(), target.uuid()), question);
     }
 
     private void transfer(

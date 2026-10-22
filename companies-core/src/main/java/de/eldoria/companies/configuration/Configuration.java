@@ -9,6 +9,7 @@ import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
+import de.eldoria.companies.configuration.elements.MenuSettings;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.OrderSettings;
@@ -26,7 +27,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 public class Configuration extends JacksonConfig<ConfigFile> {
-    public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::new)
+    public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::fresh)
             .name("Main config")
             .build();
     public static final Key<DatabaseSettings> DATABASE = Key.builder(Path.of("database.yml"), DatabaseSettings::new)
@@ -68,6 +69,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     public StyleSettings styleSettings() {
         return main().style();
+    }
+
+    /**
+     * @return how menus are shown
+     */
+    public MenuSettings menuSettings() {
+        return main().menus();
     }
 
     public EconomySettings economySettings() {

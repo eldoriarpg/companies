@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.services.DisbandService;
@@ -164,6 +165,7 @@ public final class CommandDependencies {
      * @param disbandService      dissolves companies
      * @param updates             update checks and downloads
      * @param deliveryService     delivers items to orders
+     * @param menus               shows menus as dialogs or in chat
      */
     public record Services(
             Economy economy,
@@ -173,5 +175,6 @@ public final class CommandDependencies {
             NotificationService notificationService,
             DisbandService disbandService,
             Updates updates,
-            DeliveryService deliveryService) {}
+            DeliveryService deliveryService,
+            MenuService menus) {}
 }

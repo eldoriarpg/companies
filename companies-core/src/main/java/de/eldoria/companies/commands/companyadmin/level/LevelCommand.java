@@ -21,7 +21,7 @@ import org.bukkit.command.CommandSender;
 @Permission(Admin.LEVEL)
 @PlayerOnly
 public final class LevelCommand {
-    private final CommandDependencies deps;
+    private final LevelEditor editor;
 
     @Subcommand
     public final Create create;
@@ -42,12 +42,12 @@ public final class LevelCommand {
      * @param deps what the commands need
      */
     public LevelCommand(CommandDependencies deps) {
-        this.deps = deps;
-        create = new Create(deps);
-        edit = new Edit(deps);
-        info = new Info(deps);
-        move = new Move(deps);
-        remove = new Remove(deps);
+        editor = new LevelEditor(deps);
+        create = new Create(editor);
+        edit = new Edit(editor);
+        info = new Info(editor);
+        move = new Move(editor);
+        remove = new Remove(editor);
     }
 
     /**
@@ -58,7 +58,6 @@ public final class LevelCommand {
     @Executes
     @Executes("list")
     public void list(CommandSender sender) {
-        var player = Senders.player(sender);
-        LevelMenus.list(player, deps.configuration(), deps.services().messageBlocker());
+        editor.list(Senders.player(sender));
     }
 }

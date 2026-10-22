@@ -8,11 +8,14 @@ package de.eldoria.companies.services;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.menus.MenuActions;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Inventories;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -33,7 +36,7 @@ import static de.eldoria.companies.util.Threading.VIRTUAL;
  * received orders that did not fit into the owner's inventory.
  * <p>
  * Workers receive their returns when they join or use {@code /company returns}; owners are told on join and collect
- * with {@code /order collect}. Whatever does not fit stays stored until it is collected later.
+ * with {@code /order collect} or the button of the notice. Whatever does not fit stays stored until it is collected later.
  */
 public class ItemReturnService implements Listener {
     private final Plugin plugin;
@@ -58,14 +61,27 @@ public class ItemReturnService implements Listener {
 
     private void notifyOwner(Player player, int amount) {
         if (amount <= 0 || !player.isOnline()) return;
-        var composer = MessageComposer.create()
+        var text = MenuText.create()
                 .text("<neutral>")
-                .localeCode("order.collect.waiting", Replacement.create("amount", amount))
+                .locale("order.collect.waiting", Values.number("amount", amount))
                 .space()
-                .text("<click:run_command:/order collect><add>[")
-                .localeCode("words.collect")
-                .text("]</click>");
-        messageSender.sendMessage(player, composer);
+                .text(
+                        "<act_collect><add>[<i18n:words.collect>]</act_collect>",
+                        handOutButton("act_collect", player, ReturnKind.OWNER));
+        messageSender.sendMessage(player, text);
+    }
+
+    /**
+     * A chat button handing out the waiting items of a kind. It works once.
+     *
+     * @param key    placeholder key of the button
+     * @param player player the button is shown to
+     * @param kind   kind of the items to hand out
+     * @return the button
+     */
+    public TagResolver.Single handOutButton(String key, Player player, ReturnKind kind) {
+        return new MenuActions(plugin, player, MenuActions.DEFAULT_LIFETIME)
+                .chatActionOnce(key, receiver -> handOut(receiver, kind, false));
     }
 
     /**
@@ -79,14 +95,12 @@ public class ItemReturnService implements Listener {
             for (var worker : workers) {
                 var player = plugin.getServer().getPlayer(worker);
                 if (player == null) continue;
-                var composer = MessageComposer.create()
-                        .text("<neutral>")
-                        .localeCode("company.returns.waiting")
-                        .space()
-                        .text("<click:run_command:/company returns><add>[")
-                        .localeCode("words.receive")
-                        .text("]</click>");
-                messageSender.sendMessage(player, composer);
+                var text = MenuText.create()
+                        .text("<neutral><i18n:company.returns.waiting> ")
+                        .text(
+                                "<act_receive><add>[<i18n:words.receive>]</act_receive>",
+                                handOutButton("act_receive", player, ReturnKind.WORKER));
+                messageSender.sendMessage(player, text);
             }
         });
     }

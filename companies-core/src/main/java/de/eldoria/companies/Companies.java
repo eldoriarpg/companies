@@ -39,6 +39,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.debug.CompaniesDebug;
+import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
@@ -190,7 +191,9 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, economy, configuration)));
+                    new DeliveryService(this, orderData, economy, configuration),
+                    new MenuService(
+                            messageBlocker, () -> configuration.menuSettings().mode())));
         }
 
         var expiringService = new ExpiringService(

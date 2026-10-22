@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class CommandDependenciesTest {
     private final CommandDependencies deps = new CommandDependencies(null, null, null, null, null);
     private final CommandDependencies.Services services =
-            new CommandDependencies.Services(null, null, null, null, null, null, null, null);
+            new CommandDependencies.Services(null, null, null, null, null, null, null, null, null);
 
     @Test
     void commandsRefuseUntilTheServicesArrive() {

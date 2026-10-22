@@ -10,7 +10,8 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
-import de.eldoria.companies.util.Confirmations;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -28,13 +29,14 @@ import org.bukkit.entity.Player;
 @PlayerOnly
 public final class Leave {
     private final CommandDependencies deps;
-    private final Confirmations<Integer> leaves = new Confirmations<>();
+    private final ConfirmFlow<Integer> leaves;
 
     /**
      * @param deps what the commands need
      */
     public Leave(CommandDependencies deps) {
         this.deps = deps;
+        this.leaves = ConfirmFlow.create(deps.plugin(), this::leave);
     }
 
     /**
@@ -45,7 +47,7 @@ public final class Leave {
     @Executes
     public void leave(CommandSender sender) {
         var player = Senders.player(sender);
-        deps.requireReady();
+        var menus = deps.services().menus();
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
             if (optProfile.isEmpty()) {
                 messages().sendErrorActionBar(player, "error.noMember");
@@ -53,15 +55,7 @@ public final class Leave {
             }
             var profile = optProfile.get();
             if (refuseOwner(player, profile)) return;
-            leaves.request(player.getUniqueId(), profile.id());
-            var composer = MessageComposer.create()
-                    .text("<neutral>")
-                    .localeCode("company.leave.confirm")
-                    .space()
-                    .text("<click:run_command:/company leave confirm><remove>[")
-                    .localeCode("words.confirm")
-                    .text("]</click>");
-            messages().sendMessage(player, composer);
+            leaves.ask(menus, player, profile.id(), MenuText.create().locale("company.leave.confirm"));
         });
     }
 
@@ -74,8 +68,7 @@ public final class Leave {
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
         deps.requireReady();
-        leaves.confirm(player.getUniqueId()).ifPresentOrElse(companyId -> leave(player, companyId), () -> messages()
-                .sendErrorActionBar(player, "error.confirmationExpired"));
+        leaves.confirm(player);
     }
 
     /**

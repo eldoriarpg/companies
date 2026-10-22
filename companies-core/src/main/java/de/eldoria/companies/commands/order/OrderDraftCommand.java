@@ -7,19 +7,13 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.DraftLines;
-import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.UnitPrices;
-import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.menus.order.OrderBuilderController;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderDraftService;
-import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Permission.Orders;
-import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.Replacement;
-import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.milkbowl.vault.economy.Economy;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Literal;
 import net.strokkur.commands.Subcommand;
@@ -32,27 +26,28 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
-import java.util.logging.Level;
 
 /**
  * {@code /order draft …}: the actions of the order builder on the sender's draft.
  * <p>
- * Every action shows the builder again, also when it was refused. An action on a draft that expired answers that the
- * draft expired instead of starting a new one. Lines are numbered from 1, prices are per unit.
+ * The typed counterpart of the builder's buttons. Every action shows the builder again, also when it was refused. An
+ * action on a draft that expired answers that the draft expired instead of starting a new one. Lines are numbered
+ * from 1, prices are per unit.
  */
 @Subcommand("draft")
 @Permission(Orders.CREATE)
 @PlayerOnly
 public final class OrderDraftCommand {
     private final CommandDependencies deps;
+    private final OrderBuilderController builder;
 
     /**
      * @param deps what the commands need
      */
     public OrderDraftCommand(CommandDependencies deps) {
         this.deps = deps;
+        this.builder = new OrderBuilderController(deps);
     }
 
     /**
@@ -150,19 +145,7 @@ public final class OrderDraftCommand {
      */
     @Executes("done")
     public void done(CommandSender sender) {
-        var player = Senders.player(sender);
-        var services = deps.services();
-        var blocker = services.messageBlocker();
-        var economy = services.economy();
-        blocker.unblockPlayer(player);
-        drafts().done(player, economy).whenComplete((created, err) -> {
-            if (err != null) {
-                blocker.unblockPlayer(player).thenRun(() -> report(player, err));
-                return;
-            }
-            SuggestionSources.current().ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
-            blocker.unblockPlayer(player).whenComplete((unused, error) -> sendCreated(player, created, economy));
-        });
+        builder.done(Senders.player(sender));
     }
 
     /**
@@ -172,81 +155,31 @@ public final class OrderDraftCommand {
      */
     @Executes("cancel")
     public void cancel(CommandSender sender) {
-        var player = Senders.player(sender);
-        var blocker = deps.services().messageBlocker();
-        if (drafts().draft(player.getUniqueId()).isEmpty()) {
-            expired(player, blocker);
-            return;
-        }
-        drafts().cancel(player.getUniqueId());
-        blocker.unblockPlayer(player).thenRun(() -> deps.messages().sendMessage(player, "words.aborted"));
+        builder.cancel(Senders.player(sender));
     }
 
     /**
-     * Shows the builder of a draft past the message blocker.
+     * Shows the builder of a draft.
      *
      * @param player owner of the draft
      * @param draft  the draft
      */
     public void show(Player player, OrderBuilder draft) {
-        var services = deps.services();
-        var blocker = services.messageBlocker();
-        var composer = draft.asComponent(deps.configuration().orderSetting(), services.economy(), deps.orderData());
-        if (blocker.isBlocked(player)) {
-            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
-        composer.prependLines(25);
-        Menus.show(blocker, player, composer);
-    }
-
-    private void edit(CommandSender sender, BiConsumer<Player, OrderBuilder> action) {
-        var player = Senders.player(sender);
-        var blocker = deps.services().messageBlocker();
-        var draft = drafts().draft(player.getUniqueId());
-        if (draft.isEmpty()) {
-            expired(player, blocker);
-            return;
-        }
-        blocker.blockPlayer(player);
-        try {
-            action.accept(player, draft.get());
-        } finally {
-            show(player, draft.get());
-        }
-    }
-
-    private void expired(Player player, MessageBlocker blocker) {
-        blocker.unblockPlayer(player).thenRun(() -> deps.messages().sendError(player, "order.create.draftExpired"));
+        builder.show(player, draft);
     }
 
     /**
-     * Reports why a draft action failed: the error of a {@link CommandFailure}, otherwise a failed save.
+     * Reports why a draft action failed.
      *
      * @param sender sender of the action
      * @param err    the failure, possibly wrapped by a future
      */
     void report(CommandSender sender, Throwable err) {
-        var cause = err instanceof CompletionException && err.getCause() != null ? err.getCause() : err;
-        if (cause instanceof CommandFailure failure) {
-            failure.sendTo(sender, deps.messages());
-            return;
-        }
-        deps.plugin().getLogger().log(Level.SEVERE, "An order draft action failed", cause);
-        deps.messages().sendError(sender, "error.saveFailed");
+        builder.report(sender, err);
     }
 
-    private void sendCreated(Player player, OrderDraftService.Created created, Economy economy) {
-        if (created.fee() > 0) {
-            deps.messages()
-                    .sendMessage(
-                            player,
-                            "order.create.createdWithFee",
-                            Replacement.create("price", economy.format(created.price())),
-                            Replacement.create("fee", economy.format(created.fee())),
-                            Replacement.create("total", economy.format(created.price() + created.fee())));
-            return;
-        }
-        deps.messages().sendMessage(player, MessageComposer.escape("order.create.created"));
+    private void edit(CommandSender sender, BiConsumer<Player, OrderBuilder> action) {
+        builder.edit(Senders.player(sender), action);
     }
 
     private OrderDraftService drafts() {

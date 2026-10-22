@@ -8,21 +8,17 @@ package de.eldoria.companies.commands.company.member;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.components.company.CompanyPermission;
-import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Menus;
-import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.menus.company.MemberMenu;
+import de.eldoria.companies.menus.company.MemberView;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
  * {@code /company member [self|id <id>]}: the members of the sender's company with their permissions, or the members
@@ -32,12 +28,15 @@ import java.util.stream.Collectors;
 @PlayerOnly
 public final class MemberCommand {
     private final CommandDependencies deps;
+    private final BiConsumer<Player, String> permissions;
 
     /**
-     * @param deps what the commands need
+     * @param deps        what the commands need
+     * @param permissions opens the permission editor for a member, by name
      */
-    public MemberCommand(CommandDependencies deps) {
+    public MemberCommand(CommandDependencies deps, BiConsumer<Player, String> permissions) {
         this.deps = deps;
+        this.permissions = permissions;
     }
 
     /**
@@ -49,7 +48,6 @@ public final class MemberCommand {
     @Executes("self")
     public void self(CommandSender sender) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
@@ -59,55 +57,10 @@ public final class MemberCommand {
                 })
                 .thenAccept(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messages().sendErrorActionBar(player, "error.noMember");
+                        deps.messages().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
-                    messageBlocker.blockPlayer(player);
-                    var builder = MessageComposer.create()
-                            .text("<heading>")
-                            .localeCode("company.member.members")
-                            .text(":")
-                            .newLine();
-
-                    List<String> members = new ArrayList<>();
-                    var self = optProfile.get().member(player).get();
-
-                    for (var member : optProfile.get().members()) {
-                        var mem = member.player();
-                        if (mem == null) continue;
-                        var hover = MessageComposer.create();
-
-                        hover.text(((CompanyMember) member).statusComponent());
-
-                        if (!member.permissions().isEmpty()) {
-                            var permissions = member.permissions().stream()
-                                    .map(perm -> perm.name().toLowerCase(Locale.ROOT))
-                                    .collect(Collectors.toList());
-                            hover.newLine()
-                                    .text("<heading>")
-                                    .localeCode("words.permissions")
-                                    .text(":")
-                                    .newLine()
-                                    .text("<active>")
-                                    .text(permissions, ", ");
-                        }
-                        var nameComp = MessageComposer.create()
-                                .text("<hover:show_text:'%s'><value>%s</hover>", hover.build(), mem.getName());
-
-                        if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                            nameComp = nameComp.space()
-                                    .text("<click:run_command:/company permission %s><modify>[", mem.getName())
-                                    .localeCode("words.permissions")
-                                    .text("]</click>");
-                        }
-                        members.add(nameComp.build());
-                    }
-                    builder.text(members);
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                    }
-                    builder.prependLines(25);
-                    Menus.show(messageBlocker, player, builder);
+                    show(player, optProfile.get());
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -124,7 +77,6 @@ public final class MemberCommand {
     @Executes("id")
     public void id(CommandSender sender, int id) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
         deps.companyData()
                 .retrieveCompanyById(id)
                 .asFuture()
@@ -134,44 +86,18 @@ public final class MemberCommand {
                 })
                 .thenAccept(optSimple -> {
                     if (optSimple.isEmpty()) {
-                        messages().sendErrorActionBar(player, "error.unknownCompany");
+                        deps.messages().sendErrorActionBar(player, "error.unknownCompany");
                         return;
                     }
-                    messageBlocker.blockPlayer(player);
-                    var optProfile = deps.companyData()
+                    deps.companyData()
                             .retrieveCompanyProfile(optSimple.get())
                             .asFuture()
                             .exceptionally(err -> {
                                 deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                                 return Optional.empty();
                             })
-                            .join();
-                    if (optProfile.isEmpty()) return;
-                    var profile = optProfile.get();
-                    var builder = MessageComposer.create()
-                            .text("<heading>")
-                            .localeCode("company.member.members")
-                            .text(":")
-                            .newLine();
-                    List<String> members = new ArrayList<>();
-
-                    for (var member : profile.members()) {
-                        var mem = member.player();
-                        if (mem == null) continue;
-                        var hover = MessageComposer.create();
-                        hover.text(((CompanyMember) member).statusComponent());
-
-                        var nameComp = MessageComposer.create()
-                                .space(2)
-                                .text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
-                        members.add(nameComp.build());
-                    }
-                    builder.text(members);
-                    if (messageBlocker.isBlocked(player)) {
-                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</click>");
-                    }
-                    builder.prependLines(25);
-                    Menus.show(messageBlocker, player, builder);
+                            .join()
+                            .ifPresent(profile -> show(player, profile));
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -179,7 +105,15 @@ public final class MemberCommand {
                 });
     }
 
-    private MessageSender messages() {
-        return deps.messages();
+    /**
+     * Shows the members of a company.
+     *
+     * @param player  viewing player
+     * @param profile the company
+     */
+    public void show(Player player, CompanyProfile profile) {
+        var menus = deps.services().menus();
+        var menu = new MemberMenu(deps.messages(), menus, permissions);
+        menus.show(player, menu, MemberMenu.Model.of(MemberView.of(profile, player)));
     }
 }

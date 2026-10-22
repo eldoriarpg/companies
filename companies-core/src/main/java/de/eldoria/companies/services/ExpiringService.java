@@ -12,12 +12,15 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.menus.Keys;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
-import de.eldoria.eldoutilities.messages.Replacement;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -111,18 +114,38 @@ public class ExpiringService implements Runnable, Listener {
 
     private void reportOrderExpiring(Player player, List<SimpleOrder> orders) {
         if (orders.isEmpty() || !player.isOnline()) return;
-        var composer = MessageComposer.create().localeCode("expiring.notice").newLine();
-        for (var order : orders) {
-            composer.localeCode(
-                            "expiring.element",
-                            Replacement.unparsed("name", order.fullName()),
-                            Replacement.create("duration", order.runningOutTime(configuration)))
-                    .text("<click:run_command:/company order info %s>[", order.id())
-                    .localeCode("words.info")
-                    .text("]</click>")
-                    .newLine();
+        var text = MenuText.create().locale("expiring.notice");
+        for (var index = 0; index < orders.size(); index++) {
+            text.newLine().append(expiringElement(player, orders.get(index), index));
         }
-        messageSender.sendMessage(player, composer);
+        messageSender.sendMessage(player, text);
+    }
+
+    /**
+     * One expiring order with a button opening it. The element's own text uses {@code order_name} and
+     * {@code duration}, so it is rendered on its own and inserted as a component.
+     *
+     * @param player player receiving the notice
+     * @param order  expiring order
+     * @param index  position of the order in the notice
+     * @return the line of the order
+     */
+    private MenuText expiringElement(Player player, SimpleOrder order, int index) {
+        var element = Keys.of("order", index);
+        var info = Keys.of("order", index, "info");
+        var line = MenuText.create()
+                .locale(
+                        "expiring.element",
+                        Values.text("order_name", order.fullName()),
+                        Values.text("duration", order.runningOutTime(configuration)));
+        return MenuText.create()
+                .text(
+                        "<" + element + "> <" + info + ">[",
+                        Values.component(
+                                element, messageSender.serializeMessage(player, line.build(), resolvers(line))),
+                        Values.click(info, ClickEvent.runCommand("/company order info " + order.id())))
+                .locale("words.info")
+                .text("]</" + info + ">");
     }
 
     @Override
@@ -157,26 +180,35 @@ public class ExpiringService implements Runnable, Listener {
             var left = Duration.between(LocalDateTime.now(), order.claimed().plusHours(settings.maxUnclaimedHours()));
             notificationService.sendMessage(
                     plugin.getServer().getOfflinePlayer(order.owner()),
-                    purgeWarning(order, settings.maxExtensions()),
-                    Replacement.unparsed("order_name", order.fullName()),
-                    Replacement.create("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left)),
-                    Replacement.create("left", order.extensionsLeft(settings.maxExtensions())));
+                    purgeWarning(order, settings.maxExtensions(), left.isNegative() ? Duration.ZERO : left));
         }
     }
 
-    private String purgeWarning(SimpleOrder order, int maxExtensions) {
-        var composer = MessageComposer.create().text("<neutral>").localeCode("notification.orderPurgeWarning");
+    private static MenuText purgeWarning(SimpleOrder order, int maxExtensions, Duration left) {
+        var text = MenuText.create()
+                .text("<neutral>")
+                .locale(
+                        "notification.orderPurgeWarning",
+                        Values.text("order_name", order.fullName()),
+                        Values.text("duration", Texts.prettyDuration(left)));
         if (order.extensionsLeft(maxExtensions) > 0) {
-            composer.space()
-                    .text("<click:run_command:/order extend %s><modify>[", order.id())
-                    .localeCode("order.info.extend")
-                    .text("]</click>");
+            text.space()
+                    .text(
+                            "<extend><modify>[",
+                            Values.click("extend", ClickEvent.runCommand("/order extend " + order.id())))
+                    .locale("order.info.extend", Values.number("left", order.extensionsLeft(maxExtensions)))
+                    .text("]</extend>");
         }
-        return composer.space()
-                .text("<click:suggest_command:/order raise %s ><modify>[", order.id())
-                .localeCode("order.info.raise")
-                .text("]</click>")
-                .build();
+        return text.space()
+                .text(
+                        "<raise><modify>[",
+                        Values.click("raise", ClickEvent.suggestCommand("/order raise " + order.id() + " ")))
+                .locale("order.info.raise")
+                .text("]</raise>");
+    }
+
+    private static TagResolver[] resolvers(MenuText text) {
+        return text.replacements().toArray(TagResolver[]::new);
     }
 
     private void releaseExpiredOrders() {

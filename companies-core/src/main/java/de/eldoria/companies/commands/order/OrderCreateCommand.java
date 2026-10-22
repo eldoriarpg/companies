@@ -43,10 +43,9 @@ public final class OrderCreateCommand {
     @Executes
     public void create(CommandSender sender, @StringArg(StringArgType.GREEDY) String name) {
         var player = Senders.player(sender);
-        var blocker = deps.services().messageBlocker();
+        deps.requireReady();
         var running = deps.drafts().draft(player.getUniqueId());
         if (running.isPresent()) {
-            blocker.blockPlayer(player);
             draft.show(player, running.get());
             return;
         }
@@ -58,7 +57,6 @@ public final class OrderCreateCommand {
                                 draft.report(sender, err);
                                 return;
                             }
-                            blocker.blockPlayer(player);
                             draft.show(player, started);
                         },
                         Threading.mainThread(deps.plugin()));
