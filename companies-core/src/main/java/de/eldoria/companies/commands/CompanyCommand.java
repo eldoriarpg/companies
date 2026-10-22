@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.commands;
 
-import de.eldoria.companies.commands.company.Chatblock;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Disband;
 import de.eldoria.companies.commands.company.Invite;
@@ -73,9 +72,6 @@ final class CompanyCommand {
     final Rename rename;
 
     @Subcommand
-    final Chatblock chatblock;
-
-    @Subcommand
     final Returns returns;
 
     CompanyCommand(CommandDependencies deps) {
@@ -91,7 +87,6 @@ final class CompanyCommand {
         disband = new Disband(deps);
         top = new Top(deps, profile);
         rename = new Rename(deps);
-        chatblock = new Chatblock(deps);
         returns = new Returns(deps);
     }
 

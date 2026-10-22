@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.menus;
 
-import de.eldoria.eldoutilities.localization.IMessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import io.papermc.paper.dialog.Dialog;
@@ -21,15 +20,16 @@ import java.util.function.Supplier;
  * Shows menus as a dialog or in chat, see {@link MenuMode}.
  * <p>
  * The chat rendering is the only place that holds a player's chat: it blocks the chat, pushes older messages out of
- * view, adds the {@code [x]} button that releases the chat when it is held, and sends the menu past the blocker.
+ * view, adds the {@code [x]} button that releases the chat when it is held (a click callback, like every menu
+ * button), and sends the menu past the blocker.
  * Dialogs never hold chat, and neither do menus that {@link Menu#holdsChat() send a single line}. Menus may be shown
  * from any thread.
  */
 public final class MenuService {
     /**
-     * The button that releases the held chat.
+     * Placeholder key of the button that releases the held chat.
      */
-    static final String CLOSE = "<click:run_command:/company chatblock false><red>[x]</red></click>";
+    static final String CLOSE_KEY = "menu_close";
 
     private static final int CLEARED_LINES = 25;
 
@@ -62,21 +62,10 @@ public final class MenuService {
         }
         var text = menu.chat(player, model, actions);
         if (menu.holdsChat()) {
-            showChat(player, text);
+            showChat(player, text, actions);
             return;
         }
-        sendLine(player, text);
-    }
-
-    /**
-     * Shows a menu that exists only as chat text.
-     *
-     * @param player  player to show the menu to
-     * @param content text of the menu
-     */
-    // TODO remove once every menu is a Menu with named placeholders
-    public void show(Player player, IMessageComposer content) {
-        showChat(player, content);
+        send(player, text);
     }
 
     /**
@@ -112,23 +101,22 @@ public final class MenuService {
         onMainThread(() -> player.showDialog(dialog));
     }
 
-    private void showChat(Player player, IMessageComposer content) {
+    private void showChat(Player player, MenuText content, MenuActions actions) {
         blocker.blockPlayer(player);
-        var text = new StringBuilder("\n".repeat(CLEARED_LINES)).append(content.build());
+        var text = MenuText.create().text("\n".repeat(CLEARED_LINES)).append(content);
         if (blocker.isBlocked(player)) {
-            text.append('\n').append(CLOSE);
+            text.newLine()
+                    .text(
+                            "<" + CLOSE_KEY + "><red>[x]</red></" + CLOSE_KEY + ">",
+                            actions.chatAction(CLOSE_KEY, this::close));
         }
-        send(player, text.toString(), content);
+        send(player, text);
     }
 
-    private void sendLine(Player player, IMessageComposer content) {
-        send(player, content.build(), content);
-    }
-
-    private void send(Player player, String text, IMessageComposer content) {
+    private void send(Player player, MenuText text) {
         var sender = MessageSender.getPluginMessageSender(plugin());
-        var rendered =
-                sender.serializeMessage(player, text, content.replacements().toArray(TagResolver[]::new));
+        var rendered = sender.serializeMessage(
+                player, text.build(), text.replacements().toArray(TagResolver[]::new));
         blocker.sendBypassing(player, sender.prefix().appendSpace().append(rendered));
     }
 
