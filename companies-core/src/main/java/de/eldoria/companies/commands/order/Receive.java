@@ -14,9 +14,9 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Inventories;
-import de.eldoria.eldoutilities.localization.MessageComposer;
-import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -119,15 +119,15 @@ public final class Receive {
             deps.messages().sendMessage(player, "order.receive.received");
             return;
         }
-        var composer = MessageComposer.create()
-                .localeCode(
+        var text = MenuText.create()
+                .locale(
                         "order.receive.receivedPartly",
-                        Replacement.create("received", total - waiting),
-                        Replacement.create("waiting", waiting))
+                        Values.number("received", total - waiting),
+                        Values.number("waiting", waiting))
                 .space()
-                .text("<click:run_command:/order collect><add>[")
-                .localeCode("words.collect")
-                .text("]</click>");
-        deps.messages().sendMessage(player, composer);
+                .text(
+                        "<act_collect><add>[<i18n:words.collect>]</act_collect>",
+                        deps.services().itemReturnService().handOutButton("act_collect", player, ReturnKind.OWNER));
+        deps.messages().sendMessage(player, text);
     }
 }
