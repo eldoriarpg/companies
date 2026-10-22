@@ -1,0 +1,50 @@
+"t:feature":
+  - head-branch: "^feature/"
+"t:fix":
+  - head-branch: "^fix/"
+"t:deps":
+  - head-branch: "^renovate/"
+"t:chore":
+  - head-branch: "^chore/"
+"t:other":
+  - head-branch: "^(?!feature/|fix/|renovate/|chore/).*$"
+
+"a:api":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "companies-api/src/main/**"
+"a:core":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "companies-core/src/main/java/**"
+"a:database":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "companies-core/src/main/resources/database/**"
+"a:locale":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "companies-core/src/main/resources/messages*.properties"
+"a:plugin":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "companies-paper/**"
+"a:build":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "buildSrc/**"
+          - "gradle/**"
+          - "config/**"
+          - "*.gradle.kts"
+"a:tests":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*/src/test/**"
+"a:docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Readme.md"
+"ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
