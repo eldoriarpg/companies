@@ -7,14 +7,13 @@ package de.eldoria.companies.data.repository.impl.sqlite;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.intellij.lang.annotations.Language;
 
 import java.sql.SQLException;
@@ -94,19 +93,26 @@ public class SqLiteOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+    protected boolean lockClaimedOrder(ConnectedQueryConfiguration conf, SimpleOrder order) {
         @Language("sqlite")
         var query = """
+                UPDATE order_states
+                SET state = state
+                WHERE id = ?
+                  AND state = ?""";
+        return conf.query(query)
+                .single(call().bind(order.id()).bind(OrderState.CLAIMED.stateId()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    protected String deliveryUpsertQuery() {
+        return """
                 INSERT
                 INTO orders_delivered(id, worker_uuid, material, delivered)
                 VALUES (?, ?, ?, ?)
-                ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered""";
-        query(query)
-                .single(call().bind(order.id())
-                        .bind(player.getUniqueId(), UUID_BYTES)
-                        .bind(material.name())
-                        .bind(amount))
-                .update();
+                ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = orders_delivered.delivered + excluded.delivered""";
     }
 
     @Override

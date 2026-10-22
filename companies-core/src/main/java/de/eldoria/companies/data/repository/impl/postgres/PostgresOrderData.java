@@ -12,8 +12,6 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.intellij.lang.annotations.Language;
 
 import java.util.List;
@@ -21,7 +19,6 @@ import java.util.concurrent.ExecutorService;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
-import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class PostgresOrderData extends MariaDbOrderData {
     /**
@@ -85,19 +82,12 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
-        @Language("postgresql")
-        var query = """
+    protected String deliveryUpsertQuery() {
+        return """
                 INSERT
                 INTO orders_delivered(id, worker_uuid, material, delivered)
                 VALUES (?, ?, ?, ?)
-                ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = delivered + excluded.delivered""";
-        query(query)
-                .single(call().bind(order.id())
-                        .bind(player.getUniqueId(), UUID_BYTES)
-                        .bind(material.name())
-                        .bind(amount))
-                .update();
+                ON CONFLICT(id, worker_uuid, material) DO UPDATE SET delivered = orders_delivered.delivered + excluded.delivered""";
     }
 
     @Override

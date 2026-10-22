@@ -7,6 +7,7 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.chojo.sadu.queries.api.call.Call;
+import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
@@ -203,26 +204,27 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void orderDelivered(SimpleOrder order) {
+    protected boolean orderDelivered(SimpleOrder order) {
         @Language("mariadb")
         var update = """
                 UPDATE order_states
                 SET state       = ?,
                     last_update = CURRENT_TIMESTAMP
-                WHERE id = ?""";
-        @Language("mariadb")
-        var delete = """
-                DELETE FROM orders_delivered WHERE id = ?""";
-        try (var conf = QueryConfiguration.getDefault().withSingleTransaction()) {
-
-            conf.query(update)
-                    .single(call().bind(OrderState.DELIVERED.stateId()).bind(order.id()))
-                    .update();
-
-            conf.query(delete)
-                    .single(call().bind(order.id()))
-                    .delete();
-        }
+                WHERE id = ?
+                  AND state = ?
+                  AND NOT EXISTS(SELECT 1
+                                 FROM order_content c
+                                 WHERE c.id = order_states.id
+                                   AND c.amount > COALESCE((SELECT SUM(d.delivered)
+                                                            FROM orders_delivered d
+                                                            WHERE d.id = c.id
+                                                              AND d.material = c.material), 0))""";
+        return query(update)
+                .single(call().bind(OrderState.DELIVERED.stateId())
+                        .bind(order.id())
+                        .bind(OrderState.CLAIMED.stateId()))
+                .update()
+                .changed();
     }
 
     @Override
@@ -332,19 +334,74 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+    protected int deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        @Language("mariadb")
+        var missingQuery = """
+                SELECT c.amount - COALESCE((SELECT SUM(d.delivered)
+                                            FROM orders_delivered d
+                                            WHERE d.id = c.id
+                                              AND d.material = c.material), 0) AS missing
+                FROM order_content c
+                WHERE c.id = ?
+                  AND c.material = ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        int delivered;
+        try (conf) {
+            if (!lockClaimedOrder(conf, order)) return 0;
+            var missing = conf.query(missingQuery)
+                    .single(call().bind(order.id()).bind(material.name()))
+                    .map(row -> row.getInt("missing"))
+                    .first();
+            if (missing.isEmpty()) return 0;
+            delivered = Math.min(amount, missing.get());
+            if (delivered <= 0) return 0;
+            conf.query(deliveryUpsertQuery())
+                    .single(call().bind(order.id())
+                            .bind(player.getUniqueId(), UUID_BYTES)
+                            .bind(material.name())
+                            .bind(delivered))
+                    .insert();
+        }
+        return conf.context().exceptions().isEmpty() ? delivered : 0;
+    }
+
+    /**
+     * Locks the state of the order for the rest of the transaction if the order is claimed.
+     * <p>
+     * Concurrent deliveries to the same order wait for each other, so the missing amount can not be exceeded.
+     *
+     * @param conf  transaction to lock in
+     * @param order order to lock
+     * @return true if the order is claimed
+     */
+    protected boolean lockClaimedOrder(ConnectedQueryConfiguration conf, SimpleOrder order) {
         @Language("mariadb")
         var query = """
+                SELECT id
+                FROM order_states
+                WHERE id = ?
+                  AND state = ?
+                    FOR UPDATE""";
+        return conf.query(query)
+                .single(call().bind(order.id()).bind(OrderState.CLAIMED.stateId()))
+                .map(row -> row.getInt("id"))
+                .first()
+                .isPresent();
+    }
+
+    /**
+     * Query which adds a delivered amount to the deliveries of a worker.
+     * <p>
+     * Parameters are the order id, worker id, material and amount.
+     *
+     * @return upsert query
+     */
+    protected String deliveryUpsertQuery() {
+        return """
                 INSERT
                 INTO orders_delivered(id, worker_uuid, material, delivered)
                 VALUES (?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE delivered = delivered + VALUES(delivered)""";
-        query(query)
-                .single(call().bind(order.id())
-                        .bind(player.getUniqueId(), UUID_BYTES)
-                        .bind(material.name())
-                        .bind(amount))
-                .update();
     }
 
     @Override

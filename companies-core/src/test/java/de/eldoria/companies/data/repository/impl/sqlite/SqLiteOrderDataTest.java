@@ -107,4 +107,46 @@ class SqLiteOrderDataTest {
         Assertions.assertTrue(orderData.submitItemReturnTake(itemReturn, 4).join());
         Assertions.assertTrue(orderData.retrieveItemReturns(worker.getUniqueId()).join().isEmpty());
     }
+
+    @Test
+    void deliveryIsCappedToMissingAmount() {
+        var order = createOrder(10, 5);
+        claim(order);
+
+        Assertions.assertEquals(6, orderData.submitDelivery(worker, reload(order), Material.STONE, 6).join());
+        Assertions.assertEquals(4, orderData.submitDelivery(worker, reload(order), Material.STONE, 6).join());
+        Assertions.assertEquals(0, orderData.submitDelivery(worker, reload(order), Material.STONE, 6).join());
+
+        var content = orderData.retrieveFullOrder(reload(order)).join().content(Material.STONE).orElseThrow();
+        Assertions.assertEquals(10, content.delivered());
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
+    }
+
+    @Test
+    void deliveryRequiresClaimedOrder() {
+        var order = createOrder(10, 5);
+
+        Assertions.assertEquals(0, orderData.submitDelivery(worker, reload(order), Material.STONE, 5).join());
+
+        SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), COMPANY);
+        Assertions.assertEquals(0, orderData.submitDelivery(worker, reload(order), Material.STONE, 5).join());
+        Assertions.assertEquals(0, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
+    }
+
+    @Test
+    void orderIsMarkedDeliveredOnlyOnceAndWhenComplete() {
+        var order = createOrder(10, 5);
+        claim(order);
+        orderData.submitDelivery(worker, reload(order), Material.STONE, 10).join();
+
+        Assertions.assertTrue(orderData.submitOrderDelivered(reload(order)).join().isEmpty());
+
+        orderData.submitDelivery(worker, reload(order), Material.DIRT, 5).join();
+        var delivered = orderData.submitOrderDelivered(reload(order)).join();
+
+        Assertions.assertTrue(delivered.isPresent());
+        Assertions.assertEquals(OrderState.DELIVERED, delivered.get().state());
+        Assertions.assertEquals(15, delivered.get().delivered());
+        Assertions.assertTrue(orderData.submitOrderDelivered(reload(order)).join().isEmpty());
+    }
 }

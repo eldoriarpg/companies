@@ -109,14 +109,28 @@ public abstract class AOrderData {
 
     protected abstract boolean claimOrder(SimpleCompany company, SimpleOrder order);
 
-    public FutureResult<Void> submitOrderDelivered(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            orderDelivered(order);
+    /**
+     * Marks a claimed and completely delivered order as delivered.
+     *
+     * @param order order to mark
+     * @return a future providing the delivered order, or an empty optional if the order was not claimed or is not completely delivered
+     */
+    public BukkitFutureResult<Optional<FullOrder>> submitOrderDelivered(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var delivered = orderDelivered(order);
             invalidateFullOrder(order);
+            if (!delivered) return Optional.<FullOrder>empty();
+            return orderById(order.id()).map(this::toFullOrder);
         }, VIRTUAL);
     }
 
-    protected abstract void orderDelivered(SimpleOrder order);
+    /**
+     * Changes the state of a claimed and completely delivered order to delivered.
+     *
+     * @param order order to change
+     * @return true if the state was changed
+     */
+    protected abstract boolean orderDelivered(SimpleOrder order);
 
     public BukkitFutureResult<Optional<Set<UUID>>> submitUnclaimOrder(SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(() -> {
@@ -169,14 +183,26 @@ public abstract class AOrderData {
      */
     protected abstract boolean addItemReturn(UUID worker, ItemStack stack, int amount);
 
-    public BukkitFutureResult<Void> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            deliver(player, order, material, amount);
+    public BukkitFutureResult<Integer> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var delivered = deliver(player, order, material, amount);
             invalidateFullOrder(order);
+            return delivered;
         }, VIRTUAL);
     }
 
-    protected abstract void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount);
+    /**
+     * Records items delivered by a worker.
+     * <p>
+     * Nothing is recorded unless the order is claimed, and the amount is capped to the amount the order still misses.
+     *
+     * @param player   worker delivering the items
+     * @param order    order receiving the items
+     * @param material material of the items
+     * @param amount   amount of items offered
+     * @return amount of items which were recorded
+     */
+    protected abstract int deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount);
 
     public BukkitFutureResult<Optional<SimpleOrder>> retrieveOrderById(int id) {
         return CompletableBukkitFuture.supplyAsync(() -> orderById(id), VIRTUAL);
