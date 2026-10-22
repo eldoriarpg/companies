@@ -8,7 +8,6 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.milkbowl.vault.economy.Economy;
 
 /**
@@ -17,29 +16,6 @@ import net.milkbowl.vault.economy.Economy;
  */
 public final class PriceLines {
     private PriceLines() {}
-
-    /**
-     * Adds the fee and the total below the price, when there is a fee.
-     *
-     * @param composer composer ending with the price line
-     * @param economy  economy formatting the amounts
-     * @param price    price of the order
-     * @param fee      fee of the order
-     * @return the composer
-     */
-    public static MessageComposer fee(MessageComposer composer, Economy economy, double price, double fee) {
-        if (!(fee > 0)) return composer;
-        return composer.newLine()
-                .text("<name>")
-                .localeCode("words.fee")
-                .text(": <value>%s <inactive>(", economy.format(fee))
-                .localeCode("order.fee.nonRefundable")
-                .text(")")
-                .newLine()
-                .text("<name>")
-                .localeCode("words.total")
-                .text(": <value>%s", economy.format(price + fee));
-    }
 
     /**
      * Adds the fee and the total below the price, when there is a fee, as named placeholders {@code fee} and
