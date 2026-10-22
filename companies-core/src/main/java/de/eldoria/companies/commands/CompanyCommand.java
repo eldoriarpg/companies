@@ -107,9 +107,9 @@ final class CompanyCommand {
         applications = new ApplicationsCommand(deps);
         joinMode = new JoinModeCommand(deps);
         kick = new Kick(deps);
-        leave = new Leave(deps);
-        transfer = new Transfer(deps);
         disband = new Disband(deps);
+        leave = new Leave(deps, disband::disband);
+        transfer = new Transfer(deps);
         top = new Top(deps, profile);
         rename = new Rename(deps);
         returns = new Returns(deps);
