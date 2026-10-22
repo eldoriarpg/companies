@@ -51,4 +51,15 @@ class SqLiteCompanyDataTest {
         Assertions.assertTrue(companyData.retrieveCompanyByName("Miners").join().isEmpty());
         Assertions.assertEquals(0, SqLiteTestDatabase.count("company_member", "id = " + id));
     }
+
+    @Test
+    void failedOrdersAreCounted() {
+        var id = createCompany("Miners");
+        var company = companyData.retrieveCompanyById(id).join().orElseThrow();
+
+        companyData.upcountFailedOrders(company, 2);
+        companyData.upcountFailedOrders(company, 3);
+
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("company_stats", "id = " + id + " AND failed_orders = 5"));
+    }
 }

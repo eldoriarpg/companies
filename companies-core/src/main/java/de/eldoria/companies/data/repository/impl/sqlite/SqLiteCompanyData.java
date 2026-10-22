@@ -72,7 +72,6 @@ public class SqLiteCompanyData extends MariaDbCompanyData {
                         	failed_orders = failed_orders + excluded.failed_orders""";
         query(query)
                 .single(call().bind(company.id())
-                        .bind(amount)
                         .bind(amount))
                 .update();
     }
