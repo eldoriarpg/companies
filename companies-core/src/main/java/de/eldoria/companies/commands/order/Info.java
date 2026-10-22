@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -56,9 +57,8 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                              builder.newLine()
                                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
                          }
-                         messageBlocker.announce(player, "[x]");
                          builder.prependLines(25);
-                         messageSender().sendMessage(player, builder);
+                         Menus.show(messageBlocker, player, builder);
                          return;
                      }
                      messageSender().sendErrorActionBar(player, "error.unkownOrder");

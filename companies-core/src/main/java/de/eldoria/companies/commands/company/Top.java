@@ -8,6 +8,7 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -83,8 +84,7 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
             composer.newLine()
                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
-        messageBlocker.announce(player, "[x]");
         composer.prependLines(25);
-        messageSender().sendMessage(player, composer);
+        Menus.show(messageBlocker, player, composer);
     }
 }

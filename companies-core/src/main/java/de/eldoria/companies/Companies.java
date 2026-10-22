@@ -142,11 +142,10 @@ public class Companies extends EldoPlugin {
             return;
         }
 
-            MessageBlocker messageBlocker;
+        MessageBlocker messageBlocker;
         if (configuration.main().generalSettings().messageBlocking()) {
             messageBlocker = MessageBlockerAPI.builder(this)
-                                              .withExecutor(workerPool)
-                                              .addWhitelisted("[C]")
+                                              .executor(workerPool)
                                               .build();
         } else {
             messageBlocker = MessageBlocker.dummy(this);

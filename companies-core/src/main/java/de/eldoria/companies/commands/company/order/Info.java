@@ -11,6 +11,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -95,7 +96,6 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         composer.prependLines(25);
-        messageBlocker.announce(player, "[x]");
-        messageSender().sendMessage(player, composer);
+        Menus.show(messageBlocker, player, composer);
     }
 }

@@ -11,7 +11,6 @@ dependencies {
     }
     api(libs.messageblocker)
 
-    compileOnly(libs.protocollib)
     compileOnly(libs.papi)
     compileOnly(libs.vault)
     compileOnly(platform(libs.jackson.bom))
