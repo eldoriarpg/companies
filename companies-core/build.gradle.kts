@@ -17,13 +17,6 @@ dependencies {
     compileOnly(libs.protocollib)
     compileOnly(libs.papi)
     compileOnly(libs.vault)
-
-    compileOnly(libs.bundles.adventure)
-
     compileOnly(libs.bundles.jackson)
-
-    // database
     compileOnly(libs.bundles.database)
-
-    testImplementation(libs.bundles.adventure)
 }

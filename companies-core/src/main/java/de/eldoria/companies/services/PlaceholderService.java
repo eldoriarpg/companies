@@ -46,13 +46,13 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
 
     @Override
     public @NotNull String getAuthor() {
-        return String.join(", ", companies.getDescription()
+        return String.join(", ", companies.getPluginMeta()
                                           .getAuthors());
     }
 
     @Override
     public @NotNull String getVersion() {
-        return companies.getDescription()
+        return companies.getPluginMeta()
                         .getVersion();
     }
 

@@ -34,7 +34,7 @@ public abstract class ANodeData {
      * @param plugin plugin
      */
     public void updateNode(Plugin plugin) {
-        updateNode(nodeSettings.nodeUid(), nodeSettings.nodeType(), plugin.getDescription().getVersion());
+        updateNode(nodeSettings.nodeUid(), nodeSettings.nodeType(), plugin.getPluginMeta().getVersion());
     }
 
     protected abstract void updateNode(UUID nodeId, NodeType type, String version);
@@ -56,13 +56,13 @@ public abstract class ANodeData {
             throw new IllegalStateException("Multiple nodes are set as primary. Only one node is allowed to be a primary node. Nodes marked as primary: " + nodes);
         }
         Node node = mainNodes.get(0);
-        if (Version.parse(node.version()).isNewer(Version.parse(plugin.getDescription().getVersion()))) {
+        if (Version.parse(node.version()).isNewer(Version.parse(plugin.getPluginMeta().getVersion()))) {
             throw new IllegalStateException("Primary node is on version " + node.version() + ". However this node is just on "
-                                            + plugin.getDescription().getVersion() + ". Please update this node.");
+                                            + plugin.getPluginMeta().getVersion() + ". Please update this node.");
         }
-        if (Version.parse(node.version()).isOlder(Version.parse(plugin.getDescription().getVersion()))) {
+        if (Version.parse(node.version()).isOlder(Version.parse(plugin.getPluginMeta().getVersion()))) {
             throw new IllegalStateException("Primary node is on version " + node.version() + ". However this node already on "
-                                            + plugin.getDescription().getVersion() + ". Please update primary first.");
+                                            + plugin.getPluginMeta().getVersion() + ". Please update primary first.");
         }
     }
 

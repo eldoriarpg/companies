@@ -76,7 +76,7 @@ public class CompanyMember implements ICompanyMember {
             hover.text("<active>")
                  .localeCode("Online");
         } else {
-            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastPlayed()), ZoneId.systemDefault());
+            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastSeen()), ZoneId.systemDefault());
             hover.text("<neutral>")
                  .localeCode("Seen")
                  .text(": %s", lastSeen.format(FORMATTER));

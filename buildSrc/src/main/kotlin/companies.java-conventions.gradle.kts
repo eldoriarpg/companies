@@ -7,6 +7,7 @@ val libs = versionCatalogs.named("libs")
 
 repositories {
     mavenCentral()
+    maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://eldonexus.de/repository/maven-proxies/")
     maven("https://eldonexus.de/repository/maven-public/")
     maven("https://jitpack.io")
@@ -30,13 +31,13 @@ spotless {
 }
 
 dependencies {
-    compileOnly(libs.findLibrary("paper-latest").get())
+    compileOnly(libs.findLibrary("paper").get())
     compileOnly(libs.findLibrary("jetbrains-annotations").get())
 
-    testImplementation(libs.findLibrary("spigot-v16").get())
+    testImplementation(libs.findLibrary("paper").get())
     testImplementation(platform(libs.findLibrary("junit-bom").get()))
-    testImplementation(libs.findLibrary("mockbukkit").get())
     testImplementation(libs.findLibrary("junit-jupiter").get())
+    testRuntimeOnly(libs.findLibrary("junit-platform-launcher").get())
 }
 
 tasks {
