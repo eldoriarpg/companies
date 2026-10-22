@@ -21,6 +21,7 @@ public class CompanySettings {
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
     private boolean allowMemberOrders = false;
+    private int inviteHours = 24;
 
     public CompanySettings() {
         updateLevel();
@@ -130,5 +131,14 @@ public class CompanySettings {
         this.level.remove(level - 1);
         updateLevel();
         return true;
+    }
+
+    /**
+     * How long an invite stays open before it expires.
+     *
+     * @return lifetime of an invite in hours
+     */
+    public int inviteHours() {
+        return inviteHours;
     }
 }
