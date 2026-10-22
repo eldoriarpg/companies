@@ -48,6 +48,7 @@ class OrderContentTest {
                 1,
                 LocalDateTime.now(),
                 OrderState.CLAIMED,
+                0.0,
                 List.of(contents));
     }
 

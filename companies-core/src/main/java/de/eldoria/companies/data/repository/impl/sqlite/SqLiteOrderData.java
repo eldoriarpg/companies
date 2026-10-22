@@ -50,7 +50,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        state,
                        owner_uuid,
                        name,
-                       created
+                       created,
+                       o.fee
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
@@ -74,7 +75,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        state,
                        owner_uuid,
                        name,
-                       created
+                       created,
+                       o.fee
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -97,7 +99,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        state,
                        owner_uuid,
                        name,
-                       created
+                       created,
+                       o.fee
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
@@ -177,7 +180,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
         @Language("sqlite")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee
                 FROM orders o
                          LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c
@@ -247,6 +250,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 SqLiteAdapter.getTimestamp(row, "created"),
                 row.getInt("company"),
                 SqLiteAdapter.getTimestamp(row, "last_update"),
-                OrderState.byId(row.getInt("state")));
+                OrderState.byId(row.getInt("state")),
+                row.getDouble("fee"));
     }
 }

@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
+import de.chojo.sadu.core.updater.SqlVersion;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.chojo.sadu.sqlite.databases.SqLite;
 import de.chojo.sadu.updater.QueryReplacement;
@@ -46,11 +47,24 @@ final class SqLiteTestDatabase {
      * @return the data source of the database
      */
     static SQLiteDataSource create(Path directory) throws SQLException, IOException {
+        return create(directory, SqlVersion.load(SqLiteTestDatabase.class.getClassLoader()));
+    }
+
+    /**
+     * Creates a database file in the directory, migrates it up to the given version and registers it as the default
+     * query configuration. Calling it again on the same directory migrates the existing database further.
+     *
+     * @param directory directory for the database file
+     * @param version   version to migrate to
+     * @return the data source of the database
+     */
+    static SQLiteDataSource create(Path directory, SqlVersion version) throws SQLException, IOException {
         var dataSource = new SQLiteDataSource();
         dataSource.setUrl("jdbc:sqlite:" + directory.resolve("data.db"));
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
         SqlUpdater.builder(dataSource, SqLite.get())
                 .setVersionTable("companies_db_version")
+                .setVersion(version)
                 .withClassLoader(SqLiteTestDatabase.class.getClassLoader())
                 .setReplacements(new QueryReplacement("companies_schema", "companies_schema"))
                 .execute();

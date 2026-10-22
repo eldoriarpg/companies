@@ -37,8 +37,9 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
             int company,
             LocalDateTime claimed,
             OrderState state,
+            double fee,
             List<OrderContent> contents) {
-        super(id, owner, name, created, company, claimed, state);
+        super(id, owner, name, created, company, claimed, state, fee);
         this.contents = contents;
     }
 

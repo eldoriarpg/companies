@@ -375,7 +375,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 return;
             }
             orderData
-                    .submitOrder(player, order.build())
+                    .submitOrder(player, order.build(0.0))
                     .asFuture()
                     .exceptionally(err -> {
                         plugin().getLogger().log(Level.SEVERE, "Could not save order", err);

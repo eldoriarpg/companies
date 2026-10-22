@@ -23,9 +23,21 @@ public class SimpleOrder implements ISimpleOrder {
     private final int company;
     private final LocalDateTime claimed;
     private final OrderState state;
+    private final double fee;
     private String name;
 
     public SimpleOrder(UUID owner, String name) {
+        this(owner, name, 0.0);
+    }
+
+    /**
+     * Creates an order which is not saved yet.
+     *
+     * @param owner owner of the order
+     * @param name  name of the order
+     * @param fee   fee the owner pays for placing the order
+     */
+    public SimpleOrder(UUID owner, String name, double fee) {
         id = -1;
         this.owner = owner;
         this.name = Texts.trimLeft(name, 32);
@@ -33,6 +45,7 @@ public class SimpleOrder implements ISimpleOrder {
         company = -1;
         claimed = null;
         state = null;
+        this.fee = fee;
     }
 
     public SimpleOrder(
@@ -42,7 +55,8 @@ public class SimpleOrder implements ISimpleOrder {
             LocalDateTime created,
             int company,
             LocalDateTime claimed,
-            OrderState state) {
+            OrderState state,
+            double fee) {
         this.id = id;
         this.owner = owner;
         this.name = Texts.trimLeft(name, 32);
@@ -50,10 +64,11 @@ public class SimpleOrder implements ISimpleOrder {
         this.company = company;
         this.claimed = claimed;
         this.state = state;
+        this.fee = fee;
     }
 
     public FullOrder toFullOrder(List<OrderContent> contents) {
-        return new FullOrder(id, owner, name, created, company, claimed, state, contents);
+        return new FullOrder(id, owner, name, created, company, claimed, state, fee, contents);
     }
 
     @Override
@@ -99,6 +114,11 @@ public class SimpleOrder implements ISimpleOrder {
     @Override
     public OrderState state() {
         return state;
+    }
+
+    @Override
+    public double fee() {
+        return fee;
     }
 
     public String runningOutTime(Configuration configuration) {
