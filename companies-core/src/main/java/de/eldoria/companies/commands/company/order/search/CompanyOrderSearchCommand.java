@@ -12,9 +12,6 @@ import de.eldoria.companies.commands.suggest.SortingTypes;
 import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Literal;
 import net.strokkur.commands.Subcommand;
@@ -25,60 +22,40 @@ import net.strokkur.commands.arguments.StringArgType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.ObjIntConsumer;
 
 /**
- * {@code /company order search}: builds a search query, runs it and pages through the orders found.
+ * {@code /company order search}: shows the search form, whose buttons run the search and page through the orders
+ * found.
  * <p>
- * Every change of the query shows the query again. Every page shown runs the search again, so the results are never
- * stale. Without a subcommand it shows the query.
+ * The {@code query …} subcommands change the query by typing, for the values a chat menu cannot take, and show the
+ * form again.
  */
 @Subcommand("search")
 @PlayerOnly
 public final class CompanyOrderSearchCommand {
-    private static final int PAGE_SIZE = 10;
-    private final CommandDependencies deps;
-    private final SearchSessions sessions;
-    private final SearchExecutor executor;
+    private final OrderSearch search;
 
     /**
-     * @param deps what the commands need
+     * @param deps   what the commands need
+     * @param info   shows a company order to a player
+     * @param accept accepts an order for the company of a player
      */
-    public CompanyOrderSearchCommand(CommandDependencies deps) {
-        this.deps = deps;
-        this.sessions = deps.searches();
-        this.executor =
-                new SearchExecutor(deps.orderData(), deps.companyData(), deps.configuration(), () -> deps.services()
-                        .deliveryService()
-                        .matcher());
+    public CompanyOrderSearchCommand(
+            CommandDependencies deps, ObjIntConsumer<Player> info, ObjIntConsumer<Player> accept) {
+        this.search = new OrderSearch(deps, info, accept);
     }
 
     /**
-     * Shows the search query of the sender.
+     * Shows the search form.
      *
      * @param sender sender of the command
      */
     @Executes
     @Executes("query")
-    @Executes("query render")
     public void render(CommandSender sender) {
-        renderSearch(Senders.player(sender));
-    }
-
-    /**
-     * Runs the search again and shows a page of the results.
-     *
-     * @param sender sender of the command
-     * @param page   page to show, from zero
-     */
-    @Executes("page")
-    public void page(CommandSender sender, @IntArg(min = 0) int page) {
-        var player = Senders.player(sender);
-        deps.requireReady();
-        showFresh(player, page);
+        search.showForm(Senders.player(sender));
     }
 
     /**
@@ -88,10 +65,7 @@ public final class CompanyOrderSearchCommand {
      */
     @Executes("query clear")
     public void clear(CommandSender sender) {
-        var player = Senders.player(sender);
-        deps.requireReady();
-        sessions.reset(player.getUniqueId());
-        renderSearch(player);
+        search.reset(Senders.player(sender));
     }
 
     /**
@@ -101,9 +75,7 @@ public final class CompanyOrderSearchCommand {
      */
     @Executes("query execute")
     public void execute(CommandSender sender) {
-        var player = Senders.player(sender);
-        playerSearch(player);
-        showFresh(player, 0);
+        search.showPage(Senders.player(sender), 0);
     }
 
     /**
@@ -260,102 +232,6 @@ public final class CompanyOrderSearchCommand {
     }
 
     private void change(CommandSender sender, Consumer<SearchQuery> change) {
-        var player = Senders.player(sender);
-        change.accept(playerSearch(player));
-        renderSearch(player);
-    }
-
-    /**
-     * The search query of a player, created when missing. Refuses while the services do not exist, since a search
-     * menu follows.
-     *
-     * @param player player searching
-     * @return the query
-     */
-    private SearchQuery playerSearch(Player player) {
-        deps.requireReady();
-        return sessions.query(player.getUniqueId());
-    }
-
-    private void renderSearch(Player player) {
-        var menus = deps.services().menus();
-        var playerSearch = playerSearch(player);
-        var message = MessageComposer.create().text(playerSearch.asComponent());
-        menus.show(player, message);
-    }
-
-    /**
-     * Runs the player's current search again and shows the given page of the fresh results. Has to be called on the
-     * main thread.
-     *
-     * @param player player searching
-     * @param page   page to show
-     */
-    private void showFresh(Player player, int page) {
-        var optSearch = sessions.findQuery(player.getUniqueId());
-        if (optSearch.isEmpty()) {
-            renderPage(player, page);
-            return;
-        }
-        executor.execute(player, optSearch.get()).whenComplete(found -> {
-            sessions.results(player.getUniqueId(), found);
-            renderPage(player, page);
-        });
-    }
-
-    private void renderPage(Player player, int requestedPage) {
-        var services = deps.services();
-        var menus = services.menus();
-        var results = sessions.results(player.getUniqueId());
-        var fullOrders = results.orders();
-        var page = Math.min(requestedPage, Math.max(0, (fullOrders.size() - 1) / PAGE_SIZE));
-
-        var builder = MessageComposer.create()
-                .text("<heading>")
-                .localeCode("words.results")
-                .text(": <value>%s", fullOrders.size())
-                .space()
-                .text("<click:run_command:/company order search query render><modify>[")
-                .localeCode("words.change")
-                .text("]</click>")
-                .newLine();
-
-        List<String> components = new ArrayList<>();
-        for (var order : page(fullOrders, page)) {
-            components.add(order.companyShortInfo(services.economy(), results.taxPercent(), results.canAccept()));
-        }
-        if (results.limitReached()) {
-            components.add(MessageComposer.create()
-                    .text("<inactive>")
-                    .localeCode("company.order.search.limitReached")
-                    .build());
-        }
-
-        builder.text(components).newLine();
-        if (page != 0) {
-            builder.text(
-                    "<click:run_command:/company order search page %s> <active>%s </click>",
-                    page - 1, Texts.LEFT_ARROW);
-        } else {
-            builder.text(" <inactive>%s ", Texts.LEFT_ARROW);
-        }
-
-        builder.text("<heading>%s/%s", page + 1, Math.max(1, (fullOrders.size() + PAGE_SIZE - 1) / PAGE_SIZE));
-
-        if (!page(fullOrders, page + 1).isEmpty()) {
-            builder.text(
-                    "<click:run_command:/company order search page %s> <active>%s </click>",
-                    page + 1, Texts.RIGHT_ARROW);
-        } else {
-            builder.text("<inactive> %s ", Texts.RIGHT_ARROW);
-        }
-        menus.show(player, builder);
-    }
-
-    private static List<FullOrder> page(List<FullOrder> orders, int page) {
-        if (page < 0) return Collections.emptyList();
-        var start = page * PAGE_SIZE;
-        if (start >= orders.size()) return Collections.emptyList();
-        return orders.subList(start, Math.min(start + PAGE_SIZE, orders.size()));
+        search.change(Senders.player(sender), change);
     }
 }

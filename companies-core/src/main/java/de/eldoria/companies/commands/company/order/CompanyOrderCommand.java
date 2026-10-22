@@ -51,7 +51,7 @@ public final class CompanyOrderCommand {
         accept = new Accept(deps, views);
         abort = new Abort(deps, views);
         deliver = new Deliver(deps, views);
-        search = new CompanyOrderSearchCommand(deps);
+        search = new CompanyOrderSearchCommand(deps, info::info, accept::accept);
     }
 
     /**
