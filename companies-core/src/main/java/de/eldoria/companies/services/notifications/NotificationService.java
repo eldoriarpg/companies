@@ -93,8 +93,16 @@ public class NotificationService implements Listener {
         notificationData.submitNotifications(player, container);
     }
 
+    /**
+     * Announces a member leaving the company.
+     * <p>
+     * Kicks share the handler list of leaves and are announced by {@link #onCompanyKick(CompanyKickEvent)} instead.
+     *
+     * @param event leave event
+     */
     @EventHandler
     public void onCompanyLeaveEvent(CompanyLeaveEvent event) {
+        if (event instanceof CompanyKickEvent) return;
         sendCompanyMessage(event.company(), "notification.companyLeave",
                 member -> member.uuid()
                                 .equals(event.player()
