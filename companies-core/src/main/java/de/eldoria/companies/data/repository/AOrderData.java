@@ -66,14 +66,23 @@ public abstract class AOrderData {
 
     protected abstract void putOrder(OfflinePlayer player, FullOrder order);
 
-    public BukkitFutureResult<Void> submitOrderStateUpdate(SimpleOrder order, OrderState state) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            updateOrderState(order, state);
+    public BukkitFutureResult<Boolean> submitOrderStateUpdate(SimpleOrder order, OrderState expected, OrderState state) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var updated = updateOrderState(order, expected, state);
             invalidateFullOrder(order);
+            return updated;
         }, VIRTUAL);
     }
 
-    protected abstract void updateOrderState(SimpleOrder order, OrderState state);
+    /**
+     * Changes the state of an order if it is still in the expected state.
+     *
+     * @param order    order to change
+     * @param expected state the order has to be in
+     * @param state    new state
+     * @return true if the state was changed
+     */
+    protected abstract boolean updateOrderState(SimpleOrder order, OrderState expected, OrderState state);
 
     protected void invalidateFullOrder(SimpleOrder order) {
         invalidateFullOrder(order.id());

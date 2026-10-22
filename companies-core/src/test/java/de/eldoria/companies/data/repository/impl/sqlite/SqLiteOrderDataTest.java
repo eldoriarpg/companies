@@ -149,4 +149,14 @@ class SqLiteOrderDataTest {
         Assertions.assertEquals(15, delivered.get().delivered());
         Assertions.assertTrue(orderData.submitOrderDelivered(reload(order)).join().isEmpty());
     }
+
+    @Test
+    void orderCanOnlyBeReceivedOnce() {
+        var order = createOrder(10, 5);
+        SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), COMPANY);
+
+        Assertions.assertTrue(orderData.submitOrderStateUpdate(reload(order), OrderState.DELIVERED, OrderState.RECEIVED).join());
+        Assertions.assertFalse(orderData.submitOrderStateUpdate(reload(order), OrderState.DELIVERED, OrderState.RECEIVED).join());
+        Assertions.assertEquals(OrderState.RECEIVED, reload(order).state());
+    }
 }

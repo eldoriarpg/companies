@@ -7,6 +7,8 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.util.Inventories;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -15,7 +17,6 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -53,27 +54,36 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
                          return;
                      }
                      orderData.retrieveFullOrder(optOrder.get())
-                              .whenComplete(fullOrder -> {
-                                  var stacks = fullOrder.createStacks();
-                                  var empty = 0;
-                                  for (var content : player.getInventory()
-                                                           .getContents()) {
-                                      if (content == null) empty++;
-                                  }
+                              .whenComplete(fullOrder -> receive(player, fullOrder));
+                 });
+    }
 
-                                  if (stacks.size() > empty) {
-                                      messageSender().sendError(player, "order.receive.inventoryFull",
-                                              Replacement.create("amount", stacks.size()));
-                                      return;
-                                  }
-                                  messageBlocker.unblockPlayer(player)
-                                                .thenRun(() -> {
-                                                    player.getInventory()
-                                                          .addItem(stacks.toArray(ItemStack[]::new));
-                                                    orderData.submitOrderStateUpdate(fullOrder, OrderState.RECEIVED);
-                                                    messageSender().sendMessage(player, "order.receive.received");
-                                                });
-                              });
+    private void receive(Player player, FullOrder order) {
+        if (!player.isOnline()) return;
+        var stacks = order.createStacks();
+        var storage = Inventories.storageCopy(player);
+        var fits = stacks.stream()
+                         .allMatch(stack -> Inventories.fit(storage, stack, stack.getAmount()) == stack.getAmount());
+        if (!fits) {
+            messageSender().sendError(player, "order.receive.inventoryFull",
+                    Replacement.create("amount", stacks.size()));
+            return;
+        }
+        orderData.submitOrderStateUpdate(order, OrderState.DELIVERED, OrderState.RECEIVED)
+                 .whenComplete(received -> {
+                     if (!received) {
+                         messageSender().sendError(player, "Not ready");
+                         return;
+                     }
+                     if (!player.isOnline()) {
+                         for (var content : order.contents()) {
+                             orderData.submitItemReturn(player.getUniqueId(), content.stack(), content.amount());
+                         }
+                         return;
+                     }
+                     Inventories.give(player, stacks);
+                     messageBlocker.unblockPlayer(player)
+                                   .thenRun(() -> messageSender().sendMessage(player, "order.receive.received"));
                  });
     }
 }

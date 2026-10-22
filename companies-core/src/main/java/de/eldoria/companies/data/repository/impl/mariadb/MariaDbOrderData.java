@@ -90,16 +90,17 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void updateOrderState(SimpleOrder order, OrderState state) {
+    protected boolean updateOrderState(SimpleOrder order, OrderState expected, OrderState state) {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
                 SET state = ?
                 WHERE id = ?
-                                """;
-        query(query)
-                .single(call().bind(state.stateId()).bind(order.id()))
-                .update();
+                  AND state = ?""";
+        return query(query)
+                .single(call().bind(state.stateId()).bind(order.id()).bind(expected.stateId()))
+                .update()
+                .changed();
     }
 
     @Override
