@@ -158,7 +158,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                         messageBlocker.unblockPlayer(player).thenRun(() -> orderDone(refreshedOrder, company));
                         return;
                     }
-                    info.renderOrder(player, company.member(player).get(), refreshedOrder);
+                    info.renderOrder(player, company, company.member(player).get(), refreshedOrder);
                 })
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

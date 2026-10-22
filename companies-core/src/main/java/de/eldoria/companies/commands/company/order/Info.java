@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands.company.order;
 
+import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -82,7 +83,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
-                    renderOrder(player, profile.member(player).get(), fullOrder);
+                    renderOrder(player, profile, profile.member(player).get(), fullOrder);
                 })
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -90,9 +91,18 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                 });
     }
 
-    public void renderOrder(Player player, CompanyMember member, FullOrder order) {
+    /**
+     * Shows the company view of an order to a member.
+     *
+     * @param player  viewing player
+     * @param company company of the player, whose level decides the tax shown
+     * @param member  the player as member of the company
+     * @param order   order to show
+     */
+    public void renderOrder(Player player, ISimpleCompany company, CompanyMember member, FullOrder order) {
         messageBlocker.blockPlayer(player);
-        var component = order.companyDetailInfo(member, configuration, economy);
+        var taxPercent = configuration.companySettings().taxPercent(company.level());
+        var component = order.companyDetailInfo(member, configuration, economy, taxPercent);
         var composer = MessageComposer.create().text(component);
         if (messageBlocker.isBlocked(player)) {
             composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");

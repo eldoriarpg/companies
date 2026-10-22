@@ -7,6 +7,7 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.util.Menus;
@@ -31,18 +32,21 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final MessageBlocker messageBlocker;
     private final Economy economy;
+    private final Configuration configuration;
 
     public List(
             Plugin plugin,
             ACompanyData companyData,
             AOrderData orderData,
             Economy economy,
+            Configuration configuration,
             MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("list").build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
         this.orderData = orderData;
         this.economy = economy;
+        this.configuration = configuration;
     }
 
     @Override
@@ -89,6 +93,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                         })
                         .join())
                 .thenAccept(fullOrders -> {
+                    var taxPercent = configuration.companySettings().taxPercent(company.level());
                     messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create()
                             .text("<heading>")
@@ -98,7 +103,8 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                             .text("]</click>")
                             .newLine();
                     for (var order : fullOrders) {
-                        builder.text(order.companyShortInfo(economy)).newLine();
+                        builder.text(order.companyShortInfo(economy, taxPercent))
+                                .newLine();
                     }
                     if (messageBlocker.isBlocked(player)) {
                         builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");

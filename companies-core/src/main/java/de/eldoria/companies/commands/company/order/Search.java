@@ -7,10 +7,10 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.commands.company.order.search.Page;
 import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.companies.commands.company.order.search.SearchResults;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -18,13 +18,12 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class Search extends AdvancedCommand {
     private final Page page;
-    private final Map<UUID, List<FullOrder>> results = new HashMap<>();
+    private final Map<UUID, SearchResults> results = new HashMap<>();
 
     public Search(
             Plugin plugin,
@@ -46,7 +45,7 @@ public class Search extends AdvancedCommand {
         meta(meta);
     }
 
-    public Map<UUID, List<FullOrder>> results() {
+    public Map<UUID, SearchResults> results() {
         return results;
     }
 

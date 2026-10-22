@@ -115,7 +115,8 @@ public class OrderBuilder {
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
-                .text(": <value>%s", economy.format(price()))
+                .text(": <value>%s", economy.format(price()));
+        PriceLines.fee(composer, economy, price(), setting.fee().of(price()))
                 .newLine()
                 .text("<click:run_command:%s done><add>[", cmd)
                 .localeCode("words.done")

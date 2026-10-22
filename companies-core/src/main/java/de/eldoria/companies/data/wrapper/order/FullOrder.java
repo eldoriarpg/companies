@@ -10,6 +10,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.orders.PriceLines;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
@@ -72,14 +73,22 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
         return String.join("\n", contents);
     }
 
-    public String companyShortInfo(Economy economy) {
-        return MessageComposer.create()
+    /**
+     * One line for the company: name and id, with the contents, the price and the company's tax in the hover.
+     *
+     * @param economy    economy formatting the amounts
+     * @param taxPercent tax of the viewing company, where 5 means 5 %
+     * @return MiniMessage line
+     */
+    public String companyShortInfo(Economy economy, double taxPercent) {
+        var composer = MessageComposer.create()
                 .text("<hover:show_text:'%s", companySimpleContent(economy, state()))
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
-                .text(": <value>%s'", economy.format(price()))
-                .text(">")
+                .text(": <value>%s", economy.format(price()));
+        return PriceLines.tax(composer, economy, price(), taxPercent)
+                .text("'>")
                 .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                 .text("</hover>")
                 .space()
@@ -102,7 +111,8 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
     }
 
     /**
-     * The order as its owner sees it: progress per material, the price, and when it is due or refunded.
+     * The order as its owner sees it: progress per material, the price with fee and total, and when it is due or
+     * refunded.
      * <p>
      * The company working on the order is never shown. An unclaimed order is refunded {@code maxUnclaimedHours} after
      * its last update, a claimed one is due {@code deliveryHours} after it was claimed.
@@ -124,8 +134,8 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
-                .text(": <value>%s", economy.format(price()))
-                .newLine();
+                .text(": <value>%s", economy.format(price()));
+        PriceLines.fee(composer, economy, price(), fee()).newLine();
         switch (state()) {
             case UNCLAIMED ->
                 composer.text("<name>")
@@ -167,7 +177,18 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
         return Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left);
     }
 
-    public String companyDetailInfo(CompanyMember member, Configuration configuration, Economy economy) {
+    /**
+     * The order as a company member sees it: contents with deliver buttons, the price with the company's tax, and the
+     * actions the member may take.
+     *
+     * @param member        viewing member
+     * @param configuration configuration providing the delivery time
+     * @param economy       economy formatting the amounts
+     * @param taxPercent    tax of the member's company, where 5 means 5 %
+     * @return MiniMessage view
+     */
+    public String companyDetailInfo(
+            CompanyMember member, Configuration configuration, Economy economy, double taxPercent) {
         var composer = MessageComposer.create()
                 .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                 .newLine()
@@ -180,8 +201,8 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
-                .text(": <value>%s", economy.format(price()))
-                .newLine();
+                .text(": <value>%s", economy.format(price()));
+        PriceLines.tax(composer, economy, price(), taxPercent).newLine();
 
         switch (state()) {
             case UNCLAIMED:

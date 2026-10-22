@@ -391,11 +391,26 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                     messageSender().sendError(player, "error.saveFailed");
                                     return;
                                 }
-                                messageBlocker.unblockPlayer(player).whenComplete((unused, err) -> messageSender()
-                                        .sendMessage(player, MessageComposer.escape("order.create.created")));
+                                messageBlocker
+                                        .unblockPlayer(player)
+                                        .whenComplete((unused, err) -> sendCreated(player, price, fee));
                             },
                             Threading.mainThread(plugin()));
         });
+    }
+
+    private void sendCreated(Player player, double price, double fee) {
+        if (fee > 0) {
+            messageSender()
+                    .sendMessage(
+                            player,
+                            "order.create.createdWithFee",
+                            Replacement.create("price", economy.format(price)),
+                            Replacement.create("fee", economy.format(fee)),
+                            Replacement.create("total", economy.format(price + fee)));
+            return;
+        }
+        messageSender().sendMessage(player, MessageComposer.escape("order.create.created"));
     }
 
     private void restoreDraft(Player player, OrderBuilder order) {
