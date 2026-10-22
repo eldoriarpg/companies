@@ -111,9 +111,9 @@ public class ItemReturnService implements Listener {
     private void take(Player player, Map<ItemReturn, Integer> takes, int total) {
         CompletableBukkitFuture.supplyAsync(
                         () -> takes.entrySet().stream()
-                                .filter(entry -> orderData
+                                .filter(entry -> Boolean.TRUE.equals(orderData
                                         .submitItemReturnTake(entry.getKey(), entry.getValue())
-                                        .join())
+                                        .join()))
                                 .toList(),
                         VIRTUAL)
                 .whenComplete(taken -> give(player, taken, total), err -> plugin.getLogger()

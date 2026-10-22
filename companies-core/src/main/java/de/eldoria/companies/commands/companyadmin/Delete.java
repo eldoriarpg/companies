@@ -59,8 +59,11 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
                             companyData.retrieveCompanyProfile(company.get()).join();
                     var workers =
                             orderData.submitCompanyOrdersPurge(company.get()).join();
-                    itemReturnService.notifyWorkers(workers);
-                    if (!companyData.submitCompanyPurge(company.get()).join()) {
+                    if (workers != null) {
+                        itemReturnService.notifyWorkers(workers);
+                    }
+                    if (!Boolean.TRUE.equals(
+                            companyData.submitCompanyPurge(company.get()).join())) {
                         messageSender().sendError(player, "error.saveFailed");
                         return;
                     }

@@ -76,6 +76,10 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
 
                     var name = arguments.join();
                     var company = companyData.retrieveCompanyByName(name).join();
+                    if (company == null) {
+                        messageSender().sendErrorActionBar(player, "error.saveFailed");
+                        return;
+                    }
                     if (company.isPresent()) {
                         messageSender().sendErrorActionBar(player, "error.companyNameUsed");
                         return;
@@ -156,6 +160,10 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     var company = companyData.retrieveCompanyByName(name).join();
+                    if (company == null) {
+                        messageSender().sendErrorActionBar(player, "error.saveFailed");
+                        return;
+                    }
                     if (company.isPresent()) {
                         messageSender().sendErrorActionBar(player, "error.companyNameUsed");
                         return;

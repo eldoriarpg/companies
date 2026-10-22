@@ -49,13 +49,19 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
             }
 
             var other = companyData.retrieveCompanyByName(args.asString(1)).join();
+            if (other == null) {
+                messageSender().sendError(player, "error.saveFailed");
+                return;
+            }
 
             if (other.isPresent() && other.get().id() != company.get().id()) {
                 messageSender().sendError(player, "error.companyNameUsed");
                 return;
             }
 
-            if (!companyData.updateCompanyName(company.get(), args.asString(1)).join()) {
+            if (!Boolean.TRUE.equals(companyData
+                    .updateCompanyName(company.get(), args.asString(1))
+                    .join())) {
                 messageSender().sendError(player, "error.companyNameUsed");
                 return;
             }

@@ -79,6 +79,10 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     var count = orderData.retrieveCompanyOrderCount(profile).join();
+                    if (count == null) {
+                        messageSender().sendErrorActionBar(player, "error.couldNotClaim");
+                        return;
+                    }
                     if (count
                             >= configuration
                                     .companySettings()
@@ -91,7 +95,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     var optOrder = orderData.retrieveOrderById(id).join();
-                    if (optOrder.isEmpty()) {
+                    if (optOrder == null || optOrder.isEmpty()) {
                         messageSender().sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
@@ -108,11 +112,11 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
 
-                    if (orderData.submitOrderClaim(profile, simpleOrder).join()) {
-                        var claimed = orderData
-                                .retrieveFullOrder(
-                                        orderData.retrieveOrderById(id).join().orElse(simpleOrder))
-                                .join();
+                    if (Boolean.TRUE.equals(
+                            orderData.submitOrderClaim(profile, simpleOrder).join())) {
+                        var refreshed = orderData.retrieveOrderById(id).join();
+                        var claimedOrder = refreshed == null ? simpleOrder : refreshed.orElse(simpleOrder);
+                        var claimed = orderData.retrieveFullOrder(claimedOrder).join();
                         messageBlocker.unblockPlayer(player).thenRun(() -> {
                             player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
                             info.renderOrder(player, companyMember, claimed);

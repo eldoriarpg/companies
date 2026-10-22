@@ -109,7 +109,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     var workers = orderData.submitUnclaimOrder(remove).join();
-                    if (workers.isEmpty()) {
+                    if (workers == null || workers.isEmpty()) {
                         messageSender().sendErrorActionBar(player, "error.orderNotActive");
                         return;
                     }
@@ -134,7 +134,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         var company = optCompany.get();
 
         var optOrder = orderData.retrieveOrderById(id).join();
-        if (optOrder.isEmpty()) {
+        if (optOrder == null || optOrder.isEmpty()) {
             messageSender().sendErrorActionBar(player, "error.unknownOrder");
             return Optional.empty();
         }

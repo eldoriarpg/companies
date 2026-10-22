@@ -140,7 +140,7 @@ public class ExpiringService implements Runnable, Listener {
 
         for (var order : expired) {
             var workers = orderData.submitUnclaimOrder(order).join();
-            if (workers.isEmpty()) continue;
+            if (workers == null || workers.isEmpty()) continue;
             itemReturnService.notifyWorkers(workers.get());
             var profile = companyData
                     .retrieveCompanyById(order.company())
@@ -164,7 +164,10 @@ public class ExpiringService implements Runnable, Listener {
 
         for (var order : expired) {
             var fullOrder = orderData.retrieveFullOrder(order).join();
-            if (!orderData.submitOrderPurge(order).join()) {
+            if (fullOrder == null) {
+                continue;
+            }
+            if (!Boolean.TRUE.equals(orderData.submitOrderPurge(order).join())) {
                 continue;
             }
             var owner = plugin.getServer().getOfflinePlayer(order.owner());

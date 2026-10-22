@@ -67,7 +67,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                     var orders = orderData
                             .retrieveOrdersByCompany(optProfile.get(), OrderState.CLAIMED, OrderState.CLAIMED)
                             .join();
-                    sendProfile(player, optProfile.get(), orders);
+                    sendProfile(player, optProfile.get(), orders == null ? List.of() : orders);
                 })
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

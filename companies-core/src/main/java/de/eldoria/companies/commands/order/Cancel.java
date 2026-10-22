@@ -66,7 +66,12 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                     }
 
                     var fullOrder = orderData.retrieveFullOrder(optOrder.get()).join();
-                    if (!orderData.submitOrderDeletion(fullOrder).join()) {
+                    if (fullOrder == null) {
+                        messageSender().sendErrorActionBar(sender, "error.unknownOrder");
+                        return;
+                    }
+                    if (!Boolean.TRUE.equals(
+                            orderData.submitOrderDeletion(fullOrder).join())) {
                         messageSender().sendError(sender, "error.orderAlreadyClaimed");
                         return;
                     }

@@ -55,8 +55,12 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                 })
                 .thenAccept((order) -> {
                     if (order.isPresent() && order.get().owner().equals(player.getUniqueId())) {
-                        messageBlocker.blockPlayer(player);
                         var fullOrder = orderData.retrieveFullOrder(order.get()).join();
+                        if (fullOrder == null) {
+                            messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                            return;
+                        }
+                        messageBlocker.blockPlayer(player);
                         var builder = fullOrder.userDetailInfo(economy, configuration);
                         if (messageBlocker.isBlocked(player)) {
                             builder.newLine()

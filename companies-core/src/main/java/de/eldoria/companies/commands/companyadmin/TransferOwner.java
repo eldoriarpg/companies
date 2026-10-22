@@ -47,8 +47,13 @@ public class TransferOwner extends AdvancedCommand implements IPlayerTabExecutor
                 return;
             }
 
-            var company =
-                    companyData.retrieveCompanyProfile(optCompany.get()).join().get();
+            var optProfile =
+                    companyData.retrieveCompanyProfile(optCompany.get()).join();
+            if (optProfile == null || optProfile.isEmpty()) {
+                messageSender().sendError(player, "error.unknownCompany");
+                return;
+            }
+            var company = optProfile.get();
 
             var owner = company.owner();
             owner.isOwner(false);

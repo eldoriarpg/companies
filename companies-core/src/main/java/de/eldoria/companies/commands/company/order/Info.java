@@ -67,7 +67,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     var profile = optProfile.get();
                     var optOrder = orderData.retrieveOrderById(id).join();
-                    if (optOrder.isEmpty()) {
+                    if (optOrder == null || optOrder.isEmpty()) {
                         messageSender().sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
@@ -78,6 +78,10 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                     }
                     var order = optOrder.get();
                     var fullOrder = orderData.retrieveFullOrder(order).join();
+                    if (fullOrder == null) {
+                        messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                        return;
+                    }
                     renderOrder(player, profile.member(player).get(), fullOrder);
                 })
                 .exceptionally(err -> {
