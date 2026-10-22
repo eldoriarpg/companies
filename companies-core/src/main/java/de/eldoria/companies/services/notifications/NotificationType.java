@@ -18,6 +18,11 @@ import java.util.Optional;
  */
 public enum NotificationType {
     /**
+     * A message that was rendered before it was stored. It has no locale key; the serialized message is its argument
+     * {@link NotificationArgs#LEGACY_MESSAGE}.
+     */
+    LEGACY(0, "", NotificationCategory.COMPANY, false, null),
+    /**
      * A player was invited. Arguments: {@code company_name}, {@code player_name} (inviter).
      */
     INVITE_RECEIVED(20, "notification.inviteReceived", NotificationCategory.INVITES, true, "/company invites"),
@@ -80,6 +85,17 @@ public enum NotificationType {
     }
 
     /**
+     * The type with the given id.
+     *
+     * @param id stored id
+     * @return type, or empty when no type has this id
+     */
+    public static Optional<NotificationType> byId(int id) {
+        for (var type : values()) if (type.id == id) return Optional.of(type);
+        return Optional.empty();
+    }
+
+    /**
      * The stable id of this type.
      *
      * @return id
@@ -91,7 +107,7 @@ public enum NotificationType {
     /**
      * The locale key of the message.
      *
-     * @return locale key
+     * @return locale key, empty for {@link #LEGACY}
      */
     public String key() {
         return key;

@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 class NotificationArgsTest {
     @Test
@@ -44,5 +47,59 @@ class NotificationArgsTest {
                 .count();
 
         Assertions.assertEquals(NotificationType.values().length, ids);
+    }
+
+    @Test
+    void argumentsSurviveTheJsonRoundTrip() {
+        var args = NotificationArgs.create()
+                .text("player_name", "<red>Steve\"")
+                .money("amount", "$5.00")
+                .number("count", 3);
+
+        var read = NotificationArgs.fromJson(args.toJson());
+
+        Assertions.assertEquals(args.values(), read.values());
+    }
+
+    @Test
+    void storedPlainMessagesAreReadAsText() {
+        var read = NotificationArgs.fromJson("{\"message\":\"<red>Hello\",\"n\":{\"value\":\"1\",\"kind\":\"ODD\"}}");
+
+        Assertions.assertEquals(
+                new NotificationArgs.Arg("<red>Hello", NotificationArgs.Kind.TEXT),
+                read.values().get(NotificationArgs.LEGACY_MESSAGE));
+        Assertions.assertEquals(
+                NotificationArgs.Kind.TEXT, read.values().get("n").kind());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> NotificationArgs.fromJson("[]"));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> NotificationArgs.fromJson("{"));
+    }
+
+    @Test
+    void typesAreFoundByIdAndLegacyIsZero() {
+        Assertions.assertEquals(Optional.of(NotificationType.LEGACY), NotificationType.byId(0));
+        Assertions.assertEquals(Optional.of(NotificationType.PROFILE_CHANGED), NotificationType.byId(30));
+        Assertions.assertEquals(Optional.empty(), NotificationType.byId(-1));
+    }
+
+    @Test
+    void categoryBitsAreDistinctAndOnlySomeAreMutable() {
+        var bits = Arrays.stream(NotificationCategory.values())
+                .map(NotificationCategory::bit)
+                .distinct()
+                .count();
+
+        Assertions.assertEquals(NotificationCategory.values().length, bits);
+        Assertions.assertEquals(
+                Set.of(
+                        NotificationCategory.MEMBERS,
+                        NotificationCategory.ORDERS,
+                        NotificationCategory.PAYMENTS,
+                        NotificationCategory.LEVEL),
+                Arrays.stream(NotificationCategory.values())
+                        .filter(NotificationCategory::mutable)
+                        .collect(Collectors.toSet()));
+        var mask = NotificationCategory.mask(List.of(NotificationCategory.ORDERS, NotificationCategory.LEVEL));
+        Assertions.assertTrue(NotificationCategory.LEVEL.in(mask));
+        Assertions.assertFalse(NotificationCategory.PAYMENTS.in(mask));
     }
 }
