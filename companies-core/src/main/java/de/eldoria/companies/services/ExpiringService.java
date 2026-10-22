@@ -87,6 +87,19 @@ public class ExpiringService implements Runnable, Listener {
 
     @Override
     public void run() {
+        try {
+            releaseExpiredOrders();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not release expired orders", e);
+        }
+        try {
+            purgeDeadOrders();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not purge dead orders", e);
+        }
+    }
+
+    private void releaseExpiredOrders() {
         var expired = orderData.retrieveExpiredOrders(configuration.companySettings()
                                                                    .deliveryHours())
                                .join();
@@ -110,10 +123,12 @@ public class ExpiringService implements Runnable, Listener {
                   .getPluginManager()
                   .callEvent(new OrderExpiredEvent(order, profile.get()));
         }
+    }
 
-        expired = orderData.retrieveDeadOrders(configuration.orderSetting()
-                                                            .maxUnclaimedHours())
-                           .join();
+    private void purgeDeadOrders() {
+        var expired = orderData.retrieveDeadOrders(configuration.orderSetting()
+                                                                .maxUnclaimedHours())
+                               .join();
 
         for (var order : expired) {
             var fullOrder = orderData.retrieveFullOrder(order)
