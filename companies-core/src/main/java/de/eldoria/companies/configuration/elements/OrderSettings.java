@@ -5,11 +5,14 @@
  */
 package de.eldoria.companies.configuration.elements;
 
+import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
+
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class OrderSettings {
     private int maxItems = 64 * 8;
     private int maxMaterials = 5;
     private int maxUnclaimedHours = 24 * 7;
+    private OrderFee fee = new OrderFee();
 
     public OrderSettings() {}
 
@@ -35,5 +38,14 @@ public class OrderSettings {
 
     public void maxUnclaimedHours(int maxUnclaimedHours) {
         this.maxUnclaimedHours = maxUnclaimedHours;
+    }
+
+    /**
+     * The fee charged for placing an order.
+     *
+     * @return order fee
+     */
+    public OrderFee fee() {
+        return fee;
     }
 }

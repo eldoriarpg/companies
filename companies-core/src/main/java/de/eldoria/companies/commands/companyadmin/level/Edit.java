@@ -14,6 +14,7 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.utils.Parser;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -56,6 +57,7 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
             case "delivered_items" -> level.requirement().deliveredItems(args.asInt(2));
             case "max_members" -> level.settings().maxMembers(args.asInt(2));
             case "max_orders" -> level.settings().maxOrders(args.asInt(2));
+            case "tax_percent" -> level.settings().taxPercent(taxPercent(args.asString(2)));
             default -> {
                 messageSender().sendErrorActionBar(player, "error.unkownField");
                 return;
@@ -86,25 +88,44 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
                     "earned_money",
                     "delivered_items",
                     "max_members",
-                    "max_orders");
+                    "max_orders",
+                    "tax_percent");
         }
 
         var value = args.asString(2);
         if (args.sizeIs(3)) {
-            if (Completion.isCommand(value, "name")) {
+            if (Completion.isCommand(field, "name")) {
                 return Completion.completeFreeInput(value, 32, localizer().localize("words.name"));
             }
 
             if (Completion.isCommand(
-                    value, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {
+                    field, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {
                 return Completion.completeMinInt(value, 0);
             }
 
-            if (Completion.isCommand(value, "earned_money")) {
+            if (Completion.isCommand(field, "earned_money")) {
                 return Completion.completeMinDouble(value, 0.0);
+            }
+
+            if (Completion.isCommand(field, "tax_percent")) {
+                return Completion.complete(value, "none", "0", "5", "10");
             }
         }
 
         return Collections.emptyList();
+    }
+
+    /**
+     * Parses a tax override: {@code none} clears it, a number is clamped to 0 to 100.
+     *
+     * @param value entered value
+     * @return percentage, or null to use the global tax
+     * @throws CommandException when the value is neither {@code none} nor a number
+     */
+    private static Double taxPercent(String value) throws CommandException {
+        if ("none".equalsIgnoreCase(value)) return null;
+        var percent = Parser.parseDouble(value);
+        if (percent.isEmpty() || !Double.isFinite(percent.get())) CommandAssertions.invalidNumber();
+        return Math.clamp(percent.get(), 0.0, 100.0);
     }
 }

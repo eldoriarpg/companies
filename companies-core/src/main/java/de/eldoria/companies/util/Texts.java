@@ -7,6 +7,7 @@ package de.eldoria.companies.util;
 
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 
 public final class Texts {
@@ -69,5 +70,15 @@ public final class Texts {
         var filled = (int) Math.round(clamped * PROGRESS_SEGMENTS);
         return "<add>%s<inactive>%s"
                 .formatted(PROGRESS_SEGMENT.repeat(filled), PROGRESS_SEGMENT.repeat(PROGRESS_SEGMENTS - filled));
+    }
+
+    /**
+     * Writes a percentage without trailing zeros, such as {@code 5} or {@code 2.5}.
+     *
+     * @param percent percentage
+     * @return the number as plain text
+     */
+    public static String percent(double percent) {
+        return BigDecimal.valueOf(percent).stripTrailingZeros().toPlainString();
     }
 }
