@@ -36,19 +36,18 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
-import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.updates.Updates;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
-import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateChecker;
-import de.eldoria.eldoutilities.updater.lynaupdater.LynaUpdateData;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -68,7 +67,7 @@ import java.util.logging.Level;
 @SuppressWarnings("InstanceVariableMayNotBeInitialized")
 public class Companies extends EldoPlugin {
     private final Thread.UncaughtExceptionHandler exceptionHandler =
-            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.getId() + ".", e);
+            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
     private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
     private final Configuration configuration;
@@ -77,6 +76,7 @@ public class Companies extends EldoPlugin {
     private AOrderData orderData;
     private ANotificationData notificationData;
     private ANodeData nodeData;
+    private Updates updates;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -154,16 +154,12 @@ public class Companies extends EldoPlugin {
 
         var levelService = new LevelService(this, configuration, companyData);
 
-        if (configuration.generalSettings().checkUpdates()) {
-            LynaUpdateChecker.lyna(LynaUpdateData.builder(this, 2)
-                                                 .updateUrl("https://companies.discord.eldoria.de/")
-                                                 .notifyPermission(Permission.Admin.ADMIN)
-                                                 .build()).start();
-        }
+        updates = new Updates(this, configuration);
+        updates.apply();
 
         registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService, nodeData));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService, nodeData, updates));
 
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             ExpiringService.start(this, orderData, companyData, configuration, workerPool);
@@ -181,11 +177,12 @@ public class Companies extends EldoPlugin {
 
     @Override
     public @NotNull List<DebugDataProvider> getDebugProviders() {
-        return List.of(configuration);
+        return List.of(configuration, new CompaniesDebug(this, configuration, dataSource));
     }
 
     @Override
     public void onPluginDisable() {
+        if (updates != null) updates.stop();
         workerPool.shutdown();
         dataSource.close();
     }

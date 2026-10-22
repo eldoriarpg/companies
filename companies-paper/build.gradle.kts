@@ -107,8 +107,13 @@ bukkit {
             children = listOf(
                 "companies.orders.*",
                 "companies.company.*",
-                "companies.admin.*"
+                "companies.admin.*",
+                "companies.updates"
             )
+        }
+
+        register("companies.updates") {
+            description = "Hear about new versions on join and download them"
         }
 
         register("companies.orders.*") {
@@ -143,7 +148,7 @@ bukkit {
             )
         }
         register("companies.admin") {
-            description = "Allows using the admin command and receiving update notices"
+            description = "Allows using the admin command and creating debug reports"
         }
         register("companies.admin.calcLevel") {
             description = "Allows recalculating company levels"

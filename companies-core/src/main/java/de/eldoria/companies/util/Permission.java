@@ -17,6 +17,11 @@ public final class Permission {
         throw new UnsupportedOperationException("This is a utility class.");
     }
 
+    /**
+     * The permission to hear about new versions on join and to download them.
+     */
+    public static final String UPDATES = perm(BASE, "updates");
+
     private static String perm(String perm, String... perms) {
         if (perms.length == 0) return perm;
         return String.format("%s.%s", perm, String.join(".", perms));
