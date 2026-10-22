@@ -33,15 +33,18 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Configuration configuration;
+    private final Info info;
     private final MessageBlocker messageBlocker;
 
-    public Accept(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration, MessageBlocker messageBlocker) {
+    public Accept(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration, Info info,
+                  MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("accept")
                 .addArgument("words.id", true)
                 .build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.configuration = configuration;
+        this.info = info;
         this.messageBlocker = messageBlocker;
     }
 
@@ -101,10 +104,17 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
 
                        if (orderData.submitOrderClaim(profile, simpleOrder)
                                     .join()) {
+                           var claimed = orderData.retrieveFullOrder(orderData.retrieveOrderById(id)
+                                                                              .join()
+                                                                              .orElse(simpleOrder))
+                                                  .join();
                            messageBlocker.unblockPlayer(player)
-                                         .thenRun(() -> player.getServer()
-                                                          .getPluginManager()
-                                                          .callEvent(new OrderAcceptEvent(simpleOrder, profile)));
+                                         .thenRun(() -> {
+                                             player.getServer()
+                                                   .getPluginManager()
+                                                   .callEvent(new OrderAcceptEvent(simpleOrder, profile));
+                                             info.renderOrder(player, companyMember, claimed);
+                                         });
                            return;
                        }
                        messageSender().sendErrorActionBar(player, "error.couldNotClaim");
