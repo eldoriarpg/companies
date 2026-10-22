@@ -15,6 +15,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -32,6 +33,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -57,20 +60,36 @@ public abstract class AOrderData {
     }
 
     // Order Management
-    public BukkitFutureResult<Void> submitOrder(OfflinePlayer player, FullOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> putOrder(player, order), VIRTUAL);
+    public BukkitFutureResult<Boolean> submitOrder(OfflinePlayer player, FullOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> putOrder(player, order), VIRTUAL);
     }
 
-    protected abstract void putOrder(OfflinePlayer player, FullOrder order);
+    /**
+     * Saves a new order with its content.
+     *
+     * @param player owner of the order
+     * @param order  order to save
+     * @return true if the order and its content were saved
+     */
+    protected abstract boolean putOrder(OfflinePlayer player, FullOrder order);
 
-    public BukkitFutureResult<Void> submitOrderStateUpdate(SimpleOrder order, OrderState state) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            updateOrderState(order, state);
+    public BukkitFutureResult<Boolean> submitOrderStateUpdate(SimpleOrder order, OrderState expected, OrderState state) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var updated = updateOrderState(order, expected, state);
             invalidateFullOrder(order);
+            return updated;
         }, VIRTUAL);
     }
 
-    protected abstract void updateOrderState(SimpleOrder order, OrderState state);
+    /**
+     * Changes the state of an order if it is still in the expected state.
+     *
+     * @param order    order to change
+     * @param expected state the order has to be in
+     * @param state    new state
+     * @return true if the state was changed
+     */
+    protected abstract boolean updateOrderState(SimpleOrder order, OrderState expected, OrderState state);
 
     protected void invalidateFullOrder(SimpleOrder order) {
         invalidateFullOrder(order.id());
@@ -87,7 +106,7 @@ public abstract class AOrderData {
     protected abstract List<SimpleOrder> getExpiredOrders(int hours);
 
     public CompletableFuture<List<SimpleOrder>> retrieveDeadOrders(int hours) {
-        return CompletableFuture.supplyAsync(() -> getExpiredOrders(hours), VIRTUAL);
+        return CompletableFuture.supplyAsync(() -> getDeadOrders(hours), VIRTUAL);
     }
 
     public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrdersByCompany(int hours, SimpleCompany company) {
@@ -106,32 +125,100 @@ public abstract class AOrderData {
 
     protected abstract boolean claimOrder(SimpleCompany company, SimpleOrder order);
 
-    public FutureResult<Void> submitOrderDelivered(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            orderDelivered(order);
+    /**
+     * Marks a claimed and completely delivered order as delivered.
+     *
+     * @param order order to mark
+     * @return a future providing the delivered order, or an empty optional if the order was not claimed or is not completely delivered
+     */
+    public BukkitFutureResult<Optional<FullOrder>> submitOrderDelivered(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var delivered = orderDelivered(order);
             invalidateFullOrder(order);
+            if (!delivered) return Optional.<FullOrder>empty();
+            return orderById(order.id()).map(this::toFullOrder);
         }, VIRTUAL);
     }
 
-    protected abstract void orderDelivered(SimpleOrder order);
+    /**
+     * Changes the state of a claimed and completely delivered order to delivered.
+     *
+     * @param order order to change
+     * @return true if the state was changed
+     */
+    protected abstract boolean orderDelivered(SimpleOrder order);
 
-    public FutureResult<Void> submitUnclaimOrder(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            unclaimOrder(order);
+    public BukkitFutureResult<Optional<Set<UUID>>> submitUnclaimOrder(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var result = unclaimOrder(order);
             invalidateFullOrder(order);
-        });
-    }
-
-    protected abstract void unclaimOrder(SimpleOrder order);
-
-    public BukkitFutureResult<Void> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
-        return CompletableBukkitFuture.runAsync(() -> {
-            deliver(player, order, material, amount);
-            invalidateFullOrder(order);
+            return result;
         }, VIRTUAL);
     }
 
-    protected abstract void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount);
+    /**
+     * Releases a claimed order back to the market.
+     * <p>
+     * Items already delivered to the order are moved to the item returns of the workers who delivered them.
+     *
+     * @param order order to release
+     * @return the workers who got items returned, or an empty optional if the order was not claimed
+     */
+    protected abstract Optional<Set<UUID>> unclaimOrder(SimpleOrder order);
+
+    public BukkitFutureResult<List<ItemReturn>> retrieveItemReturns(UUID worker) {
+        return CompletableBukkitFuture.supplyAsync(() -> getItemReturns(worker), VIRTUAL);
+    }
+
+    protected abstract List<ItemReturn> getItemReturns(UUID worker);
+
+    public BukkitFutureResult<Boolean> submitItemReturnTake(ItemReturn itemReturn, int amount) {
+        return CompletableBukkitFuture.supplyAsync(() -> takeItemReturn(itemReturn, amount), VIRTUAL);
+    }
+
+    /**
+     * Removes items from a stored return.
+     *
+     * @param itemReturn return to take the items from
+     * @param amount     amount of items to take
+     * @return true if the items were still stored and are now removed
+     */
+    protected abstract boolean takeItemReturn(ItemReturn itemReturn, int amount);
+
+    public BukkitFutureResult<Boolean> submitItemReturn(UUID worker, ItemStack stack, int amount) {
+        return CompletableBukkitFuture.supplyAsync(() -> addItemReturn(worker, stack, amount), VIRTUAL);
+    }
+
+    /**
+     * Stores items which have to be handed to a worker later.
+     *
+     * @param worker worker owning the items
+     * @param stack  item to store
+     * @param amount amount of items
+     * @return true if the items were stored
+     */
+    protected abstract boolean addItemReturn(UUID worker, ItemStack stack, int amount);
+
+    public BukkitFutureResult<Integer> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var delivered = deliver(player, order, material, amount);
+            invalidateFullOrder(order);
+            return delivered;
+        }, VIRTUAL);
+    }
+
+    /**
+     * Records items delivered by a worker.
+     * <p>
+     * Nothing is recorded unless the order is claimed, and the amount is capped to the amount the order still misses.
+     *
+     * @param player   worker delivering the items
+     * @param order    order receiving the items
+     * @param material material of the items
+     * @param amount   amount of items offered
+     * @return amount of items which were recorded
+     */
+    protected abstract int deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount);
 
     public BukkitFutureResult<Optional<SimpleOrder>> retrieveOrderById(int id) {
         return CompletableBukkitFuture.supplyAsync(() -> orderById(id), VIRTUAL);
@@ -219,26 +306,49 @@ public abstract class AOrderData {
 
     protected abstract Integer getCompanyOrderCount(ISimpleCompany company);
 
-    public BukkitFutureResult<Void> submitCompanyOrdersPurge(SimpleCompany profile) {
-        return CompletableBukkitFuture.runAsync(() -> purgeCompanyOrders(profile), VIRTUAL);
+    public BukkitFutureResult<Set<UUID>> submitCompanyOrdersPurge(SimpleCompany profile) {
+        return CompletableBukkitFuture.supplyAsync(() -> purgeCompanyOrders(profile), VIRTUAL);
     }
 
-    protected abstract void purgeCompanyOrders(SimpleCompany profile);
+    /**
+     * Releases all orders claimed by the company.
+     *
+     * @param profile company to release the orders of
+     * @return the workers who got items returned
+     */
+    protected abstract Set<UUID> purgeCompanyOrders(SimpleCompany profile);
 
-    public BukkitFutureResult<Void> submitOrderPurge(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> purgeOrder(order), VIRTUAL);
-    }
-
-    protected abstract void purgeOrder(SimpleOrder order);
-
-    public BukkitFutureResult<Void> submitOrderDeletion(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> {
+    public BukkitFutureResult<Boolean> submitOrderPurge(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var purged = purgeOrder(order);
             invalidateFullOrder(order);
-            deleteOrder(order);
-        });
+            return purged;
+        }, VIRTUAL);
     }
 
-    protected abstract void deleteOrder(SimpleOrder order);
+    /**
+     * Removes an order which was not claimed for too long.
+     *
+     * @param order order to remove
+     * @return true if the order was still unclaimed and is now removed
+     */
+    protected abstract boolean purgeOrder(SimpleOrder order);
+
+    public BukkitFutureResult<Boolean> submitOrderDeletion(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var deleted = deleteOrder(order);
+            invalidateFullOrder(order);
+            return deleted;
+        }, VIRTUAL);
+    }
+
+    /**
+     * Deletes an order if it is still unclaimed.
+     *
+     * @param order order to delete
+     * @return true if the order was unclaimed and is now deleted
+     */
+    protected abstract boolean deleteOrder(SimpleOrder order);
 
     public BukkitFutureResult<List<FullOrder>> retrieveOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         return CompletableBukkitFuture.supplyAsync(() -> getOrdersByQuery(searchQuery, min, max), VIRTUAL);
@@ -289,6 +399,12 @@ public abstract class AOrderData {
         materialPriceCache.invalidateAll();
     }
 
+    /**
+     * Orders which are unclaimed and were not updated for the given amount of hours.
+     *
+     * @param hours hours since the last update
+     * @return orders
+     */
     protected abstract List<SimpleOrder> getDeadOrders(int hours);
 
     protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);

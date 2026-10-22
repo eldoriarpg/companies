@@ -16,4 +16,8 @@ dependencies {
     compileOnly(platform(libs.jackson.bom))
     compileOnly(libs.bundles.jackson)
     compileOnly(libs.bundles.database)
+
+    testImplementation(libs.sqlite)
+    testImplementation(platform(libs.jackson.bom))
+    testImplementation(libs.bundles.jackson)
 }

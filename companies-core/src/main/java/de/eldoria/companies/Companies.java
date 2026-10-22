@@ -38,11 +38,13 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.Localizer;
@@ -59,9 +61,11 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 @SuppressWarnings("InstanceVariableMayNotBeInitialized")
@@ -156,20 +160,24 @@ public class Companies extends EldoPlugin {
         updates = new Updates(this, configuration);
         updates.apply();
 
-        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker));
+        var itemReturnService = new ItemReturnService(this, orderData);
+
+        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker, itemReturnService));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, messageBlocker, levelService, nodeData, updates));
+        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, orderData, messageBlocker, levelService, nodeData, itemReturnService, updates));
 
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
-            ExpiringService.start(this, orderData, companyData, configuration, workerPool);
+            ExpiringService.start(this, orderData, companyData, configuration, workerPool, itemReturnService, economy);
             RefreshService.start(orderData, workerPool);
         }
         registerListener(levelService);
+        registerListener(itemReturnService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI") && configuration.generalSettings().hooks().placeholderapi()) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
+            placeholderService.startRefreshing();
             registerListener(placeholderService);
         }
     }
@@ -183,7 +191,22 @@ public class Companies extends EldoPlugin {
     public void onPluginDisable() {
         if (updates != null) updates.stop();
         workerPool.shutdown();
-        dataSource.close();
+        Threading.VIRTUAL.shutdown();
+        awaitTermination(workerPool);
+        awaitTermination(Threading.VIRTUAL);
+        if (dataSource != null) dataSource.close();
+    }
+
+    private void awaitTermination(ExecutorService executor) {
+        try {
+            if (!executor.awaitTermination(10L, TimeUnit.SECONDS)) {
+                getLogger().warning("Pending tasks did not finish in time and were cancelled.");
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void initDb() throws SQLException, IOException {
@@ -223,26 +246,26 @@ public class Companies extends EldoPlugin {
         var mapper = configuration.storageMapper();
         switch (configuration.databaseSettings()
                              .storageType()) {
-            case SQLITE:
+            case SQLITE -> {
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
                 notificationData = new SqLiteNotificationData(workerPool);
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
-                break;
-            case MARIADB:
+            }
+            case MARIADB -> {
                 companyData = new MariaDbCompanyData(workerPool);
                 orderData = new MariaDbOrderData(mapper);
                 notificationData = new MariaDbNotificationData(workerPool);
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
-                break;
-            case POSTGRES:
+            }
+            case POSTGRES -> {
                 companyData = new PostgresCompanyData(workerPool);
                 orderData = new PostgresOrderData(workerPool, mapper);
                 notificationData = new PostgresNotificationData(workerPool);
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
-            default:
-                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                                                                                    .storageType());
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
+                                                                                          .storageType());
         }
     }
 

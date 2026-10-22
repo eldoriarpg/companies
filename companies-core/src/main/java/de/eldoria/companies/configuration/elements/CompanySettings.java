@@ -85,7 +85,7 @@ public class CompanySettings {
     }
 
     public Optional<CompanyLevel> level(int level) {
-        if (level > this.level.size()) return Optional.empty();
+        if (level < 1 || level > this.level.size()) return Optional.empty();
         return Optional.ofNullable(this.level.get(level - 1));
     }
 
@@ -114,6 +114,7 @@ public class CompanySettings {
     public boolean deleteLevel(int level) {
         if (level < 1 || level > this.level.size()) return false;
         this.level.remove(level - 1);
+        updateLevel();
         return true;
     }
 }

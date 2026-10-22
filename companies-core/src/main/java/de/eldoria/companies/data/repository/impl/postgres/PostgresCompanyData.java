@@ -56,10 +56,9 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                 INSERT
                 INTO company_stats(id, failed_orders)
                 VALUES (?, ?)
-                ON CONFLICT(id) DO UPDATE SET failed_orders = failed_orders + excluded.failed_orders""";
+                ON CONFLICT(id) DO UPDATE SET failed_orders = company_stats.failed_orders + excluded.failed_orders""";
         query(query)
                 .single(call().bind(company.id())
-                        .bind(amount)
                         .bind(amount))
                 .update();
     }

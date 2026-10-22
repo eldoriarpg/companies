@@ -7,6 +7,7 @@ package de.eldoria.companies.services;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyLevelDownEvent;
@@ -58,19 +59,19 @@ public class LevelService implements Listener {
                     var companySettings = configuration.companySettings();
                     var newLevel = companySettings.calcCompanyLevel(stats);
                     if (newLevel.level() == company.level()) return;
-                    var oldLevel = companySettings.level(company.level());
-                    if (oldLevel.isEmpty()) return;
+                    var oldLevel = companySettings.level(company.level())
+                            .orElse(CompanyLevel.DEFAULT);
                     companyData.submitCompanyLevelUpdate(company, newLevel.level())
                             .join();
                     if (newLevel.level() > company.level()) {
                         plugin.getServer()
                                 .getPluginManager()
-                                .callEvent(new CompanyLevelUpEvent(company, oldLevel.get(), newLevel));
+                                .callEvent(new CompanyLevelUpEvent(company, oldLevel, newLevel));
                         return;
                     }
                     plugin.getServer()
                             .getPluginManager()
-                            .callEvent(new CompanyLevelDownEvent(company, oldLevel.get(), newLevel));
+                            .callEvent(new CompanyLevelDownEvent(company, oldLevel, newLevel));
                 })
                 .exceptionally(err -> {
                     plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);

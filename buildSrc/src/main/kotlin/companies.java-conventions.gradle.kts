@@ -42,6 +42,7 @@ dependencies {
     testImplementation(libs.findLibrary("paper").get())
     testImplementation(platform(libs.findLibrary("junit-bom").get()))
     testImplementation(libs.findLibrary("junit-jupiter").get())
+    testImplementation(libs.findLibrary("mockbukkit").get())
     testRuntimeOnly(libs.findLibrary("junit-platform-launcher").get())
 }
 

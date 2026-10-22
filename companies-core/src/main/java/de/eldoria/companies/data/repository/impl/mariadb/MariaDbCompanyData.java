@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -85,14 +86,9 @@ public class MariaDbCompanyData extends ACompanyData {
     protected Optional<SimpleCompany> getCompanyByName(String name) {
         @Language("mariadb")
         var query = """
-                SELECT c.id,
-                       c.name,
-                       c.founded,
-                       c.level
-                FROM company_member
-                         LEFT JOIN companies c
-                                   ON c.id = company_member.id
-                WHERE c.name LIKE ?""";
+                SELECT id, name, founded, level
+                FROM companies
+                WHERE LOWER(name) = LOWER(?)""";
         return query(query)
                 .single(call().bind(name))
                 .map(this::parseCompany)
@@ -134,11 +130,29 @@ public class MariaDbCompanyData extends ACompanyData {
     }
 
     @Override
-    public void purgeCompany(SimpleCompany company) {
-        var members = getCompanyMember(company);
-        for (var member : members) {
-            updateMember(member.kick());
+    public boolean purgeCompany(SimpleCompany company) {
+        @Language("mariadb")
+        var deleteMembers = """
+                DELETE FROM company_member WHERE id = ?""";
+        @Language("mariadb")
+        var deleteStats = """
+                DELETE FROM company_stats WHERE id = ?""";
+        @Language("mariadb")
+        var deleteCompany = """
+                DELETE FROM companies WHERE id = ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            conf.query(deleteMembers)
+                    .single(call().bind(company.id()))
+                    .delete();
+            conf.query(deleteStats)
+                    .single(call().bind(company.id()))
+                    .delete();
+            conf.query(deleteCompany)
+                    .single(call().bind(company.id()))
+                    .delete();
         }
+        return conf.context().exceptions().isEmpty();
     }
 
     @Override
@@ -211,16 +225,17 @@ public class MariaDbCompanyData extends ACompanyData {
     }
 
     @Override
-    protected void setCompanyName(SimpleCompany company, String name) {
+    protected boolean setCompanyName(SimpleCompany company, String name) {
         @Language("mariadb")
         var query = """
                 UPDATE companies
                 SET name = ?
                 WHERE id = ?""";
-        query(query)
+        return query(query)
                 .single(call().bind(name)
                         .bind(company.id()))
-                .update();
+                .update()
+                .changed();
     }
 
     @Override

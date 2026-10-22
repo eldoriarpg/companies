@@ -244,7 +244,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     @Override
     public boolean isDone() {
-        return amount() == delivered();
+        return delivered() >= amount();
     }
 
     public List<ItemStack> createStacks() {

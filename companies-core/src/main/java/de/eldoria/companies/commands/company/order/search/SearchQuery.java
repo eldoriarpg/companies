@@ -99,20 +99,32 @@ public class SearchQuery {
     }
 
     public String materialRegex() {
+        return materialRegex("\\b");
+    }
+
+    /**
+     * Builds a regex matching the space separated materials of an order.
+     * <p>
+     * When all materials are required, every material is checked with a lookahead, so the order of the materials does not matter.
+     *
+     * @param wordBoundary word boundary of the regex dialect, which is {@code \b} for most dialects and {@code \y} for PostgreSQL
+     * @return regex for the materials of this query
+     */
+    public String materialRegex(String wordBoundary) {
         if (materials.isEmpty()) return ".*";
         if (anyMaterial) {
             return materials.stream()
-                            .map(mat -> "(" + regexMat(mat) + ")")
+                            .map(mat -> "(" + regexMat(mat, wordBoundary) + ")")
                             .collect(Collectors.joining("|"));
         }
         return materials.stream()
-                        .map(mat -> "(.*" + regexMat(mat) + ")")
+                        .map(mat -> "(?=.*" + regexMat(mat, wordBoundary) + ")")
                         .collect(Collectors.joining(""));
     }
 
-    private String regexMat(String mat) {
+    private String regexMat(String mat, String wordBoundary) {
         if (exactMatch) {
-            return "\\b" + mat + "\\b";
+            return wordBoundary + mat + wordBoundary;
         }
         return mat;
     }

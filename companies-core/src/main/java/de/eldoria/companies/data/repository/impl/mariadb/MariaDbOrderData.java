@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.queries.api.call.Call;
+import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
@@ -14,17 +15,22 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ContentPart;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.inventory.ItemStack;
 import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -43,7 +49,7 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void putOrder(OfflinePlayer player, FullOrder order) {
+    protected boolean putOrder(OfflinePlayer player, FullOrder order) {
         @Language("mariadb")
         var query = """
                 INSERT
@@ -52,13 +58,15 @@ public class MariaDbOrderData extends AOrderData {
                 VALUES
                 	(?, ?)
                 RETURNING id""";
-        try (var conf = QueryConfiguration.getDefault().withSingleTransaction()) {
-            var orderId = conf.query(query)
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            var optOrderId = conf.query(query)
                     .single(call().bind(player.getUniqueId(), UUID_BYTES)
                             .bind(order.name()))
                     .map(rs -> rs.getInt(1))
-                    .first()
-                    .get();
+                    .first();
+            if (optOrderId.isEmpty()) return false;
+            var orderId = optOrderId.get();
 
             query = """
                     INSERT INTO order_content(id, material, stack, amount, price)
@@ -81,19 +89,21 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(orderId).bind(OrderState.UNCLAIMED.stateId()))
                     .update();
         }
+        return conf.context().exceptions().isEmpty();
     }
 
     @Override
-    protected void updateOrderState(SimpleOrder order, OrderState state) {
+    protected boolean updateOrderState(SimpleOrder order, OrderState expected, OrderState state) {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
                 SET state = ?
                 WHERE id = ?
-                                """;
-        query(query)
-                .single(call().bind(state.stateId()).bind(order.id()))
-                .update();
+                  AND state = ?""";
+        return query(query)
+                .single(call().bind(state.stateId()).bind(order.id()).bind(expected.stateId()))
+                .update()
+                .changed();
     }
 
     @Override
@@ -137,10 +147,9 @@ public class MariaDbOrderData extends AOrderData {
                     created
                 FROM
                     order_states s
-                        LEFT JOIN orders o
+                        JOIN orders o
                         ON o.id = s.id
                 WHERE last_update < NOW() - INTERVAL ? HOUR
-                  AND company IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
         return query(query)
@@ -198,64 +207,204 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void orderDelivered(SimpleOrder order) {
+    protected boolean orderDelivered(SimpleOrder order) {
         @Language("mariadb")
         var update = """
                 UPDATE order_states
                 SET state       = ?,
                     last_update = CURRENT_TIMESTAMP
-                WHERE id = ?""";
-        @Language("mariadb")
-        var delete = """
-                DELETE FROM orders_delivered WHERE id = ?""";
-        try (var conf = QueryConfiguration.getDefault().withSingleTransaction()) {
-
-            conf.query(update)
-                    .single(call().bind(OrderState.DELIVERED.stateId()).bind(order.id()))
-                    .update();
-
-            conf.query(delete)
-                    .single(call().bind(order.id()))
-                    .delete();
-        }
+                WHERE id = ?
+                  AND state = ?
+                  AND NOT EXISTS(SELECT 1
+                                 FROM order_content c
+                                 WHERE c.id = order_states.id
+                                   AND c.amount > COALESCE((SELECT SUM(d.delivered)
+                                                            FROM orders_delivered d
+                                                            WHERE d.id = c.id
+                                                              AND d.material = c.material), 0))""";
+        return query(update)
+                .single(call().bind(OrderState.DELIVERED.stateId())
+                        .bind(order.id())
+                        .bind(OrderState.CLAIMED.stateId()))
+                .update()
+                .changed();
     }
 
     @Override
-    protected void unclaimOrder(SimpleOrder order) {
+    protected Optional<Set<UUID>> unclaimOrder(SimpleOrder order) {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
                 SET state       = ?,
                     company     = NULL,
                     last_update = CURRENT_TIMESTAMP
-                WHERE id = ?""";
+                WHERE id = ?
+                  AND state = ?""";
+        @Language("mariadb")
+        var workerQuery = """
+                SELECT DISTINCT worker_uuid
+                FROM orders_delivered
+                WHERE id = ?
+                  AND delivered > 0""";
+        @Language("mariadb")
+        var returnItems = """
+                INSERT INTO item_returns(worker_uuid, material, stack, amount)
+                SELECT d.worker_uuid,
+                       d.material,
+                       (SELECT MIN(c.stack) FROM order_content c WHERE c.id = d.id AND c.material = d.material),
+                       d.delivered
+                FROM orders_delivered d
+                WHERE d.id = ?
+                  AND d.delivered > 0
+                  AND EXISTS(SELECT 1 FROM order_content c WHERE c.id = d.id AND c.material = d.material)""";
         @Language("mariadb")
         var delete = """
                 DELETE FROM orders_delivered WHERE id = ?""";
-        try (var conf = QueryConfiguration.getDefault().withSingleTransaction()) {
-            conf.query(query)
-                    .single(call().bind(OrderState.UNCLAIMED.stateId()).bind(order.id()))
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        List<UUID> workers;
+        try (conf) {
+            var unclaimed = conf.query(query)
+                    .single(call().bind(OrderState.UNCLAIMED.stateId())
+                            .bind(order.id())
+                            .bind(OrderState.CLAIMED.stateId()))
                     .update();
+            if (!unclaimed.changed()) return Optional.empty();
+            workers = conf.query(workerQuery)
+                    .single(call().bind(order.id()))
+                    .map(row -> row.get("worker_uuid", UUID_BYTES))
+                    .all();
+            conf.query(returnItems)
+                    .single(call().bind(order.id()))
+                    .insert();
             conf.query(delete)
                     .single(call().bind(order.id()))
                     .delete();
         }
+        if (!conf.context().exceptions().isEmpty()) return Optional.empty();
+        return Optional.of(Set.copyOf(workers));
     }
 
     @Override
-    protected void deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+    protected List<ItemReturn> getItemReturns(UUID worker) {
         @Language("mariadb")
         var query = """
+                SELECT id, stack, amount
+                FROM item_returns
+                WHERE worker_uuid = ?
+                ORDER BY id""";
+        return query(query)
+                .single(call().bind(worker, UUID_BYTES))
+                .map(row -> new ItemReturn(row.getInt("id"), toItemStack(row.getString("stack")), row.getInt("amount")))
+                .all();
+    }
+
+    @Override
+    protected boolean takeItemReturn(ItemReturn itemReturn, int amount) {
+        @Language("mariadb")
+        var take = """
+                UPDATE item_returns
+                SET amount = amount - ?
+                WHERE id = ?
+                  AND amount >= ?""";
+        @Language("mariadb")
+        var delete = """
+                DELETE FROM item_returns WHERE id = ? AND amount <= 0""";
+        var taken = query(take)
+                .single(call().bind(amount).bind(itemReturn.id()).bind(amount))
+                .update()
+                .changed();
+        if (taken) {
+            query(delete)
+                    .single(call().bind(itemReturn.id()))
+                    .delete();
+        }
+        return taken;
+    }
+
+    @Override
+    protected boolean addItemReturn(UUID worker, ItemStack stack, int amount) {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO item_returns(worker_uuid, material, stack, amount)
+                VALUES (?, ?, ?, ?)""";
+        return query(query)
+                .single(call().bind(worker, UUID_BYTES)
+                        .bind(stack.getType().name())
+                        .bind(toJson(stack))
+                        .bind(amount))
+                .insert()
+                .changed();
+    }
+
+    @Override
+    protected int deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        @Language("mariadb")
+        var missingQuery = """
+                SELECT c.amount - COALESCE((SELECT SUM(d.delivered)
+                                            FROM orders_delivered d
+                                            WHERE d.id = c.id
+                                              AND d.material = c.material), 0) AS missing
+                FROM order_content c
+                WHERE c.id = ?
+                  AND c.material = ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        int delivered;
+        try (conf) {
+            if (!lockClaimedOrder(conf, order)) return 0;
+            var missing = conf.query(missingQuery)
+                    .single(call().bind(order.id()).bind(material.name()))
+                    .map(row -> row.getInt("missing"))
+                    .first();
+            if (missing.isEmpty()) return 0;
+            delivered = Math.min(amount, missing.get());
+            if (delivered <= 0) return 0;
+            conf.query(deliveryUpsertQuery())
+                    .single(call().bind(order.id())
+                            .bind(player.getUniqueId(), UUID_BYTES)
+                            .bind(material.name())
+                            .bind(delivered))
+                    .insert();
+        }
+        return conf.context().exceptions().isEmpty() ? delivered : 0;
+    }
+
+    /**
+     * Locks the state of the order for the rest of the transaction if the order is claimed.
+     * <p>
+     * Concurrent deliveries to the same order wait for each other, so the missing amount can not be exceeded.
+     *
+     * @param conf  transaction to lock in
+     * @param order order to lock
+     * @return true if the order is claimed
+     */
+    protected boolean lockClaimedOrder(ConnectedQueryConfiguration conf, SimpleOrder order) {
+        @Language("mariadb")
+        var query = """
+                SELECT id
+                FROM order_states
+                WHERE id = ?
+                  AND state = ?
+                    FOR UPDATE""";
+        return conf.query(query)
+                .single(call().bind(order.id()).bind(OrderState.CLAIMED.stateId()))
+                .map(row -> row.getInt("id"))
+                .first()
+                .isPresent();
+    }
+
+    /**
+     * Query which adds a delivered amount to the deliveries of a worker.
+     * <p>
+     * Parameters are the order id, worker id, material and amount.
+     *
+     * @return upsert query
+     */
+    protected String deliveryUpsertQuery() {
+        return """
                 INSERT
                 INTO orders_delivered(id, worker_uuid, material, delivered)
                 VALUES (?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE delivered = delivered + VALUES(delivered)""";
-        query(query)
-                .single(call().bind(order.id())
-                        .bind(player.getUniqueId(), UUID_BYTES)
-                        .bind(material.name())
-                        .bind(amount))
-                .update();
     }
 
     @Override
@@ -434,34 +583,44 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void purgeCompanyOrders(SimpleCompany profile) {
+    protected Set<UUID> purgeCompanyOrders(SimpleCompany profile) {
+        Set<UUID> workers = new HashSet<>();
         for (var simpleOrder : ordersByCompany(profile, OrderState.CLAIMED, OrderState.CLAIMED)) {
-            unclaimOrder(simpleOrder);
+            unclaimOrder(simpleOrder).ifPresent(workers::addAll);
+            invalidateFullOrder(simpleOrder);
         }
+        return workers;
     }
 
     @Override
-    protected void purgeOrder(SimpleOrder order) {
-        @Language("mariadb")
-        var query = """
-                DELETE
-                FROM orders
-                WHERE id = ?""";
-        query(query)
-                .single(call().bind(order.id()))
-                .delete();
+    protected boolean purgeOrder(SimpleOrder order) {
+        return deleteOrder(order);
     }
 
     @Override
-    protected void deleteOrder(SimpleOrder order) {
+    protected boolean deleteOrder(SimpleOrder order) {
         @Language("mariadb")
-        var query = """
+        var deleteState = """
+                DELETE
+                FROM order_states
+                WHERE id = ?
+                  AND state = ?""";
+        @Language("mariadb")
+        var deleteOrder = """
                 DELETE
                 FROM orders
                 WHERE id = ?""";
-        query(query)
-                .single(call().bind(order.id()))
-                .update();
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            var unclaimed = conf.query(deleteState)
+                    .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
+                    .delete();
+            if (!unclaimed.changed()) return false;
+            conf.query(deleteOrder)
+                    .single(call().bind(order.id()))
+                    .delete();
+        }
+        return conf.context().exceptions().isEmpty();
     }
 
     @Override
@@ -535,7 +694,9 @@ public class MariaDbOrderData extends AOrderData {
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE
-                ON DUPLICATE KEY UPDATE avg_price = avg.avg_price;""";
+                ON DUPLICATE KEY UPDATE avg_price = avg.avg_price,
+                                        min_price = avg.min_price,
+                                        max_price = avg.max_price;""";
         query(query).single()
                 .update();
     }

@@ -7,6 +7,7 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandMetaBuilder;
@@ -19,7 +20,6 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
 public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
@@ -67,9 +67,13 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
 
                      var fullOrder = orderData.retrieveFullOrder(optOrder.get())
                                               .join();
-                     CompletableFuture.runAsync(() -> economy.depositPlayer(player, fullOrder.price()));
-                     orderData.submitOrderDeletion(fullOrder)
-                              .join();
+                     if (!orderData.submitOrderDeletion(fullOrder)
+                                   .join()) {
+                         messageSender().sendError(sender, "error.orderAlreadyClaimed");
+                         return;
+                     }
+                     Threading.mainThread(plugin())
+                              .execute(() -> economy.depositPlayer(player, fullOrder.price()));
                      list.showOrders(player, () -> messageSender().sendError(sender, "order.cancel.canceled",
                              Replacement.create("money", economy.format(fullOrder.price()))));
                  })

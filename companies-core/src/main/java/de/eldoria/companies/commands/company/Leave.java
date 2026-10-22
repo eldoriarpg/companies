@@ -9,6 +9,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -30,13 +31,15 @@ import java.util.UUID;
 public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
+    private final ItemReturnService itemReturnService;
     private final Set<UUID> leaves = new HashSet<>();
 
-    public Leave(Plugin plugin, ACompanyData companyData, AOrderData orderData) {
+    public Leave(Plugin plugin, ACompanyData companyData, AOrderData orderData, ItemReturnService itemReturnService) {
         super(plugin, CommandMeta.builder("leave")
                 .build());
         this.companyData = companyData;
         this.orderData = orderData;
+        this.itemReturnService = itemReturnService;
     }
 
     @Override
@@ -86,9 +89,11 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                        if (profile.member(player)
                                   .get()
                                   .isOwner()) {
-                           companyData.submitCompanyPurge(profile);
-                           orderData.submitCompanyOrdersPurge(profile)
-                                    .join();
+                           var workers = orderData.submitCompanyOrdersPurge(profile)
+                                                  .join();
+                           itemReturnService.notifyWorkers(workers);
+                           companyData.submitCompanyPurge(profile)
+                                      .join();
                            messageSender().sendMessage(player, "company.leave.disbanded");
                            plugin().getServer()
                                    .getPluginManager()
