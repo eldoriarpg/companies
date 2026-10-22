@@ -120,6 +120,17 @@ public class SqLiteOrderData extends MariaDbOrderData {
     }
 
     @Override
+    protected boolean extendUnclaimed(SimpleOrder order, int hours) {
+        @Language("sqlite")
+        var query = """
+                UPDATE order_states
+                SET last_update = datetime(last_update, '+' || ? || ' HOUR')
+                WHERE id = ?
+                  AND state = ?""";
+        return moveLastUpdate(query, order, hours);
+    }
+
+    @Override
     protected boolean lockOrder(ConnectedQueryConfiguration conf, SimpleOrder order, OrderState state) {
         @Language("sqlite")
         var query = """

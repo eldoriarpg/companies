@@ -26,6 +26,7 @@ import de.eldoria.companies.orders.DeliveryPart;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.intellij.lang.annotations.Language;
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
@@ -228,6 +229,30 @@ public class MariaDbOrderData extends AOrderData {
                     last_update    = CURRENT_TIMESTAMP
                 WHERE id = ?
                   AND state = ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        List<UUID> workers;
+        try (conf) {
+            var unclaimed = conf.query(query)
+                    .single(call().bind(OrderState.UNCLAIMED.stateId())
+                            .bind(order.id())
+                            .bind(OrderState.CLAIMED.stateId()))
+                    .update();
+            if (!unclaimed.changed()) return Optional.empty();
+            workers = returnDeliveries(conf, order);
+        }
+        if (!conf.context().exceptions().isEmpty()) return Optional.empty();
+        return Optional.of(Set.copyOf(workers));
+    }
+
+    /**
+     * Moves the stacks delivered to an order unchanged to the item returns of their workers and removes them from the
+     * order.
+     *
+     * @param conf  open transaction
+     * @param order order whose deliveries are returned
+     * @return the workers who got items returned
+     */
+    private List<UUID> returnDeliveries(ConnectedQueryConfiguration conf, SimpleOrder order) {
         @Language("mariadb")
         var workerQuery = """
                 SELECT DISTINCT worker_uuid
@@ -251,24 +276,136 @@ public class MariaDbOrderData extends AOrderData {
         @Language("mariadb")
         var delete = """
                 DELETE FROM order_deliveries WHERE order_id = ?""";
+        var workers = conf.query(workerQuery)
+                .single(call().bind(order.id()))
+                .map(row -> row.get("worker_uuid", UUID_BYTES))
+                .all();
+        conf.query(returnItems).single(call().bind(order.id())).insert();
+        conf.query(delete).single(call().bind(order.id())).delete();
+        return workers;
+    }
+
+    @Override
+    protected boolean forceDelivered(SimpleOrder order) {
+        @Language("mariadb")
+        var query = """
+                UPDATE order_states
+                SET state       = ?,
+                    last_update = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND state = ?""";
+        return query(query)
+                .single(call().bind(OrderState.DELIVERED.stateId())
+                        .bind(order.id())
+                        .bind(OrderState.CLAIMED.stateId()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    protected Optional<Set<UUID>> adminDelete(SimpleOrder order) {
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
-        List<UUID> workers;
+        Optional<List<UUID>> workers;
         try (conf) {
-            var unclaimed = conf.query(query)
-                    .single(call().bind(OrderState.UNCLAIMED.stateId())
-                            .bind(order.id())
-                            .bind(OrderState.CLAIMED.stateId()))
-                    .update();
-            if (!unclaimed.changed()) return Optional.empty();
-            workers = conf.query(workerQuery)
-                    .single(call().bind(order.id()))
-                    .map(row -> row.get("worker_uuid", UUID_BYTES))
-                    .all();
-            conf.query(returnItems).single(call().bind(order.id())).insert();
-            conf.query(delete).single(call().bind(order.id())).delete();
+            workers = deleteLocked(conf, order);
         }
-        if (!conf.context().exceptions().isEmpty()) return Optional.empty();
-        return Optional.of(Set.copyOf(workers));
+        if (workers.isEmpty() || !conf.context().exceptions().isEmpty()) return Optional.empty();
+        return Optional.of(Set.copyOf(workers.get()));
+    }
+
+    /**
+     * Deletes an unclaimed or claimed order inside a transaction, returning the deliveries of a claimed one first.
+     *
+     * @param conf  open transaction
+     * @param order order to delete
+     * @return the workers who got items returned, or empty when the order was neither unclaimed nor claimed
+     */
+    private Optional<List<UUID>> deleteLocked(ConnectedQueryConfiguration conf, SimpleOrder order) {
+        List<UUID> workers = List.of();
+        if (lockOrder(conf, order, OrderState.CLAIMED)) {
+            workers = returnDeliveries(conf, order);
+        } else if (!lockOrder(conf, order, OrderState.UNCLAIMED)) {
+            return Optional.empty();
+        }
+        for (var table : List.of("order_content", "order_states", "orders")) {
+            conf.query("DELETE FROM %s WHERE id = ?", table)
+                    .single(call().bind(order.id()))
+                    .delete();
+        }
+        return Optional.of(workers);
+    }
+
+    @Override
+    protected boolean extendClaim(SimpleOrder order, int hours) {
+        @Language("mariadb")
+        var query = """
+                UPDATE order_states
+                SET delivery_bonus = delivery_bonus + ?
+                WHERE id = ?
+                  AND state = ?""";
+        return query(query)
+                .single(call().bind(hours).bind(order.id()).bind(OrderState.CLAIMED.stateId()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    protected boolean extendUnclaimed(SimpleOrder order, int hours) {
+        @Language("mariadb")
+        var query = """
+                UPDATE order_states
+                SET last_update = last_update + INTERVAL ? HOUR
+                WHERE id = ?
+                  AND state = ?""";
+        return moveLastUpdate(query, order, hours);
+    }
+
+    /**
+     * Runs the dialect's statement moving the last update of an unclaimed order.
+     *
+     * @param query update with the parameters hours, order id and state
+     * @param order order to change
+     * @param hours hours to add
+     * @return true if the order was unclaimed and changed
+     */
+    protected boolean moveLastUpdate(String query, SimpleOrder order, int hours) {
+        return query(query)
+                .single(call().bind(hours).bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    protected List<SimpleOrder> ordersForAdmin(@Nullable UUID owner, @Nullable Integer company, int page, int size) {
+        @Language("mariadb")
+        var query = """
+                SELECT
+                    o.id,
+                    owner_uuid,
+                    name,
+                    created,
+                    company,
+                    last_update,
+                    state,
+                    o.fee,
+                    extensions,
+                    delivery_bonus
+                FROM
+                    orders o
+                        LEFT JOIN order_states oc
+                        ON o.id = oc.id
+                WHERE TRUE
+                  %s
+                  %s
+                ORDER BY o.id DESC
+                LIMIT ? OFFSET ?""";
+        var call = call();
+        if (owner != null) call = call.bind(owner, UUID_BYTES);
+        if (company != null) call = call.bind(company);
+        return query(query, owner == null ? "" : "AND o.owner_uuid = ?", company == null ? "" : "AND oc.company = ?")
+                .single(call.bind(size).bind((page - 1) * size))
+                .map(this::buildSimpleOrder)
+                .all();
     }
 
     @Override

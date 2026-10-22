@@ -768,4 +768,133 @@ class SqLiteOrderDataTest {
         Assertions.assertEquals(1.0, price.maxPrice(), 0.0001);
         Assertions.assertEquals(1.0, price.avgPrice(), 0.0001);
     }
+
+    @Test
+    void forcedDeliveryWorksOnlyOnClaimedOrdersWhateverWasDelivered() {
+        var open = createOrder(10, 5);
+        var claimed = createOrder(10, 5);
+        claim(claimed);
+        addDelivery(claimed, 0, Material.STONE, 3);
+
+        Assertions.assertTrue(
+                orderData.submitForcedDelivery(reload(open)).join().isEmpty());
+        var delivered = orderData.submitForcedDelivery(reload(claimed)).join().orElseThrow();
+
+        Assertions.assertEquals(OrderState.DELIVERED, delivered.state());
+        Assertions.assertEquals(3, delivered.delivered());
+        Assertions.assertEquals(OrderState.UNCLAIMED, reload(open).state());
+        Assertions.assertTrue(
+                orderData.submitForcedDelivery(reload(claimed)).join().isEmpty());
+    }
+
+    @Test
+    void adminDeletionReturnsDeliveriesOfClaimedOrders() {
+        var order = createOrder(10, 5);
+        claim(order);
+        addDelivery(order, 0, Material.STONE, 4);
+
+        var workers = orderData.submitAdminDeletion(reload(order)).join();
+
+        Assertions.assertEquals(Set.of(worker.getUniqueId()), workers.orElseThrow());
+        Assertions.assertTrue(orderData.retrieveOrderById(order.id()).join().isEmpty());
+        for (var table : List.of("order_content", "order_states", "orders")) {
+            Assertions.assertEquals(0, SqLiteTestDatabase.count(table, "id = " + order.id()));
+        }
+        Assertions.assertEquals(0, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
+        var returns = orderData
+                .retrieveItemReturns(worker.getUniqueId(), ReturnKind.WORKER)
+                .join();
+        Assertions.assertEquals(4, returns.getFirst().amount());
+    }
+
+    @Test
+    void adminDeletionOfUnclaimedOrdersReturnsNothing() {
+        var order = createOrder(10, 5);
+
+        Assertions.assertEquals(
+                Set.of(), orderData.submitAdminDeletion(reload(order)).join().orElseThrow());
+        Assertions.assertTrue(orderData.retrieveOrderById(order.id()).join().isEmpty());
+    }
+
+    @Test
+    void deliveredOrdersAreNotDeletedByAdmins() {
+        var order = createOrder(10, 5);
+        claim(order);
+        addDelivery(order, 0, Material.STONE, 4);
+        SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), COMPANY);
+
+        Assertions.assertTrue(
+                orderData.submitAdminDeletion(reload(order)).join().isEmpty());
+        Assertions.assertEquals(OrderState.DELIVERED, reload(order).state());
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
+    }
+
+    @Test
+    void claimExtensionsAddToTheDeliveryBonus() {
+        var order = createOrder(10, 5);
+
+        Assertions.assertFalse(orderData.submitClaimExtension(reload(order), 5).join());
+        claim(order);
+        Assertions.assertTrue(orderData.submitClaimExtension(reload(order), 5).join());
+        Assertions.assertTrue(orderData.submitClaimExtension(reload(order), 2).join());
+
+        Assertions.assertEquals(7, reload(order).deliveryBonus());
+    }
+
+    @Test
+    void unclaimedExtensionsMoveThePurgeWithoutCountingAnExtension() {
+        var order = createOrder(10, 5);
+        age(order, 10);
+        var before = reload(order).claimed();
+
+        Assertions.assertTrue(
+                orderData.submitUnclaimedExtension(reload(order), 24).join());
+
+        Assertions.assertEquals(before.plusHours(24), reload(order).claimed());
+        Assertions.assertEquals(0, reload(order).extensions());
+        claim(order);
+        Assertions.assertFalse(
+                orderData.submitUnclaimedExtension(reload(order), 24).join());
+    }
+
+    @Test
+    void adminListsFilterByOwnerAndCompanyNewestFirst() {
+        var first = createOrder(10, 5);
+        var second = createOrder(10, 5);
+        var third = createOrder(10, 5);
+        claim(second);
+        var foreign = query("INSERT INTO orders(owner_uuid, name) VALUES (?, 'other') RETURNING id")
+                .single(call().bind(worker.getUniqueId(), UUID_BYTES))
+                .map(row -> row.getInt("id"))
+                .first()
+                .orElseThrow();
+        query("INSERT INTO order_states(id, state) VALUES (?, 0)")
+                .single(call().bind(foreign))
+                .insert();
+
+        Assertions.assertEquals(
+                List.of(third.id(), second.id(), first.id()),
+                ids(orderData
+                        .retrieveOrdersForAdmin(owner.getUniqueId(), null, 1, 10)
+                        .join()));
+        Assertions.assertEquals(
+                List.of(second.id()),
+                ids(orderData.retrieveOrdersForAdmin(null, COMPANY, 1, 10).join()));
+        Assertions.assertEquals(
+                List.of(second.id()),
+                ids(orderData
+                        .retrieveOrdersForAdmin(owner.getUniqueId(), COMPANY, 1, 10)
+                        .join()));
+        Assertions.assertEquals(
+                List.of(second.id()),
+                ids(orderData
+                        .retrieveOrdersForAdmin(owner.getUniqueId(), null, 2, 1)
+                        .join()));
+        Assertions.assertEquals(
+                4, orderData.retrieveOrdersForAdmin(null, null, 1, 10).join().size());
+    }
+
+    private static List<Integer> ids(List<SimpleOrder> orders) {
+        return orders.stream().map(SimpleOrder::id).toList();
+    }
 }
