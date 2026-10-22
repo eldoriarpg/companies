@@ -48,6 +48,15 @@ public class MaterialPrice implements de.eldoria.companies.components.order.IMat
         return maxPrice;
     }
 
+    /**
+     * Whether the market knows a price for this material.
+     *
+     * @return true when the average unit price is above zero
+     */
+    public boolean hasData() {
+        return avgPrice > 0;
+    }
+
     public String asComponent(int amount, Economy economy) {
         return MessageComposer.create()
                 .text("<yellow>")
