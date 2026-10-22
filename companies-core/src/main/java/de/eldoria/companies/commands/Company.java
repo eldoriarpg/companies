@@ -43,7 +43,7 @@ public class Company extends AdvancedCommand {
             NotificationService notificationService,
             DisbandService disbandService) {
         super(plugin);
-        var profile = new Profile(plugin, companyData, orderData, configuration, messageBlocker);
+        var profile = new Profile(plugin, companyData, orderData, configuration, economy, messageBlocker);
         var meta = CommandMeta.builder("company")
                 .withDefaultCommand(profile)
                 .withSubCommand(profile)

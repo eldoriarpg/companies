@@ -15,6 +15,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 public class Profile extends AdvancedCommand {
@@ -23,9 +24,10 @@ public class Profile extends AdvancedCommand {
             ACompanyData companyData,
             AOrderData orderData,
             Configuration configuration,
+            Economy economy,
             MessageBlocker messageBlocker) {
         super(plugin);
-        var self = new Self(plugin, companyData, orderData, configuration, messageBlocker);
+        var self = new Self(plugin, companyData, orderData, configuration, economy, messageBlocker);
         var meta = CommandMeta.builder("profile")
                 .withDefaultCommand(self)
                 .withSubCommand(self)

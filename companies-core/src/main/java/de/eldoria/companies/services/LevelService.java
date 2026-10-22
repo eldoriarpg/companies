@@ -10,6 +10,8 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.events.company.CompanyJoinEvent;
+import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.events.company.CompanyLevelDownEvent;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
@@ -91,6 +93,21 @@ public class LevelService implements Listener {
                     return null;
                 })
                 .thenRun(() -> updateCompanyLevel(event.company()));
+    }
+
+    @EventHandler
+    public void onCompanyJoin(CompanyJoinEvent event) {
+        updateCompanyLevel(event.company());
+    }
+
+    /**
+     * Recalculates the level when a member leaves. Kicks share the handler list of leaves and arrive here as well.
+     *
+     * @param event leave or kick event
+     */
+    @EventHandler
+    public void onCompanyLeave(CompanyLeaveEvent event) {
+        updateCompanyLevel(event.company());
     }
 
     @EventHandler

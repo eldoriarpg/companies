@@ -18,6 +18,7 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -97,6 +98,16 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                     var simpleOrder = optOrder.get();
                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
                         messageSender().sendErrorActionBar(player, "error.orderNotClaimable");
+                        return;
+                    }
+
+                    var size = orderData.retrieveFullOrder(simpleOrder).join();
+                    if (size != null && levelSettings.exceedsOrderSize(size.amount())) {
+                        messageSender()
+                                .sendErrorActionBar(
+                                        player,
+                                        "error.orderTooLarge",
+                                        Replacement.create("max", levelSettings.maxOrderSize()));
                         return;
                     }
 
