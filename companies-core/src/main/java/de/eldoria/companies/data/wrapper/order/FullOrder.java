@@ -12,10 +12,12 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -91,7 +93,17 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
         return String.join("\n", contents);
     }
 
-    public String userDetailInfo(Economy economy) {
+    /**
+     * The order as its owner sees it: progress per material, the price, and when it is due or refunded.
+     * <p>
+     * The company working on the order is never shown. An unclaimed order is refunded {@code maxUnclaimedHours} after
+     * its last update, a claimed one is due {@code deliveryHours} after it was claimed.
+     *
+     * @param economy       economy formatting the price
+     * @param configuration configuration providing the time limits
+     * @return composer holding the view and its replacements
+     */
+    public MessageComposer userDetailInfo(Economy economy, Configuration configuration) {
         var composer = MessageComposer.create()
                                       .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                                       .newLine()
@@ -100,28 +112,43 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                                       .text(": <value>")
                                       .localeCode(state().translationKey())
                                       .newLine()
-                                      .text(userContent(economy))
+                                      .text(userProgressContent(economy))
                                       .newLine()
                                       .text("<name>")
                                       .localeCode("words.price")
-                                      .text(": <value>%s", price())
+                                      .text(": <value>%s", economy.format(price()))
                                       .newLine();
         switch (state()) {
-            case UNCLAIMED:
-                composer.text("<click:run_command:/order cancel %s><remove>[", id())
-                        .localeCode("words.cancel")
-                        .text("]</click>");
-                break;
-            case DELIVERED:
-                composer.text("<click:run_command:/order receive %s><add>[", id())
-                        .localeCode("words.receive")
-                        .text("]</click>");
-                break;
-            case RECEIVED:
-            case CLAIMED:
-                break;
+            case UNCLAIMED -> composer.text("<name>")
+                                      .localeCode("order.info.refundIn",
+                                              Replacement.create("duration", timeLeft(configuration.orderSetting().maxUnclaimedHours())))
+                                      .newLine()
+                                      .text("<click:run_command:/order cancel %s><remove>[", id())
+                                      .localeCode("words.cancel")
+                                      .text("]</click>");
+            case CLAIMED -> composer.text("<name>")
+                                    .localeCode("order.info.dueIn",
+                                            Replacement.create("duration", timeLeft(configuration.companySettings().deliveryHours())));
+            case DELIVERED -> composer.text("<click:run_command:/order receive %s><add>[", id())
+                                      .localeCode("words.receive")
+                                      .text("]</click>");
+            case RECEIVED -> {
+            }
         }
-        return composer.build();
+        return composer;
+    }
+
+    private String userProgressContent(Economy economy) {
+        List<String> contents = new ArrayList<>();
+        for (var content : this.contents) {
+            contents.add(content.asProgressComponent(economy) + " " + Texts.progressBar(content.percent()));
+        }
+        return String.join("\n", contents);
+    }
+
+    private String timeLeft(int hours) {
+        var left = Duration.between(LocalDateTime.now(), claimed().plusHours(hours));
+        return Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left);
     }
 
     public String companyDetailInfo(CompanyMember member, Configuration configuration, Economy economy) {

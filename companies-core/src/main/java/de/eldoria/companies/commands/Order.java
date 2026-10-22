@@ -30,7 +30,7 @@ public class Order extends AdvancedCommand {
                             cmds.add(list);
                             cmds.add(new Cancel(plugin, orderData, economy, list));
                             cmds.add(new Create(plugin, orderData, orderLimits, economy, configuration, messageBlocker));
-                            cmds.add(new Info(plugin, orderData, economy, messageBlocker));
+                            cmds.add(new Info(plugin, orderData, economy, configuration, messageBlocker));
                             cmds.add(new Receive(plugin, orderData, messageBlocker));
                         })
                         .build());

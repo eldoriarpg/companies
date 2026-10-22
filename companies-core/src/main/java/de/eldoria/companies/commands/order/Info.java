@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands.order;
 
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -12,7 +13,6 @@ import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
@@ -25,14 +25,16 @@ import java.util.logging.Level;
 public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Economy economy;
+    private final Configuration configuration;
     private final MessageBlocker messageBlocker;
 
-    public Info(Plugin plugin, AOrderData orderData, Economy economy, MessageBlocker messageBlocker) {
+    public Info(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("info")
                 .addArgument("id", true)
                 .build());
         this.orderData = orderData;
         this.economy = economy;
+        this.configuration = configuration;
         this.messageBlocker = messageBlocker;
     }
 
@@ -52,7 +54,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                          messageBlocker.blockPlayer(player);
                          var fullOrder = orderData.retrieveFullOrder(order.get())
                                                   .join();
-                         var builder = MessageComposer.create().text(fullOrder.userDetailInfo(economy));
+                         var builder = fullOrder.userDetailInfo(economy, configuration);
                          if (messageBlocker.isBlocked(player)) {
                              builder.newLine()
                                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
