@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
+import de.chojo.sadu.core.updater.SqlVersion;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -56,11 +58,15 @@ class SqLiteOrderDataTest {
     }
 
     private SimpleOrder createOrder(int stone, int dirt) {
+        return createOrder(stone, dirt, 0.0);
+    }
+
+    private SimpleOrder createOrder(int stone, int dirt, double fee) {
         var contents = List.of(
                 new OrderContent(new ItemStack(Material.STONE), stone, 100.0),
                 new OrderContent(new ItemStack(Material.DIRT), dirt, 50.0));
         orderData
-                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test").toFullOrder(contents))
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test", fee).toFullOrder(contents))
                 .join();
         var orders = orderData
                 .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED)
@@ -286,5 +292,61 @@ class SqLiteOrderDataTest {
         var price = orderData.retrieveMaterialPrice("STONE").join();
         Assertions.assertEquals(10.0, price.minPrice(), 0.0001);
         Assertions.assertEquals(100.0, price.maxPrice(), 0.0001);
+    }
+
+    @Test
+    void feeIsStoredWithTheOrder() {
+        var order = createOrder(10, 5, 12.34);
+
+        Assertions.assertEquals(12.34, order.fee());
+        Assertions.assertEquals(12.34, reload(order).fee());
+        Assertions.assertEquals(
+                12.34, orderData.retrieveFullOrder(reload(order)).join().fee());
+        Assertions.assertEquals(
+                12.34,
+                orderData
+                        .retrieveOrdersByQuery(new SearchQuery(), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                        .join()
+                        .get(0)
+                        .fee());
+        claim(order);
+        Assertions.assertEquals(
+                12.34,
+                orderData
+                        .retrieveCompanyOrderById(order.id(), COMPANY)
+                        .join()
+                        .orElseThrow()
+                        .fee());
+    }
+
+    @Test
+    void deadOrdersCarryTheirFee() {
+        var dead = createOrder(10, 5, 7.5);
+        query("UPDATE order_states SET last_update = datetime(CURRENT_TIMESTAMP, '-10 HOUR') WHERE id = ?")
+                .single(call().bind(dead.id()))
+                .update();
+
+        var deadOrders = orderData.retrieveDeadOrders(5).join();
+
+        Assertions.assertEquals(7.5, deadOrders.get(0).fee());
+    }
+
+    @Test
+    void migrationGivesExistingOrdersNoFee() throws Exception {
+        var oldDirectory = directory.resolve("old");
+        Files.createDirectories(oldDirectory);
+        SqLiteTestDatabase.create(oldDirectory, new SqlVersion(1, 1));
+        query("INSERT INTO orders(owner_uuid, name) VALUES (?, 'legacy')")
+                .single(call().bind(owner.getUniqueId(), UUID_BYTES))
+                .insert();
+        query("INSERT INTO order_states(id, state) VALUES (1, ?)")
+                .single(call().bind(OrderState.UNCLAIMED.stateId()))
+                .insert();
+
+        SqLiteTestDatabase.create(oldDirectory);
+
+        var legacy = orderData.retrieveOrderById(1).join().orElseThrow();
+        Assertions.assertEquals("legacy", legacy.name());
+        Assertions.assertEquals(0.0, legacy.fee());
     }
 }

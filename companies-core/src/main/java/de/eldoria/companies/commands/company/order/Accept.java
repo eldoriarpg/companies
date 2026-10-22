@@ -119,7 +119,7 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                         var claimed = orderData.retrieveFullOrder(claimedOrder).join();
                         messageBlocker.unblockPlayer(player).thenRun(() -> {
                             player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
-                            info.renderOrder(player, companyMember, claimed);
+                            info.renderOrder(player, profile, companyMember, claimed);
                         });
                         return;
                     }

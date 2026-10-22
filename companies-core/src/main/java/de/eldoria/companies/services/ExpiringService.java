@@ -157,6 +157,9 @@ public class ExpiringService implements Runnable, Listener {
         }
     }
 
+    /**
+     * Removes orders nobody accepted in time and refunds their price and fee to the owner.
+     */
     private void purgeDeadOrders() {
         var expired = orderData
                 .retrieveDeadOrders(configuration.orderSetting().maxUnclaimedHours())
@@ -171,7 +174,8 @@ public class ExpiringService implements Runnable, Listener {
                 continue;
             }
             var owner = plugin.getServer().getOfflinePlayer(order.owner());
-            Threading.mainThread(plugin).execute(() -> economy.depositPlayer(owner, fullOrder.price()));
+            Threading.mainThread(plugin)
+                    .execute(() -> economy.depositPlayer(owner, fullOrder.price() + fullOrder.fee()));
             plugin.getServer().getPluginManager().callEvent(new OrderRemovedEvent(order));
         }
     }

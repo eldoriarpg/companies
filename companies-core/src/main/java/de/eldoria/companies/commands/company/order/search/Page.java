@@ -48,7 +48,8 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
 
     public void renderPage(Player player, int page) {
         messageBlocker.blockPlayer(player);
-        var fullOrders = search.results().getOrDefault(player.getUniqueId(), List.of());
+        var results = search.results().getOrDefault(player.getUniqueId(), SearchResults.empty());
+        var fullOrders = results.orders();
 
         var builder = MessageComposer.create()
                 .text("<heading>")
@@ -63,7 +64,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         var pageList = page(fullOrders, page);
         var components = new ArrayList<String>();
         for (var order : pageList) {
-            components.add(order.companyShortInfo(economy));
+            components.add(order.companyShortInfo(economy, results.taxPercent()));
         }
 
         builder.text(components).newLine();

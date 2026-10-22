@@ -26,4 +26,13 @@ public interface ISimpleOrder {
     LocalDateTime claimed();
 
     OrderState state();
+
+    /**
+     * The fee the owner paid for placing the order, on top of its price.
+     * <p>
+     * It is kept when the owner cancels the order and refunded when the order is removed because nobody accepted it.
+     *
+     * @return fee of the order
+     */
+    double fee();
 }

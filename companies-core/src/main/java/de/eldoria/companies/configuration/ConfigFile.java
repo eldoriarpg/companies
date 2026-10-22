@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.configuration;
 
+import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 
@@ -12,6 +13,7 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 public class ConfigFile {
     private GeneralSettings generalSettings = new GeneralSettings();
     private StyleSettings style = new StyleSettings();
+    private EconomySettings economy = new EconomySettings();
 
     public GeneralSettings generalSettings() {
         return generalSettings;
@@ -19,5 +21,9 @@ public class ConfigFile {
 
     public StyleSettings style() {
         return style;
+    }
+
+    public EconomySettings economy() {
+        return economy;
     }
 }

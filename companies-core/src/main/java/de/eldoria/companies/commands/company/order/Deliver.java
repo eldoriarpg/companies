@@ -6,13 +6,16 @@
 package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
+import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.orders.Payout;
 import de.eldoria.companies.util.Inventories;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -30,6 +33,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -41,12 +45,16 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Info info;
     private final MessageBlocker messageBlocker;
+    private final Configuration configuration;
+    private final Collector collector;
 
     public Deliver(
             Plugin plugin,
             ACompanyData companyData,
             AOrderData orderData,
             Economy economy,
+            Configuration configuration,
+            Collector collector,
             Info info,
             MessageBlocker messageBlocker) {
         super(
@@ -61,6 +69,8 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         this.companyData = companyData;
         this.info = info;
         this.messageBlocker = messageBlocker;
+        this.configuration = configuration;
+        this.collector = collector;
     }
 
     @Override
@@ -148,7 +158,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                         messageBlocker.unblockPlayer(player).thenRun(() -> orderDone(refreshedOrder, company));
                         return;
                     }
-                    info.renderOrder(player, company.member(player).get(), refreshedOrder);
+                    info.renderOrder(player, company, company.member(player).get(), refreshedOrder);
                 })
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -171,7 +181,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                 .asFuture()
                 .thenAccept(delivered -> delivered.ifPresent(deliveredOrder -> {
                     plugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(deliveredOrder, profile));
-                    pay(deliveredOrder);
+                    pay(deliveredOrder, profile);
                 }))
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -179,15 +189,28 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                 });
     }
 
-    private void pay(FullOrder order) {
+    /**
+     * Pays the workers of a delivered order their share minus the tax of the company's level.
+     * <p>
+     * The fee of the order and the tax of every payout that is not cancelled go to the collector.
+     *
+     * @param order   delivered order
+     * @param company company which delivered the order
+     */
+    private void pay(FullOrder order, CompanyProfile company) {
+        var taxPercent = configuration.companySettings().taxPercent(company.level());
         Map<OfflinePlayer, Double> payments = new HashMap<>();
+        var collected = BigDecimal.valueOf(order.fee());
         for (var entry : order.payments(PaymentType.STACK).entrySet()) {
             var player = plugin().getServer().getOfflinePlayer(entry.getKey());
-            var event = new OrderPaymentEvent(order, player, entry.getValue());
+            var payout = Payout.split(entry.getValue(), taxPercent);
+            var event = new OrderPaymentEvent(order, player, payout.net(), payout.gross(), payout.tax());
             plugin().getServer().getPluginManager().callEvent(event);
             if (event.isCancelled()) continue;
-            payments.put(player, entry.getValue());
+            payments.put(player, payout.net());
+            collected = collected.add(BigDecimal.valueOf(payout.tax()));
         }
         Threading.mainThread(plugin()).execute(() -> payments.forEach(economy::depositPlayer));
+        collector.collect(collected.doubleValue());
     }
 }

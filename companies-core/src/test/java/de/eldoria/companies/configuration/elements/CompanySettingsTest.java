@@ -111,4 +111,59 @@ class CompanySettingsTest {
                 settings.level().stream().map(CompanyLevel::level).toList());
         Assertions.assertEquals(12, settings.level(4).orElseThrow().settings().maxOrders());
     }
+
+    @Test
+    void levelWithoutOverrideUsesTheGlobalTax() {
+        var settings = new CompanySettings();
+        settings.tax().percent(5);
+
+        Assertions.assertEquals(5.0, settings.taxPercent(2));
+    }
+
+    @Test
+    void levelOverrideReplacesTheGlobalTax() {
+        var settings = new CompanySettings();
+        settings.tax().percent(5);
+        settings.level(3).orElseThrow().settings().taxPercent(2.5);
+
+        Assertions.assertEquals(2.5, settings.taxPercent(3));
+        Assertions.assertEquals(5.0, settings.taxPercent(4));
+    }
+
+    @Test
+    void unknownLevelUsesTheGlobalTax() {
+        var settings = new CompanySettings();
+        settings.tax().percent(3);
+
+        Assertions.assertEquals(3.0, settings.taxPercent(99));
+    }
+
+    @Test
+    void taxDefaultsToZero() {
+        Assertions.assertEquals(0.0, new CompanySettings().taxPercent(1));
+    }
+
+    @Test
+    void unsetOverrideIsNotWritten() {
+        var yaml = mapper.writeValueAsString(new CompanySettings());
+
+        Assertions.assertFalse(yaml.contains("taxPercent"), yaml);
+        Assertions.assertTrue(yaml.contains("tax:"), yaml);
+    }
+
+    @Test
+    void overrideIsReadFromYaml() {
+        var settings = mapper.readValue("""
+                tax:
+                  percent: 4
+                level:
+                  - levelName: Solo
+                    settings:
+                      taxPercent: 1.5
+                  - levelName: Duo
+                """, CompanySettings.class);
+
+        Assertions.assertEquals(1.5, settings.taxPercent(1));
+        Assertions.assertEquals(4.0, settings.taxPercent(2));
+    }
 }

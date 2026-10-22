@@ -262,7 +262,8 @@ public abstract class AOrderData {
                 row.getTimestamp("created").toLocalDateTime(),
                 row.getInt("company"),
                 row.getTimestamp("last_update").toLocalDateTime(),
-                OrderState.byId(row.getInt("state")));
+                OrderState.byId(row.getInt("state")),
+                row.getDouble("fee"));
     }
 
     public BukkitFutureResult<List<FullOrder>> retrieveFullOrders(List<SimpleOrder> orders) {

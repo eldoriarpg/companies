@@ -7,6 +7,7 @@ package de.eldoria.companies.commands.company.order.search.query;
 
 import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.commands.company.order.search.Query;
+import de.eldoria.companies.commands.company.order.search.SearchResults;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -65,11 +66,13 @@ public class Execute extends AdvancedCommand implements IPlayerTabExecutor {
                 });
     }
 
-    private List<FullOrder> acceptableOrders(Optional<CompanyProfile> company, List<FullOrder> orders) {
-        if (company.isEmpty()) return orders;
-        var allowMemberOrders = configuration.companySettings().allowMemberOrders();
-        return orders.stream()
+    private SearchResults acceptableOrders(Optional<CompanyProfile> company, List<FullOrder> orders) {
+        var settings = configuration.companySettings();
+        if (company.isEmpty()) return new SearchResults(orders, settings.tax().percent());
+        var allowMemberOrders = settings.allowMemberOrders();
+        var acceptable = orders.stream()
                 .filter(order -> company.get().mayAcceptOrderOf(order.owner(), allowMemberOrders))
                 .collect(Collectors.toList());
+        return new SearchResults(acceptable, settings.taxPercent(company.get().level()));
     }
 }

@@ -7,6 +7,7 @@ package de.eldoria.companies.configuration.elements;
 
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.configuration.elements.companylevel.StarterLevels;
+import de.eldoria.companies.configuration.elements.companysettings.TaxSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class CompanySettings {
     private boolean allowMemberOrders = false;
     private int inviteHours = 24;
     private int expiryWarningHours = 12;
+    private TaxSettings tax = new TaxSettings();
 
     public CompanySettings() {
         updateLevel();
@@ -148,5 +150,25 @@ public class CompanySettings {
      */
     public int expiryWarningHours() {
         return expiryWarningHours;
+    }
+
+    /**
+     * The global tax on payouts.
+     *
+     * @return tax settings
+     */
+    public TaxSettings tax() {
+        return tax;
+    }
+
+    /**
+     * The tax on payouts for a company of the given level: the level's override when it has one, otherwise the global
+     * tax.
+     *
+     * @param level level of the company
+     * @return percentage, where 5 means 5 %
+     */
+    public double taxPercent(int level) {
+        return level(level).flatMap(l -> l.settings().taxPercent()).orElse(tax.percent());
     }
 }

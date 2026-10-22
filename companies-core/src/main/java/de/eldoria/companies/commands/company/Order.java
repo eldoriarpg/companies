@@ -14,6 +14,7 @@ import de.eldoria.companies.commands.company.order.Search;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -33,12 +34,20 @@ public class Order extends AdvancedCommand {
         super(plugin);
         var meta = CommandMeta.builder("order")
                 .buildSubCommands((commands, builder) -> {
-                    var list = new List(plugin, companyData, orderData, economy, messageBlocker);
+                    var list = new List(plugin, companyData, orderData, economy, configuration, messageBlocker);
                     var info = new Info(plugin, companyData, orderData, economy, configuration, messageBlocker);
                     builder.withDefaultCommand(list);
                     commands.add(new Abort(plugin, companyData, orderData, list, itemReturnService));
                     commands.add(new Accept(plugin, companyData, orderData, configuration, info, messageBlocker));
-                    commands.add(new Deliver(plugin, companyData, orderData, economy, info, messageBlocker));
+                    commands.add(new Deliver(
+                            plugin,
+                            companyData,
+                            orderData,
+                            economy,
+                            configuration,
+                            new Collector(plugin, economy, configuration),
+                            info,
+                            messageBlocker));
                     commands.add(list);
                     commands.add(info);
                     commands.add(new Search(plugin, orderData, companyData, configuration, economy, messageBlocker));

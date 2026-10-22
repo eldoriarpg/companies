@@ -7,6 +7,7 @@ package de.eldoria.companies.configuration;
 
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
+import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
@@ -67,6 +68,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     public StyleSettings styleSettings() {
         return main().style();
+    }
+
+    public EconomySettings economySettings() {
+        return main().economy();
     }
 
     public DatabaseSettings databaseSettings() {

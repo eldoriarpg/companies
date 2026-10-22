@@ -41,8 +41,14 @@ public class OrderBuilder {
                 () -> elements.add(new OrderContent(stack, amount, price)));
     }
 
-    public FullOrder build() {
-        return order.toFullOrder(elements);
+    /**
+     * Turns the draft into an order which is not saved yet.
+     *
+     * @param fee fee the owner pays for placing the order
+     * @return the order
+     */
+    public FullOrder build(double fee) {
+        return new SimpleOrder(order.owner(), order.name(), fee).toFullOrder(elements);
     }
 
     public UUID owner() {
@@ -109,7 +115,8 @@ public class OrderBuilder {
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
-                .text(": <value>%s", economy.format(price()))
+                .text(": <value>%s", economy.format(price()));
+        PriceLines.fee(composer, economy, price(), setting.fee().of(price()))
                 .newLine()
                 .text("<click:run_command:%s done><add>[", cmd)
                 .localeCode("words.done")

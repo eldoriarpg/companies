@@ -220,13 +220,26 @@ public class NotificationService implements Listener {
                 Replacement.unparsed("order_name", event.order().fullName()));
     }
 
+    /**
+     * Tells a worker about a payout. A taxed payout shows the share before tax, the tax and the amount paid.
+     *
+     * @param event payment event
+     */
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
-        sendMessage(
-                event.player(),
-                "notification.orderPayment",
-                Replacement.create("amount", economy.format(event.amount())),
-                Replacement.unparsed("order_name", event.order().fullName()));
+        var amount = Replacement.create("amount", economy.format(event.amount()));
+        var orderName = Replacement.unparsed("order_name", event.order().fullName());
+        if (event.tax() > 0) {
+            sendMessage(
+                    event.player(),
+                    "notification.orderPaymentTaxed",
+                    amount,
+                    orderName,
+                    Replacement.create("gross", economy.format(event.gross())),
+                    Replacement.create("tax", economy.format(event.tax())));
+            return;
+        }
+        sendMessage(event.player(), "notification.orderPayment", amount, orderName);
     }
 
     @EventHandler
