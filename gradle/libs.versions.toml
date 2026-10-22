@@ -1,9 +1,9 @@
 [versions]
 jackson = "3.2.4"
 eldoutil = "3.5.0"
-sadu = "2.3.1"
+sadu = "2.3.9"
 paper = "1.21.11-R0.1-SNAPSHOT"
-junit = "5.11.4"
+junit = "6.1.3"
 
 [libraries]
 jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
@@ -19,13 +19,13 @@ updater = { module = "de.eldoria.util:updater", version.ref = "eldoutil" }
 ocular = "dev.chojo:ocular:2.3.1"
 
 protocollib = "com.comphenix.protocol:ProtocolLib:5.3.0"
-papi = "me.clip:placeholderapi:2.11.6"
+papi = "me.clip:placeholderapi:2.12.3"
 vault = "com.github.MilkBowl:VaultAPI:1.7.1"
 
-hikari = "com.zaxxer:HikariCP:6.2.1"
-mariadb = "org.mariadb.jdbc:mariadb-java-client:3.5.3"
-sqlite = "org.xerial:sqlite-jdbc:3.49.1.0"
-postgres = "org.postgresql:postgresql:42.7.5"
+hikari = "com.zaxxer:HikariCP:7.1.0"
+mariadb = "org.mariadb.jdbc:mariadb-java-client:3.5.11"
+sqlite = "org.xerial:sqlite-jdbc:3.53.4.0"
+postgres = "org.postgresql:postgresql:42.7.14"
 
 sadu-queries = { module = "de.chojo.sadu:sadu-queries", version.ref = "sadu" }
 sadu-updater = { module = "de.chojo.sadu:sadu-updater", version.ref = "sadu" }
@@ -34,13 +34,11 @@ sadu-postgresql = { module = "de.chojo.sadu:sadu-postgresql", version.ref = "sad
 sadu-mariadb = { module = "de.chojo.sadu:sadu-mariadb", version.ref = "sadu" }
 sadu-sqlite = { module = "de.chojo.sadu:sadu-sqlite", version.ref = "sadu" }
 
-jetbrains-annotations = "org.jetbrains:annotations:26.0.2"
+jetbrains-annotations = "org.jetbrains:annotations:26.1.0"
 paper = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
 
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
-junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
-junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 
 gradle-spotless = "com.diffplug.spotless:spotless-plugin-gradle:8.10.4"
