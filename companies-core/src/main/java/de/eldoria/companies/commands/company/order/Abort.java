@@ -138,7 +138,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         var optOrder = orderData.retrieveOrderById(id)
                                 .join();
         if (optOrder.isEmpty()) {
-            messageSender().sendErrorActionBar(player, "error.unkownOrder");
+            messageSender().sendErrorActionBar(player, "error.unknownOrder");
             return Optional.empty();
         }
 

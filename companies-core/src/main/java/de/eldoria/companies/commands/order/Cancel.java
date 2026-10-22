@@ -49,7 +49,7 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                  })
                  .thenAccept(optOrder -> {
                      if (optOrder.isEmpty()) {
-                         messageSender().sendErrorActionBar(sender, "error.unkownOrder");
+                         messageSender().sendErrorActionBar(sender, "error.unknownOrder");
                          return;
                      }
 

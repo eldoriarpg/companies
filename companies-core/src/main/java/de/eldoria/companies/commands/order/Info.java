@@ -63,7 +63,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                          Menus.show(messageBlocker, player, builder);
                          return;
                      }
-                     messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                     messageSender().sendErrorActionBar(player, "error.unknownOrder");
                  });
     }
 }

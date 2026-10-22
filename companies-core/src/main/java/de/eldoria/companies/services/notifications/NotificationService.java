@@ -192,7 +192,7 @@ public class NotificationService implements Listener {
                                      .space()
                                      .text("<click:run_command:/order receive %s><add>[", event.order()
                                                                                                .id())
-                                     .localeCode("notification.recieveItems")
+                                     .localeCode("notification.receiveItems")
                                      .text("]</click>")
                                      .build();
         sendMessage(owner, message,
@@ -246,7 +246,7 @@ public class NotificationService implements Listener {
                                          .localeCode("notification.orderDone")
                                          .space()
                                          .text("<click:run_command:/order receive %s><add>[", order.id())
-                                         .localeCode("notification.recieveItems")
+                                         .localeCode("notification.receiveItems")
                                          .text("]</click>")
                                          .build();
             sendMessage(player, message, miniOrderReplacement(order),
