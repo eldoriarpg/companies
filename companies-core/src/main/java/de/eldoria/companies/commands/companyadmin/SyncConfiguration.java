@@ -5,37 +5,36 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.repository.ANodeData;
-import de.eldoria.companies.util.Permission;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.ITabExecutor;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.util.Permission.Admin;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.permission.Permission;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
 
-public class SyncConfiguration extends AdvancedCommand implements ITabExecutor {
-    private final Configuration configuration;
-    private final ANodeData nodeData;
+/**
+ * {@code /companyadmin syncconfiguration}: writes the configuration of this node to the database or reads it from
+ * there, depending on the node type.
+ */
+@Subcommand("syncconfiguration")
+@Permission(Admin.ADMIN)
+public final class SyncConfiguration {
+    private final CommandDependencies deps;
 
-    public SyncConfiguration(Plugin plugin, Configuration configuration, ANodeData nodeData) {
-        super(
-                plugin,
-                CommandMeta.builder("syncconfiguration")
-                        .withPermission(Permission.Admin.ADMIN)
-                        .build());
-        this.configuration = configuration;
-        this.nodeData = nodeData;
+    /**
+     * @param deps what the commands need
+     */
+    public SyncConfiguration(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments args)
-            throws CommandException {
-        configuration.syncConfigurations(nodeData).whenComplete((res, err) -> {
-            messageSender().sendMessage(sender, "companyadmin.syncconfiguration.done");
-        });
+    /**
+     * @param sender sender of the command
+     */
+    @Executes
+    public void sync(CommandSender sender) {
+        deps.requireReady();
+        deps.configuration().syncConfigurations(deps.nodeData()).whenComplete((res, err) -> deps.messages()
+                .sendMessage(sender, "companyadmin.syncconfiguration.done"));
     }
 }
