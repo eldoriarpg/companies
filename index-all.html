@@ -29,6 +29,7 @@ loadScripts(document, 'script');</script>
 <ul id="navbar-top-firstrow" class="nav-list" title="Navigation">
 <li><a href="index.html">Overview</a></li>
 <li><a href="overview-tree.html">Tree</a></li>
+<li><a href="deprecated-list.html">Deprecated</a></li>
 <li class="nav-bar-cell1-rev">Index</li>
 <li><a href="search.html">Search</a></li>
 <li><a href="help-doc.html#index">Help</a></li>
@@ -56,6 +57,10 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/IContentPart.html#amount()" class="member-name-link">amount()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IContentPart.html" title="interface in de.eldoria.companies.components.order">IContentPart</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/order/IDeliveredStack.html#amount()" class="member-name-link">amount()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IDeliveredStack.html" title="interface in de.eldoria.companies.components.order">IDeliveredStack</a></dt>
+<dd>
+<div class="block">How many of the item were delivered.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/IFullOrder.html#amount()" class="member-name-link">amount()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IFullOrder.html" title="interface in de.eldoria.companies.components.order">IFullOrder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html#amount()" class="member-name-link">amount()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
@@ -163,7 +168,11 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/components/company/CompanyPermission.html#composePermissions(de.eldoria.companies.components.company.CompanyPermission...)" class="member-name-link">composePermissions(CompanyPermission...)</a> - Static method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/IFullOrder.html#content(org.bukkit.Material)" class="member-name-link">content(Material)</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IFullOrder.html" title="interface in de.eldoria.companies.components.order">IFullOrder</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="deprecation-block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">an order may hold several lines of the same material; use <a href="de/eldoria/companies/components/order/IFullOrder.html#line(int)"><code>IFullOrder.line(int)</code></a></div>
+</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/IFullOrder.html#contents()" class="member-name-link">contents()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IFullOrder.html" title="interface in de.eldoria.companies.components.order">IFullOrder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/ISimpleOrder.html#created()" class="member-name-link">created()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></dt>
@@ -197,11 +206,19 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/level/ILevelRequirement.html#deliveredItems()" class="member-name-link">deliveredItems()</a> - Method in interface de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ILevelRequirement.html" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/order/IOrderContent.html#deliveries()" class="member-name-link">deliveries()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
+<dd>
+<div class="block">The items delivered to this line, as they were delivered.</div>
+</dd>
 </dl>
 <h2 class="title" id="I:E">E</h2>
 <dl class="index">
 <dt><a href="de/eldoria/companies/components/level/ILevelRequirement.html#earnedMoney()" class="member-name-link">earnedMoney()</a> - Method in interface de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ILevelRequirement.html" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/order/IOrderContent.html#exact()" class="member-name-link">exact()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
+<dd>
+<div class="block">Whether the line requests the data of its template and not only its material.</div>
+</dd>
 </dl>
 <h2 class="title" id="I:F">F</h2>
 <dl class="index">
@@ -358,6 +375,10 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/ISimpleOrder.html#id()" class="member-name-link">id()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/order/IDeliveredStack.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IDeliveredStack</a> - Interface in <a href="de/eldoria/companies/components/order/package-summary.html">de.eldoria.companies.components.order</a></dt>
+<dd>
+<div class="block">Items a worker delivered to one line of an order, stored exactly as they were delivered.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/IFullOrder.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IFullOrder</a> - Interface in <a href="de/eldoria/companies/components/order/package-summary.html">de.eldoria.companies.components.order</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/level/ILevelRequirement.html" class="type-name-link" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a> - Interface in <a href="de/eldoria/companies/components/level/package-summary.html">de.eldoria.companies.components.level</a></dt>
@@ -371,7 +392,9 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/components/company/CompanyPermission.html#INVITE" class="member-name-link">INVITE</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IOrderContent</a> - Interface in <a href="de/eldoria/companies/components/order/package-summary.html">de.eldoria.companies.components.order</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">One line of an order: an item and the amount and total price requested for it.</div>
+</dd>
 <dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#isCancelled()" class="member-name-link">isCancelled()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/IFullOrder.html#isDone()" class="member-name-link">isDone()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IFullOrder.html" title="interface in de.eldoria.companies.components.order">IFullOrder</a></dt>
@@ -396,6 +419,14 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/level/ICompanyLevel.html#levelName()" class="member-name-link">levelName()</a> - Method in interface de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/order/IOrderContent.html#line()" class="member-name-link">line()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
+<dd>
+<div class="block">Position of the line in its order, starting at 0.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/order/IFullOrder.html#line(int)" class="member-name-link">line(int)</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IFullOrder.html" title="interface in de.eldoria.companies.components.order">IFullOrder</a></dt>
+<dd>
+<div class="block">The line with the given number.</div>
+</dd>
 </dl>
 <h2 class="title" id="I:M">M</h2>
 <dl class="index">
@@ -598,8 +629,14 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/level/ICompanyLevel.html#settings()" class="member-name-link">settings()</a> - Method in interface de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/order/IDeliveredStack.html#stack()" class="member-name-link">stack()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IDeliveredStack.html" title="interface in de.eldoria.companies.components.order">IDeliveredStack</a></dt>
+<dd>
+<div class="block">The delivered item with an amount of one.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html#stack()" class="member-name-link">stack()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">The requested item with an amount of one.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/ISimpleOrder.html#state()" class="member-name-link">state()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/OrderState.html#stateId()" class="member-name-link">stateId()</a> - Method in enum class de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a></dt>
@@ -623,6 +660,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/components/order/OrderState.html#UNCLAIMED" class="member-name-link">UNCLAIMED</a> - Enum constant in enum class de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a></dt>
 <dd>
 <div class="block">The order is not claimed by any company</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/order/IOrderContent.html#unitPrice()" class="member-name-link">unitPrice()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
+<dd>
+<div class="block">The price of one item of this line.</div>
 </dd>
 <dt><a href="de/eldoria/companies/components/company/ICompanyMember.html#uuid()" class="member-name-link">uuid()</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></dt>
 <dd>&nbsp;</dd>
@@ -652,6 +693,10 @@ the order they are declared.</div>
 <dl class="index">
 <dt><a href="de/eldoria/companies/components/order/IContentPart.html#worker()" class="member-name-link">worker()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IContentPart.html" title="interface in de.eldoria.companies.components.order">IContentPart</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/order/IDeliveredStack.html#worker()" class="member-name-link">worker()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IDeliveredStack.html" title="interface in de.eldoria.companies.components.order">IDeliveredStack</a></dt>
+<dd>
+<div class="block">The worker who delivered the items.</div>
+</dd>
 </dl>
 <a href="#I:A">A</a>&nbsp;<a href="#I:B">B</a>&nbsp;<a href="#I:C">C</a>&nbsp;<a href="#I:D">D</a>&nbsp;<a href="#I:E">E</a>&nbsp;<a href="#I:F">F</a>&nbsp;<a href="#I:G">G</a>&nbsp;<a href="#I:H">H</a>&nbsp;<a href="#I:I">I</a>&nbsp;<a href="#I:K">K</a>&nbsp;<a href="#I:L">L</a>&nbsp;<a href="#I:M">M</a>&nbsp;<a href="#I:N">N</a>&nbsp;<a href="#I:O">O</a>&nbsp;<a href="#I:P">P</a>&nbsp;<a href="#I:R">R</a>&nbsp;<a href="#I:S">S</a>&nbsp;<a href="#I:T">T</a>&nbsp;<a href="#I:U">U</a>&nbsp;<a href="#I:V">V</a>&nbsp;<a href="#I:W">W</a>&nbsp;<br><a href="allclasses-index.html">All&nbsp;Classes&nbsp;and&nbsp;Interfaces</a><span class="vertical-separator">|</span><a href="allpackages-index.html">All&nbsp;Packages</a></main>
 </div>
