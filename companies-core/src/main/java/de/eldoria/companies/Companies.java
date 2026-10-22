@@ -52,9 +52,13 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
+import de.eldoria.companies.orders.HistoryRecorder;
+import de.eldoria.companies.orders.OrderCompletionService;
+import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.HistoryRetention;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
@@ -79,6 +83,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -207,6 +212,11 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 Threading.VIRTUAL);
 
+        var historyRecorder = new HistoryRecorder(information.history(), Clock.systemDefaultZone());
+        var outcomes = new OrderOutcomes(orderData, historyRecorder, getLogger(), Threading.VIRTUAL);
+        var orderCompletion = OrderCompletionService.create(
+                this, orderData, information.stats(), historyRecorder, economy, configuration);
+
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
                     economy,
@@ -216,19 +226,26 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, information.stats(), economy, configuration),
+                    new DeliveryService(this, orderData, orderCompletion, configuration),
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
-                    membershipService));
+                    membershipService,
+                    orderCompletion));
         }
 
         var expiringService = new ExpiringService(
-                this, orderData, companyData, configuration, itemReturnService, economy, notificationService);
+                this, orderData, companyData, configuration, itemReturnService, economy, notificationService, outcomes);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
             membershipService.start(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
+            new HistoryRetention(
+                            information.history(),
+                            () -> configuration.generalSettings().historyDays(),
+                            Clock.systemDefaultZone(),
+                            getLogger())
+                    .start(workerPool);
         }
         new InboxPoller(information.inbox(), notificationService, getLogger())
                 .start(workerPool, configuration.notificationSettings());

@@ -8,6 +8,7 @@ package de.eldoria.companies.commands;
 import de.eldoria.companies.commands.order.Cancel;
 import de.eldoria.companies.commands.order.Collect;
 import de.eldoria.companies.commands.order.Extend;
+import de.eldoria.companies.commands.order.HistoryCommand;
 import de.eldoria.companies.commands.order.Info;
 import de.eldoria.companies.commands.order.List;
 import de.eldoria.companies.commands.order.OrderCreateCommand;
@@ -57,6 +58,9 @@ final class OrderCommand {
     @Subcommand
     final OrderCreateCommand create;
 
+    @Subcommand
+    final HistoryCommand history;
+
     OrderCommand(CommandDependencies deps) {
         var views = new OwnerOrderViews(deps);
         list = new List(deps, views);
@@ -68,6 +72,7 @@ final class OrderCommand {
         raise = new Raise(deps);
         draft = new OrderDraftCommand(deps);
         create = new OrderCreateCommand(deps, draft);
+        history = new HistoryCommand(deps);
         views.bind(new OwnerOrderViews.Commands(cancel, extend, raise, receive, create));
     }
 

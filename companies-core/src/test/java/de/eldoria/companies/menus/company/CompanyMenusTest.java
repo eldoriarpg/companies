@@ -158,7 +158,8 @@ class CompanyMenusTest {
     void managersGetAPermissionButtonForEveryMemberButTheOwner() {
         var view = MemberView.of(profile(), owner);
 
-        var text = new MemberMenu(messages, null, (viewer, name) -> {}).chat(owner, MemberMenu.Model.of(view), actions);
+        var text = new MemberMenu(messages, economy(), null, (viewer, name) -> {})
+                .chat(owner, MemberMenu.Model.of(view), actions);
 
         assertNoCommands(text);
         assertTrue(text.build().contains("<act_member_0>"));
@@ -172,7 +173,7 @@ class CompanyMenusTest {
         var view = MemberView.of(profile(), member);
         var model = MemberMenu.Model.of(view).select(member.getUniqueId());
 
-        var text = new MemberMenu(messages, null, (viewer, name) -> {}).chat(owner, model, actions);
+        var text = new MemberMenu(messages, economy(), null, (viewer, name) -> {}).chat(owner, model, actions);
 
         assertNoCommands(text);
         assertTrue(text.build().contains("<act_back>"));
