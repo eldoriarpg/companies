@@ -66,6 +66,30 @@ public class SqLiteOrderData extends MariaDbOrderData {
     }
 
     @Override
+    protected List<SimpleOrder> getDeadOrders(int hours) {
+        @Language("sqlite")
+        var query = """
+                SELECT o.id,
+                       last_update,
+                       company,
+                       state,
+                       owner_uuid,
+                       name,
+                       created
+                FROM order_states s
+                         JOIN orders o
+                              ON o.id = s.id
+                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                  AND state = ?
+                ORDER BY last_update""";
+        return query(query)
+                .single(call().bind(hours)
+                        .bind(OrderState.UNCLAIMED.stateId()))
+                .map(this::buildSimpleOrder)
+                .all();
+    }
+
+    @Override
     protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
         @Language("sqlite")
         var query = """

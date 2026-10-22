@@ -56,6 +56,29 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
+    protected List<SimpleOrder> getDeadOrders(int hours) {
+        @Language("postgresql")
+        var query = """
+                SELECT o.id,
+                       last_update,
+                       company,
+                       state,
+                       owner_uuid,
+                       name,
+                       created
+                FROM order_states s
+                         JOIN orders o
+                              ON o.id = s.id
+                WHERE last_update < now() - (? || ' HOUR')::INTERVAL
+                  AND state = ?
+                ORDER BY last_update""";
+        return query(query)
+                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
+                .map(this::buildSimpleOrder)
+                .all();
+    }
+
+    @Override
     protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
         @Language("postgresql")
         var query = """

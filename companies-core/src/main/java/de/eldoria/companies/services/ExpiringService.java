@@ -11,9 +11,11 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -33,20 +35,22 @@ public class ExpiringService implements Runnable, Listener {
     private final Configuration configuration;
     private final MessageSender messageSender;
     private final ItemReturnService itemReturnService;
+    private final Economy economy;
 
     private ExpiringService(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
-                            ItemReturnService itemReturnService) {
+                            ItemReturnService itemReturnService, Economy economy) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
         this.itemReturnService = itemReturnService;
+        this.economy = economy;
     }
 
     public static void start(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
-                             ScheduledExecutorService executorService, ItemReturnService itemReturnService) {
-        var expiringService = new ExpiringService(plugin, orderData, companyData, configuration, itemReturnService);
+                             ScheduledExecutorService executorService, ItemReturnService itemReturnService, Economy economy) {
+        var expiringService = new ExpiringService(plugin, orderData, companyData, configuration, itemReturnService, economy);
         var interval = configuration.generalSettings().orderCheckInterval();
         executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);
     }
@@ -112,8 +116,16 @@ public class ExpiringService implements Runnable, Listener {
                            .join();
 
         for (var order : expired) {
-            orderData.submitOrderPurge(order)
-                     .join();
+            var fullOrder = orderData.retrieveFullOrder(order)
+                                     .join();
+            if (!orderData.submitOrderPurge(order)
+                          .join()) {
+                continue;
+            }
+            var owner = plugin.getServer()
+                              .getOfflinePlayer(order.owner());
+            Threading.mainThread(plugin)
+                     .execute(() -> economy.depositPlayer(owner, fullOrder.price()));
             plugin.getServer()
                   .getPluginManager()
                   .callEvent(new OrderRemovedEvent(order));

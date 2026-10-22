@@ -172,4 +172,22 @@ class SqLiteOrderDataTest {
         Assertions.assertFalse(orderData.submitOrderDeletion(unclaimed).join());
         Assertions.assertTrue(orderData.retrieveOrderById(unclaimed.id()).join().isEmpty());
     }
+
+    @Test
+    void deadOrdersAreOldUnclaimedOrders() {
+        var dead = createOrder(10, 5);
+        var fresh = createOrder(10, 5);
+        var claimed = createOrder(10, 5);
+        claim(claimed);
+        query("UPDATE order_states SET last_update = datetime(CURRENT_TIMESTAMP, '-10 HOUR') WHERE id IN (?, ?)")
+                .single(call().bind(dead.id()).bind(claimed.id()))
+                .update();
+
+        var deadOrders = orderData.retrieveDeadOrders(5).join();
+
+        Assertions.assertEquals(List.of(dead.id()), deadOrders.stream().map(SimpleOrder::id).toList());
+        Assertions.assertTrue(orderData.submitOrderPurge(deadOrders.get(0)).join());
+        Assertions.assertFalse(orderData.submitOrderPurge(deadOrders.get(0)).join());
+        Assertions.assertTrue(orderData.retrieveOrderById(fresh.id()).join().isPresent());
+    }
 }

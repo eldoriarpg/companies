@@ -144,10 +144,9 @@ public class MariaDbOrderData extends AOrderData {
                     created
                 FROM
                     order_states s
-                        LEFT JOIN orders o
+                        JOIN orders o
                         ON o.id = s.id
                 WHERE last_update < NOW() - INTERVAL ? HOUR
-                  AND company IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
         return query(query)
@@ -591,15 +590,8 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void purgeOrder(SimpleOrder order) {
-        @Language("mariadb")
-        var query = """
-                DELETE
-                FROM orders
-                WHERE id = ?""";
-        query(query)
-                .single(call().bind(order.id()))
-                .delete();
+    protected boolean purgeOrder(SimpleOrder order) {
+        return deleteOrder(order);
     }
 
     @Override

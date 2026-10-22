@@ -99,7 +99,7 @@ public abstract class AOrderData {
     protected abstract List<SimpleOrder> getExpiredOrders(int hours);
 
     public CompletableFuture<List<SimpleOrder>> retrieveDeadOrders(int hours) {
-        return CompletableFuture.supplyAsync(() -> getExpiredOrders(hours), VIRTUAL);
+        return CompletableFuture.supplyAsync(() -> getDeadOrders(hours), VIRTUAL);
     }
 
     public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrdersByCompany(int hours, SimpleCompany company) {
@@ -311,11 +311,21 @@ public abstract class AOrderData {
      */
     protected abstract Set<UUID> purgeCompanyOrders(SimpleCompany profile);
 
-    public BukkitFutureResult<Void> submitOrderPurge(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> purgeOrder(order), VIRTUAL);
+    public BukkitFutureResult<Boolean> submitOrderPurge(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var purged = purgeOrder(order);
+            invalidateFullOrder(order);
+            return purged;
+        }, VIRTUAL);
     }
 
-    protected abstract void purgeOrder(SimpleOrder order);
+    /**
+     * Removes an order which was not claimed for too long.
+     *
+     * @param order order to remove
+     * @return true if the order was still unclaimed and is now removed
+     */
+    protected abstract boolean purgeOrder(SimpleOrder order);
 
     public BukkitFutureResult<Boolean> submitOrderDeletion(SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(() -> {
@@ -382,6 +392,12 @@ public abstract class AOrderData {
         materialPriceCache.invalidateAll();
     }
 
+    /**
+     * Orders which are unclaimed and were not updated for the given amount of hours.
+     *
+     * @param hours hours since the last update
+     * @return orders
+     */
     protected abstract List<SimpleOrder> getDeadOrders(int hours);
 
     protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);
