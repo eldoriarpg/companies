@@ -17,6 +17,7 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -27,14 +28,16 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
     private static final int PAGE_SIZE = 15;
     private static final TopOrder DEFAULT_ORDER = TopOrder.ORDERS;
     private final ACompanyData companyData;
+    private final Economy economy;
     private final MessageBlocker messageBlocker;
 
-    public Top(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
+    public Top(Plugin plugin, ACompanyData companyData, Economy economy, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("top")
                 .addArgument("words.page", false)
                 .addArgument("words.ordering", false)
                 .build());
         this.companyData = companyData;
+        this.economy = economy;
         this.messageBlocker = messageBlocker;
     }
 
@@ -64,7 +67,7 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
         }
         composer.newLine();
         for (var rank : ranks) {
-            composer.text("<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>", rank.rank(), Texts.argument(rank.asComponent()), Texts.escape(rank.name()))
+            composer.text("<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>", rank.rank(), Texts.argument(rank.asComponent(economy)), Texts.escape(rank.name()))
                     .newLine();
         }
         if (page > 1) {

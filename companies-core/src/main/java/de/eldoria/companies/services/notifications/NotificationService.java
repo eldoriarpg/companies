@@ -31,6 +31,7 @@ import de.eldoria.eldoutilities.messages.Replacement;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -48,6 +49,8 @@ import java.util.function.Predicate;
 
 /**
  * Sends notifications based on internal events.
+ * <p>
+ * Money is formatted by the Vault economy, which is registered before this service is created.
  */
 public class NotificationService implements Listener {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.");
@@ -58,6 +61,7 @@ public class NotificationService implements Listener {
     private final MessageSender sender;
     private final ILocalizer localizer;
     private final Plugin plugin;
+    private final Economy economy;
 
     public NotificationService(ANotificationData notificationData, AOrderData orderData,
                                ScheduledExecutorService workerPool, Plugin plugin) {
@@ -67,6 +71,9 @@ public class NotificationService implements Listener {
         sender = MessageSender.getPluginMessageSender(plugin);
         localizer = ILocalizer.getPluginLocalizer(plugin);
         this.plugin = plugin;
+        economy = plugin.getServer()
+                        .getServicesManager()
+                        .load(Economy.class);
     }
 
     @EventHandler
@@ -206,7 +213,7 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
         sendMessage(event.player(), "notification.orderPayment",
-                Replacement.create("amount", event.amount()),
+                Replacement.create("amount", economy.format(event.amount())),
                 Replacement.unparsed("order_name", event.order().fullName()));
     }
 
