@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SearchMenusTest {
     private final OrderSearch search =
-            new OrderSearch(new CommandDependencies(null, null, null, null, null), (p, id) -> {}, (p, id) -> {});
+            new OrderSearch(new CommandDependencies(null, null, null, null, null, null), (p, id) -> {}, (p, id) -> {});
     private ServerMock server;
     private PlayerMock player;
     private MenuActions actions;
