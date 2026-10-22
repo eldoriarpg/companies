@@ -159,4 +159,17 @@ class SqLiteOrderDataTest {
         Assertions.assertFalse(orderData.submitOrderStateUpdate(reload(order), OrderState.DELIVERED, OrderState.RECEIVED).join());
         Assertions.assertEquals(OrderState.RECEIVED, reload(order).state());
     }
+
+    @Test
+    void onlyUnclaimedOrdersCanBeDeleted() {
+        var claimed = createOrder(10, 5);
+        claim(claimed);
+        var unclaimed = createOrder(10, 5);
+
+        Assertions.assertFalse(orderData.submitOrderDeletion(reload(claimed)).join());
+        Assertions.assertTrue(orderData.retrieveOrderById(claimed.id()).join().isPresent());
+        Assertions.assertTrue(orderData.submitOrderDeletion(reload(unclaimed)).join());
+        Assertions.assertFalse(orderData.submitOrderDeletion(unclaimed).join());
+        Assertions.assertTrue(orderData.retrieveOrderById(unclaimed.id()).join().isEmpty());
+    }
 }

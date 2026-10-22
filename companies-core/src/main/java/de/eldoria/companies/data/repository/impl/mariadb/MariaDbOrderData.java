@@ -603,15 +603,29 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void deleteOrder(SimpleOrder order) {
+    protected boolean deleteOrder(SimpleOrder order) {
         @Language("mariadb")
-        var query = """
+        var deleteState = """
+                DELETE
+                FROM order_states
+                WHERE id = ?
+                  AND state = ?""";
+        @Language("mariadb")
+        var deleteOrder = """
                 DELETE
                 FROM orders
                 WHERE id = ?""";
-        query(query)
-                .single(call().bind(order.id()))
-                .update();
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            var unclaimed = conf.query(deleteState)
+                    .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
+                    .delete();
+            if (!unclaimed.changed()) return false;
+            conf.query(deleteOrder)
+                    .single(call().bind(order.id()))
+                    .delete();
+        }
+        return conf.context().exceptions().isEmpty();
     }
 
     @Override

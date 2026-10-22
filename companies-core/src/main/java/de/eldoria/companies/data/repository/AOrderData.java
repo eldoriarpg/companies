@@ -317,14 +317,21 @@ public abstract class AOrderData {
 
     protected abstract void purgeOrder(SimpleOrder order);
 
-    public BukkitFutureResult<Void> submitOrderDeletion(SimpleOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> {
+    public BukkitFutureResult<Boolean> submitOrderDeletion(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> {
+            var deleted = deleteOrder(order);
             invalidateFullOrder(order);
-            deleteOrder(order);
-        });
+            return deleted;
+        }, VIRTUAL);
     }
 
-    protected abstract void deleteOrder(SimpleOrder order);
+    /**
+     * Deletes an order if it is still unclaimed.
+     *
+     * @param order order to delete
+     * @return true if the order was unclaimed and is now deleted
+     */
+    protected abstract boolean deleteOrder(SimpleOrder order);
 
     public BukkitFutureResult<List<FullOrder>> retrieveOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         return CompletableBukkitFuture.supplyAsync(() -> getOrdersByQuery(searchQuery, min, max), VIRTUAL);
