@@ -166,4 +166,42 @@ class CompanySettingsTest {
         Assertions.assertEquals(1.5, settings.taxPercent(1));
         Assertions.assertEquals(4.0, settings.taxPercent(2));
     }
+
+    @Test
+    void levelPerksDefaultToNone() {
+        var level = new CompanySettings().levelSettings(1);
+
+        Assertions.assertEquals(0, level.maxOrderSize());
+        Assertions.assertEquals(0, level.deliveryHoursBonus());
+        Assertions.assertFalse(level.exceedsOrderSize(1_000_000));
+    }
+
+    @Test
+    void levelPerksAreReadFromYaml() {
+        var settings = mapper.readValue("""
+                level:
+                  - levelName: Solo
+                    settings:
+                      maxOrderSize: 64
+                      deliveryHoursBonus: 12
+                """, CompanySettings.class);
+
+        var level = settings.levelSettings(1);
+        Assertions.assertEquals(12, level.deliveryHoursBonus());
+        Assertions.assertTrue(level.exceedsOrderSize(65));
+        Assertions.assertFalse(level.exceedsOrderSize(64));
+    }
+
+    @Test
+    void negativeDeliveryBonusCountsAsNone() {
+        var settings = new CompanySettings();
+        settings.levelSettings(1).deliveryHoursBonus(-5);
+
+        Assertions.assertEquals(0, settings.levelSettings(1).deliveryHoursBonus());
+    }
+
+    @Test
+    void unknownLevelHasDefaultSettings() {
+        Assertions.assertEquals(0, new CompanySettings().levelSettings(99).maxOrderSize());
+    }
 }

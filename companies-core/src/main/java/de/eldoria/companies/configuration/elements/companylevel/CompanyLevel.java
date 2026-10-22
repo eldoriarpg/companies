@@ -65,6 +65,20 @@ public class CompanyLevel implements ICompanyLevel {
                 .text("<name>")
                 .localeCode("level.maxOrders")
                 .text(": <value>%s ", settings.maxOrders());
+        if (settings.maxOrderSize() > 0) {
+            composer.newLine()
+                    .space(2)
+                    .text("<name>")
+                    .localeCode("level.maxOrderSize")
+                    .text(": <value>%s", settings.maxOrderSize());
+        }
+        if (settings.deliveryHoursBonus() > 0) {
+            composer.newLine()
+                    .space(2)
+                    .text("<name>")
+                    .localeCode("level.deliveryHoursBonus")
+                    .text(": <value>+%s h", settings.deliveryHoursBonus());
+        }
         settings.taxPercent().ifPresent(percent -> composer.newLine()
                 .space(2)
                 .text("<name>")

@@ -50,6 +50,23 @@ public class OrderFee {
         return Math.max(0.0, Money.floor(fee));
     }
 
+    /**
+     * The fee for raising the price of an order: the percentage of the increase, with the minimum and maximum applied
+     * to the order's total fee. The fixed part was paid when the order was placed and is not charged again.
+     *
+     * @param currentFee fee the order already carries
+     * @param increase   amount the price is raised by
+     * @return additional fee, rounded down to two decimals and never negative
+     */
+    public double raise(double currentFee, double increase) {
+        var current = BigDecimal.valueOf(currentFee);
+        var total = current.add(Money.percentOf(increase, percent)).doubleValue();
+        if (min > 0) total = Math.max(total, min);
+        if (max > 0) total = Math.min(total, max);
+        return Math.max(
+                0.0, Money.floor(BigDecimal.valueOf(total).subtract(current).doubleValue()));
+    }
+
     public double fixed() {
         return fixed;
     }

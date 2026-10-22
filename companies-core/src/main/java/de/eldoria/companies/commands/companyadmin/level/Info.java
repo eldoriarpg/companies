@@ -121,6 +121,22 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                 .text(": <value>%s ", level.settings().maxOrders())
                 .text("<click:suggest_command:%s max_orders ><modify>[", edit)
                 .localeCode("words.change")
+                .text("]</click>")
+                .newLine()
+                .space(2)
+                .text("<name>")
+                .localeCode("level.maxOrderSize")
+                .text(": <value>%s ", level.settings().maxOrderSize())
+                .text("<click:suggest_command:%s max_order_size ><modify>[", edit)
+                .localeCode("words.change")
+                .text("]</click>")
+                .newLine()
+                .space(2)
+                .text("<name>")
+                .localeCode("level.deliveryHoursBonus")
+                .text(": <value>%s ", level.settings().deliveryHoursBonus())
+                .text("<click:suggest_command:%s delivery_hours_bonus ><modify>[", edit)
+                .localeCode("words.change")
                 .text("]</click>");
         if (messageBlocker.isBlocked(player)) {
             builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");

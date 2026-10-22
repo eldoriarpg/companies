@@ -13,6 +13,8 @@ public class OrderSettings {
     private int maxMaterials = 5;
     private int maxUnclaimedHours = 24 * 7;
     private OrderFee fee = new OrderFee();
+    private int maxExtensions = 2;
+    private int purgeWarningHours = 24;
 
     public OrderSettings() {}
 
@@ -47,5 +49,31 @@ public class OrderSettings {
      */
     public OrderFee fee() {
         return fee;
+    }
+
+    /**
+     * How often the owner may reset the purge timer of an order nobody accepted.
+     *
+     * @return extensions per order, 0 when extending is disabled
+     */
+    public int maxExtensions() {
+        return maxExtensions;
+    }
+
+    public void maxExtensions(int maxExtensions) {
+        this.maxExtensions = maxExtensions;
+    }
+
+    /**
+     * How long before an unaccepted order is purged its owner is warned.
+     *
+     * @return warning window in hours
+     */
+    public int purgeWarningHours() {
+        return purgeWarningHours;
+    }
+
+    public void purgeWarningHours(int purgeWarningHours) {
+        this.purgeWarningHours = purgeWarningHours;
     }
 }

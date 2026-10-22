@@ -6,6 +6,7 @@
 package de.eldoria.companies.configuration.elements;
 
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.configuration.elements.companylevel.LevelSettings;
 import de.eldoria.companies.configuration.elements.companylevel.StarterLevels;
 import de.eldoria.companies.configuration.elements.companysettings.TaxSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
@@ -170,5 +171,15 @@ public class CompanySettings {
      */
     public double taxPercent(int level) {
         return level(level).flatMap(l -> l.settings().taxPercent()).orElse(tax.percent());
+    }
+
+    /**
+     * The settings of a level, or the defaults when the level does not exist.
+     *
+     * @param level level of the company
+     * @return settings of the level
+     */
+    public LevelSettings levelSettings(int level) {
+        return level(level).orElse(CompanyLevel.DEFAULT).settings();
     }
 }
