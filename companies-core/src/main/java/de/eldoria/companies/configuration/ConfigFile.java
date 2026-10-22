@@ -8,6 +8,7 @@ package de.eldoria.companies.configuration;
 import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.MenuSettings;
+import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 
 @SuppressWarnings({"FieldMayBeFinal", "CanBeFinal"})
@@ -16,6 +17,7 @@ public class ConfigFile {
     private StyleSettings style = new StyleSettings();
     private MenuSettings menus = new MenuSettings();
     private EconomySettings economy = new EconomySettings();
+    private NotificationSettings notifications = new NotificationSettings();
 
     public GeneralSettings generalSettings() {
         return generalSettings;
@@ -34,5 +36,12 @@ public class ConfigFile {
 
     public EconomySettings economy() {
         return economy;
+    }
+
+    /**
+     * @return how notifications are kept
+     */
+    public NotificationSettings notifications() {
+        return notifications;
     }
 }

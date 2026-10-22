@@ -12,6 +12,7 @@ import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.MenuSettings;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
@@ -80,6 +81,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     public EconomySettings economySettings() {
         return main().economy();
+    }
+
+    /**
+     * @return how notifications are kept
+     */
+    public NotificationSettings notificationSettings() {
+        return main().notifications();
     }
 
     public DatabaseSettings databaseSettings() {

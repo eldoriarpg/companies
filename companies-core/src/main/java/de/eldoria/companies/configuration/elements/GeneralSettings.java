@@ -16,6 +16,7 @@ public class GeneralSettings {
     private UpdateSettings updates = new UpdateSettings();
     private boolean messageBlocking = true;
     private Hooks hooks = new Hooks();
+    private int historyDays = 90;
 
     public GeneralSettings() {}
 
@@ -37,6 +38,15 @@ public class GeneralSettings {
 
     public boolean messageBlocking() {
         return messageBlocking;
+    }
+
+    /**
+     * Days the order history keeps an entry after the order ended. At least one day.
+     *
+     * @return days to keep history entries
+     */
+    public int historyDays() {
+        return Math.max(1, historyDays);
     }
 
     /**
