@@ -135,7 +135,7 @@ public class PostgresOrderData extends MariaDbOrderData {
                   AND os.state <= ?""";
         var orders = query(query)
                 .single(call().bind("%" + searchQuery.name() + "%")
-                        .bind(searchQuery.materialRegex())
+                        .bind(searchQuery.materialRegex("\\y"))
                         .bind(searchQuery.minPrice())
                         .bind(searchQuery.maxPrice())
                         .bind(searchQuery.minOrderSize())
