@@ -103,3 +103,16 @@ jobs:
         with:
           name: plugin
           path: companies-paper/build/libs/companies-paper-*-all.jar
+
+  build:
+    runs-on: ubuntu-latest
+    name: build
+    if: always()
+    needs: [verify-format, verify-nulls, verify-tests, verify-build]
+    steps:
+      - name: Require every verification to pass
+        run: |
+          for result in "${{ needs.verify-format.result }}" "${{ needs.verify-nulls.result }}" \
+                        "${{ needs.verify-tests.result }}" "${{ needs.verify-build.result }}"; do
+            [ "$result" = "success" ] || exit 1
+          done
