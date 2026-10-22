@@ -9,6 +9,7 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.util.Confirmations;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
@@ -27,10 +28,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Level;
 
 public class Create extends AdvancedCommand implements IPlayerTabExecutor {
@@ -38,7 +36,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final Economy economy;
-    private final Map<UUID, String> registrations = new HashMap<>();
+    private final Confirmations<String> registrations = new Confirmations<>();
 
     public Create(Plugin plugin, ACompanyData companyData, Economy economy, Configuration configuration) {
         super(plugin, CommandMeta.builder("create")
@@ -57,11 +55,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
         if ("deny".equalsIgnoreCase(arguments.asString(0))) {
-            var name = registrations.remove(player.getUniqueId());
-            if (name == null) {
-                messageSender().sendErrorActionBar(player, "error.noDeny");
-                return;
-            }
+            registrations.confirm(player.getUniqueId());
             messageSender().sendMessage(player, "words.canceled");
             return;
         }
@@ -103,7 +97,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                       .localeCode("words.deny")
                                       .text("]</click>");
         messageSender().sendMessage(player, composer);
-        registrations.put(player.getUniqueId(), name);
+        registrations.request(player.getUniqueId(), name);
     }
 
     @Override
@@ -112,12 +106,12 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void createCompany(Player player) {
-        var name = registrations.remove(player.getUniqueId());
-
-        if (name == null) {
-            messageSender().sendErrorActionBar(player, "error.noConfirm");
+        var optName = registrations.confirm(player.getUniqueId());
+        if (optName.isEmpty()) {
+            messageSender().sendErrorActionBar(player, "error.confirmationExpired");
             return;
         }
+        var name = optName.get();
 
         companyData.retrievePlayerCompany(player)
                    .whenComplete(current -> {

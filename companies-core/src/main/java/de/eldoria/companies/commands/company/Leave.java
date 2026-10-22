@@ -10,6 +10,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.util.Confirmations;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -23,16 +24,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 
 public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final ItemReturnService itemReturnService;
-    private final Set<UUID> leaves = new HashSet<>();
+    private final Confirmations<Integer> leaves = new Confirmations<>();
 
     public Leave(Plugin plugin, ACompanyData companyData, AOrderData orderData, ItemReturnService itemReturnService) {
         super(plugin, CommandMeta.builder("leave")
@@ -45,11 +43,9 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
         if (!arguments.isEmpty() && "confirm".equalsIgnoreCase(arguments.asString(0))) {
-            if (leaves.remove(player.getUniqueId())) {
-                leave(player);
-                return;
-            }
-            messageSender().sendErrorActionBar(player, "error.noConfirm");
+            leaves.confirm(player.getUniqueId())
+                  .ifPresentOrElse(companyId -> leave(player, companyId),
+                          () -> messageSender().sendErrorActionBar(player, "error.confirmationExpired"));
             return;
         }
 
@@ -60,7 +56,7 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                            return;
                        }
                        var profile = optProfile.get();
-                       leaves.add(player.getUniqueId());
+                       leaves.request(player.getUniqueId(), profile.id());
                        var composer = MessageComposer.create()
                                                      .text("<neutral>");
                        if (profile.member(player)
@@ -70,18 +66,25 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
                        } else {
                            composer.localeCode("company.leave.confirm");
                        }
-                       composer.text("<click:run_command:/company leave confirm><remove>[")
+                       composer.space()
+                               .text("<click:run_command:/company leave confirm><remove>[")
                                .localeCode("words.confirm")
-                               .text("</click>");
+                               .text("]</click>");
                        messageSender().sendMessage(player, composer);
                    });
     }
 
-    public void leave(Player player) {
+    /**
+     * Removes a player from the company they confirmed to leave. An owner leaving disbands the company.
+     *
+     * @param player    player who leaves
+     * @param companyId company the player confirmed to leave
+     */
+    public void leave(Player player, int companyId) {
         companyData.retrievePlayerCompanyProfile(player)
                    .asFuture()
                    .thenAccept(optProfile -> {
-                       if (optProfile.isEmpty()) {
+                       if (optProfile.isEmpty() || optProfile.get().id() != companyId) {
                            messageSender().sendErrorActionBar(player, "error.noMember");
                            return;
                        }
@@ -113,7 +116,7 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        if (leaves.contains(player.getUniqueId())) {
+        if (leaves.isPending(player.getUniqueId())) {
             return Completion.complete(arguments.asString(0), "confirm");
         }
         return Collections.emptyList();
