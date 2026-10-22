@@ -29,10 +29,11 @@ import java.util.logging.Level;
 import static de.eldoria.companies.util.Threading.VIRTUAL;
 
 /**
- * Hands items back to workers, which they delivered to orders that were released before completion.
+ * Hands stored items to players: items returned to workers after an order they delivered to was released, and items of
+ * received orders that did not fit into the owner's inventory.
  * <p>
- * Workers receive what fits into their storage when they join or use {@code /company returns}. Everything else stays stored until they
- * collect it later.
+ * Workers receive their returns when they join or use {@code /company returns}; owners are told on join and collect
+ * with {@code /order collect}. Whatever does not fit stays stored until it is collected later.
  */
 public class ItemReturnService implements Listener {
     private final Plugin plugin;
@@ -48,7 +49,23 @@ public class ItemReturnService implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         var player = event.getPlayer();
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> handOut(player, true), 40L);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> handOut(player, ReturnKind.WORKER, true), 40L);
+        orderData
+                .retrieveItemReturnCount(player.getUniqueId(), ReturnKind.OWNER)
+                .whenComplete(amount -> notifyOwner(player, amount), err -> plugin.getLogger()
+                        .log(Level.SEVERE, "Could not count waiting order items", err));
+    }
+
+    private void notifyOwner(Player player, int amount) {
+        if (amount <= 0 || !player.isOnline()) return;
+        var composer = MessageComposer.create()
+                .text("<neutral>")
+                .localeCode("order.collect.waiting", Replacement.create("amount", amount))
+                .space()
+                .text("<click:run_command:/order collect><add>[")
+                .localeCode("words.collect")
+                .text("]</click>");
+        messageSender.sendMessage(player, composer);
     }
 
     /**
@@ -75,18 +92,20 @@ public class ItemReturnService implements Listener {
     }
 
     /**
-     * Gives the player as many returned items as fit into the storage. Has to be called on the main thread.
+     * Gives the player as many stored items of a kind as fit into the storage. Has to be called on the main thread.
      *
      * @param player player to receive the items
+     * @param kind   kind of the items to hand out
      * @param silent true to send no message when nothing is waiting
      */
-    public void handOut(Player player, boolean silent) {
+    public void handOut(Player player, ReturnKind kind, boolean silent) {
+        var messages = Messages.of(kind);
         orderData
-                .retrieveItemReturns(player.getUniqueId(), ReturnKind.WORKER)
+                .retrieveItemReturns(player.getUniqueId(), kind)
                 .whenComplete(
                         returns -> {
                             if (returns.isEmpty()) {
-                                if (!silent) messageSender.sendMessage(player, "company.returns.none");
+                                if (!silent) messageSender.sendMessage(player, messages.none());
                                 return;
                             }
                             if (!player.isOnline()) return;
@@ -101,15 +120,15 @@ public class ItemReturnService implements Listener {
                                     .sum();
                             if (takes.isEmpty()) {
                                 messageSender.sendMessage(
-                                        player, "company.returns.remaining", Replacement.create("amount", total));
+                                        player, messages.remaining(), Replacement.create("amount", total));
                                 return;
                             }
-                            take(player, takes, total);
+                            take(player, kind, takes, total);
                         },
                         err -> plugin.getLogger().log(Level.SEVERE, "Could not load item returns", err));
     }
 
-    private void take(Player player, Map<ItemReturn, Integer> takes, int total) {
+    private void take(Player player, ReturnKind kind, Map<ItemReturn, Integer> takes, int total) {
         CompletableBukkitFuture.supplyAsync(
                         () -> takes.entrySet().stream()
                                 .filter(entry -> Boolean.TRUE.equals(orderData
@@ -117,29 +136,40 @@ public class ItemReturnService implements Listener {
                                         .join()))
                                 .toList(),
                         VIRTUAL)
-                .whenComplete(taken -> give(player, taken, total), err -> plugin.getLogger()
+                .whenComplete(taken -> give(player, kind, taken, total), err -> plugin.getLogger()
                         .log(Level.SEVERE, "Could not take item returns", err));
     }
 
-    private void give(Player player, List<Map.Entry<ItemReturn, Integer>> taken, int total) {
+    private void give(Player player, ReturnKind kind, List<Map.Entry<ItemReturn, Integer>> taken, int total) {
         if (!player.isOnline()) {
             for (var entry : taken) {
                 orderData.submitItemReturn(
-                        player.getUniqueId(), ReturnKind.WORKER, entry.getKey().stack(), entry.getValue());
+                        player.getUniqueId(), kind, entry.getKey().stack(), entry.getValue());
             }
             return;
         }
+        var messages = Messages.of(kind);
         var received = 0;
         for (var entry : taken) {
             Inventories.give(player, Inventories.split(entry.getKey().stack(), entry.getValue()));
             received += entry.getValue();
         }
         if (received > 0) {
-            messageSender.sendMessage(player, "company.returns.received", Replacement.create("amount", received));
+            messageSender.sendMessage(player, messages.received(), Replacement.create("amount", received));
         }
         var remaining = total - received;
         if (remaining > 0) {
-            messageSender.sendMessage(player, "company.returns.remaining", Replacement.create("amount", remaining));
+            messageSender.sendMessage(player, messages.remaining(), Replacement.create("amount", remaining));
+        }
+    }
+
+    private record Messages(String none, String received, String remaining) {
+        private static Messages of(ReturnKind kind) {
+            return switch (kind) {
+                case WORKER ->
+                    new Messages("company.returns.none", "company.returns.received", "company.returns.remaining");
+                case OWNER -> new Messages("order.collect.none", "order.collect.received", "order.collect.remaining");
+            };
         }
     }
 }

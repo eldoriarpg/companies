@@ -150,7 +150,7 @@ public class Companies extends EldoPlugin {
         registerCommand(
                 "company",
                 new Company(this, companyData, orderData, economy, configuration, messageBlocker, itemReturnService));
-        registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
+        registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker, itemReturnService));
         registerCommand(
                 "companyadmin",
                 new CompanyAdmin(
