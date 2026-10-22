@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -37,6 +38,7 @@ public final class CommandDependencies {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final ANodeData nodeData;
+    private final SearchSessions searches = new SearchSessions();
     private volatile Optional<Services> services = Optional.empty();
 
     /**
@@ -125,6 +127,13 @@ public final class CommandDependencies {
      */
     public ANodeData nodeData() {
         return nodeData;
+    }
+
+    /**
+     * @return the order searches of the players
+     */
+    public SearchSessions searches() {
+        return searches;
     }
 
     /**
