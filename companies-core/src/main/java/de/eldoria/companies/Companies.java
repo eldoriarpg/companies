@@ -57,6 +57,7 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
+import de.eldoria.companies.services.HistoryRetention;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
@@ -235,6 +236,12 @@ public class Companies extends EldoPlugin {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
             membershipService.start(workerPool);
+            new HistoryRetention(
+                            information.history(),
+                            () -> configuration.generalSettings().historyDays(),
+                            Clock.systemDefaultZone(),
+                            getLogger())
+                    .start(workerPool);
         }
         registerListener(expiringService);
         registerListener(levelService);
