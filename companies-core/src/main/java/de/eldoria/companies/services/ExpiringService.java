@@ -76,7 +76,7 @@ public class ExpiringService implements Runnable, Listener {
                                       .newLine();
         for (var order : orders) {
             composer.localeCode("expiring.element",
-                            Replacement.create("name", order.fullName()), Replacement.create("duration", order.runningOutTime(configuration)))
+                            Replacement.unparsed("name", order.fullName()), Replacement.create("duration", order.runningOutTime(configuration)))
                     .text("<click:run_command:/company order info %s>[", order.id())
                     .localeCode("info")
                     .text("]</click>")

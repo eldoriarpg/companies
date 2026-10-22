@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -172,7 +173,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         var composer = MessageComposer.create()
                                       .text("<neutral>")
                                       .localeCode("company.invite.invited",
-                                              Replacement.create("name", String.format("<heading>%s<neutral>", company.name())))
+                                              Replacement.create("name", String.format("<heading>%s<neutral>", Texts.escape(company.name()))))
                                       .newLine()
                                       .text("<click:run_command:/company invite accept><add>[")
                                       .localeCode("accept")

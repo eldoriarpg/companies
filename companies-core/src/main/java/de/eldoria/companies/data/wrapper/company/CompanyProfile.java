@@ -10,6 +10,7 @@ import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.bukkit.OfflinePlayer;
 
@@ -70,7 +71,7 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
                                  .orElse(CompanyLevel.DEFAULT);
         var composer = MessageComposer.create()
                                       .text("<heading>")
-                                      .text(name())
+                                      .text(Texts.escape(name()))
                                       .newLine()
                                       .text("<name>")
                                       .localeCode("words.level")

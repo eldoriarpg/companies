@@ -10,6 +10,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
@@ -66,7 +67,7 @@ public class OrderBuilder {
     public String asComponent(OrderSettings setting, Economy economy, AOrderData orderData) {
         var cmd = "/order create";
         var composer = MessageComposer.create()
-                                      .text("<name>%s <click:suggest_command:/order create name ><modify>[", name())
+                                      .text("<name>%s <click:suggest_command:/order create name ><modify>[", Texts.escape(name()))
                                       .localeCode("words.change")
                                       .text("]</click>")
                                       .newLine()

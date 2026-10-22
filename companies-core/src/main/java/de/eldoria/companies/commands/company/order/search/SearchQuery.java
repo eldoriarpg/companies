@@ -7,6 +7,7 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import org.jetbrains.annotations.Nullable;
 
@@ -153,7 +154,7 @@ public class SearchQuery {
                                       .newLine()
                                       .text("<name>")
                                       .localeCode("words.name")
-                                      .text(": %s", name().isBlank() ? "_____" : name())
+                                      .text(": %s", name().isBlank() ? "_____" : Texts.escape(name()))
                                       .text("<click:suggest_command:%s name ><gold>[", queryCmd)
                                       .localeCode("words.change")
                                       .text("]</click>")

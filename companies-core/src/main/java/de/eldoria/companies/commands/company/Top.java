@@ -64,7 +64,7 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
         }
         composer.newLine();
         for (var rank : ranks) {
-            composer.text("<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>", rank.rank(), rank.asComponent(), rank.name())
+            composer.text("<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>", rank.rank(), Texts.argument(rank.asComponent()), Texts.escape(rank.name()))
                     .newLine();
         }
         if (page > 1) {

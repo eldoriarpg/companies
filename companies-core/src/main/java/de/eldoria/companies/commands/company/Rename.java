@@ -9,6 +9,7 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -119,7 +120,7 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                                       .localeCode("company.rename.confirm",
                                               Replacement.create("amount", String.format("<heading>%s<neutral>",
                                                       economy.format(price))),
-                                              Replacement.create("name", String.format("<heading>%s<neutral>", name)))
+                                              Replacement.create("name", String.format("<heading>%s<neutral>", Texts.escape(name))))
                                       .newLine()
                                       .text("<click:run_command:/company rename confirm><add>[")
                                       .localeCode("words.confirm")

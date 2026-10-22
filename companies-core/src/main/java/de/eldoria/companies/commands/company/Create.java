@@ -93,7 +93,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                               Replacement.create("amount", String.format("%s",
                                                       economy.format(configuration.companySettings()
                                                                                   .foundingPrice()))),
-                                              Replacement.create("name", String.format("%s", name)))
+                                              Replacement.unparsed("name", name))
                                       .newLine()
                                       .text("<click:run_command:/company create confirm><add>[")
                                       .localeCode("words.confirm")
