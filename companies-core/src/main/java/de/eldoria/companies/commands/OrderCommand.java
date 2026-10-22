@@ -10,6 +10,8 @@ import de.eldoria.companies.commands.order.Collect;
 import de.eldoria.companies.commands.order.Extend;
 import de.eldoria.companies.commands.order.Info;
 import de.eldoria.companies.commands.order.List;
+import de.eldoria.companies.commands.order.OrderCreateCommand;
+import de.eldoria.companies.commands.order.OrderDraftCommand;
 import de.eldoria.companies.commands.order.Raise;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.commands.support.HandleFailures;
@@ -48,8 +50,11 @@ final class OrderCommand {
     @Subcommand
     final Raise raise;
 
-    // TODO create <name…>, starting a draft
-    // TODO draft name|add|remove|amount|price|done|cancel …
+    @Subcommand
+    final OrderDraftCommand draft;
+
+    @Subcommand
+    final OrderCreateCommand create;
 
     OrderCommand(CommandDependencies deps) {
         list = new List(deps);
@@ -59,6 +64,8 @@ final class OrderCommand {
         collect = new Collect(deps);
         extend = new Extend(deps);
         raise = new Raise(deps);
+        draft = new OrderDraftCommand(deps);
+        create = new OrderCreateCommand(deps, draft);
     }
 
     /**
