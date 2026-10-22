@@ -16,8 +16,11 @@ dependencies {
     compileOnly(platform(libs.jackson.bom))
     compileOnly(libs.bundles.jackson)
     compileOnly(libs.bundles.database)
+    compileOnly(libs.strokkcommands.annotations)
+    annotationProcessor(libs.strokkcommands.processor)
 
     testImplementation(libs.sqlite)
+    testImplementation(libs.vault)
     testImplementation(platform(libs.jackson.bom))
     testImplementation(libs.bundles.jackson)
 }
