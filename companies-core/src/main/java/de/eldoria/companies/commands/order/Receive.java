@@ -50,7 +50,7 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
                          return;
                      }
                      if (simpleOrder.state() != OrderState.DELIVERED) {
-                         messageSender().sendError(player, "Not ready");
+                         messageSender().sendError(player, "error.orderNotDelivered");
                          return;
                      }
                      orderData.retrieveFullOrder(optOrder.get())
@@ -72,7 +72,7 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
         orderData.submitOrderStateUpdate(order, OrderState.DELIVERED, OrderState.RECEIVED)
                  .whenComplete(received -> {
                      if (!received) {
-                         messageSender().sendError(player, "Not ready");
+                         messageSender().sendError(player, "error.orderNotDelivered");
                          return;
                      }
                      if (!player.isOnline()) {

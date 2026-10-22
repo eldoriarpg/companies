@@ -219,7 +219,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                             .text("]</click>");
                 } else {
                     composer.text("<value>")
-                            .localeCode("Done");
+                            .localeCode("words.done");
                 }
                 contents.add(composer.build());
             }

@@ -74,7 +74,7 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
                      }
                      Threading.mainThread(plugin())
                               .execute(() -> economy.depositPlayer(player, fullOrder.price()));
-                     list.showOrders(player, () -> messageSender().sendError(sender, "order.cancel.canceled",
+                     list.showOrders(player, () -> messageSender().sendMessage(sender, "order.cancel.canceled",
                              Replacement.create("money", economy.format(fullOrder.price()))));
                  })
                  .exceptionally(err -> {
