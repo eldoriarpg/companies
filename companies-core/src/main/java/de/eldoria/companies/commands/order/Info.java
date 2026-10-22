@@ -48,7 +48,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                      return Optional.empty();
                  })
                  .thenAccept((order) -> {
-                     if (order.isPresent()) {
+                     if (order.isPresent() && order.get().owner().equals(player.getUniqueId())) {
                          messageBlocker.blockPlayer(player);
                          var fullOrder = orderData.retrieveFullOrder(order.get())
                                                   .join();

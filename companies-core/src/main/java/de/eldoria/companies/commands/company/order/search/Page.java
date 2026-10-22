@@ -48,7 +48,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
     public void renderPage(Player player, int page) {
         messageBlocker.blockPlayer(player);
         var fullOrders = search.results()
-                               .get(player.getUniqueId());
+                               .getOrDefault(player.getUniqueId(), List.of());
 
         var builder = MessageComposer.create()
                                      .text("<heading>")
@@ -74,7 +74,7 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             builder.text(" <inactive>%s ", Texts.LEFT_ARROW);
         }
 
-        var pageString = String.format("<heading>%s/%s", page + 1, fullOrders.size() / PAGE_SIZE + 1);
+        var pageString = String.format("<heading>%s/%s", page + 1, Math.max(1, (fullOrders.size() + PAGE_SIZE - 1) / PAGE_SIZE));
         builder.text(pageString);
 
         if (!page(fullOrders, page + 1).isEmpty()) {

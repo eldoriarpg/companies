@@ -41,7 +41,7 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
         var order = args.asEnum(1, TopOrder.class, DEFAULT_ORDER);
-        renderPage(player, args.asInt(0, 1), order);
+        renderPage(player, Math.max(1, args.asInt(0, 1)), order);
     }
 
     private void renderPage(Player player, int page, TopOrder orders) {
@@ -59,7 +59,7 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
                                       .localeCode("Order: ");
         for (var value : TopOrder.values()) {
             composer.text("<click:run_command:/company top %s %s><%s>[", page, value.name(), Colors.active(order == value))
-                    .localeCode(value.name())
+                    .localeCode(value.translationKey())
                     .text("]</click>");
         }
         composer.newLine();

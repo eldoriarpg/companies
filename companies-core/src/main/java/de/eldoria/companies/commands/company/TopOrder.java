@@ -28,6 +28,6 @@ public enum TopOrder implements Translatable {
 
     @Override
     public @NotNull String translationKey() {
-        return "enums.topOrder" + name().toLowerCase(Locale.ROOT);
+        return "enums.topOrder." + name().toLowerCase(Locale.ROOT);
     }
 }
