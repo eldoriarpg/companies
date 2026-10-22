@@ -11,8 +11,10 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
-import de.eldoria.companies.util.Confirmations;
-import de.eldoria.companies.util.Texts;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuService;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -36,14 +38,15 @@ import java.util.logging.Level;
 @PlayerOnly
 public final class Rename {
     public static final int MAX_NAME_LENGTH = 32;
-    private final Confirmations<String> confirm = new Confirmations<>();
     private final CommandDependencies deps;
+    private final ConfirmFlow<String> renames;
 
     /**
      * @param deps what the commands need
      */
     public Rename(CommandDependencies deps) {
         this.deps = deps;
+        this.renames = ConfirmFlow.create(deps.plugin(), this::renameConfirmed);
     }
 
     /**
@@ -56,6 +59,7 @@ public final class Rename {
     public void rename(CommandSender sender, @StringArg(StringArgType.GREEDY) String name) {
         var player = Senders.player(sender);
         var economy = deps.services().economy();
+        var menus = deps.services().menus();
         Checks.shorterThan(name, MAX_NAME_LENGTH);
         var companyData = deps.companyData();
 
@@ -87,7 +91,8 @@ public final class Rename {
                         return;
                     }
 
-                    Threading.mainThread(deps.plugin()).execute(() -> requestConfirmation(player, name, economy));
+                    Threading.mainThread(deps.plugin())
+                            .execute(() -> requestConfirmation(menus, player, name, economy));
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -103,13 +108,12 @@ public final class Rename {
     @Executes("confirm")
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
+        deps.requireReady();
+        renames.confirm(player);
+    }
+
+    private void renameConfirmed(Player player, String name) {
         var economy = deps.services().economy();
-        var optName = confirm.confirm(player.getUniqueId());
-        if (optName.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var name = optName.get();
         var companyData = deps.companyData();
         companyData
                 .retrievePlayerCompanyProfile(player)
@@ -147,25 +151,19 @@ public final class Rename {
                 });
     }
 
-    private void requestConfirmation(Player player, String name, Economy economy) {
+    private void requestConfirmation(MenuService menus, Player player, String name, Economy economy) {
         var price = deps.configuration().companySettings().renamePrice();
         if (!economy.has(player, price)) {
             sendInsufficientCurrency(player, price, economy);
             return;
         }
 
-        confirm.request(player.getUniqueId(), name);
-        var composer = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode(
+        var question = MenuText.create()
+                .locale(
                         "company.rename.confirm",
-                        Replacement.create("amount", String.format("<heading>%s<neutral>", economy.format(price))),
-                        Replacement.create("name", String.format("<heading>%s<neutral>", Texts.escape(name))))
-                .newLine()
-                .text("<click:run_command:/company rename confirm><add>[")
-                .localeCode("words.confirm")
-                .text("]</click>");
-        messages().sendMessage(player, composer);
+                        Values.money("amount", economy, price),
+                        Values.text("company_name", name));
+        renames.ask(menus, player, name, question);
     }
 
     private void sendInsufficientCurrency(Player player, double price, Economy economy) {
