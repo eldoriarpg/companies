@@ -14,8 +14,10 @@ import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyKickEvent;
-import de.eldoria.companies.util.Confirmations;
-import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuService;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.strokkur.commands.Executes;
@@ -37,13 +39,14 @@ import java.util.function.Function;
 @PlayerOnly
 public final class Kick {
     private final CommandDependencies deps;
-    private final Confirmations<UUID> kicks = new Confirmations<>();
+    private final ConfirmFlow<UUID> kicks;
 
     /**
      * @param deps what the commands need
      */
     public Kick(CommandDependencies deps) {
         this.deps = deps;
+        this.kicks = ConfirmFlow.create(deps.plugin(), this::kickConfirmed);
     }
 
     /**
@@ -68,10 +71,10 @@ public final class Kick {
     @Executes
     public void kick(CommandSender sender, @CompanyMembers String member) {
         var player = Senders.player(sender);
-        deps.requireReady();
+        var menus = deps.services().menus();
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> checkKick(
                         player, optProfile, profile -> profile.memberByName(member))
-                .ifPresent(target -> requestConfirmation(player, target)));
+                .ifPresent(target -> requestConfirmation(menus, player, target)));
     }
 
     /**
@@ -83,12 +86,11 @@ public final class Kick {
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
         deps.requireReady();
-        var optTarget = kicks.confirm(player.getUniqueId());
-        if (optTarget.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var targetPlayer = deps.plugin().getServer().getOfflinePlayer(optTarget.get());
+        kicks.confirm(player);
+    }
+
+    private void kickConfirmed(Player player, UUID targetId) {
+        var targetPlayer = deps.plugin().getServer().getOfflinePlayer(targetId);
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> checkKick(
                         player, optProfile, profile -> profile.member(targetPlayer))
                 .ifPresent(target -> kick(player, optProfile.get(), target)));
@@ -120,18 +122,13 @@ public final class Kick {
         return optTarget;
     }
 
-    private void requestConfirmation(Player player, CompanyMember target) {
-        kicks.request(player.getUniqueId(), target.uuid());
-        var composer = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode(
+    private void requestConfirmation(MenuService menus, Player player, CompanyMember target) {
+        var question = MenuText.create()
+                .locale(
                         "company.kick.confirm",
-                        Replacement.unparsed("name", target.player().getName()))
-                .space()
-                .text("<click:run_command:/company kick confirm><remove>[")
-                .localeCode("words.confirm")
-                .text("]</click>");
-        messages().sendMessage(player, composer);
+                        Values.text(
+                                "member_name", String.valueOf(target.player().getName())));
+        kicks.ask(menus, player, target.uuid(), question);
     }
 
     private void kick(Player player, CompanyProfile profile, CompanyMember target) {

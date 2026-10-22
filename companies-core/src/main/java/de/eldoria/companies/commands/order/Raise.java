@@ -13,11 +13,12 @@ import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.PriceRaise;
-import de.eldoria.companies.util.Confirmations;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
 import net.strokkur.commands.Executes;
@@ -43,13 +44,14 @@ import java.util.logging.Level;
 @PlayerOnly
 public final class Raise {
     private final CommandDependencies deps;
-    private final Confirmations<Request> requests = new Confirmations<>();
+    private final ConfirmFlow<Request> requests;
 
     /**
      * @param deps what the commands need
      */
     public Raise(CommandDependencies deps) {
         this.deps = deps;
+        this.requests = ConfirmFlow.create(deps.plugin(), this::raiseConfirmed);
     }
 
     /**
@@ -64,14 +66,14 @@ public final class Raise {
             CommandSender sender, @OwnOpenOrderIds int id, @DoubleArg(min = 0, max = Double.MAX_VALUE) double amount) {
         var player = Senders.player(sender);
         var economy = deps.services().economy();
+        var menus = deps.services().menus();
         var increase = Money.floor(amount);
         Checks.isTrue(increase > 0, "error.invalidNumber");
 
         loadOrder(player, id)
                 .thenAccept(optOrder -> optOrder.ifPresent(order -> {
                     var fee = extraFee(order, increase);
-                    requests.request(player.getUniqueId(), new Request(id, increase));
-                    deps.messages().sendMessage(player, confirmation(order, increase, fee, economy));
+                    requests.ask(menus, player, new Request(id, increase), confirmation(order, increase, fee, economy));
                 }));
     }
 
@@ -83,34 +85,29 @@ public final class Raise {
     @Executes("confirm")
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
+        deps.requireReady();
+        requests.confirm(player);
+    }
+
+    private void raiseConfirmed(Player player, Request request) {
         var economy = deps.services().economy();
-        var optRequest = requests.confirm(player.getUniqueId());
-        if (optRequest.isEmpty()) {
-            deps.messages().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var request = optRequest.get();
         loadOrder(player, request.order())
                 .thenAcceptAsync(
                         optOrder -> optOrder.ifPresent(order -> charge(player, order, request.increase(), economy)),
                         Threading.mainThread(deps.plugin()));
     }
 
-    private MessageComposer confirmation(FullOrder order, double increase, double fee, Economy economy) {
-        var composer = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode(
+    private static MenuText confirmation(FullOrder order, double increase, double fee, Economy economy) {
+        var question = MenuText.create()
+                .locale(
                         "order.raise.confirm",
-                        Replacement.unparsed("order_name", order.fullName()),
-                        Replacement.create("amount", economy.format(increase)),
-                        Replacement.create("total", economy.format(increase + fee)));
+                        Values.text("order_name", order.fullName()),
+                        Values.money("amount", economy, increase),
+                        Values.money("total", economy, increase + fee));
         if (fee > 0) {
-            composer.space().localeCode("order.raise.fee", Replacement.create("fee", economy.format(fee)));
+            question.space().locale("order.raise.fee", Values.money("fee", economy, fee));
         }
-        return composer.space()
-                .text("<click:run_command:/order raise confirm><add>[")
-                .localeCode("words.confirm")
-                .text("]</click>");
+        return question;
     }
 
     private void charge(Player player, FullOrder order, double increase, Economy economy) {
