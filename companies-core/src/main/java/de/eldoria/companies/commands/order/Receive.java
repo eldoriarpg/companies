@@ -18,11 +18,14 @@ import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Inventories;
+import de.eldoria.companies.util.Threading;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.logging.Level;
 
 /**
  * {@code /order receive <id>}: hands the owner of a delivered order the stacks as they were delivered.
@@ -81,29 +84,49 @@ public final class Receive {
                 .map(stack -> new ItemAmount(stack, stack.getAmount()))
                 .toList();
         var placement = Inventories.place(Inventories.storageCopy(player), items);
-        deps.orderData().submitOrderReceive(order, placement.remaining()).whenComplete(received -> {
-            if (!received) {
-                deps.messages().sendError(player, "error.orderNotDelivered");
-                return;
-            }
-            SuggestionSources.current().ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
-            if (!player.isOnline()) {
-                keep(player, placement.fitting());
-                return;
-            }
-            var stacks = placement.fitting().stream()
-                    .flatMap(item -> Inventories.split(item.stack(), item.amount()).stream())
-                    .toList();
-            var leftovers = Inventories.add(player, stacks);
-            keep(
-                    player,
-                    leftovers.stream()
-                            .map(stack -> new ItemAmount(stack, stack.getAmount()))
-                            .toList());
-            var waiting = placement.remainingAmount()
-                    + leftovers.stream().mapToInt(ItemStack::getAmount).sum();
-            menus.close(player).thenRun(() -> sendReceived(player, order.amount(), waiting));
-        });
+        deps.outcomes()
+                .receive(order, placement.remaining())
+                .exceptionally(err -> {
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return false;
+                })
+                .thenAcceptAsync(
+                        received -> handOut(player, order, placement, received, menus),
+                        Threading.mainThread(deps.plugin()));
+    }
+
+    /**
+     * Gives the owner what fits once the order is received. Has to be called on the main thread.
+     *
+     * @param player    owner receiving the order
+     * @param order     the order
+     * @param placement what fits into the inventory and what is stored
+     * @param received  whether the order was received
+     * @param menus     menus to close once the order is received
+     */
+    private void handOut(
+            Player player, FullOrder order, Inventories.Placement placement, boolean received, MenuService menus) {
+        if (!received) {
+            deps.messages().sendError(player, "error.orderNotDelivered");
+            return;
+        }
+        SuggestionSources.current().ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
+        if (!player.isOnline()) {
+            keep(player, placement.fitting());
+            return;
+        }
+        var stacks = placement.fitting().stream()
+                .flatMap(item -> Inventories.split(item.stack(), item.amount()).stream())
+                .toList();
+        var leftovers = Inventories.add(player, stacks);
+        keep(
+                player,
+                leftovers.stream()
+                        .map(stack -> new ItemAmount(stack, stack.getAmount()))
+                        .toList());
+        var waiting = placement.remainingAmount()
+                + leftovers.stream().mapToInt(ItemStack::getAmount).sum();
+        menus.close(player).thenRun(() -> sendReceived(player, order.amount(), waiting));
     }
 
     private void keep(Player player, java.util.List<ItemAmount> items) {

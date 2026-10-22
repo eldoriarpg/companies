@@ -81,8 +81,7 @@ public final class Cancel {
                         messages.sendErrorActionBar(player, "error.unknownOrder");
                         return;
                     }
-                    if (!Boolean.TRUE.equals(
-                            orderData.submitOrderDeletion(fullOrder).join())) {
+                    if (!Boolean.TRUE.equals(deps.outcomes().cancel(fullOrder).join())) {
                         messages.sendError(player, "error.orderAlreadyClaimed");
                         return;
                     }

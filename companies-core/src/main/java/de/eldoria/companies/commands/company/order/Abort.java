@@ -102,11 +102,12 @@ public final class Abort {
                     return Optional.empty();
                 })
                 .thenAccept(optCompany -> {
-                    if (checkOrder(optCompany, player, remove.id()).isEmpty()) {
+                    var order = checkOrder(optCompany, player, remove.id());
+                    if (order.isEmpty()) {
                         return;
                     }
 
-                    var workers = deps.orderData().submitUnclaimOrder(remove).join();
+                    var workers = deps.outcomes().abort(order.get()).join();
                     if (workers == null || workers.isEmpty()) {
                         messages().sendErrorActionBar(player, "error.orderNotActive");
                         return;

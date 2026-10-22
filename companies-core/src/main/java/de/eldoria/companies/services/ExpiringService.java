@@ -15,6 +15,7 @@ import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
@@ -49,7 +50,18 @@ public class ExpiringService implements Runnable, Listener {
     private final ItemReturnService itemReturnService;
     private final Economy economy;
     private final NotificationService notificationService;
+    private final OrderOutcomes outcomes;
 
+    /**
+     * @param plugin              the plugin
+     * @param orderData           order repository
+     * @param companyData         company repository
+     * @param configuration       configuration of the plugin
+     * @param itemReturnService   tells workers about returned items
+     * @param economy             refunds purged orders
+     * @param notificationService warns owners
+     * @param outcomes            releases and purges orders and records their history
+     */
     public ExpiringService(
             Plugin plugin,
             AOrderData orderData,
@@ -57,7 +69,8 @@ public class ExpiringService implements Runnable, Listener {
             Configuration configuration,
             ItemReturnService itemReturnService,
             Economy economy,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            OrderOutcomes outcomes) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
@@ -66,6 +79,7 @@ public class ExpiringService implements Runnable, Listener {
         this.itemReturnService = itemReturnService;
         this.economy = economy;
         this.notificationService = notificationService;
+        this.outcomes = outcomes;
     }
 
     /**
@@ -217,7 +231,7 @@ public class ExpiringService implements Runnable, Listener {
                 .join();
 
         for (var order : expired) {
-            var workers = orderData.submitUnclaimOrder(order).join();
+            var workers = outcomes.expire(order).join();
             if (workers == null || workers.isEmpty()) continue;
             itemReturnService.notifyWorkers(workers.get());
             var profile = companyData
@@ -248,7 +262,7 @@ public class ExpiringService implements Runnable, Listener {
             if (fullOrder == null) {
                 continue;
             }
-            if (!Boolean.TRUE.equals(orderData.submitOrderPurge(order).join())) {
+            if (!Boolean.TRUE.equals(outcomes.purge(fullOrder).join())) {
                 continue;
             }
             var owner = plugin.getServer().getOfflinePlayer(order.owner());

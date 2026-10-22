@@ -27,7 +27,7 @@ import static de.chojo.sadu.queries.api.query.Query.query;
 /**
  * Creates a migrated SQLite database in a file and provides helpers to prepare test data without a running server.
  */
-final class SqLiteTestDatabase {
+public final class SqLiteTestDatabase {
     private SqLiteTestDatabase() {}
 
     /**
@@ -36,7 +36,7 @@ final class SqLiteTestDatabase {
      * @param directory directory for the database file
      * @return the data source of the database
      */
-    static SQLiteDataSource create(Path directory) throws SQLException, IOException {
+    public static SQLiteDataSource create(Path directory) throws SQLException, IOException {
         return create(directory, SqlVersion.load(SqLiteTestDatabase.class.getClassLoader()));
     }
 
@@ -48,7 +48,7 @@ final class SqLiteTestDatabase {
      * @param version   version to migrate to
      * @return the data source of the database
      */
-    static SQLiteDataSource create(Path directory, SqlVersion version) throws SQLException, IOException {
+    public static SQLiteDataSource create(Path directory, SqlVersion version) throws SQLException, IOException {
         var dataSource = new SQLiteDataSource();
         dataSource.setUrl("jdbc:sqlite:" + directory.resolve("data.db"));
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
@@ -67,7 +67,7 @@ final class SqLiteTestDatabase {
      *
      * @return mapper for item stacks
      */
-    static ObjectMapper mapper() {
+    public static ObjectMapper mapper() {
         return TestMappers.items();
     }
 
@@ -77,7 +77,7 @@ final class SqLiteTestDatabase {
      * @param uuid id of the player
      * @return player
      */
-    static OfflinePlayer player(UUID uuid) {
+    public static OfflinePlayer player(UUID uuid) {
         return (OfflinePlayer) Proxy.newProxyInstance(
                 OfflinePlayer.class.getClassLoader(),
                 new Class[] {OfflinePlayer.class},
@@ -97,7 +97,7 @@ final class SqLiteTestDatabase {
      * @param state   new state id
      * @param company company id
      */
-    static void setState(int order, int state, int company) {
+    public static void setState(int order, int state, int company) {
         query("UPDATE order_states SET state = ?, company = ? WHERE id = ?")
                 .single(call().bind(state).bind(company).bind(order))
                 .update();
@@ -110,7 +110,7 @@ final class SqLiteTestDatabase {
      * @param condition sql condition
      * @return amount of rows
      */
-    static int count(String table, String condition) {
+    public static int count(String table, String condition) {
         return query("SELECT COUNT(1) AS count FROM " + table + " WHERE " + condition)
                 .single()
                 .map(row -> row.getInt("count"))
