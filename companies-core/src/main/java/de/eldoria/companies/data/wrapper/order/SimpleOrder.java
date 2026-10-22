@@ -154,6 +154,16 @@ public class SimpleOrder implements ISimpleOrder {
     }
 
     /**
+     * How many extensions this order has left.
+     *
+     * @param maxExtensions extensions an order may have
+     * @return extensions left, never negative
+     */
+    public int extensionsLeft(int maxExtensions) {
+        return Math.max(0, maxExtensions - extensions);
+    }
+
+    /**
      * Extra delivery hours the accepting company got from its level.
      *
      * @return bonus hours, 0 while the order is not claimed

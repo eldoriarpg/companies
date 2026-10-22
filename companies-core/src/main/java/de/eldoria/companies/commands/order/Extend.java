@@ -8,7 +8,6 @@ package de.eldoria.companies.commands.order;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -39,17 +38,6 @@ public class Extend extends AdvancedCommand implements IPlayerTabExecutor {
         this.configuration = configuration;
     }
 
-    /**
-     * How many extensions an order has left.
-     *
-     * @param order         order to check
-     * @param maxExtensions extensions an order may have
-     * @return extensions left, never negative
-     */
-    public static int extensionsLeft(SimpleOrder order, int maxExtensions) {
-        return Math.max(0, maxExtensions - order.extensions());
-    }
-
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
             throws CommandException {
@@ -73,7 +61,7 @@ public class Extend extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendError(player, "error.orderAlreadyClaimed");
                         return;
                     }
-                    if (extensionsLeft(order, maxExtensions) == 0
+                    if (order.extensionsLeft(maxExtensions) == 0
                             || !Boolean.TRUE.equals(orderData
                                     .submitOrderExtension(order, maxExtensions)
                                     .join())) {
@@ -87,7 +75,7 @@ public class Extend extends AdvancedCommand implements IPlayerTabExecutor {
                                     "order.extend.extended",
                                     Replacement.unparsed("order_name", order.fullName()),
                                     Replacement.create("duration", Texts.prettyDuration(refundIn)),
-                                    Replacement.create("left", extensionsLeft(order, maxExtensions) - 1));
+                                    Replacement.create("left", order.extensionsLeft(maxExtensions) - 1));
                 })
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

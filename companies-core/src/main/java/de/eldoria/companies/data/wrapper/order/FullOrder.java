@@ -174,7 +174,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
      * @param maxExtensions extensions an order may have
      */
     private void ownerActions(MessageComposer composer, int maxExtensions) {
-        var left = Math.max(0, maxExtensions - extensions());
+        var left = extensionsLeft(maxExtensions);
         if (left > 0) {
             composer.space()
                     .text("<click:run_command:/order extend %s><modify>[", id())

@@ -160,13 +160,13 @@ public class ExpiringService implements Runnable, Listener {
                     purgeWarning(order, settings.maxExtensions()),
                     Replacement.unparsed("order_name", order.fullName()),
                     Replacement.create("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left)),
-                    Replacement.create("left", Math.max(0, settings.maxExtensions() - order.extensions())));
+                    Replacement.create("left", order.extensionsLeft(settings.maxExtensions())));
         }
     }
 
     private String purgeWarning(SimpleOrder order, int maxExtensions) {
         var composer = MessageComposer.create().text("<neutral>").localeCode("notification.orderPurgeWarning");
-        if (order.extensions() < maxExtensions) {
+        if (order.extensionsLeft(maxExtensions) > 0) {
             composer.space()
                     .text("<click:run_command:/order extend %s><modify>[", order.id())
                     .localeCode("order.info.extend")
