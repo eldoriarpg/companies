@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
@@ -36,6 +37,7 @@ public final class CommandDependencies {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final ANodeData nodeData;
+    private final OrderDraftService drafts;
     private volatile Optional<Services> services = Optional.empty();
 
     /**
@@ -56,6 +58,7 @@ public final class CommandDependencies {
         this.companyData = companyData;
         this.orderData = orderData;
         this.nodeData = nodeData;
+        this.drafts = new OrderDraftService(plugin, orderData, configuration);
     }
 
     /**
@@ -124,6 +127,13 @@ public final class CommandDependencies {
      */
     public ANodeData nodeData() {
         return nodeData;
+    }
+
+    /**
+     * @return the order drafts of the players
+     */
+    public OrderDraftService drafts() {
+        return drafts;
     }
 
     /**
