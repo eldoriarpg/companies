@@ -23,8 +23,6 @@ import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.Style;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -42,27 +40,29 @@ import java.util.concurrent.TimeUnit;
 public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final MessageBlocker messageBlocker;
-    private final Cache<UUID, List<String>> memberNames = CacheBuilder.newBuilder()
-                                                                     .expireAfterWrite(1, TimeUnit.MINUTES)
-                                                                     .build();
+    private final Cache<UUID, List<String>> memberNames =
+            CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build();
 
     public Permission(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("permission")
-                .addArgument("member", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("permission").addArgument("member", true).build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         if (arguments.size() == 1) {
             var memberName = arguments.asString(0);
             renderPermissionInterface(player, memberName);
             return;
         }
 
-        CommandAssertions.invalidArguments(meta(), arguments,
+        CommandAssertions.invalidArguments(
+                meta(),
+                arguments,
                 Argument.input("words.member", true),
                 Argument.unlocalizedInput("give|remove", true),
                 Argument.input("words.permission", true));
@@ -70,9 +70,12 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         var memberName = arguments.asString(0);
         var method = arguments.asString(1);
         if (!("give".equalsIgnoreCase(method) || "remove".equalsIgnoreCase(method))) {
-            messageSender().sendErrorActionBar(player, "error.invalidAction",
-                    Replacement.create("first", "GIVE"),
-                    Replacement.create("second", "REMOVE"));
+            messageSender()
+                    .sendErrorActionBar(
+                            player,
+                            "error.invalidAction",
+                            Replacement.create("first", "GIVE"),
+                            Replacement.create("second", "REMOVE"));
             return;
         }
         var permission = arguments.asEnum(2, CompanyPermission.class);
@@ -81,36 +84,34 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        companyData.retrievePlayerCompanyProfile(player)
-                   .whenComplete(optProfile -> {
-                       if (optProfile.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       var profile = optProfile.get();
-                       var self = profile.member(player)
-                                         .get();
-                       if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
-                           messageSender().sendErrorActionBar(player, "error.permission.givePermissions");
-                           return;
-                       }
-                       var optTarget = profile.memberByName(memberName);
-                       if (optTarget.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.invalidMember");
-                           return;
-                       }
+        companyData.retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
+            if (optProfile.isEmpty()) {
+                messageSender().sendErrorActionBar(player, "error.noMember");
+                return;
+            }
+            var profile = optProfile.get();
+            var self = profile.member(player).get();
+            if (!self.hasPermissions(CompanyPermission.MANAGE_PERMISSIONS, permission)) {
+                messageSender().sendErrorActionBar(player, "error.permission.givePermissions");
+                return;
+            }
+            var optTarget = profile.memberByName(memberName);
+            if (optTarget.isEmpty()) {
+                messageSender().sendErrorActionBar(player, "error.invalidMember");
+                return;
+            }
 
-                       var target = optTarget.get();
+            var target = optTarget.get();
 
-                       if ("give".equalsIgnoreCase(method)) {
-                           target.addPermission(permission);
-                       } else {
-                           target.removePermission(permission);
-                       }
-                       companyData.submitMemberUpdate(target);
+            if ("give".equalsIgnoreCase(method)) {
+                target.addPermission(permission);
+            } else {
+                target.removePermission(permission);
+            }
+            companyData.submitMemberUpdate(target);
 
-                       renderPermissionInterface(player, target);
-                   });
+            renderPermissionInterface(player, target);
+        });
     }
 
     /**
@@ -120,7 +121,8 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
      * names are loaded in the background and offered on the next completion.
      */
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
         if (args.sizeIs(1)) {
             return Completion.complete(args.asString(0), cachedMemberNames(player));
         }
@@ -129,9 +131,8 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         }
         if (args.sizeIs(3)) {
             var stream = Arrays.stream(CompanyPermission.values())
-                               .filter(p -> p != CompanyPermission.OWNER)
-                               .map(p -> p.name()
-                                          .toLowerCase(Locale.ROOT));
+                    .filter(p -> p != CompanyPermission.OWNER)
+                    .map(p -> p.name().toLowerCase(Locale.ROOT));
             return Completion.complete(args.asString(2), stream);
         }
         return Collections.emptyList();
@@ -140,42 +141,41 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
     private List<String> cachedMemberNames(Player player) {
         var names = memberNames.getIfPresent(player.getUniqueId());
         if (names != null) return names;
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .thenAccept(optProfile -> memberNames.put(player.getUniqueId(), optProfile.map(Permission::memberNames)
-                                                                                           .orElse(List.of())));
+        companyData
+                .retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .thenAccept(optProfile -> memberNames.put(
+                        player.getUniqueId(),
+                        optProfile.map(Permission::memberNames).orElse(List.of())));
         return List.of();
     }
 
     private static List<String> memberNames(CompanyProfile profile) {
-        return profile.members()
-                      .stream()
-                      .map(member -> member.player().getName())
-                      .filter(Objects::nonNull)
-                      .toList();
+        return profile.members().stream()
+                .map(member -> member.player().getName())
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private void renderPermissionInterface(Player player, String memberName) {
-        companyData.retrievePlayerCompanyProfile(player)
-                   .whenComplete(optProfile -> {
-                       if (optProfile.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       var profile = optProfile.get();
-                       var self = profile.member(player)
-                                         .get();
-                       if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                           messageSender().sendErrorActionBar(player, "error.permission.managePermissions");
-                           return;
-                       }
-                       var companyMember = profile.memberByName(memberName);
-                       if (companyMember.isEmpty()) {
-                           messageSender().sendMessage(player, "error.invalidMember");
-                           return;
-                       }
-                       renderPermissionInterface(player, companyMember.get());
-                   });
+        companyData.retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
+            if (optProfile.isEmpty()) {
+                messageSender().sendErrorActionBar(player, "error.noMember");
+                return;
+            }
+            var profile = optProfile.get();
+            var self = profile.member(player).get();
+            if (!self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
+                messageSender().sendErrorActionBar(player, "error.permission.managePermissions");
+                return;
+            }
+            var companyMember = profile.memberByName(memberName);
+            if (companyMember.isEmpty()) {
+                messageSender().sendMessage(player, "error.invalidMember");
+                return;
+            }
+            renderPermissionInterface(player, companyMember.get());
+        });
     }
 
     private void renderPermissionInterface(Player player, CompanyMember member) {
@@ -183,26 +183,28 @@ public class Permission extends AdvancedCommand implements IPlayerTabExecutor {
         List<String> permissions = new ArrayList<>();
         for (var permission : CompanyPermission.values()) {
             if (permission == CompanyPermission.OWNER) continue;
-            var permCmd = "/company permission " + member.player()
-                                                         .getName();
+            var permCmd = "/company permission " + member.player().getName();
             var builder = MessageComposer.create();
             if (member.hasPermission(permission)) {
-                builder.text("<click:run_command:%s remove %s><u><add>[<l18n:%s>]</u></click>", permCmd, permission.name(), permission.translationKey())
-                       .build();
+                builder.text(
+                                "<click:run_command:%s remove %s><u><add>[<l18n:%s>]</u></click>",
+                                permCmd, permission.name(), permission.translationKey())
+                        .build();
             } else {
-                builder.text("<click:run_command:%s give %s><u><remove>[<l18n:%s>]</u></click>", permCmd, permission.name(), permission.translationKey())
-                       .build();
+                builder.text(
+                                "<click:run_command:%s give %s><u><remove>[<l18n:%s>]</u></click>",
+                                permCmd, permission.name(), permission.translationKey())
+                        .build();
             }
             permissions.add(builder.build());
         }
 
         var composer = MessageComposer.create()
-                                      .text("<heading>")
-                                      .localeCode("company.permission.permissions")
-                                      .text("<value> %s:", member.player()
-                                                                 .getName())
-                                      .newLine()
-                                      .text(permissions, " ");
+                .text("<heading>")
+                .localeCode("company.permission.permissions")
+                .text("<value> %s:", member.player().getName())
+                .newLine()
+                .text(permissions, " ");
         if (messageBlocker.isBlocked(player)) {
             composer.newLine()
                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>")

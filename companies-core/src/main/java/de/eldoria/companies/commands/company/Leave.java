@@ -33,45 +33,41 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
     private final Confirmations<Integer> leaves = new Confirmations<>();
 
     public Leave(Plugin plugin, ACompanyData companyData, AOrderData orderData, ItemReturnService itemReturnService) {
-        super(plugin, CommandMeta.builder("leave")
-                .build());
+        super(plugin, CommandMeta.builder("leave").build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.itemReturnService = itemReturnService;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         if (!arguments.isEmpty() && "confirm".equalsIgnoreCase(arguments.asString(0))) {
             leaves.confirm(player.getUniqueId())
-                  .ifPresentOrElse(companyId -> leave(player, companyId),
-                          () -> messageSender().sendErrorActionBar(player, "error.confirmationExpired"));
+                    .ifPresentOrElse(companyId -> leave(player, companyId), () -> messageSender()
+                            .sendErrorActionBar(player, "error.confirmationExpired"));
             return;
         }
 
-        companyData.retrievePlayerCompanyProfile(player)
-                   .whenComplete(optProfile -> {
-                       if (optProfile.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       var profile = optProfile.get();
-                       leaves.request(player.getUniqueId(), profile.id());
-                       var composer = MessageComposer.create()
-                                                     .text("<neutral>");
-                       if (profile.member(player)
-                                  .get()
-                                  .isOwner()) {
-                           composer.localeCode("company.leave.confirmOwner");
-                       } else {
-                           composer.localeCode("company.leave.confirm");
-                       }
-                       composer.space()
-                               .text("<click:run_command:/company leave confirm><remove>[")
-                               .localeCode("words.confirm")
-                               .text("]</click>");
-                       messageSender().sendMessage(player, composer);
-                   });
+        companyData.retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
+            if (optProfile.isEmpty()) {
+                messageSender().sendErrorActionBar(player, "error.noMember");
+                return;
+            }
+            var profile = optProfile.get();
+            leaves.request(player.getUniqueId(), profile.id());
+            var composer = MessageComposer.create().text("<neutral>");
+            if (profile.member(player).get().isOwner()) {
+                composer.localeCode("company.leave.confirmOwner");
+            } else {
+                composer.localeCode("company.leave.confirm");
+            }
+            composer.space()
+                    .text("<click:run_command:/company leave confirm><remove>[")
+                    .localeCode("words.confirm")
+                    .text("]</click>");
+            messageSender().sendMessage(player, composer);
+        });
     }
 
     /**
@@ -81,41 +77,31 @@ public class Leave extends AdvancedCommand implements IPlayerTabExecutor {
      * @param companyId company the player confirmed to leave
      */
     public void leave(Player player, int companyId) {
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .thenAccept(optProfile -> {
-                       if (optProfile.isEmpty() || optProfile.get().id() != companyId) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       var profile = optProfile.get();
-                       if (profile.member(player)
-                                  .get()
-                                  .isOwner()) {
-                           var workers = orderData.submitCompanyOrdersPurge(profile)
-                                                  .join();
-                           itemReturnService.notifyWorkers(workers);
-                           companyData.submitCompanyPurge(profile)
-                                      .join();
-                           messageSender().sendMessage(player, "company.leave.disbanded");
-                           plugin().getServer()
-                                   .getPluginManager()
-                                   .callEvent(new CompanyDisbandEvent(optProfile.get()));
-                           return;
-                       }
-                       companyData.submitMemberUpdate(profile.member(player)
-                                                             .get()
-                                                             .kick())
-                                  .join();
-                       plugin().getServer()
-                               .getPluginManager()
-                               .callEvent(new CompanyLeaveEvent(optProfile.get(), player));
-                       messageSender().sendMessage(player, "company.leave.left");
-                   });
+        companyData.retrievePlayerCompanyProfile(player).asFuture().thenAccept(optProfile -> {
+            if (optProfile.isEmpty() || optProfile.get().id() != companyId) {
+                messageSender().sendErrorActionBar(player, "error.noMember");
+                return;
+            }
+            var profile = optProfile.get();
+            if (profile.member(player).get().isOwner()) {
+                var workers = orderData.submitCompanyOrdersPurge(profile).join();
+                if (workers != null) {
+                    itemReturnService.notifyWorkers(workers);
+                }
+                companyData.submitCompanyPurge(profile).join();
+                messageSender().sendMessage(player, "company.leave.disbanded");
+                plugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(optProfile.get()));
+                return;
+            }
+            companyData.submitMemberUpdate(profile.member(player).get().kick()).join();
+            plugin().getServer().getPluginManager().callEvent(new CompanyLeaveEvent(optProfile.get(), player));
+            messageSender().sendMessage(player, "company.leave.left");
+        });
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         if (leaves.isPending(player.getUniqueId())) {
             return Completion.complete(arguments.asString(0), "confirm");
         }

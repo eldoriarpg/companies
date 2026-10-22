@@ -37,8 +37,7 @@ import static de.chojo.sadu.queries.api.query.Query.query;
  * Creates a migrated SQLite database in a file and provides helpers to prepare test data without a running server.
  */
 final class SqLiteTestDatabase {
-    private SqLiteTestDatabase() {
-    }
+    private SqLiteTestDatabase() {}
 
     /**
      * Creates a database file in the directory, applies all migrations and registers it as the default query configuration.
@@ -51,10 +50,10 @@ final class SqLiteTestDatabase {
         dataSource.setUrl("jdbc:sqlite:" + directory.resolve("data.db"));
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
         SqlUpdater.builder(dataSource, SqLite.get())
-                  .setVersionTable("companies_db_version")
-                  .withClassLoader(SqLiteTestDatabase.class.getClassLoader())
-                  .setReplacements(new QueryReplacement("companies_schema", "companies_schema"))
-                  .execute();
+                .setVersionTable("companies_db_version")
+                .withClassLoader(SqLiteTestDatabase.class.getClassLoader())
+                .setReplacements(new QueryReplacement("companies_schema", "companies_schema"))
+                .execute();
         return dataSource;
     }
 
@@ -78,7 +77,9 @@ final class SqLiteTestDatabase {
             @Override
             public ItemStack deserialize(JsonParser p, DeserializationContext ctxt) {
                 JsonNode node = ctxt.readTree(p);
-                return new ItemStack(Material.valueOf(node.get("type").asString()), node.get("amount").asInt());
+                return new ItemStack(
+                        Material.valueOf(node.get("type").asString()),
+                        node.get("amount").asInt());
             }
         });
         return JsonMapper.builder().addModule(module).build();
@@ -91,7 +92,9 @@ final class SqLiteTestDatabase {
      * @return player
      */
     static OfflinePlayer player(UUID uuid) {
-        return (OfflinePlayer) Proxy.newProxyInstance(OfflinePlayer.class.getClassLoader(), new Class[]{OfflinePlayer.class},
+        return (OfflinePlayer) Proxy.newProxyInstance(
+                OfflinePlayer.class.getClassLoader(),
+                new Class[] {OfflinePlayer.class},
                 (proxy, method, args) -> switch (method.getName()) {
                     case "getUniqueId" -> uuid;
                     case "hashCode" -> uuid.hashCode();

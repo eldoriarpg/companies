@@ -15,8 +15,7 @@ public class DatabaseSettings {
     private String database = "public";
     private String schema = "public";
 
-    public DatabaseSettings() {
-    }
+    public DatabaseSettings() {}
 
     public StorageType storageType() {
         return storageType;
@@ -47,6 +46,8 @@ public class DatabaseSettings {
     }
 
     public enum StorageType {
-        SQLITE, MARIADB, POSTGRES
+        SQLITE,
+        MARIADB,
+        POSTGRES
     }
 }

@@ -31,70 +31,67 @@ public class Id extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Id(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("id")
-                .build());
+        super(plugin, CommandMeta.builder("id").build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         var companyId = args.asInt(0);
 
-        companyData.retrieveCompanyById(companyId)
-                   .asFuture()
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return Optional.empty();
-                   })
-                   .thenAccept(optSimple -> {
-                       if (optSimple.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.unknownCompany");
-                           return;
-                       }
-                       messageBlocker.blockPlayer(player);
-                       var optProfile = companyData.retrieveCompanyProfile(optSimple.get())
-                                                   .asFuture()
-                                                   .exceptionally(err -> {
-                                                       plugin().getLogger()
-                                                               .log(Level.SEVERE, "Something went wrong", err);
-                                                       return Optional.empty();
-                                                   })
-                                                   .join();
-                       if (optProfile.isEmpty()) return;
-                       var profile = optProfile.get();
-                       var builder = MessageComposer.create()
-                                                    .text("<heading>")
-                                                    .localeCode("company.member.members")
-                                                    .text(":")
-                                                    .newLine();
-                       List<String> members = new ArrayList<>();
+        companyData
+                .retrieveCompanyById(companyId)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optSimple -> {
+                    if (optSimple.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.unknownCompany");
+                        return;
+                    }
+                    messageBlocker.blockPlayer(player);
+                    var optProfile = companyData
+                            .retrieveCompanyProfile(optSimple.get())
+                            .asFuture()
+                            .exceptionally(err -> {
+                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                                return Optional.empty();
+                            })
+                            .join();
+                    if (optProfile.isEmpty()) return;
+                    var profile = optProfile.get();
+                    var builder = MessageComposer.create()
+                            .text("<heading>")
+                            .localeCode("company.member.members")
+                            .text(":")
+                            .newLine();
+                    List<String> members = new ArrayList<>();
 
-                       for (var member : profile.members()) {
-                           var mem = member.player();
-                           if (mem == null) continue;
-                           var hover = MessageComposer.create();
-                           hover.text(((CompanyMember) member).statusComponent());
+                    for (var member : profile.members()) {
+                        var mem = member.player();
+                        if (mem == null) continue;
+                        var hover = MessageComposer.create();
+                        hover.text(((CompanyMember) member).statusComponent());
 
-                           var nameComp = MessageComposer.create()
-                                                         .space(2)
-                                                         .text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
-                           members.add(nameComp.build());
-                       }
-                       builder.text(members);
-                       if (messageBlocker.isBlocked(player)) {
-                           builder.newLine()
-                                  .text("<click:run_command:/company chatblock false><red>[x]</click>");
-                       }
-                       builder.prependLines(25);
-                       Menus.show(messageBlocker, player, builder);
-                   })
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return null;
-                   })
-        ;
+                        var nameComp = MessageComposer.create()
+                                .space(2)
+                                .text("<hover:show_text:%s><value>%s</hover>", hover.build(), mem.getName());
+                        members.add(nameComp.build());
+                    }
+                    builder.text(members);
+                    if (messageBlocker.isBlocked(player)) {
+                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</click>");
+                    }
+                    builder.prependLines(25);
+                    Menus.show(messageBlocker, player, builder);
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 }

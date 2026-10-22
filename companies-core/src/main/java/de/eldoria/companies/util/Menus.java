@@ -5,8 +5,8 @@
  */
 package de.eldoria.companies.util;
 
-import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.localization.IMessageComposer;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.entity.Player;
@@ -28,7 +28,8 @@ public final class Menus {
      */
     public static void show(MessageBlocker blocker, Player player, IMessageComposer composer) {
         var sender = MessageSender.getPluginMessageSender(blocker.plugin());
-        var content = sender.serializeMessage(player, composer.build(), composer.replacements().toArray(TagResolver[]::new));
+        var content = sender.serializeMessage(
+                player, composer.build(), composer.replacements().toArray(TagResolver[]::new));
         blocker.sendBypassing(player, sender.prefix().appendSpace().append(content));
     }
 }

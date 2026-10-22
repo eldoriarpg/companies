@@ -9,5 +9,4 @@ import de.eldoria.companies.components.order.IContentPart;
 
 import java.util.UUID;
 
-public record ContentPart(UUID worker, int amount) implements IContentPart {
-}
+public record ContentPart(UUID worker, int amount) implements IContentPart {}

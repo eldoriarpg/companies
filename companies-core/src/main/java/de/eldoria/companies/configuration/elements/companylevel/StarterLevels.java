@@ -12,8 +12,7 @@ import java.util.List;
  * The level ladder a fresh installation starts with. Existing configurations keep their own levels.
  */
 public final class StarterLevels {
-    private StarterLevels() {
-    }
+    private StarterLevels() {}
 
     /**
      * Creates the starter ladder from Startup to Conglomerate.
@@ -29,8 +28,14 @@ public final class StarterLevels {
         return levels;
     }
 
-    private static CompanyLevel level(String name, int orderCount, double earnedMoney, int deliveredItems, int memberCount,
-                                      int maxMembers, int maxOrders) {
+    private static CompanyLevel level(
+            String name,
+            int orderCount,
+            double earnedMoney,
+            int deliveredItems,
+            int memberCount,
+            int maxMembers,
+            int maxOrders) {
         var level = new CompanyLevel();
         level.levelName(name);
         level.requirement().orderCount(orderCount);

@@ -19,13 +19,13 @@ public class Clear extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Clear(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("clear")
-                .build());
+        super(plugin, CommandMeta.builder("clear").build());
         this.query = query;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         query.reset(player);
     }
 }

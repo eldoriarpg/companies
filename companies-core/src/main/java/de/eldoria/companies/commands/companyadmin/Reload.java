@@ -22,15 +22,18 @@ public class Reload extends AdvancedCommand implements IPlayerTabExecutor {
     private final Updates updates;
 
     public Reload(Plugin plugin, Configuration configuration, Updates updates) {
-        super(plugin, CommandMeta.builder("reload")
-                .withPermission(Permission.Admin.RELOAD)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("reload")
+                        .withPermission(Permission.Admin.RELOAD)
+                        .build());
         this.configuration = configuration;
         this.updates = updates;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         configuration.reload();
         updates.apply();
         messageSender().sendMessage(player, "companyadmin.reload.done");

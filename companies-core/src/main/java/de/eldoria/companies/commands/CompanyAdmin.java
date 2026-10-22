@@ -27,18 +27,27 @@ import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.plugin.Plugin;
 
 public class CompanyAdmin extends AdvancedCommand {
-    public CompanyAdmin(Plugin plugin, Configuration configuration, ACompanyData companyData, AOrderData orderData,
-                        MessageBlocker messageBlocker, LevelService levelService, ANodeData nodeData,
-                        ItemReturnService itemReturnService, Updates updates) {
-        super(plugin, CommandMeta.builder("companyadmin")
-                .withSubCommand(new Level(plugin, configuration, messageBlocker))
-                .withSubCommand(new CalcLevel(plugin, levelService))
-                .withSubCommand(new Delete(plugin, companyData, orderData, itemReturnService))
-                .withSubCommand(new Reload(plugin, configuration, updates))
-                .withSubCommand(new TransferOwner(plugin, companyData))
-                .withSubCommand(new Rename(plugin, companyData))
-                .withSubCommand(new DefaultDebug(plugin, Permission.Admin.ADMIN))
-                .withSubCommand(new SyncConfiguration(plugin, configuration, nodeData))
-                .build());
+    public CompanyAdmin(
+            Plugin plugin,
+            Configuration configuration,
+            ACompanyData companyData,
+            AOrderData orderData,
+            MessageBlocker messageBlocker,
+            LevelService levelService,
+            ANodeData nodeData,
+            ItemReturnService itemReturnService,
+            Updates updates) {
+        super(
+                plugin,
+                CommandMeta.builder("companyadmin")
+                        .withSubCommand(new Level(plugin, configuration, messageBlocker))
+                        .withSubCommand(new CalcLevel(plugin, levelService))
+                        .withSubCommand(new Delete(plugin, companyData, orderData, itemReturnService))
+                        .withSubCommand(new Reload(plugin, configuration, updates))
+                        .withSubCommand(new TransferOwner(plugin, companyData))
+                        .withSubCommand(new Rename(plugin, companyData))
+                        .withSubCommand(new DefaultDebug(plugin, Permission.Admin.ADMIN))
+                        .withSubCommand(new SyncConfiguration(plugin, configuration, nodeData))
+                        .build());
     }
 }

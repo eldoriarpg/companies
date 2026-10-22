@@ -15,8 +15,8 @@ import java.util.UUID;
 class CompanyProfileTest {
     private final UUID member = UUID.randomUUID();
     private final UUID stranger = UUID.randomUUID();
-    private final CompanyProfile company = new CompanyProfile(1, "company", LocalDateTime.now(), 1,
-            List.of(CompanyMember.of(1, member, 0L)));
+    private final CompanyProfile company =
+            new CompanyProfile(1, "company", LocalDateTime.now(), 1, List.of(CompanyMember.of(1, member, 0L)));
 
     @Test
     void membersAreRecognised() {

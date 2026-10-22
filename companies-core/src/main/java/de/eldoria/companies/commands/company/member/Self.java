@@ -32,84 +32,76 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Self(Plugin plugin, ACompanyData companyData, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("self")
-                .build());
+        super(plugin, CommandMeta.builder("self").build());
         this.companyData = companyData;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return Optional.empty();
-                   })
-                   .thenAccept(optProfile -> {
-                       if (optProfile.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       messageBlocker.blockPlayer(player);
-                       var builder = MessageComposer.create()
-                                                    .text("<heading>")
-                                                    .localeCode("company.member.members")
-                                                    .text(":")
-                                                    .newLine();
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
+        companyData
+                .retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optProfile -> {
+                    if (optProfile.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    messageBlocker.blockPlayer(player);
+                    var builder = MessageComposer.create()
+                            .text("<heading>")
+                            .localeCode("company.member.members")
+                            .text(":")
+                            .newLine();
 
-                       List<String> members = new ArrayList<>();
-                       var self = optProfile.get()
-                                            .member(player)
-                                            .get();
+                    List<String> members = new ArrayList<>();
+                    var self = optProfile.get().member(player).get();
 
-                       for (var member : optProfile.get()
-                                                   .members()) {
-                           var mem = member.player();
-                           if (mem == null) continue;
-                           var hover = MessageComposer.create();
+                    for (var member : optProfile.get().members()) {
+                        var mem = member.player();
+                        if (mem == null) continue;
+                        var hover = MessageComposer.create();
 
-                           hover.text(((CompanyMember) member).statusComponent());
+                        hover.text(((CompanyMember) member).statusComponent());
 
-                           if (!member.permissions()
-                                      .isEmpty()) {
-                               var permissions = member.permissions()
-                                                       .stream()
-                                                       .map(perm -> perm.name()
-                                                                               .toLowerCase(Locale.ROOT))
-                                                       .collect(Collectors.toList());
-                               hover.newLine()
+                        if (!member.permissions().isEmpty()) {
+                            var permissions = member.permissions().stream()
+                                    .map(perm -> perm.name().toLowerCase(Locale.ROOT))
+                                    .collect(Collectors.toList());
+                            hover.newLine()
                                     .text("<heading>")
                                     .localeCode("words.permissions")
                                     .text(":")
                                     .newLine()
                                     .text("<active>")
                                     .text(permissions, ", ");
-                           }
-                           var nameComp = MessageComposer.create()
-                                                         .text("<hover:show_text:'%s'><value>%s</hover>", hover.build(), mem.getName());
+                        }
+                        var nameComp = MessageComposer.create()
+                                .text("<hover:show_text:'%s'><value>%s</hover>", hover.build(), mem.getName());
 
-                           if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-                               nameComp = nameComp.space()
-                                                  .text("<click:run_command:/company permission %s><modify>[", mem.getName())
-                                                  .localeCode("words.permissions")
-                                                  .text("]</click>");
-                           }
-                           members.add(nameComp.build());
-                       }
-                       builder.text(members);
-                       if (messageBlocker.isBlocked(player)) {
-                           builder.newLine()
-                                  .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                       }
-                       builder.prependLines(25);
-                       Menus.show(messageBlocker, player, builder);
-                   })
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return null;
-                   });
+                        if (self.hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
+                            nameComp = nameComp.space()
+                                    .text("<click:run_command:/company permission %s><modify>[", mem.getName())
+                                    .localeCode("words.permissions")
+                                    .text("]</click>");
+                        }
+                        members.add(nameComp.build());
+                    }
+                    builder.text(members);
+                    if (messageBlocker.isBlocked(player)) {
+                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                    }
+                    builder.prependLines(25);
+                    Menus.show(messageBlocker, player, builder);
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 }

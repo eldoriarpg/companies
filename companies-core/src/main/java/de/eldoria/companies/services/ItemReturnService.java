@@ -62,12 +62,12 @@ public class ItemReturnService implements Listener {
                 var player = plugin.getServer().getPlayer(worker);
                 if (player == null) continue;
                 var composer = MessageComposer.create()
-                                              .text("<neutral>")
-                                              .localeCode("company.returns.waiting")
-                                              .space()
-                                              .text("<click:run_command:/company returns><add>[")
-                                              .localeCode("words.receive")
-                                              .text("]</click>");
+                        .text("<neutral>")
+                        .localeCode("company.returns.waiting")
+                        .space()
+                        .text("<click:run_command:/company returns><add>[")
+                        .localeCode("words.receive")
+                        .text("]</click>");
                 messageSender.sendMessage(player, composer);
             }
         });
@@ -80,36 +80,44 @@ public class ItemReturnService implements Listener {
      * @param silent true to send no message when nothing is waiting
      */
     public void handOut(Player player, boolean silent) {
-        orderData.retrieveItemReturns(player.getUniqueId())
-                 .whenComplete(returns -> {
-                     if (returns.isEmpty()) {
-                         if (!silent) messageSender.sendMessage(player, "company.returns.none");
-                         return;
-                     }
-                     if (!player.isOnline()) return;
-                     var storage = Inventories.storageCopy(player);
-                     Map<ItemReturn, Integer> takes = new LinkedHashMap<>();
-                     for (var itemReturn : returns) {
-                         var fit = Inventories.fit(storage, itemReturn.stack(), itemReturn.amount());
-                         if (fit > 0) takes.put(itemReturn, fit);
-                     }
-                     var total = returns.stream().mapToInt(ItemReturn::amount).sum();
-                     if (takes.isEmpty()) {
-                         messageSender.sendMessage(player, "company.returns.remaining", Replacement.create("amount", total));
-                         return;
-                     }
-                     take(player, takes, total);
-                 }, err -> plugin.getLogger().log(Level.SEVERE, "Could not load item returns", err));
+        orderData
+                .retrieveItemReturns(player.getUniqueId())
+                .whenComplete(
+                        returns -> {
+                            if (returns.isEmpty()) {
+                                if (!silent) messageSender.sendMessage(player, "company.returns.none");
+                                return;
+                            }
+                            if (!player.isOnline()) return;
+                            var storage = Inventories.storageCopy(player);
+                            Map<ItemReturn, Integer> takes = new LinkedHashMap<>();
+                            for (var itemReturn : returns) {
+                                var fit = Inventories.fit(storage, itemReturn.stack(), itemReturn.amount());
+                                if (fit > 0) takes.put(itemReturn, fit);
+                            }
+                            var total = returns.stream()
+                                    .mapToInt(ItemReturn::amount)
+                                    .sum();
+                            if (takes.isEmpty()) {
+                                messageSender.sendMessage(
+                                        player, "company.returns.remaining", Replacement.create("amount", total));
+                                return;
+                            }
+                            take(player, takes, total);
+                        },
+                        err -> plugin.getLogger().log(Level.SEVERE, "Could not load item returns", err));
     }
 
     private void take(Player player, Map<ItemReturn, Integer> takes, int total) {
-        CompletableBukkitFuture.supplyAsync(() -> takes.entrySet()
-                                                        .stream()
-                                                        .filter(entry -> orderData.submitItemReturnTake(entry.getKey(), entry.getValue())
-                                                                                  .join())
-                                                        .toList(), VIRTUAL)
-                               .whenComplete(taken -> give(player, taken, total),
-                                       err -> plugin.getLogger().log(Level.SEVERE, "Could not take item returns", err));
+        CompletableBukkitFuture.supplyAsync(
+                        () -> takes.entrySet().stream()
+                                .filter(entry -> Boolean.TRUE.equals(orderData
+                                        .submitItemReturnTake(entry.getKey(), entry.getValue())
+                                        .join()))
+                                .toList(),
+                        VIRTUAL)
+                .whenComplete(taken -> give(player, taken, total), err -> plugin.getLogger()
+                        .log(Level.SEVERE, "Could not take item returns", err));
     }
 
     private void give(Player player, List<Map.Entry<ItemReturn, Integer>> taken, int total) {

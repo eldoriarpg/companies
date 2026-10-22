@@ -42,12 +42,20 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     private final Info info;
     private final MessageBlocker messageBlocker;
 
-    public Deliver(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Info info, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("deliver")
-                .addArgument("words.id", true)
-                .addArgument("words.material", true)
-                .addArgument("words.amount", true)
-                .build());
+    public Deliver(
+            Plugin plugin,
+            ACompanyData companyData,
+            AOrderData orderData,
+            Economy economy,
+            Info info,
+            MessageBlocker messageBlocker) {
+        super(
+                plugin,
+                CommandMeta.builder("deliver")
+                        .addArgument("words.id", true)
+                        .addArgument("words.material", true)
+                        .addArgument("words.amount", true)
+                        .build());
         this.orderData = orderData;
         this.economy = economy;
         this.companyData = companyData;
@@ -56,50 +64,50 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var id = arguments.asInt(0);
         var material = arguments.asMaterial(1);
         var amount = "max".equalsIgnoreCase(arguments.asString(2)) ? Integer.MAX_VALUE : arguments.asInt(2);
 
         CommandAssertions.range(amount, 1, Integer.MAX_VALUE);
 
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return Optional.empty();
-                   })
-                   .thenAccept(company -> {
-                       if (company.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       var optOrder = orderData.retrieveCompanyOrderById(id, company.get()
-                                                                                    .id())
-                                               .join();
-                       if (optOrder.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.unknownOrder");
-                           return;
-                       }
-                       if (optOrder.get().state() != OrderState.CLAIMED) {
-                           messageSender().sendErrorActionBar(player, "error.orderNotActive");
-                           return;
-                       }
-                       orderData.retrieveFullOrder(optOrder.get())
-                                .whenComplete(fullOrder -> {
-                                    // This part has to be synced to the mainthread
-                                    handleFullOrder(player, material, amount, company.get(), fullOrder);
-                                });
-                   })
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return null;
-                   });
+        companyData
+                .retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(company -> {
+                    if (company.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    var optOrder = orderData
+                            .retrieveCompanyOrderById(id, company.get().id())
+                            .join();
+                    if (optOrder == null || optOrder.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                        return;
+                    }
+                    if (optOrder.get().state() != OrderState.CLAIMED) {
+                        messageSender().sendErrorActionBar(player, "error.orderNotActive");
+                        return;
+                    }
+                    orderData.retrieveFullOrder(optOrder.get()).whenComplete(fullOrder -> {
+                        // This part has to be synced to the mainthread
+                        handleFullOrder(player, material, amount, company.get(), fullOrder);
+                    });
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
-    private void handleFullOrder(Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
+    private void handleFullOrder(
+            Player player, Material material, int amount, CompanyProfile company, FullOrder order) {
         if (!player.isOnline()) return;
         var optContent = order.content(material);
         if (optContent.isEmpty()) {
@@ -110,8 +118,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         var content = optContent.get();
         var deliver = Math.min(amount, content.missing());
         var inv = player.getInventory();
-        var slots = inv.all(content.stack()
-                                   .getType());
+        var slots = inv.all(content.stack().getType());
         var contained = 0;
         for (var entry : slots.entrySet()) {
             var stack = entry.getValue();
@@ -125,31 +132,28 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
         var removed = contained;
-        orderData.submitDelivery(player, order, material, removed)
-                 .asFuture()
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return 0;
-                 })
-                 .thenAcceptAsync(delivered -> giveBack(player, content.stack(), removed - delivered), Threading.mainThread(plugin()))
-                 .thenCompose(v -> orderData.retrieveFullOrder(order)
-                                            .asFuture())
-                 .thenAccept(refreshedOrder -> {
-                     if (refreshedOrder.isDone()) {
-                         messageBlocker.unblockPlayer(player)
-                                       .thenRun(() -> orderDone(refreshedOrder, company));
-                         return;
-                     }
-                     info.renderOrder(player, company.member(player)
-                                                     .get(), refreshedOrder);
-                 })
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return null;
-                 })
-        ;
+        orderData
+                .submitDelivery(player, order, material, removed)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return 0;
+                })
+                .thenAcceptAsync(
+                        delivered -> giveBack(player, content.stack(), removed - delivered),
+                        Threading.mainThread(plugin()))
+                .thenCompose(v -> orderData.retrieveFullOrder(order).asFuture())
+                .thenAccept(refreshedOrder -> {
+                    if (refreshedOrder.isDone()) {
+                        messageBlocker.unblockPlayer(player).thenRun(() -> orderDone(refreshedOrder, company));
+                        return;
+                    }
+                    info.renderOrder(player, company.member(player).get(), refreshedOrder);
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
     private void giveBack(Player player, ItemStack stack, int amount) {
@@ -162,34 +166,28 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void orderDone(FullOrder order, CompanyProfile profile) {
-        orderData.submitOrderDelivered(order)
-                 .asFuture()
-                 .thenAccept(delivered -> delivered.ifPresent(deliveredOrder -> {
-                     plugin().getServer()
-                             .getPluginManager()
-                             .callEvent(new OrderDoneEvent(deliveredOrder, profile));
-                     pay(deliveredOrder);
-                 }))
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return null;
-                 });
+        orderData
+                .submitOrderDelivered(order)
+                .asFuture()
+                .thenAccept(delivered -> delivered.ifPresent(deliveredOrder -> {
+                    plugin().getServer().getPluginManager().callEvent(new OrderDoneEvent(deliveredOrder, profile));
+                    pay(deliveredOrder);
+                }))
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
     private void pay(FullOrder order) {
         Map<OfflinePlayer, Double> payments = new HashMap<>();
         for (var entry : order.payments(PaymentType.STACK).entrySet()) {
-            var player = plugin().getServer()
-                                 .getOfflinePlayer(entry.getKey());
+            var player = plugin().getServer().getOfflinePlayer(entry.getKey());
             var event = new OrderPaymentEvent(order, player, entry.getValue());
-            plugin().getServer()
-                    .getPluginManager()
-                    .callEvent(event);
+            plugin().getServer().getPluginManager().callEvent(event);
             if (event.isCancelled()) continue;
             payments.put(player, entry.getValue());
         }
-        Threading.mainThread(plugin())
-                 .execute(() -> payments.forEach(economy::depositPlayer));
+        Threading.mainThread(plugin()).execute(() -> payments.forEach(economy::depositPlayer));
     }
 }

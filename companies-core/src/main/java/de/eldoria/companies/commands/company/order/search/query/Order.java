@@ -23,21 +23,24 @@ public class Order extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Order(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("order")
-                .addUnlocalizedArgument("asc|desc", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("order")
+                        .addUnlocalizedArgument("asc|desc", true)
+                        .build());
         this.query = query;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var asc = arguments.asBoolean(0, "asc", "desc");
-        query.getPlayerSearch(player)
-             .asc(asc);
+        query.getPlayerSearch(player).asc(asc);
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         return Completion.complete(arguments.asString(0), "desc", "asc");
     }
 }

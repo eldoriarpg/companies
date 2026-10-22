@@ -34,9 +34,7 @@ public class SqLiteCompanyData extends MariaDbCompanyData {
                     DELETE
                     FROM company_member
                     WHERE member_uuid = ?""";
-            query(query)
-                    .single(call().bind(member.uuid(), UUID_BYTES))
-                    .update();
+            query(query).single(call().bind(member.uuid(), UUID_BYTES)).update();
         } else {
             @Language("sqlite")
             var query = """
@@ -55,8 +53,8 @@ public class SqLiteCompanyData extends MariaDbCompanyData {
 
     @Override
     protected SimpleCompany parseCompany(Row rs) throws SQLException {
-        return new SimpleCompany(rs.getInt("id"), rs.getString("name"),
-                SqLiteAdapter.getTimestamp(rs, "founded"), rs.getInt("level"));
+        return new SimpleCompany(
+                rs.getInt("id"), rs.getString("name"), SqLiteAdapter.getTimestamp(rs, "founded"), rs.getInt("level"));
     }
 
     @Override
@@ -70,14 +68,17 @@ public class SqLiteCompanyData extends MariaDbCompanyData {
                         	(?, ?)
                         ON CONFLICT(id) DO UPDATE SET
                         	failed_orders = failed_orders + excluded.failed_orders""";
-        query(query)
-                .single(call().bind(company.id())
-                        .bind(amount))
-                .update();
+        query(query).single(call().bind(company.id()).bind(amount)).update();
     }
 
     protected CompanyStats parseCompanyStats(Row rs) throws SQLException {
-        return new CompanyStats(rs.getInt("id"), rs.getString("name"), SqLiteAdapter.getTimestamp(rs, "founded"),
-                rs.getInt("member_count"), rs.getInt("order_count"), rs.getDouble("price"), rs.getInt("amount"));
+        return new CompanyStats(
+                rs.getInt("id"),
+                rs.getString("name"),
+                SqLiteAdapter.getTimestamp(rs, "founded"),
+                rs.getInt("member_count"),
+                rs.getInt("order_count"),
+                rs.getDouble("price"),
+                rs.getInt("amount"));
     }
 }

@@ -28,10 +28,13 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final Configuration configuration;
     private final MessageBlocker messageBlocker;
 
-    public Info(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("info")
-                .addArgument("id", true)
-                .build());
+    public Info(
+            Plugin plugin,
+            AOrderData orderData,
+            Economy economy,
+            Configuration configuration,
+            MessageBlocker messageBlocker) {
+        super(plugin, CommandMeta.builder("info").addArgument("id", true).build());
         this.orderData = orderData;
         this.economy = economy;
         this.configuration = configuration;
@@ -39,31 +42,35 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args)
+            throws CommandException {
         var id = args.asInt(0);
 
-        orderData.retrieveOrderById(id)
-                 .asFuture()
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return Optional.empty();
-                 })
-                 .thenAccept((order) -> {
-                     if (order.isPresent() && order.get().owner().equals(player.getUniqueId())) {
-                         messageBlocker.blockPlayer(player);
-                         var fullOrder = orderData.retrieveFullOrder(order.get())
-                                                  .join();
-                         var builder = fullOrder.userDetailInfo(economy, configuration);
-                         if (messageBlocker.isBlocked(player)) {
-                             builder.newLine()
+        orderData
+                .retrieveOrderById(id)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept((order) -> {
+                    if (order.isPresent() && order.get().owner().equals(player.getUniqueId())) {
+                        var fullOrder = orderData.retrieveFullOrder(order.get()).join();
+                        if (fullOrder == null) {
+                            messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                            return;
+                        }
+                        messageBlocker.blockPlayer(player);
+                        var builder = fullOrder.userDetailInfo(economy, configuration);
+                        if (messageBlocker.isBlocked(player)) {
+                            builder.newLine()
                                     .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                         }
-                         builder.prependLines(25);
-                         Menus.show(messageBlocker, player, builder);
-                         return;
-                     }
-                     messageSender().sendErrorActionBar(player, "error.unknownOrder");
-                 });
+                        }
+                        builder.prependLines(25);
+                        Menus.show(messageBlocker, player, builder);
+                        return;
+                    }
+                    messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                });
     }
 }

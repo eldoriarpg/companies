@@ -43,8 +43,13 @@ public class ExpiringService implements Runnable, Listener {
     private final ItemReturnService itemReturnService;
     private final Economy economy;
 
-    public ExpiringService(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
-                           ItemReturnService itemReturnService, Economy economy) {
+    public ExpiringService(
+            Plugin plugin,
+            AOrderData orderData,
+            ACompanyData companyData,
+            Configuration configuration,
+            ItemReturnService itemReturnService,
+            Economy economy) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
@@ -82,28 +87,30 @@ public class ExpiringService implements Runnable, Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         var player = event.getPlayer();
-        companyData.retrievePlayerCompany(player)
-                   .whenComplete(optCompany -> optCompany.ifPresent(company ->
-                           orderData.retrieveOrdersByCompany(company, OrderState.CLAIMED, OrderState.CLAIMED)
-                                    .whenComplete(orders -> reportOrderExpiring(player, expiringOrders(orders)))));
+        companyData
+                .retrievePlayerCompany(player)
+                .whenComplete(optCompany -> optCompany.ifPresent(company -> orderData
+                        .retrieveOrdersByCompany(company, OrderState.CLAIMED, OrderState.CLAIMED)
+                        .whenComplete(orders -> reportOrderExpiring(player, expiringOrders(orders)))));
     }
 
     private List<SimpleOrder> expiringOrders(List<SimpleOrder> orders) {
         var settings = configuration.companySettings();
         var now = LocalDateTime.now();
         return orders.stream()
-                     .filter(order -> expiresSoon(order.claimed(), now, settings.deliveryHours(), settings.expiryWarningHours()))
-                     .toList();
+                .filter(order ->
+                        expiresSoon(order.claimed(), now, settings.deliveryHours(), settings.expiryWarningHours()))
+                .toList();
     }
 
     private void reportOrderExpiring(Player player, List<SimpleOrder> orders) {
         if (orders.isEmpty() || !player.isOnline()) return;
-        var composer = MessageComposer.create()
-                                      .localeCode("expiring.notice")
-                                      .newLine();
+        var composer = MessageComposer.create().localeCode("expiring.notice").newLine();
         for (var order : orders) {
-            composer.localeCode("expiring.element",
-                            Replacement.unparsed("name", order.fullName()), Replacement.create("duration", order.runningOutTime(configuration)))
+            composer.localeCode(
+                            "expiring.element",
+                            Replacement.unparsed("name", order.fullName()),
+                            Replacement.create("duration", order.runningOutTime(configuration)))
                     .text("<click:run_command:/company order info %s>[", order.id())
                     .localeCode("words.info")
                     .text("]</click>")
@@ -127,50 +134,45 @@ public class ExpiringService implements Runnable, Listener {
     }
 
     private void releaseExpiredOrders() {
-        var expired = orderData.retrieveExpiredOrders(configuration.companySettings()
-                                                                   .deliveryHours())
-                               .join();
+        var expired = orderData
+                .retrieveExpiredOrders(configuration.companySettings().deliveryHours())
+                .join();
 
         for (var order : expired) {
-            var workers = orderData.submitUnclaimOrder(order)
-                                   .join();
-            if (workers.isEmpty()) continue;
+            var workers = orderData.submitUnclaimOrder(order).join();
+            if (workers == null || workers.isEmpty()) continue;
             itemReturnService.notifyWorkers(workers.get());
-            var profile = companyData.retrieveCompanyById(order.company())
-                                     .asFuture()
-                                     .exceptionally(err -> {
-                                         plugin.getLogger()
-                                               .log(Level.SEVERE, "Something went wrong", err);
-                                         return Optional.empty();
-                                     })
-                                     .thenApply(r -> r.flatMap(p -> companyData.retrieveCompanyProfile(p).join()))
-                                     .join();
+            var profile = companyData
+                    .retrieveCompanyById(order.company())
+                    .asFuture()
+                    .exceptionally(err -> {
+                        plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
+                        return Optional.empty();
+                    })
+                    .thenApply(r ->
+                            r.flatMap(p -> companyData.retrieveCompanyProfile(p).join()))
+                    .join();
             if (profile.isEmpty()) continue;
-            plugin.getServer()
-                  .getPluginManager()
-                  .callEvent(new OrderExpiredEvent(order, profile.get()));
+            plugin.getServer().getPluginManager().callEvent(new OrderExpiredEvent(order, profile.get()));
         }
     }
 
     private void purgeDeadOrders() {
-        var expired = orderData.retrieveDeadOrders(configuration.orderSetting()
-                                                                .maxUnclaimedHours())
-                               .join();
+        var expired = orderData
+                .retrieveDeadOrders(configuration.orderSetting().maxUnclaimedHours())
+                .join();
 
         for (var order : expired) {
-            var fullOrder = orderData.retrieveFullOrder(order)
-                                     .join();
-            if (!orderData.submitOrderPurge(order)
-                          .join()) {
+            var fullOrder = orderData.retrieveFullOrder(order).join();
+            if (fullOrder == null) {
                 continue;
             }
-            var owner = plugin.getServer()
-                              .getOfflinePlayer(order.owner());
-            Threading.mainThread(plugin)
-                     .execute(() -> economy.depositPlayer(owner, fullOrder.price()));
-            plugin.getServer()
-                  .getPluginManager()
-                  .callEvent(new OrderRemovedEvent(order));
+            if (!Boolean.TRUE.equals(orderData.submitOrderPurge(order).join())) {
+                continue;
+            }
+            var owner = plugin.getServer().getOfflinePlayer(order.owner());
+            Threading.mainThread(plugin).execute(() -> economy.depositPlayer(owner, fullOrder.price()));
+            plugin.getServer().getPluginManager().callEvent(new OrderRemovedEvent(order));
         }
     }
 }

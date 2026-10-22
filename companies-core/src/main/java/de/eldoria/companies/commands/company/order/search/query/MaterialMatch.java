@@ -24,23 +24,25 @@ public class MaterialMatch extends AdvancedCommand implements IPlayerTabExecutor
     private final Query query;
 
     public MaterialMatch(Plugin plugin, Query query) {
-        super(plugin, CommandMeta
-                .builder("material_match")
-                .addUnlocalizedArgument("exact|type", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("material_match")
+                        .addUnlocalizedArgument("exact|type", true)
+                        .build());
         this.query = query;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var matchType = arguments.asString(0);
         CommandAssertions.isTrue(Completion.isCommand(matchType, "exact", "part"), "error.invalidMatchType");
-        query.getPlayerSearch(player)
-             .exactMatch("exact".equalsIgnoreCase(arguments.asString(0)));
+        query.getPlayerSearch(player).exactMatch("exact".equalsIgnoreCase(arguments.asString(0)));
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         return Completion.complete(arguments.asString(0), "exact", "part");
     }
 }

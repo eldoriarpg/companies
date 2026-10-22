@@ -24,28 +24,29 @@ public class Price extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Price(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("min_price")
-                .addAlias("max_price")
-                .addArgument("words.price", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("min_price")
+                        .addAlias("max_price")
+                        .addArgument("words.price", true)
+                        .build());
         this.query = query;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         if ("min_price".equalsIgnoreCase(label)) {
-            query.getPlayerSearch(player)
-                 .minPrice(arguments.asDouble(0));
+            query.getPlayerSearch(player).minPrice(arguments.asDouble(0));
             return;
         }
-        query.getPlayerSearch(player)
-             .maxPrice(arguments.asDouble(0));
+        query.getPlayerSearch(player).maxPrice(arguments.asDouble(0));
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        if (arguments.asString(0)
-                     .isEmpty()) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        if (arguments.asString(0).isEmpty()) {
             return Collections.singletonList(localizer().localize("words.price"));
         }
         return Completion.completeMinDouble(arguments.asString(0), 1.0);

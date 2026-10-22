@@ -26,46 +26,44 @@ public class Move extends AdvancedCommand implements IPlayerTabExecutor {
     private final List list;
 
     public Move(Plugin plugin, Configuration configuration, List list) {
-        super(plugin, CommandMeta.builder("move")
-                .addArgument("words.source", true)
-                .addArgument("words.target", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("move")
+                        .addArgument("words.source", true)
+                        .addArgument("words.target", true)
+                        .build());
         this.configuration = configuration;
         this.list = list;
     }
 
     @Override
-    public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments args)
+            throws CommandException {
         CommandAssertions.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
-        var optLevel = configuration.companySettings()
-                                    .level(args.asInt(0));
+        var optLevel = configuration.companySettings().level(args.asInt(0));
         CommandAssertions.isTrue(optLevel.isPresent(), "error.invalidLevel");
-        configuration.companySettings()
-                     .moveLevel(args.asInt(0), args.asInt(1));
+        configuration.companySettings().moveLevel(args.asInt(0), args.asInt(1));
         configuration.save();
         list.sendList(sender);
     }
 
     @Override
-    public java.util.@Nullable List<String> onTabComplete(@NotNull Player sender, @NotNull String alias, @NotNull Arguments args) {
+    public java.util.@Nullable List<String> onTabComplete(
+            @NotNull Player sender, @NotNull String alias, @NotNull Arguments args) {
         if (args.sizeIs(1)) {
-            if (args.asString(0)
-                    .isEmpty()) {
+            if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.source"));
             }
-            return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
-                                                                            .level()
-                                                                            .size());
+            return Completion.completeInt(
+                    args.asString(0), 1, configuration.companySettings().level().size());
         }
 
         if (args.sizeIs(2)) {
-            if (args.asString(0)
-                    .isEmpty()) {
+            if (args.asString(0).isEmpty()) {
                 return Collections.singletonList(localizer().localize("words.target"));
             }
-            return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
-                                                                            .level()
-                                                                            .size());
+            return Completion.completeInt(
+                    args.asString(0), 1, configuration.companySettings().level().size());
         }
         return Collections.emptyList();
     }

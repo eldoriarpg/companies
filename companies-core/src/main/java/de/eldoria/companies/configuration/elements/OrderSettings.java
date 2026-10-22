@@ -11,8 +11,7 @@ public class OrderSettings {
     private int maxMaterials = 5;
     private int maxUnclaimedHours = 24 * 7;
 
-    public OrderSettings() {
-    }
+    public OrderSettings() {}
 
     public int maxItems() {
         return maxItems;

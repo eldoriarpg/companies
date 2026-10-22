@@ -29,9 +29,7 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                     DELETE
                     FROM company_member
                     WHERE member_uuid = ?""";
-            query(query)
-                    .single(call().bind(member.uuid(), UUID_BYTES))
-                    .update();
+            query(query).single(call().bind(member.uuid(), UUID_BYTES)).update();
         } else {
             @Language("postgresql")
             var query = """
@@ -57,9 +55,6 @@ public class PostgresCompanyData extends MariaDbCompanyData {
                 INTO company_stats(id, failed_orders)
                 VALUES (?, ?)
                 ON CONFLICT(id) DO UPDATE SET failed_orders = company_stats.failed_orders + excluded.failed_orders""";
-        query(query)
-                .single(call().bind(company.id())
-                        .bind(amount))
-                .update();
+        query(query).single(call().bind(company.id()).bind(amount)).update();
     }
 }

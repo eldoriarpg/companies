@@ -26,8 +26,13 @@ public class Search extends AdvancedCommand {
     private final Page page;
     private final Map<UUID, List<FullOrder>> results = new HashMap<>();
 
-    public Search(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration, Economy economy,
-                  MessageBlocker messageBlocker) {
+    public Search(
+            Plugin plugin,
+            AOrderData orderData,
+            ACompanyData companyData,
+            Configuration configuration,
+            Economy economy,
+            MessageBlocker messageBlocker) {
         super(plugin);
         page = new Page(plugin, this, economy, messageBlocker);
         var meta = CommandMeta.builder("search")

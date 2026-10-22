@@ -58,14 +58,12 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
 
     @Override
     public @NotNull String getAuthor() {
-        return String.join(", ", companies.getPluginMeta()
-                                          .getAuthors());
+        return String.join(", ", companies.getPluginMeta().getAuthors());
     }
 
     @Override
     public @NotNull String getVersion() {
-        return companies.getPluginMeta()
-                        .getVersion();
+        return companies.getPluginMeta().getVersion();
     }
 
     @Override
@@ -76,23 +74,22 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
     @Override
     public String onRequest(OfflinePlayer player, @NotNull String params) {
         if ("company_name".equalsIgnoreCase(params)) {
-            return getCompanyCache(player).map(CompanyCacheData::name)
-                                          .orElse("");
+            return getCompanyCache(player).map(CompanyCacheData::name).orElse("");
         }
 
         if ("company_size".equalsIgnoreCase(params)) {
-            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::size)
-                                                         .orElse(0));
+            return String.valueOf(
+                    getCompanyCache(player).map(CompanyCacheData::size).orElse(0));
         }
 
         if ("company_level".equalsIgnoreCase(params)) {
-            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::level)
-                                                         .orElse(0));
+            return String.valueOf(
+                    getCompanyCache(player).map(CompanyCacheData::level).orElse(0));
         }
 
         if ("active_orders".equalsIgnoreCase(params)) {
-            return String.valueOf(getCompanyCache(player).map(CompanyCacheData::orderCount)
-                                                         .orElse(0));
+            return String.valueOf(
+                    getCompanyCache(player).map(CompanyCacheData::orderCount).orElse(0));
         }
         return null;
     }
@@ -109,78 +106,74 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
     }
 
     private void refreshPlayerCache(OfflinePlayer player) {
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .thenAccept(company -> {
-                       if (company.isEmpty()) {
-                           companyGraph.remove(player.getUniqueId());
-                           return;
-                       }
-                       companyGraph.put(player.getUniqueId(), company.get()
-                                                                     .id());
-                       refreshCompanyCache(company.get());
-                   });
+        companyData.retrievePlayerCompanyProfile(player).asFuture().thenAccept(company -> {
+            if (company.isEmpty()) {
+                companyGraph.remove(player.getUniqueId());
+                return;
+            }
+            companyGraph.put(player.getUniqueId(), company.get().id());
+            refreshCompanyCache(company.get());
+        });
     }
 
     private void refreshCompanyCache(ICompanyProfile profile) {
-        orderData.retrieveCompanyOrderCount(profile)
-                 .asFuture()
-                 .thenAccept(orders -> companyCache.put(profile.id(), new CompanyCacheData(profile.name(), profile.level(), profile.members()
-                                                                                                                               .size(), orders)));
-
+        orderData
+                .retrieveCompanyOrderCount(profile)
+                .asFuture()
+                .thenAccept(orders -> companyCache.put(
+                        profile.id(),
+                        new CompanyCacheData(
+                                profile.name(),
+                                profile.level(),
+                                profile.members().size(),
+                                orders)));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        companyGraph.remove(event.getPlayer()
-                                 .getUniqueId());
+        companyGraph.remove(event.getPlayer().getUniqueId());
     }
 
     /**
      * Refreshes the cache of all online players periodically.
      */
     public void startRefreshing() {
-        companies.getServer()
-                 .getScheduler()
-                 .runTaskTimer(companies, () -> companies.getServer()
-                                                         .getOnlinePlayers()
-                                                         .forEach(this::refreshPlayerCache), REFRESH_INTERVAL, REFRESH_INTERVAL);
+        companies
+                .getServer()
+                .getScheduler()
+                .runTaskTimer(
+                        companies,
+                        () -> companies.getServer().getOnlinePlayers().forEach(this::refreshPlayerCache),
+                        REFRESH_INTERVAL,
+                        REFRESH_INTERVAL);
     }
 
     @EventHandler
     public void onCompanyJoin(CompanyJoinEvent event) {
-        companyGraph.put(event.player()
-                              .getUniqueId(), event.company()
-                                                   .id());
+        companyGraph.put(event.player().getUniqueId(), event.company().id());
         loadAndRefreshCompanyCache(event.company());
     }
 
     private void loadAndRefreshCompanyCache(ICompanyProfile profile) {
-        companyData.retrieveCompanyProfile(profile)
-                   .asFuture()
-                   .thenAccept(newProfile -> {
-                       if (newProfile.isEmpty()) {
-                           companyCache.remove(profile.id());
-                           return;
-                       }
-                       refreshCompanyCache(newProfile.get());
-                   });
+        companyData.retrieveCompanyProfile(profile).asFuture().thenAccept(newProfile -> {
+            if (newProfile.isEmpty()) {
+                companyCache.remove(profile.id());
+                return;
+            }
+            refreshCompanyCache(newProfile.get());
+        });
     }
 
     @EventHandler
     public void onCompanyLeave(CompanyLeaveEvent event) {
-        companyGraph.remove(event.player()
-                                 .getUniqueId());
+        companyGraph.remove(event.player().getUniqueId());
         loadAndRefreshCompanyCache(event.company());
     }
 
     @EventHandler
     public void onCompanyDisband(CompanyDisbandEvent event) {
-        companyCache.remove(event.company()
-                                 .id());
-        companyGraph.values()
-                    .removeIf(id -> id == event.company()
-                                               .id());
+        companyCache.remove(event.company().id());
+        companyGraph.values().removeIf(id -> id == event.company().id());
     }
 
     @EventHandler
@@ -213,6 +206,5 @@ public class PlaceholderService extends PlaceholderExpansion implements Listener
         loadAndRefreshCompanyCache(event.company());
     }
 
-    private record CompanyCacheData(String name, int level, int size, int orderCount) {
-    }
+    private record CompanyCacheData(String name, int level, int size, int orderCount) {}
 }

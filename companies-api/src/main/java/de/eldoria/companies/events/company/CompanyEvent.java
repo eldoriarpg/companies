@@ -37,5 +37,4 @@ public abstract class CompanyEvent<Company extends ISimpleCompany> extends Event
     public Company company() {
         return company;
     }
-
 }

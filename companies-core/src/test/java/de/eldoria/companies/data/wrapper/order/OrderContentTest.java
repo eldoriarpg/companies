@@ -40,13 +40,21 @@ class OrderContentTest {
     }
 
     private FullOrder order(OrderContent... contents) {
-        return new FullOrder(1, UUID.randomUUID(), "order", LocalDateTime.now(), 1, LocalDateTime.now(), OrderState.CLAIMED,
+        return new FullOrder(
+                1,
+                UUID.randomUUID(),
+                "order",
+                LocalDateTime.now(),
+                1,
+                LocalDateTime.now(),
+                OrderState.CLAIMED,
                 List.of(contents));
     }
 
     @Test
     void paymentsSumPartsOfTheSameWorker() {
-        var content = content(10, 100.0, new ContentPart(first, 3), new ContentPart(first, 2), new ContentPart(second, 5));
+        var content =
+                content(10, 100.0, new ContentPart(first, 3), new ContentPart(first, 2), new ContentPart(second, 5));
 
         var payments = content.payments();
 
@@ -57,7 +65,8 @@ class OrderContentTest {
 
     @Test
     void totalPaymentsSumPartsOfTheSameWorker() {
-        var order = order(content(10, 100.0, new ContentPart(first, 3), new ContentPart(first, 7)),
+        var order = order(
+                content(10, 100.0, new ContentPart(first, 3), new ContentPart(first, 7)),
                 content(10, 50.0, new ContentPart(second, 10)));
 
         var payments = order.payments(PaymentType.TOTAL);
@@ -68,16 +77,24 @@ class OrderContentTest {
 
     @Test
     void orderIsDoneWhenAllItemsAreDelivered() {
-        Assertions.assertFalse(order(content(10, 1.0, new ContentPart(first, 9))).isDone());
-        Assertions.assertTrue(order(content(10, 1.0, new ContentPart(first, 10))).isDone());
-        Assertions.assertTrue(order(content(10, 1.0, new ContentPart(first, 6), new ContentPart(second, 6))).isDone());
+        Assertions.assertFalse(
+                order(content(10, 1.0, new ContentPart(first, 9))).isDone());
+        Assertions.assertTrue(
+                order(content(10, 1.0, new ContentPart(first, 10))).isDone());
+        Assertions.assertTrue(order(content(10, 1.0, new ContentPart(first, 6), new ContentPart(second, 6)))
+                .isDone());
     }
 
     @Test
     void progressIsTheDeliveredShare() {
         Assertions.assertEquals(0.0, order(content(10, 1.0)).progress(), 0.0001);
-        Assertions.assertEquals(0.25, order(content(10, 1.0, new ContentPart(first, 2)), content(10, 1.0, new ContentPart(second, 3))).progress(), 0.0001);
-        Assertions.assertEquals(1.0, order(content(10, 1.0, new ContentPart(first, 10))).progress(), 0.0001);
+        Assertions.assertEquals(
+                0.25,
+                order(content(10, 1.0, new ContentPart(first, 2)), content(10, 1.0, new ContentPart(second, 3)))
+                        .progress(),
+                0.0001);
+        Assertions.assertEquals(
+                1.0, order(content(10, 1.0, new ContentPart(first, 10))).progress(), 0.0001);
     }
 
     @Test

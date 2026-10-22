@@ -25,37 +25,33 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Receive(Plugin plugin, AOrderData orderData, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("receive")
-                .addArgument("id", true)
-                .build());
+        super(plugin, CommandMeta.builder("receive").addArgument("id", true).build());
         this.orderData = orderData;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var id = arguments.asInt(0);
 
-        orderData.retrieveOrderById(id)
-                 .whenComplete(optOrder -> {
-                     if (optOrder.isEmpty()) {
-                         messageSender().sendErrorActionBar(player, "error.unknownOrder");
-                         return;
-                     }
+        orderData.retrieveOrderById(id).whenComplete(optOrder -> {
+            if (optOrder.isEmpty()) {
+                messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                return;
+            }
 
-                     var simpleOrder = optOrder.get();
-                     if (!simpleOrder.owner()
-                                     .equals(player.getUniqueId())) {
-                         messageSender().sendError(player, "error.notYourOrder");
-                         return;
-                     }
-                     if (simpleOrder.state() != OrderState.DELIVERED) {
-                         messageSender().sendError(player, "error.orderNotDelivered");
-                         return;
-                     }
-                     orderData.retrieveFullOrder(optOrder.get())
-                              .whenComplete(fullOrder -> receive(player, fullOrder));
-                 });
+            var simpleOrder = optOrder.get();
+            if (!simpleOrder.owner().equals(player.getUniqueId())) {
+                messageSender().sendError(player, "error.notYourOrder");
+                return;
+            }
+            if (simpleOrder.state() != OrderState.DELIVERED) {
+                messageSender().sendError(player, "error.orderNotDelivered");
+                return;
+            }
+            orderData.retrieveFullOrder(optOrder.get()).whenComplete(fullOrder -> receive(player, fullOrder));
+        });
     }
 
     private void receive(Player player, FullOrder order) {
@@ -63,27 +59,28 @@ public class Receive extends AdvancedCommand implements IPlayerTabExecutor {
         var stacks = order.createStacks();
         var storage = Inventories.storageCopy(player);
         var fits = stacks.stream()
-                         .allMatch(stack -> Inventories.fit(storage, stack, stack.getAmount()) == stack.getAmount());
+                .allMatch(stack -> Inventories.fit(storage, stack, stack.getAmount()) == stack.getAmount());
         if (!fits) {
-            messageSender().sendError(player, "order.receive.inventoryFull",
-                    Replacement.create("amount", stacks.size()));
+            messageSender()
+                    .sendError(player, "order.receive.inventoryFull", Replacement.create("amount", stacks.size()));
             return;
         }
-        orderData.submitOrderStateUpdate(order, OrderState.DELIVERED, OrderState.RECEIVED)
-                 .whenComplete(received -> {
-                     if (!received) {
-                         messageSender().sendError(player, "error.orderNotDelivered");
-                         return;
-                     }
-                     if (!player.isOnline()) {
-                         for (var content : order.contents()) {
-                             orderData.submitItemReturn(player.getUniqueId(), content.stack(), content.amount());
-                         }
-                         return;
-                     }
-                     Inventories.give(player, stacks);
-                     messageBlocker.unblockPlayer(player)
-                                   .thenRun(() -> messageSender().sendMessage(player, "order.receive.received"));
-                 });
+        orderData
+                .submitOrderStateUpdate(order, OrderState.DELIVERED, OrderState.RECEIVED)
+                .whenComplete(received -> {
+                    if (!received) {
+                        messageSender().sendError(player, "error.orderNotDelivered");
+                        return;
+                    }
+                    if (!player.isOnline()) {
+                        for (var content : order.contents()) {
+                            orderData.submitItemReturn(player.getUniqueId(), content.stack(), content.amount());
+                        }
+                        return;
+                    }
+                    Inventories.give(player, stacks);
+                    messageBlocker.unblockPlayer(player).thenRun(() -> messageSender()
+                            .sendMessage(player, "order.receive.received"));
+                });
     }
 }

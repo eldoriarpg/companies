@@ -115,12 +115,12 @@ public class SearchQuery {
         if (materials.isEmpty()) return ".*";
         if (anyMaterial) {
             return materials.stream()
-                            .map(mat -> "(" + regexMat(mat, wordBoundary) + ")")
-                            .collect(Collectors.joining("|"));
+                    .map(mat -> "(" + regexMat(mat, wordBoundary) + ")")
+                    .collect(Collectors.joining("|"));
         }
         return materials.stream()
-                        .map(mat -> "(?=.*" + regexMat(mat, wordBoundary) + ")")
-                        .collect(Collectors.joining(""));
+                .map(mat -> "(?=.*" + regexMat(mat, wordBoundary) + ")")
+                .collect(Collectors.joining(""));
     }
 
     private String regexMat(String mat, String wordBoundary) {
@@ -149,28 +149,28 @@ public class SearchQuery {
     public String asComponent() {
         var queryCmd = "/company order search query";
         var composer = MessageComposer.create()
-                                      .text("<heading>")
-                                      .localeCode("company.order.search.query.searchQuery.searchSetting")
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.name")
-                                      .text(": %s", name().isBlank() ? "_____" : Texts.escape(name()))
-                                      .text("<click:suggest_command:%s name ><gold>[", queryCmd)
-                                      .localeCode("words.change")
-                                      .text("]</click>")
-                                      .text("<click:run_command:%s name><red>[", queryCmd)
-                                      .localeCode("words.clear")
-                                      .text("]</click>")
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.materials")
-                                      .text(": <click:suggest_command:%s material_add ><green>[", queryCmd)
-                                      .localeCode("words.add")
-                                      .text("]</click>")
-                                      .text("<click:run_command:%s material_remove><red>[", queryCmd)
-                                      .localeCode("words.clear")
-                                      .text("]</click>")
-                                      .newLine();
+                .text("<heading>")
+                .localeCode("company.order.search.query.searchQuery.searchSetting")
+                .newLine()
+                .text("<name>")
+                .localeCode("words.name")
+                .text(": %s", name().isBlank() ? "_____" : Texts.escape(name()))
+                .text("<click:suggest_command:%s name ><gold>[", queryCmd)
+                .localeCode("words.change")
+                .text("]</click>")
+                .text("<click:run_command:%s name><red>[", queryCmd)
+                .localeCode("words.clear")
+                .text("]</click>")
+                .newLine()
+                .text("<name>")
+                .localeCode("words.materials")
+                .text(": <click:suggest_command:%s material_add ><green>[", queryCmd)
+                .localeCode("words.add")
+                .text("]</click>")
+                .text("<click:run_command:%s material_remove><red>[", queryCmd)
+                .localeCode("words.clear")
+                .text("]</click>")
+                .newLine();
         for (var material : materials) {
             composer.space(2)
                     .text("<value>%s", material)
@@ -247,7 +247,9 @@ public class SearchQuery {
                 .newLine();
         for (var sort : SortingType.values()) {
             composer.space(2)
-                    .text("<click:run_command:%s sorting %s><%s>[", queryCmd, sort.name(), Colors.active(sort == sortingType))
+                    .text(
+                            "<click:run_command:%s sorting %s><%s>[",
+                            queryCmd, sort.name(), Colors.active(sort == sortingType))
                     .localeCode(sort.translationKey())
                     .text("]</click>");
         }

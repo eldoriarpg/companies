@@ -18,7 +18,12 @@ import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.plugin.Plugin;
 
 public class Profile extends AdvancedCommand {
-    public Profile(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration, MessageBlocker messageBlocker) {
+    public Profile(
+            Plugin plugin,
+            ACompanyData companyData,
+            AOrderData orderData,
+            Configuration configuration,
+            MessageBlocker messageBlocker) {
         super(plugin);
         var self = new Self(plugin, companyData, orderData, configuration, messageBlocker);
         var meta = CommandMeta.builder("profile")

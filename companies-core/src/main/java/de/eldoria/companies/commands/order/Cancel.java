@@ -28,60 +28,63 @@ public class Cancel extends AdvancedCommand implements IPlayerTabExecutor {
     private final List list;
 
     public Cancel(Plugin plugin, AOrderData orderData, Economy economy, List list) {
-        super(plugin, new CommandMetaBuilder("cancel")
-                .addArgument("words.id", true)
-                .build());
+        super(
+                plugin,
+                new CommandMetaBuilder("cancel").addArgument("words.id", true).build());
         this.orderData = orderData;
         this.economy = economy;
         this.list = list;
     }
 
     @Override
-    public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var id = arguments.asInt(0);
 
-        orderData.retrieveOrderById(id)
-                 .asFuture()
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return Optional.empty();
-                 })
-                 .thenAccept(optOrder -> {
-                     if (optOrder.isEmpty()) {
-                         messageSender().sendErrorActionBar(sender, "error.unknownOrder");
-                         return;
-                     }
+        orderData
+                .retrieveOrderById(id)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optOrder -> {
+                    if (optOrder.isEmpty()) {
+                        messageSender().sendErrorActionBar(sender, "error.unknownOrder");
+                        return;
+                    }
 
-                     var simpleOrder = optOrder.get();
-                     var player = getPlayerFromSender(sender);
-                     if (!simpleOrder.owner()
-                                     .equals(player.getUniqueId())) {
-                         messageSender().sendError(sender, "error.notYourOrder");
-                         return;
-                     }
-                     if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                         messageSender().sendError(sender, "error.orderAlreadyClaimed");
-                         return;
-                     }
+                    var simpleOrder = optOrder.get();
+                    var player = getPlayerFromSender(sender);
+                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
+                        messageSender().sendError(sender, "error.notYourOrder");
+                        return;
+                    }
+                    if (simpleOrder.state() != OrderState.UNCLAIMED) {
+                        messageSender().sendError(sender, "error.orderAlreadyClaimed");
+                        return;
+                    }
 
-                     var fullOrder = orderData.retrieveFullOrder(optOrder.get())
-                                              .join();
-                     if (!orderData.submitOrderDeletion(fullOrder)
-                                   .join()) {
-                         messageSender().sendError(sender, "error.orderAlreadyClaimed");
-                         return;
-                     }
-                     Threading.mainThread(plugin())
-                              .execute(() -> economy.depositPlayer(player, fullOrder.price()));
-                     list.showOrders(player, () -> messageSender().sendMessage(sender, "order.cancel.canceled",
-                             Replacement.create("money", economy.format(fullOrder.price()))));
-                 })
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return null;
-                 })
-        ;
+                    var fullOrder = orderData.retrieveFullOrder(optOrder.get()).join();
+                    if (fullOrder == null) {
+                        messageSender().sendErrorActionBar(sender, "error.unknownOrder");
+                        return;
+                    }
+                    if (!Boolean.TRUE.equals(
+                            orderData.submitOrderDeletion(fullOrder).join())) {
+                        messageSender().sendError(sender, "error.orderAlreadyClaimed");
+                        return;
+                    }
+                    Threading.mainThread(plugin()).execute(() -> economy.depositPlayer(player, fullOrder.price()));
+                    list.showOrders(player, () -> messageSender()
+                            .sendMessage(
+                                    sender,
+                                    "order.cancel.canceled",
+                                    Replacement.create("money", economy.format(fullOrder.price()))));
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 }

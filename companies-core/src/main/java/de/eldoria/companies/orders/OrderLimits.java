@@ -42,7 +42,7 @@ public class OrderLimits {
      */
     public int limit(Player player) {
         return Permission.Orders.getOrderOverride(player)
-                                .orElse(userSettings.get().maxOrders());
+                .orElse(userSettings.get().maxOrders());
     }
 
     /**
@@ -55,9 +55,8 @@ public class OrderLimits {
      */
     public BukkitFutureResult<Usage> usage(Player player) {
         var limit = limit(player);
-        return BukkitFutureResult.of(orderData.retrievePlayerOrderCount(player)
-                                              .asFuture()
-                                              .thenApply(active -> new Usage(active, limit)));
+        return BukkitFutureResult.of(
+                orderData.retrievePlayerOrderCount(player).asFuture().thenApply(active -> new Usage(active, limit)));
     }
 
     /**

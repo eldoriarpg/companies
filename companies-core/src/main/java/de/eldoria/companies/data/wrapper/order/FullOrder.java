@@ -29,31 +29,38 @@ import java.util.UUID;
 public class FullOrder extends SimpleOrder implements de.eldoria.companies.components.order.IFullOrder {
     private final List<OrderContent> contents;
 
-    public FullOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed,
-                     OrderState state, List<OrderContent> contents) {
+    public FullOrder(
+            int id,
+            UUID owner,
+            String name,
+            LocalDateTime created,
+            int company,
+            LocalDateTime claimed,
+            OrderState state,
+            List<OrderContent> contents) {
         super(id, owner, name, created, company, claimed, state);
         this.contents = contents;
     }
 
     public String userShortInfo(Economy economy) {
         return MessageComposer.create()
-                              .text("<hover:show_text:'%s", userContent(economy))
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("words.status")
-                              .text(": <value>")
-                              .localeCode(state().translationKey())
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("words.price")
-                              .text(": <value>%s'>", economy.format(price()))
-                              .text(" <name>%s | <value>%s", id(), Texts.escape(name()))
-                              .text("</hover>")
-                              .space()
-                              .text("<click:run_command:/order info %s><add>[", id())
-                              .localeCode("words.info")
-                              .text("]</click>")
-                              .build();
+                .text("<hover:show_text:'%s", userContent(economy))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.status")
+                .text(": <value>")
+                .localeCode(state().translationKey())
+                .newLine()
+                .text("<name>")
+                .localeCode("words.price")
+                .text(": <value>%s'>", economy.format(price()))
+                .text(" <name>%s | <value>%s", id(), Texts.escape(name()))
+                .text("</hover>")
+                .space()
+                .text("<click:run_command:/order info %s><add>[", id())
+                .localeCode("words.info")
+                .text("]</click>")
+                .build();
     }
 
     private String userContent(Economy economy) {
@@ -66,19 +73,19 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     public String companyShortInfo(Economy economy) {
         return MessageComposer.create()
-                              .text("<hover:show_text:'%s", companySimpleContent(economy, state()))
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("words.price")
-                              .text(": <value>%s'", economy.format(price()))
-                              .text(">")
-                              .text("<name>%s | <value>%s", id(), Texts.escape(name()))
-                              .text("</hover>")
-                              .space()
-                              .text("<click:run_command:/company order info %s><add>[", id())
-                              .localeCode("words.info")
-                              .text("]</click>")
-                              .build();
+                .text("<hover:show_text:'%s", companySimpleContent(economy, state()))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.price")
+                .text(": <value>%s'", economy.format(price()))
+                .text(">")
+                .text("<name>%s | <value>%s", id(), Texts.escape(name()))
+                .text("</hover>")
+                .space()
+                .text("<click:run_command:/company order info %s><add>[", id())
+                .localeCode("words.info")
+                .text("]</click>")
+                .build();
     }
 
     private String companySimpleContent(Economy economy, OrderState state) {
@@ -105,35 +112,43 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
      */
     public MessageComposer userDetailInfo(Economy economy, Configuration configuration) {
         var composer = MessageComposer.create()
-                                      .text("<name>%s | <value>%s", id(), Texts.escape(name()))
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.status")
-                                      .text(": <value>")
-                                      .localeCode(state().translationKey())
-                                      .newLine()
-                                      .text(userProgressContent(economy))
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.price")
-                                      .text(": <value>%s", economy.format(price()))
-                                      .newLine();
+                .text("<name>%s | <value>%s", id(), Texts.escape(name()))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.status")
+                .text(": <value>")
+                .localeCode(state().translationKey())
+                .newLine()
+                .text(userProgressContent(economy))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.price")
+                .text(": <value>%s", economy.format(price()))
+                .newLine();
         switch (state()) {
-            case UNCLAIMED -> composer.text("<name>")
-                                      .localeCode("order.info.refundIn",
-                                              Replacement.create("duration", timeLeft(configuration.orderSetting().maxUnclaimedHours())))
-                                      .newLine()
-                                      .text("<click:run_command:/order cancel %s><remove>[", id())
-                                      .localeCode("words.cancel")
-                                      .text("]</click>");
-            case CLAIMED -> composer.text("<name>")
-                                    .localeCode("order.info.dueIn",
-                                            Replacement.create("duration", timeLeft(configuration.companySettings().deliveryHours())));
-            case DELIVERED -> composer.text("<click:run_command:/order receive %s><add>[", id())
-                                      .localeCode("words.receive")
-                                      .text("]</click>");
-            case RECEIVED -> {
-            }
+            case UNCLAIMED ->
+                composer.text("<name>")
+                        .localeCode(
+                                "order.info.refundIn",
+                                Replacement.create(
+                                        "duration",
+                                        timeLeft(configuration.orderSetting().maxUnclaimedHours())))
+                        .newLine()
+                        .text("<click:run_command:/order cancel %s><remove>[", id())
+                        .localeCode("words.cancel")
+                        .text("]</click>");
+            case CLAIMED ->
+                composer.text("<name>")
+                        .localeCode(
+                                "order.info.dueIn",
+                                Replacement.create(
+                                        "duration",
+                                        timeLeft(configuration.companySettings().deliveryHours())));
+            case DELIVERED ->
+                composer.text("<click:run_command:/order receive %s><add>[", id())
+                        .localeCode("words.receive")
+                        .text("]</click>");
+            case RECEIVED -> {}
         }
         return composer;
     }
@@ -153,19 +168,19 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     public String companyDetailInfo(CompanyMember member, Configuration configuration, Economy economy) {
         var composer = MessageComposer.create()
-                                      .text("<name>%s | <value>%s", id(), Texts.escape(name()))
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.status")
-                                      .text(": <value>")
-                                      .localeCode(state().translationKey())
-                                      .newLine()
-                                      .text(companyActionContent(economy, state()))
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.price")
-                                      .text(": <value>%s", economy.format(price()))
-                                      .newLine();
+                .text("<name>%s | <value>%s", id(), Texts.escape(name()))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.status")
+                .text(": <value>")
+                .localeCode(state().translationKey())
+                .newLine()
+                .text(companyActionContent(economy, state()))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.price")
+                .text(": <value>%s", economy.format(price()))
+                .newLine();
 
         switch (state()) {
             case UNCLAIMED:
@@ -200,12 +215,13 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 contents.add(content.asComponent(economy));
             } else {
                 var composer = MessageComposer.create()
-                                              .text(content.asProgressComponent(economy))
-                                              .space();
+                        .text(content.asProgressComponent(economy))
+                        .space();
                 if (content.missing() != 0) {
 
-                    var baseCommand = String.format("/company order deliver %s %s ", id(), content.stack()
-                                                                                                  .getType());
+                    var baseCommand = String.format(
+                            "/company order deliver %s %s ",
+                            id(), content.stack().getType());
                     composer.text("<add>")
                             .text("<click:run_command:%s 1>[1]</click>", baseCommand)
                             .text("<click:run_command:%s 8>[8]</click>", baseCommand)
@@ -218,8 +234,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                             .localeCode("words.add")
                             .text("]</click>");
                 } else {
-                    composer.text("<value>")
-                            .localeCode("words.done");
+                    composer.text("<value>").localeCode("words.done");
                 }
                 contents.add(composer.build());
             }
@@ -234,16 +249,12 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     @Override
     public double price() {
-        return contents.stream()
-                       .mapToDouble(OrderContent::price)
-                       .sum();
+        return contents.stream().mapToDouble(OrderContent::price).sum();
     }
 
     @Override
     public int amount() {
-        return contents.stream()
-                       .mapToInt(OrderContent::amount)
-                       .sum();
+        return contents.stream().mapToInt(OrderContent::amount).sum();
     }
 
     @Override
@@ -253,9 +264,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
 
     @Override
     public int delivered() {
-        return contents.stream()
-                       .mapToInt(OrderContent::delivered)
-                       .sum();
+        return contents.stream().mapToInt(OrderContent::delivered).sum();
     }
 
     /**
@@ -273,8 +282,8 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
     @Override
     public Optional<OrderContent> content(Material material) {
         return contents.stream()
-                       .filter(content -> content.material() == material)
-                       .findFirst();
+                .filter(content -> content.material() == material)
+                .findFirst();
     }
 
     @Override
@@ -288,8 +297,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
             var baseStack = content.stack();
             var amount = content.amount();
             while (amount != 0) {
-                var size = Math.min(baseStack.getType()
-                                             .getMaxStackSize(), amount);
+                var size = Math.min(baseStack.getType().getMaxStackSize(), amount);
                 amount -= size;
                 var currStack = baseStack.clone();
                 currStack.setAmount(size);
@@ -304,17 +312,16 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
         switch (paymentType) {
             case STACK -> {
                 for (var content : contents) {
-                    for (var entry : content.payments()
-                                            .entrySet()) {
-                        payments.compute(entry.getKey(), (id, v) -> v == null ? entry.getValue() : v + entry.getValue());
+                    for (var entry : content.payments().entrySet()) {
+                        payments.compute(
+                                entry.getKey(), (id, v) -> v == null ? entry.getValue() : v + entry.getValue());
                     }
                 }
             }
             case TOTAL -> {
                 Map<UUID, Integer> workers = new HashMap<>();
                 for (var content : contents) {
-                    for (var entry : content.workerAmount()
-                                            .entrySet()) {
+                    for (var entry : content.workerAmount().entrySet()) {
                         workers.compute(entry.getKey(), (id, v) -> v == null ? entry.getValue() : v + entry.getValue());
                     }
                 }

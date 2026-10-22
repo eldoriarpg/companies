@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StyleSettingsTest {
     private final ObjectMapper mapper = YAMLMapper.builder()
-                                                  .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
-                                                  .build();
+            .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
+            .build();
 
     @Test
     void defaultsKeepThePreviousLook() {
@@ -29,17 +29,19 @@ class StyleSettingsTest {
         assertEquals("<#00a6ff>[C]", style.prefix());
         assertEquals(NamedTextColor.DARK_AQUA, style.message());
         assertEquals(TextColor.fromHexString("#f05316"), style.error());
-        assertEquals(Map.of(
-                "heading", NamedTextColor.GOLD,
-                "name", NamedTextColor.AQUA,
-                "value", NamedTextColor.DARK_GREEN,
-                "remove", NamedTextColor.RED,
-                "add", NamedTextColor.GREEN,
-                "modify", NamedTextColor.YELLOW,
-                "show", NamedTextColor.GREEN,
-                "inactive", NamedTextColor.DARK_GRAY,
-                "active", NamedTextColor.GREEN,
-                "neutral", NamedTextColor.DARK_AQUA), style.tags());
+        assertEquals(
+                Map.of(
+                        "heading", NamedTextColor.GOLD,
+                        "name", NamedTextColor.AQUA,
+                        "value", NamedTextColor.DARK_GREEN,
+                        "remove", NamedTextColor.RED,
+                        "add", NamedTextColor.GREEN,
+                        "modify", NamedTextColor.YELLOW,
+                        "show", NamedTextColor.GREEN,
+                        "inactive", NamedTextColor.DARK_GRAY,
+                        "active", NamedTextColor.GREEN,
+                        "neutral", NamedTextColor.DARK_AQUA),
+                style.tags());
     }
 
     @Test

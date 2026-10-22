@@ -21,7 +21,6 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.logging.Level;
 
 import static de.eldoria.companies.util.Threading.VIRTUAL;
@@ -39,8 +38,9 @@ public class LevelService implements Listener {
 
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
-        companyData.submitFailedOrder(event.company(), configuration.companySettings()
-                        .abortedOrderPenalty())
+        companyData
+                .submitFailedOrder(
+                        event.company(), configuration.companySettings().abortedOrderPenalty())
                 .asFuture()
                 .exceptionally(err -> {
                     plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -50,18 +50,19 @@ public class LevelService implements Listener {
     }
 
     public void updateCompanyLevel(ICompanyProfile company) {
-        if(configuration.companySettings().level().isEmpty()){
+        if (configuration.companySettings().level().isEmpty()) {
             return;
         }
-        companyData.retrieveCompanyStats(company)
+        companyData
+                .retrieveCompanyStats(company)
                 .asFuture()
                 .thenAccept(stats -> {
                     var companySettings = configuration.companySettings();
                     var newLevel = companySettings.calcCompanyLevel(stats);
                     if (newLevel.level() == company.level()) return;
-                    var oldLevel = companySettings.level(company.level())
-                            .orElse(CompanyLevel.DEFAULT);
-                    companyData.submitCompanyLevelUpdate(company, newLevel.level())
+                    var oldLevel = companySettings.level(company.level()).orElse(CompanyLevel.DEFAULT);
+                    companyData
+                            .submitCompanyLevelUpdate(company, newLevel.level())
                             .join();
                     if (newLevel.level() > company.level()) {
                         plugin.getServer()
@@ -81,8 +82,9 @@ public class LevelService implements Listener {
 
     @EventHandler
     public void onOrderExpired(OrderExpiredEvent event) {
-        companyData.submitFailedOrder(event.company(), configuration.companySettings()
-                        .expiredOrderPenalty())
+        companyData
+                .submitFailedOrder(
+                        event.company(), configuration.companySettings().expiredOrderPenalty())
                 .asFuture()
                 .exceptionally(err -> {
                     plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -97,16 +99,18 @@ public class LevelService implements Listener {
     }
 
     public void updateAllCompanies(Runnable onComplete) {
-        CompletableFuture.runAsync(() -> {
-                    List<SimpleCompany> companies = companyData.getCompanies();
-                    for (var company : companies) {
-                        var join = companyData.retrieveCompanyProfile(company)
-                                .join();
-                        if (join == null || join.isEmpty()) continue;
-                        updateCompanyLevel(join.get());
-                    }
-
-                }, VIRTUAL)
+        CompletableFuture.runAsync(
+                        () -> {
+                            List<SimpleCompany> companies = companyData.getCompanies();
+                            for (var company : companies) {
+                                var join = companyData
+                                        .retrieveCompanyProfile(company)
+                                        .join();
+                                if (join == null || join.isEmpty()) continue;
+                                updateCompanyLevel(join.get());
+                            }
+                        },
+                        VIRTUAL)
                 .exceptionally(ex -> {
                     plugin.getLogger().log(Level.SEVERE, "Something went wrong during level calculation", ex);
                     return null;

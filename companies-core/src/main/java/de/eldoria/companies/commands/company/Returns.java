@@ -22,13 +22,13 @@ public class Returns extends AdvancedCommand implements IPlayerTabExecutor {
     private final ItemReturnService itemReturnService;
 
     public Returns(Plugin plugin, ItemReturnService itemReturnService) {
-        super(plugin, CommandMeta.builder("returns")
-                .build());
+        super(plugin, CommandMeta.builder("returns").build());
         this.itemReturnService = itemReturnService;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         itemReturnService.handOut(player, false);
     }
 }

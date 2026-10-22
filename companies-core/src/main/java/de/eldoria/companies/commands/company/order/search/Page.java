@@ -32,33 +32,33 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Page(Plugin plugin, Search search, Economy economy, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("page")
-                .addArgument("words.page", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("page").addArgument("words.page", true).build());
         this.search = search;
         this.economy = economy;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         renderPage(player, arguments.asInt(0));
     }
 
     public void renderPage(Player player, int page) {
         messageBlocker.blockPlayer(player);
-        var fullOrders = search.results()
-                               .getOrDefault(player.getUniqueId(), List.of());
+        var fullOrders = search.results().getOrDefault(player.getUniqueId(), List.of());
 
         var builder = MessageComposer.create()
-                                     .text("<heading>")
-                                     .localeCode("words.results")
-                                     .text(": <value>%s", fullOrders.size())
-                                     .space()
-                                     .text("<click:run_command:/company order search query render><modify>[")
-                                     .localeCode("words.change")
-                                     .text("]</click>")
-                                     .newLine();
+                .text("<heading>")
+                .localeCode("words.results")
+                .text(": <value>%s", fullOrders.size())
+                .space()
+                .text("<click:run_command:/company order search query render><modify>[")
+                .localeCode("words.change")
+                .text("]</click>")
+                .newLine();
 
         var pageList = page(fullOrders, page);
         var components = new ArrayList<String>();
@@ -66,25 +66,28 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
             components.add(order.companyShortInfo(economy));
         }
 
-        builder.text(components)
-               .newLine();
+        builder.text(components).newLine();
         if (page != 0) {
-            builder.text("<click:run_command:/company order search page %s> <active>%s </click>", page - 1, Texts.LEFT_ARROW);
+            builder.text(
+                    "<click:run_command:/company order search page %s> <active>%s </click>",
+                    page - 1, Texts.LEFT_ARROW);
         } else {
             builder.text(" <inactive>%s ", Texts.LEFT_ARROW);
         }
 
-        var pageString = String.format("<heading>%s/%s", page + 1, Math.max(1, (fullOrders.size() + PAGE_SIZE - 1) / PAGE_SIZE));
+        var pageString =
+                String.format("<heading>%s/%s", page + 1, Math.max(1, (fullOrders.size() + PAGE_SIZE - 1) / PAGE_SIZE));
         builder.text(pageString);
 
         if (!page(fullOrders, page + 1).isEmpty()) {
-            builder.text("<click:run_command:/company order search page %s> <active>%s </click>", page + 1, Texts.RIGHT_ARROW);
+            builder.text(
+                    "<click:run_command:/company order search page %s> <active>%s </click>",
+                    page + 1, Texts.RIGHT_ARROW);
         } else {
             builder.text("<inactive> %s ", Texts.RIGHT_ARROW);
         }
         if (messageBlocker.isBlocked(player)) {
-            builder.newLine()
-                   .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+            builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         builder.prependLines(25);
         Menus.show(messageBlocker, player, builder);

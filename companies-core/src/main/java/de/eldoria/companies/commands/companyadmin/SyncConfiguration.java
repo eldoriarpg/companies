@@ -22,18 +22,20 @@ public class SyncConfiguration extends AdvancedCommand implements ITabExecutor {
     private final ANodeData nodeData;
 
     public SyncConfiguration(Plugin plugin, Configuration configuration, ANodeData nodeData) {
-        super(plugin, CommandMeta.builder("syncconfiguration")
-                .withPermission(Permission.Admin.ADMIN)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("syncconfiguration")
+                        .withPermission(Permission.Admin.ADMIN)
+                        .build());
         this.configuration = configuration;
         this.nodeData = nodeData;
     }
 
     @Override
-    public void onCommand(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments args) throws CommandException {
-        configuration.syncConfigurations(nodeData)
-                     .whenComplete((res, err) -> {
-                            messageSender().sendMessage(sender, "companyadmin.syncconfiguration.done");
-                     });
+    public void onCommand(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
+        configuration.syncConfigurations(nodeData).whenComplete((res, err) -> {
+            messageSender().sendMessage(sender, "companyadmin.syncconfiguration.done");
+        });
     }
 }

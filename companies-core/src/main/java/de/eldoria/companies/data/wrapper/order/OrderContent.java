@@ -59,9 +59,7 @@ public class OrderContent implements IOrderContent {
 
     @Override
     public int delivered() {
-        return parts.stream()
-                .mapToInt(ContentPart::amount)
-                .sum();
+        return parts.stream().mapToInt(ContentPart::amount).sum();
     }
 
     @Override
@@ -71,9 +69,7 @@ public class OrderContent implements IOrderContent {
 
     @Override
     public String materialIdentifier() {
-        return stack.getType()
-                .name()
-                .toLowerCase();
+        return stack.getType().name().toLowerCase();
     }
 
     @Override
@@ -96,11 +92,15 @@ public class OrderContent implements IOrderContent {
     }
 
     public String asComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%sx <%s>%s", "yellow", translatedMaterialString(), "blue", amount, "gold", economy.format(price));
+        return String.format(
+                "<%s>%s <%s>%sx <%s>%s",
+                "yellow", translatedMaterialString(), "blue", amount, "gold", economy.format(price));
     }
 
     public String asProgressComponent(Economy economy) {
-        return String.format("<%s>%s <%s>%s/%s <%s>%s", "yellow", translatedMaterialString(), "blue", delivered(), amount, "gold", economy.format(price));
+        return String.format(
+                "<%s>%s <%s>%s/%s <%s>%s",
+                "yellow", translatedMaterialString(), "blue", delivered(), amount, "gold", economy.format(price));
     }
 
     public Map<UUID, Double> payments() {

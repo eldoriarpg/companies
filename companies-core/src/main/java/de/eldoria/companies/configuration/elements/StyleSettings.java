@@ -37,8 +37,7 @@ public class StyleSettings {
     private String active = "green";
     private String neutral = "dark_aqua";
 
-    public StyleSettings() {
-    }
+    public StyleSettings() {}
 
     /**
      * The prefix put in front of every message.
