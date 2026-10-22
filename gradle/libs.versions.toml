@@ -44,6 +44,7 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 
 gradle-spotless = "com.diffplug.spotless:spotless-plugin-gradle:8.10.4"
 gradle-publishdata = "de.chojo:publishdata:2.1.0"
+gradle-spotbugs = "com.github.spotbugs:com.github.spotbugs.gradle.plugin:6.5.13"
 
 [bundles]
 jackson = ["jackson-databind", "jackson-annotations", "jackson-yaml"]

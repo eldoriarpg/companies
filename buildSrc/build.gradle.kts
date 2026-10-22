@@ -10,4 +10,5 @@ repositories {
 dependencies {
     implementation(libs.gradle.spotless)
     implementation(libs.gradle.publishdata)
+    implementation(libs.gradle.spotbugs)
 }
