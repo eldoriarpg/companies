@@ -1,6 +1,5 @@
 plugins {
-    java
-    `java-library`
+    id("companies.java-conventions")
 }
 
 dependencies {

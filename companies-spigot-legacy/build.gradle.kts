@@ -1,4 +1,6 @@
 plugins {
+    id("companies.publishing-conventions")
+    id("de.chojo.publishdata.manifest")
     alias(libs.plugins.pluginyml.bukkit)
     alias(libs.plugins.shadow)
     alias(libs.plugins.runserver)
@@ -18,6 +20,14 @@ dependencies {
 }
 
 
+publishData {
+    eldoNexus(internal = true, dev = false)
+    component = "shadow"
+    buildData {
+        put("lynaProduct", "2")
+    }
+}
+
 tasks {
     shadowJar {
         val shadebase = "de.eldoria.companies.libs."
@@ -34,15 +44,6 @@ tasks {
         dependsOn(shadowJar)
     }
 
-    register<Copy>("copyToServer") {
-        val path = project.property("targetDir") ?: ""
-        if (path.toString().isEmpty()) {
-            println("targetDir is not set in gradle properties")
-            return@register
-        }
-        from(shadowJar)
-        destinationDir = File(path.toString())
-    }
 
     runServer {
         minecraftVersion("1.21.4")
@@ -55,39 +56,13 @@ tasks {
     }
 }
 
-publishData {
-    addBuildData()
-    useInternalEldoNexusRepos()
-    publishTask("shadowJar")
-}
-
-publishing {
-    publications.create<MavenPublication>("maven") {
-        publishData.configurePublication(this)
-    }
-
-    repositories {
-        maven {
-            authentication {
-                credentials(PasswordCredentials::class) {
-                    username = System.getenv("NEXUS_USERNAME")
-                    password = System.getenv("NEXUS_PASSWORD")
-                }
-            }
-
-            setUrl(publishData.getRepository())
-            name = "EldoNexus"
-        }
-    }
-}
 
 bukkit {
     name = "Companies"
     main = "de.eldoria.companies.Companies"
-    version = publishData.getVersion(true)
     description = "Order and deliver items"
     apiVersion = "1.16"
-    version = publishData.getVersion(true)
+    version = project.version.toString()
     authors = listOf("RainbowDashLabs")
     depend = listOf("Vault")
     softDepend = listOf("PlaceholderAPI", "ProtocolLib")
