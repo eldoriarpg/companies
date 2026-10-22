@@ -5,66 +5,41 @@
  */
 package de.eldoria.companies.commands.companyadmin.level;
 
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.configuration.elements.NodeType;
-import de.eldoria.eldoutilities.commands.Completion;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.LevelNumbers;
+import de.eldoria.companies.commands.support.Senders;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import org.bukkit.command.CommandSender;
 
-import java.util.Collections;
+/**
+ * {@code /companyadmin level move <source> <target>}: moves a level to another position.
+ */
+@Subcommand("move")
+public final class Move {
+    private final CommandDependencies deps;
 
-public class Move extends AdvancedCommand implements IPlayerTabExecutor {
-    private final Configuration configuration;
-    private final List list;
-
-    public Move(Plugin plugin, Configuration configuration, List list) {
-        super(
-                plugin,
-                CommandMeta.builder("move")
-                        .addArgument("words.source", true)
-                        .addArgument("words.target", true)
-                        .build());
-        this.configuration = configuration;
-        this.list = list;
+    /**
+     * @param deps what the commands need
+     */
+    public Move(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player sender, @NotNull String label, @NotNull Arguments args)
-            throws CommandException {
-        CommandAssertions.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
-        var optLevel = configuration.companySettings().level(args.asInt(0));
-        CommandAssertions.isTrue(optLevel.isPresent(), "error.invalidLevel");
-        configuration.companySettings().moveLevel(args.asInt(0), args.asInt(1));
+    /**
+     * @param sender sender of the command
+     * @param source number of the level to move
+     * @param target position it moves to
+     */
+    @Executes
+    public void move(CommandSender sender, @LevelNumbers int source, @LevelNumbers int target) {
+        var player = Senders.player(sender);
+        var messageBlocker = deps.services().messageBlocker();
+        var configuration = deps.configuration();
+        Levels.requirePrimary(configuration);
+        Levels.level(configuration, source);
+        configuration.companySettings().moveLevel(source, target);
         configuration.save();
-        list.sendList(sender);
-    }
-
-    @Override
-    public java.util.@Nullable List<String> onTabComplete(
-            @NotNull Player sender, @NotNull String alias, @NotNull Arguments args) {
-        if (args.sizeIs(1)) {
-            if (args.asString(0).isEmpty()) {
-                return Collections.singletonList(localizer().localize("words.source"));
-            }
-            return Completion.completeInt(
-                    args.asString(0), 1, configuration.companySettings().level().size());
-        }
-
-        if (args.sizeIs(2)) {
-            if (args.asString(0).isEmpty()) {
-                return Collections.singletonList(localizer().localize("words.target"));
-            }
-            return Completion.completeInt(
-                    args.asString(0), 1, configuration.companySettings().level().size());
-        }
-        return Collections.emptyList();
+        LevelMenus.list(player, configuration, messageBlocker);
     }
 }

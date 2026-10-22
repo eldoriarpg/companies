@@ -5,85 +5,76 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
-import de.eldoria.companies.data.repository.ACompanyData;
-import de.eldoria.companies.util.Permission;
-import de.eldoria.eldoutilities.commands.Completion;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.QuotedCompanyNames;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.util.Permission.Admin;
+import de.eldoria.eldoutilities.messages.MessageSender;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.arguments.StringArg;
+import net.strokkur.commands.arguments.StringArgType;
+import net.strokkur.commands.permission.Permission;
+import org.bukkit.command.CommandSender;
 
-import java.util.Collections;
-import java.util.List;
+/**
+ * {@code /companyadmin rename <company> <name>}: renames a company. A current name with spaces is quoted.
+ */
+@Subcommand("rename")
+@Permission(Admin.RENAME)
+@PlayerOnly
+public final class Rename {
+    private final CommandDependencies deps;
 
-public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
-    private final ACompanyData companyData;
-
-    public Rename(Plugin plugin, ACompanyData companyData) {
-        super(
-                plugin,
-                CommandMeta.builder("rename")
-                        .withPermission(Permission.Admin.RENAME)
-                        .addArgument("words.name", true)
-                        .addArgument("words.name", true)
-                        .build());
-        this.companyData = companyData;
+    /**
+     * @param deps what the commands need
+     */
+    public Rename(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
-            throws CommandException {
-        args.parseQuoted();
-        CommandAssertions.invalidArguments(meta(), args);
+    /**
+     * @param sender  sender of the command
+     * @param current current name of the company
+     * @param name    new name of the company
+     */
+    @Executes
+    public void rename(
+            CommandSender sender,
+            @QuotedCompanyNames @StringArg(StringArgType.STRING) String current,
+            @StringArg(StringArgType.GREEDY) String name) {
+        var player = Senders.player(sender);
+        deps.requireReady();
+        var companyData = deps.companyData();
 
-        companyData.retrieveCompanyByName(args.asString(0)).asFuture().thenAccept(company -> {
+        companyData.retrieveCompanyByName(current).asFuture().thenAccept(company -> {
             if (company.isEmpty()) {
-                messageSender().sendError(player, "error.unknownCompany");
+                messages().sendError(player, "error.unknownCompany");
                 return;
             }
 
-            var other = companyData.retrieveCompanyByName(args.asString(1)).join();
+            var other = companyData.retrieveCompanyByName(name).join();
             if (other == null) {
-                messageSender().sendError(player, "error.saveFailed");
+                messages().sendError(player, "error.saveFailed");
                 return;
             }
 
             if (other.isPresent() && other.get().id() != company.get().id()) {
-                messageSender().sendError(player, "error.companyNameUsed");
+                messages().sendError(player, "error.companyNameUsed");
                 return;
             }
 
-            if (!Boolean.TRUE.equals(companyData
-                    .updateCompanyName(company.get(), args.asString(1))
-                    .join())) {
-                messageSender().sendError(player, "error.companyNameUsed");
+            if (!Boolean.TRUE.equals(
+                    companyData.updateCompanyName(company.get(), name).join())) {
+                messages().sendError(player, "error.companyNameUsed");
                 return;
             }
-            messageSender().sendMessage(player, "company.rename.changed");
+            messages().sendMessage(player, "company.rename.changed");
         });
     }
 
-    @Override
-    public @Nullable List<String> onTabComplete(
-            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        args.parseQuoted();
-
-        if (args.size() == 1) {
-            return Completion.completeFreeInput(
-                    args.asString(0), 32, localizer().localize("words.source"));
-        }
-
-        if (args.size() == 2) {
-            return Completion.completeFreeInput(
-                    args.asString(1), 32, localizer().localize("words.target"));
-        }
-
-        return Collections.emptyList();
+    private MessageSender messages() {
+        return deps.messages();
     }
 }

@@ -5,105 +5,152 @@
  */
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.support.Checks;
+import de.eldoria.companies.commands.support.PlayerOnly;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.util.Confirmations;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.commands.Completion;
-import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
-import de.eldoria.eldoutilities.commands.command.CommandMeta;
-import de.eldoria.eldoutilities.commands.command.util.Arguments;
-import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
-import de.eldoria.eldoutilities.commands.exceptions.CommandException;
-import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
+import net.strokkur.commands.Executes;
+import net.strokkur.commands.Subcommand;
+import net.strokkur.commands.arguments.StringArg;
+import net.strokkur.commands.arguments.StringArgType;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 
-public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
+/**
+ * {@code /company rename <name>}: renames the company of its owner for the rename price after the owner confirmed it.
+ */
+@Subcommand("rename")
+@PlayerOnly
+public final class Rename {
     public static final int MAX_NAME_LENGTH = 32;
     private final Confirmations<String> confirm = new Confirmations<>();
-    private final Configuration configuration;
-    private final Economy economy;
-    private final ACompanyData companyData;
+    private final CommandDependencies deps;
 
-    public Rename(Plugin plugin, Configuration configuration, Economy economy, ACompanyData companyData) {
-        super(plugin, CommandMeta.builder("rename").addArgument("name", true).build());
-        this.configuration = configuration;
-        this.economy = economy;
-        this.companyData = companyData;
+    /**
+     * @param deps what the commands need
+     */
+    public Rename(CommandDependencies deps) {
+        this.deps = deps;
     }
 
-    @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
-            throws CommandException {
-        if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
-            confirm(player);
-            return;
-        }
-
-        CommandAssertions.invalidLength(arguments.join(), MAX_NAME_LENGTH);
+    /**
+     * Asks the owner to confirm the new name and its price.
+     *
+     * @param sender sender of the command
+     * @param name   new name of the company
+     */
+    @Executes
+    public void rename(CommandSender sender, @StringArg(StringArgType.GREEDY) String name) {
+        var player = Senders.player(sender);
+        var economy = deps.services().economy();
+        Checks.shorterThan(name, MAX_NAME_LENGTH);
+        var companyData = deps.companyData();
 
         companyData
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return Optional.empty();
                 })
                 .thenAcceptAsync(optProfile -> {
                     if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        messages().sendErrorActionBar(player, "error.noMember");
                         return;
                     }
                     var profile = optProfile.get();
                     if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                        messageSender().sendErrorActionBar(player, "error.noOwner");
+                        messages().sendErrorActionBar(player, "error.noOwner");
                         return;
                     }
 
-                    var name = arguments.join();
                     var company = companyData.retrieveCompanyByName(name).join();
                     if (company == null) {
-                        messageSender().sendErrorActionBar(player, "error.saveFailed");
+                        messages().sendErrorActionBar(player, "error.saveFailed");
                         return;
                     }
                     if (company.isPresent()) {
-                        messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+                        messages().sendErrorActionBar(player, "error.companyNameUsed");
                         return;
                     }
 
-                    Threading.mainThread(plugin()).execute(() -> requestConfirmation(player, name));
+                    Threading.mainThread(deps.plugin()).execute(() -> requestConfirmation(player, name, economy));
                 })
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
     }
 
-    @Override
-    public @Nullable List<String> onTabComplete(
-            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        return Completion.completeFreeInput(
-                arguments.join(), MAX_NAME_LENGTH, localizer().localize("words.name"));
+    /**
+     * Renames the company to the name the owner confirmed.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("confirm")
+    public void confirm(CommandSender sender) {
+        var player = Senders.player(sender);
+        var economy = deps.services().economy();
+        var optName = confirm.confirm(player.getUniqueId());
+        if (optName.isEmpty()) {
+            messages().sendErrorActionBar(player, "error.confirmationExpired");
+            return;
+        }
+        var name = optName.get();
+        var companyData = deps.companyData();
+        companyData
+                .retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optProfile -> {
+                    if (optProfile.isEmpty()) {
+                        messages().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    var profile = optProfile.get();
+                    if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
+                        messages().sendErrorActionBar(player, "error.noOwner");
+                        return;
+                    }
+
+                    var company = companyData.retrieveCompanyByName(name).join();
+                    if (company == null) {
+                        messages().sendErrorActionBar(player, "error.saveFailed");
+                        return;
+                    }
+                    if (company.isPresent()) {
+                        messages().sendErrorActionBar(player, "error.companyNameUsed");
+                        return;
+                    }
+
+                    Threading.mainThread(deps.plugin()).execute(() -> rename(player, profile, name, economy));
+                })
+                .exceptionally(err -> {
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
-    private void requestConfirmation(Player player, String name) {
-        var price = configuration.companySettings().renamePrice();
+    private void requestConfirmation(Player player, String name, Economy economy) {
+        var price = deps.configuration().companySettings().renamePrice();
         if (!economy.has(player, price)) {
-            sendInsufficientCurrency(player, price);
+            sendInsufficientCurrency(player, price, economy);
             return;
         }
 
@@ -118,15 +165,15 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                 .text("<click:run_command:/company rename confirm><add>[")
                 .localeCode("words.confirm")
                 .text("]</click>");
-        messageSender().sendMessage(player, composer);
+        messages().sendMessage(player, composer);
     }
 
-    private void sendInsufficientCurrency(Player player, double price) {
+    private void sendInsufficientCurrency(Player player, double price, Economy economy) {
         var fallbackCurr = economy.currencyNameSingular().isBlank()
                 ? MessageComposer.escape("words.money")
                 : economy.currencyNameSingular();
         var curr = economy.currencyNamePlural().isBlank() ? fallbackCurr : economy.currencyNamePlural();
-        messageSender()
+        messages()
                 .sendErrorActionBar(
                         player,
                         "error.insufficientCurrency",
@@ -134,73 +181,34 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                         Replacement.create("amount", price));
     }
 
-    private void confirm(@NotNull Player player) {
-        var optName = confirm.confirm(player.getUniqueId());
-        if (optName.isEmpty()) {
-            messageSender().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var name = optName.get();
-        companyData
-                .retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optProfile -> {
-                    if (optProfile.isEmpty()) {
-                        messageSender().sendErrorActionBar(player, "error.noMember");
-                        return;
-                    }
-                    var profile = optProfile.get();
-                    if (!profile.member(player).get().hasPermissions(CompanyPermission.OWNER)) {
-                        messageSender().sendErrorActionBar(player, "error.noOwner");
-                        return;
-                    }
-
-                    var company = companyData.retrieveCompanyByName(name).join();
-                    if (company == null) {
-                        messageSender().sendErrorActionBar(player, "error.saveFailed");
-                        return;
-                    }
-                    if (company.isPresent()) {
-                        messageSender().sendErrorActionBar(player, "error.companyNameUsed");
-                        return;
-                    }
-
-                    Threading.mainThread(plugin()).execute(() -> rename(player, profile, name));
-                })
-                .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
-    }
-
-    private void rename(Player player, SimpleCompany company, String name) {
-        var price = configuration.companySettings().renamePrice();
+    private void rename(Player player, SimpleCompany company, String name, Economy economy) {
+        var price = deps.configuration().companySettings().renamePrice();
         var response = economy.withdrawPlayer(player, price);
         if (response.type != EconomyResponse.ResponseType.SUCCESS) {
-            sendInsufficientCurrency(player, price);
+            sendInsufficientCurrency(player, price, economy);
             return;
         }
 
-        companyData
+        deps.companyData()
                 .updateCompanyName(company, name)
                 .asFuture()
                 .exceptionally(err -> {
-                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return false;
                 })
                 .thenAcceptAsync(
                         renamed -> {
                             if (!renamed) {
                                 economy.depositPlayer(player, price);
-                                messageSender().sendErrorActionBar(player, "error.companyNameUsed");
+                                messages().sendErrorActionBar(player, "error.companyNameUsed");
                                 return;
                             }
-                            messageSender().sendMessage(player, "company.rename.changed");
+                            messages().sendMessage(player, "company.rename.changed");
                         },
-                        Threading.mainThread(plugin()));
+                        Threading.mainThread(deps.plugin()));
+    }
+
+    private MessageSender messages() {
+        return deps.messages();
     }
 }

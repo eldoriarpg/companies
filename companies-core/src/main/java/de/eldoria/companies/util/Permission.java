@@ -10,6 +10,9 @@ import org.bukkit.entity.Player;
 
 import java.util.Optional;
 
+/**
+ * Permission nodes of the plugin. Every node is a compile-time constant, so commands can name it in annotations.
+ */
 public final class Permission {
     private static final String BASE = "companies";
 
@@ -20,17 +23,12 @@ public final class Permission {
     /**
      * The permission to hear about new versions on join and to download them.
      */
-    public static final String UPDATES = perm(BASE, "updates");
-
-    private static String perm(String perm, String... perms) {
-        if (perms.length == 0) return perm;
-        return String.format("%s.%s", perm, String.join(".", perms));
-    }
+    public static final String UPDATES = BASE + ".updates";
 
     public static final class Orders {
-        private static final String ORDERS = perm(BASE, "orders");
-        public static final String LIMIT = perm(ORDERS, "limit");
-        public static final String CREATE = perm(ORDERS, "create");
+        private static final String ORDERS = BASE + ".orders";
+        public static final String LIMIT = ORDERS + ".limit";
+        public static final String CREATE = ORDERS + ".create";
 
         private Orders() {
             throw new UnsupportedOperationException("This is a utility class.");
@@ -44,9 +42,9 @@ public final class Permission {
     }
 
     public static final class Company {
-        private static final String COMPANY = perm(BASE, "company");
-        public static final String CREATE = perm(COMPANY, "create");
-        public static final String JOIN = perm(COMPANY, "join");
+        private static final String COMPANY = BASE + ".company";
+        public static final String CREATE = COMPANY + ".create";
+        public static final String JOIN = COMPANY + ".join";
 
         private Company() {
             throw new UnsupportedOperationException("This is a utility class.");
@@ -54,13 +52,17 @@ public final class Permission {
     }
 
     public static final class Admin {
-        public static final String ADMIN = perm(BASE, "admin");
-        public static final String CALC_LEVEL = perm(ADMIN, "calcLevel");
-        public static final String DELETE = perm(ADMIN, "delete");
-        public static final String LEVEL = perm(ADMIN, "level");
-        public static final String RELOAD = perm(ADMIN, "reload");
-        public static final String RENAME = perm(ADMIN, "rename");
-        public static final String TRANSFER_OWNER = perm(ADMIN, "transferOwner");
+        public static final String ADMIN = BASE + ".admin";
+        public static final String CALC_LEVEL = ADMIN + ".calcLevel";
+        public static final String DELETE = ADMIN + ".delete";
+        public static final String LEVEL = ADMIN + ".level";
+        public static final String RELOAD = ADMIN + ".reload";
+        public static final String RENAME = ADMIN + ".rename";
+        public static final String TRANSFER_OWNER = ADMIN + ".transferOwner";
+        /**
+         * The permission EldoUtil grants debug reports with, accepted next to {@link #ADMIN}.
+         */
+        public static final String DEBUG = "eldoutilitites.debug";
 
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");

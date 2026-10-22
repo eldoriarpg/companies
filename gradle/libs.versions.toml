@@ -5,8 +5,11 @@ eldoutil = "3.5.0"
 sadu = "2.3.9"
 paper = "1.21.11-R0.1-SNAPSHOT"
 junit = "6.1.3"
+strokkcommands = "2.3.1"
 
 [libraries]
+strokkcommands-annotations = { module = "net.strokkur.commands:annotations-paper", version.ref = "strokkcommands" }
+strokkcommands-processor = { module = "net.strokkur.commands:processor-paper", version.ref = "strokkcommands" }
 jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
 jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 jackson-yaml = { module = "tools.jackson.dataformat:jackson-dataformat-yaml" }
