@@ -5,10 +5,14 @@
  */
 package de.eldoria.companies.commands.suggest;
 
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.eldoutilities.localization.ILocalizer;
 import org.bukkit.Bukkit;
 
 import java.time.Duration;
@@ -36,14 +40,38 @@ public final class SuggestionSources {
     private final Configuration configuration;
     private final SuggestionCache<UUID, List<String>> memberNames;
     private final SuggestionCache<String, List<String>> companyNames;
+    private final SuggestionCache<UUID, List<OwnOrder>> ownOrders;
+    private final AOrderData orderData;
+    private final OrderDraftService drafts;
+    private final ILocalizer localizer;
 
     /**
      * @param companyData company repository
+     * @param orderData   order repository
+     * @param drafts      order drafts of the players
      * @param config      configuration of the plugin
+     * @param localizer   localizer of the plugin
      * @param executor    executor loading data from the database
      */
-    public SuggestionSources(ACompanyData companyData, Configuration config, Executor executor) {
+    public SuggestionSources(
+            ACompanyData companyData,
+            AOrderData orderData,
+            OrderDraftService drafts,
+            Configuration config,
+            ILocalizer localizer,
+            Executor executor) {
         this.configuration = config;
+        this.orderData = orderData;
+        this.drafts = drafts;
+        this.localizer = localizer;
+        this.ownOrders = new SuggestionCache<>(
+                LIFETIME,
+                executor,
+                player -> OwnOrder.of(orderData.toFullOrders(orderData
+                        .retrieveOrdersByPlayer(
+                                Bukkit.getOfflinePlayer(player), OrderState.UNCLAIMED, OrderState.DELIVERED)
+                        .asFuture()
+                        .join())));
         this.memberNames = new SuggestionCache<>(LIFETIME, executor, player -> companyData
                 .retrievePlayerCompanyProfile(Bukkit.getOfflinePlayer(player))
                 .asFuture()
@@ -88,6 +116,35 @@ public final class SuggestionSources {
      */
     public SuggestionCache<String, List<String>> companyNames() {
         return companyNames;
+    }
+
+    /**
+     * @return the orders of a player which are not received yet, by the player's id
+     */
+    public SuggestionCache<UUID, List<OwnOrder>> ownOrders() {
+        return ownOrders;
+    }
+
+    /**
+     * @return order repository, for the market prices
+     */
+    public AOrderData orderData() {
+        return orderData;
+    }
+
+    /**
+     * @return order drafts of the players
+     */
+    public OrderDraftService drafts() {
+        return drafts;
+    }
+
+    /**
+     * @param key locale key
+     * @return the localized text
+     */
+    public String localize(String key) {
+        return localizer.localize(key);
     }
 
     /**
