@@ -1,0 +1,113 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
+package de.eldoria.companies.services.notifications;
+
+import de.eldoria.companies.configuration.elements.NotificationSettings;
+import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
+import de.eldoria.companies.util.StyledMessageSender;
+import de.eldoria.eldoutilities.localization.ILocalizer;
+import de.eldoria.eldoutilities.messages.MessageSender;
+import org.bukkit.plugin.Plugin;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockbukkit.mockbukkit.ServerMock;
+import org.mockbukkit.mockbukkit.entity.PlayerMock;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class InboxPollerTest {
+    private static final LocalDateTime NOW = LocalDateTime.of(2026, 3, 1, 12, 0);
+
+    private Plugin plugin;
+    private ExecutorService executor;
+    private MemoryInboxData data;
+    private PlayerMock online;
+    private final List<UUID> shown = new CopyOnWriteArrayList<>();
+
+    @BeforeEach
+    void setUp() {
+        ServerMock server = MockBukkit.mock();
+        plugin = MockBukkit.createMockPlugin();
+        StyledMessageSender.register(plugin, ILocalizer.DEFAULT, StyleSettings::new);
+        executor = Executors.newSingleThreadExecutor();
+        data = new MemoryInboxData(executor);
+        online = server.addPlayer("Online");
+    }
+
+    @AfterEach
+    void tearDown() {
+        executor.shutdownNow();
+        MessageSender.unregister(plugin);
+        MockBukkit.unmock();
+    }
+
+    private InboxPoller poller() {
+        var service = new NotificationService(
+                plugin,
+                data,
+                null,
+                null,
+                NotificationSettings::new,
+                (player, type, args) -> shown.add(player.getUniqueId()),
+                Runnable::run);
+        return new InboxPoller(data, service, plugin.getLogger());
+    }
+
+    private void pending(UUID player, NotificationType type) {
+        data.submit(player, type, NotificationArgs.create(), NOW, InboxStatus.PENDING)
+                .join();
+    }
+
+    @Test
+    void aClaimedEntryIsShownOnce() {
+        pending(online.getUniqueId(), NotificationType.ORDER_DELIVERED);
+        var first = poller();
+        var second = poller();
+
+        assertEquals(1, first.poll(NOW));
+        assertEquals(0, second.poll(NOW));
+        assertEquals(0, first.poll(NOW));
+
+        assertEquals(List.of(online.getUniqueId()), shown);
+        var entry = data.only();
+        assertTrue(entry.delivered());
+        assertTrue(entry.read());
+    }
+
+    @Test
+    void mutedEntriesAreNotShown() {
+        pending(online.getUniqueId(), NotificationType.PAYMENT);
+        data.submitMuted(online.getUniqueId(), NotificationCategory.PAYMENTS.bit())
+                .join();
+
+        assertEquals(0, poller().poll(NOW));
+
+        assertTrue(shown.isEmpty());
+        assertFalse(data.only().read());
+    }
+
+    @Test
+    void entriesOfPlayersOnlineElsewhereStayPending() {
+        pending(UUID.randomUUID(), NotificationType.ORDER_DELIVERED);
+
+        assertEquals(0, poller().poll(NOW));
+
+        assertTrue(shown.isEmpty());
+        assertFalse(data.only().delivered());
+    }
+}
