@@ -8,8 +8,10 @@ package de.eldoria.companies.commands.suggest;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import de.eldoria.companies.menus.admin.LevelField;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
@@ -21,17 +23,8 @@ public final class LevelProviders {
     /**
      * The fields of a level that {@code /companyadmin level edit} changes.
      */
-    public static final List<String> FIELDS = List.of(
-            "name",
-            "order_count",
-            "member_count",
-            "earned_money",
-            "delivered_items",
-            "max_members",
-            "max_orders",
-            "tax_percent",
-            "max_order_size",
-            "delivery_hours_bonus");
+    public static final List<String> FIELDS =
+            Arrays.stream(LevelField.values()).map(LevelField::key).toList();
 
     private LevelProviders() {
         throw new UnsupportedOperationException("This is a utility class.");

@@ -7,7 +7,6 @@ package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.IOrderContent;
 import net.kyori.adventure.text.Component;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
@@ -160,18 +159,6 @@ public class OrderContent implements IOrderContent {
 
     public void price(double price) {
         this.price = price;
-    }
-
-    public String asComponent(Economy economy) {
-        return String.format(
-                "<%s>%s <%s>%sx <%s>%s",
-                "yellow", translatedMaterialString(), "blue", amount, "gold", economy.format(price));
-    }
-
-    public String asProgressComponent(Economy economy) {
-        return String.format(
-                "<%s>%s <%s>%s/%s <%s>%s",
-                "yellow", translatedMaterialString(), "blue", delivered(), amount, "gold", economy.format(price));
     }
 
     public Map<UUID, Double> payments() {

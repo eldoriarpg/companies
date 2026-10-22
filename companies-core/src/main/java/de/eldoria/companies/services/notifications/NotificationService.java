@@ -23,11 +23,13 @@ import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
-import de.eldoria.companies.util.Texts;
+import de.eldoria.companies.menus.Keys;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.eldoutilities.localization.ILocalizer;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
@@ -39,8 +41,6 @@ import org.bukkit.plugin.Plugin;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -90,12 +90,14 @@ public class NotificationService implements Listener {
      * @param args      values for the placeholders of the type's message and action
      */
     public void send(UUID recipient, NotificationType type, NotificationArgs args) {
-        var message = MessageComposer.create().text("<neutral>").localeCode(type.key());
-        type.action().map(args::fill).ifPresent(action -> message.space()
-                .text("<click:run_command:'%s'><add>[", action)
-                .localeCode("words.open")
-                .text("]</click>"));
-        sendMessage(plugin.getServer().getOfflinePlayer(recipient), message.build(), args.resolvers());
+        var message = MenuText.create().text("<neutral>").locale(type.key(), args.resolvers());
+        type.action().map(args::fill).ifPresent(command -> message.space()
+                .text(
+                        "<notification_action><add>[",
+                        Values.click("notification_action", ClickEvent.runCommand(command)))
+                .locale("words.open")
+                .text("]</notification_action>"));
+        sendMessage(plugin.getServer().getOfflinePlayer(recipient), message);
     }
 
     public void sendCompanyMessage(ICompanyProfile company, String message, TagResolver... replacements) {
@@ -170,28 +172,12 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onOrderAccept(OrderAcceptEvent event) {
         var order = event.order();
-        var message = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode("notification.orderAccepted")
-                .space()
-                .text("<click:run_command:/company order info %s><add>[", order.id())
-                .localeCode("words.info")
-                .text("]</click>")
-                .build();
-        sendCompanyMessage(
-                event.company(),
-                message,
-                miniOrderReplacement(order),
-                Replacement.unparsed("order_name", order.name()));
-        var ownerMessage = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode("notification.ownerOrderAccepted")
-                .space()
-                .text("<click:run_command:/order info %s><add>[", order.id())
-                .localeCode("words.info")
-                .text("]</click>")
-                .build();
-        sendMessage(plugin.getServer().getOfflinePlayer(order.owner()), ownerMessage, miniOrderReplacement(order));
+        var message =
+                orderNotice("notification.orderAccepted", order, "/company order info " + order.id(), "words.info");
+        sendCompanyMessage(event.company(), message.build(), resolvers(message));
+        sendMessage(
+                plugin.getServer().getOfflinePlayer(order.owner()),
+                orderNotice("notification.ownerOrderAccepted", order, "/order info " + order.id(), "words.info"));
     }
 
     /**
@@ -201,19 +187,43 @@ public class NotificationService implements Listener {
      * @param order order which is open again
      */
     public void notifyOrderOpen(ISimpleOrder order) {
-        var message = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode("notification.ownerOrderOpen")
-                .space()
-                .text("<click:run_command:/order info %s><add>[", order.id())
-                .localeCode("words.info")
-                .text("]</click>")
-                .build();
-        sendMessage(plugin.getServer().getOfflinePlayer(order.owner()), message, miniOrderReplacement(order));
+        sendMessage(
+                plugin.getServer().getOfflinePlayer(order.owner()),
+                orderNotice("notification.ownerOrderOpen", order, "/order info " + order.id(), "words.info"));
     }
 
-    private TagResolver miniOrderReplacement(ISimpleOrder order) {
-        return Replacement.create("order_name", String.format("<name>%s<neutral>", Texts.escape(order.fullName())));
+    /**
+     * Sends a message, or stores it when the player is offline. Click actions of the message survive the storing.
+     *
+     * @param player  receiving player
+     * @param message the message with its placeholders
+     */
+    public void sendMessage(OfflinePlayer player, MenuText message) {
+        sendMessage(player, message.build(), resolvers(message));
+    }
+
+    /**
+     * A notice about an order with a button running a command on it, using the placeholders {@code order_name} and
+     * {@code order_action}.
+     *
+     * @param key     locale text of the notice
+     * @param order   order the notice is about
+     * @param command command the button runs
+     * @param button  locale text of the button
+     * @return the notice
+     */
+    private static MenuText orderNotice(String key, ISimpleOrder order, String command, String button) {
+        return MenuText.create()
+                .text("<neutral>")
+                .locale(key, Values.text("order_name", order.fullName()))
+                .space()
+                .text("<order_action><add>[", Values.click("order_action", ClickEvent.runCommand(command)))
+                .locale(button)
+                .text("]</order_action>");
+    }
+
+    private static TagResolver[] resolvers(MenuText message) {
+        return message.replacements().toArray(TagResolver[]::new);
     }
 
     @EventHandler
@@ -236,21 +246,7 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onOrderDone(OrderDoneEvent event) {
         var owner = plugin.getServer().getOfflinePlayer(event.order().owner());
-        var message = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode("notification.orderDone")
-                .space()
-                .text(
-                        "<click:run_command:/order receive %s><add>[",
-                        event.order().id())
-                .localeCode("notification.receiveItems")
-                .text("]</click>")
-                .build();
-        sendMessage(
-                owner,
-                message,
-                miniOrderReplacement(event.order()),
-                Replacement.unparsed("order_name", event.order().name()));
+        sendMessage(owner, orderDoneNotice(event.order()));
 
         sendCompanyMessage(
                 event.company(),
@@ -322,42 +318,40 @@ public class NotificationService implements Listener {
                 .join();
         if (orders == null) return;
         for (var order : orders) {
-            var message = MessageComposer.create()
-                    .text("<neutral>")
-                    .localeCode("notification.orderDone")
-                    .space()
-                    .text("<click:run_command:/order receive %s><add>[", order.id())
-                    .localeCode("notification.receiveItems")
-                    .text("]</click>")
-                    .build();
-            sendMessage(player, message, miniOrderReplacement(order), Replacement.unparsed("order_name", order.name()));
+            sendMessage(player, orderDoneNotice(order));
         }
+    }
+
+    private static MenuText orderDoneNotice(ISimpleOrder order) {
+        return orderNotice(
+                "notification.orderDone", order, "/order receive " + order.id(), "notification.receiveItems");
     }
 
     private void sendNotifications(Player player) {
         var notifications = notificationData.retrieveNotifications(player).join();
-        List<String> components = new ArrayList<>();
-
-        for (var currDate : notifications) {
-            var date = currDate.getKey();
-            if (date.equals(LocalDate.now())) {
-                // Today
-                components.add("<heading><l18n:words.today>:<neutral>");
-            } else if (date.equals(LocalDate.now().minusDays(1L))) {
-                // Yesterday
-                components.add("<heading><l18n:words.yesterday>:<neutral>");
-            } else {
-                components.add(String.format("<heading>%s:<neutral>", DATE_FORMATTER.format(date)));
-            }
-            for (var notification : currDate.getValue()) {
-                var time = TIME_FORMATTER.format(notification.created());
-                var data = notification.data();
-                components.add(String.format("<name>%s:<neutral> %s", time, localizer.localize(data.message())));
-            }
-        }
         notificationData.submitNotificationClear(player);
-        if (!notifications.isEmpty()) {
-            sender.sendMessage(player, String.join("\n", components));
+        if (notifications.isEmpty()) return;
+        var text = MenuText.create();
+        var day = 0;
+        for (var currDate : notifications) {
+            if (day > 0) text.newLine();
+            text.text("<heading>").append(dayLabel(currDate.getKey(), day)).text(":<neutral>");
+            var entry = 0;
+            for (var notification : currDate.getValue()) {
+                var time = Values.text(Keys.of("time", day, entry++), TIME_FORMATTER.format(notification.created()));
+                text.newLine()
+                        .text("<name><" + time.key() + ">:<neutral> ", time)
+                        .text(localizer.localize(notification.data().message()));
+            }
+            day++;
         }
+        sender.sendMessage(player, text);
+    }
+
+    private static MenuText dayLabel(LocalDate date, int day) {
+        if (date.equals(LocalDate.now())) return MenuText.create().locale("words.today");
+        if (date.equals(LocalDate.now().minusDays(1L))) return MenuText.create().locale("words.yesterday");
+        var key = Keys.of("date", day);
+        return MenuText.create().text("<" + key + ">", Values.text(key, DATE_FORMATTER.format(date)));
     }
 }

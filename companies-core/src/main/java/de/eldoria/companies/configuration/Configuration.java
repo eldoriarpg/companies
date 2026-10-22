@@ -27,7 +27,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 public class Configuration extends JacksonConfig<ConfigFile> {
-    public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::new)
+    public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::fresh)
             .name("Main config")
             .build();
     public static final Key<DatabaseSettings> DATABASE = Key.builder(Path.of("database.yml"), DatabaseSettings::new)
