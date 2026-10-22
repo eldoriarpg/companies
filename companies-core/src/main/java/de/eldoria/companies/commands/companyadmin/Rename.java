@@ -26,54 +26,56 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
 
     public Rename(Plugin plugin, ACompanyData companyData) {
-        super(plugin, CommandMeta.builder("rename")
-                .withPermission(Permission.Admin.RENAME)
-                .addArgument("words.name", true)
-                .addArgument("words.name", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("rename")
+                        .withPermission(Permission.Admin.RENAME)
+                        .addArgument("words.name", true)
+                        .addArgument("words.name", true)
+                        .build());
         this.companyData = companyData;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         args.parseQuoted();
         CommandAssertions.invalidArguments(meta(), args);
 
-        companyData.retrieveCompanyByName(args.asString(0))
-                   .asFuture()
-                   .thenAccept(company -> {
-                       if (company.isEmpty()) {
-                           messageSender().sendError(player, "error.unknownCompany");
-                           return;
-                       }
+        companyData.retrieveCompanyByName(args.asString(0)).asFuture().thenAccept(company -> {
+            if (company.isEmpty()) {
+                messageSender().sendError(player, "error.unknownCompany");
+                return;
+            }
 
-                       var other = companyData.retrieveCompanyByName(args.asString(1))
-                                              .join();
+            var other = companyData.retrieveCompanyByName(args.asString(1)).join();
 
-                       if (other.isPresent() && other.get().id() != company.get().id()) {
-                           messageSender().sendError(player, "error.companyNameUsed");
-                           return;
-                       }
+            if (other.isPresent() && other.get().id() != company.get().id()) {
+                messageSender().sendError(player, "error.companyNameUsed");
+                return;
+            }
 
-                       if (!companyData.updateCompanyName(company.get(), args.asString(1))
-                                       .join()) {
-                           messageSender().sendError(player, "error.companyNameUsed");
-                           return;
-                       }
-                       messageSender().sendMessage(player, "company.rename.changed");
-                   });
+            if (!companyData.updateCompanyName(company.get(), args.asString(1)).join()) {
+                messageSender().sendError(player, "error.companyNameUsed");
+                return;
+            }
+            messageSender().sendMessage(player, "company.rename.changed");
+        });
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
         args.parseQuoted();
 
         if (args.size() == 1) {
-            return Completion.completeFreeInput(args.asString(0), 32, localizer().localize("words.source"));
+            return Completion.completeFreeInput(
+                    args.asString(0), 32, localizer().localize("words.source"));
         }
 
         if (args.size() == 2) {
-            return Completion.completeFreeInput(args.asString(1), 32, localizer().localize("words.target"));
+            return Completion.completeFreeInput(
+                    args.asString(1), 32, localizer().localize("words.target"));
         }
 
         return Collections.emptyList();

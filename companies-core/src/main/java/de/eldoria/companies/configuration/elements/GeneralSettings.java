@@ -17,8 +17,7 @@ public class GeneralSettings {
     private boolean messageBlocking = true;
     private Hooks hooks = new Hooks();
 
-    public GeneralSettings() {
-    }
+    public GeneralSettings() {}
 
     public int orderCheckInterval() {
         return orderCheckInterval;

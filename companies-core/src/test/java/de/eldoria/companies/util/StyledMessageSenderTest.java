@@ -26,8 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 class StyledMessageSenderTest {
     private final ObjectMapper mapper = YAMLMapper.builder()
-                                                  .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
-                                                  .build();
+            .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
+            .build();
     private StyleSettings style = new StyleSettings();
     private Plugin plugin;
     private StyledMessageSender sender;
@@ -47,7 +47,11 @@ class StyledMessageSenderTest {
 
     private static TextColor colorOf(Component component) {
         if (component.color() != null) return component.color();
-        return component.children().stream().map(StyledMessageSenderTest::colorOf).filter(c -> c != null).findFirst().orElse(null);
+        return component.children().stream()
+                .map(StyledMessageSenderTest::colorOf)
+                .filter(c -> c != null)
+                .findFirst()
+                .orElse(null);
     }
 
     @Test

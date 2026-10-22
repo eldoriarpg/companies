@@ -34,9 +34,14 @@ public class Execute extends AdvancedCommand implements IPlayerTabExecutor {
     private final Configuration configuration;
     private final Search search;
 
-    public Execute(Plugin plugin, Query query, Search search, AOrderData orderData, ACompanyData companyData, Configuration configuration) {
-        super(plugin, CommandMeta.builder("execute")
-                .build());
+    public Execute(
+            Plugin plugin,
+            Query query,
+            Search search,
+            AOrderData orderData,
+            ACompanyData companyData,
+            Configuration configuration) {
+        super(plugin, CommandMeta.builder("execute").build());
         this.query = query;
         this.orderData = orderData;
         this.companyData = companyData;
@@ -45,25 +50,26 @@ public class Execute extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        var orders = orderData.retrieveOrdersByQuery(query.getPlayerSearch(player), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
-                              .asFuture();
-        BukkitFutureResult.of(companyData.retrievePlayerCompanyProfile(player)
-                                         .asFuture()
-                                         .thenCombine(orders, this::acceptableOrders))
-                          .whenComplete(fullOrders -> {
-                              search.results()
-                                    .put(player.getUniqueId(), fullOrders);
-                              search.page()
-                                    .renderPage(player, 0);
-                          });
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
+        var orders = orderData
+                .retrieveOrdersByQuery(query.getPlayerSearch(player), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .asFuture();
+        BukkitFutureResult.of(companyData
+                        .retrievePlayerCompanyProfile(player)
+                        .asFuture()
+                        .thenCombine(orders, this::acceptableOrders))
+                .whenComplete(fullOrders -> {
+                    search.results().put(player.getUniqueId(), fullOrders);
+                    search.page().renderPage(player, 0);
+                });
     }
 
     private List<FullOrder> acceptableOrders(Optional<CompanyProfile> company, List<FullOrder> orders) {
         if (company.isEmpty()) return orders;
         var allowMemberOrders = configuration.companySettings().allowMemberOrders();
         return orders.stream()
-                     .filter(order -> company.get().mayAcceptOrderOf(order.owner(), allowMemberOrders))
-                     .collect(Collectors.toList());
+                .filter(order -> company.get().mayAcceptOrderOf(order.owner(), allowMemberOrders))
+                .collect(Collectors.toList());
     }
 }

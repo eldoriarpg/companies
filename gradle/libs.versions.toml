@@ -1,4 +1,5 @@
 [versions]
+palantir = "2.84.0"
 jackson = "3.2.4"
 eldoutil = "3.5.0"
 sadu = "2.3.9"

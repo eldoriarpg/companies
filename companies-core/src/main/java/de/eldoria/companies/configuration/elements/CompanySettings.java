@@ -30,8 +30,7 @@ public class CompanySettings {
 
     private void updateLevel() {
         for (var i = 0; i < level.size(); i++) {
-            level.get(i)
-                 .level(i + 1);
+            level.get(i).level(i + 1);
         }
     }
 
@@ -120,8 +119,7 @@ public class CompanySettings {
         if (level.isEmpty()) return null;
         var finalLevel = level.get(0);
         for (var level : level) {
-            if (!level.requirement()
-                      .checkRequirements(stats)) break;
+            if (!level.requirement().checkRequirements(stats)) break;
             finalLevel = level;
         }
         return finalLevel;

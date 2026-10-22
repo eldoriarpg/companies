@@ -16,8 +16,8 @@ import java.util.List;
 
 class CompanySettingsTest {
     private final ObjectMapper mapper = YAMLMapper.builder()
-                                                  .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
-                                                  .build();
+            .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
+            .build();
 
     private static CompanySettings withoutLevels() {
         var settings = new CompanySettings();
@@ -36,7 +36,9 @@ class CompanySettingsTest {
 
         Assertions.assertEquals(1, second.level());
         Assertions.assertEquals(second, settings.level(1).orElseThrow());
-        Assertions.assertEquals(List.of(1, 2), settings.level().stream().map(CompanyLevel::level).toList());
+        Assertions.assertEquals(
+                List.of(1, 2),
+                settings.level().stream().map(CompanyLevel::level).toList());
     }
 
     @Test
@@ -52,9 +54,12 @@ class CompanySettingsTest {
     void freshSettingsStartWithTheStarterLadder() {
         var settings = new CompanySettings();
 
-        Assertions.assertEquals(List.of("Startup", "Business", "Corporation", "Conglomerate"),
+        Assertions.assertEquals(
+                List.of("Startup", "Business", "Corporation", "Conglomerate"),
                 settings.level().stream().map(CompanyLevel::levelName).toList());
-        Assertions.assertEquals(List.of(1, 2, 3, 4), settings.level().stream().map(CompanyLevel::level).toList());
+        Assertions.assertEquals(
+                List.of(1, 2, 3, 4),
+                settings.level().stream().map(CompanyLevel::level).toList());
     }
 
     @Test
@@ -91,7 +96,9 @@ class CompanySettingsTest {
                     level: 1
                 """, CompanySettings.class);
 
-        Assertions.assertEquals(List.of("Solo"), settings.level().stream().map(CompanyLevel::levelName).toList());
+        Assertions.assertEquals(
+                List.of("Solo"),
+                settings.level().stream().map(CompanyLevel::levelName).toList());
     }
 
     @Test
@@ -99,7 +106,9 @@ class CompanySettingsTest {
         var yaml = mapper.writeValueAsString(new CompanySettings());
         var settings = mapper.readValue(yaml, CompanySettings.class);
 
-        Assertions.assertEquals(List.of(1, 2, 3, 4), settings.level().stream().map(CompanyLevel::level).toList());
+        Assertions.assertEquals(
+                List.of(1, 2, 3, 4),
+                settings.level().stream().map(CompanyLevel::level).toList());
         Assertions.assertEquals(12, settings.level(4).orElseThrow().settings().maxOrders());
     }
 }

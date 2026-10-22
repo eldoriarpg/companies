@@ -97,9 +97,7 @@ public class PostgresOrderData extends MariaDbOrderData {
                   AND state = ?
                 ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours)
-                        .bind(company.id())
-                        .bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(hours).bind(company.id()).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -154,7 +152,6 @@ public class PostgresOrderData extends MariaDbOrderData {
         @Language("postgresql")
         var query = """
                 REFRESH MATERIALIZED VIEW material_price;""";
-        query(query).single()
-                .update();
+        query(query).single().update();
     }
 }

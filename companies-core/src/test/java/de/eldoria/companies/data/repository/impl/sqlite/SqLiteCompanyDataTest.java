@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 class SqLiteCompanyDataTest {
     @TempDir
     Path directory;
+
     private SqLiteCompanyData companyData;
 
     @BeforeEach
@@ -28,7 +29,9 @@ class SqLiteCompanyDataTest {
 
     private int createCompany(String name) {
         var id = companyData.submitCompanyCreation(name).join();
-        companyData.submitMemberUpdate(CompanyMember.of(id, UUID.randomUUID(), 0)).join();
+        companyData
+                .submitMemberUpdate(CompanyMember.of(id, UUID.randomUUID(), 0))
+                .join();
         return id;
     }
 
@@ -36,7 +39,9 @@ class SqLiteCompanyDataTest {
     void companyIsFoundByNameIgnoringCase() {
         var id = createCompany("Miners");
 
-        Assertions.assertEquals(id, companyData.retrieveCompanyByName("miners").join().orElseThrow().id());
+        Assertions.assertEquals(
+                id,
+                companyData.retrieveCompanyByName("miners").join().orElseThrow().id());
         Assertions.assertTrue(companyData.retrieveCompanyByName("Min%").join().isEmpty());
     }
 

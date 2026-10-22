@@ -67,10 +67,11 @@ import java.util.logging.Level;
 
 @SuppressWarnings("InstanceVariableMayNotBeInitialized")
 public class Companies extends EldoPlugin {
-    private final Thread.UncaughtExceptionHandler exceptionHandler =
-            (t, e) -> getLogger().log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
+    private final Thread.UncaughtExceptionHandler exceptionHandler = (t, e) -> getLogger()
+            .log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
-    private final ScheduledExecutorService workerPool = Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
+    private final ScheduledExecutorService workerPool =
+            Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
     private final Configuration configuration;
     private HikariDataSource dataSource;
     private ACompanyData companyData;
@@ -110,9 +111,9 @@ public class Companies extends EldoPlugin {
     public void onPluginEnable(boolean reload) {
 
         var localizer = Localizer.builder(this, "en_US")
-                                 .setIncludedLocales("en_US", "de_DE", "fr_FR")
-                                 .setUserLocale(p -> configuration.generalSettings().language())
-                                 .build();
+                .setIncludedLocales("en_US", "de_DE", "fr_FR")
+                .setUserLocale(p -> configuration.generalSettings().language())
+                .build();
 
         StyledMessageSender.register(this, localizer, configuration::styleSettings);
     }
@@ -126,15 +127,15 @@ public class Companies extends EldoPlugin {
     public void onPostStart(boolean reload) {
         var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
         if (economyProvider == null) {
-            throw new IllegalStateException("No Vault economy provider is registered. Install an economy plugin that supports Vault.");
+            throw new IllegalStateException(
+                    "No Vault economy provider is registered. Install an economy plugin that supports Vault.");
         }
         var economy = economyProvider.getProvider();
 
         MessageBlocker messageBlocker;
         if (configuration.main().generalSettings().messageBlocking()) {
-            messageBlocker = MessageBlockerAPI.builder(this)
-                                              .executor(workerPool)
-                                              .build();
+            messageBlocker =
+                    MessageBlockerAPI.builder(this).executor(workerPool).build();
         } else {
             messageBlocker = MessageBlocker.dummy(this);
         }
@@ -146,11 +147,25 @@ public class Companies extends EldoPlugin {
 
         var itemReturnService = new ItemReturnService(this, orderData);
 
-        registerCommand("company", new Company(this, companyData, orderData, economy, configuration, messageBlocker, itemReturnService));
+        registerCommand(
+                "company",
+                new Company(this, companyData, orderData, economy, configuration, messageBlocker, itemReturnService));
         registerCommand("order", new Order(this, orderData, configuration, economy, messageBlocker));
-        registerCommand("companyadmin", new CompanyAdmin(this, configuration, companyData, orderData, messageBlocker, levelService, nodeData, itemReturnService, updates));
+        registerCommand(
+                "companyadmin",
+                new CompanyAdmin(
+                        this,
+                        configuration,
+                        companyData,
+                        orderData,
+                        messageBlocker,
+                        levelService,
+                        nodeData,
+                        itemReturnService,
+                        updates));
 
-        var expiringService = new ExpiringService(this, orderData, companyData, configuration, itemReturnService, economy);
+        var expiringService =
+                new ExpiringService(this, orderData, companyData, configuration, itemReturnService, economy);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
@@ -160,7 +175,8 @@ public class Companies extends EldoPlugin {
         registerListener(itemReturnService);
         registerListener(new NotificationService(notificationData, orderData, workerPool, this));
 
-        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI") && configuration.generalSettings().hooks().placeholderapi()) {
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
+                && configuration.generalSettings().hooks().placeholderapi()) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
             placeholderService.startRefreshing();
@@ -198,8 +214,8 @@ public class Companies extends EldoPlugin {
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource)
-                                                        .setExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
-                                                        .build());
+                .setExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
+                .build());
 
         BaseSqlUpdaterBuilder<?, ?> builder;
         switch (configuration.databaseSettings().storageType()) {
@@ -216,22 +232,23 @@ public class Companies extends EldoPlugin {
                 builder = SqlUpdater.builder(dataSource, PostgreSql.get());
             }
             default -> {
-                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings().storageType());
+                throw new IllegalStateException(
+                        "Unexpected value: " + configuration.databaseSettings().storageType());
             }
         }
 
         builder.setVersionTable("companies_db_version")
-               .withClassLoader(this.getClass().getClassLoader())
-               .setReplacements(new QueryReplacement("companies_schema", configuration.databaseSettings().schema()))
-               .execute();
+                .withClassLoader(this.getClass().getClassLoader())
+                .setReplacements(new QueryReplacement(
+                        "companies_schema", configuration.databaseSettings().schema()))
+                .execute();
 
         initDataRepositories();
     }
 
     private void initDataRepositories() {
         var mapper = configuration.storageMapper();
-        switch (configuration.databaseSettings()
-                             .storageType()) {
+        switch (configuration.databaseSettings().storageType()) {
             case SQLITE -> {
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
@@ -250,8 +267,9 @@ public class Companies extends EldoPlugin {
                 notificationData = new PostgresNotificationData(workerPool);
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
             }
-            default -> throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                                                                                          .storageType());
+            default ->
+                throw new IllegalStateException(
+                        "Unexpected value: " + configuration.databaseSettings().storageType());
         }
     }
 

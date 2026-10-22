@@ -43,8 +43,6 @@ public class PostgresNodeData extends MariaDbNodeData {
                 VALUES (?, ?, ?)
                 ON CONFLICT(node_id, path) DO UPDATE SET content = excluded.content""";
 
-        query(insert)
-                .single(call().bind(getNodeId()).bind(path).bind(content))
-                .insert();
+        query(insert).single(call().bind(getNodeId()).bind(path).bind(content)).insert();
     }
 }

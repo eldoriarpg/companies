@@ -28,8 +28,6 @@ import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
@@ -63,17 +61,18 @@ public class NotificationService implements Listener {
     private final Plugin plugin;
     private final Economy economy;
 
-    public NotificationService(ANotificationData notificationData, AOrderData orderData,
-                               ScheduledExecutorService workerPool, Plugin plugin) {
+    public NotificationService(
+            ANotificationData notificationData,
+            AOrderData orderData,
+            ScheduledExecutorService workerPool,
+            Plugin plugin) {
         this.notificationData = notificationData;
         this.orderData = orderData;
         this.workerPool = workerPool;
         sender = MessageSender.getPluginMessageSender(plugin);
         localizer = ILocalizer.getPluginLocalizer(plugin);
         this.plugin = plugin;
-        economy = plugin.getServer()
-                        .getServicesManager()
-                        .load(Economy.class);
+        economy = plugin.getServer().getServicesManager().load(Economy.class);
     }
 
     @EventHandler
@@ -96,8 +95,8 @@ public class NotificationService implements Listener {
     }
 
     private void saveNotification(OfflinePlayer player, String message, TagResolver... replacements) {
-        var container = new NotificationData(sender.miniMessage()
-                                                   .serialize(sender.serializeMessage(message, replacements)));
+        var container =
+                new NotificationData(sender.miniMessage().serialize(sender.serializeMessage(message, replacements)));
         notificationData.submitNotifications(player, container);
     }
 
@@ -111,56 +110,61 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onCompanyLeaveEvent(CompanyLeaveEvent event) {
         if (event instanceof CompanyKickEvent) return;
-        sendCompanyMessage(event.company(), "notification.companyLeave",
-                member -> member.uuid()
-                                .equals(event.player()
-                                             .getUniqueId()), Replacement.create("name", event.player().getName()));
+        sendCompanyMessage(
+                event.company(),
+                "notification.companyLeave",
+                member -> member.uuid().equals(event.player().getUniqueId()),
+                Replacement.create("name", event.player().getName()));
     }
 
-    public void sendCompanyMessage(ICompanyProfile company, String message, Predicate<ICompanyMember> filter, TagResolver... replacements) {
+    public void sendCompanyMessage(
+            ICompanyProfile company, String message, Predicate<ICompanyMember> filter, TagResolver... replacements) {
         for (var member : company.members()) {
             if (filter.test(member)) continue;
-            if (!member.player()
-                       .isOnline()) {
+            if (!member.player().isOnline()) {
                 saveNotification(member.player(), message, replacements);
                 continue;
             }
-            sender.sendMessage(member.player()
-                                     .getPlayer(), message, replacements);
+            sender.sendMessage(member.player().getPlayer(), message, replacements);
         }
     }
 
     @EventHandler
     public void onCompanyJoin(CompanyJoinEvent event) {
-        sendCompanyMessage(event.company(), "notification.companyJoin",
-                member -> member.uuid()
-                                .equals(event.player()
-                                             .getUniqueId()), Replacement.create("name", event.player().getName()));
+        sendCompanyMessage(
+                event.company(),
+                "notification.companyJoin",
+                member -> member.uuid().equals(event.player().getUniqueId()),
+                Replacement.create("name", event.player().getName()));
     }
 
     @EventHandler
     public void onCompanyKick(CompanyKickEvent event) {
         sendMessage(event.player(), "notification.kickedTarget");
 
-        sendCompanyMessage(event.company(), "notification.kicked",
-                member -> member.uuid()
-                                .equals(event.player()
-                                             .getUniqueId()), Replacement.create("name", event.player().getName()));
+        sendCompanyMessage(
+                event.company(),
+                "notification.kicked",
+                member -> member.uuid().equals(event.player().getUniqueId()),
+                Replacement.create("name", event.player().getName()));
     }
 
     @EventHandler
     public void onOrderAccept(OrderAcceptEvent event) {
         var order = event.order();
         var message = MessageComposer.create()
-                                     .text("<neutral>")
-                                     .localeCode("notification.orderAccepted")
-                                     .space()
-                                     .text("<click:run_command:/company order info %s><add>[", order.id())
-                                     .localeCode("words.info")
-                                     .text("]</click>")
-                                     .build();
-        sendCompanyMessage(event.company(), message,
-                miniOrderReplacement(order), Replacement.unparsed("order_name", order.name()));
+                .text("<neutral>")
+                .localeCode("notification.orderAccepted")
+                .space()
+                .text("<click:run_command:/company order info %s><add>[", order.id())
+                .localeCode("words.info")
+                .text("]</click>")
+                .build();
+        sendCompanyMessage(
+                event.company(),
+                message,
+                miniOrderReplacement(order),
+                Replacement.unparsed("order_name", order.name()));
     }
 
     private TagResolver miniOrderReplacement(ISimpleOrder order) {
@@ -169,88 +173,104 @@ public class NotificationService implements Listener {
 
     @EventHandler
     public void onOrderCanceled(OrderCanceledEvent event) {
-        sendCompanyMessage(event.company(), "notification.orderCanceled",
+        sendCompanyMessage(
+                event.company(),
+                "notification.orderCanceled",
                 Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onOrderCanceled(OrderRemovedEvent event) {
-        sendMessage(plugin.getServer()
-                          .getOfflinePlayer(event.order()
-                                                 .owner()), "notification.orderRemoved",
+        sendMessage(
+                plugin.getServer().getOfflinePlayer(event.order().owner()),
+                "notification.orderRemoved",
                 Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onOrderDone(OrderDoneEvent event) {
-        var owner = plugin.getServer()
-                          .getOfflinePlayer(event.order()
-                                                 .owner());
+        var owner = plugin.getServer().getOfflinePlayer(event.order().owner());
         var message = MessageComposer.create()
-                                     .text("<neutral>")
-                                     .localeCode("notification.orderDone")
-                                     .space()
-                                     .text("<click:run_command:/order receive %s><add>[", event.order()
-                                                                                               .id())
-                                     .localeCode("notification.receiveItems")
-                                     .text("]</click>")
-                                     .build();
-        sendMessage(owner, message,
-                miniOrderReplacement(event.order()), Replacement.unparsed("order_name", event.order()
-                                                                                           .name()));
+                .text("<neutral>")
+                .localeCode("notification.orderDone")
+                .space()
+                .text(
+                        "<click:run_command:/order receive %s><add>[",
+                        event.order().id())
+                .localeCode("notification.receiveItems")
+                .text("]</click>")
+                .build();
+        sendMessage(
+                owner,
+                message,
+                miniOrderReplacement(event.order()),
+                Replacement.unparsed("order_name", event.order().name()));
 
-        sendCompanyMessage(event.company(), "notification.orderDelivered",
+        sendCompanyMessage(
+                event.company(),
+                "notification.orderDelivered",
                 Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onOrderExpiredEvent(OrderExpiredEvent event) {
-        sendCompanyMessage(event.company(), "notification.companyOrderExpired",
-                Replacement.unparsed("order_name", event.order()
-                                                      .fullName()));
+        sendCompanyMessage(
+                event.company(),
+                "notification.companyOrderExpired",
+                Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onOrderPayment(OrderPaymentEvent event) {
-        sendMessage(event.player(), "notification.orderPayment",
+        sendMessage(
+                event.player(),
+                "notification.orderPayment",
                 Replacement.create("amount", economy.format(event.amount())),
                 Replacement.unparsed("order_name", event.order().fullName()));
     }
 
     @EventHandler
     public void onCompanyLevelUp(CompanyLevelUpEvent event) {
-        sendCompanyMessage(event.company(), "notification.companyLevelUp",
+        sendCompanyMessage(
+                event.company(),
+                "notification.companyLevelUp",
                 Replacement.create("new_level", event.newLevel().levelName()));
     }
 
     @EventHandler
     public void onCompanyLevelDown(CompanyLevelDownEvent event) {
-        sendCompanyMessage(event.company(), "notification.companyLevelDown",
+        sendCompanyMessage(
+                event.company(),
+                "notification.companyLevelDown",
                 Replacement.create("new_level", event.newLevel().levelName()));
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        workerPool.schedule(() -> {
-            sendNotifications(event.getPlayer());
-            sendDeliveredOrders(event.getPlayer());
-        }, 1L, TimeUnit.SECONDS);
+        workerPool.schedule(
+                () -> {
+                    sendNotifications(event.getPlayer());
+                    sendDeliveredOrders(event.getPlayer());
+                },
+                1L,
+                TimeUnit.SECONDS);
     }
 
     private void sendDeliveredOrders(Player player) {
-        var orders = orderData.retrieveOrdersByPlayer(player, OrderState.DELIVERED, OrderState.DELIVERED).join();
+        var orders = orderData
+                .retrieveOrdersByPlayer(player, OrderState.DELIVERED, OrderState.DELIVERED)
+                .join();
         if (orders == null) return;
         for (var order : orders) {
             var message = MessageComposer.create()
-                                         .text("<neutral>")
-                                         .localeCode("notification.orderDone")
-                                         .space()
-                                         .text("<click:run_command:/order receive %s><add>[", order.id())
-                                         .localeCode("notification.receiveItems")
-                                         .text("]</click>")
-                                         .build();
-            sendMessage(player, message, miniOrderReplacement(order),
-                    Replacement.unparsed("order_name", order.name()));
+                    .text("<neutral>")
+                    .localeCode("notification.orderDone")
+                    .space()
+                    .text("<click:run_command:/order receive %s><add>[", order.id())
+                    .localeCode("notification.receiveItems")
+                    .text("]</click>")
+                    .build();
+            sendMessage(player, message, miniOrderReplacement(order), Replacement.unparsed("order_name", order.name()));
         }
     }
 

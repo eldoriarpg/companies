@@ -65,12 +65,12 @@ public final class Updates {
 
     private LynaUpdateData data(UpdateSettings settings) {
         return LynaUpdateData.builder(plugin)
-                             .notifyPermission(Permission.UPDATES)
-                             .notifyUpdate(settings.notice())
-                             .autoUpdate(settings.autoUpdate())
-                             .askForAutoUpdate(settings.askForAutoUpdate())
-                             .autoUpdateHook(this::decided)
-                             .build();
+                .notifyPermission(Permission.UPDATES)
+                .notifyUpdate(settings.notice())
+                .autoUpdate(settings.autoUpdate())
+                .askForAutoUpdate(settings.askForAutoUpdate())
+                .autoUpdateHook(this::decided)
+                .build();
     }
 
     private void decided(AutoUpdateDecision decision) {

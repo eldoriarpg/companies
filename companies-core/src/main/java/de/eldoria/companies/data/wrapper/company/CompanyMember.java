@@ -55,7 +55,9 @@ public class CompanyMember implements ICompanyMember {
         } else {
             permission -= CompanyPermission.OWNER.mask();
         }
-    }    @Override
+    }
+
+    @Override
     public boolean hasPermission(CompanyPermission permissions) {
         if (isOwner()) return true;
         return permissions.hasPermission(permission);
@@ -64,7 +66,9 @@ public class CompanyMember implements ICompanyMember {
     public CompanyMember kick() {
         company = -1;
         return this;
-    }    @Override
+    }
+
+    @Override
     public boolean hasPermissions(CompanyPermission... permissions) {
         if (isOwner()) return true;
         return CompanyPermission.hasPermission(permission, permissions);
@@ -73,16 +77,16 @@ public class CompanyMember implements ICompanyMember {
     public String statusComponent() {
         var hover = MessageComposer.create();
         if (player().isOnline()) {
-            hover.text("<active>")
-                 .localeCode("words.online");
+            hover.text("<active>").localeCode("words.online");
         } else {
-            var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastSeen()), ZoneId.systemDefault());
-            hover.text("<neutral>")
-                 .localeCode("words.lastSeen")
-                 .text(": %s", lastSeen.format(FORMATTER));
+            var lastSeen =
+                    LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastSeen()), ZoneId.systemDefault());
+            hover.text("<neutral>").localeCode("words.lastSeen").text(": %s", lastSeen.format(FORMATTER));
         }
         return hover.build();
-    }    @Override
+    }
+
+    @Override
     public boolean hasAnyPermissions(CompanyPermission... permissions) {
         if (isOwner()) return true;
         return CompanyPermission.hasAnyPermission(permission, permissions);
@@ -102,8 +106,6 @@ public class CompanyMember implements ICompanyMember {
         this.permission -= permission.mask();
         return this;
     }
-
-
 
     @Override
     public OfflinePlayer player() {
@@ -128,13 +130,9 @@ public class CompanyMember implements ICompanyMember {
     @Override
     public List<CompanyPermission> permissions() {
         return Arrays.stream(CompanyPermission.values())
-                     .filter(this::hasPermissions)
-                     .collect(Collectors.toList());
+                .filter(this::hasPermissions)
+                .collect(Collectors.toList());
     }
-
-
-
-
 
     @Override
     public boolean isOwner() {

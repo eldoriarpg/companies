@@ -19,15 +19,18 @@ public class Chatblock extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlockerService;
 
     public Chatblock(Plugin plugin, MessageBlocker messageBlockerService) {
-        super(plugin, CommandMeta.builder("chatblock")
-                .addArgument("state", true)
-                .hidden()
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("chatblock")
+                        .addArgument("state", true)
+                        .hidden()
+                        .build());
         this.messageBlockerService = messageBlockerService;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         if (args.asBoolean(0)) {
             messageBlockerService.blockPlayer(player);
         } else {

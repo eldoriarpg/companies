@@ -39,8 +39,12 @@ import java.util.function.Supplier;
 public final class StyledMessageSender extends MessageSender {
     private final Supplier<StyleSettings> style;
 
-    private StyledMessageSender(Plugin plugin, MiniMessage miniMessage, TagResolver messageTags, TagResolver errorTags,
-                                Supplier<StyleSettings> style) {
+    private StyledMessageSender(
+            Plugin plugin,
+            MiniMessage miniMessage,
+            TagResolver messageTags,
+            TagResolver errorTags,
+            Supplier<StyleSettings> style) {
         super(plugin, miniMessage, messageTags, errorTags, Component.empty());
         this.style = style;
     }
@@ -56,10 +60,12 @@ public final class StyledMessageSender extends MessageSender {
     public static StyledMessageSender register(Plugin plugin, ILocalizer localizer, Supplier<StyleSettings> style) {
         var tags = TagResolver.resolver(new StyleTags(style), StandardTags.defaults());
         var miniMessage = MiniMessage.builder()
-                                     .tags(tags)
-                                     .preProcessor(localizer::localize)
-                                     .build();
-        var sender = new StyledMessageSender(plugin, miniMessage,
+                .tags(tags)
+                .preProcessor(localizer::localize)
+                .build();
+        var sender = new StyledMessageSender(
+                plugin,
+                miniMessage,
                 TagResolver.resolver(tags, new DefaultColor(() -> style.get().message())),
                 TagResolver.resolver(tags, new DefaultColor(() -> style.get().error())),
                 style);
@@ -110,9 +116,15 @@ public final class StyledMessageSender extends MessageSender {
     }
 
     @Override
-    public BossBar sendBossBar(Player player, String message, float progress, BossBar.Color color, BossBar.Overlay overlay,
-                               Set<BossBar.Flag> flags) {
-        var bossBar = BossBar.bossBar(serialize(player, message, messageTagResolver()), progress, color, overlay, flags);
+    public BossBar sendBossBar(
+            Player player,
+            String message,
+            float progress,
+            BossBar.Color color,
+            BossBar.Overlay overlay,
+            Set<BossBar.Flag> flags) {
+        var bossBar =
+                BossBar.bossBar(serialize(player, message, messageTagResolver()), progress, color, overlay, flags);
         player.showBossBar(bossBar);
         return bossBar;
     }
@@ -136,7 +148,8 @@ public final class StyledMessageSender extends MessageSender {
         @Override
         public @Nullable Tag resolve(@NotNull String name, @NotNull ArgumentQueue arguments, @NotNull Context ctx) {
             var settings = style.get();
-            if (PREFIX.equals(name)) return Tag.selfClosingInserting(MiniMessage.miniMessage().deserialize(settings.prefix()));
+            if (PREFIX.equals(name))
+                return Tag.selfClosingInserting(MiniMessage.miniMessage().deserialize(settings.prefix()));
             var color = settings.tags().get(name);
             return color == null ? null : Tag.styling(color);
         }

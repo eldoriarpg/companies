@@ -31,46 +31,46 @@ public class Player extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Player(Plugin plugin, ACompanyData companyData, Configuration configuration, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("player")
-                .build());
+        super(plugin, CommandMeta.builder("player").build());
         this.companyData = companyData;
         this.configuration = configuration;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(org.bukkit.entity.@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(org.bukkit.entity.@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         var target = args.asPlayer(0);
 
-        companyData.retrievePlayerCompanyProfile(target)
-                   .asFuture()
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return Optional.empty();
-                   })
-                   .thenAccept(optCompany -> {
-                       if (optCompany.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noCompany");
-                           return;
-                       }
-                       messageBlocker.blockPlayer(player);
+        companyData
+                .retrievePlayerCompanyProfile(target)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optCompany -> {
+                    if (optCompany.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noCompany");
+                        return;
+                    }
+                    messageBlocker.blockPlayer(player);
 
-                       var companyProfile = optCompany.get();
-                       var builder = MessageComposer.create()
-                                                    .text(companyProfile.asExternalProfileComponent(configuration));
+                    var companyProfile = optCompany.get();
+                    var builder =
+                            MessageComposer.create().text(companyProfile.asExternalProfileComponent(configuration));
 
-                       if (messageBlocker.isBlocked(player)) {
-                           builder.newLine()
-                                  .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                       }
-                       builder.prependLines(25);
-                       Menus.show(messageBlocker, player, builder);
-                   });
+                    if (messageBlocker.isBlocked(player)) {
+                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                    }
+                    builder.prependLines(25);
+                    Menus.show(messageBlocker, player, builder);
+                });
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(org.bukkit.entity.@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+    public @Nullable List<String> onTabComplete(
+            org.bukkit.entity.@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
         if (args.size() == 1) {
             return Completion.completeOnlinePlayers(args.asString(0));
         }

@@ -31,9 +31,8 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
     @Override
     public Optional<CompanyMember> member(OfflinePlayer player) {
         return members.stream()
-                      .filter(m -> m.uuid()
-                                    .equals(player.getUniqueId()))
-                      .findAny();
+                .filter(m -> m.uuid().equals(player.getUniqueId()))
+                .findAny();
     }
 
     @Override
@@ -43,27 +42,24 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
 
     @Override
     public List<CompanyMember> members(CompanyPermission... permissions) {
-        return members.stream()
-                      .filter(m -> m.hasPermissions(permissions))
-                      .collect(Collectors.toList());
+        return members.stream().filter(m -> m.hasPermissions(permissions)).collect(Collectors.toList());
     }
 
     @Override
     public CompanyMember owner() {
         return members.stream()
-                      .filter(m -> m.hasPermission(CompanyPermission.OWNER))
-                      .findFirst()
-                      .get();
+                .filter(m -> m.hasPermission(CompanyPermission.OWNER))
+                .findFirst()
+                .get();
     }
 
     @Override
     public Optional<CompanyMember> memberByName(String name) {
         return members.stream()
-                      .filter(member -> Optional.ofNullable(member.player()
-                                                                  .getName())
-                                                .map(n -> n.equalsIgnoreCase(name))
-                                                .orElse(false))
-                      .findFirst();
+                .filter(member -> Optional.ofNullable(member.player().getName())
+                        .map(n -> n.equalsIgnoreCase(name))
+                        .orElse(false))
+                .findFirst();
     }
 
     /**
@@ -73,9 +69,7 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
      * @return true when the player is a member
      */
     public boolean isMember(UUID player) {
-        return members.stream()
-                      .anyMatch(member -> member.uuid()
-                                                .equals(player));
+        return members.stream().anyMatch(member -> member.uuid().equals(player));
     }
 
     /**
@@ -90,33 +84,32 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
     }
 
     public String asExternalProfileComponent(Configuration configuration) {
-        var level = configuration.companySettings()
-                                 .level(level())
-                                 .orElse(CompanyLevel.DEFAULT);
+        var level = configuration.companySettings().level(level()).orElse(CompanyLevel.DEFAULT);
         var composer = MessageComposer.create()
-                                      .text("<heading>")
-                                      .text(Texts.escape(name()))
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.level")
-                                      .text(": <value>%s - %s", level.level(), level.levelName())
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.founded")
-                                      .text(": <value>%s", foundedString())
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.leader")
-                                      .text(": <value>%s", owner().player().getName())
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.member")
-                                      .text(": <value>%s <click:run_command:/company member id %s><show>[", members().size(), id())
-                                      .localeCode("words.list")
-                                      .text("]</click>")
-                                      .newLine();
+                .text("<heading>")
+                .text(Texts.escape(name()))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.level")
+                .text(": <value>%s - %s", level.level(), level.levelName())
+                .newLine()
+                .text("<name>")
+                .localeCode("words.founded")
+                .text(": <value>%s", foundedString())
+                .newLine()
+                .text("<name>")
+                .localeCode("words.leader")
+                .text(": <value>%s", owner().player().getName())
+                .newLine()
+                .text("<name>")
+                .localeCode("words.member")
+                .text(
+                        ": <value>%s <click:run_command:/company member id %s><show>[",
+                        members().size(), id())
+                .localeCode("words.list")
+                .text("]</click>")
+                .newLine();
 
         return composer.build();
-
     }
 }

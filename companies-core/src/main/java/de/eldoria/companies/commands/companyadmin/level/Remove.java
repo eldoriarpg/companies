@@ -19,34 +19,33 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-
 public class Remove extends AdvancedCommand implements IPlayerTabExecutor {
     private final Configuration configuration;
     private final List list;
 
     public Remove(Plugin plugin, Configuration configuration, List list) {
-        super(plugin, CommandMeta.builder("remove")
-                .addArgument("words.level", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("remove").addArgument("words.level", true).build());
         this.configuration = configuration;
         this.list = list;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         CommandAssertions.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
         var level = args.asInt(0);
-        var success = configuration.companySettings()
-                                   .deleteLevel(level);
+        var success = configuration.companySettings().deleteLevel(level);
         CommandAssertions.isTrue(success, "error.invalidLevel");
         configuration.save();
         list.sendList(player);
     }
 
     @Override
-    public @Nullable java.util.List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
-        return Completion.completeInt(args.asString(0), 1, configuration.companySettings()
-                                                                        .level()
-                                                                        .size());
+    public @Nullable java.util.List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+        return Completion.completeInt(
+                args.asString(0), 1, configuration.companySettings().level().size());
     }
 }

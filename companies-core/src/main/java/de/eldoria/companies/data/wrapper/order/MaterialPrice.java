@@ -50,27 +50,26 @@ public class MaterialPrice implements de.eldoria.companies.components.order.IMat
 
     public String asComponent(int amount, Economy economy) {
         return MessageComposer.create()
-                              .text("<yellow>")
-                              .localeCode("words.avg")
-                              .text(": %s", economy.format(avgPrice * amount))
-                              .newLine()
-                              .text("<green>")
-                              .localeCode("words.min")
-                              .text(": %s", economy.format(minPrice * amount))
-                              .newLine()
-                              .text("<red>")
-                              .localeCode("words.max")
-                              .text(": %s", economy.format(maxPrice * amount))
-                              .build();
+                .text("<yellow>")
+                .localeCode("words.avg")
+                .text(": %s", economy.format(avgPrice * amount))
+                .newLine()
+                .text("<green>")
+                .localeCode("words.min")
+                .text(": %s", economy.format(minPrice * amount))
+                .newLine()
+                .text("<red>")
+                .localeCode("words.max")
+                .text(": %s", economy.format(maxPrice * amount))
+                .build();
     }
 
     @Override
     public String toString() {
-        return "MaterialPrice{" +
-               "material='" + material + "'" +
-               ", avgPrice=" + avgPrice +
-               ", minPrice=" + minPrice +
-               ", maxPrice=" + maxPrice +
-               '}';
+        return "MaterialPrice{" + "material='"
+                + material + "'" + ", avgPrice="
+                + avgPrice + ", minPrice="
+                + minPrice + ", maxPrice="
+                + maxPrice + '}';
     }
 }

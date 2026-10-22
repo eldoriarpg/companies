@@ -23,7 +23,14 @@ public class CompanyStats implements ICompanyStats {
     private final double price;
     private final int deliveredItems;
 
-    public CompanyStats(int id, String name, LocalDateTime founded, int memberCount, int orderCount, double price, int deliveredItems) {
+    public CompanyStats(
+            int id,
+            String name,
+            LocalDateTime founded,
+            int memberCount,
+            int orderCount,
+            double price,
+            int deliveredItems) {
         this.id = id;
         this.name = name;
         this.founded = founded;
@@ -80,28 +87,28 @@ public class CompanyStats implements ICompanyStats {
      */
     public String asComponent(Economy economy) {
         return MessageComposer.create()
-                              .text("<heading>")
-                              .text(Texts.escape(name))
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("words.founded")
-                              .text(": <value>%s ", FORMATTER.format(founded))
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("words.member")
-                              .text(": <value>%s", memberCount)
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("words.orders")
-                              .text(": <value>%s", orderCount)
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("level.earnedMoney")
-                              .text(": <value>%s", economy.format(price))
-                              .newLine()
-                              .text("<name>")
-                              .localeCode("level.deliveredItems")
-                              .text(": <value>%s", deliveredItems)
-                              .build();
+                .text("<heading>")
+                .text(Texts.escape(name))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.founded")
+                .text(": <value>%s ", FORMATTER.format(founded))
+                .newLine()
+                .text("<name>")
+                .localeCode("words.member")
+                .text(": <value>%s", memberCount)
+                .newLine()
+                .text("<name>")
+                .localeCode("words.orders")
+                .text(": <value>%s", orderCount)
+                .newLine()
+                .text("<name>")
+                .localeCode("level.earnedMoney")
+                .text(": <value>%s", economy.format(price))
+                .newLine()
+                .text("<name>")
+                .localeCode("level.deliveredItems")
+                .text(": <value>%s", deliveredItems)
+                .build();
     }
 }

@@ -28,8 +28,8 @@ public final class Inventories {
      */
     public static ItemStack[] storageCopy(Player player) {
         return Arrays.stream(player.getInventory().getStorageContents())
-                     .map(stack -> stack == null ? null : stack.clone())
-                     .toArray(ItemStack[]::new);
+                .map(stack -> stack == null ? null : stack.clone())
+                .toArray(ItemStack[]::new);
     }
 
     /**

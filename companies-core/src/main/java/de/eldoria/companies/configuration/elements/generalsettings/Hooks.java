@@ -9,8 +9,7 @@ package de.eldoria.companies.configuration.elements.generalsettings;
 public class Hooks {
     private boolean placeholderapi = true;
 
-    public Hooks() {
-    }
+    public Hooks() {}
 
     public boolean placeholderapi() {
         return placeholderapi;

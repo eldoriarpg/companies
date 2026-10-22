@@ -90,7 +90,8 @@ public abstract class CompaniesApi {
      * @param max     max order state
      * @return List of orders. List may be empty
      */
-    public abstract List<? extends ISimpleOrder> retrieveOrdersByCompany(ISimpleCompany company, OrderState min, OrderState max);
+    public abstract List<? extends ISimpleOrder> retrieveOrdersByCompany(
+            ISimpleCompany company, OrderState min, OrderState max);
 
     /**
      * Retrieve all orders assigned to a company
@@ -100,7 +101,8 @@ public abstract class CompaniesApi {
      * @param max    max order state
      * @return List of orders. List may be empty
      */
-    public abstract List<? extends ISimpleOrder> retrieveOrdersByPlayer(OfflinePlayer player, OrderState min, OrderState max);
+    public abstract List<? extends ISimpleOrder> retrieveOrdersByPlayer(
+            OfflinePlayer player, OrderState min, OrderState max);
 
     /**
      * Retrieve the material price for a material

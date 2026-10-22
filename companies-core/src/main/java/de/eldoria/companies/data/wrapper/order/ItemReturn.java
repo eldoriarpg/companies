@@ -14,5 +14,4 @@ import org.bukkit.inventory.ItemStack;
  * @param stack  the delivered item
  * @param amount amount of items waiting
  */
-public record ItemReturn(int id, ItemStack stack, int amount) {
-}
+public record ItemReturn(int id, ItemStack stack, int amount) {}

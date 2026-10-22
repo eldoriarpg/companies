@@ -25,12 +25,25 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 public class Configuration extends JacksonConfig<ConfigFile> {
-    public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::new).name("Main config").build();
-    public static final Key<DatabaseSettings> DATABASE = Key.builder(Path.of("database.yml"), DatabaseSettings::new).name("Database config").build();
-    public static final Key<NodeSettings> NODE_SETTINGS = Key.builder(Path.of("node.yml"), NodeSettings::new).name("Node config").build();
-    public static final Key<OrderSettings> ORDER_SETTINGS = Key.builder(Path.of("order.yml"), OrderSettings::new).name("Order config").build();
-    public static final Key<UserSettings> USER_SETTINGS = Key.builder(Path.of("user.yml"), UserSettings::new).name("User config").build();
-    public static final Key<CompanySettings> COMPANY_SETTINGS = Key.builder(Path.of("company.yml"), CompanySettings::new).name("Company config").build();
+    public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::new)
+            .name("Main config")
+            .build();
+    public static final Key<DatabaseSettings> DATABASE = Key.builder(Path.of("database.yml"), DatabaseSettings::new)
+            .name("Database config")
+            .build();
+    public static final Key<NodeSettings> NODE_SETTINGS = Key.builder(Path.of("node.yml"), NodeSettings::new)
+            .name("Node config")
+            .build();
+    public static final Key<OrderSettings> ORDER_SETTINGS = Key.builder(Path.of("order.yml"), OrderSettings::new)
+            .name("Order config")
+            .build();
+    public static final Key<UserSettings> USER_SETTINGS = Key.builder(Path.of("user.yml"), UserSettings::new)
+            .name("User config")
+            .build();
+    public static final Key<CompanySettings> COMPANY_SETTINGS = Key.builder(
+                    Path.of("company.yml"), CompanySettings::new)
+            .name("Company config")
+            .build();
 
     public Configuration(Plugin plugin) {
         super(plugin, CONFIG_YML);
@@ -71,7 +84,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             nodeData.updateNode(plugin());
             nodeData.assertPrimaryNode(plugin());
 
-            if (databaseSettings().storageType() == DatabaseSettings.StorageType.SQLITE && nodeSettings.nodeType() == NodeType.SECONDARY) {
+            if (databaseSettings().storageType() == DatabaseSettings.StorageType.SQLITE
+                    && nodeSettings.nodeType() == NodeType.SECONDARY) {
                 throw new IllegalStateException("Secondary nodes can not be used with SqLite.");
             }
 

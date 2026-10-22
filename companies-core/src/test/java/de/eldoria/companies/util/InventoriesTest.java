@@ -26,7 +26,7 @@ class InventoriesTest {
 
     @Test
     void fitIsLimitedByEarlierFits() {
-        var storage = new ItemStack[]{null, null};
+        var storage = new ItemStack[] {null, null};
 
         Assertions.assertEquals(64, Inventories.fit(storage, new ItemStack(Material.STONE), 64));
         Assertions.assertEquals(16, Inventories.fit(storage, new ItemStack(Material.ENDER_PEARL), 20));
@@ -38,7 +38,8 @@ class InventoriesTest {
         var stacks = Inventories.split(new ItemStack(Material.ENDER_PEARL), 40);
 
         Assertions.assertEquals(3, stacks.size());
-        Assertions.assertEquals(40, stacks.stream().mapToInt(ItemStack::getAmount).sum());
+        Assertions.assertEquals(
+                40, stacks.stream().mapToInt(ItemStack::getAmount).sum());
         Assertions.assertTrue(stacks.stream().allMatch(stack -> stack.getAmount() <= 16));
     }
 }

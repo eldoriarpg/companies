@@ -28,8 +28,14 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 public class Company extends AdvancedCommand {
-    public Company(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker,
-                   ItemReturnService itemReturnService) {
+    public Company(
+            Plugin plugin,
+            ACompanyData companyData,
+            AOrderData orderData,
+            Economy economy,
+            Configuration configuration,
+            MessageBlocker messageBlocker,
+            ItemReturnService itemReturnService) {
         super(plugin);
         var profile = new Profile(plugin, companyData, orderData, configuration, messageBlocker);
         var meta = CommandMeta.builder("company")
@@ -40,7 +46,8 @@ public class Company extends AdvancedCommand {
                 .withSubCommand(new Kick(plugin, companyData))
                 .withSubCommand(new Leave(plugin, companyData, orderData, itemReturnService))
                 .withSubCommand(new Member(plugin, companyData, messageBlocker))
-                .withSubCommand(new Order(plugin, companyData, orderData, economy, configuration, messageBlocker, itemReturnService))
+                .withSubCommand(new Order(
+                        plugin, companyData, orderData, economy, configuration, messageBlocker, itemReturnService))
                 .withSubCommand(new Permission(plugin, companyData, messageBlocker))
                 .withSubCommand(new Top(plugin, companyData, economy, messageBlocker))
                 .withSubCommand(new Rename(plugin, configuration, economy, companyData))

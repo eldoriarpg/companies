@@ -26,6 +26,7 @@ public final class Confirmations<T> {
      * How long a confirmation stays valid.
      */
     public static final Duration VALIDITY = Duration.ofSeconds(30);
+
     private final Map<UUID, Pending<T>> pending = new ConcurrentHashMap<>();
     private final InstantSource clock;
 
@@ -80,6 +81,5 @@ public final class Confirmations<T> {
         return entry != null && clock.instant().isBefore(entry.expiry());
     }
 
-    private record Pending<T>(T value, Instant expiry) {
-    }
+    private record Pending<T>(T value, Instant expiry) {}
 }

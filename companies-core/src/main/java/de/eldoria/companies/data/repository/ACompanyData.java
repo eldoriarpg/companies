@@ -50,7 +50,8 @@ public abstract class ACompanyData {
     protected abstract Optional<CompanyProfile> toCompanyProfile(SimpleCompany simpleCompany);
 
     public BukkitFutureResult<Optional<CompanyProfile>> retrievePlayerCompanyProfile(OfflinePlayer player) {
-        return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player).map(company -> toCompanyProfile(company).get()));
+        return CompletableBukkitFuture.supplyAsync(() -> getPlayerCompany(player)
+                .map(company -> toCompanyProfile(company).get()));
     }
 
     public BukkitFutureResult<Optional<SimpleCompany>> retrieveCompanyByName(String name) {

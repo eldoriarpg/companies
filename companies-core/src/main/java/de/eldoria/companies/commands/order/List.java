@@ -30,9 +30,13 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final OrderLimits orderLimits;
     private final MessageBlocker messageBlocker;
 
-    public List(Plugin plugin, AOrderData orderData, OrderLimits orderLimits, Economy economy, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("list")
-                .build());
+    public List(
+            Plugin plugin,
+            AOrderData orderData,
+            OrderLimits orderLimits,
+            Economy economy,
+            MessageBlocker messageBlocker) {
+        super(plugin, CommandMeta.builder("list").build());
         this.orderData = orderData;
         this.economy = economy;
         this.orderLimits = orderLimits;
@@ -40,63 +44,58 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         showOrders(player);
     }
 
     public void showOrders(Player player) {
-        showOrders(player, () -> {
-        });
+        showOrders(player, () -> {});
     }
 
     public void showOrders(Player player, Runnable whenComplete) {
-        var usage = orderLimits.usage(player)
-                               .asFuture();
-        orderData.retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED)
-                 .asFuture()
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return Collections.emptyList();
-                 })
-                 .thenApply(orders -> orderData.retrieveFullOrders(orders)
-                                               .asFuture()
-                                               .exceptionally(err -> {
-                                                   plugin().getLogger()
-                                                           .log(Level.SEVERE, "Something went wrong", err);
-                                                   return Collections.emptyList();
-                                               })
-                                               .join())
-                 .thenAcceptBoth(usage, (orders, limits) -> {
-                     messageBlocker.blockPlayer(player);
-                     var builder = MessageComposer.create()
-                                                  .localeCode("order.list.orders")
-                                                  .text(" (%s/%s):", limits.active(), limits.limit())
-                                                  .newLine();
-                     if (limits.reached()) {
-                         builder.text("<inactive>")
-                                .localeCode("order.list.limitReached");
-                     } else {
-                         builder.text("<click:suggest_command:/order create ><add>[")
+        var usage = orderLimits.usage(player).asFuture();
+        orderData
+                .retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Collections.emptyList();
+                })
+                .thenApply(orders -> orderData
+                        .retrieveFullOrders(orders)
+                        .asFuture()
+                        .exceptionally(err -> {
+                            plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                            return Collections.emptyList();
+                        })
+                        .join())
+                .thenAcceptBoth(usage, (orders, limits) -> {
+                    messageBlocker.blockPlayer(player);
+                    var builder = MessageComposer.create()
+                            .localeCode("order.list.orders")
+                            .text(" (%s/%s):", limits.active(), limits.limit())
+                            .newLine();
+                    if (limits.reached()) {
+                        builder.text("<inactive>").localeCode("order.list.limitReached");
+                    } else {
+                        builder.text("<click:suggest_command:/order create ><add>[")
                                 .localeCode("order.list.newOrder")
                                 .text("]</click>");
-                     }
-                     for (var order : orders) {
-                         builder.newLine()
-                                .text(order.userShortInfo(economy));
-                     }
-                     if (messageBlocker.isBlocked(player)) {
-                         builder.newLine()
-                                .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-                     }
-                     builder.prependLines(25);
-                     Menus.show(messageBlocker, player, builder);
-                     whenComplete.run();
-                 })
-                 .exceptionally(err -> {
-                     plugin().getLogger()
-                             .log(Level.SEVERE, "Something went wrong", err);
-                     return null;
-                 });
+                    }
+                    for (var order : orders) {
+                        builder.newLine().text(order.userShortInfo(economy));
+                    }
+                    if (messageBlocker.isBlocked(player)) {
+                        builder.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+                    }
+                    builder.prependLines(25);
+                    Menus.show(messageBlocker, player, builder);
+                    whenComplete.run();
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 }

@@ -9,8 +9,7 @@ package de.eldoria.companies.configuration.elements;
 public class UserSettings {
     private int maxOrders = 7;
 
-    public UserSettings() {
-    }
+    public UserSettings() {}
 
     public int maxOrders() {
         return maxOrders;

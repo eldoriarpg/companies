@@ -25,9 +25,12 @@ class TextsTest {
     @Test
     void escapedTextStaysInsideHoverArgument() {
         var hover = "<gold>" + Texts.escape(HOSTILE);
-        var component = MiniMessage.miniMessage().deserialize("<hover:show_text:'%s'>name</hover>".formatted(Texts.argument(hover)));
+        var component = MiniMessage.miniMessage()
+                .deserialize("<hover:show_text:'%s'>name</hover>".formatted(Texts.argument(hover)));
 
-        var shown = component.children().isEmpty() ? component : component.children().getFirst();
+        var shown = component.children().isEmpty()
+                ? component
+                : component.children().getFirst();
         var hoverText = shown.hoverEvent().value();
         assertEquals("name", PlainTextComponentSerializer.plainText().serialize(component));
         assertEquals(HOSTILE, PlainTextComponentSerializer.plainText().serialize((Component) hoverText));

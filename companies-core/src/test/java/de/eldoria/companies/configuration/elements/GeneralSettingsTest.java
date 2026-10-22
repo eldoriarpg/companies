@@ -15,8 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GeneralSettingsTest {
     private final ObjectMapper mapper = YAMLMapper.builder()
-                                                  .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
-                                                  .build();
+            .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
+            .build();
 
     @Test
     void oldUpdateSwitchBecomesNotice() {

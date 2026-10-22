@@ -36,11 +36,16 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
     private final Info info;
     private final MessageBlocker messageBlocker;
 
-    public Accept(Plugin plugin, ACompanyData companyData, AOrderData orderData, Configuration configuration, Info info,
-                  MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("accept")
-                .addArgument("words.id", true)
-                .build());
+    public Accept(
+            Plugin plugin,
+            ACompanyData companyData,
+            AOrderData orderData,
+            Configuration configuration,
+            Info info,
+            MessageBlocker messageBlocker) {
+        super(
+                plugin,
+                CommandMeta.builder("accept").addArgument("words.id", true).build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.configuration = configuration;
@@ -49,85 +54,82 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var id = arguments.asInt(0);
         CommandAssertions.min(id, 0);
 
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return Optional.empty();
-                   })
-                   .thenAccept(optProfile -> {
-                       if (optProfile.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       var profile = optProfile.get();
-                       var companyMember = profile.member(player)
-                                                  .get();
-                       if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                           messageSender().sendErrorActionBar(player, "error.permission.acceptOrder");
-                           return;
-                       }
+        companyData
+                .retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optProfile -> {
+                    if (optProfile.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    var profile = optProfile.get();
+                    var companyMember = profile.member(player).get();
+                    if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
+                        messageSender().sendErrorActionBar(player, "error.permission.acceptOrder");
+                        return;
+                    }
 
-                       var count = orderData.retrieveCompanyOrderCount(profile)
-                                            .join();
-                       if (count >= configuration.companySettings()
-                                                 .level(profile.level())
-                                                 .orElse(CompanyLevel.DEFAULT)
-                                                 .settings()
-                                                 .maxOrders()) {
-                           messageSender().sendErrorActionBar(player, "error.orderLimit");
-                           return;
-                       }
+                    var count = orderData.retrieveCompanyOrderCount(profile).join();
+                    if (count
+                            >= configuration
+                                    .companySettings()
+                                    .level(profile.level())
+                                    .orElse(CompanyLevel.DEFAULT)
+                                    .settings()
+                                    .maxOrders()) {
+                        messageSender().sendErrorActionBar(player, "error.orderLimit");
+                        return;
+                    }
 
-                       var optOrder = orderData.retrieveOrderById(id)
-                                               .join();
-                       if (optOrder.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.unknownOrder");
-                           return;
-                       }
+                    var optOrder = orderData.retrieveOrderById(id).join();
+                    if (optOrder.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                        return;
+                    }
 
-                       var simpleOrder = optOrder.get();
-                       if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                           messageSender().sendErrorActionBar(player, "error.orderNotClaimable");
-                           return;
-                       }
+                    var simpleOrder = optOrder.get();
+                    if (simpleOrder.state() != OrderState.UNCLAIMED) {
+                        messageSender().sendErrorActionBar(player, "error.orderNotClaimable");
+                        return;
+                    }
 
-                       if (!profile.mayAcceptOrderOf(simpleOrder.owner(), configuration.companySettings().allowMemberOrders())) {
-                           messageSender().sendErrorActionBar(player, "error.ownMemberOrder");
-                           return;
-                       }
+                    if (!profile.mayAcceptOrderOf(
+                            simpleOrder.owner(), configuration.companySettings().allowMemberOrders())) {
+                        messageSender().sendErrorActionBar(player, "error.ownMemberOrder");
+                        return;
+                    }
 
-                       if (orderData.submitOrderClaim(profile, simpleOrder)
-                                    .join()) {
-                           var claimed = orderData.retrieveFullOrder(orderData.retrieveOrderById(id)
-                                                                              .join()
-                                                                              .orElse(simpleOrder))
-                                                  .join();
-                           messageBlocker.unblockPlayer(player)
-                                         .thenRun(() -> {
-                                             player.getServer()
-                                                   .getPluginManager()
-                                                   .callEvent(new OrderAcceptEvent(simpleOrder, profile));
-                                             info.renderOrder(player, companyMember, claimed);
-                                         });
-                           return;
-                       }
-                       messageSender().sendErrorActionBar(player, "error.couldNotClaim");
-                   })
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return null;
-                   });
+                    if (orderData.submitOrderClaim(profile, simpleOrder).join()) {
+                        var claimed = orderData
+                                .retrieveFullOrder(
+                                        orderData.retrieveOrderById(id).join().orElse(simpleOrder))
+                                .join();
+                        messageBlocker.unblockPlayer(player).thenRun(() -> {
+                            player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
+                            info.renderOrder(player, companyMember, claimed);
+                        });
+                        return;
+                    }
+                    messageSender().sendErrorActionBar(player, "error.couldNotClaim");
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
         return Completion.completeMinInt(args.asString(0), 0);
     }
 }

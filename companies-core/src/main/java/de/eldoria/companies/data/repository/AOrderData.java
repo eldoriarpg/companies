@@ -25,9 +25,9 @@ import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
-import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -47,12 +47,10 @@ import static de.eldoria.companies.util.Threading.VIRTUAL;
 
 @SuppressWarnings("UnusedReturnValue")
 public abstract class AOrderData {
-    private final Cache<Integer, Optional<FullOrder>> fullOrderCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(5L, TimeUnit.MINUTES)
-            .build();
-    private final Cache<String, MaterialPrice> materialPriceCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(1L, TimeUnit.HOURS)
-            .build();
+    private final Cache<Integer, Optional<FullOrder>> fullOrderCache =
+            CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).build();
+    private final Cache<String, MaterialPrice> materialPriceCache =
+            CacheBuilder.newBuilder().expireAfterAccess(1L, TimeUnit.HOURS).build();
     private final ObjectMapper mapper;
 
     public AOrderData(ObjectMapper mapper) {
@@ -73,12 +71,15 @@ public abstract class AOrderData {
      */
     protected abstract boolean putOrder(OfflinePlayer player, FullOrder order);
 
-    public BukkitFutureResult<Boolean> submitOrderStateUpdate(SimpleOrder order, OrderState expected, OrderState state) {
-        return CompletableBukkitFuture.supplyAsync(() -> {
-            var updated = updateOrderState(order, expected, state);
-            invalidateFullOrder(order);
-            return updated;
-        }, VIRTUAL);
+    public BukkitFutureResult<Boolean> submitOrderStateUpdate(
+            SimpleOrder order, OrderState expected, OrderState state) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var updated = updateOrderState(order, expected, state);
+                    invalidateFullOrder(order);
+                    return updated;
+                },
+                VIRTUAL);
     }
 
     /**
@@ -132,12 +133,14 @@ public abstract class AOrderData {
      * @return a future providing the delivered order, or an empty optional if the order was not claimed or is not completely delivered
      */
     public BukkitFutureResult<Optional<FullOrder>> submitOrderDelivered(SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> {
-            var delivered = orderDelivered(order);
-            invalidateFullOrder(order);
-            if (!delivered) return Optional.<FullOrder>empty();
-            return orderById(order.id()).map(this::toFullOrder);
-        }, VIRTUAL);
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var delivered = orderDelivered(order);
+                    invalidateFullOrder(order);
+                    if (!delivered) return Optional.<FullOrder>empty();
+                    return orderById(order.id()).map(this::toFullOrder);
+                },
+                VIRTUAL);
     }
 
     /**
@@ -149,11 +152,13 @@ public abstract class AOrderData {
     protected abstract boolean orderDelivered(SimpleOrder order);
 
     public BukkitFutureResult<Optional<Set<UUID>>> submitUnclaimOrder(SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> {
-            var result = unclaimOrder(order);
-            invalidateFullOrder(order);
-            return result;
-        }, VIRTUAL);
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var result = unclaimOrder(order);
+                    invalidateFullOrder(order);
+                    return result;
+                },
+                VIRTUAL);
     }
 
     /**
@@ -199,12 +204,15 @@ public abstract class AOrderData {
      */
     protected abstract boolean addItemReturn(UUID worker, ItemStack stack, int amount);
 
-    public BukkitFutureResult<Integer> submitDelivery(OfflinePlayer player, SimpleOrder order, Material material, int amount) {
-        return CompletableBukkitFuture.supplyAsync(() -> {
-            var delivered = deliver(player, order, material, amount);
-            invalidateFullOrder(order);
-            return delivered;
-        }, VIRTUAL);
+    public BukkitFutureResult<Integer> submitDelivery(
+            OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var delivered = deliver(player, order, material, amount);
+                    invalidateFullOrder(order);
+                    return delivered;
+                },
+                VIRTUAL);
     }
 
     /**
@@ -232,24 +240,28 @@ public abstract class AOrderData {
 
     protected abstract Optional<SimpleOrder> companyOrderById(int id, int company);
 
-    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByCompany(ISimpleCompany company, OrderState min, OrderState max) {
+    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByCompany(
+            ISimpleCompany company, OrderState min, OrderState max) {
         return CompletableBukkitFuture.supplyAsync(() -> ordersByCompany(company, min, max));
     }
 
     protected abstract List<SimpleOrder> ordersByCompany(ISimpleCompany company, OrderState min, OrderState max);
 
-    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByPlayer(OfflinePlayer player, OrderState min, OrderState max) {
+    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersByPlayer(
+            OfflinePlayer player, OrderState min, OrderState max) {
         return CompletableBukkitFuture.supplyAsync(() -> ordersByPlayer(player, min, max), VIRTUAL);
     }
 
     protected abstract List<SimpleOrder> ordersByPlayer(OfflinePlayer player, OrderState min, OrderState max);
 
     public SimpleOrder buildSimpleOrder(Row row) throws SQLException {
-        return new SimpleOrder(row.getInt("id"), row.get("owner_uuid", UUID_BYTES),
-                row.getString("name"), row.getTimestamp("created")
-                .toLocalDateTime(),
-                row.getInt("company"), row.getTimestamp("last_update")
-                .toLocalDateTime(),
+        return new SimpleOrder(
+                row.getInt("id"),
+                row.get("owner_uuid", UUID_BYTES),
+                row.getString("name"),
+                row.getTimestamp("created").toLocalDateTime(),
+                row.getInt("company"),
+                row.getTimestamp("last_update").toLocalDateTime(),
                 OrderState.byId(row.getInt("state")));
     }
 
@@ -260,7 +272,8 @@ public abstract class AOrderData {
     public List<FullOrder> toFullOrders(List<SimpleOrder> orders) {
         List<CompletableFuture<Optional<FullOrder>>> fullOrders = new ArrayList<>();
         for (var order : orders) {
-            fullOrders.add(CompletableFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))), VIRTUAL));
+            fullOrders.add(CompletableFuture.supplyAsync(
+                    () -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))), VIRTUAL));
         }
         return fullOrders.stream()
                 .map(CompletableFuture::join)
@@ -282,8 +295,7 @@ public abstract class AOrderData {
         try {
             return fullOrderCache.get(id, orderCallable);
         } catch (ExecutionException e) {
-            Companies.logger()
-                    .log(Level.SEVERE, "Could not compute value for order " + id);
+            Companies.logger().log(Level.SEVERE, "Could not compute value for order " + id);
         }
         return Optional.empty();
     }
@@ -291,7 +303,10 @@ public abstract class AOrderData {
     protected abstract List<OrderContent> getOrderContent(SimpleOrder order);
 
     public BukkitFutureResult<FullOrder> retrieveFullOrder(SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order))).get(), VIRTUAL);
+        return CompletableBukkitFuture.supplyAsync(
+                () -> cacheFullOrder(order, () -> Optional.of(toFullOrder(order)))
+                        .get(),
+                VIRTUAL);
     }
 
     public BukkitFutureResult<Integer> retrievePlayerOrderCount(OfflinePlayer player) {
@@ -319,11 +334,13 @@ public abstract class AOrderData {
     protected abstract Set<UUID> purgeCompanyOrders(SimpleCompany profile);
 
     public BukkitFutureResult<Boolean> submitOrderPurge(SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> {
-            var purged = purgeOrder(order);
-            invalidateFullOrder(order);
-            return purged;
-        }, VIRTUAL);
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var purged = purgeOrder(order);
+                    invalidateFullOrder(order);
+                    return purged;
+                },
+                VIRTUAL);
     }
 
     /**
@@ -335,11 +352,13 @@ public abstract class AOrderData {
     protected abstract boolean purgeOrder(SimpleOrder order);
 
     public BukkitFutureResult<Boolean> submitOrderDeletion(SimpleOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> {
-            var deleted = deleteOrder(order);
-            invalidateFullOrder(order);
-            return deleted;
-        }, VIRTUAL);
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var deleted = deleteOrder(order);
+                    invalidateFullOrder(order);
+                    return deleted;
+                },
+                VIRTUAL);
     }
 
     /**
@@ -350,7 +369,8 @@ public abstract class AOrderData {
      */
     protected abstract boolean deleteOrder(SimpleOrder order);
 
-    public BukkitFutureResult<List<FullOrder>> retrieveOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
+    public BukkitFutureResult<List<FullOrder>> retrieveOrdersByQuery(
+            SearchQuery searchQuery, OrderState min, OrderState max) {
         return CompletableBukkitFuture.supplyAsync(() -> getOrdersByQuery(searchQuery, min, max), VIRTUAL);
     }
 
@@ -386,11 +406,13 @@ public abstract class AOrderData {
      * @return future which provides a material price
      */
     public FutureResult<MaterialPrice> retrieveMaterialPrice(String material) {
-        return CompletableBukkitFuture.supplyAsync(() -> {
-            var price = findMaterialPrice(material).orElse(new MaterialPrice(material));
-            materialPriceCache.put(material, price);
-            return price;
-        }, VIRTUAL);
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var price = findMaterialPrice(material).orElse(new MaterialPrice(material));
+                    materialPriceCache.put(material, price);
+                    return price;
+                },
+                VIRTUAL);
     }
 
     protected abstract Optional<MaterialPrice> findMaterialPrice(String material);

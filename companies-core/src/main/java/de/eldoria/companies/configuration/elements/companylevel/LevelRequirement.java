@@ -15,14 +15,13 @@ public class LevelRequirement implements ILevelRequirement {
     private int deliveredItems = 1000;
     private int memberCount = 1;
 
-    public LevelRequirement() {
-    }
+    public LevelRequirement() {}
 
     public boolean checkRequirements(CompanyStats stats) {
         return stats.orderCount() >= orderCount
-               && stats.price() >= earnedMoney
-               && stats.deliveredItems() >= deliveredItems
-               && stats.memberCount() >= memberCount;
+                && stats.price() >= earnedMoney
+                && stats.deliveredItems() >= deliveredItems
+                && stats.memberCount() >= memberCount;
     }
 
     @Override

@@ -67,6 +67,7 @@ public final class Texts {
     public static String progressBar(double progress) {
         var clamped = Double.isNaN(progress) ? 0 : Math.max(0, Math.min(1, progress));
         var filled = (int) Math.round(clamped * PROGRESS_SEGMENTS);
-        return "<add>%s<inactive>%s".formatted(PROGRESS_SEGMENT.repeat(filled), PROGRESS_SEGMENT.repeat(PROGRESS_SEGMENTS - filled));
+        return "<add>%s<inactive>%s"
+                .formatted(PROGRESS_SEGMENT.repeat(filled), PROGRESS_SEGMENT.repeat(PROGRESS_SEGMENTS - filled));
     }
 }

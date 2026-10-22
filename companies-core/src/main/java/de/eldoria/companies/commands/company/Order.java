@@ -22,8 +22,14 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 public class Order extends AdvancedCommand {
-    public Order(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker,
-                 ItemReturnService itemReturnService) {
+    public Order(
+            Plugin plugin,
+            ACompanyData companyData,
+            AOrderData orderData,
+            Economy economy,
+            Configuration configuration,
+            MessageBlocker messageBlocker,
+            ItemReturnService itemReturnService) {
         super(plugin);
         var meta = CommandMeta.builder("order")
                 .buildSubCommands((commands, builder) -> {

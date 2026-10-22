@@ -33,8 +33,7 @@ public class PostgresNotificationData extends MariaDbNotificationData {
                 INSERT INTO company_notification(user_uuid, notification_data)
                 VALUES (?, ?::jsonb)""";
         query(query)
-                .single(call().bind(player.getUniqueId(), UUID_BYTES)
-                        .bind(notificationData.toJson()))
+                .single(call().bind(player.getUniqueId(), UUID_BYTES).bind(notificationData.toJson()))
                 .update();
     }
 }

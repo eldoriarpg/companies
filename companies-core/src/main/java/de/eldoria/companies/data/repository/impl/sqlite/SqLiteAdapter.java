@@ -6,7 +6,6 @@
 package de.eldoria.companies.data.repository.impl.sqlite;
 
 import de.chojo.sadu.mapper.wrapper.Row;
-import de.chojo.sadu.mapper.wrapper.Row;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -22,5 +21,4 @@ public final class SqLiteAdapter {
     public static LocalDateTime getTimestamp(Row rs, String column) throws SQLException {
         return LocalDateTime.parse(rs.getString(column), FORMATTER);
     }
-
 }

@@ -43,8 +43,10 @@ class SqLiteOrderDataTest {
     private static final int COMPANY = 1;
     private final OfflinePlayer owner = SqLiteTestDatabase.player(UUID.randomUUID());
     private final OfflinePlayer worker = SqLiteTestDatabase.player(UUID.randomUUID());
+
     @TempDir
     Path directory;
+
     private SqLiteOrderData orderData;
 
     @BeforeEach
@@ -54,10 +56,15 @@ class SqLiteOrderDataTest {
     }
 
     private SimpleOrder createOrder(int stone, int dirt) {
-        var contents = List.of(new OrderContent(new ItemStack(Material.STONE), stone, 100.0),
+        var contents = List.of(
+                new OrderContent(new ItemStack(Material.STONE), stone, 100.0),
                 new OrderContent(new ItemStack(Material.DIRT), dirt, 50.0));
-        orderData.submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test").toFullOrder(contents)).join();
-        var orders = orderData.retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED).join();
+        orderData
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test").toFullOrder(contents))
+                .join();
+        var orders = orderData
+                .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED)
+                .join();
         return orders.get(orders.size() - 1);
     }
 
@@ -107,19 +114,30 @@ class SqLiteOrderDataTest {
         Assertions.assertTrue(workers.isEmpty());
         Assertions.assertEquals(OrderState.RECEIVED, reload(order).state());
         Assertions.assertEquals(1, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
-        Assertions.assertTrue(orderData.retrieveItemReturns(worker.getUniqueId()).join().isEmpty());
+        Assertions.assertTrue(
+                orderData.retrieveItemReturns(worker.getUniqueId()).join().isEmpty());
     }
 
     @Test
     void itemReturnsCanOnlyBeTakenOnce() {
-        orderData.submitItemReturn(worker.getUniqueId(), new ItemStack(Material.STONE), 10).join();
-        var itemReturn = orderData.retrieveItemReturns(worker.getUniqueId()).join().get(0);
+        orderData
+                .submitItemReturn(worker.getUniqueId(), new ItemStack(Material.STONE), 10)
+                .join();
+        var itemReturn =
+                orderData.retrieveItemReturns(worker.getUniqueId()).join().get(0);
 
         Assertions.assertTrue(orderData.submitItemReturnTake(itemReturn, 6).join());
         Assertions.assertFalse(orderData.submitItemReturnTake(itemReturn, 6).join());
-        Assertions.assertEquals(4, orderData.retrieveItemReturns(worker.getUniqueId()).join().get(0).amount());
+        Assertions.assertEquals(
+                4,
+                orderData
+                        .retrieveItemReturns(worker.getUniqueId())
+                        .join()
+                        .get(0)
+                        .amount());
         Assertions.assertTrue(orderData.submitItemReturnTake(itemReturn, 4).join());
-        Assertions.assertTrue(orderData.retrieveItemReturns(worker.getUniqueId()).join().isEmpty());
+        Assertions.assertTrue(
+                orderData.retrieveItemReturns(worker.getUniqueId()).join().isEmpty());
     }
 
     @Test
@@ -127,11 +145,27 @@ class SqLiteOrderDataTest {
         var order = createOrder(10, 5);
         claim(order);
 
-        Assertions.assertEquals(6, orderData.submitDelivery(worker, reload(order), Material.STONE, 6).join());
-        Assertions.assertEquals(4, orderData.submitDelivery(worker, reload(order), Material.STONE, 6).join());
-        Assertions.assertEquals(0, orderData.submitDelivery(worker, reload(order), Material.STONE, 6).join());
+        Assertions.assertEquals(
+                6,
+                orderData
+                        .submitDelivery(worker, reload(order), Material.STONE, 6)
+                        .join());
+        Assertions.assertEquals(
+                4,
+                orderData
+                        .submitDelivery(worker, reload(order), Material.STONE, 6)
+                        .join());
+        Assertions.assertEquals(
+                0,
+                orderData
+                        .submitDelivery(worker, reload(order), Material.STONE, 6)
+                        .join());
 
-        var content = orderData.retrieveFullOrder(reload(order)).join().content(Material.STONE).orElseThrow();
+        var content = orderData
+                .retrieveFullOrder(reload(order))
+                .join()
+                .content(Material.STONE)
+                .orElseThrow();
         Assertions.assertEquals(10, content.delivered());
         Assertions.assertEquals(1, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
     }
@@ -140,10 +174,18 @@ class SqLiteOrderDataTest {
     void deliveryRequiresClaimedOrder() {
         var order = createOrder(10, 5);
 
-        Assertions.assertEquals(0, orderData.submitDelivery(worker, reload(order), Material.STONE, 5).join());
+        Assertions.assertEquals(
+                0,
+                orderData
+                        .submitDelivery(worker, reload(order), Material.STONE, 5)
+                        .join());
 
         SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), COMPANY);
-        Assertions.assertEquals(0, orderData.submitDelivery(worker, reload(order), Material.STONE, 5).join());
+        Assertions.assertEquals(
+                0,
+                orderData
+                        .submitDelivery(worker, reload(order), Material.STONE, 5)
+                        .join());
         Assertions.assertEquals(0, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
     }
 
@@ -153,7 +195,8 @@ class SqLiteOrderDataTest {
         claim(order);
         orderData.submitDelivery(worker, reload(order), Material.STONE, 10).join();
 
-        Assertions.assertTrue(orderData.submitOrderDelivered(reload(order)).join().isEmpty());
+        Assertions.assertTrue(
+                orderData.submitOrderDelivered(reload(order)).join().isEmpty());
 
         orderData.submitDelivery(worker, reload(order), Material.DIRT, 5).join();
         var delivered = orderData.submitOrderDelivered(reload(order)).join();
@@ -161,7 +204,8 @@ class SqLiteOrderDataTest {
         Assertions.assertTrue(delivered.isPresent());
         Assertions.assertEquals(OrderState.DELIVERED, delivered.get().state());
         Assertions.assertEquals(15, delivered.get().delivered());
-        Assertions.assertTrue(orderData.submitOrderDelivered(reload(order)).join().isEmpty());
+        Assertions.assertTrue(
+                orderData.submitOrderDelivered(reload(order)).join().isEmpty());
     }
 
     @Test
@@ -169,8 +213,12 @@ class SqLiteOrderDataTest {
         var order = createOrder(10, 5);
         SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), COMPANY);
 
-        Assertions.assertTrue(orderData.submitOrderStateUpdate(reload(order), OrderState.DELIVERED, OrderState.RECEIVED).join());
-        Assertions.assertFalse(orderData.submitOrderStateUpdate(reload(order), OrderState.DELIVERED, OrderState.RECEIVED).join());
+        Assertions.assertTrue(orderData
+                .submitOrderStateUpdate(reload(order), OrderState.DELIVERED, OrderState.RECEIVED)
+                .join());
+        Assertions.assertFalse(orderData
+                .submitOrderStateUpdate(reload(order), OrderState.DELIVERED, OrderState.RECEIVED)
+                .join());
         Assertions.assertEquals(OrderState.RECEIVED, reload(order).state());
     }
 
@@ -199,7 +247,8 @@ class SqLiteOrderDataTest {
 
         var deadOrders = orderData.retrieveDeadOrders(5).join();
 
-        Assertions.assertEquals(List.of(dead.id()), deadOrders.stream().map(SimpleOrder::id).toList());
+        Assertions.assertEquals(
+                List.of(dead.id()), deadOrders.stream().map(SimpleOrder::id).toList());
         Assertions.assertTrue(orderData.submitOrderPurge(deadOrders.get(0)).join());
         Assertions.assertFalse(orderData.submitOrderPurge(deadOrders.get(0)).join());
         Assertions.assertTrue(orderData.retrieveOrderById(fresh.id()).join().isPresent());
@@ -211,11 +260,17 @@ class SqLiteOrderDataTest {
         var query = new SearchQuery();
         query.materials(List.of("STONE"));
 
-        var found = orderData.retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED).join();
-        Assertions.assertEquals(List.of(order.id()), found.stream().map(SimpleOrder::id).toList());
+        var found = orderData
+                .retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .join();
+        Assertions.assertEquals(
+                List.of(order.id()), found.stream().map(SimpleOrder::id).toList());
 
         query.materials(List.of("GRAVEL"));
-        Assertions.assertTrue(orderData.retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED).join().isEmpty());
+        Assertions.assertTrue(orderData
+                .retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .join()
+                .isEmpty());
     }
 
     @Test

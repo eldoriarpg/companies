@@ -13,10 +13,11 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+
+import javax.sql.DataSource;
 
 /**
  * Adds the state of the storage, the economy and the node setup to debug reports.
@@ -42,13 +43,20 @@ public class CompaniesDebug implements DebugDataProvider {
     public @NotNull EntryData[] getDebugInformations() {
         var nodeSettings = configuration.nodeSettings();
         var generalSettings = configuration.generalSettings();
-        return new EntryData[]{
-                new EntryData("Setup", Map.of(
-                        "Storage", configuration.databaseSettings().storageType().name(),
-                        "Node type", nodeSettings.nodeType().name(),
-                        "Node id", nodeSettings.nodeUid().toString(),
-                        "Message blocking", String.valueOf(generalSettings.messageBlocking()),
-                        "PlaceholderAPI hook", String.valueOf(generalSettings.hooks().placeholderapi())))
+        return new EntryData[] {
+            new EntryData(
+                    "Setup",
+                    Map.of(
+                            "Storage",
+                                    configuration
+                                            .databaseSettings()
+                                            .storageType()
+                                            .name(),
+                            "Node type", nodeSettings.nodeType().name(),
+                            "Node id", nodeSettings.nodeUid().toString(),
+                            "Message blocking", String.valueOf(generalSettings.messageBlocking()),
+                            "PlaceholderAPI hook",
+                                    String.valueOf(generalSettings.hooks().placeholderapi())))
         };
     }
 
@@ -74,7 +82,9 @@ public class CompaniesDebug implements DebugDataProvider {
         if (registration == null) {
             return HealthCheck.error("Economy", "No Vault economy provider is registered");
         }
-        return HealthCheck.ok("Economy", registration.getProvider().getName() + " provided by "
-                                         + registration.getPlugin().getName());
+        return HealthCheck.ok(
+                "Economy",
+                registration.getProvider().getName() + " provided by "
+                        + registration.getPlugin().getName());
     }
 }

@@ -24,20 +24,23 @@ public class Sorting extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Sorting(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("sorting")
-                .addArgument("words.sorting", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("sorting")
+                        .addArgument("words.sorting", true)
+                        .build());
         this.query = query;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
-        query.getPlayerSearch(player)
-             .sortingType(arguments.asEnum(0, SortingType.class));
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
+        query.getPlayerSearch(player).sortingType(arguments.asEnum(0, SortingType.class));
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         return Completion.complete(arguments.asString(0), SortingType.class, true, false);
     }
 }

@@ -24,28 +24,29 @@ public class Size extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Size(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("min_size")
-                .addAlias("max_size")
-                .addArgument("words.size", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("min_size")
+                        .addAlias("max_size")
+                        .addArgument("words.size", true)
+                        .build());
         this.query = query;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         if ("max_size".equalsIgnoreCase(label)) {
-            query.getPlayerSearch(player)
-                 .maxOrderSize(arguments.asInt(0));
+            query.getPlayerSearch(player).maxOrderSize(arguments.asInt(0));
             return;
         }
-        query.getPlayerSearch(player)
-             .minOrderSize(arguments.asInt(0));
+        query.getPlayerSearch(player).minOrderSize(arguments.asInt(0));
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
-        if (arguments.asString(0)
-                     .isEmpty()) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+        if (arguments.asString(0).isEmpty()) {
             return Collections.singletonList(localizer().localize("words.size"));
         }
         return Completion.completeMinInt(arguments.asString(0), 1);

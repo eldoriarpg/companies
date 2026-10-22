@@ -61,8 +61,7 @@ public class MariaDbOrderData extends AOrderData {
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         try (conf) {
             var optOrderId = conf.query(query)
-                    .single(call().bind(player.getUniqueId(), UUID_BYTES)
-                            .bind(order.name()))
+                    .single(call().bind(player.getUniqueId(), UUID_BYTES).bind(order.name()))
                     .map(rs -> rs.getInt(1))
                     .first();
             if (optOrderId.isEmpty()) return false;
@@ -71,17 +70,12 @@ public class MariaDbOrderData extends AOrderData {
             query = """
                     INSERT INTO order_content(id, material, stack, amount, price)
                     VALUES (?, ?, ?, ?, ?)""";
-            Stream<Call> calls = order.contents().stream()
-                    .map(content -> call().bind(orderId)
-                            .bind(content.stack()
-                                    .getType()
-                                    .name())
-                            .bind(toJson(content.stack()))
-                            .bind(content.amount())
-                            .bind(content.price()));
-            conf.query(query)
-                    .batch(calls)
-                    .insert();
+            Stream<Call> calls = order.contents().stream().map(content -> call().bind(orderId)
+                    .bind(content.stack().getType().name())
+                    .bind(toJson(content.stack()))
+                    .bind(content.amount())
+                    .bind(content.price()));
+            conf.query(query).batch(calls).insert();
 
             query = """
                     INSERT INTO order_states(id, state) VALUES(?, ?)""";
@@ -127,8 +121,7 @@ public class MariaDbOrderData extends AOrderData {
                   AND state = ?
                 ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours)
-                        .bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(hours).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -180,9 +173,7 @@ public class MariaDbOrderData extends AOrderData {
                 ORDER BY last_update
                 """;
         return query(query)
-                .single(call().bind(hours)
-                        .bind(company.id())
-                        .bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(hours).bind(company.id()).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -273,12 +264,8 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(order.id()))
                     .map(row -> row.get("worker_uuid", UUID_BYTES))
                     .all();
-            conf.query(returnItems)
-                    .single(call().bind(order.id()))
-                    .insert();
-            conf.query(delete)
-                    .single(call().bind(order.id()))
-                    .delete();
+            conf.query(returnItems).single(call().bind(order.id())).insert();
+            conf.query(delete).single(call().bind(order.id())).delete();
         }
         if (!conf.context().exceptions().isEmpty()) return Optional.empty();
         return Optional.of(Set.copyOf(workers));
@@ -314,9 +301,7 @@ public class MariaDbOrderData extends AOrderData {
                 .update()
                 .changed();
         if (taken) {
-            query(delete)
-                    .single(call().bind(itemReturn.id()))
-                    .delete();
+            query(delete).single(call().bind(itemReturn.id())).delete();
         }
         return taken;
     }
@@ -424,10 +409,7 @@ public class MariaDbOrderData extends AOrderData {
                         LEFT JOIN order_states oc
                         ON o.id = oc.id
                 WHERE o.id = ?""";
-        return query(query)
-                .single(call().bind(id))
-                .map(this::buildSimpleOrder)
-                .first();
+        return query(query).single(call().bind(id)).map(this::buildSimpleOrder).first();
     }
 
     @Override
@@ -474,9 +456,7 @@ public class MariaDbOrderData extends AOrderData {
                   AND state >= ?
                   AND state <= ?""";
         return query(query)
-                .single(call().bind(company.id())
-                        .bind(min.stateId())
-                        .bind(max.stateId()))
+                .single(call().bind(company.id()).bind(min.stateId()).bind(max.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -521,8 +501,7 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE owner_uuid = ?
                   AND s.state < ?""";
         return query(query)
-                .single(call().bind(player.getUniqueId(), UUID_BYTES)
-                        .bind(OrderState.DELIVERED.stateId()))
+                .single(call().bind(player.getUniqueId(), UUID_BYTES).bind(OrderState.DELIVERED.stateId()))
                 .map(rs -> rs.getInt("count"))
                 .first()
                 .get();
@@ -541,8 +520,7 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE company = ?
                   AND s.state = ?""";
         return query(query)
-                .single(call().bind(company.id())
-                        .bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(company.id()).bind(OrderState.CLAIMED.stateId()))
                 .map(rs -> rs.getInt("count"))
                 .first()
                 .get();
@@ -557,12 +535,12 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE id = ?""";
         var orderContents = query(query)
                 .single(call().bind(order.id()))
-                .map(row -> new OrderContent(toItemStack(row.getString("stack")), row.getInt("amount"), row.getDouble("price")))
+                .map(row -> new OrderContent(
+                        toItemStack(row.getString("stack")), row.getInt("amount"), row.getDouble("price")))
                 .all();
 
         for (var orderContent : orderContents) {
-            orderContent.parts(getContentParts(order, orderContent.stack()
-                    .getType()));
+            orderContent.parts(getContentParts(order, orderContent.stack().getType()));
         }
         return orderContents;
     }
@@ -576,8 +554,7 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE id = ?
                   AND material = ?""";
         return query(query)
-                .single(call().bind(order.id())
-                        .bind(material.name()))
+                .single(call().bind(order.id()).bind(material.name()))
                 .map(row -> new ContentPart(row.get("worker_uuid", UUID_BYTES), row.getInt("delivered")))
                 .all();
     }
@@ -616,9 +593,7 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
                     .delete();
             if (!unclaimed.changed()) return false;
-            conf.query(deleteOrder)
-                    .single(call().bind(order.id()))
-                    .delete();
+            conf.query(deleteOrder).single(call().bind(order.id())).delete();
         }
         return conf.context().exceptions().isEmpty();
     }
@@ -668,8 +643,11 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE material = ?""";
         return query(query)
                 .single(call().bind(material.toUpperCase(Locale.ROOT)))
-                .map(rs -> new MaterialPrice(material.toLowerCase(Locale.ROOT), rs.getDouble("avg_price"),
-                        rs.getDouble("min_price"), rs.getDouble("max_price")))
+                .map(rs -> new MaterialPrice(
+                        material.toLowerCase(Locale.ROOT),
+                        rs.getDouble("avg_price"),
+                        rs.getDouble("min_price"),
+                        rs.getDouble("max_price")))
                 .first();
     }
 
@@ -697,7 +675,6 @@ public class MariaDbOrderData extends AOrderData {
                 ON DUPLICATE KEY UPDATE avg_price = avg.avg_price,
                                         min_price = avg.min_price,
                                         max_price = avg.max_price;""";
-        query(query).single()
-                .update();
+        query(query).single().update();
     }
 }

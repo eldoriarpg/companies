@@ -46,15 +46,16 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private final Configuration configuration;
 
     public Invite(Plugin plugin, ACompanyData companyData, Configuration configuration) {
-        super(plugin, CommandMeta.builder("invite")
-                .addArgument("words.name", true)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("invite").addArgument("words.name", true).build());
         this.companyData = companyData;
         this.configuration = configuration;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         if ("accept".equalsIgnoreCase(arguments.asString(0))) {
             accept(player);
             return;
@@ -69,61 +70,58 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
 
         CommandAssertions.isTrue(target.hasPermission(Permission.Company.JOIN), "error.canNotJoin");
 
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return Optional.empty();
-                   })
-                   .thenAccept(company -> {
-                       if (company.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
+        companyData
+                .retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(company -> {
+                    if (company.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
 
-                       if (!company.get()
-                                   .member(player)
-                                   .get()
-                                   .hasPermissions(CompanyPermission.INVITE)) {
-                           messageSender().sendErrorActionBar(player, "error.permission.invite");
-                           return;
-                       }
-                       var profile = company.get();
-                       if (profile.members()
-                                  .size() >= configuration.companySettings()
-                                                          .level(profile.level())
-                                                          .orElse(CompanyLevel.DEFAULT)
-                                                          .settings()
-                                                          .maxMembers()) {
-                           messageSender().sendErrorActionBar(player, "error.companyFull");
-                           return;
-                       }
+                    if (!company.get().member(player).get().hasPermissions(CompanyPermission.INVITE)) {
+                        messageSender().sendErrorActionBar(player, "error.permission.invite");
+                        return;
+                    }
+                    var profile = company.get();
+                    if (profile.members().size()
+                            >= configuration
+                                    .companySettings()
+                                    .level(profile.level())
+                                    .orElse(CompanyLevel.DEFAULT)
+                                    .settings()
+                                    .maxMembers()) {
+                        messageSender().sendErrorActionBar(player, "error.companyFull");
+                        return;
+                    }
 
-                       var targetCompany = companyData.retrievePlayerCompany(target)
-                                                      .asFuture()
-                                                      .exceptionally(err -> {
-                                                          plugin().getLogger()
-                                                                  .log(Level.SEVERE, "Something went wrong", err);
-                                                          return Optional.empty();
-                                                      })
-                                                      .join();
-                       if (targetCompany.isPresent()) {
-                           messageSender().sendErrorActionBar(player, "error.hasCompany");
-                           return;
-                       }
-                       scheduleInvite(player, target, company.get());
-                   })
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return null;
-                   })
-        ;
+                    var targetCompany = companyData
+                            .retrievePlayerCompany(target)
+                            .asFuture()
+                            .exceptionally(err -> {
+                                plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                                return Optional.empty();
+                            })
+                            .join();
+                    if (targetCompany.isPresent()) {
+                        messageSender().sendErrorActionBar(player, "error.hasCompany");
+                        return;
+                    }
+                    scheduleInvite(player, target, company.get());
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         return Completion.completePlayers(arguments.asString(0));
     }
 
@@ -134,24 +132,22 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        companyData.retrievePlayerCompany(player)
-                   .whenComplete(company -> {
-                       if (company.isPresent()) {
-                           messageSender().sendErrorActionBar(player, "error.alreadyMember");
-                           return;
-                       }
-                       var inviter = Bukkit.getOfflinePlayer(data.inviter);
-                       companyData.retrieveCompanyById(data.company.id())
-                                  .whenComplete(current -> {
-                                      if (current.isEmpty()) {
-                                          messageSender().sendErrorActionBar(player, "error.unknownCompany");
-                                          return;
-                                      }
-                                      companyData.retrieveCompanyProfile(current.get())
-                                                 .whenComplete(profile -> handleInviteAccept(player, data, inviter, profile));
-                                  });
-
-                   });
+        companyData.retrievePlayerCompany(player).whenComplete(company -> {
+            if (company.isPresent()) {
+                messageSender().sendErrorActionBar(player, "error.alreadyMember");
+                return;
+            }
+            var inviter = Bukkit.getOfflinePlayer(data.inviter);
+            companyData.retrieveCompanyById(data.company.id()).whenComplete(current -> {
+                if (current.isEmpty()) {
+                    messageSender().sendErrorActionBar(player, "error.unknownCompany");
+                    return;
+                }
+                companyData
+                        .retrieveCompanyProfile(current.get())
+                        .whenComplete(profile -> handleInviteAccept(player, data, inviter, profile));
+            });
+        });
     }
 
     private void deny(@NotNull Player player) {
@@ -160,8 +156,7 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
             messageSender().sendErrorActionBar(player, "company.invite.error.noPending");
             return;
         }
-        var inviter = plugin().getServer()
-                              .getPlayer(data.inviter);
+        var inviter = plugin().getServer().getPlayer(data.inviter);
         if (inviter != null) {
             messageSender().sendErrorActionBar(inviter, "company.invite.inviteDeclined");
         }
@@ -170,17 +165,18 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
     private void scheduleInvite(Player inviter, Player target, SimpleCompany company) {
         messageSender().sendMessage(inviter, "company.invite.inviteSend", Replacement.create("name", target));
         var composer = MessageComposer.create()
-                                      .text("<neutral>")
-                                      .localeCode("company.invite.invited",
-                                              Replacement.create("name", String.format("<heading>%s<neutral>", Texts.escape(company.name()))))
-                                      .newLine()
-                                      .text("<click:run_command:/company invite accept><add>[")
-                                      .localeCode("words.accept")
-                                      .text("]</click>")
-                                      .space()
-                                      .text("<click:run_command:/company invite deny><remove>[")
-                                      .localeCode("words.deny")
-                                      .text("]</click>");
+                .text("<neutral>")
+                .localeCode(
+                        "company.invite.invited",
+                        Replacement.create("name", String.format("<heading>%s<neutral>", Texts.escape(company.name()))))
+                .newLine()
+                .text("<click:run_command:/company invite accept><add>[")
+                .localeCode("words.accept")
+                .text("]</click>")
+                .space()
+                .text("<click:run_command:/company invite deny><remove>[")
+                .localeCode("words.deny")
+                .text("]</click>");
         messageSender().sendMessage(target, composer);
         var invite = new InviteData(company, inviter.getUniqueId(), target.getName());
         invites.put(target.getUniqueId(), invite);
@@ -190,20 +186,20 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                 .runTaskLater(plugin(), () -> expiredInvite(target.getUniqueId(), invite), lifetime);
     }
 
-    private void handleInviteAccept(Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
+    private void handleInviteAccept(
+            Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
         if (profile.isEmpty()) {
             messageSender().sendErrorActionBar(player, "error.unknownCompany");
             return;
         }
 
-        if (profile.get()
-                   .members()
-                   .size() >= configuration.companySettings()
-                                           .level(profile.get()
-                                                         .level())
-                                           .orElse(CompanyLevel.DEFAULT)
-                                           .settings()
-                                           .maxMembers()) {
+        if (profile.get().members().size()
+                >= configuration
+                        .companySettings()
+                        .level(profile.get().level())
+                        .orElse(CompanyLevel.DEFAULT)
+                        .settings()
+                        .maxMembers()) {
             messageSender().sendErrorActionBar(player, "error.companyFull");
             return;
         }
@@ -211,30 +207,28 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         companyData.submitMemberUpdate(CompanyMember.forCompany(data.company, player));
         messageSender().sendMessage(player, "company.invite.joined");
         if (inviter.isOnline()) {
-            messageSender().sendMessage(inviter.getPlayer(), "company.invite.accepted", Replacement.create("name", player));
+            messageSender()
+                    .sendMessage(inviter.getPlayer(), "company.invite.accepted", Replacement.create("name", player));
         }
 
-        plugin().getServer()
-                .getPluginManager()
-                .callEvent(new CompanyJoinEvent(profile.get(), player));
+        plugin().getServer().getPluginManager().callEvent(new CompanyJoinEvent(profile.get(), player));
     }
 
     private void expiredInvite(UUID uuid, InviteData data) {
         if (invites.get(uuid) != data || !invites.remove(uuid, data)) return;
-        var target = plugin().getServer()
-                             .getPlayer(uuid);
+        var target = plugin().getServer().getPlayer(uuid);
         if (target != null) {
-            messageSender().sendMessage(target, "company.invite.expiredTarget",
-                    Replacement.unparsed("name", data.company.name()));
+            messageSender()
+                    .sendMessage(
+                            target, "company.invite.expiredTarget", Replacement.unparsed("name", data.company.name()));
         }
-        var inviter = plugin().getServer()
-                              .getPlayer(data.inviter);
+        var inviter = plugin().getServer().getPlayer(data.inviter);
         if (inviter != null) {
-            messageSender().sendMessage(inviter, "company.invite.expiredInviter",
-                    Replacement.unparsed("name", data.targetName));
+            messageSender()
+                    .sendMessage(
+                            inviter, "company.invite.expiredInviter", Replacement.unparsed("name", data.targetName));
         }
     }
 
-    private record InviteData(SimpleCompany company, UUID inviter, String targetName) {
-    }
+    private record InviteData(SimpleCompany company, UUID inviter, String targetName) {}
 }

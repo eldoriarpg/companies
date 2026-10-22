@@ -23,25 +23,24 @@ public class Render extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Render(Plugin plugin, Query query, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("render")
-                .build());
+        super(plugin, CommandMeta.builder("render").build());
         this.query = query;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         renderSearch(player);
     }
 
     public void renderSearch(Player player) {
         var playerSearch = query.getPlayerSearch(player);
-        var message = MessageComposer.create()
-                                     .text(playerSearch.asComponent());
+        var message = MessageComposer.create().text(playerSearch.asComponent());
         if (messageBlocker.isBlocked(player)) {
             message.newLine()
-                   .text("<click:run_command:/company chatblock false><red>[x]</red></click>")
-                   .build();
+                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>")
+                    .build();
         }
         message.prependLines(25);
         Menus.show(messageBlocker, player, message);

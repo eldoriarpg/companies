@@ -32,61 +32,71 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
     private final MessageBlocker messageBlocker;
 
     public Top(Plugin plugin, ACompanyData companyData, Economy economy, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("top")
-                .addArgument("words.page", false)
-                .addArgument("words.ordering", false)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("top")
+                        .addArgument("words.page", false)
+                        .addArgument("words.ordering", false)
+                        .build());
         this.companyData = companyData;
         this.economy = economy;
         this.messageBlocker = messageBlocker;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         var order = args.asEnum(1, TopOrder.class, DEFAULT_ORDER);
         renderPage(player, Math.max(1, args.asInt(0, 1)), order);
     }
 
     private void renderPage(Player player, int page, TopOrder orders) {
-        companyData.retrieveRanking(orders, page, PAGE_SIZE)
-                   .whenComplete(companyRanks -> sendPage(player, page, orders, companyRanks));
+        companyData
+                .retrieveRanking(orders, page, PAGE_SIZE)
+                .whenComplete(companyRanks -> sendPage(player, page, orders, companyRanks));
     }
 
     private void sendPage(Player player, int page, TopOrder order, List<CompanyRank> ranks) {
         messageBlocker.blockPlayer(player);
         var composer = MessageComposer.create()
-                                      .text("<heading>")
-                                      .localeCode("company.top.ranking")
-                                      .newLine()
-                                      .text("<name>")
-                                      .localeCode("words.ordering")
-                                      .text(": ");
+                .text("<heading>")
+                .localeCode("company.top.ranking")
+                .newLine()
+                .text("<name>")
+                .localeCode("words.ordering")
+                .text(": ");
         for (var value : TopOrder.values()) {
-            composer.text("<click:run_command:/company top %s %s><%s>[", page, value.name(), Colors.active(order == value))
+            composer.text(
+                            "<click:run_command:/company top %s %s><%s>[",
+                            page, value.name(), Colors.active(order == value))
                     .localeCode(value.translationKey())
                     .text("]</click>");
         }
         composer.newLine();
         for (var rank : ranks) {
-            composer.text("<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>", rank.rank(), Texts.argument(rank.asComponent(economy)), Texts.escape(rank.name()))
+            composer.text(
+                            "<name>%s | <value><hover:show_text:'%s'><gold>%s</hover>",
+                            rank.rank(), Texts.argument(rank.asComponent(economy)), Texts.escape(rank.name()))
                     .newLine();
         }
         if (page > 1) {
-            composer.text("<click:run_command:/company top %s %s><active>%s</click>", page - 1, order.name(), Texts.LEFT_ARROW);
+            composer.text(
+                    "<click:run_command:/company top %s %s><active>%s</click>",
+                    page - 1, order.name(), Texts.LEFT_ARROW);
         } else {
             composer.text("<inactive>%s", Texts.LEFT_ARROW);
         }
-        composer.localeCode("words.page")
-                .text(" <aqua>%s ", page);
+        composer.localeCode("words.page").text(" <aqua>%s ", page);
 
         if (ranks.size() < PAGE_SIZE) {
             composer.text("<inactive>%s", Texts.RIGHT_ARROW);
         } else {
-            composer.text("<click:run_command:/company top %s %s><active>%s</click>", page + 1, order.name(), Texts.RIGHT_ARROW);
+            composer.text(
+                    "<click:run_command:/company top %s %s><active>%s</click>",
+                    page + 1, order.name(), Texts.RIGHT_ARROW);
         }
         if (messageBlocker.isBlocked(player)) {
-            composer.newLine()
-                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         composer.prependLines(25);
         Menus.show(messageBlocker, player, composer);

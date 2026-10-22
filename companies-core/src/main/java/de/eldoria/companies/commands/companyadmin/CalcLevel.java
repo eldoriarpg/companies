@@ -23,14 +23,17 @@ public class CalcLevel extends AdvancedCommand implements ITabExecutor {
     private final LevelService levelService;
 
     public CalcLevel(Plugin plugin, LevelService levelService) {
-        super(plugin, CommandMeta.builder("calcLevel")
-                .withPermission(Permission.Admin.CALC_LEVEL)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("calcLevel")
+                        .withPermission(Permission.Admin.CALC_LEVEL)
+                        .build());
         this.levelService = levelService;
     }
 
     @Override
-    public void onCommand(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull CommandSender sender, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         levelService.updateAllCompanies(() -> {
             if (sender instanceof Player) {
                 var offlinePlayer = Bukkit.getOfflinePlayer(((Entity) sender).getUniqueId());

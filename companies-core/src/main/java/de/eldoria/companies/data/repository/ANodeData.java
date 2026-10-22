@@ -36,7 +36,10 @@ public abstract class ANodeData {
      * @param plugin plugin
      */
     public void updateNode(Plugin plugin) {
-        updateNode(nodeSettings.nodeUid(), nodeSettings.nodeType(), plugin.getPluginMeta().getVersion());
+        updateNode(
+                nodeSettings.nodeUid(),
+                nodeSettings.nodeType(),
+                plugin.getPluginMeta().getVersion());
     }
 
     protected abstract void updateNode(UUID nodeId, NodeType type, String version);
@@ -55,16 +58,22 @@ public abstract class ANodeData {
         }
         if (mainNodes.size() > 1) {
             String nodes = mainNodes.stream().map(node -> node.uid().toString()).collect(Collectors.joining(", "));
-            throw new IllegalStateException("Multiple nodes are set as primary. Only one node is allowed to be a primary node. Nodes marked as primary: " + nodes);
+            throw new IllegalStateException(
+                    "Multiple nodes are set as primary. Only one node is allowed to be a primary node. Nodes marked as primary: "
+                            + nodes);
         }
         Node node = mainNodes.get(0);
-        if (Version.parse(node.version()).isNewer(Version.parse(plugin.getPluginMeta().getVersion()))) {
-            throw new IllegalStateException("Primary node is on version " + node.version() + ". However this node is just on "
-                                            + plugin.getPluginMeta().getVersion() + ". Please update this node.");
+        if (Version.parse(node.version())
+                .isNewer(Version.parse(plugin.getPluginMeta().getVersion()))) {
+            throw new IllegalStateException(
+                    "Primary node is on version " + node.version() + ". However this node is just on "
+                            + plugin.getPluginMeta().getVersion() + ". Please update this node.");
         }
-        if (Version.parse(node.version()).isOlder(Version.parse(plugin.getPluginMeta().getVersion()))) {
-            throw new IllegalStateException("Primary node is on version " + node.version() + ". However this node already on "
-                                            + plugin.getPluginMeta().getVersion() + ". Please update primary first.");
+        if (Version.parse(node.version())
+                .isOlder(Version.parse(plugin.getPluginMeta().getVersion()))) {
+            throw new IllegalStateException(
+                    "Primary node is on version " + node.version() + ". However this node already on "
+                            + plugin.getPluginMeta().getVersion() + ". Please update primary first.");
         }
     }
 
@@ -79,7 +88,8 @@ public abstract class ANodeData {
 
     public final <T> T loadPrimaryConfiguration(Key<T> key, JacksonConfig<?> config) {
         var content = loadPrimaryConfiguration(key.path().toString())
-                .orElseThrow(() -> new IllegalStateException("No configuration present. Did you start the main node once already?"));
+                .orElseThrow(() -> new IllegalStateException(
+                        "No configuration present. Did you start the main node once already?"));
         try {
             return yaml(config).reader().readValue(content, key.configClazz());
         } catch (JacksonException e) {

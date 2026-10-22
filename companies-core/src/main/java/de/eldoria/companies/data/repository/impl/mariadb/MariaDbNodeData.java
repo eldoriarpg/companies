@@ -34,8 +34,8 @@ public class MariaDbNodeData extends ANodeData {
                                         version = VALUES(version)""";
 
         query(insert)
-                 .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version))
-                 .insert();
+                .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version))
+                .insert();
     }
 
     @Override
@@ -54,8 +54,8 @@ public class MariaDbNodeData extends ANodeData {
 
     @Override
     protected Optional<String> loadPrimaryConfiguration(String path) {
-         @Language("mariadb")
-          var select = """
+        @Language("mariadb")
+        var select = """
               SELECT content
               FROM node_configuration c
                        LEFT JOIN node n on n.id = c.node_id
@@ -70,20 +70,18 @@ public class MariaDbNodeData extends ANodeData {
 
     @Override
     protected void savePrimaryConfiguration(String path, String content) {
-         @Language("mariadb")
-          var insert = """
+        @Language("mariadb")
+        var insert = """
               INSERT INTO node_configuration(node_id, path, content) VALUES (?, ?, ?)
               ON DUPLICATE KEY UPDATE content = VALUES(content)""";
 
-        query(insert)
-                .single(call().bind(getNodeId()).bind(path).bind(content))
-                .insert();
+        query(insert).single(call().bind(getNodeId()).bind(path).bind(content)).insert();
     }
 
     @Override
     protected Optional<Integer> retrieveNodeId() {
-         @Language("mariadb")
-          var select = """
+        @Language("mariadb")
+        var select = """
               SELECT id
               FROM node
               where uid = ?""";

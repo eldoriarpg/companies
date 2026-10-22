@@ -30,7 +30,8 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
     private final ItemReturnService itemReturnService;
 
     public Delete(Plugin plugin, ACompanyData companyData, AOrderData orderData, ItemReturnService itemReturnService) {
-        super(plugin,
+        super(
+                plugin,
                 CommandMeta.builder("delete")
                         .withPermission(Permission.Admin.DELETE)
                         .addArgument("words.name", true)
@@ -41,41 +42,41 @@ public class Delete extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String alias, @NotNull Arguments args)
+            throws CommandException {
         var name = args.join();
 
-        companyData.retrieveCompanyByName(name)
-                   .asFuture()
-                   .thenAccept(company -> {
-                       if (company.isEmpty()) {
-                           messageSender().sendError(player, "error.unknownCompany");
-                           return;
-                       }
+        companyData
+                .retrieveCompanyByName(name)
+                .asFuture()
+                .thenAccept(company -> {
+                    if (company.isEmpty()) {
+                        messageSender().sendError(player, "error.unknownCompany");
+                        return;
+                    }
 
-                       var profile = companyData.retrieveCompanyProfile(company.get())
-                                                .join();
-                       var workers = orderData.submitCompanyOrdersPurge(company.get())
-                                              .join();
-                       itemReturnService.notifyWorkers(workers);
-                       if (!companyData.submitCompanyPurge(company.get())
-                                       .join()) {
-                           messageSender().sendError(player, "error.saveFailed");
-                           return;
-                       }
-                       messageSender().sendMessage(player, "company.leave.disbanded");
-                       profile.ifPresent(disbanded -> plugin().getServer()
-                                                              .getPluginManager()
-                                                              .callEvent(new CompanyDisbandEvent(disbanded)));
-                   })
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return null;
-                   });
+                    var profile =
+                            companyData.retrieveCompanyProfile(company.get()).join();
+                    var workers =
+                            orderData.submitCompanyOrdersPurge(company.get()).join();
+                    itemReturnService.notifyWorkers(workers);
+                    if (!companyData.submitCompanyPurge(company.get()).join()) {
+                        messageSender().sendError(player, "error.saveFailed");
+                        return;
+                    }
+                    messageSender().sendMessage(player, "company.leave.disbanded");
+                    profile.ifPresent(disbanded ->
+                            plugin().getServer().getPluginManager().callEvent(new CompanyDisbandEvent(disbanded)));
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments args) {
         return Completion.completeFreeInput(args.join(), 32, localizer().localize("words.name"));
     }
 }

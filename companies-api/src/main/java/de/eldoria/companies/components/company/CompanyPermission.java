@@ -33,9 +33,7 @@ public enum CompanyPermission implements Translatable {
     }
 
     public static long composePermissions(CompanyPermission... permissions) {
-        return Arrays.stream(permissions)
-                     .mapToLong(CompanyPermission::mask)
-                     .sum();
+        return Arrays.stream(permissions).mapToLong(CompanyPermission::mask).sum();
     }
 
     public long mask() {
@@ -43,9 +41,7 @@ public enum CompanyPermission implements Translatable {
     }
 
     public static Set<CompanyPermission> getPermissions(long mask) {
-        return Arrays.stream(values())
-                     .filter(p -> p.hasPermission(mask))
-                     .collect(Collectors.toSet());
+        return Arrays.stream(values()).filter(p -> p.hasPermission(mask)).collect(Collectors.toSet());
     }
 
     public boolean hasPermission(long mask) {

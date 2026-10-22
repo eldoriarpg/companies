@@ -35,7 +35,14 @@ public class SimpleOrder implements ISimpleOrder {
         state = null;
     }
 
-    public SimpleOrder(int id, UUID owner, String name, LocalDateTime created, int company, LocalDateTime claimed, OrderState state) {
+    public SimpleOrder(
+            int id,
+            UUID owner,
+            String name,
+            LocalDateTime created,
+            int company,
+            LocalDateTime claimed,
+            OrderState state) {
         this.id = id;
         this.owner = owner;
         this.name = Texts.trimLeft(name, 32);
@@ -95,7 +102,9 @@ public class SimpleOrder implements ISimpleOrder {
     }
 
     public String runningOutTime(Configuration configuration) {
-        var duration = Duration.between(LocalDateTime.now(), claimed().plus(configuration.companySettings().deliveryHours(), ChronoUnit.HOURS));
+        var duration = Duration.between(
+                LocalDateTime.now(),
+                claimed().plus(configuration.companySettings().deliveryHours(), ChronoUnit.HOURS));
         return Texts.prettyDuration(duration);
     }
 }

@@ -23,14 +23,15 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
     private final Query query;
 
     public Name(Plugin plugin, Query query) {
-        super(plugin, CommandMeta.builder("name")
-                .addArgument("words.name", false)
-                .build());
+        super(
+                plugin,
+                CommandMeta.builder("name").addArgument("words.name", false).build());
         this.query = query;
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var playerSearch = query.getPlayerSearch(player);
         if (arguments.isEmpty()) {
             playerSearch.name(null);
@@ -40,7 +41,8 @@ public class Name extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
+    public @Nullable List<String> onTabComplete(
+            @NotNull Player player, @NotNull String alias, @NotNull Arguments arguments) {
         return Completion.completeFreeInput(arguments.join(), 32, localizer().localize("words.defaultOrderName"));
     }
 }

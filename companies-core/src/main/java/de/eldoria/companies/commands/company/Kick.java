@@ -38,9 +38,7 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
     private final Confirmations<UUID> kicks = new Confirmations<>();
 
     public Kick(Plugin plugin, ACompanyData companyData) {
-        super(plugin, CommandMeta.builder("kick")
-                .addArgument("name", true)
-                .build());
+        super(plugin, CommandMeta.builder("kick").addArgument("name", true).build());
         this.companyData = companyData;
     }
 
@@ -58,15 +56,16 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         if ("confirm".equalsIgnoreCase(arguments.asString(0))) {
             confirm(player);
             return;
         }
         var name = arguments.asString(0);
-        companyData.retrievePlayerCompanyProfile(player)
-                   .whenComplete(optProfile -> checkKick(player, optProfile, profile -> profile.memberByName(name))
-                           .ifPresent(target -> requestConfirmation(player, target)));
+        companyData.retrievePlayerCompanyProfile(player).whenComplete(optProfile -> checkKick(
+                        player, optProfile, profile -> profile.memberByName(name))
+                .ifPresent(target -> requestConfirmation(player, target)));
     }
 
     private void confirm(Player player) {
@@ -76,12 +75,15 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
         var targetPlayer = plugin().getServer().getOfflinePlayer(optTarget.get());
-        companyData.retrievePlayerCompanyProfile(player)
-                   .whenComplete(optProfile -> checkKick(player, optProfile, profile -> profile.member(targetPlayer))
-                           .ifPresent(target -> kick(player, optProfile.get(), target)));
+        companyData.retrievePlayerCompanyProfile(player).whenComplete(optProfile -> checkKick(
+                        player, optProfile, profile -> profile.member(targetPlayer))
+                .ifPresent(target -> kick(player, optProfile.get(), target)));
     }
 
-    private Optional<CompanyMember> checkKick(Player player, Optional<CompanyProfile> optProfile, Function<CompanyProfile, Optional<CompanyMember>> lookup) {
+    private Optional<CompanyMember> checkKick(
+            Player player,
+            Optional<CompanyProfile> optProfile,
+            Function<CompanyProfile, Optional<CompanyMember>> lookup) {
         if (optProfile.isEmpty()) {
             messageSender().sendErrorActionBar(player, "error.noMember");
             return Optional.empty();
@@ -107,23 +109,25 @@ public class Kick extends AdvancedCommand implements IPlayerTabExecutor {
     private void requestConfirmation(Player player, CompanyMember target) {
         kicks.request(player.getUniqueId(), target.uuid());
         var composer = MessageComposer.create()
-                                      .text("<neutral>")
-                                      .localeCode("company.kick.confirm", Replacement.unparsed("name", target.player().getName()))
-                                      .space()
-                                      .text("<click:run_command:/company kick confirm><remove>[")
-                                      .localeCode("words.confirm")
-                                      .text("]</click>");
+                .text("<neutral>")
+                .localeCode(
+                        "company.kick.confirm",
+                        Replacement.unparsed("name", target.player().getName()))
+                .space()
+                .text("<click:run_command:/company kick confirm><remove>[")
+                .localeCode("words.confirm")
+                .text("]</click>");
         messageSender().sendMessage(player, composer);
     }
 
     private void kick(Player player, CompanyProfile profile, CompanyMember target) {
-        companyData.submitMemberUpdate(target.kick())
-                   .whenComplete(ignored -> {
-                       messageSender().sendMessage(player, "company.kick.kicked",
-                               Replacement.unparsed("name", target.player().getName()));
-                       plugin().getServer()
-                               .getPluginManager()
-                               .callEvent(new CompanyKickEvent(profile, target.player()));
-                   });
+        companyData.submitMemberUpdate(target.kick()).whenComplete(ignored -> {
+            messageSender()
+                    .sendMessage(
+                            player,
+                            "company.kick.kicked",
+                            Replacement.unparsed("name", target.player().getName()));
+            plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(profile, target.player()));
+        });
     }
 }

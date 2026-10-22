@@ -34,10 +34,14 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     private final Configuration configuration;
     private final MessageBlocker messageBlocker;
 
-    public Info(Plugin plugin, ACompanyData companyData, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
-        super(plugin, CommandMeta.builder("info")
-                .addArgument("words.id", true)
-                .build());
+    public Info(
+            Plugin plugin,
+            ACompanyData companyData,
+            AOrderData orderData,
+            Economy economy,
+            Configuration configuration,
+            MessageBlocker messageBlocker) {
+        super(plugin, CommandMeta.builder("info").addArgument("words.id", true).build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.economy = economy;
@@ -46,54 +50,48 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     @Override
-    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments) throws CommandException {
+    public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
+            throws CommandException {
         var id = arguments.asInt(0);
-        companyData.retrievePlayerCompanyProfile(player)
-                   .asFuture()
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return Optional.empty();
-                   })
-                   .thenAccept(optProfile -> {
-                       if (optProfile.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.noMember");
-                           return;
-                       }
-                       var profile = optProfile.get();
-                       var optOrder = orderData.retrieveOrderById(id)
-                                               .join();
-                       if (optOrder.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.unknownOrder");
-                           return;
-                       }
-                       if (optOrder.get()
-                                   .company() != profile.id() && optOrder.get()
-                                                                         .state() != OrderState.UNCLAIMED) {
-                           messageSender().sendErrorActionBar(player, "error.unknownOrder");
-                           return;
-                       }
-                       var order = optOrder.get();
-                       var fullOrder = orderData.retrieveFullOrder(order)
-                                                .join();
-                       renderOrder(player, profile.member(player)
-                                                  .get(), fullOrder);
-                   })
-                   .exceptionally(err -> {
-                       plugin().getLogger()
-                               .log(Level.SEVERE, "Something went wrong", err);
-                       return null;
-                   });
+        companyData
+                .retrievePlayerCompanyProfile(player)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return Optional.empty();
+                })
+                .thenAccept(optProfile -> {
+                    if (optProfile.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.noMember");
+                        return;
+                    }
+                    var profile = optProfile.get();
+                    var optOrder = orderData.retrieveOrderById(id).join();
+                    if (optOrder.isEmpty()) {
+                        messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                        return;
+                    }
+                    if (optOrder.get().company() != profile.id()
+                            && optOrder.get().state() != OrderState.UNCLAIMED) {
+                        messageSender().sendErrorActionBar(player, "error.unknownOrder");
+                        return;
+                    }
+                    var order = optOrder.get();
+                    var fullOrder = orderData.retrieveFullOrder(order).join();
+                    renderOrder(player, profile.member(player).get(), fullOrder);
+                })
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+                    return null;
+                });
     }
 
     public void renderOrder(Player player, CompanyMember member, FullOrder order) {
         messageBlocker.blockPlayer(player);
         var component = order.companyDetailInfo(member, configuration, economy);
-        var composer = MessageComposer.create()
-                                      .text(component);
+        var composer = MessageComposer.create().text(component);
         if (messageBlocker.isBlocked(player)) {
-            composer.newLine()
-                    .text("<click:run_command:/company chatblock false><red>[x]</red></click>");
+            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
         }
         composer.prependLines(25);
         Menus.show(messageBlocker, player, composer);

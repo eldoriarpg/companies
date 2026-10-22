@@ -45,7 +45,9 @@ class CompanyPermissionsTest {
 
     @Test
     void composePermissions() {
-        Assertions.assertEquals(MANAGE_ORDERS + INVITE, CompanyPermission.composePermissions(CompanyPermission.INVITE, CompanyPermission.MANAGE_ORDERS));
+        Assertions.assertEquals(
+                MANAGE_ORDERS + INVITE,
+                CompanyPermission.composePermissions(CompanyPermission.INVITE, CompanyPermission.MANAGE_ORDERS));
     }
 
     @Test
@@ -65,7 +67,6 @@ class CompanyPermissionsTest {
         permissions = CompanyPermission.getPermissions(1L);
         Assertions.assertTrue(permissions.contains(CompanyPermission.OWNER));
 
-        Assertions.assertTrue(CompanyPermission.getPermissions(0L)
-                                               .isEmpty());
+        Assertions.assertTrue(CompanyPermission.getPermissions(0L).isEmpty());
     }
 }

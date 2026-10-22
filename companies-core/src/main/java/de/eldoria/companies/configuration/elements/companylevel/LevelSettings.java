@@ -12,8 +12,7 @@ public class LevelSettings implements ILevelSettings {
     private int maxMembers = 20;
     private int maxOrders = 5;
 
-    public LevelSettings() {
-    }
+    public LevelSettings() {}
 
     @Override
     public int maxMembers() {
