@@ -9,11 +9,17 @@ import de.eldoria.companies.components.company.ICompanyProfile;
 import org.bukkit.OfflinePlayer;
 
 /**
- * A user was kicked from a company.
+ * A member was removed from a company by another member.
  * <p>
- * This is a speification of the {@link CompanyLeaveEvent}
+ * A special case of {@link CompanyLeaveEvent}; listeners of that event receive it too.
  */
 public class CompanyKickEvent extends CompanyLeaveEvent {
+    /**
+     * Creates a new event.
+     *
+     * @param company the company without the member
+     * @param player  player who was removed
+     */
     public CompanyKickEvent(ICompanyProfile company, OfflinePlayer player) {
         super(company, player);
     }

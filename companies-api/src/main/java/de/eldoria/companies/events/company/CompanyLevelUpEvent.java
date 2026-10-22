@@ -11,15 +11,32 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A company level increases.
+ * The level of a company increased.
+ * <p>
+ * Fired off the main thread.
  */
 public class CompanyLevelUpEvent extends CompanyLevelChangeEvent {
+    /**
+     * The handlers of this event.
+     */
     public static final HandlerList HANDLERS = new HandlerList();
 
+    /**
+     * Creates a new event.
+     *
+     * @param company  the company
+     * @param oldLevel level before the change
+     * @param newLevel level after the change
+     */
     public CompanyLevelUpEvent(ICompanyProfile company, ICompanyLevel oldLevel, ICompanyLevel newLevel) {
         super(company, oldLevel, newLevel);
     }
 
+    /**
+     * The handlers of this event.
+     *
+     * @return handler list
+     */
     @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;

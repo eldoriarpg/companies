@@ -18,6 +18,9 @@ import org.jetbrains.annotations.NotNull;
  * Fired after the change was saved, only on the server where the change was made. The event may be asynchronous.
  */
 public class CompanyProfileEditEvent extends CompanyEvent<ICompanyProfile> implements PlayerProvider<OfflinePlayer> {
+    /**
+     * The handlers of this event.
+     */
     public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyProfile previous;
@@ -36,6 +39,11 @@ public class CompanyProfileEditEvent extends CompanyEvent<ICompanyProfile> imple
         this.player = player;
     }
 
+    /**
+     * The handlers of this event.
+     *
+     * @return handler list
+     */
     @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;

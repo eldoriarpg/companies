@@ -7,7 +7,17 @@ package de.eldoria.companies.events.components;
 
 import org.bukkit.OfflinePlayer;
 
+/**
+ * An event that involves a player.
+ *
+ * @param <P> type of player
+ */
 @FunctionalInterface
 public interface PlayerProvider<P extends OfflinePlayer> {
+    /**
+     * The player involved in the event.
+     *
+     * @return player
+     */
     P player();
 }

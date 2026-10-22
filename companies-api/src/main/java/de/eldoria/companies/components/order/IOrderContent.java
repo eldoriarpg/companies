@@ -44,12 +44,32 @@ public interface IOrderContent {
      */
     List<? extends IDeliveredStack> deliveries();
 
+    /**
+     * The number of requested items.
+     *
+     * @return amount
+     */
     int amount();
 
+    /**
+     * Changes the requested amount on this object. Nothing is saved.
+     *
+     * @param amount new amount
+     */
     void amount(int amount);
 
+    /**
+     * The delivered amount per worker.
+     *
+     * @return parts
+     */
     List<? extends IContentPart> parts();
 
+    /**
+     * The price of the whole line.
+     *
+     * @return line price
+     */
     double price();
 
     /**
@@ -59,15 +79,45 @@ public interface IOrderContent {
      */
     ItemStack stack();
 
+    /**
+     * The number of delivered items.
+     *
+     * @return delivered items
+     */
     int delivered();
 
+    /**
+     * The delivered share of the line.
+     *
+     * @return a value from 0 to 1
+     */
     double percent();
 
+    /**
+     * The material of the template in lower case.
+     *
+     * @return material name
+     */
     String materialIdentifier();
 
+    /**
+     * A MiniMessage translation tag for the template.
+     *
+     * @return translatable text
+     */
     String translatedMaterialString();
 
+    /**
+     * The material of the template.
+     *
+     * @return material
+     */
     Material material();
 
+    /**
+     * The number of items still missing.
+     *
+     * @return missing items
+     */
     int missing();
 }

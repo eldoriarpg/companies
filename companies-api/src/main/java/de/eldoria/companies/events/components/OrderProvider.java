@@ -7,10 +7,15 @@ package de.eldoria.companies.events.components;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
 
+/**
+ * An event that involves an order.
+ *
+ * @param <O> type of order
+ */
 @FunctionalInterface
 public interface OrderProvider<O extends ISimpleOrder> {
     /**
-     * The order associated with this event/
+     * The order involved in the event.
      *
      * @return order
      */
