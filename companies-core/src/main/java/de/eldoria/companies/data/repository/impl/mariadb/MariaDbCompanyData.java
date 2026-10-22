@@ -11,17 +11,23 @@ import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.ConstraintViolations;
+import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import de.eldoria.companies.data.wrapper.company.DetailsResult;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import org.bukkit.OfflinePlayer;
 import org.intellij.lang.annotations.Language;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -31,6 +37,10 @@ import static de.chojo.sadu.queries.api.query.Query.query;
 import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class MariaDbCompanyData extends ACompanyData {
+    /**
+     * The columns every company select reads, as {@link #parseCompany(Row)} expects them.
+     */
+    protected static final String COMPANY_COLUMNS = "id, name, founded, level, description, tag, color, join_mode";
 
     public MariaDbCompanyData(ExecutorService executorService) {
         super(executorService);
@@ -117,15 +127,10 @@ public class MariaDbCompanyData extends ACompanyData {
     protected Optional<SimpleCompany> getPlayerCompany(OfflinePlayer player) {
         @Language("mariadb")
         var query = """
-                SELECT c.id,
-                       c.name,
-                       c.founded,
-                       c.level
-                FROM company_member
-                         LEFT JOIN companies c
-                                   ON c.id = company_member.id
-                WHERE member_uuid = ?""";
-        return query(query)
+                SELECT %s
+                FROM companies
+                WHERE id = (SELECT id FROM company_member WHERE member_uuid = ?)""";
+        return query(query, COMPANY_COLUMNS)
                 .single(call().bind(player.getUniqueId(), UUID_BYTES))
                 .map(this::parseCompany)
                 .first();
@@ -135,31 +140,81 @@ public class MariaDbCompanyData extends ACompanyData {
     protected Optional<SimpleCompany> getCompanyByName(String name) {
         @Language("mariadb")
         var query = """
-                SELECT id, name, founded, level
+                SELECT %s
                 FROM companies
                 WHERE LOWER(name) = LOWER(?)""";
-        return query(query).single(call().bind(name)).map(this::parseCompany).first();
+        return query(query, COMPANY_COLUMNS)
+                .single(call().bind(name))
+                .map(this::parseCompany)
+                .first();
     }
 
     @Override
     protected Optional<SimpleCompany> getCompanyById(int id) {
         @Language("mariadb")
         var query = """
-                SELECT id, name, founded, level
+                SELECT %s
                 FROM companies
                 WHERE id = ?""";
-        return query(query).single(call().bind(id)).map(this::parseCompany).first();
+        return query(query, COMPANY_COLUMNS)
+                .single(call().bind(id))
+                .map(this::parseCompany)
+                .first();
     }
 
     @Override
-    protected Integer createCompany(String name) {
+    protected Optional<SimpleCompany> getCompanyByTag(String tag) {
         @Language("mariadb")
         var query = """
-                INSERT INTO companies(name)
-                VALUES (?)
+                SELECT %s
+                FROM companies
+                WHERE tag = ?""";
+        return query(query, COMPANY_COLUMNS)
+                .single(call().bind(tag.toUpperCase(Locale.ROOT)))
+                .map(this::parseCompany)
+                .first();
+    }
+
+    @Override
+    protected DetailsResult updateDetails(ISimpleCompany company, CompanyDetails details) {
+        @Language("mariadb")
+        var query = """
+                UPDATE companies
+                SET description = ?,
+                    tag         = ?,
+                    color       = ?,
+                    join_mode   = ?
+                WHERE id = ?""";
+        var errors = new ArrayList<SQLException>();
+        var conf = QueryConfiguration.getDefault()
+                .edit()
+                .setExceptionHandler(errors::add)
+                .build();
+        var tag = Optional.ofNullable(details.tag())
+                .map(value -> value.toUpperCase(Locale.ROOT))
+                .orElse(null);
+        var result = conf.query(query)
+                .single(call().bind(details.description())
+                        .bind(tag)
+                        .bind(details.color())
+                        .bind(details.joinMode().id())
+                        .bind(company.id()))
+                .update();
+        if (errors.isEmpty()) return result.changed() ? DetailsResult.SAVED : DetailsResult.UNKNOWN_COMPANY;
+        if (errors.stream().allMatch(ConstraintViolations::isViolation)) return DetailsResult.TAG_TAKEN;
+        errors.forEach(QueryConfiguration.getDefault().exceptionHandler());
+        return DetailsResult.FAILED;
+    }
+
+    @Override
+    protected Integer createCompany(String name, JoinMode joinMode) {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO companies(name, join_mode)
+                VALUES (?, ?)
                 RETURNING id""";
         return query(query)
-                .single(call().bind(name))
+                .single(call().bind(name).bind(joinMode.id()))
                 .map(rs -> rs.getInt(1))
                 .first()
                 .get();
@@ -171,7 +226,23 @@ public class MariaDbCompanyData extends ACompanyData {
                 rs.getInt("id"),
                 rs.getString("name"),
                 rs.getTimestamp("founded").toLocalDateTime(),
-                rs.getInt("level"));
+                rs.getInt("level"),
+                parseDetails(rs));
+    }
+
+    /**
+     * Reads description, tag, colour and join mode of a company row. An unknown join mode counts as invite only.
+     *
+     * @param rs row with the company columns
+     * @return details
+     * @throws SQLException when a column is missing
+     */
+    protected CompanyDetails parseDetails(Row rs) throws SQLException {
+        return new CompanyDetails(
+                rs.getString("description"),
+                rs.getString("tag"),
+                rs.getString("color"),
+                JoinMode.byId(rs.getInt("join_mode")).orElse(JoinMode.INVITE_ONLY));
     }
 
     @Override
@@ -183,12 +254,20 @@ public class MariaDbCompanyData extends ACompanyData {
         var deleteStats = """
                 DELETE FROM company_stats WHERE id = ?""";
         @Language("mariadb")
+        var deleteInvites = """
+                DELETE FROM company_invites WHERE company_id = ?""";
+        @Language("mariadb")
+        var deleteApplications = """
+                DELETE FROM company_applications WHERE company_id = ?""";
+        @Language("mariadb")
         var deleteCompany = """
                 DELETE FROM companies WHERE id = ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         try (conf) {
             conf.query(deleteMembers).single(call().bind(company.id())).delete();
             conf.query(deleteStats).single(call().bind(company.id())).delete();
+            conf.query(deleteInvites).single(call().bind(company.id())).delete();
+            conf.query(deleteApplications).single(call().bind(company.id())).delete();
             conf.query(deleteCompany).single(call().bind(company.id())).delete();
         }
         return conf.context().exceptions().isEmpty();
@@ -273,9 +352,9 @@ public class MariaDbCompanyData extends ACompanyData {
     public List<SimpleCompany> getCompanies() {
         @Language("mariadb")
         var query = """
-                SELECT id, name, founded, level
+                SELECT %s
                 FROM companies""";
-        return query(query).single().map(this::parseCompany).all();
+        return query(query, COMPANY_COLUMNS).single().map(this::parseCompany).all();
     }
 
     protected CompanyStats parseCompanyStats(Row rs) throws SQLException {
@@ -320,10 +399,10 @@ public class MariaDbCompanyData extends ACompanyData {
     protected Optional<SimpleCompany> getSimpleCompany(int companyId) {
         @Language("mariadb")
         var query = """
-                SELECT id, name, founded, level
+                SELECT %s
                 FROM companies
                 WHERE id = ?""";
-        return query(query)
+        return query(query, COMPANY_COLUMNS)
                 .single(call().bind(companyId))
                 .map(this::parseCompany)
                 .first();

@@ -54,7 +54,11 @@ public class SqLiteCompanyData extends MariaDbCompanyData {
     @Override
     protected SimpleCompany parseCompany(Row rs) throws SQLException {
         return new SimpleCompany(
-                rs.getInt("id"), rs.getString("name"), SqLiteAdapter.getTimestamp(rs, "founded"), rs.getInt("level"));
+                rs.getInt("id"),
+                rs.getString("name"),
+                SqLiteAdapter.getTimestamp(rs, "founded"),
+                rs.getInt("level"),
+                parseDetails(rs));
     }
 
     @Override

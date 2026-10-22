@@ -23,9 +23,25 @@ import java.util.stream.Collectors;
 public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
     private final List<CompanyMember> members;
 
-    public CompanyProfile(int id, String name, LocalDateTime founded, int level, List<CompanyMember> members) {
-        super(id, name, founded, level);
+    public CompanyProfile(
+            int id,
+            String name,
+            LocalDateTime founded,
+            int level,
+            CompanyDetails details,
+            List<CompanyMember> members) {
+        super(id, name, founded, level, details);
         this.members = members;
+    }
+
+    /**
+     * Copies this profile with other details and the same members.
+     *
+     * @param details new details
+     * @return changed copy
+     */
+    public CompanyProfile withDetails(CompanyDetails details) {
+        return new CompanyProfile(id(), name(), founded(), level(), details, members);
     }
 
     @Override
