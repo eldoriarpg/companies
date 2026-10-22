@@ -13,7 +13,7 @@ import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
-import de.eldoria.companies.data.wrapper.order.ContentPart;
+import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
@@ -22,10 +22,10 @@ import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.threading.futures.FutureResult;
-import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -178,7 +178,7 @@ public abstract class AOrderData {
     protected abstract boolean markPurgeWarning(SimpleOrder order);
 
     public BukkitFutureResult<Boolean> submitPriceRaise(
-            SimpleOrder order, Map<Material, Double> increases, double extraFee) {
+            SimpleOrder order, Map<Integer, Double> increases, double extraFee) {
         return CompletableBukkitFuture.supplyAsync(
                 () -> {
                     var raised = raisePrice(order, increases, extraFee);
@@ -192,11 +192,11 @@ public abstract class AOrderData {
      * Raises the prices of the contents of an unclaimed order and adds to its fee.
      *
      * @param order     order to raise the price of
-     * @param increases amount to add to the price of each material
+     * @param increases amount to add to the price of each line, by line number
      * @param extraFee  amount to add to the fee
      * @return true if the order was unclaimed and is now changed
      */
-    protected abstract boolean raisePrice(SimpleOrder order, Map<Material, Double> increases, double extraFee);
+    protected abstract boolean raisePrice(SimpleOrder order, Map<Integer, Double> increases, double extraFee);
 
     public BukkitFutureResult<Boolean> submitOrderReceive(SimpleOrder order, List<ItemAmount> pending) {
         return CompletableBukkitFuture.supplyAsync(
@@ -255,7 +255,8 @@ public abstract class AOrderData {
     /**
      * Releases a claimed order back to the market.
      * <p>
-     * Items already delivered to the order are moved to the item returns of the workers who delivered them.
+     * The stacks already delivered to the order are moved unchanged to the item returns of the workers who delivered
+     * them.
      *
      * @param order order to release
      * @return the workers who got items returned, or an empty optional if the order was not claimed
@@ -309,11 +310,19 @@ public abstract class AOrderData {
      */
     protected abstract boolean addItemReturn(UUID player, ReturnKind kind, ItemStack stack, int amount);
 
-    public BukkitFutureResult<Integer> submitDelivery(
-            OfflinePlayer player, SimpleOrder order, Material material, int amount) {
+    /**
+     * Records the items a worker delivers to an order.
+     *
+     * @param player worker delivering the items
+     * @param order  order receiving the items
+     * @param parts  offered items, the plain ones first
+     * @return a future providing the recorded amount of each part, in the order of {@code parts}
+     */
+    public BukkitFutureResult<List<Integer>> submitDeliveries(
+            OfflinePlayer player, SimpleOrder order, List<DeliveryPart> parts) {
         return CompletableBukkitFuture.supplyAsync(
                 () -> {
-                    var delivered = deliver(player, order, material, amount);
+                    var delivered = deliver(player, order, parts);
                     invalidateFullOrder(order);
                     return delivered;
                 },
@@ -321,17 +330,17 @@ public abstract class AOrderData {
     }
 
     /**
-     * Records items delivered by a worker.
+     * Records the items a worker delivers as delivered stacks.
      * <p>
-     * Nothing is recorded unless the order is claimed, and the amount is capped to the amount the order still misses.
+     * Nothing is recorded unless the order is claimed. The parts of a line are capped in list order by the amount the
+     * line still misses, and every recorded part is stored as its own stack.
      *
-     * @param player   worker delivering the items
-     * @param order    order receiving the items
-     * @param material material of the items
-     * @param amount   amount of items offered
-     * @return amount of items which were recorded
+     * @param player worker delivering the items
+     * @param order  order receiving the items
+     * @param parts  offered items
+     * @return recorded amount of each part, in the order of {@code parts}
      */
-    protected abstract int deliver(OfflinePlayer player, SimpleOrder order, Material material, int amount);
+    protected abstract List<Integer> deliver(OfflinePlayer player, SimpleOrder order, List<DeliveryPart> parts);
 
     public BukkitFutureResult<Optional<SimpleOrder>> retrieveOrderById(int id) {
         return CompletableBukkitFuture.supplyAsync(() -> orderById(id), VIRTUAL);
@@ -537,7 +546,14 @@ public abstract class AOrderData {
      */
     protected abstract List<SimpleOrder> getDeadOrders(int hours);
 
-    protected abstract List<ContentPart> getContentParts(SimpleOrder order, Material material);
+    /**
+     * The stacks delivered to one line of an order.
+     *
+     * @param order order of the line
+     * @param line  line number
+     * @return delivered stacks in the order they were delivered
+     */
+    protected abstract List<DeliveredStack> getDeliveredStacks(SimpleOrder order, int line);
 
     protected ItemStack toItemStack(String json) throws SQLException {
         try {

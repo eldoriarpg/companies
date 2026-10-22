@@ -13,8 +13,10 @@ import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.orders.DeliveryPart;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -69,8 +71,8 @@ class SqLiteOrderDataTest {
 
     private SimpleOrder createOrder(int stone, int dirt, double fee) {
         var contents = List.of(
-                new OrderContent(new ItemStack(Material.STONE), stone, 100.0),
-                new OrderContent(new ItemStack(Material.DIRT), dirt, 50.0));
+                new OrderContent(0, new ItemStack(Material.STONE), false, stone, 100.0),
+                new OrderContent(1, new ItemStack(Material.DIRT), false, dirt, 50.0));
         orderData
                 .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test", fee).toFullOrder(contents))
                 .join();
@@ -88,26 +90,35 @@ class SqLiteOrderDataTest {
         SqLiteTestDatabase.setState(order.id(), OrderState.CLAIMED.stateId(), COMPANY);
     }
 
-    private void addDelivery(SimpleOrder order, Material material, int amount) {
-        query("INSERT INTO orders_delivered(id, worker_uuid, material, delivered) VALUES (?, ?, ?, ?)")
+    private void addDelivery(SimpleOrder order, int line, Material material, int amount) {
+        query("INSERT INTO order_deliveries(order_id, line, worker_uuid, stack, amount) VALUES (?, ?, ?, ?, ?)")
                 .single(call().bind(order.id())
+                        .bind(line)
                         .bind(worker.getUniqueId(), UUID_BYTES)
-                        .bind(material.name())
+                        .bind("{\"type\":\"" + material.name() + "\",\"amount\":1}")
                         .bind(amount))
                 .insert();
+    }
+
+    private int deliver(SimpleOrder order, int line, Material material, int amount) {
+        return orderData
+                .submitDeliveries(
+                        worker, reload(order), List.of(new DeliveryPart(line, new ItemStack(material), amount)))
+                .join()
+                .get(0);
     }
 
     @Test
     void unclaimMovesDeliveriesToItemReturns() {
         var order = createOrder(10, 5);
         claim(order);
-        addDelivery(order, Material.STONE, 4);
+        addDelivery(order, 0, Material.STONE, 4);
 
         var workers = orderData.submitUnclaimOrder(reload(order)).join();
 
         Assertions.assertEquals(Set.of(worker.getUniqueId()), workers.orElseThrow());
         Assertions.assertEquals(OrderState.UNCLAIMED, reload(order).state());
-        Assertions.assertEquals(0, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
+        Assertions.assertEquals(0, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
         var returns = orderData
                 .retrieveItemReturns(worker.getUniqueId(), ReturnKind.WORKER)
                 .join();
@@ -120,14 +131,14 @@ class SqLiteOrderDataTest {
     void unclaimIgnoresOrdersWhichAreNotClaimed() {
         var order = createOrder(10, 5);
         claim(order);
-        addDelivery(order, Material.STONE, 4);
+        addDelivery(order, 0, Material.STONE, 4);
         SqLiteTestDatabase.setState(order.id(), OrderState.RECEIVED.stateId(), COMPANY);
 
         var workers = orderData.submitUnclaimOrder(reload(order)).join();
 
         Assertions.assertTrue(workers.isEmpty());
         Assertions.assertEquals(OrderState.RECEIVED, reload(order).state());
-        Assertions.assertEquals(1, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
         Assertions.assertTrue(orderData
                 .retrieveItemReturns(worker.getUniqueId(), ReturnKind.WORKER)
                 .join()
@@ -165,60 +176,36 @@ class SqLiteOrderDataTest {
         var order = createOrder(10, 5);
         claim(order);
 
-        Assertions.assertEquals(
-                6,
-                orderData
-                        .submitDelivery(worker, reload(order), Material.STONE, 6)
-                        .join());
-        Assertions.assertEquals(
-                4,
-                orderData
-                        .submitDelivery(worker, reload(order), Material.STONE, 6)
-                        .join());
-        Assertions.assertEquals(
-                0,
-                orderData
-                        .submitDelivery(worker, reload(order), Material.STONE, 6)
-                        .join());
+        Assertions.assertEquals(6, deliver(order, 0, Material.STONE, 6));
+        Assertions.assertEquals(4, deliver(order, 0, Material.STONE, 6));
+        Assertions.assertEquals(0, deliver(order, 0, Material.STONE, 6));
 
-        var content = orderData
-                .retrieveFullOrder(reload(order))
-                .join()
-                .content(Material.STONE)
-                .orElseThrow();
+        var content = orderData.retrieveFullOrder(reload(order)).join().line(0).orElseThrow();
         Assertions.assertEquals(10, content.delivered());
-        Assertions.assertEquals(1, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
+        Assertions.assertEquals(2, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
     }
 
     @Test
     void deliveryRequiresClaimedOrder() {
         var order = createOrder(10, 5);
 
-        Assertions.assertEquals(
-                0,
-                orderData
-                        .submitDelivery(worker, reload(order), Material.STONE, 5)
-                        .join());
+        Assertions.assertEquals(0, deliver(order, 0, Material.STONE, 5));
 
         SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), COMPANY);
-        Assertions.assertEquals(
-                0,
-                orderData
-                        .submitDelivery(worker, reload(order), Material.STONE, 5)
-                        .join());
-        Assertions.assertEquals(0, SqLiteTestDatabase.count("orders_delivered", "id = " + order.id()));
+        Assertions.assertEquals(0, deliver(order, 0, Material.STONE, 5));
+        Assertions.assertEquals(0, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
     }
 
     @Test
     void orderIsMarkedDeliveredOnlyOnceAndWhenComplete() {
         var order = createOrder(10, 5);
         claim(order);
-        orderData.submitDelivery(worker, reload(order), Material.STONE, 10).join();
+        deliver(order, 0, Material.STONE, 10);
 
         Assertions.assertTrue(
                 orderData.submitOrderDelivered(reload(order)).join().isEmpty());
 
-        orderData.submitDelivery(worker, reload(order), Material.DIRT, 5).join();
+        deliver(order, 1, Material.DIRT, 5);
         var delivered = orderData.submitOrderDelivered(reload(order)).join();
 
         Assertions.assertTrue(delivered.isPresent());
@@ -443,13 +430,12 @@ class SqLiteOrderDataTest {
         var order = createOrder(10, 5, 5.0);
 
         Assertions.assertTrue(orderData
-                .submitPriceRaise(reload(order), Map.of(Material.STONE, 30.0, Material.DIRT, 15.0), 2.5)
+                .submitPriceRaise(reload(order), Map.of(0, 30.0, 1, 15.0), 2.5)
                 .join());
 
         var raised = orderData.retrieveFullOrder(reload(order)).join();
         Assertions.assertEquals(195.0, raised.price(), 0.0001);
-        Assertions.assertEquals(
-                130.0, raised.content(Material.STONE).orElseThrow().price(), 0.0001);
+        Assertions.assertEquals(130.0, raised.line(0).orElseThrow().price(), 0.0001);
         Assertions.assertEquals(7.5, raised.fee(), 0.0001);
     }
 
@@ -458,9 +444,8 @@ class SqLiteOrderDataTest {
         var order = createOrder(10, 5, 5.0);
         claim(order);
 
-        Assertions.assertFalse(orderData
-                .submitPriceRaise(reload(order), Map.of(Material.STONE, 30.0), 2.5)
-                .join());
+        Assertions.assertFalse(
+                orderData.submitPriceRaise(reload(order), Map.of(0, 30.0), 2.5).join());
 
         var unchanged = orderData.retrieveFullOrder(reload(order)).join();
         Assertions.assertEquals(150.0, unchanged.price(), 0.0001);
@@ -550,7 +535,7 @@ class SqLiteOrderDataTest {
     void releasingCompanyOrdersReportsOrdersAndWorkers() {
         var order = createOrder(10, 5);
         claim(order);
-        addDelivery(order, Material.STONE, 2);
+        addDelivery(order, 0, Material.STONE, 2);
         var untouched = createOrder(10, 5);
 
         var released =
@@ -589,5 +574,198 @@ class SqLiteOrderDataTest {
                 orderData
                         .retrieveItemReturnCount(worker.getUniqueId(), ReturnKind.WORKER)
                         .join());
+    }
+
+    private SimpleOrder createOrder(OrderContent... contents) {
+        orderData
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "lines", 0.0).toFullOrder(List.of(contents)))
+                .join();
+        var orders = orderData
+                .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED)
+                .join();
+        return orders.get(orders.size() - 1);
+    }
+
+    private static ItemStack enchanted(Material material) {
+        var stack = new ItemStack(material);
+        stack.addUnsafeEnchantment(Enchantment.SHARPNESS, 5);
+        return stack;
+    }
+
+    private List<Integer> deliver(OfflinePlayer player, SimpleOrder order, DeliveryPart... parts) {
+        return orderData.submitDeliveries(player, reload(order), List.of(parts)).join();
+    }
+
+    @Test
+    void linesAreStoredInOrderWithTheirKind() {
+        var order = createOrder(
+                new OrderContent(0, new ItemStack(Material.STONE), false, 10, 10.0),
+                new OrderContent(1, enchanted(Material.STONE), true, 5, 20.0));
+
+        var contents = orderData.retrieveFullOrder(order).join().contents();
+
+        Assertions.assertEquals(
+                List.of(0, 1), contents.stream().map(OrderContent::line).toList());
+        Assertions.assertFalse(contents.get(0).exact());
+        Assertions.assertTrue(contents.get(1).exact());
+        Assertions.assertEquals(enchanted(Material.STONE), contents.get(1).stack());
+        Assertions.assertEquals(4.0, contents.get(1).unitPrice(), 0.0001);
+    }
+
+    @Test
+    void twoLinesOfTheSameMaterialAreDeliveredAndReturnedSeparately() {
+        var order = createOrder(
+                new OrderContent(0, new ItemStack(Material.STONE), false, 10, 10.0),
+                new OrderContent(1, enchanted(Material.STONE), true, 5, 20.0));
+        claim(order);
+
+        Assertions.assertEquals(
+                List.of(3, 5),
+                deliver(
+                        worker,
+                        order,
+                        new DeliveryPart(0, new ItemStack(Material.STONE), 3),
+                        new DeliveryPart(1, enchanted(Material.STONE), 7)));
+
+        var full = orderData.retrieveFullOrder(reload(order)).join();
+        Assertions.assertEquals(3, full.line(0).orElseThrow().delivered());
+        Assertions.assertEquals(5, full.line(1).orElseThrow().delivered());
+
+        orderData.submitUnclaimOrder(reload(order)).join();
+
+        var returns = orderData
+                .retrieveItemReturns(worker.getUniqueId(), ReturnKind.WORKER)
+                .join();
+        Assertions.assertEquals(2, returns.size());
+        Assertions.assertEquals(new ItemStack(Material.STONE), returns.get(0).stack());
+        Assertions.assertEquals(3, returns.get(0).amount());
+        Assertions.assertEquals(enchanted(Material.STONE), returns.get(1).stack());
+        Assertions.assertEquals(5, returns.get(1).amount());
+    }
+
+    @Test
+    void deliveriesAreCappedPerLineInListOrderAndStoredPerStack() {
+        var order = createOrder(
+                new OrderContent(0, new ItemStack(Material.DIAMOND_SWORD), false, 10, 10.0),
+                new OrderContent(1, new ItemStack(Material.DIRT), false, 5, 5.0));
+        claim(order);
+
+        Assertions.assertEquals(
+                List.of(6, 4, 0, 2),
+                deliver(
+                        worker,
+                        order,
+                        new DeliveryPart(0, new ItemStack(Material.DIAMOND_SWORD), 6),
+                        new DeliveryPart(0, enchanted(Material.DIAMOND_SWORD), 6),
+                        new DeliveryPart(0, new ItemStack(Material.DIAMOND_SWORD), 1),
+                        new DeliveryPart(1, new ItemStack(Material.DIRT), 2)));
+
+        var deliveries = orderData
+                .retrieveFullOrder(reload(order))
+                .join()
+                .line(0)
+                .orElseThrow()
+                .deliveries();
+        Assertions.assertEquals(2, deliveries.size());
+        Assertions.assertEquals(
+                new ItemStack(Material.DIAMOND_SWORD), deliveries.get(0).stack());
+        Assertions.assertEquals(6, deliveries.get(0).amount());
+        Assertions.assertEquals(
+                enchanted(Material.DIAMOND_SWORD), deliveries.get(1).stack());
+        Assertions.assertEquals(4, deliveries.get(1).amount());
+        Assertions.assertEquals(3, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
+    }
+
+    @Test
+    void deliveriesToUnknownLinesAreNotRecorded() {
+        var order = createOrder(10, 5);
+        claim(order);
+
+        Assertions.assertEquals(
+                List.of(0), deliver(worker, order, new DeliveryPart(7, new ItemStack(Material.STONE), 3)));
+        Assertions.assertEquals(0, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
+    }
+
+    @Test
+    void enchantedStackComesBackUnchangedAfterReceive() {
+        var order = createOrder(new OrderContent(0, new ItemStack(Material.DIAMOND_SWORD), false, 2, 10.0));
+        claim(order);
+        deliver(worker, order, new DeliveryPart(0, enchanted(Material.DIAMOND_SWORD), 2));
+
+        var delivered = orderData.submitOrderDelivered(reload(order)).join().orElseThrow();
+        var stacks = delivered.deliveredStacks();
+
+        var expected = enchanted(Material.DIAMOND_SWORD);
+        Assertions.assertEquals(List.of(expected, expected), stacks);
+
+        var pending = stacks.stream().map(stack -> new ItemAmount(stack, 1)).toList();
+        Assertions.assertTrue(
+                orderData.submitOrderReceive(reload(order), pending).join());
+        var waiting = orderData
+                .retrieveItemReturns(owner.getUniqueId(), ReturnKind.OWNER)
+                .join();
+        Assertions.assertEquals(2, waiting.size());
+        Assertions.assertEquals(expected, waiting.get(0).stack());
+    }
+
+    @Test
+    void enchantedStackComesBackUnchangedAfterAbort() {
+        var order = createOrder(new OrderContent(0, new ItemStack(Material.DIAMOND_SWORD), false, 5, 10.0));
+        claim(order);
+        deliver(worker, order, new DeliveryPart(0, enchanted(Material.DIAMOND_SWORD), 2));
+
+        orderData.submitUnclaimOrder(reload(order)).join();
+
+        var returns = orderData
+                .retrieveItemReturns(worker.getUniqueId(), ReturnKind.WORKER)
+                .join();
+        Assertions.assertEquals(1, returns.size());
+        Assertions.assertEquals(
+                enchanted(Material.DIAMOND_SWORD), returns.get(0).stack());
+        Assertions.assertEquals(2, returns.get(0).amount());
+        Assertions.assertEquals(0, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
+    }
+
+    @Test
+    void deliveredStacksAreSplitByMaxStackSize() {
+        var order = createOrder(new OrderContent(0, new ItemStack(Material.STONE), false, 100, 10.0));
+        claim(order);
+        deliver(worker, order, new DeliveryPart(0, new ItemStack(Material.STONE, 64), 100));
+
+        var stacks = orderData.retrieveFullOrder(reload(order)).join().deliveredStacks();
+
+        Assertions.assertEquals(
+                List.of(64, 36), stacks.stream().map(ItemStack::getAmount).toList());
+    }
+
+    @Test
+    void payoutsPerWorkerEqualTheSummedDeliveredAmounts() {
+        var other = SqLiteTestDatabase.player(UUID.randomUUID());
+        var order = createOrder(new OrderContent(0, new ItemStack(Material.STONE), false, 10, 100.0));
+        claim(order);
+        deliver(worker, order, new DeliveryPart(0, new ItemStack(Material.STONE), 3));
+        deliver(other, order, new DeliveryPart(0, enchanted(Material.STONE), 5));
+        deliver(worker, order, new DeliveryPart(0, enchanted(Material.STONE), 2));
+
+        var content = orderData.retrieveFullOrder(reload(order)).join().line(0).orElseThrow();
+
+        Assertions.assertEquals(5, content.workerAmount().get(worker.getUniqueId()));
+        Assertions.assertEquals(5, content.workerAmount().get(other.getUniqueId()));
+        Assertions.assertEquals(50.0, content.payments().get(worker.getUniqueId()), 0.0001);
+        Assertions.assertEquals(50.0, content.payments().get(other.getUniqueId()), 0.0001);
+    }
+
+    @Test
+    void materialPriceIgnoresExactLines() {
+        var order = createOrder(
+                new OrderContent(0, new ItemStack(Material.STONE), false, 10, 10.0),
+                new OrderContent(1, enchanted(Material.STONE), true, 1, 500.0));
+        SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), COMPANY);
+
+        orderData.refreshMaterialPrices();
+
+        var price = orderData.retrieveMaterialPrice("STONE").join();
+        Assertions.assertEquals(1.0, price.maxPrice(), 0.0001);
+        Assertions.assertEquals(1.0, price.avgPrice(), 0.0001);
     }
 }

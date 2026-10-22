@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.orders.PriceLines;
+import de.eldoria.companies.util.Inventories;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
@@ -332,9 +333,15 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
     }
 
     @Override
+    public Optional<OrderContent> line(int line) {
+        return contents.stream().filter(content -> content.line() == line).findFirst();
+    }
+
+    @Override
+    @Deprecated
     public Optional<OrderContent> content(Material material) {
         return contents.stream()
-                .filter(content -> content.material() == material)
+                .filter(content -> !content.exact() && content.material() == material)
                 .findFirst();
     }
 
@@ -343,17 +350,16 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
         return delivered() >= amount();
     }
 
-    public List<ItemStack> createStacks() {
+    /**
+     * The delivered items of every line, as they were delivered, split into stacks of at most their max stack size.
+     *
+     * @return delivered stacks
+     */
+    public List<ItemStack> deliveredStacks() {
         List<ItemStack> stacks = new ArrayList<>();
         for (var content : contents) {
-            var baseStack = content.stack();
-            var amount = content.amount();
-            while (amount != 0) {
-                var size = Math.min(baseStack.getType().getMaxStackSize(), amount);
-                amount -= size;
-                var currStack = baseStack.clone();
-                currStack.setAmount(size);
-                stacks.add(currStack);
+            for (var delivery : content.deliveries()) {
+                stacks.addAll(Inventories.split(delivery.stack(), delivery.amount()));
             }
         }
         return stacks;

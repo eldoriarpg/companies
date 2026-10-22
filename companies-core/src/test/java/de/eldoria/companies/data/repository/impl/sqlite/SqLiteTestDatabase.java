@@ -10,6 +10,9 @@ import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.chojo.sadu.sqlite.databases.SqLite;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
+import net.kyori.adventure.key.Key;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -72,7 +75,8 @@ final class SqLiteTestDatabase {
     }
 
     /**
-     * Creates a mapper which stores items by type and amount only, since item metadata needs a running server.
+     * Creates a mapper which stores items by type, amount and enchantments only, since the full item data needs a
+     * running server.
      *
      * @return mapper for item stacks
      */
@@ -84,6 +88,11 @@ final class SqLiteTestDatabase {
                 gen.writeStartObject();
                 gen.writeStringProperty("type", value.getType().name());
                 gen.writeNumberProperty("amount", value.getAmount());
+                gen.writeObjectPropertyStart("enchantments");
+                for (var enchantment : value.getEnchantments().entrySet()) {
+                    gen.writeNumberProperty(enchantment.getKey().getKey().toString(), enchantment.getValue());
+                }
+                gen.writeEndObject();
                 gen.writeEndObject();
             }
         });
@@ -91,9 +100,18 @@ final class SqLiteTestDatabase {
             @Override
             public ItemStack deserialize(JsonParser p, DeserializationContext ctxt) {
                 JsonNode node = ctxt.readTree(p);
-                return new ItemStack(
+                var stack = new ItemStack(
                         Material.valueOf(node.get("type").asString()),
                         node.get("amount").asInt());
+                var enchantments = node.get("enchantments");
+                if (enchantments == null) return stack;
+                for (var entry : enchantments.properties()) {
+                    var enchantment = RegistryAccess.registryAccess()
+                            .getRegistry(RegistryKey.ENCHANTMENT)
+                            .getOrThrow(Key.key(entry.getKey()));
+                    stack.addUnsafeEnchantment(enchantment, entry.getValue().asInt());
+                }
+                return stack;
             }
         });
         return JsonMapper.builder().addModule(module).build();
