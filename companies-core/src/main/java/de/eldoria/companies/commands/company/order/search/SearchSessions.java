@@ -41,7 +41,17 @@ public final class SearchSessions {
      * @param player id of the player
      */
     public void reset(UUID player) {
-        queries.put(player, new SearchQuery());
+        replace(player, new SearchQuery());
+    }
+
+    /**
+     * Replaces the query of a player.
+     *
+     * @param player id of the player
+     * @param query  the new query
+     */
+    public void replace(UUID player, SearchQuery query) {
+        queries.put(player, query);
     }
 
     /**
