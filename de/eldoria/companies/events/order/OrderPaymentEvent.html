@@ -65,6 +65,7 @@ loadScripts(document, 'script');</script>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
 <li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double)" tabindex="0">OrderPaymentEvent(ISimpleOrder, OfflinePlayer, double)</a></li>
+<li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double,double,double)" tabindex="0">OrderPaymentEvent(ISimpleOrder, OfflinePlayer, double, double, double)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -74,6 +75,8 @@ loadScripts(document, 'script');</script>
 <li><a href="#setCancelled(boolean)" tabindex="0">setCancelled(boolean)</a></li>
 <li><a href="#player()" tabindex="0">player()</a></li>
 <li><a href="#amount()" tabindex="0">amount()</a></li>
+<li><a href="#gross()" tabindex="0">gross()</a></li>
+<li><a href="#tax()" tabindex="0">tax()</a></li>
 <li><a href="#getHandlers()" tabindex="0">getHandlers()</a></li>
 </ol>
 </li>
@@ -103,7 +106,11 @@ loadScripts(document, 'script');</script>
 implements org.bukkit.event.Cancellable, <a href="../components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;org.bukkit.OfflinePlayer&gt;</span></div>
 <div class="block">A payment for a order was retrieved by one user.
 <p>
-This event may be executed multiple times for the same order.</div>
+This event may be executed multiple times for the same order. The worker receives <a href="#amount()"><code>amount()</code></a>, which is the
+<a href="#gross()"><code>gross()</code></a> share of the order price minus the <a href="#tax()"><code>tax()</code></a> of the company. A cancelled payment is neither paid
+nor taxed.
+<p>
+Orders are anonymous: the worker must not learn who placed the order.</div>
 </div>
 </section>
 <section class="summary">
@@ -143,7 +150,17 @@ This event may be executed multiple times for the same order.</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double)" class="member-name-link">OrderPaymentEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
  org.bukkit.OfflinePlayer&nbsp;player,
  double&nbsp;amount)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a payment without tax.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double,double,double)" class="member-name-link">OrderPaymentEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+ org.bukkit.OfflinePlayer&nbsp;player,
+ double&nbsp;amount,
+ double&nbsp;gross,
+ double&nbsp;tax)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Creates a taxed payment.</div>
+</div>
 </div>
 </section>
 </li>
@@ -160,22 +177,34 @@ This event may be executed multiple times for the same order.</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#amount()" class="member-name-link">amount</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The amount the worker receives, after tax.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.bukkit.event.HandlerList</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getHandlerList()" class="member-name-link">getHandlerList</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>@NotNull org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getHandlers()" class="member-name-link">getHandlers</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isCancelled()" class="member-name-link">isCancelled</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.bukkit.OfflinePlayer</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#player()" class="member-name-link">player</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#gross()" class="member-name-link">gross</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The worker's share of the order price before tax.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isCancelled()" class="member-name-link">isCancelled</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setCancelled(boolean)" class="member-name-link">setCancelled</a><wbr>(boolean&nbsp;cancel)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.bukkit.OfflinePlayer</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#player()" class="member-name-link">player</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setCancelled(boolean)" class="member-name-link">setCancelled</a><wbr>(boolean&nbsp;cancel)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tax()" class="member-name-link">tax</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The tax taken from the worker's share.</div>
+</div>
 </div>
 </div>
 </div>
@@ -222,6 +251,34 @@ This event may be executed multiple times for the same order.</div>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderPaymentEvent</span><wbr><span class="parameters">(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
  org.bukkit.OfflinePlayer&nbsp;player,
  double&nbsp;amount)</span></div>
+<div class="block">Creates a payment without tax.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>order</code> - order which is paid</dd>
+<dd><code>player</code> - worker receiving the payment</dd>
+<dd><code>amount</code> - amount paid</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double,double,double)">
+<h3>OrderPaymentEvent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderPaymentEvent</span><wbr><span class="parameters">(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+ org.bukkit.OfflinePlayer&nbsp;player,
+ double&nbsp;amount,
+ double&nbsp;gross,
+ double&nbsp;tax)</span></div>
+<div class="block">Creates a taxed payment.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>order</code> - order which is paid</dd>
+<dd><code>player</code> - worker receiving the payment</dd>
+<dd><code>amount</code> - amount paid after tax</dd>
+<dd><code>gross</code> - share of the order price before tax</dd>
+<dd><code>tax</code> - tax taken from the share</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -282,6 +339,37 @@ This event may be executed multiple times for the same order.</div>
 <h3>amount</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">double</span>&nbsp;<span class="element-name">amount</span>()</div>
+<div class="block">The amount the worker receives, after tax.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>net amount</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="gross()">
+<h3>gross</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">double</span>&nbsp;<span class="element-name">gross</span>()</div>
+<div class="block">The worker's share of the order price before tax.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>gross amount</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="tax()">
+<h3>tax</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">double</span>&nbsp;<span class="element-name">tax</span>()</div>
+<div class="block">The tax taken from the worker's share.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>tax amount</dd>
+</dl>
 </div>
 </section>
 </li>

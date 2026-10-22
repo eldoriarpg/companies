@@ -61,7 +61,9 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html#amount()" class="member-name-link">amount()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#amount()" class="member-name-link">amount()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">The amount the worker receives, after tax.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html#amount(int)" class="member-name-link">amount(int)</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/level/ICompanyLevel.html#asComponent()" class="member-name-link">asComponent()</a> - Method in interface de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></dt>
@@ -203,6 +205,10 @@ loadScripts(document, 'script');</script>
 </dl>
 <h2 class="title" id="I:F">F</h2>
 <dl class="index">
+<dt><a href="de/eldoria/companies/components/order/ISimpleOrder.html#fee()" class="member-name-link">fee()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></dt>
+<dd>
+<div class="block">The fee the owner paid for placing the order, on top of its price.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/company/ISimpleCompany.html#forId(int)" class="member-name-link">forId(int)</a> - Static method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a></dt>
 <dd>
 <div class="block">Creates a simple company from an id.</div>
@@ -287,6 +293,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/api/CompaniesApi.html#getPlayerCompanyProfile(org.bukkit.OfflinePlayer)" class="member-name-link">getPlayerCompanyProfile(OfflinePlayer)</a> - Method in class de.eldoria.companies.api.<a href="de/eldoria/companies/api/CompaniesApi.html" title="class in de.eldoria.companies.api">CompaniesApi</a></dt>
 <dd>
 <div class="block">Get the company profile of a player</div>
+</dd>
+<dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#gross()" class="member-name-link">gross()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
+<dd>
+<div class="block">The worker's share of the order price before tax.</div>
 </dd>
 </dl>
 <h2 class="title" id="I:H">H</h2>
@@ -494,7 +504,13 @@ loadScripts(document, 'script');</script>
 <div class="block">A payment for a order was retrieved by one user.</div>
 </dd>
 <dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double)" class="member-name-link">OrderPaymentEvent(ISimpleOrder, OfflinePlayer, double)</a> - Constructor for class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Creates a payment without tax.</div>
+</dd>
+<dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double,double,double)" class="member-name-link">OrderPaymentEvent(ISimpleOrder, OfflinePlayer, double, double, double)</a> - Constructor for class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
+<dd>
+<div class="block">Creates a taxed payment.</div>
+</dd>
 <dt><a href="de/eldoria/companies/events/components/OrderProvider.html" class="type-name-link" title="interface in de.eldoria.companies.events.components">OrderProvider&lt;O&gt;</a> - Interface in <a href="de/eldoria/companies/events/components/package-summary.html">de.eldoria.companies.events.components</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/events/order/OrderRemovedEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a> - Class in <a href="de/eldoria/companies/events/order/package-summary.html">de.eldoria.companies.events.order</a></dt>
@@ -591,6 +607,10 @@ loadScripts(document, 'script');</script>
 </dl>
 <h2 class="title" id="I:T">T</h2>
 <dl class="index">
+<dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#tax()" class="member-name-link">tax()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
+<dd>
+<div class="block">The tax taken from the worker's share.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html#translatedMaterialString()" class="member-name-link">translatedMaterialString()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/company/CompanyPermission.html#translationKey()" class="member-name-link">translationKey()</a> - Method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></dt>
