@@ -59,7 +59,8 @@ public class Top extends AdvancedCommand implements IPlayerTabExecutor {
                                       .localeCode("company.top.ranking")
                                       .newLine()
                                       .text("<name>")
-                                      .localeCode("Order: ");
+                                      .localeCode("words.ordering")
+                                      .text(": ");
         for (var value : TopOrder.values()) {
             composer.text("<click:run_command:/company top %s %s><%s>[", page, value.name(), Colors.active(order == value))
                     .localeCode(value.translationKey())
