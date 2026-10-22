@@ -5,11 +5,13 @@
  */
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
@@ -38,6 +40,7 @@ public final class CommandDependencies {
     private final AOrderData orderData;
     private final ANodeData nodeData;
     private final OrderDraftService drafts;
+    private final SearchSessions searches = new SearchSessions();
     private volatile Optional<Services> services = Optional.empty();
 
     /**
@@ -137,6 +140,13 @@ public final class CommandDependencies {
     }
 
     /**
+     * @return the order searches of the players
+     */
+    public SearchSessions searches() {
+        return searches;
+    }
+
+    /**
      * @return the message sender of the plugin, styled by the configuration
      */
     public MessageSender messages() {
@@ -153,6 +163,7 @@ public final class CommandDependencies {
      * @param notificationService notifies players, online or later
      * @param disbandService      dissolves companies
      * @param updates             update checks and downloads
+     * @param deliveryService     delivers items to orders
      */
     public record Services(
             Economy economy,
@@ -161,5 +172,6 @@ public final class CommandDependencies {
             LevelService levelService,
             NotificationService notificationService,
             DisbandService disbandService,
-            Updates updates) {}
+            Updates updates,
+            DeliveryService deliveryService) {}
 }
