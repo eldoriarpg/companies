@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.util;
 
+import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -84,16 +85,64 @@ public final class Inventories {
     }
 
     /**
+     * Splits items into the part that fits into the storage and the part that does not.
+     * <p>
+     * The storage array is changed in place like in {@link #fit(ItemStack[], ItemStack, int)}.
+     *
+     * @param storage storage slots to fill
+     * @param items   items to place
+     * @return the fitting and the remaining amounts
+     */
+    public static Placement place(ItemStack[] storage, List<ItemAmount> items) {
+        List<ItemAmount> fitting = new ArrayList<>();
+        List<ItemAmount> remaining = new ArrayList<>();
+        for (var item : items) {
+            var fit = fit(storage, item.stack(), item.amount());
+            if (fit > 0) fitting.add(new ItemAmount(item.stack(), fit));
+            if (fit < item.amount()) remaining.add(new ItemAmount(item.stack(), item.amount() - fit));
+        }
+        return new Placement(fitting, remaining);
+    }
+
+    /**
      * Adds the stacks to the storage of the player and drops everything that does not fit at the location of the player.
      *
      * @param player player receiving the items
      * @param stacks items to give
      */
     public static void give(Player player, List<ItemStack> stacks) {
-        if (stacks.isEmpty()) return;
-        var leftovers = player.getInventory().addItem(stacks.toArray(ItemStack[]::new));
-        for (var leftover : leftovers.values()) {
+        for (var leftover : add(player, stacks)) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+        }
+    }
+
+    /**
+     * Adds the stacks to the storage of the player.
+     *
+     * @param player player receiving the items
+     * @param stacks items to give
+     * @return the stacks that did not fit
+     */
+    public static List<ItemStack> add(Player player, List<ItemStack> stacks) {
+        if (stacks.isEmpty()) return List.of();
+        return List.copyOf(
+                player.getInventory().addItem(stacks.toArray(ItemStack[]::new)).values());
+    }
+
+    /**
+     * The result of placing items into a storage.
+     *
+     * @param fitting   amounts that fit
+     * @param remaining amounts that did not fit
+     */
+    public record Placement(List<ItemAmount> fitting, List<ItemAmount> remaining) {
+        /**
+         * The number of items that did not fit.
+         *
+         * @return remaining items
+         */
+        public int remainingAmount() {
+            return remaining.stream().mapToInt(ItemAmount::amount).sum();
         }
     }
 }

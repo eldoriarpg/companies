@@ -6,8 +6,10 @@
 package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.TopOrder;
+import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
@@ -21,6 +23,7 @@ import org.intellij.lang.annotations.Language;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -52,6 +55,54 @@ public class MariaDbCompanyData extends ACompanyData {
                             .bind(member.uuid(), UUID_BYTES)
                             .bind(member.permission()))
                     .update();
+        }
+    }
+
+    @Override
+    protected boolean transferOwner(ISimpleCompany company, UUID owner, UUID target) {
+        @Language("mariadb")
+        var revoke = """
+                UPDATE company_member
+                SET permission = permission - ?
+                WHERE id = ?
+                  AND member_uuid = ?
+                  AND (permission & ?) <> 0""";
+        @Language("mariadb")
+        var grant = """
+                UPDATE company_member
+                SET permission = permission + ?
+                WHERE id = ?
+                  AND member_uuid = ?
+                  AND (permission & ?) = 0""";
+        var mask = CompanyPermission.OWNER.mask();
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            var revoked = conf.query(revoke)
+                    .single(call().bind(mask)
+                            .bind(company.id())
+                            .bind(owner, UUID_BYTES)
+                            .bind(mask))
+                    .update();
+            if (!revoked.changed()) return false;
+            var granted = conf.query(grant)
+                    .single(call().bind(mask)
+                            .bind(company.id())
+                            .bind(target, UUID_BYTES)
+                            .bind(mask))
+                    .update();
+            if (!granted.changed()) {
+                rollback(conf);
+                return false;
+            }
+        }
+        return conf.context().exceptions().isEmpty();
+    }
+
+    private static void rollback(ConnectedQueryConfiguration conf) {
+        try {
+            conf.connection().rollback();
+        } catch (SQLException e) {
+            conf.handleException(e);
         }
     }
 

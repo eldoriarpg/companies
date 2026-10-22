@@ -8,7 +8,6 @@ package de.eldoria.companies.commands.company.order;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
@@ -19,6 +18,7 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.command.util.CommandAssertions;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -83,13 +83,8 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendErrorActionBar(player, "error.couldNotClaim");
                         return;
                     }
-                    if (count
-                            >= configuration
-                                    .companySettings()
-                                    .level(profile.level())
-                                    .orElse(CompanyLevel.DEFAULT)
-                                    .settings()
-                                    .maxOrders()) {
+                    var levelSettings = configuration.companySettings().levelSettings(profile.level());
+                    if (count >= levelSettings.maxOrders()) {
                         messageSender().sendErrorActionBar(player, "error.orderLimit");
                         return;
                     }
@@ -106,14 +101,25 @@ public class Accept extends AdvancedCommand implements IPlayerTabExecutor {
                         return;
                     }
 
+                    var size = orderData.retrieveFullOrder(simpleOrder).join();
+                    if (size != null && levelSettings.exceedsOrderSize(size.amount())) {
+                        messageSender()
+                                .sendErrorActionBar(
+                                        player,
+                                        "error.orderTooLarge",
+                                        Replacement.create("max", levelSettings.maxOrderSize()));
+                        return;
+                    }
+
                     if (!profile.mayAcceptOrderOf(
                             simpleOrder.owner(), configuration.companySettings().allowMemberOrders())) {
                         messageSender().sendErrorActionBar(player, "error.ownMemberOrder");
                         return;
                     }
 
-                    if (Boolean.TRUE.equals(
-                            orderData.submitOrderClaim(profile, simpleOrder).join())) {
+                    if (Boolean.TRUE.equals(orderData
+                            .submitOrderClaim(profile, simpleOrder, levelSettings.deliveryHoursBonus())
+                            .join())) {
                         var refreshed = orderData.retrieveOrderById(id).join();
                         var claimedOrder = refreshed == null ? simpleOrder : refreshed.orElse(simpleOrder);
                         var claimed = orderData.retrieveFullOrder(claimedOrder).join();

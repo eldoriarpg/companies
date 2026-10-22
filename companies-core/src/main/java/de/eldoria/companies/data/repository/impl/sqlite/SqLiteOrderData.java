@@ -10,7 +10,6 @@ import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.intellij.lang.annotations.Language;
@@ -51,11 +50,13 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        owner_uuid,
                        name,
                        created,
-                       o.fee
+                       o.fee,
+                       extensions,
+                       delivery_bonus
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
-                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || (? + delivery_bonus) || ' HOUR')
                   AND company IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
@@ -76,7 +77,9 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        owner_uuid,
                        name,
                        created,
-                       o.fee
+                       o.fee,
+                       extensions,
+                       delivery_bonus
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -90,7 +93,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected List<SimpleOrder> getExpiredOrdersByCompany(int hours, SimpleCompany company) {
+    protected List<SimpleOrder> getPurgeWarnings(int hours) {
         @Language("sqlite")
         var query = """
                 SELECT o.id,
@@ -100,23 +103,24 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        owner_uuid,
                        name,
                        created,
-                       o.fee
+                       o.fee,
+                       extensions,
+                       delivery_bonus
                 FROM order_states s
-                         LEFT JOIN orders o
-                                   ON o.id = s.id
+                         JOIN orders o
+                              ON o.id = s.id
                 WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
-                  AND company = ?
                   AND state = ?
-                ORDER BY last_update
-                """;
+                  AND (purge_warning IS NULL OR purge_warning <= last_update)
+                ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours).bind(company.id()).bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
 
     @Override
-    protected boolean lockClaimedOrder(ConnectedQueryConfiguration conf, SimpleOrder order) {
+    protected boolean lockOrder(ConnectedQueryConfiguration conf, SimpleOrder order, OrderState state) {
         @Language("sqlite")
         var query = """
                 UPDATE order_states
@@ -124,7 +128,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 WHERE id = ?
                   AND state = ?""";
         return conf.query(query)
-                .single(call().bind(order.id()).bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(order.id()).bind(state.stateId()))
                 .update()
                 .changed();
     }
@@ -180,7 +184,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
         @Language("sqlite")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus
                 FROM orders o
                          LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c
@@ -251,6 +255,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 row.getInt("company"),
                 SqLiteAdapter.getTimestamp(row, "last_update"),
                 OrderState.byId(row.getInt("state")),
-                row.getDouble("fee"));
+                row.getDouble("fee"),
+                row.getInt("extensions"),
+                row.getInt("delivery_bonus"));
     }
 }

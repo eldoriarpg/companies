@@ -8,9 +8,12 @@ package de.eldoria.companies.commands.company.profile;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.configuration.elements.companylevel.LevelProgress;
+import de.eldoria.companies.configuration.elements.companylevel.LevelRequirement;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Texts;
@@ -21,6 +24,7 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -33,6 +37,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final Configuration configuration;
+    private final Economy economy;
     private final MessageBlocker messageBlocker;
 
     public Self(
@@ -40,11 +45,13 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
             ACompanyData companyData,
             AOrderData orderData,
             Configuration configuration,
+            Economy economy,
             MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("self").build());
         this.companyData = companyData;
         this.orderData = orderData;
         this.configuration = configuration;
+        this.economy = economy;
         this.messageBlocker = messageBlocker;
     }
 
@@ -67,7 +74,11 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                     var orders = orderData
                             .retrieveOrdersByCompany(optProfile.get(), OrderState.CLAIMED, OrderState.CLAIMED)
                             .join();
-                    sendProfile(player, optProfile.get(), orders == null ? List.of() : orders);
+                    var stats = companyData
+                            .retrieveCompanyStats(optProfile.get())
+                            .asFuture()
+                            .join();
+                    sendProfile(player, optProfile.get(), orders == null ? List.of() : orders, stats);
                 })
                 .exceptionally(err -> {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -75,7 +86,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                 });
     }
 
-    private void sendProfile(Player player, CompanyProfile profile, List<SimpleOrder> orders) {
+    private void sendProfile(Player player, CompanyProfile profile, List<SimpleOrder> orders, CompanyStats stats) {
         messageBlocker.blockPlayer(player);
         var level = configuration.companySettings().level(profile.level()).orElse(CompanyLevel.DEFAULT);
         var optNextLevel = configuration.companySettings().level(profile.level() + 1);
@@ -94,6 +105,7 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
                     .text("<u><hover:show_text:'%s'><show>", nextLevel.asComponent())
                     .localeCode("company.level.nextLevel")
                     .text("</u></hover>");
+            if (stats != null) nextLevelProgress(composer, nextLevel.requirement(), stats);
         }
         composer.newLine()
                 .text("<name>")
@@ -122,5 +134,58 @@ public class Self extends AdvancedCommand implements IPlayerTabExecutor {
         }
         composer.prependLines(25);
         Menus.show(messageBlocker, player, composer);
+    }
+
+    /**
+     * Adds a line with the company's value, the required value and a bar for each requirement of the next level.
+     *
+     * @param composer    composer to add the lines to
+     * @param requirement requirements of the next level
+     * @param stats       current values of the company
+     */
+    private void nextLevelProgress(MessageComposer composer, LevelRequirement requirement, CompanyStats stats) {
+        progressLine(
+                composer,
+                "words.member",
+                stats.memberCount(),
+                requirement.memberCount(),
+                String.valueOf(stats.memberCount()),
+                String.valueOf(requirement.memberCount()));
+        progressLine(
+                composer,
+                "level.orderCount",
+                stats.orderCount(),
+                requirement.orderCount(),
+                String.valueOf(stats.orderCount()),
+                String.valueOf(requirement.orderCount()));
+        progressLine(
+                composer,
+                "level.deliveredItems",
+                stats.deliveredItems(),
+                requirement.deliveredItems(),
+                String.valueOf(stats.deliveredItems()),
+                String.valueOf(requirement.deliveredItems()));
+        progressLine(
+                composer,
+                "level.earnedMoney",
+                stats.price(),
+                requirement.earnedMoney(),
+                economy.format(stats.price()),
+                economy.format(requirement.earnedMoney()));
+    }
+
+    private static void progressLine(
+            MessageComposer composer,
+            String label,
+            double value,
+            double required,
+            String valueText,
+            String requiredText) {
+        composer.newLine()
+                .space(2)
+                .text("<name>")
+                .localeCode(label)
+                .text(": <value>%s/%s ", valueText, requiredText)
+                .text(Texts.progressBar(LevelProgress.of(value, required)));
     }
 }

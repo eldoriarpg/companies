@@ -11,6 +11,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.orders.Collector;
@@ -172,7 +173,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
             Inventories.give(player, Inventories.split(stack, amount));
             return;
         }
-        orderData.submitItemReturn(player.getUniqueId(), stack, amount);
+        orderData.submitItemReturn(player.getUniqueId(), ReturnKind.WORKER, stack, amount);
     }
 
     private void orderDone(FullOrder order, CompanyProfile profile) {

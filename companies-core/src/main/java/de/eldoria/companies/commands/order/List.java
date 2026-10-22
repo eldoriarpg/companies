@@ -7,6 +7,8 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
@@ -15,6 +17,7 @@ import de.eldoria.eldoutilities.commands.command.util.Arguments;
 import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
@@ -55,6 +58,13 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
 
     public void showOrders(Player player, Runnable whenComplete) {
         var usage = orderLimits.usage(player).asFuture();
+        var waiting = orderData
+                .retrieveItemReturnCount(player.getUniqueId(), ReturnKind.OWNER)
+                .asFuture()
+                .exceptionally(err -> {
+                    plugin().getLogger().log(Level.SEVERE, "Could not count waiting order items", err);
+                    return 0;
+                });
         orderData
                 .retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED)
                 .asFuture()
@@ -70,7 +80,11 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                             return Collections.emptyList();
                         })
                         .join())
-                .thenAcceptBoth(usage, (orders, limits) -> {
+                .thenCombine(usage, OrdersView::new)
+                .thenCombine(waiting, OrdersView::withWaiting)
+                .thenAccept(view -> {
+                    var orders = view.orders();
+                    var limits = view.usage();
                     messageBlocker.blockPlayer(player);
                     var builder = MessageComposer.create()
                             .localeCode("order.list.orders")
@@ -81,6 +95,15 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     } else {
                         builder.text("<click:suggest_command:/order create ><add>[")
                                 .localeCode("order.list.newOrder")
+                                .text("]</click>");
+                    }
+                    if (view.waiting() > 0) {
+                        builder.newLine()
+                                .text("<neutral>")
+                                .localeCode("order.list.waiting", Replacement.create("amount", view.waiting()))
+                                .space()
+                                .text("<click:run_command:/order collect><add>[")
+                                .localeCode("words.collect")
                                 .text("]</click>");
                     }
                     for (var order : orders) {
@@ -97,5 +120,15 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                     plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;
                 });
+    }
+
+    private record OrdersView(java.util.List<FullOrder> orders, OrderLimits.Usage usage, int waiting) {
+        private OrdersView(java.util.List<FullOrder> orders, OrderLimits.Usage usage) {
+            this(orders, usage, 0);
+        }
+
+        private OrdersView withWaiting(int waiting) {
+            return new OrdersView(orders, usage, waiting);
+        }
     }
 }

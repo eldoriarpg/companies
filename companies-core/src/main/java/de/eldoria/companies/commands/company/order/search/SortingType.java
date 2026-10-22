@@ -19,12 +19,18 @@ public enum SortingType implements Translatable {
     AGE(Comparator.comparing(SimpleOrder::created)),
     NAME((o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.name(), o2.name())),
     PRICE(Comparator.comparingDouble(FullOrder::price)),
-    SIZE(Comparator.comparingInt(FullOrder::amount));
+    SIZE(Comparator.comparingInt(FullOrder::amount)),
+    UNIT_PRICE(Comparator.comparingDouble(SortingType::unitPrice));
 
     private final Comparator<FullOrder> comparator;
 
     SortingType(Comparator<FullOrder> comparator) {
         this.comparator = comparator;
+    }
+
+    private static double unitPrice(FullOrder order) {
+        var amount = order.amount();
+        return amount == 0 ? 0 : order.price() / amount;
     }
 
     public void sort(List<FullOrder> orders, boolean asc) {

@@ -39,8 +39,10 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
             LocalDateTime claimed,
             OrderState state,
             double fee,
+            int extensions,
+            int deliveryBonus,
             List<OrderContent> contents) {
-        super(id, owner, name, created, company, claimed, state, fee);
+        super(id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus);
         this.contents = contents;
     }
 
@@ -78,24 +80,31 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
      *
      * @param economy    economy formatting the amounts
      * @param taxPercent tax of the viewing company, where 5 means 5 %
+     * @param acceptable whether to add a button which accepts the order
      * @return MiniMessage line
      */
-    public String companyShortInfo(Economy economy, double taxPercent) {
+    public String companyShortInfo(Economy economy, double taxPercent, boolean acceptable) {
         var composer = MessageComposer.create()
                 .text("<hover:show_text:'%s", companySimpleContent(economy, state()))
                 .newLine()
                 .text("<name>")
                 .localeCode("words.price")
                 .text(": <value>%s", economy.format(price()));
-        return PriceLines.tax(composer, economy, price(), taxPercent)
+        PriceLines.tax(composer, economy, price(), taxPercent)
                 .text("'>")
                 .text("<name>%s | <value>%s", id(), Texts.escape(name()))
                 .text("</hover>")
                 .space()
                 .text("<click:run_command:/company order info %s><add>[", id())
                 .localeCode("words.info")
-                .text("]</click>")
-                .build();
+                .text("]</click>");
+        if (acceptable) {
+            composer.space()
+                    .text("<click:run_command:/company order accept %s><add>[", id())
+                    .localeCode("words.accept")
+                    .text("]</click>");
+        }
+        return composer.build();
     }
 
     private String companySimpleContent(Economy economy, OrderState state) {
@@ -137,7 +146,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                 .text(": <value>%s", economy.format(price()));
         PriceLines.fee(composer, economy, price(), fee()).newLine();
         switch (state()) {
-            case UNCLAIMED ->
+            case UNCLAIMED -> {
                 composer.text("<name>")
                         .localeCode(
                                 "order.info.refundIn",
@@ -148,13 +157,13 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                         .text("<click:run_command:/order cancel %s><remove>[", id())
                         .localeCode("words.cancel")
                         .text("]</click>");
+                ownerActions(composer, configuration.orderSetting().maxExtensions());
+            }
             case CLAIMED ->
                 composer.text("<name>")
                         .localeCode(
                                 "order.info.dueIn",
-                                Replacement.create(
-                                        "duration",
-                                        timeLeft(configuration.companySettings().deliveryHours())));
+                                Replacement.create("duration", timeLeft(deliveryHours(configuration))));
             case DELIVERED ->
                 composer.text("<click:run_command:/order receive %s><add>[", id())
                         .localeCode("words.receive")
@@ -162,6 +171,27 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
             case RECEIVED -> {}
         }
         return composer;
+    }
+
+    /**
+     * Adds the buttons an owner has for an order nobody accepted: extend while extensions are left, and raise the
+     * price.
+     *
+     * @param composer      composer to add the buttons to
+     * @param maxExtensions extensions an order may have
+     */
+    private void ownerActions(MessageComposer composer, int maxExtensions) {
+        var left = extensionsLeft(maxExtensions);
+        if (left > 0) {
+            composer.space()
+                    .text("<click:run_command:/order extend %s><modify>[", id())
+                    .localeCode("order.info.extend", Replacement.create("left", left))
+                    .text("]</click>");
+        }
+        composer.space()
+                .text("<click:suggest_command:/order raise %s ><modify>[", id())
+                .localeCode("order.info.raise")
+                .text("]</click>");
     }
 
     private String userProgressContent(Economy economy) {

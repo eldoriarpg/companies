@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -29,6 +30,6 @@ public class Returns extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
             throws CommandException {
-        itemReturnService.handOut(player, false);
+        itemReturnService.handOut(player, ReturnKind.WORKER, false);
     }
 }

@@ -26,6 +26,7 @@ public class SearchQuery {
     private int maxOrderSize = Integer.MAX_VALUE;
     private SortingType sortingType = SortingType.AGE;
     private boolean asc = true;
+    private boolean fillable;
 
     public void sort(List<FullOrder> orders) {
         sortingType().sort(orders, isAsc());
@@ -263,6 +264,16 @@ public class SearchQuery {
                 .localeCode("words.descending")
                 .text("]</click>")
                 .newLine()
+                .text("<name>")
+                .localeCode("company.order.search.query.searchQuery.fillable")
+                .space()
+                .text("<click:run_command:%s fillable true><%s>[", queryCmd, Colors.active(fillable))
+                .localeCode("words.on")
+                .text("]</click>")
+                .text("<click:run_command:%s fillable false><%s>[", queryCmd, Colors.active(!fillable))
+                .localeCode("words.off")
+                .text("]</click>")
+                .newLine()
                 .text("<click:run_command:%s execute><show>[", queryCmd)
                 .localeCode("words.search")
                 .text("]</click>")
@@ -274,5 +285,18 @@ public class SearchQuery {
 
     public String name() {
         return name == null ? "" : name;
+    }
+
+    /**
+     * Whether only orders the searching player can deliver items to are shown.
+     *
+     * @return true when the search filters by the player's items
+     */
+    public boolean fillable() {
+        return fillable;
+    }
+
+    public void fillable(boolean fillable) {
+        this.fillable = fillable;
     }
 }

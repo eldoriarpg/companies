@@ -16,7 +16,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.Permission;
@@ -35,14 +35,14 @@ public class CompanyAdmin extends AdvancedCommand {
             MessageBlocker messageBlocker,
             LevelService levelService,
             ANodeData nodeData,
-            ItemReturnService itemReturnService,
+            DisbandService disbandService,
             Updates updates) {
         super(
                 plugin,
                 CommandMeta.builder("companyadmin")
                         .withSubCommand(new Level(plugin, configuration, messageBlocker))
                         .withSubCommand(new CalcLevel(plugin, levelService))
-                        .withSubCommand(new Delete(plugin, companyData, orderData, itemReturnService))
+                        .withSubCommand(new Delete(plugin, companyData, disbandService))
                         .withSubCommand(new Reload(plugin, configuration, updates))
                         .withSubCommand(new TransferOwner(plugin, companyData))
                         .withSubCommand(new Rename(plugin, companyData))

@@ -12,6 +12,8 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -23,6 +25,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,8 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 /**
- * Releases claimed orders after their deadline, purges orders nobody claimed and warns company members on join about
- * claimed orders that are about to expire.
+ * Releases claimed orders after their deadline, warns owners before and purges orders nobody claimed, and warns company
+ * members on join about claimed orders that are about to expire.
  */
 public class ExpiringService implements Runnable, Listener {
     private final Plugin plugin;
@@ -42,6 +45,7 @@ public class ExpiringService implements Runnable, Listener {
     private final MessageSender messageSender;
     private final ItemReturnService itemReturnService;
     private final Economy economy;
+    private final NotificationService notificationService;
 
     public ExpiringService(
             Plugin plugin,
@@ -49,7 +53,8 @@ public class ExpiringService implements Runnable, Listener {
             ACompanyData companyData,
             Configuration configuration,
             ItemReturnService itemReturnService,
-            Economy economy) {
+            Economy economy,
+            NotificationService notificationService) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
@@ -57,6 +62,7 @@ public class ExpiringService implements Runnable, Listener {
         this.configuration = configuration;
         this.itemReturnService = itemReturnService;
         this.economy = economy;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -98,8 +104,8 @@ public class ExpiringService implements Runnable, Listener {
         var settings = configuration.companySettings();
         var now = LocalDateTime.now();
         return orders.stream()
-                .filter(order ->
-                        expiresSoon(order.claimed(), now, settings.deliveryHours(), settings.expiryWarningHours()))
+                .filter(order -> expiresSoon(
+                        order.claimed(), now, order.deliveryHours(configuration), settings.expiryWarningHours()))
                 .toList();
     }
 
@@ -127,10 +133,50 @@ public class ExpiringService implements Runnable, Listener {
             plugin.getLogger().log(Level.SEVERE, "Could not release expired orders", e);
         }
         try {
+            warnOwners();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not warn owners about purged orders", e);
+        }
+        try {
             purgeDeadOrders();
         } catch (RuntimeException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not purge dead orders", e);
         }
+    }
+
+    /**
+     * Warns owners of unaccepted orders that are purged within {@code purgeWarningHours}, once per purge timer.
+     */
+    private void warnOwners() {
+        var settings = configuration.orderSetting();
+        var orders = orderData
+                .retrievePurgeWarnings(settings.maxUnclaimedHours(), settings.purgeWarningHours())
+                .join();
+        for (var order : orders) {
+            if (!Boolean.TRUE.equals(orderData.submitPurgeWarning(order).join())) continue;
+            var left = Duration.between(LocalDateTime.now(), order.claimed().plusHours(settings.maxUnclaimedHours()));
+            notificationService.sendMessage(
+                    plugin.getServer().getOfflinePlayer(order.owner()),
+                    purgeWarning(order, settings.maxExtensions()),
+                    Replacement.unparsed("order_name", order.fullName()),
+                    Replacement.create("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left)),
+                    Replacement.create("left", order.extensionsLeft(settings.maxExtensions())));
+        }
+    }
+
+    private String purgeWarning(SimpleOrder order, int maxExtensions) {
+        var composer = MessageComposer.create().text("<neutral>").localeCode("notification.orderPurgeWarning");
+        if (order.extensionsLeft(maxExtensions) > 0) {
+            composer.space()
+                    .text("<click:run_command:/order extend %s><modify>[", order.id())
+                    .localeCode("order.info.extend")
+                    .text("]</click>");
+        }
+        return composer.space()
+                .text("<click:suggest_command:/order raise %s ><modify>[", order.id())
+                .localeCode("order.info.raise")
+                .text("]</click>")
+                .build();
     }
 
     private void releaseExpiredOrders() {

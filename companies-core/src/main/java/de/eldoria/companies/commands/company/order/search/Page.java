@@ -43,13 +43,14 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments arguments)
             throws CommandException {
-        renderPage(player, arguments.asInt(0));
+        search.showFresh(player, Math.max(0, arguments.asInt(0)));
     }
 
     public void renderPage(Player player, int page) {
         messageBlocker.blockPlayer(player);
         var results = search.results().getOrDefault(player.getUniqueId(), SearchResults.empty());
         var fullOrders = results.orders();
+        page = Math.min(page, Math.max(0, (fullOrders.size() - 1) / PAGE_SIZE));
 
         var builder = MessageComposer.create()
                 .text("<heading>")
@@ -64,7 +65,13 @@ public class Page extends AdvancedCommand implements IPlayerTabExecutor {
         var pageList = page(fullOrders, page);
         var components = new ArrayList<String>();
         for (var order : pageList) {
-            components.add(order.companyShortInfo(economy, results.taxPercent()));
+            components.add(order.companyShortInfo(economy, results.taxPercent(), results.canAccept()));
+        }
+        if (results.limitReached()) {
+            components.add(MessageComposer.create()
+                    .text("<inactive>")
+                    .localeCode("company.order.search.limitReached")
+                    .build());
         }
 
         builder.text(components).newLine();

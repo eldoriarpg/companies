@@ -14,6 +14,8 @@ import java.util.Optional;
 public class LevelSettings implements ILevelSettings {
     private int maxMembers = 20;
     private int maxOrders = 5;
+    private int maxOrderSize = 0;
+    private int deliveryHoursBonus = 0;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Double taxPercent = null;
@@ -54,5 +56,41 @@ public class LevelSettings implements ILevelSettings {
      */
     public void taxPercent(Double taxPercent) {
         this.taxPercent = taxPercent;
+    }
+
+    /**
+     * The most items an order may have for companies of this level to accept it.
+     *
+     * @return item limit, 0 for no limit
+     */
+    public int maxOrderSize() {
+        return maxOrderSize;
+    }
+
+    public void maxOrderSize(int maxOrderSize) {
+        this.maxOrderSize = maxOrderSize;
+    }
+
+    /**
+     * Whether an order of the given size is too large for companies of this level.
+     *
+     * @param amount items of the order
+     * @return true when a limit is set and the order exceeds it
+     */
+    public boolean exceedsOrderSize(int amount) {
+        return maxOrderSize > 0 && amount > maxOrderSize;
+    }
+
+    /**
+     * Extra hours companies of this level get to deliver an order they accept.
+     *
+     * @return bonus hours, never negative
+     */
+    public int deliveryHoursBonus() {
+        return Math.max(0, deliveryHoursBonus);
+    }
+
+    public void deliveryHoursBonus(int deliveryHoursBonus) {
+        this.deliveryHoursBonus = deliveryHoursBonus;
     }
 }

@@ -55,4 +55,35 @@ class OrderFeeTest {
     void negativeFeesAreZero() {
         Assertions.assertEquals(0.0, new OrderFee(-50, 1, 0, 0).of(100));
     }
+
+    @Test
+    void raiseChargesThePercentOfTheIncreaseOnly() {
+        var fee = new OrderFee(10, 5, 0, 0);
+
+        Assertions.assertEquals(5.0, fee.raise(60, 100));
+    }
+
+    @Test
+    void raiseIsCappedByTheMaximumOfTheTotalFee() {
+        var fee = new OrderFee(0, 10, 0, 50);
+
+        Assertions.assertEquals(10.0, fee.raise(40, 1000));
+        Assertions.assertEquals(0.0, fee.raise(50, 1000));
+    }
+
+    @Test
+    void raiseTopsUpToTheMinimumOfTheTotalFee() {
+        var fee = new OrderFee(0, 1, 25, 0);
+
+        Assertions.assertEquals(20.0, fee.raise(5, 100));
+    }
+
+    @Test
+    void raiseIsRoundedDownAndNeverNegative() {
+        var fee = new OrderFee(0, 3, 0, 0);
+
+        Assertions.assertEquals(0.29, fee.raise(0.1, 9.99));
+        Assertions.assertEquals(0.0, fee.raise(10, 0));
+        Assertions.assertEquals(0.0, new OrderFee(0, 0, 0, 5).raise(10, 100));
+    }
 }

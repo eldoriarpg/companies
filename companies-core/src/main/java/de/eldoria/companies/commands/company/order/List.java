@@ -103,7 +103,7 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                             .text("]</click>")
                             .newLine();
                     for (var order : fullOrders) {
-                        builder.text(order.companyShortInfo(economy, taxPercent))
+                        builder.text(order.companyShortInfo(economy, taxPercent, false))
                                 .newLine();
                     }
                     if (messageBlocker.isBlocked(player)) {

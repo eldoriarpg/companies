@@ -7,6 +7,7 @@ package de.eldoria.companies.commands;
 
 import de.eldoria.companies.commands.company.Chatblock;
 import de.eldoria.companies.commands.company.Create;
+import de.eldoria.companies.commands.company.Disband;
 import de.eldoria.companies.commands.company.Invite;
 import de.eldoria.companies.commands.company.Kick;
 import de.eldoria.companies.commands.company.Leave;
@@ -17,10 +18,13 @@ import de.eldoria.companies.commands.company.Profile;
 import de.eldoria.companies.commands.company.Rename;
 import de.eldoria.companies.commands.company.Returns;
 import de.eldoria.companies.commands.company.Top;
+import de.eldoria.companies.commands.company.Transfer;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -35,16 +39,20 @@ public class Company extends AdvancedCommand {
             Economy economy,
             Configuration configuration,
             MessageBlocker messageBlocker,
-            ItemReturnService itemReturnService) {
+            ItemReturnService itemReturnService,
+            NotificationService notificationService,
+            DisbandService disbandService) {
         super(plugin);
-        var profile = new Profile(plugin, companyData, orderData, configuration, messageBlocker);
+        var profile = new Profile(plugin, companyData, orderData, configuration, economy, messageBlocker);
         var meta = CommandMeta.builder("company")
                 .withDefaultCommand(profile)
                 .withSubCommand(profile)
                 .withSubCommand(new Create(plugin, companyData, economy, configuration))
                 .withSubCommand(new Invite(plugin, companyData, configuration))
                 .withSubCommand(new Kick(plugin, companyData))
-                .withSubCommand(new Leave(plugin, companyData, orderData, itemReturnService))
+                .withSubCommand(new Leave(plugin, companyData))
+                .withSubCommand(new Transfer(plugin, companyData, notificationService))
+                .withSubCommand(new Disband(plugin, companyData, disbandService))
                 .withSubCommand(new Member(plugin, companyData, messageBlocker))
                 .withSubCommand(new Order(
                         plugin, companyData, orderData, economy, configuration, messageBlocker, itemReturnService))

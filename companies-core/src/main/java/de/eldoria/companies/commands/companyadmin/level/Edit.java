@@ -58,6 +58,8 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
             case "max_members" -> level.settings().maxMembers(args.asInt(2));
             case "max_orders" -> level.settings().maxOrders(args.asInt(2));
             case "tax_percent" -> level.settings().taxPercent(taxPercent(args.asString(2)));
+            case "max_order_size" -> level.settings().maxOrderSize(Math.max(0, args.asInt(2)));
+            case "delivery_hours_bonus" -> level.settings().deliveryHoursBonus(Math.max(0, args.asInt(2)));
             default -> {
                 messageSender().sendErrorActionBar(player, "error.unkownField");
                 return;
@@ -89,7 +91,9 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
                     "delivered_items",
                     "max_members",
                     "max_orders",
-                    "tax_percent");
+                    "tax_percent",
+                    "max_order_size",
+                    "delivery_hours_bonus");
         }
 
         var value = args.asString(2);
@@ -99,7 +103,14 @@ public class Edit extends AdvancedCommand implements IPlayerTabExecutor {
             }
 
             if (Completion.isCommand(
-                    field, "order_count", "member_count", "delivered_items", "max_members", "max_orders")) {
+                    field,
+                    "order_count",
+                    "member_count",
+                    "delivered_items",
+                    "max_members",
+                    "max_orders",
+                    "max_order_size",
+                    "delivery_hours_bonus")) {
                 return Completion.completeMinInt(value, 0);
             }
 
