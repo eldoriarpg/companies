@@ -135,16 +135,20 @@ public class Companies extends EldoPlugin {
                         .tag("active", Tag.styling(NamedTextColor.GREEN))
                         .tag("neutral", Tag.styling(NamedTextColor.DARK_AQUA)))
                 .register();
+    }
 
+    /**
+     * Sets up everything that needs the Vault economy. This runs one tick after enabling, once every plugin is
+     * enabled, because economy plugins may register their provider after this plugin. Without a provider the plugin
+     * fails into the failsafe mode instead of disabling itself.
+     */
+    @Override
+    public void onPostStart(boolean reload) {
         var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
-        Economy economy;
-        if (economyProvider != null) {
-            economy = economyProvider.getProvider();
-        } else {
-            getLogger().severe("No vault provider registered.");
-            getPluginManager().disablePlugin(this);
-            return;
+        if (economyProvider == null) {
+            throw new IllegalStateException("No Vault economy provider is registered. Install an economy plugin that supports Vault.");
         }
+        var economy = economyProvider.getProvider();
 
         MessageBlocker messageBlocker;
         if (configuration.main().generalSettings().messageBlocking()) {
