@@ -8,6 +8,8 @@ package de.eldoria.companies.configuration.elements;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.configuration.elements.companylevel.LevelSettings;
 import de.eldoria.companies.configuration.elements.companylevel.StarterLevels;
+import de.eldoria.companies.configuration.elements.companysettings.JoiningSettings;
+import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.configuration.elements.companysettings.TaxSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 
@@ -26,6 +28,8 @@ public class CompanySettings {
     private int inviteHours = 24;
     private int expiryWarningHours = 12;
     private TaxSettings tax = new TaxSettings();
+    private JoiningSettings joining = new JoiningSettings();
+    private ProfileSettings profile = new ProfileSettings();
 
     public CompanySettings() {
         updateLevel();
@@ -136,9 +140,9 @@ public class CompanySettings {
     }
 
     /**
-     * How long an invite stays open before it expires.
+     * How long an invite or an application stays open before it expires.
      *
-     * @return lifetime of an invite in hours
+     * @return lifetime of an invite or application in hours
      */
     public int inviteHours() {
         return inviteHours;
@@ -160,6 +164,24 @@ public class CompanySettings {
      */
     public TaxSettings tax() {
         return tax;
+    }
+
+    /**
+     * The join mode of new companies and the limits of applications.
+     *
+     * @return joining settings
+     */
+    public JoiningSettings joining() {
+        return joining == null ? new JoiningSettings() : joining;
+    }
+
+    /**
+     * The limits of the editable profile fields.
+     *
+     * @return profile settings
+     */
+    public ProfileSettings profile() {
+        return profile == null ? new ProfileSettings() : profile;
     }
 
     /**

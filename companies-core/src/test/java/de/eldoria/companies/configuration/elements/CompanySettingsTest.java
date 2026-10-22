@@ -6,6 +6,7 @@
 package de.eldoria.companies.configuration.elements;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -203,5 +204,67 @@ class CompanySettingsTest {
     @Test
     void unknownLevelHasDefaultSettings() {
         Assertions.assertEquals(0, new CompanySettings().levelSettings(99).maxOrderSize());
+    }
+
+    @Test
+    void joiningAndProfileHaveTheAgreedDefaults() {
+        var settings = new CompanySettings();
+
+        Assertions.assertEquals(24, settings.inviteHours());
+        Assertions.assertEquals(JoinMode.INVITE_ONLY, settings.joining().defaultMode());
+        Assertions.assertEquals(120, settings.joining().maxApplicationLength());
+        Assertions.assertEquals(3, settings.joining().maxPendingApplications());
+        Assertions.assertEquals(160, settings.profile().maxDescriptionLength());
+        Assertions.assertEquals(2, settings.profile().tagLength().min());
+        Assertions.assertEquals(5, settings.profile().tagLength().max());
+        Assertions.assertEquals(
+                List.of("ADMIN", "MOD", "STAFF"), settings.profile().blockedTags());
+        Assertions.assertEquals(15, settings.profile().colors().size());
+        Assertions.assertTrue(settings.profile().colors().contains("dark_purple"));
+    }
+
+    @Test
+    void configWithoutJoiningAndProfileGetsTheDefaults() {
+        var settings = mapper.readValue("deliveryHours: 24", CompanySettings.class);
+
+        Assertions.assertEquals(JoinMode.INVITE_ONLY, settings.joining().defaultMode());
+        Assertions.assertEquals(
+                List.of("ADMIN", "MOD", "STAFF"), settings.profile().blockedTags());
+    }
+
+    @Test
+    void joiningAndProfileAreReadFromYaml() {
+        var settings = mapper.readValue("""
+                joining:
+                  defaultMode: OPEN
+                  maxApplicationLength: 80
+                  maxPendingApplications: 1
+                profile:
+                  maxDescriptionLength: 100
+                  tagLength: {min: 3, max: 4}
+                  blockedTags: [owner]
+                  colors: [red, "#ff8800"]
+                """, CompanySettings.class);
+
+        Assertions.assertEquals(JoinMode.OPEN, settings.joining().defaultMode());
+        Assertions.assertEquals(80, settings.joining().maxApplicationLength());
+        Assertions.assertEquals(1, settings.joining().maxPendingApplications());
+        Assertions.assertEquals(100, settings.profile().maxDescriptionLength());
+        Assertions.assertEquals(3, settings.profile().tagLength().min());
+        Assertions.assertEquals(4, settings.profile().tagLength().max());
+        Assertions.assertEquals(List.of("OWNER"), settings.profile().blockedTags());
+        Assertions.assertEquals(List.of("red", "#ff8800"), settings.profile().colors());
+    }
+
+    @Test
+    void writtenJoiningAndProfileAreReadBackUnchanged() {
+        var yaml = mapper.writeValueAsString(new CompanySettings());
+        var settings = mapper.readValue(yaml, CompanySettings.class);
+
+        Assertions.assertTrue(yaml.contains("joining:"), yaml);
+        Assertions.assertTrue(yaml.contains("blockedTags:"), yaml);
+        Assertions.assertEquals(JoinMode.INVITE_ONLY, settings.joining().defaultMode());
+        Assertions.assertEquals(15, settings.profile().colors().size());
+        Assertions.assertEquals(5, settings.profile().tagLength().max());
     }
 }
