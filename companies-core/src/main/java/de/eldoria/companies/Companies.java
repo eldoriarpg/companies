@@ -180,6 +180,7 @@ public class Companies extends EldoPlugin {
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI") && configuration.generalSettings().hooks().placeholderapi()) {
             var placeholderService = new PlaceholderService(this, companyData, orderData);
             placeholderService.register();
+            placeholderService.startRefreshing();
             registerListener(placeholderService);
         }
     }
