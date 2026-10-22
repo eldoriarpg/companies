@@ -6,15 +6,15 @@
 package de.eldoria.companies.configuration.elements;
 
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.configuration.elements.companylevel.StarterLevels;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class CompanySettings {
-    private List<CompanyLevel> level = new ArrayList<>();
+    private List<CompanyLevel> level = StarterLevels.create();
     private int deliveryHours = 48;
     private double foundingPrice = 20000.0;
     private double renamePrice = 10000.0;
