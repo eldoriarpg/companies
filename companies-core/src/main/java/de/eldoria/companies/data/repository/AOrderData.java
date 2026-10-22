@@ -60,11 +60,18 @@ public abstract class AOrderData {
     }
 
     // Order Management
-    public BukkitFutureResult<Void> submitOrder(OfflinePlayer player, FullOrder order) {
-        return CompletableBukkitFuture.runAsync(() -> putOrder(player, order), VIRTUAL);
+    public BukkitFutureResult<Boolean> submitOrder(OfflinePlayer player, FullOrder order) {
+        return CompletableBukkitFuture.supplyAsync(() -> putOrder(player, order), VIRTUAL);
     }
 
-    protected abstract void putOrder(OfflinePlayer player, FullOrder order);
+    /**
+     * Saves a new order with its content.
+     *
+     * @param player owner of the order
+     * @param order  order to save
+     * @return true if the order and its content were saved
+     */
+    protected abstract boolean putOrder(OfflinePlayer player, FullOrder order);
 
     public BukkitFutureResult<Boolean> submitOrderStateUpdate(SimpleOrder order, OrderState expected, OrderState state) {
         return CompletableBukkitFuture.supplyAsync(() -> {

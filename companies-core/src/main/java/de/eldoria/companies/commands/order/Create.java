@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -22,7 +23,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
-import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import de.eldoria.eldoutilities.utils.EnumUtil;
 import de.eldoria.eldoutilities.utils.Parser;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -41,6 +41,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class Create extends AdvancedCommand implements IPlayerTabExecutor {
@@ -128,7 +129,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         if ("remove".equalsIgnoreCase(cmd)) {
             if (args.sizeIs(2)) {
-                Completion.complete(args.asString(0), builder.elements()
+                return Completion.complete(args.asString(1), builder.elements()
                         .stream()
                         .map(OrderContent::materialIdentifier));
             }
@@ -211,8 +212,8 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private void initCreation(Player player, @NotNull Arguments args) {
         orderData.retrievePlayerOrderCount(player)
                 .whenComplete(count -> {
-                    if (count >= configuration.userSettings()
-                            .maxOrders()) {
+                    if (count >= Permission.Orders.getOrderOverride(player)
+                            .orElse(configuration.userSettings().maxOrders())) {
                         messageSender().sendError(player, "order.create.error.limitReached");
                         return;
                     }
@@ -247,6 +248,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         var material = args.asMaterial(0);
         var amount = args.asInt(1);
         var price = args.asDouble(2);
+        if (!Double.isFinite(price)) CommandAssertions.invalidNumber();
 
         amount = Math.max(amount, 1);
         price = Math.max(price, 0.0);
@@ -261,7 +263,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
         }
 
 
-        builder.addContent(new ItemStack(material), Math.min(amount, configuration.orderSetting().maxItems() - Math.max(1, builder.amount())),
+        builder.addContent(new ItemStack(material), Math.min(amount, configuration.orderSetting().maxItems() - builder.amount()),
                 Math.max(0.0, price));
         sendBuilder(player, builder);
     }
@@ -287,6 +289,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         var material = args.asMaterial(0);
         var price = args.asDouble(1);
+        if (!Double.isFinite(price)) CommandAssertions.invalidNumber();
 
         CommandAssertions.min(price, 0.0);
         var builder = getPlayerBuilder(player);
@@ -330,31 +333,35 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                         messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
                         return;
                     }
-                    CompletableBukkitFuture.supplyAsync(() -> {
-                                if (!economy.has(player, price)) {
-                                    return false;
-                                }
-                                economy.withdrawPlayer(player, price);
-                                return true;
+                    if (!economy.has(player, price) || !economy.withdrawPlayer(player, price)
+                            .transactionSuccess()) {
+                        var fallbackCurr = economy.currencyNameSingular()
+                                .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
+                        var curr = economy.currencyNamePlural()
+                                .isBlank() ? fallbackCurr : economy.currencyNamePlural();
+                        messageSender().sendError(player, "error.insufficientCurrency",
+                                Replacement.create("currency", curr),
+                                Replacement.create("amount", economy.format(price)));
+                        return;
+                    }
+                    orderData.submitOrder(player, order.build())
+                            .asFuture()
+                            .exceptionally(err -> {
+                                plugin().getLogger().log(Level.SEVERE, "Could not save order", err);
+                                return false;
                             })
-                            .whenComplete(result -> {
-                                if (result) {
-                                    orderData.submitOrder(player, order.build())
-                                            .whenComplete(v -> messageBlocker.unblockPlayer(player)
-                                                    .whenComplete((unused, err) -> {
-                                                        messageSender().sendMessage(player, MessageComposer.escape("order.create.created"));
-                                                        builderCache.invalidate(player.getUniqueId());
-                                                    }));
-                                } else {
-                                    var fallbackCurr = economy.currencyNameSingular()
-                                            .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
-                                    var curr = economy.currencyNamePlural()
-                                            .isBlank() ? fallbackCurr : economy.currencyNamePlural();
-                                    messageSender().sendError(player, "error.insufficientCurrency",
-                                            Replacement.create("currency", curr),
-                                            Replacement.create("amount", economy.format(price)));
+                            .thenAcceptAsync(created -> {
+                                if (!created) {
+                                    economy.depositPlayer(player, price);
+                                    messageSender().sendError(player, "error.saveFailed");
+                                    return;
                                 }
-                            });
+                                messageBlocker.unblockPlayer(player)
+                                        .whenComplete((unused, err) -> {
+                                            messageSender().sendMessage(player, MessageComposer.escape("order.create.created"));
+                                            builderCache.invalidate(player.getUniqueId());
+                                        });
+                            }, Threading.mainThread(plugin()));
                 });
     }
 

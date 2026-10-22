@@ -49,7 +49,7 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected void putOrder(OfflinePlayer player, FullOrder order) {
+    protected boolean putOrder(OfflinePlayer player, FullOrder order) {
         @Language("mariadb")
         var query = """
                 INSERT
@@ -58,13 +58,15 @@ public class MariaDbOrderData extends AOrderData {
                 VALUES
                 	(?, ?)
                 RETURNING id""";
-        try (var conf = QueryConfiguration.getDefault().withSingleTransaction()) {
-            var orderId = conf.query(query)
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            var optOrderId = conf.query(query)
                     .single(call().bind(player.getUniqueId(), UUID_BYTES)
                             .bind(order.name()))
                     .map(rs -> rs.getInt(1))
-                    .first()
-                    .get();
+                    .first();
+            if (optOrderId.isEmpty()) return false;
+            var orderId = optOrderId.get();
 
             query = """
                     INSERT INTO order_content(id, material, stack, amount, price)
@@ -87,6 +89,7 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(orderId).bind(OrderState.UNCLAIMED.stateId()))
                     .update();
         }
+        return conf.context().exceptions().isEmpty();
     }
 
     @Override
