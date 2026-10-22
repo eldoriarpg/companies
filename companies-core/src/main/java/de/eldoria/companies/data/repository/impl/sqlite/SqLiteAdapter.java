@@ -21,4 +21,14 @@ public final class SqLiteAdapter {
     public static LocalDateTime getTimestamp(Row rs, String column) throws SQLException {
         return LocalDateTime.parse(rs.getString(column), FORMATTER);
     }
+
+    /**
+     * Formats a time like SQLite's {@code CURRENT_TIMESTAMP}, to the second.
+     *
+     * @param time time to format
+     * @return text as stored in datetime columns
+     */
+    public static String format(LocalDateTime time) {
+        return FORMATTER.format(time);
+    }
 }
