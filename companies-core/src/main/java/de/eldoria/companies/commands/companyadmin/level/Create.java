@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.commands.companyadmin.level;
 
-import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.LevelNumbers;
 import de.eldoria.companies.commands.support.Senders;
 import net.strokkur.commands.Executes;
@@ -17,13 +16,13 @@ import org.bukkit.command.CommandSender;
  */
 @Subcommand("create")
 public final class Create {
-    private final CommandDependencies deps;
+    private final LevelEditor editor;
 
     /**
-     * @param deps what the commands need
+     * @param editor runs the level editor
      */
-    public Create(CommandDependencies deps) {
-        this.deps = deps;
+    public Create(LevelEditor editor) {
+        this.editor = editor;
     }
 
     /**
@@ -45,10 +44,6 @@ public final class Create {
     @Executes
     public void create(CommandSender sender, @LevelNumbers int index) {
         var player = Senders.player(sender);
-        var menus = deps.services().menus();
-        Levels.requirePrimary(deps.configuration());
-        var level = deps.configuration().companySettings().createLevel(index);
-        deps.configuration().save();
-        LevelMenus.info(player, level, menus);
+        editor.info(player, editor.create(index));
     }
 }
