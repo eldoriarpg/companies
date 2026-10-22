@@ -238,7 +238,9 @@ public class SqLiteOrderData extends MariaDbOrderData {
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE
-                ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price""";
+                ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price,
+                                                    min_price = excluded.min_price,
+                                                    max_price = excluded.max_price""";
         query(query).single()
                 .update();
     }

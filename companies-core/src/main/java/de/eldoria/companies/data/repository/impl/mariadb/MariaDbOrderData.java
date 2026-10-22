@@ -694,7 +694,9 @@ public class MariaDbOrderData extends AOrderData {
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE
-                ON DUPLICATE KEY UPDATE avg_price = avg.avg_price;""";
+                ON DUPLICATE KEY UPDATE avg_price = avg.avg_price,
+                                        min_price = avg.min_price,
+                                        max_price = avg.max_price;""";
         query(query).single()
                 .update();
     }

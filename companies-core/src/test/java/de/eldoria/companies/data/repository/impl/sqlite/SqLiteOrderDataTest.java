@@ -204,4 +204,19 @@ class SqLiteOrderDataTest {
         query.materials(List.of("GRAVEL"));
         Assertions.assertTrue(orderData.retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED).join().isEmpty());
     }
+
+    @Test
+    void materialPriceRefreshUpdatesAllPrices() {
+        var cheap = createOrder(10, 5);
+        SqLiteTestDatabase.setState(cheap.id(), OrderState.DELIVERED.stateId(), COMPANY);
+        orderData.refreshMaterialPrices();
+
+        var expensive = createOrder(1, 5);
+        SqLiteTestDatabase.setState(expensive.id(), OrderState.DELIVERED.stateId(), COMPANY);
+        orderData.refreshMaterialPrices();
+
+        var price = orderData.retrieveMaterialPrice("STONE").join();
+        Assertions.assertEquals(10.0, price.minPrice(), 0.0001);
+        Assertions.assertEquals(100.0, price.maxPrice(), 0.0001);
+    }
 }
