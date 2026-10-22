@@ -136,7 +136,8 @@ public final class Create {
             return;
         }
         deps.companyData()
-                .submitCompanyCreation(name)
+                .submitCompanyCreation(
+                        name, deps.configuration().companySettings().joining().defaultMode())
                 .asFuture()
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

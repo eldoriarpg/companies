@@ -11,14 +11,18 @@ import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.util.function.Consumer;
 
 /**
  * {@code /company leave}: removes a member from their company after they confirmed it.
@@ -30,12 +34,15 @@ import org.bukkit.entity.Player;
 public final class Leave {
     private final CommandDependencies deps;
     private final ConfirmFlow<Integer> leaves;
+    private final Consumer<Player> disband;
 
     /**
-     * @param deps what the commands need
+     * @param deps    what the commands need
+     * @param disband asks an owner to confirm dissolving their company
      */
-    public Leave(CommandDependencies deps) {
+    public Leave(CommandDependencies deps, Consumer<Player> disband) {
         this.deps = deps;
+        this.disband = disband;
         this.leaves = ConfirmFlow.create(deps.plugin(), this::leave);
     }
 
@@ -80,30 +87,32 @@ public final class Leave {
      */
     private boolean refuseOwner(Player player, CompanyProfile company) {
         var member = company.member(player).orElseThrow();
-        var composer = MessageComposer.create().text("<neutral>");
+        var text = MenuText.create().text("<neutral>");
         switch (Ownership.leaveCheck(member, company.members().size())) {
             case ALLOWED -> {
                 return false;
             }
             case TRANSFER_FIRST ->
-                composer.localeCode("company.leave.transferFirst")
+                text.locale("company.leave.transferFirst")
                         .space()
-                        .text("<click:suggest_command:/company transfer ><modify>[")
-                        .localeCode("words.transfer")
-                        .text("]</click>")
+                        .text(
+                                "<act_transfer><modify>[<i18n:words.transfer>]</act_transfer>",
+                                Values.click("act_transfer", ClickEvent.suggestCommand("/company transfer ")))
                         .space()
-                        .text("<click:run_command:/company disband><remove>[")
-                        .localeCode("words.disband")
-                        .text("]</click>");
+                        .append(disbandButton(player));
             case DISBAND_INSTEAD ->
-                composer.localeCode("company.leave.ownerAlone")
-                        .space()
-                        .text("<click:run_command:/company disband><remove>[")
-                        .localeCode("words.disband")
-                        .text("]</click>");
+                text.locale("company.leave.ownerAlone").space().append(disbandButton(player));
         }
-        messages().sendMessage(player, composer);
+        messages().sendMessage(player, text);
         return true;
+    }
+
+    private MenuText disbandButton(Player player) {
+        var actions = new MenuActions(deps.plugin(), player, MenuActions.DEFAULT_LIFETIME);
+        return MenuText.create()
+                .text(
+                        "<act_disband><remove>[<i18n:words.disband>]</act_disband>",
+                        actions.chatAction("act_disband", disband));
     }
 
     /**

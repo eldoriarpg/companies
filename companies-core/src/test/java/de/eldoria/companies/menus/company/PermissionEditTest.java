@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static de.eldoria.companies.components.company.CompanyPermission.EDIT_PROFILE;
 import static de.eldoria.companies.components.company.CompanyPermission.INVITE;
 import static de.eldoria.companies.components.company.CompanyPermission.KICK;
 import static de.eldoria.companies.components.company.CompanyPermission.MANAGE_ORDERS;
@@ -31,7 +32,7 @@ class PermissionEditTest {
 
     @Test
     void ownerIsNeverShown() {
-        assertEquals(List.of(INVITE, KICK, MANAGE_ORDERS, MANAGE_PERMISSIONS), PermissionEdit.shown());
+        assertEquals(List.of(INVITE, KICK, MANAGE_ORDERS, MANAGE_PERMISSIONS, EDIT_PROFILE), PermissionEdit.shown());
     }
 
     @Test

@@ -86,7 +86,14 @@ Drafts expire after 15 minutes.
 |-----------------------------------------------------------|-----------------------------------------------------|
 | `/company` or `/company profile [id <id>\|name <name>\|player <player>]` | Show a company profile          |
 | `/company create <name>`                                  | Found a company                                     |
-| `/company invite <player>` / `invite accept\|deny`         | Invite a player, or answer an invite                |
+| `/company invite <player>` / `invite revoke <player>`     | Invite a player, or take an invite back             |
+| `/company invites [accept\|deny <company>]`               | Show or answer your invites and applications        |
+| `/company join <company>`                                 | Join an open company                                |
+| `/company apply <company> <message>` / `apply withdraw <company>` | Apply to a company, or withdraw the application |
+| `/company applications [accept\|deny <player>]`           | Show or answer the applications to your company     |
+| `/company joinmode [open\|applications\|invite]`          | Show or change how players join your company        |
+| `/company profile edit`                                   | Edit the profile of your company                    |
+| `/company profile edit description\|tag\|color [value]`   | Set a profile field; `tag clear` and `color clear` remove one |
 | `/company kick <member>`                                  | Kick a member                                       |
 | `/company leave`                                          | Leave your company                                  |
 | `/company transfer <member>`                              | Hand the company to another member                  |
@@ -96,9 +103,40 @@ Drafts expire after 15 minutes.
 | `/company permission <member> [give\|remove <permission>]` | Show or change the permissions of a member          |
 | `/company top [page] [ordering]`                          | Show the company ranking                            |
 | `/company returns`                                        | Take back items returned from aborted orders        |
-| `/company chatblock <true\|false>`                        | Block or allow chat while a menu is open            |
 
 Confirmations are given with `confirm` after the command, e.g. `/company leave confirm`.
+
+### Joining a company
+
+Every company has a join mode, shown on its profile:
+
+| Join mode      | How players join                                                      |
+|----------------|-----------------------------------------------------------------------|
+| `open`         | Anyone with `companies.company.join` joins with `/company join`       |
+| `applications` | Players apply with a message, members with `INVITE` accept or deny it |
+| `invite`       | Only invited players can join                                         |
+
+Invites work in every mode. Invites and applications stay open for `inviteHours` and the players involved are
+notified when they are answered or expire; notifications for offline players are shown on their next join. A company
+at its level's member limit can not take new members.
+
+### Company profile
+
+The profile shows a description, a tag of a few upper-case letters or digits written as `[TAG]` before the name, and a
+colour for tag and name. Members with `EDIT_PROFILE` change them with `/company profile edit`, through the `[Edit]`
+button on the profile or the edit menu, and the other members are notified.
+
+### Company permissions
+
+The owner has every permission and gives the others to members with `/company permission <member> give <permission>`.
+
+| Permission           | Allows                                                            |
+|----------------------|-------------------------------------------------------------------|
+| `invite`             | Invite players, take invites back and answer applications         |
+| `kick`               | Kick members                                                      |
+| `manage_orders`      | Accept and abort orders                                           |
+| `manage_permissions` | Give and remove permissions                                       |
+| `edit_profile`       | Change description, tag, colour and join mode                     |
 
 ### Company orders: `/company order`
 
@@ -182,6 +220,38 @@ matching:
 The owner receives exactly the items that were delivered, with all their data: enchantments, names, lore and, with
 `allowDamaged`, their damage. A worker's custom name or lore on a delivered item is therefore visible to the owner.
 Items with content, like filled shulker boxes or bundles, can neither be ordered nor delivered.
+
+### Joining and profiles
+`company.yml` holds the settings for invites, applications and profiles:
+
+```yaml
+inviteHours: 24
+joining:
+  defaultMode: INVITE_ONLY
+  maxApplicationLength: 120
+  maxPendingApplications: 3
+profile:
+  maxDescriptionLength: 160
+  tagLength:
+    min: 2
+    max: 5
+  blockedTags:
+    - ADMIN
+    - MOD
+    - STAFF
+  colors:
+    - white
+    - gold
+    - '#4a90d9'
+```
+
+* `inviteHours` is how long invites and applications stay open.
+* `joining.defaultMode` is the join mode of newly founded companies (`OPEN`, `APPLICATIONS` or `INVITE_ONLY`).
+  Existing companies keep theirs.
+* `maxApplicationLength` limits the application message, `maxPendingApplications` the open applications of one
+  player across all companies.
+* `profile.tagLength.max` can not exceed 5. Tags are unique, and `blockedTags` can never be used.
+* `colors` are the colours a company can choose from: named colours such as `gold` or `#rrggbb` values.
 
 ### Menus
 `menus` in `config.yml` sets how menus such as the order builder, the order search, order views and confirmations are

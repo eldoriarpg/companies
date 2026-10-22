@@ -5,12 +5,15 @@
  */
 package de.eldoria.companies.menus.company;
 
+import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.configuration.elements.companylevel.LevelProgress;
 import de.eldoria.companies.configuration.elements.companylevel.LevelRequirement;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import de.eldoria.companies.util.ProfileColors;
+import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -21,7 +24,8 @@ import java.util.OptionalInt;
  * What the profile of a company shows.
  * <p>
  * Members see their own company with the progress towards the next level and the number of orders it works on. Other
- * players see the public profile without either.
+ * players see the public profile without either. Both show the description, the tag and name in the company colour,
+ * and the join mode.
  *
  * @param id          id of the company
  * @param name        name of the company
@@ -31,6 +35,11 @@ import java.util.OptionalInt;
  * @param leader      name of the owner
  * @param memberCount number of members
  * @param orderCount  number of orders the company works on, only on the own profile
+ * @param description description of the company, as entered
+ * @param tag         tag of the company
+ * @param color       colour of the tag and name
+ * @param joinMode    how players become members
+ * @param editable    whether the viewer may edit the profile
  */
 public record ProfileView(
         int id,
@@ -40,7 +49,12 @@ public record ProfileView(
         String founded,
         String leader,
         int memberCount,
-        OptionalInt orderCount) {
+        OptionalInt orderCount,
+        Optional<String> description,
+        Optional<String> tag,
+        Optional<TextColor> color,
+        JoinMode joinMode,
+        boolean editable) {
 
     /**
      * The profile a member sees of their own company.
@@ -49,12 +63,17 @@ public record ProfileView(
      * @param settings   the configured levels
      * @param stats      current values of the company, or null when they could not be loaded
      * @param orderCount number of orders the company works on
+     * @param editable   whether the viewer may edit the profile
      * @return the view
      */
     public static ProfileView own(
-            CompanyProfile profile, CompanySettings settings, @Nullable CompanyStats stats, int orderCount) {
+            CompanyProfile profile,
+            CompanySettings settings,
+            @Nullable CompanyStats stats,
+            int orderCount,
+            boolean editable) {
         var next = settings.level(profile.level() + 1).map(level -> NextLevel.of(level, stats));
-        return of(profile, settings, next, OptionalInt.of(orderCount));
+        return of(profile, settings, next, OptionalInt.of(orderCount), editable);
     }
 
     /**
@@ -65,11 +84,15 @@ public record ProfileView(
      * @return the view
      */
     public static ProfileView external(CompanyProfile profile, CompanySettings settings) {
-        return of(profile, settings, Optional.empty(), OptionalInt.empty());
+        return of(profile, settings, Optional.empty(), OptionalInt.empty(), false);
     }
 
     private static ProfileView of(
-            CompanyProfile profile, CompanySettings settings, Optional<NextLevel> next, OptionalInt orderCount) {
+            CompanyProfile profile,
+            CompanySettings settings,
+            Optional<NextLevel> next,
+            OptionalInt orderCount,
+            boolean editable) {
         var level = settings.level(profile.level()).orElse(CompanyLevel.DEFAULT);
         return new ProfileView(
                 profile.id(),
@@ -79,7 +102,12 @@ public record ProfileView(
                 profile.foundedString(),
                 MemberEntry.nameOf(profile.owner().player()),
                 profile.members().size(),
-                orderCount);
+                orderCount,
+                profile.description(),
+                profile.tag(),
+                profile.color().flatMap(ProfileColors::resolve),
+                profile.joinMode(),
+                editable);
     }
 
     /**

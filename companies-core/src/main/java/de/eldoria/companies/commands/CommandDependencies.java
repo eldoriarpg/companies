@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.menus.MenuService;
@@ -17,6 +18,7 @@ import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
+import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -40,6 +42,7 @@ public final class CommandDependencies {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final ANodeData nodeData;
+    private final AMembershipData membershipData;
     private final OrderDraftService drafts;
     private final SearchSessions searches = new SearchSessions();
     private volatile Optional<Services> services = Optional.empty();
@@ -49,19 +52,22 @@ public final class CommandDependencies {
      * @param configuration configuration of the plugin
      * @param companyData   company repository
      * @param orderData     order repository
-     * @param nodeData      node repository
+     * @param nodeData       node repository
+     * @param membershipData invite and application repository
      */
     public CommandDependencies(
             Plugin plugin,
             Configuration configuration,
             ACompanyData companyData,
             AOrderData orderData,
-            ANodeData nodeData) {
+            ANodeData nodeData,
+            AMembershipData membershipData) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.companyData = companyData;
         this.orderData = orderData;
         this.nodeData = nodeData;
+        this.membershipData = membershipData;
         this.drafts = new OrderDraftService(plugin, orderData, configuration);
     }
 
@@ -134,6 +140,13 @@ public final class CommandDependencies {
     }
 
     /**
+     * @return invite and application repository
+     */
+    public AMembershipData membershipData() {
+        return membershipData;
+    }
+
+    /**
      * @return the order drafts of the players
      */
     public OrderDraftService drafts() {
@@ -166,6 +179,7 @@ public final class CommandDependencies {
      * @param updates             update checks and downloads
      * @param deliveryService     delivers items to orders
      * @param menus               shows menus as dialogs or in chat
+     * @param membershipService   invites, applications and joining
      */
     public record Services(
             Economy economy,
@@ -176,5 +190,6 @@ public final class CommandDependencies {
             DisbandService disbandService,
             Updates updates,
             DeliveryService deliveryService,
-            MenuService menus) {}
+            MenuService menus,
+            MembershipService membershipService) {}
 }

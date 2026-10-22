@@ -7,11 +7,15 @@ package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.configuration.elements.CompanySettings;
+import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
+import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.OfflinePlayer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +27,7 @@ import org.mockbukkit.mockbukkit.entity.PlayerMock;
 import java.lang.reflect.Proxy;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 
@@ -59,6 +64,7 @@ class CompanyViewsTest {
                 "Acme",
                 FOUNDED,
                 level,
+                CompanyDetails.NONE,
                 List.of(
                         CompanyMember.of(7, member.getUniqueId(), mask(INVITE)),
                         CompanyMember.of(7, owner.getUniqueId(), mask(OWNER))));
@@ -72,7 +78,7 @@ class CompanyViewsTest {
     void theOwnProfileShowsTheProgressTowardsTheNextLevel() {
         var stats = new CompanyStats(7, "Acme", FOUNDED, 2, 5, 30_000, 500);
 
-        var view = ProfileView.own(profile(1), settings, stats, 3);
+        var view = ProfileView.own(profile(1), settings, stats, 3, false);
 
         assertTrue(view.own());
         assertEquals("Owner", view.leader());
@@ -91,14 +97,14 @@ class CompanyViewsTest {
 
     @Test
     void withoutStatsTheNextLevelHasNoProgress() {
-        var view = ProfileView.own(profile(1), settings, null, 0);
+        var view = ProfileView.own(profile(1), settings, null, 0, false);
 
         assertTrue(view.next().orElseThrow().progress().isEmpty());
     }
 
     @Test
     void theHighestLevelHasNoNextLevel() {
-        var view = ProfileView.own(profile(settings.level().size()), settings, null, 0);
+        var view = ProfileView.own(profile(settings.level().size()), settings, null, 0, false);
 
         assertTrue(view.next().isEmpty());
     }
@@ -110,6 +116,49 @@ class CompanyViewsTest {
         assertFalse(view.own());
         assertTrue(view.next().isEmpty());
         assertEquals("Startup", view.level().levelName());
+    }
+
+    @Test
+    void theProfileShowsDescriptionTagColourAndJoinMode() {
+        var details = new CompanyDetails("We dig.", "ACME", "gold", JoinMode.OPEN);
+
+        var view = ProfileView.external(profile(1).withDetails(details), settings);
+
+        assertEquals(Optional.of("We dig."), view.description());
+        assertEquals(Optional.of("ACME"), view.tag());
+        assertEquals(Optional.of(NamedTextColor.GOLD), view.color());
+        assertEquals(JoinMode.OPEN, view.joinMode());
+        assertFalse(view.editable());
+    }
+
+    @Test
+    void anUnknownColourIsNotShown() {
+        var view = ProfileView.external(profile(1).withDetails(CompanyDetails.NONE.withColor("rainbow")), settings);
+
+        assertEquals(Optional.empty(), view.color());
+    }
+
+    @Test
+    void theOwnProfileIsEditableWhenTheViewerMayEdit() {
+        assertTrue(ProfileView.own(profile(1), settings, null, 0, true).editable());
+        assertFalse(ProfileView.own(profile(1), settings, null, 0, false).editable());
+    }
+
+    @Test
+    void theEditorOffersThePaletteAsItIsStored() {
+        var profileSettings = new ProfileSettings();
+        profileSettings.colors(List.of("Gold", "gold", "#00FF00", "rainbow"));
+        var details = new CompanyDetails("We dig.", "ACME", "gold", JoinMode.APPLICATIONS);
+
+        var view = ProfileEditView.of(profile(1).withDetails(details), profileSettings);
+
+        assertEquals(List.of("gold", "#00ff00"), view.palette());
+        assertTrue(view.selected("gold"));
+        assertFalse(view.selected("#00ff00"));
+        assertEquals(Optional.of(NamedTextColor.GOLD), view.textColor());
+        assertEquals(JoinMode.APPLICATIONS, view.joinMode());
+        assertEquals(ProfileSettings.MAX_TAG_LENGTH, view.maxTagLength());
+        assertTrue(view.error().isEmpty());
     }
 
     @Test

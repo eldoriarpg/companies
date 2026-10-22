@@ -41,6 +41,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -78,6 +79,25 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onCompanyDisband(CompanyDisbandEvent event) {
         sendCompanyMessage(event.company(), "notification.companyDisband");
+    }
+
+    /**
+     * Sends a typed notification: shown in chat when the recipient is online on this server, stored for their next
+     * join otherwise. Important types and categories are not treated differently yet.
+     *
+     * @param recipient player to notify
+     * @param type      kind of notification
+     * @param args      values for the placeholders of the type's message and action
+     */
+    public void send(UUID recipient, NotificationType type, NotificationArgs args) {
+        var message = MenuText.create().text("<neutral>").locale(type.key(), args.resolvers());
+        type.action().map(args::fill).ifPresent(command -> message.space()
+                .text(
+                        "<notification_action><add>[",
+                        Values.click("notification_action", ClickEvent.runCommand(command)))
+                .locale("words.open")
+                .text("]</notification_action>"));
+        sendMessage(plugin.getServer().getOfflinePlayer(recipient), message);
     }
 
     public void sendCompanyMessage(ICompanyProfile company, String message, TagResolver... replacements) {

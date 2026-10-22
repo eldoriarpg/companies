@@ -5,9 +5,14 @@
  */
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.commands.company.ApplicationsCommand;
+import de.eldoria.companies.commands.company.ApplyCommand;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Disband;
-import de.eldoria.companies.commands.company.Invite;
+import de.eldoria.companies.commands.company.InviteCommand;
+import de.eldoria.companies.commands.company.InvitesCommand;
+import de.eldoria.companies.commands.company.JoinCommand;
+import de.eldoria.companies.commands.company.JoinModeCommand;
 import de.eldoria.companies.commands.company.Kick;
 import de.eldoria.companies.commands.company.Leave;
 import de.eldoria.companies.commands.company.Permission;
@@ -42,7 +47,22 @@ final class CompanyCommand {
     final Create create;
 
     @Subcommand
-    final Invite invite;
+    final InviteCommand invite;
+
+    @Subcommand
+    final InvitesCommand invites;
+
+    @Subcommand
+    final JoinCommand join;
+
+    @Subcommand
+    final ApplyCommand apply;
+
+    @Subcommand
+    final ApplicationsCommand applications;
+
+    @Subcommand
+    final JoinModeCommand joinMode;
 
     @Subcommand
     final Kick kick;
@@ -80,11 +100,16 @@ final class CompanyCommand {
         member = new MemberCommand(deps, permission::show);
         profile = new ProfileCommand(deps, member, order::list);
         create = new Create(deps);
-        invite = new Invite(deps);
+        invite = new InviteCommand(deps);
+        invites = new InvitesCommand(deps);
+        join = new JoinCommand(deps);
+        apply = new ApplyCommand(deps);
+        applications = new ApplicationsCommand(deps);
+        joinMode = new JoinModeCommand(deps);
         kick = new Kick(deps);
-        leave = new Leave(deps);
-        transfer = new Transfer(deps);
         disband = new Disband(deps);
+        leave = new Leave(deps, disband::disband);
+        transfer = new Transfer(deps);
         top = new Top(deps, profile);
         rename = new Rename(deps);
         returns = new Returns(deps);

@@ -8,10 +8,13 @@ package de.eldoria.companies.data.repository;
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import de.eldoria.companies.data.wrapper.company.DetailsResult;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -67,18 +70,51 @@ public abstract class ACompanyData {
 
     protected abstract Optional<SimpleCompany> getCompanyById(int id);
 
-    public BukkitFutureResult<Integer> submitCompanyCreation(String name) {
-        return CompletableBukkitFuture.supplyAsync(() -> createCompany(name), executorService);
+    /**
+     * Creates a company without members.
+     *
+     * @param name     name of the company
+     * @param joinMode how players become members
+     * @return id of the new company
+     */
+    public BukkitFutureResult<Integer> submitCompanyCreation(String name, JoinMode joinMode) {
+        return CompletableBukkitFuture.supplyAsync(() -> createCompany(name, joinMode), executorService);
     }
 
-    protected abstract Integer createCompany(String name);
+    protected abstract Integer createCompany(String name, JoinMode joinMode);
+
+    /**
+     * Finds the company using a tag.
+     *
+     * @param tag tag in any case
+     * @return the company, or empty when no company uses the tag
+     */
+    public BukkitFutureResult<Optional<SimpleCompany>> retrieveCompanyByTag(String tag) {
+        return CompletableBukkitFuture.supplyAsync(() -> getCompanyByTag(tag), executorService);
+    }
+
+    protected abstract Optional<SimpleCompany> getCompanyByTag(String tag);
+
+    /**
+     * Saves description, tag, colour and join mode of a company in one step. The tag is stored in upper case; another
+     * company with the same tag makes the whole change fail.
+     *
+     * @param company company to change
+     * @param details new details
+     * @return the outcome
+     */
+    public BukkitFutureResult<DetailsResult> submitDetails(ISimpleCompany company, CompanyDetails details) {
+        return CompletableBukkitFuture.supplyAsync(() -> updateDetails(company, details), executorService);
+    }
+
+    protected abstract DetailsResult updateDetails(ISimpleCompany company, CompanyDetails details);
 
     public BukkitFutureResult<Boolean> submitCompanyPurge(SimpleCompany company) {
         return CompletableBukkitFuture.supplyAsync(() -> purgeCompany(company), executorService);
     }
 
     /**
-     * Deletes a company together with its members.
+     * Deletes a company together with its members, invites and applications.
      *
      * @param company company to delete
      * @return true if the company was deleted
