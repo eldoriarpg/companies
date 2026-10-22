@@ -59,11 +59,9 @@ public class Material extends AdvancedCommand implements IPlayerTabExecutor {
             return Completion.completeMaterial(arguments.join("_"), true);
         }
         if (Completion.isCommand(alias, "material_remove")) {
-            if (arguments.size() == 1) {
-                return Collections.emptyList();
-            }
-            var playerSearch = query.getPlayerSearch(player);
-            return Completion.complete(arguments.asString(1), playerSearch.materials());
+            return query.findPlayerSearch(player)
+                        .map(search -> Completion.complete(arguments.join("_"), search.materials()))
+                        .orElse(Collections.emptyList());
         }
         return Collections.emptyList();
     }

@@ -231,9 +231,16 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                        .sum();
     }
 
+    /**
+     * The delivered share of the ordered items.
+     *
+     * @return a value from 0 to 1, or 0 when nothing is ordered
+     */
     @Override
     public double progress() {
-        return amount() / (double) delivered();
+        var amount = amount();
+        if (amount == 0) return 0;
+        return delivered() / (double) amount;
     }
 
     @Override

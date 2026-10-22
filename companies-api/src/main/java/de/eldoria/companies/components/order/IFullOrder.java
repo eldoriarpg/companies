@@ -21,6 +21,11 @@ public interface IFullOrder extends ISimpleOrder {
 
     int delivered();
 
+    /**
+     * The delivered share of the ordered items.
+     *
+     * @return a value from 0 to 1, or 0 when nothing is ordered
+     */
     double progress();
 
     Optional<? extends IOrderContent> content(Material material);

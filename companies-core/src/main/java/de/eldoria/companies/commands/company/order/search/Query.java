@@ -30,6 +30,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class Query extends AdvancedCommand {
@@ -71,7 +72,17 @@ public class Query extends AdvancedCommand {
         return searches.computeIfAbsent(player.getUniqueId(), key -> new SearchQuery());
     }
 
-    public void reset(Player player) {
+    /**
+     * The current search of a player, without blocking the player's chat or creating a search.
+     *
+     * @param player player owning the search
+     * @return the search, or empty when the player has none
+     */
+    public Optional<SearchQuery> findPlayerSearch(Player player) {
+        return Optional.ofNullable(searches.get(player.getUniqueId()));
+    }
+
+        public void reset(Player player) {
         searches.put(player.getUniqueId(), new SearchQuery());
     }
 }
