@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
@@ -143,6 +144,7 @@ public final class CommandDependencies {
      * @param notificationService notifies players, online or later
      * @param disbandService      dissolves companies
      * @param updates             update checks and downloads
+     * @param deliveryService     delivers items to orders
      */
     public record Services(
             Economy economy,
@@ -151,5 +153,6 @@ public final class CommandDependencies {
             LevelService levelService,
             NotificationService notificationService,
             DisbandService disbandService,
-            Updates updates) {}
+            Updates updates,
+            DeliveryService deliveryService) {}
 }
