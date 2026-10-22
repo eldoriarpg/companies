@@ -45,7 +45,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
                               .text("<name>")
                               .localeCode("words.price")
                               .text(": <value>%s'>", economy.format(price()))
-                              .text(" <name>%s | <%s>%s", id(), Texts.escape(name()))
+                              .text(" <name>%s | <value>%s", id(), Texts.escape(name()))
                               .text("</hover>")
                               .space()
                               .text("<click:run_command:/order info %s><add>[", id())
