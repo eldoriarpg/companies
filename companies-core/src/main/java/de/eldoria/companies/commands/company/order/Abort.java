@@ -16,8 +16,8 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
-import de.eldoria.companies.util.Confirmations;
-import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuText;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -37,7 +37,7 @@ import java.util.logging.Level;
 public final class Abort {
     private final CommandDependencies deps;
     private final CompanyOrderViews views;
-    private final Confirmations<SimpleOrder> cancel = new Confirmations<>();
+    private final ConfirmFlow<SimpleOrder> aborts;
 
     /**
      * @param deps  what the commands need
@@ -46,6 +46,7 @@ public final class Abort {
     public Abort(CommandDependencies deps, CompanyOrderViews views) {
         this.deps = deps;
         this.views = views;
+        this.aborts = ConfirmFlow.create(deps.plugin(), this::abortConfirmed);
     }
 
     /**
@@ -57,7 +58,7 @@ public final class Abort {
     @Executes
     public void abort(CommandSender sender, @CompanyOrderIds int id) {
         var player = Senders.player(sender);
-        deps.requireReady();
+        var menus = deps.services().menus();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
@@ -70,16 +71,7 @@ public final class Abort {
                     if (order.isEmpty()) {
                         return;
                     }
-
-                    var composer = MessageComposer.create()
-                            .text("<neutral>")
-                            .localeCode("company.order.abort.confirm")
-                            .space()
-                            .text("<click:run_command:/company order abort confirm><remove>[")
-                            .localeCode("words.confirm")
-                            .text("]</click>");
-                    cancel.request(player.getUniqueId(), order.get());
-                    messages().sendMessage(player, composer);
+                    aborts.ask(menus, player, order.get(), MenuText.create().locale("company.order.abort.confirm"));
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -95,13 +87,12 @@ public final class Abort {
     @Executes("confirm")
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
+        deps.requireReady();
+        aborts.confirm(player);
+    }
+
+    private void abortConfirmed(Player player, SimpleOrder remove) {
         var itemReturnService = deps.services().itemReturnService();
-        var optRemove = cancel.confirm(player.getUniqueId());
-        if (optRemove.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var remove = optRemove.get();
 
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)

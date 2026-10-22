@@ -70,4 +70,38 @@ class ConfirmationsTest {
 
         assertEquals(Optional.of("second"), confirmations.confirm(PLAYER));
     }
+
+    @Test
+    void ticketConfirmsItsRequest() {
+        var ticket = confirmations.request(PLAYER, "name");
+
+        assertEquals(Optional.of("name"), confirmations.confirm(PLAYER, ticket));
+        assertTrue(confirmations.confirm(PLAYER, ticket).isEmpty());
+    }
+
+    @Test
+    void earlierTicketLeavesTheNewerRequestPending() {
+        var first = confirmations.request(PLAYER, "first");
+        confirmations.request(PLAYER, "second");
+
+        assertTrue(confirmations.confirm(PLAYER, first).isEmpty());
+        assertEquals(Optional.of("second"), confirmations.confirm(PLAYER));
+    }
+
+    @Test
+    void ticketExpiresAfterThirtySeconds() {
+        var ticket = confirmations.request(PLAYER, "name");
+        now = now.plus(Confirmations.VALIDITY);
+
+        assertTrue(confirmations.confirm(PLAYER, ticket).isEmpty());
+    }
+
+    @Test
+    void ticketOfAnotherPlayerDoesNotConfirm() {
+        var ticket = confirmations.request(OTHER, "other");
+        confirmations.request(PLAYER, "name");
+
+        assertTrue(confirmations.confirm(PLAYER, ticket).isEmpty());
+        assertTrue(confirmations.isPending(PLAYER));
+    }
 }

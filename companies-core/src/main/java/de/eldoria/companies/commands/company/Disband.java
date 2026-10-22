@@ -8,9 +8,8 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.services.DisbandService;
-import de.eldoria.companies.util.Confirmations;
-import de.eldoria.eldoutilities.localization.MessageComposer;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuText;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -26,13 +25,14 @@ import java.util.logging.Level;
 @PlayerOnly
 public final class Disband {
     private final CommandDependencies deps;
-    private final Confirmations<Integer> disbands = new Confirmations<>();
+    private final ConfirmFlow<Integer> disbands;
 
     /**
      * @param deps what the commands need
      */
     public Disband(CommandDependencies deps) {
         this.deps = deps;
+        this.disbands = ConfirmFlow.create(deps.plugin(), this::disband);
     }
 
     /**
@@ -43,7 +43,7 @@ public final class Disband {
     @Executes
     public void disband(CommandSender sender) {
         var player = Senders.player(sender);
-        deps.requireReady();
+        var menus = deps.services().menus();
         deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
             if (optProfile.isEmpty()) {
                 messages().sendErrorActionBar(player, "error.noMember");
@@ -54,15 +54,7 @@ public final class Disband {
                 messages().sendErrorActionBar(player, "error.noOwner");
                 return;
             }
-            disbands.request(player.getUniqueId(), profile.id());
-            var composer = MessageComposer.create()
-                    .text("<neutral>")
-                    .localeCode("company.disband.confirm")
-                    .space()
-                    .text("<click:run_command:/company disband confirm><remove>[")
-                    .localeCode("words.confirm")
-                    .text("]</click>");
-            messages().sendMessage(player, composer);
+            disbands.ask(menus, player, profile.id(), MenuText.create().locale("company.disband.confirm"));
         });
     }
 
@@ -74,13 +66,12 @@ public final class Disband {
     @Executes("confirm")
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
-        var disbandService = deps.services().disbandService();
-        disbands.confirm(player.getUniqueId())
-                .ifPresentOrElse(companyId -> disband(player, companyId, disbandService), () -> messages()
-                        .sendErrorActionBar(player, "error.confirmationExpired"));
+        deps.requireReady();
+        disbands.confirm(player);
     }
 
-    private void disband(Player player, int companyId, DisbandService disbandService) {
+    private void disband(Player player, int companyId) {
+        var disbandService = deps.services().disbandService();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()

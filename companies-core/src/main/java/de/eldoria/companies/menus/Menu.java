@@ -51,4 +51,14 @@ public interface Menu<M> {
     default Duration lifetime() {
         return MenuActions.DEFAULT_LIFETIME;
     }
+
+    /**
+     * Whether the chat rendering holds the chat. A short prompt, such as a confirmation, is sent as one line instead,
+     * so the chat stays usable when it is not answered.
+     *
+     * @return true when the chat is held while the menu is shown
+     */
+    default boolean holdsChat() {
+        return true;
+    }
 }

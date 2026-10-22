@@ -11,7 +11,9 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.util.Confirmations;
+import de.eldoria.companies.menus.ConfirmFlow;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Permission.Company;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
@@ -38,13 +40,14 @@ import java.util.logging.Level;
 public final class Create {
     public static final int MAX_NAME_LENGTH = 32;
     private final CommandDependencies deps;
-    private final Confirmations<String> registrations = new Confirmations<>();
+    private final ConfirmFlow<String> registrations;
 
     /**
      * @param deps what the commands need
      */
     public Create(CommandDependencies deps) {
         this.deps = deps;
+        this.registrations = ConfirmFlow.create(deps.plugin(), this::found);
     }
 
     /**
@@ -57,20 +60,17 @@ public final class Create {
     public void create(CommandSender sender, @StringArg(StringArgType.GREEDY) String name) {
         var player = Senders.player(sender);
         var economy = deps.services().economy();
+        var menus = deps.services().menus();
         Checks.shorterThan(name, MAX_NAME_LENGTH);
 
-        deps.companyData().retrievePlayerCompany(player).whenComplete(current -> {
-            if (current.isPresent()) {
-                messages().sendErrorActionBar(player, "error.alreadyMember");
-                return;
-            }
-            deps.companyData().retrieveCompanyByName(name).whenComplete(company -> {
-                if (company.isPresent()) {
-                    messages().sendErrorActionBar(player, "error.companyNameUsed");
-                    return;
-                }
-                requestConfirmation(player, name, economy);
-            });
+        checkFree(player, name, () -> {
+            var price = deps.configuration().companySettings().foundingPrice();
+            var question = MenuText.create()
+                    .locale(
+                            "company.create.create",
+                            Values.money("amount", economy, price),
+                            Values.text("company_name", name));
+            registrations.ask(menus, player, name, question);
         });
     }
 
@@ -82,27 +82,8 @@ public final class Create {
     @Executes("confirm")
     public void confirm(CommandSender sender) {
         var player = Senders.player(sender);
-        var economy = deps.services().economy();
-        var optName = registrations.confirm(player.getUniqueId());
-        if (optName.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.confirmationExpired");
-            return;
-        }
-        var name = optName.get();
-
-        deps.companyData().retrievePlayerCompany(player).whenComplete(current -> {
-            if (current.isPresent()) {
-                messages().sendErrorActionBar(player, "error.alreadyMember");
-                return;
-            }
-            deps.companyData().retrieveCompanyByName(name).whenComplete(company -> {
-                if (company.isPresent()) {
-                    messages().sendErrorActionBar(player, "error.companyNameUsed");
-                    return;
-                }
-                foundCompany(player, name, economy);
-            });
-        });
+        deps.requireReady();
+        registrations.confirm(player);
     }
 
     /**
@@ -114,33 +95,28 @@ public final class Create {
     public void deny(CommandSender sender) {
         var player = Senders.player(sender);
         deps.requireReady();
-        registrations.confirm(player.getUniqueId());
-        messages().sendMessage(player, "words.canceled");
+        registrations.cancel(player);
     }
 
-    private void requestConfirmation(Player player, String name, Economy economy) {
-        var composer = MessageComposer.create()
-                .text("<neutral>")
-                .localeCode(
-                        "company.create.create",
-                        Replacement.create(
-                                "amount",
-                                String.format(
-                                        "%s",
-                                        economy.format(deps.configuration()
-                                                .companySettings()
-                                                .foundingPrice()))),
-                        Replacement.unparsed("name", name))
-                .newLine()
-                .text("<click:run_command:/company create confirm><add>[")
-                .localeCode("words.confirm")
-                .text("]</click>")
-                .space()
-                .text("<click:run_command:/company create deny><remove>[")
-                .localeCode("words.deny")
-                .text("]</click>");
-        messages().sendMessage(player, composer);
-        registrations.request(player.getUniqueId(), name);
+    private void found(Player player, String name) {
+        var economy = deps.services().economy();
+        checkFree(player, name, () -> foundCompany(player, name, economy));
+    }
+
+    private void checkFree(Player player, String name, Runnable free) {
+        deps.companyData().retrievePlayerCompany(player).whenComplete(current -> {
+            if (current.isPresent()) {
+                messages().sendErrorActionBar(player, "error.alreadyMember");
+                return;
+            }
+            deps.companyData().retrieveCompanyByName(name).whenComplete(company -> {
+                if (company.isPresent()) {
+                    messages().sendErrorActionBar(player, "error.companyNameUsed");
+                    return;
+                }
+                free.run();
+            });
+        });
     }
 
     private void foundCompany(Player player, String name, Economy economy) {
