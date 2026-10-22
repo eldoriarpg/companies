@@ -28,21 +28,31 @@ import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANotificationData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNotificationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNotificationData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNotificationData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -91,6 +101,7 @@ public class Companies extends EldoPlugin {
     private ACompanyData companyData;
     private AOrderData orderData;
     private ANotificationData notificationData;
+    private InformationData information;
     private ANodeData nodeData;
     private AMembershipData membershipData;
     private Updates updates;
@@ -140,8 +151,8 @@ public class Companies extends EldoPlugin {
      * them the services built on the economy.
      */
     private void registerCommands() {
-        var dependencies =
-                new CommandDependencies(this, configuration, companyData, orderData, nodeData, membershipData);
+        var dependencies = new CommandDependencies(
+                this, configuration, companyData, orderData, nodeData, membershipData, information);
         commands = dependencies;
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
         SuggestionSources.use(new SuggestionSources(
@@ -207,7 +218,7 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, economy, configuration),
+                    new DeliveryService(this, orderData, information.stats(), economy, configuration),
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService));
@@ -306,22 +317,34 @@ public class Companies extends EldoPlugin {
         switch (configuration.databaseSettings().storageType()) {
             case SQLITE -> {
                 companyData = new SqLiteCompanyData(workerPool);
-                orderData = new SqLiteOrderData(workerPool, mapper);
                 notificationData = new SqLiteNotificationData(workerPool);
+                orderData = new SqLiteOrderData(workerPool, mapper);
+                information = new InformationData(
+                        new SqLiteInboxData(Threading.VIRTUAL),
+                        new SqLiteStatsData(Threading.VIRTUAL),
+                        new SqLiteHistoryData(mapper, Threading.VIRTUAL));
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
                 membershipData = new SqLiteMembershipData(workerPool);
             }
             case MARIADB -> {
                 companyData = new MariaDbCompanyData(workerPool);
-                orderData = new MariaDbOrderData(mapper);
                 notificationData = new MariaDbNotificationData(workerPool);
+                orderData = new MariaDbOrderData(mapper);
+                information = new InformationData(
+                        new MariaDbInboxData(Threading.VIRTUAL),
+                        new MariaDbStatsData(Threading.VIRTUAL),
+                        new MariaDbHistoryData(mapper, Threading.VIRTUAL));
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 membershipData = new MariaDbMembershipData(workerPool);
             }
             case POSTGRES -> {
                 companyData = new PostgresCompanyData(workerPool);
-                orderData = new PostgresOrderData(workerPool, mapper);
                 notificationData = new PostgresNotificationData(workerPool);
+                orderData = new PostgresOrderData(workerPool, mapper);
+                information = new InformationData(
+                        new PostgresInboxData(Threading.VIRTUAL),
+                        new PostgresStatsData(Threading.VIRTUAL),
+                        new PostgresHistoryData(mapper, Threading.VIRTUAL));
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
                 membershipData = new PostgresMembershipData(workerPool);
             }

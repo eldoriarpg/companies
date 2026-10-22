@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.menus.company;
 
-import de.eldoria.companies.commands.company.TopOrder;
+import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.Menu;

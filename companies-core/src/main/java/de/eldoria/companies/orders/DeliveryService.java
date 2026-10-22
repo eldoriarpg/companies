@@ -8,9 +8,11 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.util.Inventories;
@@ -22,11 +24,13 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -36,11 +40,13 @@ import java.util.logging.Level;
  * A delivery takes the matching items on the main thread, records them as delivered stacks in one transaction that
  * caps every line at what it still misses, and hands the surplus of every part back with that part's own item: into
  * the inventory, dropped when it is full, or into the item returns when the worker went offline. When the order is
- * complete afterwards, it is marked delivered and the workers are paid.
+ * complete afterwards, it is marked delivered, the workers are paid and every payout is written to the payout
+ * ledger.
  */
 public final class DeliveryService {
     private final Plugin plugin;
     private final AOrderData orderData;
+    private final AStatsData statsData;
     private final Economy economy;
     private final Configuration configuration;
     private final Collector collector;
@@ -49,12 +55,15 @@ public final class DeliveryService {
     /**
      * @param plugin        the plugin
      * @param orderData     order repository
+     * @param statsData     payout ledger
      * @param economy       economy paying the workers
      * @param configuration configuration of the plugin
      */
-    public DeliveryService(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration) {
+    public DeliveryService(
+            Plugin plugin, AOrderData orderData, AStatsData statsData, Economy economy, Configuration configuration) {
         this.plugin = plugin;
         this.orderData = orderData;
+        this.statsData = statsData;
         this.economy = economy;
         this.configuration = configuration;
         this.collector = new Collector(plugin, economy, configuration);
@@ -218,26 +227,80 @@ public final class DeliveryService {
     /**
      * Pays the workers of a delivered order their share minus the tax of the company's level.
      * <p>
-     * The fee of the order and the tax of every payout that is not cancelled go to the collector.
+     * The fee of the order and the tax of every payout that is not cancelled go to the collector. Every payout is
+     * written to the ledger, a cancelled one as not paid.
      *
      * @param order   delivered order
      * @param company company which delivered the order
      */
     private void pay(FullOrder order, CompanyProfile company) {
         var taxPercent = configuration.companySettings().taxPercent(company.level());
+        var completed = LocalDateTime.now();
+        var items = itemsByWorker(order);
         Map<OfflinePlayer, Double> payments = new HashMap<>();
+        List<PayoutRecord> ledger = new ArrayList<>();
         var collected = BigDecimal.valueOf(order.fee());
         for (var entry : order.payments(PaymentType.STACK).entrySet()) {
             var player = plugin.getServer().getOfflinePlayer(entry.getKey());
             var payout = Payout.split(entry.getValue(), taxPercent);
             var event = new OrderPaymentEvent(order, player, payout.net(), payout.gross(), payout.tax());
             plugin.getServer().getPluginManager().callEvent(event);
+            ledger.add(payoutRecord(
+                    order,
+                    company.id(),
+                    entry.getKey(),
+                    items.getOrDefault(entry.getKey(), 0),
+                    payout,
+                    !event.isCancelled(),
+                    completed));
             if (event.isCancelled()) continue;
             payments.put(player, payout.net());
             collected = collected.add(BigDecimal.valueOf(payout.tax()));
         }
         Threading.mainThread(plugin).execute(() -> payments.forEach(economy::depositPlayer));
         collector.collect(collected.doubleValue());
+        statsData.submitPayouts(ledger).exceptionally(err -> {
+            plugin.getLogger().log(Level.SEVERE, "Could not write the payouts of order " + order.id(), err);
+            return false;
+        });
+    }
+
+    /**
+     * The items every worker delivered to an order.
+     *
+     * @param order order
+     * @return delivered items by worker
+     */
+    static Map<UUID, Integer> itemsByWorker(FullOrder order) {
+        Map<UUID, Integer> items = new HashMap<>();
+        for (var content : order.contents()) {
+            content.workerAmount().forEach((worker, amount) -> items.merge(worker, amount, Integer::sum));
+        }
+        return items;
+    }
+
+    /**
+     * The ledger record of one payout.
+     *
+     * @param order     completed order
+     * @param company   id of the company that completed it
+     * @param worker    paid worker
+     * @param items     items the worker delivered
+     * @param payout    the worker's share split into tax and net
+     * @param paid      false when the payment was cancelled
+     * @param completed when the order was completed
+     * @return record
+     */
+    static PayoutRecord payoutRecord(
+            FullOrder order,
+            int company,
+            UUID worker,
+            int items,
+            Payout payout,
+            boolean paid,
+            LocalDateTime completed) {
+        return new PayoutRecord(
+                order.id(), company, worker, items, payout.gross(), payout.tax(), payout.net(), paid, completed);
     }
 
     private record CachedMatcher(ItemMatchSettings settings, ItemMatcher matcher) {}

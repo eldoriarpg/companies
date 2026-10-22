@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.OrderDraftService;
@@ -43,6 +44,7 @@ public final class CommandDependencies {
     private final AOrderData orderData;
     private final ANodeData nodeData;
     private final AMembershipData membershipData;
+    private final InformationData information;
     private final OrderDraftService drafts;
     private final SearchSessions searches = new SearchSessions();
     private volatile Optional<Services> services = Optional.empty();
@@ -54,6 +56,7 @@ public final class CommandDependencies {
      * @param orderData     order repository
      * @param nodeData       node repository
      * @param membershipData invite and application repository
+     * @param information    inbox, payout ledger and history repositories
      */
     public CommandDependencies(
             Plugin plugin,
@@ -61,13 +64,15 @@ public final class CommandDependencies {
             ACompanyData companyData,
             AOrderData orderData,
             ANodeData nodeData,
-            AMembershipData membershipData) {
+            AMembershipData membershipData,
+            InformationData information) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.companyData = companyData;
         this.orderData = orderData;
         this.nodeData = nodeData;
         this.membershipData = membershipData;
+        this.information = information;
         this.drafts = new OrderDraftService(plugin, orderData, configuration);
     }
 
@@ -144,6 +149,13 @@ public final class CommandDependencies {
      */
     public AMembershipData membershipData() {
         return membershipData;
+    }
+
+    /**
+     * @return inbox, payout ledger and history repositories
+     */
+    public InformationData information() {
+        return information;
     }
 
     /**

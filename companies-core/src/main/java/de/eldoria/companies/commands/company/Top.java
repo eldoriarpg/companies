@@ -11,13 +11,18 @@ import de.eldoria.companies.commands.suggest.TopOrderings;
 import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.components.ranking.TimeRange;
+import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.menus.company.TopMenu;
 import de.eldoria.companies.menus.company.TopView;
+import de.eldoria.companies.util.Threading;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.IntArg;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.time.LocalDateTime;
 
 /**
  * {@code /company top [page] [ordering]}: the ranking of all companies, one page at a time.
@@ -85,7 +90,11 @@ public final class Top {
                 profiles.id(viewer, company);
             }
         });
-        deps.companyData().retrieveRanking(ordering, page, PAGE_SIZE).whenComplete(ranks -> services.menus()
-                .show(player, menu, TopView.of(ordering, page, ranks, PAGE_SIZE)));
+        deps.information()
+                .stats()
+                .retrieveRanking(ordering, TimeRange.ALL, LocalDateTime.now(), page, PAGE_SIZE)
+                .thenAcceptAsync(
+                        ranks -> services.menus().show(player, menu, TopView.of(ordering, page, ranks, PAGE_SIZE)),
+                        Threading.mainThread(deps.plugin()));
     }
 }

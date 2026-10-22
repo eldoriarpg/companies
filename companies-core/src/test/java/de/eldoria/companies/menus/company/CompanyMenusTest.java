@@ -5,9 +5,9 @@
  */
 package de.eldoria.companies.menus.company;
 
-import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
@@ -190,7 +190,7 @@ class CompanyMenusTest {
     @Test
     void theRankingSwitchesOrderingsAndPagesThroughCallbacks() {
         List<CompanyRank> ranks = new ArrayList<>();
-        for (var i = 1; i <= 3; i++) ranks.add(new CompanyRank(i, i, HOSTILE, FOUNDED, i, i, i, i));
+        for (var i = 1; i <= 3; i++) ranks.add(new CompanyRank(i, i, HOSTILE, FOUNDED, i, i, i, i, 1, null, null));
         var view = TopView.of(TopOrder.EARNED, 2, ranks, 3);
 
         var text = new TopMenu(messages, economy(), new NoNavigation()).chat(owner, view, actions);

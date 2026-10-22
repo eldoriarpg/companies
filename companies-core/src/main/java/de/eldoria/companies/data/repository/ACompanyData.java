@@ -6,13 +6,11 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.mapper.wrapper.Row;
-import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.DetailsResult;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
@@ -114,7 +112,7 @@ public abstract class ACompanyData {
     }
 
     /**
-     * Deletes a company together with its members, invites and applications.
+     * Deletes a company together with its members, invites, applications and payout records.
      *
      * @param company company to delete
      * @return true if the company was deleted
@@ -138,12 +136,6 @@ public abstract class ACompanyData {
     }
 
     public abstract void upcountFailedOrders(ISimpleCompany company, int amount);
-
-    public FutureResult<List<CompanyRank>> retrieveRanking(TopOrder order, int page, int pageSize) {
-        return CompletableBukkitFuture.supplyAsync(() -> getRanking(order, page, pageSize));
-    }
-
-    protected abstract List<CompanyRank> getRanking(TopOrder order, int page, int pageSize);
 
     public FutureResult<Boolean> updateCompanyName(SimpleCompany company, String name) {
         return CompletableBukkitFuture.supplyAsync(() -> setCompanyName(company, name), executorService);

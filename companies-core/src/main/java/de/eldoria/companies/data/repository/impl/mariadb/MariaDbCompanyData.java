@@ -8,7 +8,6 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
-import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.JoinMode;
@@ -17,7 +16,6 @@ import de.eldoria.companies.data.repository.ConstraintViolations;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.DetailsResult;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
@@ -260,6 +258,9 @@ public class MariaDbCompanyData extends ACompanyData {
         var deleteApplications = """
                 DELETE FROM company_applications WHERE company_id = ?""";
         @Language("mariadb")
+        var deletePayouts = """
+                DELETE FROM order_payouts WHERE company_id = ?""";
+        @Language("mariadb")
         var deleteCompany = """
                 DELETE FROM companies WHERE id = ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
@@ -268,6 +269,7 @@ public class MariaDbCompanyData extends ACompanyData {
             conf.query(deleteStats).single(call().bind(company.id())).delete();
             conf.query(deleteInvites).single(call().bind(company.id())).delete();
             conf.query(deleteApplications).single(call().bind(company.id())).delete();
+            conf.query(deletePayouts).single(call().bind(company.id())).delete();
             conf.query(deleteCompany).single(call().bind(company.id())).delete();
         }
         return conf.context().exceptions().isEmpty();
@@ -312,27 +314,6 @@ public class MariaDbCompanyData extends ACompanyData {
                 VALUES (?, ?)
                 ON DUPLICATE KEY UPDATE failed_orders = failed_orders + VALUES(failed_orders)""";
         query(query).single(call().bind(company.id()).bind(amount)).update();
-    }
-
-    @Override
-    protected List<CompanyRank> getRanking(TopOrder order, int page, int pageSize) {
-        @Language("mariadb")
-        var query = """
-                SELECT ROW_NUMBER() OVER (ORDER BY %s) AS comp_rank,
-                       id,
-                       name,
-                       founded,
-                       member_count,
-                       order_count,
-                       price,
-                       amount
-                FROM company_stats_view
-                ORDER BY comp_rank
-                LIMIT ? OFFSET ?""";
-        return query(query, order.orderColumn())
-                .single(call().bind(pageSize).bind((page - 1) * pageSize))
-                .map(rs -> parseCompanyStats(rs).toRank(rs.getInt("comp_rank")))
-                .all();
     }
 
     @Override

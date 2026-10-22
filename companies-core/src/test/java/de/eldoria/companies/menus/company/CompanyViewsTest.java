@@ -5,9 +5,9 @@
  */
 package de.eldoria.companies.menus.company;
 
-import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
@@ -211,7 +211,7 @@ class CompanyViewsTest {
 
     @Test
     void aFullRankingPageMayHaveASuccessor() {
-        var rank = new CompanyRank(1, 7, "Acme", FOUNDED, 1, 1, 1, 1);
+        var rank = new CompanyRank(1, 7, "Acme", FOUNDED, 1, 1, 1, 1, 1, null, null);
 
         assertTrue(TopView.of(TopOrder.ORDERS, 1, List.of(rank, rank), 2).hasNext());
         assertFalse(TopView.of(TopOrder.ORDERS, 1, List.of(rank), 2).hasNext());
