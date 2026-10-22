@@ -18,7 +18,11 @@ public enum CompanyPermission implements Translatable {
     INVITE(1),
     KICK(2),
     MANAGE_ORDERS(3),
-    MANAGE_PERMISSIONS(4);
+    MANAGE_PERMISSIONS(4),
+    /**
+     * Allows changing the description, tag, colour and join mode of the company.
+     */
+    EDIT_PROFILE(5);
 
     private final long mask;
     private final int rawMask;
