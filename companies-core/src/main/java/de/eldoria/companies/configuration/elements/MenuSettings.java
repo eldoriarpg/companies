@@ -12,7 +12,8 @@ import de.eldoria.companies.menus.MenuMode;
 /**
  * How menus are shown, written as a single value: {@code menus: CHAT} or {@code menus: DIALOG}.
  * <p>
- * Chat is the default while not every menu has a dialog. Clients older than 1.21.6 always see chat menus.
+ * New installations show dialogs, see {@link de.eldoria.companies.configuration.ConfigFile#fresh()}. A missing or
+ * empty value means chat. Clients older than 1.21.6 always see chat menus.
  */
 public final class MenuSettings {
     private final MenuMode mode;
