@@ -228,26 +228,26 @@ public class Companies extends EldoPlugin {
         var mapper = configuration.configureDefault(JsonMapper.builder());
         switch (configuration.databaseSettings()
                              .storageType()) {
-            case SQLITE:
+            case SQLITE -> {
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
                 notificationData = new SqLiteNotificationData(workerPool);
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
-                break;
-            case MARIADB:
+            }
+            case MARIADB -> {
                 companyData = new MariaDbCompanyData(workerPool);
                 orderData = new MariaDbOrderData(mapper);
                 notificationData = new MariaDbNotificationData(workerPool);
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
-                break;
-            case POSTGRES:
+            }
+            case POSTGRES -> {
                 companyData = new PostgresCompanyData(workerPool);
                 orderData = new PostgresOrderData(workerPool, mapper);
                 notificationData = new PostgresNotificationData(workerPool);
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
-            default:
-                throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
-                                                                                    .storageType());
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + configuration.databaseSettings()
+                                                                                          .storageType());
         }
     }
 
