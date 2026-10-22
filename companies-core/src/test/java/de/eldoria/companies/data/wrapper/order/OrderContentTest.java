@@ -72,4 +72,17 @@ class OrderContentTest {
         Assertions.assertTrue(order(content(10, 1.0, new ContentPart(first, 10))).isDone());
         Assertions.assertTrue(order(content(10, 1.0, new ContentPart(first, 6), new ContentPart(second, 6))).isDone());
     }
+
+    @Test
+    void progressIsTheDeliveredShare() {
+        Assertions.assertEquals(0.0, order(content(10, 1.0)).progress(), 0.0001);
+        Assertions.assertEquals(0.25, order(content(10, 1.0, new ContentPart(first, 2)), content(10, 1.0, new ContentPart(second, 3))).progress(), 0.0001);
+        Assertions.assertEquals(1.0, order(content(10, 1.0, new ContentPart(first, 10))).progress(), 0.0001);
+    }
+
+    @Test
+    void progressOfAnEmptyOrderIsZero() {
+        Assertions.assertEquals(0.0, order().progress());
+        Assertions.assertEquals(0.0, order(content(0, 1.0)).progress());
+    }
 }

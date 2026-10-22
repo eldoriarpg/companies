@@ -24,7 +24,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
-import de.eldoria.eldoutilities.scheduling.DelayedActions;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -37,19 +36,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
+    private static final long TICKS_PER_SECOND = 20;
     private final ACompanyData companyData;
     private final Map<UUID, InviteData> invites = new ConcurrentHashMap<>();
-    private final DelayedActions delayedActions;
     private final Configuration configuration;
 
     public Invite(Plugin plugin, ACompanyData companyData, Configuration configuration) {
         super(plugin, CommandMeta.builder("invite")
                 .addArgument("words.name", true)
                 .build());
-        delayedActions = DelayedActions.start(plugin);
         this.companyData = companyData;
         this.configuration = configuration;
     }
@@ -176,15 +175,19 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
                                               Replacement.create("name", String.format("<heading>%s<neutral>", Texts.escape(company.name()))))
                                       .newLine()
                                       .text("<click:run_command:/company invite accept><add>[")
-                                      .localeCode("accept")
+                                      .localeCode("words.accept")
                                       .text("]</click>")
+                                      .space()
                                       .text("<click:run_command:/company invite deny><remove>[")
-                                      .localeCode("deny")
+                                      .localeCode("words.deny")
                                       .text("]</click>");
         messageSender().sendMessage(target, composer);
-        var invite = new InviteData(company, inviter.getUniqueId());
+        var invite = new InviteData(company, inviter.getUniqueId(), target.getName());
         invites.put(target.getUniqueId(), invite);
-        delayedActions.schedule(() -> expiredInvite(target.getUniqueId(), invite), 600);
+        var lifetime = TimeUnit.HOURS.toSeconds(configuration.companySettings().inviteHours()) * TICKS_PER_SECOND;
+        plugin().getServer()
+                .getScheduler()
+                .runTaskLater(plugin(), () -> expiredInvite(target.getUniqueId(), invite), lifetime);
     }
 
     private void handleInviteAccept(Player player, InviteData data, OfflinePlayer inviter, Optional<CompanyProfile> profile) {
@@ -221,15 +224,17 @@ public class Invite extends AdvancedCommand implements IPlayerTabExecutor {
         var target = plugin().getServer()
                              .getPlayer(uuid);
         if (target != null) {
-            messageSender().sendMessage(target, "company.invite.expired");
+            messageSender().sendMessage(target, "company.invite.expiredTarget",
+                    Replacement.unparsed("name", data.company.name()));
         }
         var inviter = plugin().getServer()
                               .getPlayer(data.inviter);
         if (inviter != null) {
-            messageSender().sendMessage(inviter, "company.invite.expired");
+            messageSender().sendMessage(inviter, "company.invite.expiredInviter",
+                    Replacement.unparsed("name", data.targetName));
         }
     }
 
-    private record InviteData(SimpleCompany company, UUID inviter) {
+    private record InviteData(SimpleCompany company, UUID inviter, String targetName) {
     }
 }

@@ -1,3 +1,5 @@
+import net.minecrell.pluginyml.bukkit.BukkitPluginDescription.Permission.Default
+
 plugins {
     id("companies.publishing-conventions")
     id("de.chojo.publishdata.manifest")
@@ -117,11 +119,12 @@ bukkit {
         }
 
         register("companies.orders.*") {
-            description = "Gives full access to orders. Does not override the order limit"
+            description = "Gives full access to orders. Does not raise the order limit, use companies.orders.limit.<n> for that"
             children = listOf("companies.orders.create")
         }
         register("companies.orders.create") {
-            description = "Allows creation of orders"
+            description = "Allows creation of orders, up to maxOrders in user.yml or the highest companies.orders.limit.<n>"
+            default = Default.TRUE
         }
 
         register("companies.company.*") {
@@ -130,9 +133,11 @@ bukkit {
         }
         register("companies.company.create") {
             description = "Allows creation of a company"
+            default = Default.TRUE
         }
         register("companies.company.join") {
             description = "Allows joining a company"
+            default = Default.TRUE
         }
 
         register("companies.admin.*") {

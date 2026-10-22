@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.util.Confirmations;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
 import de.eldoria.eldoutilities.commands.command.util.Arguments;
@@ -24,16 +25,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     private final ACompanyData companyData;
     private final AOrderData orderData;
-    private final Map<UUID, SimpleOrder> cancel = new ConcurrentHashMap<>();
+    private final Confirmations<SimpleOrder> cancel = new Confirmations<>();
     private final List list;
     private final ItemReturnService itemReturnService;
 
@@ -73,10 +71,11 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
                        var composer = MessageComposer.create()
                                                      .text("<neutral>")
                                                      .localeCode("company.order.abort.confirm")
+                                                     .space()
                                                      .text("<click:run_command:/company order abort confirm><remove>[")
                                                      .localeCode("words.confirm")
                                                      .text("]</click>");
-                       cancel.put(player.getUniqueId(), order.get());
+                       cancel.request(player.getUniqueId(), order.get());
                        messageSender().sendMessage(player, composer);
                    })
                    .exceptionally(err -> {
@@ -88,11 +87,12 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void confirm(@NotNull Player player) {
-        var remove = cancel.remove(player.getUniqueId());
-        if (remove == null) {
-            messageSender().sendErrorActionBar(player, "error.noConfirm");
+        var optRemove = cancel.confirm(player.getUniqueId());
+        if (optRemove.isEmpty()) {
+            messageSender().sendErrorActionBar(player, "error.confirmationExpired");
             return;
         }
+        var remove = optRemove.get();
 
         companyData.retrievePlayerCompanyProfile(player)
                    .asFuture()
@@ -138,7 +138,7 @@ public class Abort extends AdvancedCommand implements IPlayerTabExecutor {
         var optOrder = orderData.retrieveOrderById(id)
                                 .join();
         if (optOrder.isEmpty()) {
-            messageSender().sendErrorActionBar(player, "error.unkownOrder");
+            messageSender().sendErrorActionBar(player, "error.unknownOrder");
             return Optional.empty();
         }
 

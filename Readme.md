@@ -48,6 +48,26 @@ The plugin is plug & play. However, you can do several configurations.
 * [PAPI](https://www.spigotmc.org/resources/6245/) for Placeholders
 * [ProtocolLib](https://www.spigotmc.org/resources/1997/) for the best experience with the text UIs. **This is highly recommended.**
 
+## Permissions
+
+| Permission                       | Default | Description                                                                    |
+|----------------------------------|---------|--------------------------------------------------------------------------------|
+| `companies.orders.create`        | all     | Create orders                                                                  |
+| `companies.orders.limit.<n>`     | none    | Raise or lower the order limit to `n` active orders. The highest number counts |
+| `companies.company.create`       | all     | Found a company                                                                |
+| `companies.company.join`         | all     | Be invited to and join a company                                               |
+| `companies.updates`              | op      | Hear about new versions on join and download them                              |
+| `companies.admin`                | op      | Use `/companyadmin` and create debug reports                                   |
+| `companies.admin.calcLevel`      | op      | Recalculate company levels                                                     |
+| `companies.admin.delete`         | op      | Delete companies                                                               |
+| `companies.admin.level`          | op      | Manage the company levels                                                      |
+| `companies.admin.reload`         | op      | Reload the configuration                                                       |
+| `companies.admin.rename`         | op      | Rename companies                                                               |
+| `companies.admin.transferOwner`  | op      | Transfer the ownership of a company                                            |
+
+`companies.orders.*`, `companies.company.*`, `companies.admin.*` and `companies.*` grant the permissions below them.
+Without a `companies.orders.limit.<n>` permission a player may have `maxOrders` active orders, as set in `user.yml`.
+
 ## Configuration
 A detailed guide on the configuration can be found at the [wiki](https://github.com/eldoriarpg/companies/wiki/Configuration)
 

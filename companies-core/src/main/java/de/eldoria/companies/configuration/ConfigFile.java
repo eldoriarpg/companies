@@ -9,13 +9,19 @@ import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 
 @SuppressWarnings({"FieldMayBeFinal", "CanBeFinal"})
 public class ConfigFile {
     private GeneralSettings generalSettings = new GeneralSettings();
+    private StyleSettings style = new StyleSettings();
 
     public GeneralSettings generalSettings() {
         return generalSettings;
+    }
+
+    public StyleSettings style() {
+        return style;
     }
 }

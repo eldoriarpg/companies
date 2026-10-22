@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.services;
 
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
@@ -22,12 +23,17 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
+/**
+ * Releases claimed orders after their deadline, purges orders nobody claimed and warns company members on join about
+ * claimed orders that are about to expire.
+ */
 public class ExpiringService implements Runnable, Listener {
     private final Plugin plugin;
     private final AOrderData orderData;
@@ -37,8 +43,8 @@ public class ExpiringService implements Runnable, Listener {
     private final ItemReturnService itemReturnService;
     private final Economy economy;
 
-    private ExpiringService(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
-                            ItemReturnService itemReturnService, Economy economy) {
+    public ExpiringService(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
+                           ItemReturnService itemReturnService, Economy economy) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
@@ -48,29 +54,50 @@ public class ExpiringService implements Runnable, Listener {
         this.economy = economy;
     }
 
-    public static void start(Plugin plugin, AOrderData orderData, ACompanyData companyData, Configuration configuration,
-                             ScheduledExecutorService executorService, ItemReturnService itemReturnService, Economy economy) {
-        var expiringService = new ExpiringService(plugin, orderData, companyData, configuration, itemReturnService, economy);
+    /**
+     * Decides whether a claimed order is inside the warning window before its deadline.
+     *
+     * @param claimed       when the order was claimed
+     * @param now           the current time
+     * @param deliveryHours hours a company has to deliver a claimed order
+     * @param warningHours  hours before the deadline in which members are warned
+     * @return true when the deadline is less than {@code warningHours} away and not yet reached
+     */
+    public static boolean expiresSoon(LocalDateTime claimed, LocalDateTime now, int deliveryHours, int warningHours) {
+        if (claimed == null) return false;
+        var deadline = claimed.plusHours(deliveryHours);
+        return now.isBefore(deadline) && !now.isBefore(deadline.minusHours(warningHours));
+    }
+
+    /**
+     * Starts releasing expired and purging dead orders. Only the primary node does this.
+     *
+     * @param executorService executor that runs the periodic check
+     */
+    public void start(ScheduledExecutorService executorService) {
         var interval = configuration.generalSettings().orderCheckInterval();
-        executorService.scheduleAtFixedRate(expiringService, 10L, interval, TimeUnit.MINUTES);
+        executorService.scheduleAtFixedRate(this, 10L, interval, TimeUnit.MINUTES);
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        var hours = configuration.companySettings()
-                                 .deliveryHours();
-        companyData.retrievePlayerCompany(event.getPlayer())
-                   .whenComplete(optCompand -> {
-                       if (optCompand.isEmpty()) return;
-                       orderData.retrieveExpiredOrders(hours + hours / 2)
-                                .whenComplete((simpleOrders, throwable) -> {
-                                    if (simpleOrders == null || simpleOrders.isEmpty()) return;
-                                    reportOrderExpiring(event.getPlayer(), simpleOrders);
-                                });
-                   });
+        var player = event.getPlayer();
+        companyData.retrievePlayerCompany(player)
+                   .whenComplete(optCompany -> optCompany.ifPresent(company ->
+                           orderData.retrieveOrdersByCompany(company, OrderState.CLAIMED, OrderState.CLAIMED)
+                                    .whenComplete(orders -> reportOrderExpiring(player, expiringOrders(orders)))));
+    }
+
+    private List<SimpleOrder> expiringOrders(List<SimpleOrder> orders) {
+        var settings = configuration.companySettings();
+        var now = LocalDateTime.now();
+        return orders.stream()
+                     .filter(order -> expiresSoon(order.claimed(), now, settings.deliveryHours(), settings.expiryWarningHours()))
+                     .toList();
     }
 
     private void reportOrderExpiring(Player player, List<SimpleOrder> orders) {
+        if (orders.isEmpty() || !player.isOnline()) return;
         var composer = MessageComposer.create()
                                       .localeCode("expiring.notice")
                                       .newLine();
@@ -78,7 +105,7 @@ public class ExpiringService implements Runnable, Listener {
             composer.localeCode("expiring.element",
                             Replacement.unparsed("name", order.fullName()), Replacement.create("duration", order.runningOutTime(configuration)))
                     .text("<click:run_command:/company order info %s>[", order.id())
-                    .localeCode("info")
+                    .localeCode("words.info")
                     .text("]</click>")
                     .newLine();
         }

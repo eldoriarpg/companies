@@ -79,7 +79,7 @@ public class Deliver extends AdvancedCommand implements IPlayerTabExecutor {
                                                                                     .id())
                                                .join();
                        if (optOrder.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                           messageSender().sendErrorActionBar(player, "error.unknownOrder");
                            return;
                        }
                        if (optOrder.get().state() != OrderState.CLAIMED) {

@@ -43,7 +43,7 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
         var optLevel = configuration.companySettings()
                                     .level(levelNr);
         if (optLevel.isEmpty()) {
-            messageSender().sendErrorActionBar(player, "Invalid level");
+            messageSender().sendErrorActionBar(player, "error.invalidLevel");
             return;
         }
 

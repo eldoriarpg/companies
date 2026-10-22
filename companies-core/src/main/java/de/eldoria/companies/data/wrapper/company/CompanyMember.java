@@ -74,11 +74,11 @@ public class CompanyMember implements ICompanyMember {
         var hover = MessageComposer.create();
         if (player().isOnline()) {
             hover.text("<active>")
-                 .localeCode("Online");
+                 .localeCode("words.online");
         } else {
             var lastSeen = LocalDateTime.ofInstant(Instant.ofEpochMilli(player().getLastSeen()), ZoneId.systemDefault());
             hover.text("<neutral>")
-                 .localeCode("Seen")
+                 .localeCode("words.lastSeen")
                  .text(": %s", lastSeen.format(FORMATTER));
         }
         return hover.build();

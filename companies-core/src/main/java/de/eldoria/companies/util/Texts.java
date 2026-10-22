@@ -12,6 +12,8 @@ import java.time.Duration;
 public final class Texts {
     public static final String RIGHT_ARROW = "»»»";
     public static final String LEFT_ARROW = "«««";
+    private static final int PROGRESS_SEGMENTS = 10;
+    private static final String PROGRESS_SEGMENT = "■";
 
     private Texts() {
         throw new UnsupportedOperationException("This is a utility class.");
@@ -54,5 +56,17 @@ public final class Texts {
      */
     public static String argument(String argument) {
         return argument.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
+    /**
+     * Draws a progress bar of ten segments, filled ones in the add colour and the rest in the inactive colour.
+     *
+     * @param progress progress from 0 to 1; values outside are clamped and NaN counts as 0
+     * @return MiniMessage bar
+     */
+    public static String progressBar(double progress) {
+        var clamped = Double.isNaN(progress) ? 0 : Math.max(0, Math.min(1, progress));
+        var filled = (int) Math.round(clamped * PROGRESS_SEGMENTS);
+        return "<add>%s<inactive>%s".formatted(PROGRESS_SEGMENT.repeat(filled), PROGRESS_SEGMENT.repeat(PROGRESS_SEGMENTS - filled));
     }
 }

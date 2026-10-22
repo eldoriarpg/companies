@@ -42,7 +42,7 @@ public class Company extends AdvancedCommand {
                 .withSubCommand(new Member(plugin, companyData, messageBlocker))
                 .withSubCommand(new Order(plugin, companyData, orderData, economy, configuration, messageBlocker, itemReturnService))
                 .withSubCommand(new Permission(plugin, companyData, messageBlocker))
-                .withSubCommand(new Top(plugin, companyData, messageBlocker))
+                .withSubCommand(new Top(plugin, companyData, economy, messageBlocker))
                 .withSubCommand(new Rename(plugin, configuration, economy, companyData))
                 .withSubCommand(new Chatblock(plugin, messageBlocker))
                 .withSubCommand(new Returns(plugin, itemReturnService))

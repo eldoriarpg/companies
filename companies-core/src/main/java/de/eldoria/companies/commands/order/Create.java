@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
+import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
@@ -40,27 +41,38 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+/**
+ * Builds an order in a chat menu and charges the player when it is done.
+ * <p>
+ * A draft is kept for 15 minutes after the last click. Clicks on the builder after that answer that the draft expired
+ * instead of starting a new order named after the click.
+ */
 public class Create extends AdvancedCommand implements IPlayerTabExecutor {
+    private static final Set<String> BUILDER_ACTIONS = Set.of("name", "add", "remove", "price", "amount", "done", "cancel");
     private final Configuration configuration;
     private final Economy economy;
     private final MessageBlocker messageBlocker;
     private final AOrderData orderData;
+    private final OrderLimits orderLimits;
     private final Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(5L, TimeUnit.MINUTES)
+            .expireAfterAccess(15L, TimeUnit.MINUTES)
             .build();
 
-    public Create(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
+    public Create(Plugin plugin, AOrderData orderData, OrderLimits orderLimits, Economy economy, Configuration configuration,
+                  MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("create")
                 .addArgument("field", false)
                 .addArgument("value", false)
                 .withPermission(Permission.Orders.CREATE)
                 .build());
         this.orderData = orderData;
+        this.orderLimits = orderLimits;
         this.configuration = configuration;
         this.economy = economy;
         this.messageBlocker = messageBlocker;
@@ -69,6 +81,10 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     @Override
     public void onCommand(@NotNull Player player, @NotNull String label, @NotNull Arguments args) throws CommandException {
         if (!builderCache.asMap().containsKey(player.getUniqueId())) {
+            if (!args.isEmpty() && BUILDER_ACTIONS.contains(args.asString(0).toLowerCase(Locale.ROOT))) {
+                draftExpired(player);
+                return;
+            }
             CommandAssertions.invalidArguments(meta(), args, Argument.input("words.name", true));
             initCreation(player, args);
             return;
@@ -211,10 +227,9 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void initCreation(Player player, @NotNull Arguments args) {
-        orderData.retrievePlayerOrderCount(player)
-                .whenComplete(count -> {
-                    if (count >= Permission.Orders.getOrderOverride(player)
-                            .orElse(configuration.userSettings().maxOrders())) {
+        orderLimits.usage(player)
+                .whenComplete(usage -> {
+                    if (usage.reached()) {
                         messageSender().sendError(player, "order.create.error.limitReached");
                         return;
                     }
@@ -316,21 +331,33 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                 .maxItems() - builder.amount(material), amount));
     }
 
+    /**
+     * Charges the player and saves the draft as an order.
+     * <p>
+     * The draft leaves the cache before anything is charged, so only the first of several clicks on done goes on. A draft
+     * which could not be turned into an order is put back, so the player can fix it.
+     *
+     * @param player player owning the draft
+     * @throws CommandException when the draft is empty
+     */
     private void done(Player player) throws CommandException {
-        var order = builderCache.getIfPresent(player.getUniqueId());
+        var draft = builderCache.getIfPresent(player.getUniqueId());
 
         messageBlocker.unblockPlayer(player);
 
-        CommandAssertions.isTrue(order != null, "order.create.error.notActive");
-        CommandAssertions.isFalse(order.elements()
+        CommandAssertions.isTrue(draft != null, "order.create.error.notActive");
+        CommandAssertions.isFalse(draft.elements()
                 .isEmpty(), "order.create.error.empty", TagResolver.empty());
+
+        var order = builderCache.asMap().remove(player.getUniqueId());
+        if (order == null) return;
 
         var price = order.price();
 
-        orderData.retrievePlayerOrderCount(player)
-                .whenComplete(count -> {
-                    if (count >= Permission.Orders.getOrderOverride(player)
-                            .orElse(configuration.userSettings().maxOrders())) {
+        orderLimits.usage(player)
+                .whenComplete(usage -> {
+                    if (usage.reached()) {
+                        restoreDraft(player, order);
                         messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
                         return;
                     }
@@ -340,6 +367,7 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                                 .isBlank() ? MessageComposer.escape("words.money") : economy.currencyNameSingular();
                         var curr = economy.currencyNamePlural()
                                 .isBlank() ? fallbackCurr : economy.currencyNamePlural();
+                        restoreDraft(player, order);
                         messageSender().sendError(player, "error.insufficientCurrency",
                                 Replacement.create("currency", curr),
                                 Replacement.create("amount", economy.format(price)));
@@ -354,16 +382,23 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
                             .thenAcceptAsync(created -> {
                                 if (!created) {
                                     economy.depositPlayer(player, price);
+                                    restoreDraft(player, order);
                                     messageSender().sendError(player, "error.saveFailed");
                                     return;
                                 }
                                 messageBlocker.unblockPlayer(player)
-                                        .whenComplete((unused, err) -> {
-                                            messageSender().sendMessage(player, MessageComposer.escape("order.create.created"));
-                                            builderCache.invalidate(player.getUniqueId());
-                                        });
+                                        .whenComplete((unused, err) -> messageSender().sendMessage(player, MessageComposer.escape("order.create.created")));
                             }, Threading.mainThread(plugin()));
                 });
+    }
+
+    private void restoreDraft(Player player, OrderBuilder order) {
+        builderCache.asMap().putIfAbsent(player.getUniqueId(), order);
+    }
+
+    private void draftExpired(Player player) {
+        messageBlocker.unblockPlayer(player)
+                .thenRun(() -> messageSender().sendError(player, "order.create.draftExpired"));
     }
 
     private void cancel(Player player) {

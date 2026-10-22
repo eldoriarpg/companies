@@ -6,20 +6,23 @@
 package de.eldoria.companies.configuration.elements;
 
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.configuration.elements.companylevel.StarterLevels;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class CompanySettings {
-    private List<CompanyLevel> level = new ArrayList<>();
+    private List<CompanyLevel> level = StarterLevels.create();
     private int deliveryHours = 48;
     private double foundingPrice = 20000.0;
     private double renamePrice = 10000.0;
     private int expiredOrderPenalty = 3;
     private int abortedOrderPenalty = 1;
+    private boolean allowMemberOrders = false;
+    private int inviteHours = 24;
+    private int expiryWarningHours = 12;
 
     public CompanySettings() {
         updateLevel();
@@ -76,6 +79,19 @@ public class CompanySettings {
         this.renamePrice = renamePrice;
     }
 
+    /**
+     * Whether a company may accept orders placed by its own members.
+     *
+     * @return true when companies may work on their members' orders
+     */
+    public boolean allowMemberOrders() {
+        return allowMemberOrders;
+    }
+
+    public void allowMemberOrders(boolean allowMemberOrders) {
+        this.allowMemberOrders = allowMemberOrders;
+    }
+
     public CompanyLevel createLevel(int level) {
         var newLevel = new CompanyLevel();
         var clampedLevel = Math.max(0, Math.min(level - 1, this.level.size()));
@@ -116,5 +132,23 @@ public class CompanySettings {
         this.level.remove(level - 1);
         updateLevel();
         return true;
+    }
+
+    /**
+     * How long an invite stays open before it expires.
+     *
+     * @return lifetime of an invite in hours
+     */
+    public int inviteHours() {
+        return inviteHours;
+    }
+
+    /**
+     * How long before its deadline a claimed order is shown to the company's members when they join.
+     *
+     * @return warning window in hours
+     */
+    public int expiryWarningHours() {
+        return expiryWarningHours;
     }
 }

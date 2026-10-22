@@ -32,4 +32,18 @@ class TextsTest {
         assertEquals("name", PlainTextComponentSerializer.plainText().serialize(component));
         assertEquals(HOSTILE, PlainTextComponentSerializer.plainText().serialize((Component) hoverText));
     }
+
+    @Test
+    void progressBarFillsTheDeliveredShare() {
+        assertEquals("<add><inactive>■■■■■■■■■■", Texts.progressBar(0));
+        assertEquals("<add>■■■<inactive>■■■■■■■", Texts.progressBar(0.3));
+        assertEquals("<add>■■■■■■■■■■<inactive>", Texts.progressBar(1));
+    }
+
+    @Test
+    void progressBarClampsInvalidValues() {
+        assertEquals(Texts.progressBar(0), Texts.progressBar(Double.NaN));
+        assertEquals(Texts.progressBar(0), Texts.progressBar(-1));
+        assertEquals(Texts.progressBar(1), Texts.progressBar(2));
+    }
 }

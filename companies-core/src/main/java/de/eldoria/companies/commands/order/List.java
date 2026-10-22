@@ -6,8 +6,8 @@
 package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.util.Menus;
 import de.eldoria.eldoutilities.commands.command.AdvancedCommand;
 import de.eldoria.eldoutilities.commands.command.CommandMeta;
@@ -27,15 +27,15 @@ import java.util.logging.Level;
 public class List extends AdvancedCommand implements IPlayerTabExecutor {
     private final AOrderData orderData;
     private final Economy economy;
-    private final Configuration configuration;
+    private final OrderLimits orderLimits;
     private final MessageBlocker messageBlocker;
 
-    public List(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
+    public List(Plugin plugin, AOrderData orderData, OrderLimits orderLimits, Economy economy, MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("list")
                 .build());
         this.orderData = orderData;
         this.economy = economy;
-        this.configuration = configuration;
+        this.orderLimits = orderLimits;
         this.messageBlocker = messageBlocker;
     }
 
@@ -50,6 +50,8 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     public void showOrders(Player player, Runnable whenComplete) {
+        var usage = orderLimits.usage(player)
+                               .asFuture();
         orderData.retrieveOrdersByPlayer(player, OrderState.UNCLAIMED, OrderState.DELIVERED)
                  .asFuture()
                  .exceptionally(err -> {
@@ -65,14 +67,16 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                                                    return Collections.emptyList();
                                                })
                                                .join())
-                 .thenAccept((orders -> {
+                 .thenAcceptBoth(usage, (orders, limits) -> {
                      messageBlocker.blockPlayer(player);
                      var builder = MessageComposer.create()
                                                   .localeCode("order.list.orders")
-                                                  .text(":")
+                                                  .text(" (%s/%s):", limits.active(), limits.limit())
                                                   .newLine();
-                     if (configuration.userSettings()
-                                      .maxOrders() > orders.size()) {
+                     if (limits.reached()) {
+                         builder.text("<inactive>")
+                                .localeCode("order.list.limitReached");
+                     } else {
                          builder.text("<click:suggest_command:/order create ><add>[")
                                 .localeCode("order.list.newOrder")
                                 .text("]</click>");
@@ -88,6 +92,11 @@ public class List extends AdvancedCommand implements IPlayerTabExecutor {
                      builder.prependLines(25);
                      Menus.show(messageBlocker, player, builder);
                      whenComplete.run();
-                 }));
+                 })
+                 .exceptionally(err -> {
+                     plugin().getLogger()
+                             .log(Level.SEVERE, "Something went wrong", err);
+                     return null;
+                 });
     }
 }

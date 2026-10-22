@@ -9,6 +9,7 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.Confirmations;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.commands.Completion;
@@ -20,7 +21,6 @@ import de.eldoria.eldoutilities.commands.exceptions.CommandException;
 import de.eldoria.eldoutilities.commands.executor.IPlayerTabExecutor;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
-import de.eldoria.eldoutilities.scheduling.DelayedActions;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.entity.Player;
@@ -29,19 +29,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
     public static final int MAX_NAME_LENGTH = 32;
-    private final Map<UUID, String> confirm = new ConcurrentHashMap<>();
+    private final Confirmations<String> confirm = new Confirmations<>();
     private final Configuration configuration;
     private final Economy economy;
     private final ACompanyData companyData;
-    private final DelayedActions delayedActions;
 
     public Rename(Plugin plugin, Configuration configuration, Economy economy, ACompanyData companyData) {
         super(plugin, CommandMeta.builder("rename")
@@ -50,7 +46,6 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
         this.configuration = configuration;
         this.economy = economy;
         this.companyData = companyData;
-        delayedActions = DelayedActions.start(plugin);
     }
 
     @Override
@@ -114,7 +109,7 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
             return;
         }
 
-        confirm.put(player.getUniqueId(), name);
+        confirm.request(player.getUniqueId(), name);
         var composer = MessageComposer.create()
                                       .text("<neutral>")
                                       .localeCode("company.rename.confirm",
@@ -126,7 +121,6 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                                       .localeCode("words.confirm")
                                       .text("]</click>");
         messageSender().sendMessage(player, composer);
-        delayedActions.schedule(() -> expireConfirm(player.getUniqueId()), 30 * 20);
     }
 
     private void sendInsufficientCurrency(Player player, double price) {
@@ -140,11 +134,12 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void confirm(@NotNull Player player) {
-        var name = confirm.remove(player.getUniqueId());
-        if (name == null) {
-            messageSender().sendErrorActionBar(player, "error.noConfirm");
+        var optName = confirm.confirm(player.getUniqueId());
+        if (optName.isEmpty()) {
+            messageSender().sendErrorActionBar(player, "error.confirmationExpired");
             return;
         }
+        var name = optName.get();
         companyData.retrievePlayerCompanyProfile(player)
                    .asFuture()
                    .exceptionally(err -> {
@@ -207,15 +202,5 @@ public class Rename extends AdvancedCommand implements IPlayerTabExecutor {
                        }
                        messageSender().sendMessage(player, "company.rename.changed");
                    }, Threading.mainThread(plugin()));
-    }
-
-    private void expireConfirm(UUID uuid) {
-        if (confirm.remove(uuid) == null) return;
-
-        var player = plugin().getServer()
-                             .getOfflinePlayer(uuid);
-        if (!player.isOnline()) return;
-
-        messageSender().sendMessage(player.getPlayer(), "company.rename.expired");
     }
 }

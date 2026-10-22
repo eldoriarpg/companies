@@ -64,13 +64,13 @@ public class Info extends AdvancedCommand implements IPlayerTabExecutor {
                        var optOrder = orderData.retrieveOrderById(id)
                                                .join();
                        if (optOrder.isEmpty()) {
-                           messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                           messageSender().sendErrorActionBar(player, "error.unknownOrder");
                            return;
                        }
                        if (optOrder.get()
                                    .company() != profile.id() && optOrder.get()
                                                                          .state() != OrderState.UNCLAIMED) {
-                           messageSender().sendErrorActionBar(player, "error.unkownOrder");
+                           messageSender().sendErrorActionBar(player, "error.unknownOrder");
                            return;
                        }
                        var order = optOrder.get();
