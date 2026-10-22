@@ -22,7 +22,8 @@ import java.util.function.Supplier;
  * <p>
  * The chat rendering is the only place that holds a player's chat: it blocks the chat, pushes older messages out of
  * view, adds the {@code [x]} button that releases the chat when it is held, and sends the menu past the blocker.
- * Dialogs never hold chat. Menus may be shown from any thread.
+ * Dialogs never hold chat, and neither do menus that {@link Menu#holdsChat() send a single line}. Menus may be shown
+ * from any thread.
  */
 public final class MenuService {
     /**
@@ -59,7 +60,12 @@ public final class MenuService {
             showDialog(player, dialog.get());
             return;
         }
-        showChat(player, menu.chat(player, model, actions));
+        var text = menu.chat(player, model, actions);
+        if (menu.holdsChat()) {
+            showChat(player, text);
+            return;
+        }
+        sendLine(player, text);
     }
 
     /**
@@ -112,9 +118,17 @@ public final class MenuService {
         if (blocker.isBlocked(player)) {
             text.append('\n').append(CLOSE);
         }
+        send(player, text.toString(), content);
+    }
+
+    private void sendLine(Player player, IMessageComposer content) {
+        send(player, content.build(), content);
+    }
+
+    private void send(Player player, String text, IMessageComposer content) {
         var sender = MessageSender.getPluginMessageSender(plugin());
-        var rendered = sender.serializeMessage(
-                player, text.toString(), content.replacements().toArray(TagResolver[]::new));
+        var rendered =
+                sender.serializeMessage(player, text, content.replacements().toArray(TagResolver[]::new));
         blocker.sendBypassing(player, sender.prefix().appendSpace().append(rendered));
     }
 
