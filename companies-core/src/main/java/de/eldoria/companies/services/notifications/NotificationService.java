@@ -41,6 +41,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -78,6 +79,23 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onCompanyDisband(CompanyDisbandEvent event) {
         sendCompanyMessage(event.company(), "notification.companyDisband");
+    }
+
+    /**
+     * Sends a typed notification: shown in chat when the recipient is online on this server, stored for their next
+     * join otherwise. Important types and categories are not treated differently yet.
+     *
+     * @param recipient player to notify
+     * @param type      kind of notification
+     * @param args      values for the placeholders of the type's message and action
+     */
+    public void send(UUID recipient, NotificationType type, NotificationArgs args) {
+        var message = MessageComposer.create().text("<neutral>").localeCode(type.key());
+        type.action().map(args::fill).ifPresent(action -> message.space()
+                .text("<click:run_command:'%s'><add>[", action)
+                .localeCode("words.open")
+                .text("]</click>"));
+        sendMessage(plugin.getServer().getOfflinePlayer(recipient), message.build(), args.resolvers());
     }
 
     public void sendCompanyMessage(ICompanyProfile company, String message, TagResolver... replacements) {
