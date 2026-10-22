@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.OrderBuilder;
+import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.util.Menus;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
@@ -50,17 +51,20 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     private final Economy economy;
     private final MessageBlocker messageBlocker;
     private final AOrderData orderData;
+    private final OrderLimits orderLimits;
     private final Cache<UUID, OrderBuilder> builderCache = CacheBuilder.newBuilder()
             .expireAfterAccess(5L, TimeUnit.MINUTES)
             .build();
 
-    public Create(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration, MessageBlocker messageBlocker) {
+    public Create(Plugin plugin, AOrderData orderData, OrderLimits orderLimits, Economy economy, Configuration configuration,
+                  MessageBlocker messageBlocker) {
         super(plugin, CommandMeta.builder("create")
                 .addArgument("field", false)
                 .addArgument("value", false)
                 .withPermission(Permission.Orders.CREATE)
                 .build());
         this.orderData = orderData;
+        this.orderLimits = orderLimits;
         this.configuration = configuration;
         this.economy = economy;
         this.messageBlocker = messageBlocker;
@@ -211,10 +215,9 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
     }
 
     private void initCreation(Player player, @NotNull Arguments args) {
-        orderData.retrievePlayerOrderCount(player)
-                .whenComplete(count -> {
-                    if (count >= Permission.Orders.getOrderOverride(player)
-                            .orElse(configuration.userSettings().maxOrders())) {
+        orderLimits.usage(player)
+                .whenComplete(usage -> {
+                    if (usage.reached()) {
                         messageSender().sendError(player, "order.create.error.limitReached");
                         return;
                     }
@@ -327,10 +330,9 @@ public class Create extends AdvancedCommand implements IPlayerTabExecutor {
 
         var price = order.price();
 
-        orderData.retrievePlayerOrderCount(player)
-                .whenComplete(count -> {
-                    if (count >= Permission.Orders.getOrderOverride(player)
-                            .orElse(configuration.userSettings().maxOrders())) {
+        orderLimits.usage(player)
+                .whenComplete(usage -> {
+                    if (usage.reached()) {
                         messageSender().sendErrorActionBar(player, "order.create.error.limitReached");
                         return;
                     }
