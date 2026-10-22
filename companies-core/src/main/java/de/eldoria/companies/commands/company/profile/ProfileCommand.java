@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.menus.company.ProfileMenu;
 import de.eldoria.companies.menus.company.ProfileView;
+import de.eldoria.companies.services.ProfileService;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -30,7 +31,7 @@ import java.util.logging.Level;
 
 /**
  * {@code /company profile [self|id <id>|name <name>|player <player>]}: the profile of the sender's company, with
- * level progress, or the public profile of another company.
+ * level progress, or the public profile of another company. {@code edit} changes the profile.
  */
 @Subcommand("profile")
 @PlayerOnly
@@ -38,6 +39,9 @@ public final class ProfileCommand {
     private final CommandDependencies deps;
     private final MemberCommand members;
     private final Consumer<Player> orders;
+
+    @Subcommand
+    public final ProfileEditCommand edit;
 
     /**
      * @param deps    what the commands need
@@ -48,6 +52,7 @@ public final class ProfileCommand {
         this.deps = deps;
         this.members = members;
         this.orders = orders;
+        this.edit = new ProfileEditCommand(deps);
     }
 
     /**
@@ -186,7 +191,12 @@ public final class ProfileCommand {
     }
 
     private void showOwn(Player player, CompanyProfile profile, int orderCount, @Nullable CompanyStats stats) {
-        var view = ProfileView.own(profile, deps.configuration().companySettings(), stats, orderCount);
+        var view = ProfileView.own(
+                profile,
+                deps.configuration().companySettings(),
+                stats,
+                orderCount,
+                ProfileService.mayEdit(profile, player));
         deps.services().menus().show(player, menu(), view);
     }
 
@@ -200,6 +210,11 @@ public final class ProfileCommand {
             @Override
             public void orders(Player viewer) {
                 orders.accept(viewer);
+            }
+
+            @Override
+            public void edit(Player viewer) {
+                edit.show(viewer);
             }
         });
     }

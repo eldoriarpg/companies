@@ -18,6 +18,7 @@ import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
@@ -29,6 +30,9 @@ import java.util.Optional;
 /**
  * The profile of a company: level, founding date, leader and members, and on the own profile the progress towards the
  * next level and the orders the company works on.
+ * <p>
+ * The tag and the name are shown in the company colour, followed by the description and the join mode. Members who may
+ * edit the profile get an {@code [Edit]} button on their own profile.
  * <p>
  * The level and the next level show their requirements and limits when hovered. In chat the member and order counts
  * have {@code [List]} buttons; as a dialog they are buttons below the profile.
@@ -64,6 +68,12 @@ public final class ProfileMenu implements Menu<ProfileView> {
                             " <act_orders><show>[<i18n:words.list>]</act_orders>",
                             actions.chatAction("act_orders", navigation::orders));
         }
+        if (model.editable()) {
+            text.newLine()
+                    .text(
+                            "<act_edit><modify>[<i18n:company.profile.edit.button>]</act_edit>",
+                            actions.chatAction("act_edit", navigation::edit));
+        }
         return text;
     }
 
@@ -81,6 +91,12 @@ public final class ProfileMenu implements Menu<ProfileView> {
                 navigation.orders(clicker);
             }));
         }
+        if (model.editable()) {
+            buttons.add(actions.button(
+                    texts.locale("company.profile.edit.button"),
+                    null,
+                    (clicker, response) -> navigation.edit(clicker)));
+        }
         var base = DialogBase.builder(texts.of(title(model)))
                 .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                 .body(List.of(DialogBody.plainMessage(texts.of(body))))
@@ -91,18 +107,25 @@ public final class ProfileMenu implements Menu<ProfileView> {
     }
 
     private MenuText details(ProfileView model, SearchTexts texts) {
-        var text = MenuText.create()
-                .text(
-                        "<name><i18n:words.level>: <hover:show_text:'<level_details>'><value><level_number> -"
-                                + " <level_name></hover>",
-                        levelDetails("level_details", model.level(), texts),
-                        Values.number("level_number", model.level().level()),
-                        Values.text("level_name", model.level().levelName()));
+        var text = MenuText.create();
+        model.description().ifPresent(description -> text.text(
+                        "<name><i18n:company.profile.description>: <value><description>",
+                        Values.text("description", description))
+                .newLine());
+        text.text(
+                "<name><i18n:words.level>: <hover:show_text:'<level_details>'><value><level_number> -"
+                        + " <level_name></hover>",
+                levelDetails("level_details", model.level(), texts),
+                Values.number("level_number", model.level().level()),
+                Values.text("level_name", model.level().levelName()));
         model.next().ifPresent(next -> text.append(nextLevel(next, texts)));
         return text.newLine()
                 .text("<name><i18n:words.founded>: <value><founded>", Values.text("founded", model.founded()))
                 .newLine()
                 .text("<name><i18n:words.leader>: <value><leader_name>", Values.text("leader_name", model.leader()))
+                .newLine()
+                .text("<name><i18n:company.profile.joinMode>: <value><i18n:"
+                        + model.joinMode().translationKey() + ">")
                 .newLine();
     }
 
@@ -147,7 +170,21 @@ public final class ProfileMenu implements Menu<ProfileView> {
     }
 
     private static MenuText title(ProfileView model) {
-        return MenuText.create().text("<heading><company_name>", Values.text("company_name", model.name()));
+        var text = MenuText.create();
+        model.tag().ifPresent(tag -> text.text("<name><company_tag> ", colored("company_tag", "[" + tag + "]", model)));
+        return text.text("<heading><company_name>", colored("company_name", model.name(), model));
+    }
+
+    /**
+     * A value in the company colour, inserted unparsed. Without a colour it takes the style around it.
+     *
+     * @param key   placeholder key
+     * @param value text to insert
+     * @param model the profile with the colour
+     * @return placeholder
+     */
+    private static TagResolver.Single colored(String key, String value, ProfileView model) {
+        return Values.component(key, Component.text(value, model.color().orElse(null)));
     }
 
     private static MenuText memberLine(ProfileView model) {
@@ -182,5 +219,12 @@ public final class ProfileMenu implements Menu<ProfileView> {
          * @param viewer player who clicked
          */
         void orders(Player viewer);
+
+        /**
+         * Opens the profile editor.
+         *
+         * @param viewer player who clicked
+         */
+        void edit(Player viewer);
     }
 }

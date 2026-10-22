@@ -7,6 +7,7 @@ package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.commands.company.TopOrder;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
@@ -107,7 +108,7 @@ class CompanyMenusTest {
     @Test
     void theOwnProfileLinksItsListsThroughCallbacks() {
         var stats = new CompanyStats(7, HOSTILE, FOUNDED, 2, 5, 30_000, 500);
-        var view = ProfileView.own(profile(), new CompanySettings(), stats, 3);
+        var view = ProfileView.own(profile(), new CompanySettings(), stats, 3, false);
         var menu = new ProfileMenu(messages, economy(), new NoNavigation());
 
         var text = menu.chat(owner, view, actions);
@@ -130,6 +131,32 @@ class CompanyMenusTest {
         assertNoCommands(text);
         assertTrue(text.build().contains("<act_members>"));
         assertFalse(text.build().contains("<act_orders>"));
+    }
+
+    @Test
+    void theProfileShowsTagNameAndDescriptionUnparsed() {
+        var details = new CompanyDetails("<red>We dig.", "ACME", "gold", JoinMode.APPLICATIONS);
+        var view = ProfileView.external(profile().withDetails(details), new CompanySettings());
+
+        var text = new ProfileMenu(messages, economy(), new NoNavigation()).chat(owner, view, actions);
+
+        assertNoCommands(text);
+        assertFalse(text.build().contains("<red>We dig."));
+        assertTrue(text.build().contains("<i18n:enums.joinMode.applications>"));
+        var shown = plain(text);
+        assertTrue(shown.startsWith("[ACME] " + HOSTILE));
+        assertTrue(shown.contains("<red>We dig."));
+    }
+
+    @Test
+    void onlyEditorsGetTheEditButton() {
+        var menu = new ProfileMenu(messages, economy(), new NoNavigation());
+
+        var editable = menu.chat(owner, ProfileView.own(profile(), new CompanySettings(), null, 0, true), actions);
+        var readOnly = menu.chat(owner, ProfileView.own(profile(), new CompanySettings(), null, 0, false), actions);
+
+        assertTrue(editable.build().contains("<act_edit>"));
+        assertFalse(readOnly.build().contains("<act_edit>"));
     }
 
     @Test
@@ -193,6 +220,9 @@ class CompanyMenusTest {
 
         @Override
         public void orders(Player viewer) {}
+
+        @Override
+        public void edit(Player viewer) {}
 
         @Override
         public void show(Player viewer, int page, TopOrder ordering) {}

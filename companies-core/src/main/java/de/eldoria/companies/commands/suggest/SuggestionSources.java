@@ -161,6 +161,13 @@ public final class SuggestionSources {
         return configuration.companySettings().level().size();
     }
 
+    /**
+     * @return the colours a company may choose, as configured
+     */
+    public List<String> profileColors() {
+        return configuration.companySettings().profile().colors();
+    }
+
     private static List<String> memberNames(CompanyProfile profile) {
         return profile.members().stream()
                 .map(member -> member.player().getName())
