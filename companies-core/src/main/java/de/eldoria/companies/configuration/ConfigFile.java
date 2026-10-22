@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.MenuSettings;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.menus.MenuMode;
 
 @SuppressWarnings({"FieldMayBeFinal", "CanBeFinal"})
 public class ConfigFile {
@@ -18,6 +19,20 @@ public class ConfigFile {
     private MenuSettings menus = new MenuSettings();
     private EconomySettings economy = new EconomySettings();
     private NotificationSettings notifications = new NotificationSettings();
+
+    /**
+     * The configuration written for a new installation, which shows menus as dialogs.
+     * <p>
+     * A file without the {@code menus} setting was written before menus had dialogs. It is read with chat menus, so
+     * an existing installation keeps showing menus the way it did until the setting is changed.
+     *
+     * @return the configuration of a new installation
+     */
+    public static ConfigFile fresh() {
+        var config = new ConfigFile();
+        config.menus = new MenuSettings(MenuMode.DIALOG);
+        return config;
+    }
 
     public GeneralSettings generalSettings() {
         return generalSettings;

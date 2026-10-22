@@ -11,6 +11,7 @@ import de.eldoria.companies.menus.Menu;
 import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.admin.LevelDescription;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
@@ -166,7 +167,7 @@ public final class ProfileMenu implements Menu<ProfileView> {
     }
 
     private TagResolver.Single levelDetails(String key, CompanyLevel level, SearchTexts texts) {
-        return Values.component(key, texts.of(MenuText.create().text(level.asComponent())));
+        return Values.component(key, texts.of(LevelDescription.of(level)));
     }
 
     private static MenuText title(ProfileView model) {

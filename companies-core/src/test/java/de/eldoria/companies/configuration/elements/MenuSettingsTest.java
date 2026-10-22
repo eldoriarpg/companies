@@ -23,7 +23,17 @@ class MenuSettingsTest {
             .build();
 
     @Test
-    void menusDefaultToChat() {
+    void freshConfigurationsShowDialogs() {
+        var yaml = mapper.writeValueAsString(ConfigFile.fresh());
+
+        assertTrue(Pattern.compile("(?m)^menus: \"?DIALOG\"?$").matcher(yaml).find(), yaml);
+        assertEquals(
+                MenuMode.DIALOG,
+                mapper.readValue(yaml, ConfigFile.class).menus().mode());
+    }
+
+    @Test
+    void configurationsWithoutTheSettingKeepChat() {
         var config = mapper.readValue("style: {}", ConfigFile.class);
 
         assertEquals(MenuMode.CHAT, config.menus().mode());
