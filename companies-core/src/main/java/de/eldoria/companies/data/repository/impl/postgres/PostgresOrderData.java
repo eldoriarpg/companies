@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.data.repository.impl.postgres;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
@@ -15,6 +14,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.intellij.lang.annotations.Language;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;

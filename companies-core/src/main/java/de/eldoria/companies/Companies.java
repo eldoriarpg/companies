@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies;
 
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import de.chojo.sadu.mariadb.databases.MariaDb;
 import de.chojo.sadu.postgresql.databases.PostgreSql;
@@ -225,7 +224,7 @@ public class Companies extends EldoPlugin {
     }
 
     private void initDataRepositories() {
-        var mapper = configuration.configureDefault(JsonMapper.builder());
+        var mapper = configuration.storageMapper();
         switch (configuration.databaseSettings()
                              .storageType()) {
             case SQLITE:

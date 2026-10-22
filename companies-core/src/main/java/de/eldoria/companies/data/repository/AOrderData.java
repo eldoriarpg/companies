@@ -5,8 +5,6 @@
  */
 package de.eldoria.companies.data.repository;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import de.chojo.sadu.mapper.wrapper.Row;
@@ -26,6 +24,8 @@ import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
@@ -296,7 +296,7 @@ public abstract class AOrderData {
     protected ItemStack toItemStack(String json) throws SQLException {
         try {
             return mapper.readValue(json, ItemStack.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new SQLException("Could not parse json to item stack", e);
         }
     }
@@ -304,7 +304,7 @@ public abstract class AOrderData {
     protected String toJson(ItemStack stack) {
         try {
             return mapper.writeValueAsString(stack);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException("Could not parse item stack to json", e);
         }
     }

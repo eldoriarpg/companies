@@ -16,7 +16,9 @@ dependencies {
     implementation(libs.messageblocker)
     implementation(libs.bundles.eldoria.utilities) {
         exclude("net.kyori")
+        exclude("org.jetbrains")
     }
+    implementation(platform(libs.jackson.bom))
     implementation(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
     bukkitLibrary(libs.bundles.sadu)
@@ -49,11 +51,14 @@ tasks {
         relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
         relocate("de.eldoria.jacksonbukkit", shadebase + "jacksonbukkit")
         relocate("de.eldoria.messageblocker", shadebase + "messageblocker")
+        relocate("dev.chojo.ocular", shadebase + "ocular")
+        relocate("tools.jackson", shadebase + "jackson")
         relocate("com.fasterxml", shadebase + "fasterxml")
-        relocate("org.yaml", shadebase + "yaml")
+        relocate("org.snakeyaml", shadebase + "snakeyaml")
         mergeServiceFiles()
         addMultiReleaseAttribute = false
         exclude("META-INF/versions/**")
+        exclude("META-INF/services/javax.annotation.processing.Processor")
     }
 
     build {

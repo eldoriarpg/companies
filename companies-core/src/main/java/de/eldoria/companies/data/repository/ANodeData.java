@@ -5,15 +5,17 @@
  */
 package de.eldoria.companies.data.repository;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.wrapper.nodes.Node;
-import de.eldoria.eldoutilities.config.ConfigKey;
 import de.eldoria.eldoutilities.config.JacksonConfig;
-import de.eldoria.eldoutilities.config.exceptions.ConfigurationException;
 import de.eldoria.eldoutilities.utils.Version;
+import dev.chojo.ocular.components.Format;
+import dev.chojo.ocular.dataformats.YamlDataFormat;
+import dev.chojo.ocular.exceptions.ConfigurationException;
+import dev.chojo.ocular.key.Key;
 import org.bukkit.plugin.Plugin;
+import tools.jackson.core.JacksonException;
 
 import java.util.List;
 import java.util.Optional;
@@ -75,12 +77,12 @@ public abstract class ANodeData {
      */
     public abstract List<Node> getPrimaryNodes();
 
-    public final <T> T loadPrimaryConfiguration(ConfigKey<T> key, JacksonConfig<?> config) {
-        var content = loadPrimaryConfiguration(key.path().toString());
-        if (content.isEmpty()) new IllegalStateException("No configuration present. Did you start the main node once already?");
+    public final <T> T loadPrimaryConfiguration(Key<T> key, JacksonConfig<?> config) {
+        var content = loadPrimaryConfiguration(key.path().toString())
+                .orElseThrow(() -> new IllegalStateException("No configuration present. Did you start the main node once already?"));
         try {
-            return config.reader().readValue(content.get(), key.configClazz());
-        } catch (JsonProcessingException e) {
+            return yaml(config).reader().readValue(content, key.configClazz());
+        } catch (JacksonException e) {
             throw new ConfigurationException("Could not parse configuration " + key.path(), e);
         }
     }
@@ -93,13 +95,17 @@ public abstract class ANodeData {
      */
     protected abstract Optional<String> loadPrimaryConfiguration(String path);
 
-    public void savePrimaryConfiguration(ConfigKey<?> key, JacksonConfig<?> config) {
+    public void savePrimaryConfiguration(Key<?> key, JacksonConfig<?> config) {
         try {
-            String content = config.writer().writeValueAsString(config.secondary(key));
+            String content = yaml(config).writer().writeValueAsString(config.secondary(key));
             savePrimaryConfiguration(key.path().toString(), content);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new ConfigurationException("Could not parse configuration " + key.path(), e);
         }
+    }
+
+    private static Format<?, ?> yaml(JacksonConfig<?> config) {
+        return new Format<>(new YamlDataFormat(), config);
     }
 
     /**

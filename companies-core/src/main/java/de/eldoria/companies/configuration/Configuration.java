@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.configuration;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
@@ -14,27 +13,23 @@ import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
-import de.eldoria.eldoutilities.config.ConfigKey;
 import de.eldoria.eldoutilities.config.JacksonConfig;
-import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
-import de.eldoria.eldoutilities.debug.DebugDataProvider;
-import de.eldoria.eldoutilities.debug.data.EntryData;
-import de.eldoria.eldoutilities.debug.data.PluginMetaData;
+import dev.chojo.ocular.key.Key;
 import org.bukkit.plugin.Plugin;
-import org.jetbrains.annotations.NotNull;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.cfg.MapperBuilder;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class Configuration extends JacksonConfig<ConfigFile> implements DebugDataProvider {
-    public static final ConfigKey<ConfigFile> CONFIG_YML = ConfigKey.defaultConfig(ConfigFile.class, ConfigFile::new);
-    public static final ConfigKey<DatabaseSettings> DATABASE = ConfigKey.of("Database config", Path.of("database.yml"), DatabaseSettings.class, DatabaseSettings::new);
-    public static final ConfigKey<NodeSettings> NODE_SETTINGS = ConfigKey.of("Node config", Path.of("node.yml"), NodeSettings.class, NodeSettings::new);
-    public static final ConfigKey<OrderSettings> ORDER_SETTINGS = ConfigKey.of("Order config", Path.of("order.yml"), OrderSettings.class, OrderSettings::new);
-    public static final ConfigKey<UserSettings> USER_SETTINGS = ConfigKey.of("User config", Path.of("user.yml"), UserSettings.class, UserSettings::new);
-    public static final ConfigKey<CompanySettings> COMPANY_SETTINGS = ConfigKey.of("Company config", Path.of("company.yml"), CompanySettings.class, CompanySettings::new);
+public class Configuration extends JacksonConfig<ConfigFile> {
+    public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::new).name("Main config").build();
+    public static final Key<DatabaseSettings> DATABASE = Key.builder(Path.of("database.yml"), DatabaseSettings::new).name("Database config").build();
+    public static final Key<NodeSettings> NODE_SETTINGS = Key.builder(Path.of("node.yml"), NodeSettings::new).name("Node config").build();
+    public static final Key<OrderSettings> ORDER_SETTINGS = Key.builder(Path.of("order.yml"), OrderSettings::new).name("Order config").build();
+    public static final Key<UserSettings> USER_SETTINGS = Key.builder(Path.of("user.yml"), UserSettings::new).name("User config").build();
+    public static final Key<CompanySettings> COMPANY_SETTINGS = Key.builder(Path.of("company.yml"), CompanySettings::new).name("Company config").build();
 
     public Configuration(Plugin plugin) {
         super(plugin, CONFIG_YML);
@@ -64,9 +59,8 @@ public class Configuration extends JacksonConfig<ConfigFile> implements DebugDat
         return secondary(NODE_SETTINGS);
     }
 
-    public <V extends Object> CompletableFuture<Void> syncConfigurations(ANodeData nodeData) {
+    public CompletableFuture<Void> syncConfigurations(ANodeData nodeData) {
         return CompletableFuture.runAsync(() -> {
-            // Setup database shards
             var nodeSettings = nodeSettings();
             save(NODE_SETTINGS);
             nodeData.updateNode(plugin());
@@ -77,8 +71,6 @@ public class Configuration extends JacksonConfig<ConfigFile> implements DebugDat
             }
 
             plugin().getLogger().info("Plugin is running as " + nodeData.nodeType() + " node.");
-            // List configurations to sync
-            // Generic hell c:
             sync(nodeData, COMPANY_SETTINGS);
             sync(nodeData, USER_SETTINGS);
             sync(nodeData, ORDER_SETTINGS);
@@ -86,29 +78,28 @@ public class Configuration extends JacksonConfig<ConfigFile> implements DebugDat
         });
     }
 
-    private <V> void sync(ANodeData nodeData, ConfigKey<V> configKey) {
+    private <V> void sync(ANodeData nodeData, Key<V> configKey) {
         if (nodeSettings().nodeType() == NodeType.PRIMARY) {
-            // primary nodes always write into database
             plugin().getLogger().info("Syncing " + configKey.path() + " to database.");
             nodeData.savePrimaryConfiguration(configKey, this);
         } else {
-            // secondary nodes always override their settings with database values
             plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
             replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
             save(configKey);
         }
     }
 
-    @Override
-    public @NotNull EntryData[] getDebugInformations() {
-        var data = new ArrayList<>();
-        for (var conf : List.of(NODE_SETTINGS, DATABASE, ORDER_SETTINGS, USER_SETTINGS, COMPANY_SETTINGS, CONFIG_YML, PluginBaseConfiguration.KEY)){
-            try {
-                data.add(new EntryData(conf.name(), reader().writeValueAsString(secondary(conf))));
-            } catch (JsonProcessingException e) {
-                // ignore
-            }
-        }
-        return data.toArray(EntryData[]::new);
+    /**
+     * Creates a JSON mapper for stored data, configured like the configuration files and with the Paper module, so
+     * item stacks are written as Paper's byte representation.
+     *
+     * @return json mapper
+     */
+    @SuppressWarnings("unchecked")
+    public JsonMapper storageMapper() {
+        var builder = JsonMapper.builder();
+        configure((MapperBuilder<ObjectMapper, ?>) (MapperBuilder<?, ?>) builder);
+        additionalModules().forEach(builder::addModule);
+        return builder.build();
     }
 }

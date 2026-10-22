@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.data.repository.impl.mariadb;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import de.chojo.sadu.queries.api.call.Call;
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
@@ -21,6 +20,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.intellij.lang.annotations.Language;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Locale;

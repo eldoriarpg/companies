@@ -7,9 +7,6 @@ dependencies {
     implementation(libs.bundles.sadu)
 
     api(libs.bundles.eldoria.utilities) {
-        exclude("com.fasterxml.jackson.dataformat")
-        exclude("com.fasterxml.jackson.core")
-        exclude("com.fasterxml.jackson")
         exclude("net.kyori")
     }
     api(libs.messageblocker)
@@ -17,6 +14,7 @@ dependencies {
     compileOnly(libs.protocollib)
     compileOnly(libs.papi)
     compileOnly(libs.vault)
+    compileOnly(platform(libs.jackson.bom))
     compileOnly(libs.bundles.jackson)
     compileOnly(libs.bundles.database)
 }

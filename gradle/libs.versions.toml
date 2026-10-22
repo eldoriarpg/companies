@@ -1,21 +1,22 @@
 [versions]
-jackson = "2.18.2"
-eldoutil = "2.1.10"
+jackson = "3.2.4"
+eldoutil = "3.5.0"
 sadu = "2.3.1"
 paper = "1.21.11-R0.1-SNAPSHOT"
 junit = "5.11.4"
 
 [libraries]
-jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
-jackson-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
+jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind" }
+jackson-yaml = { module = "tools.jackson.dataformat:jackson-dataformat-yaml" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 
 messageblocker = "de.eldoria:messageblocker:1.1.3"
 jackson-configuration = { module = "de.eldoria.util:jackson-configuration", version.ref = "eldoutil" }
 plugin = { module = "de.eldoria.util:plugin", version.ref = "eldoutil" }
 threading = { module = "de.eldoria.util:threading", version.ref = "eldoutil" }
 updater = { module = "de.eldoria.util:updater", version.ref = "eldoutil" }
+ocular = "dev.chojo:ocular:2.3.1"
 
 protocollib = "com.comphenix.protocol:ProtocolLib:5.3.0"
 papi = "me.clip:placeholderapi:2.11.6"
@@ -47,7 +48,7 @@ gradle-publishdata = "de.chojo:publishdata:2.1.0"
 
 [bundles]
 jackson = ["jackson-databind", "jackson-annotations", "jackson-yaml"]
-eldoria-utilities = ["jackson-configuration", "plugin", "threading", "updater"]
+eldoria-utilities = ["jackson-configuration", "plugin", "threading", "updater", "ocular"]
 database = ["hikari", "mariadb", "sqlite", "postgres"]
 sadu = ["sadu-queries", "sadu-updater", "sadu-datasource", "sadu-postgresql", "sadu-mariadb", "sadu-sqlite"]
 
