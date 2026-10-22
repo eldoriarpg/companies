@@ -194,7 +194,8 @@ public class Companies extends EldoPlugin {
 
         var itemReturnService = new ItemReturnService(this, orderData);
 
-        var notificationService = new NotificationService(information.inbox(), orderData, workerPool, this);
+        var notificationService = NotificationService.create(
+                this, information.inbox(), orderData, workerPool, configuration::notificationSettings);
         var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
         var membershipService = MembershipService.create(
                 this,

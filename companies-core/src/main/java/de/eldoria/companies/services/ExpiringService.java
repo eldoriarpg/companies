@@ -16,6 +16,7 @@ import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -178,33 +179,10 @@ public class ExpiringService implements Runnable, Listener {
         for (var order : orders) {
             if (!Boolean.TRUE.equals(orderData.submitPurgeWarning(order).join())) continue;
             var left = Duration.between(LocalDateTime.now(), order.claimed().plusHours(settings.maxUnclaimedHours()));
-            notificationService.sendMessage(
-                    plugin.getServer().getOfflinePlayer(order.owner()),
-                    purgeWarning(order, settings.maxExtensions(), left.isNegative() ? Duration.ZERO : left));
+            var args = NotificationService.orderArgs(order)
+                    .text("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left));
+            notificationService.send(order.owner(), NotificationType.MY_ORDER_PURGE_WARNING, args);
         }
-    }
-
-    private static MenuText purgeWarning(SimpleOrder order, int maxExtensions, Duration left) {
-        var text = MenuText.create()
-                .text("<neutral>")
-                .locale(
-                        "notification.orderPurgeWarning",
-                        Values.text("order_name", order.fullName()),
-                        Values.text("duration", Texts.prettyDuration(left)));
-        if (order.extensionsLeft(maxExtensions) > 0) {
-            text.space()
-                    .text(
-                            "<extend><modify>[",
-                            Values.click("extend", ClickEvent.runCommand("/order extend " + order.id())))
-                    .locale("order.info.extend", Values.number("left", order.extensionsLeft(maxExtensions)))
-                    .text("]</extend>");
-        }
-        return text.space()
-                .text(
-                        "<raise><modify>[",
-                        Values.click("raise", ClickEvent.suggestCommand("/order raise " + order.id() + " ")))
-                .locale("order.info.raise")
-                .text("]</raise>");
     }
 
     private static TagResolver[] resolvers(MenuText text) {
