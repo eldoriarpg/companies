@@ -44,17 +44,14 @@ import de.eldoria.companies.services.PlaceholderService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.Localizer;
-import de.eldoria.eldoutilities.messages.MessageSenderBuilder;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.milkbowl.vault.economy.Economy;
 import org.jetbrains.annotations.NotNull;
 
@@ -117,24 +114,7 @@ public class Companies extends EldoPlugin {
                                  .setUserLocale(p -> configuration.generalSettings().language())
                                  .build();
 
-        new MessageSenderBuilder(this)
-                .errorColor(TextColor.fromHexString("#f05316"))
-                .messageColor(NamedTextColor.DARK_AQUA)
-                // TODO: Make those configurable
-                .prefix("<#00a6ff>[C]")
-                .localizer(localizer)
-                .addTag(builder -> builder
-                        .tag("heading", Tag.styling(NamedTextColor.GOLD))
-                        .tag("name", Tag.styling(NamedTextColor.AQUA))
-                        .tag("value", Tag.styling(NamedTextColor.DARK_GREEN))
-                        .tag("remove", Tag.styling(NamedTextColor.RED))
-                        .tag("add", Tag.styling(NamedTextColor.GREEN))
-                        .tag("modify", Tag.styling(NamedTextColor.YELLOW))
-                        .tag("show", Tag.styling(NamedTextColor.GREEN))
-                        .tag("inactive", Tag.styling(NamedTextColor.DARK_GRAY))
-                        .tag("active", Tag.styling(NamedTextColor.GREEN))
-                        .tag("neutral", Tag.styling(NamedTextColor.DARK_AQUA)))
-                .register();
+        StyledMessageSender.register(this, localizer, configuration::styleSettings);
     }
 
     /**

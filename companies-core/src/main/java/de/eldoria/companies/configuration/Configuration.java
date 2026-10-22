@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.eldoutilities.config.JacksonConfig;
@@ -49,6 +50,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     public GeneralSettings generalSettings() {
         return main().generalSettings();
+    }
+
+    public StyleSettings styleSettings() {
+        return main().style();
     }
 
     public DatabaseSettings databaseSettings() {
