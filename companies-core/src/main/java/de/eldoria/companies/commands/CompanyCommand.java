@@ -7,6 +7,7 @@ package de.eldoria.companies.commands;
 
 import de.eldoria.companies.commands.company.ApplicationsCommand;
 import de.eldoria.companies.commands.company.ApplyCommand;
+import de.eldoria.companies.commands.company.BankCommand;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Disband;
 import de.eldoria.companies.commands.company.HistoryCommand;
@@ -102,6 +103,9 @@ final class CompanyCommand {
     @Subcommand
     final HistoryCommand history;
 
+    @Subcommand
+    final BankCommand bank;
+
     CompanyCommand(CommandDependencies deps) {
         order = new CompanyOrderCommand(deps);
         permission = new Permission(deps);
@@ -123,6 +127,7 @@ final class CompanyCommand {
         returns = new Returns(deps);
         inbox = new InboxCommand(deps);
         history = new HistoryCommand(deps);
+        bank = new BankCommand(deps);
     }
 
     /**

@@ -19,6 +19,7 @@ import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
+import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
@@ -185,6 +186,7 @@ public class Companies extends EldoPlugin {
                 ILocalizer.getPluginLocalizer(this),
                 Threading.VIRTUAL));
         MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
+        TreasurySources.use(new TreasurySources(companyData, economy.treasury(), Threading.VIRTUAL));
         CompanyOrderSources.use(
                 new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
         getLifecycleManager()
@@ -266,7 +268,8 @@ public class Companies extends EldoPlugin {
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
                     orderCompletion,
-                    orderCreation));
+                    orderCreation,
+                    treasuryService));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
@@ -317,6 +320,7 @@ public class Companies extends EldoPlugin {
         if (commands != null) commands.withdraw();
         SuggestionSources.clear();
         CompanyOrderSources.clear();
+        TreasurySources.clear();
         MembershipSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();

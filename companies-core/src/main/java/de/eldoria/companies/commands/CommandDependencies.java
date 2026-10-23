@@ -28,6 +28,7 @@ import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
@@ -275,6 +276,7 @@ public final class CommandDependencies {
      * @param membershipService   invites, applications and joining
      * @param orderCompletion     completes delivered orders
      * @param orderCreation       creates orders and charges their owners
+     * @param treasury            moves money into and out of company treasuries
      */
     public record Services(
             Economy economy,
@@ -288,5 +290,6 @@ public final class CommandDependencies {
             MenuService menus,
             MembershipService membershipService,
             OrderCompletionService orderCompletion,
-            OrderCreationService orderCreation) {}
+            OrderCreationService orderCreation,
+            TreasuryService treasury) {}
 }
