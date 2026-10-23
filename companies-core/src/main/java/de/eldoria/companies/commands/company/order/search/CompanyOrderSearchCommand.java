@@ -27,7 +27,7 @@ import java.util.function.ObjIntConsumer;
 
 /**
  * {@code /company order search}: shows the search form, whose buttons run the search and page through the orders
- * found.
+ * found. {@code /order work search} is the same tree on the search of orders to work on alone.
  * <p>
  * The {@code query …} subcommands change the query by typing, for the values a chat menu cannot take, and show the
  * form again.
@@ -44,7 +44,14 @@ public final class CompanyOrderSearchCommand {
      */
     public CompanyOrderSearchCommand(
             CommandDependencies deps, ObjIntConsumer<Player> info, ObjIntConsumer<Player> accept) {
-        this.search = new OrderSearch(deps, info, accept);
+        this(new OrderSearch(deps, info, accept));
+    }
+
+    /**
+     * @param search the search the commands act on, such as the search of orders to work on alone
+     */
+    public CompanyOrderSearchCommand(OrderSearch search) {
+        this.search = search;
     }
 
     /**

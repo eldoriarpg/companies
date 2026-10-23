@@ -27,6 +27,7 @@ public final class CompanyOrderSources {
     private static volatile Optional<CompanyOrderSources> current = Optional.empty();
 
     private final SuggestionCache<UUID, List<FullOrder>> companyOrders;
+    private final SuggestionCache<UUID, List<FullOrder>> soloOrders;
     private final SearchSessions searches;
 
     /**
@@ -40,15 +41,34 @@ public final class CompanyOrderSources {
         this(
                 new SuggestionCache<>(
                         SuggestionSources.LIFETIME, executor, player -> claimedOrders(companyData, orderData, player)),
+                new SuggestionCache<>(SuggestionSources.LIFETIME, executor, player -> soloOrders(orderData, player)),
+                searches);
+    }
+
+    /**
+     * Sources without solo orders.
+     *
+     * @param companyOrders cache of the orders the company of a player works on, by the player's id
+     * @param searches      the order searches of the players
+     */
+    public CompanyOrderSources(SuggestionCache<UUID, List<FullOrder>> companyOrders, SearchSessions searches) {
+        this(
+                companyOrders,
+                new SuggestionCache<>(SuggestionSources.LIFETIME, Runnable::run, player -> List.of()),
                 searches);
     }
 
     /**
      * @param companyOrders cache of the orders the company of a player works on, by the player's id
+     * @param soloOrders    cache of the orders a player works on alone, by the player's id
      * @param searches      the order searches of the players
      */
-    public CompanyOrderSources(SuggestionCache<UUID, List<FullOrder>> companyOrders, SearchSessions searches) {
+    public CompanyOrderSources(
+            SuggestionCache<UUID, List<FullOrder>> companyOrders,
+            SuggestionCache<UUID, List<FullOrder>> soloOrders,
+            SearchSessions searches) {
         this.companyOrders = companyOrders;
+        this.soloOrders = soloOrders;
         this.searches = searches;
     }
 
@@ -74,12 +94,15 @@ public final class CompanyOrderSources {
     }
 
     /**
-     * Drops the cached orders of a player's company, after the player changed them.
+     * Drops the cached orders of a player's company and of the player alone, after the player changed them.
      *
      * @param player id of the player
      */
     public static void invalidate(UUID player) {
-        current.ifPresent(sources -> sources.companyOrders().invalidate(player));
+        current.ifPresent(sources -> {
+            sources.companyOrders().invalidate(player);
+            sources.soloOrders().invalidate(player);
+        });
     }
 
     /**
@@ -90,10 +113,26 @@ public final class CompanyOrderSources {
     }
 
     /**
+     * @return the orders a player works on alone, by the player's id
+     */
+    public SuggestionCache<UUID, List<FullOrder>> soloOrders() {
+        return soloOrders;
+    }
+
+    /**
      * @return the order searches of the players
      */
     public SearchSessions searches() {
         return searches;
+    }
+
+    private static List<FullOrder> soloOrders(AOrderData orderData, UUID player) {
+        var orders = orderData
+                .retrieveOrdersBySoloWorker(player, OrderState.CLAIMED, OrderState.CLAIMED)
+                .asFuture()
+                .join();
+        if (orders == null) return List.of();
+        return orderData.toFullOrders(orders);
     }
 
     private static List<FullOrder> claimedOrders(ACompanyData companyData, AOrderData orderData, UUID player) {

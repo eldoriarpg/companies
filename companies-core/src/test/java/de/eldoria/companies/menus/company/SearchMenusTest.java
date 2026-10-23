@@ -7,6 +7,7 @@ package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.company.order.search.OrderSearch;
+import de.eldoria.companies.commands.company.order.search.SearchMode;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.commands.company.order.search.SearchResults;
 import de.eldoria.companies.menus.MenuActions;
@@ -62,6 +63,56 @@ class SearchMenusTest {
 
         assertTrue(text.build().contains("suggest_command:'/company alerts add '"));
         assertTrue(text.build().contains("<i18n:company.order.search.saveAlert>"));
+    }
+
+    @Test
+    void theSoloFormHasNoAlertsAndTypesSoloCommands() {
+        var solo = new OrderSearch(
+                new CommandDependencies(null, null, null, null, null, null, null, null),
+                SearchMode.SOLO,
+                (p, query) -> null,
+                (p, id) -> {},
+                (p, id) -> {});
+
+        var text = new SearchMenu(solo, null).chat(player, SearchMenu.Model.of(new SearchQuery()), actions);
+
+        assertFalse(text.build().contains("company alerts add"), text.build());
+        assertFalse(text.build().contains("company.order.search.saveAlert"), text.build());
+        assertTrue(text.build().contains("suggest_command:'/order work search query name '"), text.build());
+        assertFalse(text.build().contains("/company order search"), text.build());
+    }
+
+    @Test
+    void theSoloResultsNameTheSoloLimit() {
+        var solo = new OrderSearch(
+                new CommandDependencies(null, null, null, null, null, null, null, null),
+                SearchMode.SOLO,
+                (p, query) -> null,
+                (p, id) -> {},
+                (p, id) -> {});
+        var results = new SearchResults(List.of(), 0, true, true);
+
+        var text = new SearchResultsMenu(solo, null, null)
+                .chat(player, new SearchResultsMenu.Model(results, Page.of(results.orders(), 0, 10)), actions);
+
+        assertTrue(text.build().contains("solo.search.limitReached"), text.build());
+        assertFalse(text.build().contains("<act_work_alone>"), text.build());
+    }
+
+    @Test
+    void companyResultsOfferWorkingAloneWhenAllowed() {
+        var results = new SearchResults(List.of(), 5, false, false);
+
+        var offered = new SearchResultsMenu(search, null, null)
+                .chat(player, new SearchResultsMenu.Model(results, Page.of(results.orders(), 0, 10), true), actions)
+                .build();
+        var hidden = new SearchResultsMenu(search, null, null)
+                .chat(player, new SearchResultsMenu.Model(results, Page.of(results.orders(), 0, 10)), actions)
+                .build();
+
+        assertTrue(offered.contains("<act_work_alone>"), offered);
+        assertFalse(offered.contains("run_command"), offered);
+        assertFalse(hidden.contains("<act_work_alone>"), hidden);
     }
 
     @Test

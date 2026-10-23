@@ -72,7 +72,14 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
             text.append(orderLine(i, orders.get(i), texts, results, actions)).newLine();
         }
         if (results.limitReached()) {
-            text.text("<inactive><i18n:company.order.search.limitReached>").newLine();
+            text.text("<inactive><i18n:" + search.mode().limitReachedKey() + ">")
+                    .newLine();
+        }
+        if (model.workAlone()) {
+            text.text(
+                            "<act_work_alone><show>[<i18n:solo.search.workAlone>]</act_work_alone>",
+                            actions.chatAction("act_work_alone", search::searchSolo))
+                    .newLine();
         }
         return text.append(pageLine(page, actions));
     }
@@ -89,8 +96,8 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
                         Values.number("result_count", results.orders().size()))
                 .text(" <heading>(<i18n:words.page> <page_number>/<page_count>)", pageValues(page)))));
         if (results.limitReached()) {
-            body.add(DialogBody.plainMessage(
-                    texts.of(MenuText.create().text("<inactive><i18n:company.order.search.limitReached>"))));
+            body.add(DialogBody.plainMessage(texts.of(
+                    MenuText.create().text("<inactive><i18n:" + search.mode().limitReachedKey() + ">"))));
         }
         List<ActionButton> buttons = new ArrayList<>();
         for (var order : page.items()) {
@@ -125,6 +132,12 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
         }
         buttons.add(
                 actions.button(texts.locale("words.change"), null, (clicker, response) -> search.showForm(clicker)));
+        if (model.workAlone()) {
+            buttons.add(actions.button(texts.locale("solo.search.workAlone"), null, (clicker, response) -> {
+                clicker.closeDialog();
+                search.searchSolo(clicker);
+            }));
+        }
         var base = DialogBase.builder(texts.locale("company.order.search.dialog.results"))
                 .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                 .body(body)
@@ -226,8 +239,19 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
     /**
      * What a page of search results shows.
      *
-     * @param results everything the search found
-     * @param page    the orders on this page
+     * @param results   everything the search found
+     * @param page      the orders on this page
+     * @param workAlone whether to offer looking for orders to work on alone
      */
-    public record Model(SearchResults results, Page<FullOrder> page) {}
+    public record Model(SearchResults results, Page<FullOrder> page, boolean workAlone) {
+        /**
+         * A page without the offer to work alone.
+         *
+         * @param results everything the search found
+         * @param page    the orders on this page
+         */
+        public Model(SearchResults results, Page<FullOrder> page) {
+            this(results, page, false);
+        }
+    }
 }
