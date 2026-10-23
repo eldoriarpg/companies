@@ -6,15 +6,19 @@
 package de.eldoria.companies.menus.order;
 
 import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.menus.MenuMode;
+import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.order.OrderBuilderMenu.Screen;
 import de.eldoria.companies.menus.order.OrderBuilderMenu.View;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.Repetition;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.Replacement;
@@ -132,8 +136,10 @@ public final class OrderBuilderController {
      * @param player owner of the draft
      */
     public void done(Player player) {
-        var economy = deps.services().economy();
-        drafts().done(player, deps.services().orderCreation())
+        var services = deps.services();
+        var economy = services.economy();
+        var repetition = drafts().draft(player.getUniqueId()).flatMap(OrderBuilder::repetition);
+        drafts().done(player, services.orderCreation(), services.series()::start)
                 .whenCompleteAsync(
                         (created, err) -> {
                             if (err != null) {
@@ -142,7 +148,11 @@ public final class OrderBuilderController {
                             }
                             SuggestionSources.current()
                                     .ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
-                            close(player).whenComplete((unused, error) -> sendCreated(player, created, economy));
+                            if (repetition.isPresent()) SeriesSources.invalidate(player.getUniqueId());
+                            close(player).whenComplete((unused, error) -> {
+                                sendCreated(player, created, economy);
+                                repetition.ifPresent(repeat -> sendRepeating(player, repeat));
+                            });
                         },
                         Threading.mainThread(deps.plugin()));
     }
@@ -179,8 +189,11 @@ public final class OrderBuilderController {
 
     private void show(Player player, OrderBuilder draft, Screen screen, Optional<CommandFailure> error) {
         var services = deps.services();
-        var view = DraftView.of(draft, deps.configuration().orderSetting(), material -> deps.orderData()
-                .getMaterialPrice(material));
+        var view = DraftView.of(
+                draft,
+                deps.configuration().orderSetting(),
+                material -> deps.orderData().getMaterialPrice(material),
+                player.hasPermission(Permission.Orders.REPEAT));
         var menu = new OrderBuilderMenu(this, services.economy(), deps.messages());
         services.menus().show(player, menu, new View(view, screen, error));
     }
@@ -227,6 +240,16 @@ public final class OrderBuilderController {
             return;
         }
         deps.messages().sendMessage(player, MessageComposer.escape("order.create.created"));
+    }
+
+    private void sendRepeating(Player player, Repetition repetition) {
+        deps.messages()
+                .sendMessage(
+                        player,
+                        MenuText.create()
+                                .locale("order.series.started")
+                                .space()
+                                .append(RepetitionTexts.summary(repetition)));
     }
 
     private String marketMaterial(Screen.Add screen) {

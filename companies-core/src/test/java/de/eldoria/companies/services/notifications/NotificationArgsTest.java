@@ -78,6 +78,16 @@ class NotificationArgsTest {
     void typesAreFoundByIdAndLegacyIsZero() {
         Assertions.assertEquals(Optional.of(NotificationType.LEGACY), NotificationType.byId(0));
         Assertions.assertEquals(Optional.of(NotificationType.PROFILE_CHANGED), NotificationType.byId(30));
+        Assertions.assertEquals(Optional.of(NotificationType.MONEY_GRANTED), NotificationType.byId(37));
+        Assertions.assertEquals(Optional.of(NotificationType.PAYMENT_SHARED), NotificationType.byId(40));
+        Assertions.assertEquals(Optional.of(NotificationType.ORDER_ALERT_DIGEST), NotificationType.byId(48));
+        Assertions.assertEquals(
+                NotificationType.values().length,
+                Arrays.stream(NotificationType.values())
+                        .mapToInt(NotificationType::id)
+                        .distinct()
+                        .count());
+        Assertions.assertEquals(NotificationCategory.ALERTS, NotificationType.ORDER_ALERT.category());
         Assertions.assertEquals(Optional.empty(), NotificationType.byId(-1));
     }
 
@@ -94,7 +104,8 @@ class NotificationArgsTest {
                         NotificationCategory.MEMBERS,
                         NotificationCategory.ORDERS,
                         NotificationCategory.PAYMENTS,
-                        NotificationCategory.LEVEL),
+                        NotificationCategory.LEVEL,
+                        NotificationCategory.ALERTS),
                 Arrays.stream(NotificationCategory.values())
                         .filter(NotificationCategory::mutable)
                         .collect(Collectors.toSet()));

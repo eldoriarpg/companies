@@ -40,7 +40,11 @@ public enum CompanyPermission implements Translatable {
     /**
      * Allows changing the description, tag, colour and join mode of the company.
      */
-    EDIT_PROFILE(5);
+    EDIT_PROFILE(5),
+    /**
+     * Withdraws money from the company treasury and sets the share of payouts that goes to it.
+     */
+    TREASURY(6);
 
     private final long mask;
     private final int rawMask;

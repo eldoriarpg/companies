@@ -20,6 +20,7 @@ import static de.eldoria.companies.components.company.CompanyPermission.KICK;
 import static de.eldoria.companies.components.company.CompanyPermission.MANAGE_ORDERS;
 import static de.eldoria.companies.components.company.CompanyPermission.MANAGE_PERMISSIONS;
 import static de.eldoria.companies.components.company.CompanyPermission.OWNER;
+import static de.eldoria.companies.components.company.CompanyPermission.TREASURY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,7 +33,9 @@ class PermissionEditTest {
 
     @Test
     void ownerIsNeverShown() {
-        assertEquals(List.of(INVITE, KICK, MANAGE_ORDERS, MANAGE_PERMISSIONS, EDIT_PROFILE), PermissionEdit.shown());
+        assertEquals(
+                List.of(INVITE, KICK, MANAGE_ORDERS, MANAGE_PERMISSIONS, EDIT_PROFILE, TREASURY),
+                PermissionEdit.shown());
     }
 
     @Test

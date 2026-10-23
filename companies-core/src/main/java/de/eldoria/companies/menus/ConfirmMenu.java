@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 
 /**
  * Asks a player to confirm an action: a confirmation dialog, or a chat line with {@code [Confirm]} and {@code [Deny]}.
+ * A prompt may name its confirm button and offer an alternative way to confirm, such as paying from the treasury
+ * instead of paying oneself; the dialog then lists the three buttons.
  * <p>
  * Both buttons work once and only while the confirmation is valid. The chat line does not hold the chat, so an
  * unanswered confirmation simply expires.
@@ -30,6 +32,7 @@ import java.util.function.Consumer;
 public final class ConfirmMenu implements Menu<ConfirmMenu.Prompt> {
     static final String CONFIRM = "act_confirm";
     static final String DENY = "act_deny";
+    static final String ALTERNATIVE = "act_alternative";
 
     private final Plugin plugin;
 
@@ -42,12 +45,16 @@ public final class ConfirmMenu implements Menu<ConfirmMenu.Prompt> {
 
     @Override
     public MenuText chat(Player player, Prompt model, MenuActions actions) {
-        return question(model)
+        var text = question(model)
                 .space()
-                .text(
-                        "<act_confirm><add>[<i18n:words.confirm>]</add></act_confirm>",
-                        actions.chatActionOnce(CONFIRM, model.onConfirm()))
-                .space()
+                .text("<act_confirm><add>[", actions.chatActionOnce(CONFIRM, model.onConfirm()))
+                .append(model.confirmLabel())
+                .text("]</add></act_confirm>");
+        model.alternative().ifPresent(alternative -> text.space()
+                .text("<act_alternative><add>[", actions.chatActionOnce(ALTERNATIVE, alternative.onChoose()))
+                .append(alternative.label())
+                .text("]</add></act_alternative>"));
+        return text.space()
                 .text(
                         "<act_deny><remove>[<i18n:words.deny>]</remove></act_deny>",
                         actions.chatActionOnce(DENY, model.onCancel()));
@@ -58,7 +65,7 @@ public final class ConfirmMenu implements Menu<ConfirmMenu.Prompt> {
         var title = render(player, MenuText.create().locale("menu.confirm.title"));
         var question = render(player, question(model));
         var confirm = actions.buttonOnce(
-                render(player, MenuText.create().text("<add><i18n:words.confirm>")),
+                render(player, MenuText.create().text("<add>").append(model.confirmLabel())),
                 null,
                 (clicked, response) -> model.onConfirm().accept(clicked));
         var deny = actions.buttonOnce(
@@ -69,6 +76,18 @@ public final class ConfirmMenu implements Menu<ConfirmMenu.Prompt> {
                 .body(List.of(DialogBody.plainMessage(question)))
                 .afterAction(DialogBase.DialogAfterAction.CLOSE)
                 .build();
+        if (model.alternative().isPresent()) {
+            var alternative = model.alternative().get();
+            var chosen = actions.buttonOnce(
+                    render(player, MenuText.create().text("<add>").append(alternative.label())),
+                    null,
+                    (clicked, response) -> alternative.onChoose().accept(clicked));
+            var type = DialogType.multiAction(List.of(confirm, chosen, deny))
+                    .columns(1)
+                    .build();
+            return Optional.of(
+                    Dialog.create(factory -> factory.empty().base(base).type(type)));
+        }
         return Optional.of(
                 Dialog.create(factory -> factory.empty().base(base).type(DialogType.confirmation(confirm, deny))));
     }
@@ -101,9 +120,35 @@ public final class ConfirmMenu implements Menu<ConfirmMenu.Prompt> {
     /**
      * What to confirm and what each answer does.
      *
-     * @param question  the question, with its placeholders
-     * @param onConfirm runs when the player confirms
-     * @param onCancel  runs when the player denies
+     * @param question     the question, with its placeholders
+     * @param onConfirm    runs when the player confirms
+     * @param onCancel     runs when the player denies
+     * @param confirmLabel text of the confirm button
+     * @param alternative  another way to confirm, or empty
      */
-    public record Prompt(MenuText question, Consumer<Player> onConfirm, Consumer<Player> onCancel) {}
+    public record Prompt(
+            MenuText question,
+            Consumer<Player> onConfirm,
+            Consumer<Player> onCancel,
+            MenuText confirmLabel,
+            Optional<Choice> alternative) {
+        /**
+         * A prompt with the usual confirm and deny buttons.
+         *
+         * @param question  the question, with its placeholders
+         * @param onConfirm runs when the player confirms
+         * @param onCancel  runs when the player denies
+         */
+        public Prompt(MenuText question, Consumer<Player> onConfirm, Consumer<Player> onCancel) {
+            this(question, onConfirm, onCancel, MenuText.create().text("<i18n:words.confirm>"), Optional.empty());
+        }
+    }
+
+    /**
+     * Another way to confirm, shown as its own button.
+     *
+     * @param label    text of the button, with its placeholders
+     * @param onChoose runs when the player chooses it
+     */
+    public record Choice(MenuText label, Consumer<Player> onChoose) {}
 }

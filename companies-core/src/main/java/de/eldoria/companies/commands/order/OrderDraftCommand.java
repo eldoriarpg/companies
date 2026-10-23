@@ -8,11 +8,14 @@ package de.eldoria.companies.commands.order;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.DraftLines;
 import de.eldoria.companies.commands.suggest.UnitPrices;
+import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.data.wrapper.series.RepeatInterval;
 import de.eldoria.companies.menus.order.OrderBuilderController;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.Repetition;
 import de.eldoria.companies.util.Permission.Orders;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Literal;
@@ -33,7 +36,8 @@ import java.util.function.BiConsumer;
  * <p>
  * The typed counterpart of the builder's buttons. Every action shows the builder again, also when it was refused. An
  * action on a draft that expired answers that the draft expired instead of starting a new one. Lines are numbered
- * from 1, prices are per unit.
+ * from 1, prices are per unit. {@code repeat} makes the order repeat daily or weekly, until a number of copies or a
+ * date, and {@code repeat off} makes it a one-off order again.
  */
 @Subcommand("draft")
 @Permission(Orders.CREATE)
@@ -139,6 +143,50 @@ public final class OrderDraftCommand {
     }
 
     /**
+     * Makes the order repeat until a number of copies was posted.
+     *
+     * @param sender   sender of the command
+     * @param interval {@code daily} or {@code weekly}
+     * @param count    number of copies
+     */
+    @Executes("repeat")
+    public void repeat(
+            CommandSender sender, @Literal({"daily", "weekly"}) String interval, @IntArg(min = 1) int count) {
+        edit(sender, (player, draft) -> drafts().repeat(draft, player, Repetition.times(interval(interval), count)));
+    }
+
+    /**
+     * Makes the order repeat until a date.
+     *
+     * @param sender   sender of the command
+     * @param interval {@code daily} or {@code weekly}
+     * @param until    the literal {@code until}
+     * @param date     the last day a copy may be posted, as {@code yyyy-MM-dd}
+     */
+    @Executes("repeat")
+    public void repeatUntil(
+            CommandSender sender,
+            @Literal({"daily", "weekly"}) String interval,
+            @Literal("until") String until,
+            String date) {
+        edit(sender, (player, draft) -> {
+            var end =
+                    Repetition.date(date).orElseThrow(() -> CommandFailure.actionBar("order.draft.repeat.error.date"));
+            drafts().repeat(draft, player, Repetition.until(interval(interval), end));
+        });
+    }
+
+    /**
+     * Makes the order a one-off order again.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("repeat off")
+    public void once(CommandSender sender) {
+        edit(sender, (player, draft) -> drafts().once(draft));
+    }
+
+    /**
      * Charges the sender and creates the order.
      *
      * @param sender sender of the command
@@ -180,6 +228,10 @@ public final class OrderDraftCommand {
 
     private void edit(CommandSender sender, BiConsumer<Player, OrderBuilder> action) {
         builder.edit(Senders.player(sender), action);
+    }
+
+    private static RepeatInterval interval(String typed) {
+        return Repetition.interval(typed).orElseThrow(() -> CommandFailure.actionBar("error.invalidEnumValue"));
     }
 
     private OrderDraftService drafts() {

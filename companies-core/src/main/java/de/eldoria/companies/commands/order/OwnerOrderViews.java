@@ -183,6 +183,11 @@ public final class OwnerOrderViews implements OwnerOrderActions {
     }
 
     @Override
+    public void series(Player player, int id) {
+        guarded(player, () -> commands().series().info(player, id));
+    }
+
+    @Override
     public void create(Player player, @Nullable String name) {
         guarded(player, () -> commands().create().create(player, name == null ? "" : name.strip()));
     }
@@ -207,6 +212,13 @@ public final class OwnerOrderViews implements OwnerOrderActions {
      * @param raise   raises the price of an order
      * @param receive receives a delivered order
      * @param create  starts a new order
+     * @param series  shows repeating orders
      */
-    public record Commands(Cancel cancel, Extend extend, Raise raise, Receive receive, OrderCreateCommand create) {}
+    public record Commands(
+            Cancel cancel,
+            Extend extend,
+            Raise raise,
+            Receive receive,
+            OrderCreateCommand create,
+            SeriesCommand series) {}
 }

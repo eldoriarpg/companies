@@ -13,10 +13,13 @@ import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
+import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
+import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.data.wrapper.treasury.Treasury;
 import de.eldoria.companies.orders.OrderLimits;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
@@ -41,6 +44,7 @@ public final class PlaceholderLoader {
     private final ACompanyData companyData;
     private final AOrderData orderData;
     private final AStatsData stats;
+    private final ATreasuryData treasuries;
     private final OrderLimits limits;
 
     /**
@@ -49,18 +53,21 @@ public final class PlaceholderLoader {
      * @param companyData   company repository
      * @param orderData     order repository
      * @param stats         statistics repository
+     * @param treasuries    treasury repository
      */
     public PlaceholderLoader(
             Server server,
             Configuration configuration,
             ACompanyData companyData,
             AOrderData orderData,
-            AStatsData stats) {
+            AStatsData stats,
+            ATreasuryData treasuries) {
         this.server = server;
         this.configuration = configuration;
         this.companyData = companyData;
         this.orderData = orderData;
         this.stats = stats;
+        this.treasuries = treasuries;
         this.limits = new OrderLimits(orderData, configuration::userSettings);
     }
 
@@ -112,25 +119,31 @@ public final class PlaceholderLoader {
     private CompletableFuture<CompanyView> company(CompanyProfile profile) {
         var companyStats = companyData.retrieveCompanyStats(profile).asFuture();
         var active = orderData.retrieveCompanyOrderCount(profile).asFuture();
-        return companyStats.thenCombine(
-                active,
-                (values, orders) -> new CompanyView(
-                        profile.id(),
-                        profile.name(),
-                        profile.level(),
-                        configuration
-                                .companySettings()
-                                .level(profile.level())
-                                .map(CompanyLevel::levelName)
-                                .orElse(""),
-                        profile.members().size(),
-                        count(orders),
-                        owner(profile),
-                        profile.tag(),
-                        profile.color(),
-                        values.orderCount(),
-                        values.price(),
-                        values.deliveredItems()));
+        var treasury = treasuries.retrieveTreasury(profile.id());
+        return CompletableFuture.allOf(companyStats, active, treasury)
+                .thenApply(done -> view(profile, companyStats.join(), active.join(), treasury.join()));
+    }
+
+    private CompanyView view(CompanyProfile profile, CompanyStats values, Integer orders, Treasury treasury) {
+        return new CompanyView(
+                profile.id(),
+                profile.name(),
+                profile.level(),
+                configuration
+                        .companySettings()
+                        .level(profile.level())
+                        .map(CompanyLevel::levelName)
+                        .orElse(""),
+                profile.members().size(),
+                count(orders),
+                owner(profile),
+                profile.tag(),
+                profile.color(),
+                values.orderCount(),
+                values.price(),
+                values.deliveredItems(),
+                treasury.balance().doubleValue(),
+                configuration.companySettings().treasury().effectiveShare(treasury.payoutShare()));
     }
 
     /**

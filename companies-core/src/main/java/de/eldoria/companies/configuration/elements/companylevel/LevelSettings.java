@@ -20,6 +20,9 @@ public class LevelSettings implements ILevelSettings {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Double taxPercent = null;
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Integer maxAlerts = null;
+
     public LevelSettings() {}
 
     @Override
@@ -92,5 +95,23 @@ public class LevelSettings implements ILevelSettings {
 
     public void deliveryHoursBonus(int deliveryHoursBonus) {
         this.deliveryHoursBonus = deliveryHoursBonus;
+    }
+
+    /**
+     * How many order alerts companies of this level may save, replacing the global limit.
+     *
+     * @return alerts per company, or empty when the global limit applies
+     */
+    public Optional<Integer> maxAlerts() {
+        return Optional.ofNullable(maxAlerts);
+    }
+
+    /**
+     * Sets or clears the alert limit of this level.
+     *
+     * @param maxAlerts alerts per company, 0 to disable them, or null to use the global limit
+     */
+    public void maxAlerts(Integer maxAlerts) {
+        this.maxAlerts = maxAlerts;
     }
 }

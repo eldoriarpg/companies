@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SearchMenusTest {
     private final OrderSearch search = new OrderSearch(
-            new CommandDependencies(null, null, null, null, null, null, null), (p, id) -> {}, (p, id) -> {});
+            new CommandDependencies(null, null, null, null, null, null, null, null), (p, id) -> {}, (p, id) -> {});
     private ServerMock server;
     private PlayerMock player;
     private MenuActions actions;
@@ -54,6 +54,14 @@ class SearchMenusTest {
         assertTrue(text.build().contains("<act_search>"));
         assertTrue(text.build().contains("<act_material_1_remove>"));
         assertFalse(text.build().contains("<red>x"));
+    }
+
+    @Test
+    void theChatFormOffersSavingTheSearchAsAlert() {
+        var text = new SearchMenu(search, null).chat(player, SearchMenu.Model.of(new SearchQuery()), actions);
+
+        assertTrue(text.build().contains("suggest_command:'/company alerts add '"));
+        assertTrue(text.build().contains("<i18n:company.order.search.saveAlert>"));
     }
 
     @Test

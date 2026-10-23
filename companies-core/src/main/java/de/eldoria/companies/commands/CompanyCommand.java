@@ -5,8 +5,10 @@
  */
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.commands.company.AlertsCommand;
 import de.eldoria.companies.commands.company.ApplicationsCommand;
 import de.eldoria.companies.commands.company.ApplyCommand;
+import de.eldoria.companies.commands.company.BankCommand;
 import de.eldoria.companies.commands.company.BoardCommand;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Disband;
@@ -107,6 +109,12 @@ final class CompanyCommand {
     @Subcommand
     final BoardCommand board;
 
+    @Subcommand
+    final BankCommand bank;
+
+    @Subcommand
+    final AlertsCommand alerts;
+
     CompanyCommand(CommandDependencies deps) {
         order = new CompanyOrderCommand(deps);
         permission = new Permission(deps);
@@ -129,6 +137,8 @@ final class CompanyCommand {
         inbox = new InboxCommand(deps);
         history = new HistoryCommand(deps);
         board = new BoardCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
+        bank = new BankCommand(deps);
+        alerts = new AlertsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
     }
 
     /**

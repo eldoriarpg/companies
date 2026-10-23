@@ -11,6 +11,7 @@ import de.eldoria.companies.api.write.OrderRequest;
 import de.eldoria.companies.api.write.RejectReason;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
@@ -25,7 +26,9 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.PreOrderCreateEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
@@ -48,6 +51,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -87,6 +91,7 @@ class CompaniesApiImplTest {
     private ExecutorService executor;
     private SqLiteCompanyData companyData;
     private SqLiteOrderData orderData;
+    private SqLiteTreasuryData treasuryData;
     private CompaniesApiImpl api;
     private OfflinePlayer owner;
     private int miners;
@@ -100,6 +105,7 @@ class CompaniesApiImplTest {
         companyData = new SqLiteCompanyData(executor);
         orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper());
         var stats = new SqLiteStatsData(executor);
+        treasuryData = new SqLiteTreasuryData(executor);
         orderSettings.maxMaterials(2);
         userSettings.maxOrders(5);
         owner = server.getOfflinePlayer(UUID.randomUUID());
@@ -110,7 +116,7 @@ class CompaniesApiImplTest {
                 .join();
 
         api = new CompaniesApiImpl(
-                new CompaniesApiImpl.Repositories(companyData, orderData, stats),
+                new CompaniesApiImpl.Repositories(companyData, orderData, stats, treasuryData),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer,
                         failure -> failure.message().orElse(Component.text(failure.localeKey())),
@@ -166,6 +172,21 @@ class CompaniesApiImplTest {
                 .get(5, TimeUnit.SECONDS)
                 .isEmpty());
         assertEquals(0, api.players().itemsWaiting(owner.getUniqueId()).get(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void treasuryIsReadForKnownCompaniesOnly() throws Exception {
+        treasuryData
+                .submitCredit(
+                        miners, 1234, new TreasuryEntry(TreasuryKind.DEPOSIT, null, null, null, LocalDateTime.now()))
+                .join();
+
+        var treasury = api.companies().treasury(miners).get(5, TimeUnit.SECONDS).orElseThrow();
+
+        assertEquals(miners, treasury.company());
+        assertEquals(new BigDecimal("12.34"), treasury.balance());
+        assertEquals(0, treasury.payoutShare());
+        assertTrue(api.companies().treasury(999).get(5, TimeUnit.SECONDS).isEmpty());
     }
 
     @Test

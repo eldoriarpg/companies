@@ -27,11 +27,14 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The orders of a player which are not received yet, with the order limit and the items waiting to be collected.
  * <p>
- * Every order shows its contents, status and price when hovered and has an info button. In chat a new order is
+ * Every order shows its contents, status and price when hovered and has an info button. Copies of repeating orders
+ * are marked with ⟳. In chat a new order is
  * started by the suggested typed {@code /order create} command; as dialog its name is entered in the dialog.
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -40,6 +43,11 @@ public final class OwnerOrderListMenu implements Menu<OwnerOrderListMenu.Model> 
      * Key of the input holding the name of a new order.
      */
     static final String ORDER_NAME = "order_name";
+
+    /**
+     * Marks a copy of a repeating order.
+     */
+    static final String REPEATING = " <neutral>⟳";
 
     private final OwnerOrderActions actions;
     private final MessageSender messages;
@@ -85,6 +93,7 @@ public final class OwnerOrderListMenu implements Menu<OwnerOrderListMenu.Model> 
                             "<hover:show_text:'<" + details + ">'>",
                             Values.component(details, components.of(details(order))))
                     .append(OrderTexts.title(prefix, id, order.name()))
+                    .text(model.copies().contains(id) ? REPEATING : "")
                     .text("</hover> ")
                     .text(
                             "<" + info + "><add>[<i18n:words.info>]</" + info + ">",
@@ -108,7 +117,8 @@ public final class OwnerOrderListMenu implements Menu<OwnerOrderListMenu.Model> 
         for (var order : model.orders()) {
             var id = order.id();
             list.add(buttons.button(
-                    components.of(OrderTexts.title("", id, order.name())),
+                    components.of(OrderTexts.title("", id, order.name())
+                            .text(model.copies().contains(id) ? REPEATING : "")),
                     components.of(details(order)),
                     (p, response) -> actions.info(p, id)));
         }
@@ -168,8 +178,21 @@ public final class OwnerOrderListMenu implements Menu<OwnerOrderListMenu.Model> 
      * @param active  orders counting towards the limit
      * @param limit   orders the player may have
      * @param waiting items of received orders waiting to be collected
+     * @param copies  ids of the orders that are copies of a repeating order
      */
-    public record Model(List<OrderSummary> orders, int active, int limit, int waiting) {
+    public record Model(List<OrderSummary> orders, int active, int limit, int waiting, Set<Integer> copies) {
+        /**
+         * @param orders  orders not received yet
+         * @param active  orders counting towards the limit
+         * @param limit   orders the player may have
+         * @param waiting items of received orders waiting to be collected
+         * @param copies  ids of the copies of repeating orders
+         */
+        public Model {
+            orders = List.copyOf(orders);
+            copies = Set.copyOf(copies);
+        }
+
         /**
          * @param orders  orders not received yet
          * @param usage   use of the order limit
@@ -177,7 +200,12 @@ public final class OwnerOrderListMenu implements Menu<OwnerOrderListMenu.Model> 
          * @return the model
          */
         public static Model of(List<FullOrder> orders, OrderLimits.Usage usage, int waiting) {
-            return new Model(orders.stream().map(OrderSummary::of).toList(), usage.active(), usage.limit(), waiting);
+            var copies = orders.stream()
+                    .filter(order -> order.seriesId().isPresent())
+                    .map(FullOrder::id)
+                    .collect(Collectors.toSet());
+            return new Model(
+                    orders.stream().map(OrderSummary::of).toList(), usage.active(), usage.limit(), waiting, copies);
         }
 
         /**

@@ -18,9 +18,12 @@ import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
+import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
+import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
+import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
@@ -29,28 +32,38 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAlertData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSeriesData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbTreasuryData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresAlertData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresSeriesData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresTreasuryData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.menus.MenuService;
@@ -68,6 +81,13 @@ import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.RefreshService;
+import de.eldoria.companies.services.SeriesService;
+import de.eldoria.companies.services.TreasuryLogRetention;
+import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.alerts.AlertCompanies;
+import de.eldoria.companies.services.alerts.AlertDigestJob;
+import de.eldoria.companies.services.alerts.AlertMatcher;
+import de.eldoria.companies.services.alerts.AlertNotices;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -109,6 +129,7 @@ public class Companies extends EldoPlugin {
     private ACompanyData companyData;
     private AOrderData orderData;
     private InformationData information;
+    private EconomyData economy;
     private ANodeData nodeData;
     private AMembershipData membershipData;
     private Updates updates;
@@ -154,7 +175,7 @@ public class Companies extends EldoPlugin {
         registerCommands();
         api = CompaniesApiImpl.create(
                 this,
-                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats()),
+                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats(), economy.treasury()),
                 Threading.VIRTUAL);
         api.register(this);
     }
@@ -165,7 +186,7 @@ public class Companies extends EldoPlugin {
      */
     private void registerCommands() {
         var dependencies = new CommandDependencies(
-                this, configuration, companyData, orderData, nodeData, membershipData, information);
+                this, configuration, companyData, orderData, nodeData, membershipData, information, economy);
         commands = dependencies;
         drafts = dependencies.drafts();
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
@@ -178,8 +199,11 @@ public class Companies extends EldoPlugin {
                 dependencies.npcBoards(),
                 Threading.VIRTUAL));
         MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
+        TreasurySources.use(new TreasurySources(companyData, economy.treasury(), Threading.VIRTUAL));
+        SeriesSources.use(new SeriesSources(economy.series(), Threading.VIRTUAL));
         CompanyOrderSources.use(
                 new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
+        AlertSuggestions.use(new AlertSuggestions(companyData, economy.alerts(), Threading.VIRTUAL));
         getLifecycleManager()
                 .registerEventHandler(LifecycleEvents.COMMANDS.newHandler(
                         event -> CommandRegistration.register(event.registrar(), dependencies)));
@@ -216,7 +240,10 @@ public class Companies extends EldoPlugin {
 
         var notificationService = NotificationService.create(
                 this, information.inbox(), orderData, workerPool, configuration::notificationSettings);
-        var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
+        var treasuryService =
+                TreasuryService.create(this, this.economy.treasury(), economy, configuration, notificationService);
+        var disbandService = new DisbandService(
+                this, companyData, orderData, itemReturnService, notificationService, treasuryService);
         var membershipService = MembershipService.create(
                 this,
                 companyData,
@@ -228,7 +255,7 @@ public class Companies extends EldoPlugin {
         var historyRecorder = new HistoryRecorder(information.history(), Clock.systemDefaultZone());
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
-                this, orderData, information.stats(), historyRecorder, economy, configuration);
+                this, orderData, information.stats(), historyRecorder, economy, configuration, treasuryService);
 
         var orderCreation = new OrderCreationService(
                 orderData,
@@ -239,6 +266,16 @@ public class Companies extends EldoPlugin {
                 getServer().getPluginManager()::callEvent,
                 Threading.mainThread(this),
                 getLogger());
+
+        var seriesService = SeriesService.create(
+                this,
+                this.economy.series(),
+                orderData,
+                orderCreation,
+                drafts.limits(),
+                economy::format,
+                notificationService,
+                () -> configuration.orderSetting().repeating());
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -256,20 +293,39 @@ public class Companies extends EldoPlugin {
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
                     orderCompletion,
-                    orderCreation));
+                    orderCreation,
+                    treasuryService,
+                    seriesService));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
         var expiringService = new ExpiringService(
                 this, orderData, companyData, configuration, economy, notificationService, outcomes);
+        var alertNotices = new AlertNotices(notificationService::send, economy::format);
+        var alertCompanies = AlertCompanies.of(companyData, orderData);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
             membershipService.start(workerPool);
+            seriesService.schedule(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
             new HistoryRetention(
                             information.history(),
                             () -> configuration.generalSettings().historyDays(),
+                            Clock.systemDefaultZone(),
+                            getLogger())
+                    .start(workerPool);
+            new TreasuryLogRetention(
+                            this.economy.treasury(),
+                            () -> configuration.companySettings().treasury().logRetentionDays(),
+                            Clock.systemDefaultZone(),
+                            getLogger())
+                    .start(workerPool);
+            new AlertDigestJob(
+                            this.economy.alerts(),
+                            alertCompanies,
+                            configuration::companySettings,
+                            alertNotices,
                             Clock.systemDefaultZone(),
                             getLogger())
                     .start(workerPool);
@@ -301,6 +357,15 @@ public class Companies extends EldoPlugin {
                         this, configuration::discordSettings, economy, ILocalizer.getPluginLocalizer(this))
                 .orElse(null);
         if (discord != null) registerListener(discord.listener());
+        registerListener(seriesService);
+        registerListener(new AlertMatcher(
+                this.economy.alerts(),
+                alertCompanies,
+                configuration::companySettings,
+                alertNotices,
+                Clock.systemDefaultZone(),
+                Threading.VIRTUAL,
+                getLogger()));
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
                 && configuration.generalSettings().hooks().placeholderapi()) {
@@ -310,6 +375,7 @@ public class Companies extends EldoPlugin {
                     companyData,
                     orderData,
                     information.stats(),
+                    this.economy.treasury(),
                     economy,
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();
@@ -331,7 +397,10 @@ public class Companies extends EldoPlugin {
         }
         SuggestionSources.clear();
         CompanyOrderSources.clear();
+        TreasurySources.clear();
+        AlertSuggestions.clear();
         MembershipSources.clear();
+        SeriesSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
@@ -399,6 +468,10 @@ public class Companies extends EldoPlugin {
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
                         new SqLiteHistoryData(mapper, Threading.VIRTUAL));
+                economy = new EconomyData(
+                        new SqLiteTreasuryData(Threading.VIRTUAL),
+                        new SqLiteSeriesData(mapper, Threading.VIRTUAL),
+                        new SqLiteAlertData(mapper, Threading.VIRTUAL));
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
                 membershipData = new SqLiteMembershipData(workerPool);
             }
@@ -409,6 +482,10 @@ public class Companies extends EldoPlugin {
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
                         new MariaDbHistoryData(mapper, Threading.VIRTUAL));
+                economy = new EconomyData(
+                        new MariaDbTreasuryData(Threading.VIRTUAL),
+                        new MariaDbSeriesData(mapper, Threading.VIRTUAL),
+                        new MariaDbAlertData(mapper, Threading.VIRTUAL));
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 membershipData = new MariaDbMembershipData(workerPool);
             }
@@ -419,6 +496,10 @@ public class Companies extends EldoPlugin {
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),
                         new PostgresHistoryData(mapper, Threading.VIRTUAL));
+                economy = new EconomyData(
+                        new PostgresTreasuryData(Threading.VIRTUAL),
+                        new PostgresSeriesData(mapper, Threading.VIRTUAL),
+                        new PostgresAlertData(mapper, Threading.VIRTUAL));
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
                 membershipData = new PostgresMembershipData(workerPool);
             }

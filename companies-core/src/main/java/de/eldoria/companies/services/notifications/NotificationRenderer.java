@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.services.notifications;
 
+import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -20,7 +21,7 @@ import java.util.function.UnaryOperator;
  */
 public final class NotificationRenderer {
     /**
-     * The placeholder of the button next to a message.
+     * The placeholder of the buttons next to a message, followed by the index of the button.
      */
     static final String ACTION_KEY = "notification_action";
 
@@ -34,7 +35,7 @@ public final class NotificationRenderer {
     }
 
     /**
-     * The message with the button of its type.
+     * The message with the buttons of its type.
      *
      * @param type kind of notification
      * @param args values of the notification
@@ -42,12 +43,15 @@ public final class NotificationRenderer {
      */
     public MenuText message(NotificationType type, NotificationArgs args) {
         var text = body(type, args);
-        type.action().ifPresent(action -> text.space()
-                .text(
-                        "<" + ACTION_KEY + "><add>[",
-                        Values.click(ACTION_KEY, ClickEvent.runCommand(args.fill(action.command()))))
-                .locale(action.label())
-                .text("]</" + ACTION_KEY + ">"));
+        var actions = type.actions();
+        for (var i = 0; i < actions.size(); i++) {
+            var action = actions.get(i);
+            var key = Keys.of(ACTION_KEY, i);
+            text.space()
+                    .text("<" + key + "><add>[", Values.click(key, ClickEvent.runCommand(args.fill(action.command()))))
+                    .locale(action.label())
+                    .text("]</" + key + ">");
+        }
         return text;
     }
 

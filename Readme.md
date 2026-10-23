@@ -129,12 +129,16 @@ Listen to them like any Bukkit event. Most are fired off the main thread; their 
 | `OrderAcceptEvent`          | A company claimed an order                                                             |
 | `OrderDeliveryEvent`        | A worker delivered items to an order                                                   |
 | `OrderDoneEvent`            | All items of an order are delivered                                                    |
-| `OrderPaymentEvent`         | A worker is about to be paid their share. Cancellable                                  |
+| `OrderPaymentEvent`         | A worker is about to be paid their share. Cancellable; `share()` is the part kept in the company treasury |
 | `OrderReceivedEvent`        | The owner received the items                                                           |
 | `OrderCanceledEvent`        | A company aborted a claimed order                                                      |
 | `OrderExpiredEvent`         | A company did not deliver in time                                                      |
 | `OrderRemovedEvent`         | An order was deleted before delivery; `reason()` is `PURGED`, `CANCELLED` or `ADMIN`   |
 | `ItemsReturnedEvent`        | Items were put into a player's returned items; `reason()` tells why                    |
+| `TreasuryTransactionEvent`  | Money moved into or out of a company treasury; `kind()` tells why                       |
+
+`companies().treasury(id)` reads the balance and payout share of a company. Copies posted by a repeating order are
+normal orders of their owner; `PreOrderCreateEvent` reports them with the source `REPEATING`.
 
 The pre-events implement `CancellableWithReason`. `cancel(Component)` stops the action and shows the reason to the
 player; `setCancelled(true)` shows a generic "Another plugin prevented this." Changes to the draft in
@@ -162,7 +166,7 @@ The 1.x `CompaniesApi` had no reachable instance, so only event listeners can br
 | `OrderRemovedEvent` on purge only                       | Also on owner and admin cancel; check `reason()`                       |
 | `OrderPaymentEvent`                                     | Also provides `company()`                                              |
 | Order events                                            | All provide the order's `owner()`                                      |
-| `CompanyPermission`, `TopOrder`                         | New constants `EDIT_PROFILE` and `LEVEL`; exhaustive switches need a branch |
+| `CompanyPermission`, `TopOrder`                         | New constants `EDIT_PROFILE`, `TREASURY` and `LEVEL`; exhaustive switches need a branch |
 | `ICompanyRank`                                          | New `level()`, `tag()`, `color()`                                      |
 | `IOrderContent`                                         | Lines with `line()`, `exact()`, `unitPrice()`, `deliveries()`; `IFullOrder.content(Material)` is deprecated |
 
@@ -203,6 +207,9 @@ Line numbers start at 1.
 | `/order draft price <line> <unit price>`         | Change the unit price of a line                               |
 | `/order draft price <line> market`               | Use the market average as unit price (material lines only)    |
 | `/order draft remove <line>`                     | Remove a line                                                 |
+| `/order draft repeat daily\|weekly <count>`      | Post the order again every day or week, `count` times in all  |
+| `/order draft repeat daily\|weekly until <date>` | Post it again until the given day (`yyyy-MM-dd`)              |
+| `/order draft repeat off`                        | Make the draft a one-off order again                          |
 | `/order draft done` / `cancel`                   | Place the order and pay for it, or drop the draft             |
 | `/order cancel <id>`                             | Cancel an order nobody accepted yet                           |
 | `/order extend <id>`                             | Extend an order nobody accepted yet                           |
@@ -211,8 +218,30 @@ Line numbers start at 1.
 | `/order collect`                                 | Collect items that did not fit into your inventory            |
 | `/order history [page]`                          | List your ended orders                                        |
 | `/order history info <entry>`                    | Show an ended order with its items, price and outcome         |
+| `/order series`                                  | List your repeating orders                                    |
+| `/order series info <id>`                        | Show a repeating order, its schedule and its current copy     |
+| `/order series stop <id>` / `resume <id>`        | Stop a repeating order, or let a stopped one post again       |
 
 Drafts expire after 15 minutes.
+
+### Repeating orders
+
+With `companies.orders.repeat`, an order can repeat daily or weekly, for a number of copies, until a day, or both,
+whichever ends first. Set it with `/order draft repeat` or the repeat button of the order builder. The first copy is
+posted at once; the others follow on the same time of day, posted by the primary server, and each copy is charged when
+it is posted. Missed intervals are not caught up.
+
+* A copy waits while the previous one is still open, and while you are at your order limit; you are told once when
+  the limit holds it back.
+* A copy you cannot pay for stops the repeating order. A copy that breaks the current order rules, or that another
+  plugin prevents, is skipped.
+* `/order series stop` asks for a confirmation and keeps the current copy. `resume` checks the permission, the end and
+  `maxSeriesPerPlayer` again.
+* Cancelling a copy with `/order cancel` stops the whole repeating order; the command asks first, confirmed with
+  `/order cancel confirm`. An admin cancelling a copy stops it as well.
+
+Companies see copies as normal orders; nothing shows them that an order repeats. `/order list` marks your copies with
+⟳, and `/order info` links them to their repeating order.
 
 ### Companies: `/company` (alias `/comp`)
 
@@ -233,6 +262,13 @@ Drafts expire after 15 minutes.
 | `/company transfer <member>`                              | Hand the company to another member                  |
 | `/company disband`                                        | Disband your company                                |
 | `/company rename <name>`                                  | Rename your company                                 |
+| `/company bank [log [page]]`                              | Show the treasury of your company, or its log       |
+| `/company bank deposit\|withdraw <amount>`               | Pay money into the treasury, or take it out         |
+| `/company bank share <percent>`                           | Set the share of each payout kept in the treasury   |
+| `/company alerts [list]`                                  | List the order alerts of your company               |
+| `/company alerts add <name>`                              | Save your current order search as an alert          |
+| `/company alerts remove\|on\|off <name>`                  | Remove an alert, or switch it on or off             |
+| `/company alerts show <name>`                             | Search the orders an alert matches                  |
 | `/company member [id <id>]`                               | List the members                                    |
 | `/company member <sorting> [all\|30d]`                    | List your members sorted by `name`, `items`, `earned` or `orders` |
 | `/company permission <member> [give\|remove <permission>]` | Show or change the permissions of a member          |
@@ -266,6 +302,33 @@ The profile shows a description, a tag of a few upper-case letters or digits wri
 colour for tag and name. Members with `EDIT_PROFILE` change them with `/company profile edit`, through the `[Edit]`
 button on the profile or the edit menu, and the other members are notified.
 
+### Treasury
+
+Every company has a treasury. Any member can pay into it and read its log; members with `TREASURY` withdraw money and
+set the payout share. The share is the percentage of each worker's payout, after tax and rounded down, that goes to the
+treasury instead of the worker. It can be at most `treasury.maxPayoutShare`; lowering that cap applies to every company
+at once. All members are told when the share changes, and workers see the kept part in their payment notification.
+
+When the treasury covers the price, the owner can pay a rename from it: the confirmation offers
+`[Pay from the treasury]`, or type `/company rename confirm treasury`.
+
+When a company is disbanded or deleted by an admin, the remaining balance is paid to the owner, who gets a
+notification, and the payout is written to the server log. Some economies can not pay players who are offline; the
+amount is then logged as lost.
+
+### Order alerts
+
+An alert is a saved order search. Members with `MANAGE_ORDERS` save the current search with `/company alerts add
+<name>` or the `[Save as alert]` button of the search; names have up to 32 letters, digits, `-` and `_`. When a new order
+matches, the members with `MANAGE_ORDERS` get a notification with `[View]` and `[Accept]` buttons; matches on other
+servers of the network arrive through the inbox.
+
+* A company may save `alerts.maxPerCompany` alerts, or the `maxAlerts` of its level. A level with `0` allows none.
+* Each alert notifies at most once every `alerts.minMinutesBetween` minutes. Matches in between are summed up in a
+  digest once that time has passed.
+* A company is only told about orders it could accept: not while it works on as many orders as its level allows, not
+  about orders larger than its level allows, and not about orders of its own members unless member orders are allowed.
+
 ### Company permissions
 
 The owner has every permission and gives the others to members with `/company permission <member> give <permission>`.
@@ -274,9 +337,10 @@ The owner has every permission and gives the others to members with `/company pe
 |----------------------|-------------------------------------------------------------------|
 | `invite`             | Invite players, take invites back and answer applications         |
 | `kick`               | Kick members                                                      |
-| `manage_orders`      | Accept and abort orders                                           |
+| `manage_orders`      | Accept and abort orders, manage order alerts                      |
 | `manage_permissions` | Give and remove permissions                                       |
 | `edit_profile`       | Change description, tag, colour and join mode                     |
+| `treasury`           | Withdraw from the treasury and set the payout share               |
 
 ### Company orders: `/company order`
 
@@ -306,11 +370,12 @@ still arrive in the inbox but are never shown live and are not counted in the jo
 
 | Category   | Contains                                                                  | Mutable |
 |------------|---------------------------------------------------------------------------|---------|
-| `company`  | Disbanding, being kicked, ownership transfers and profile changes         | no      |
+| `company`  | Disbanding, being kicked, ownership transfers, profile changes, treasury share changes and payouts | no |
 | `members`  | Members joining, leaving or being kicked                                  | yes     |
 | `orders`   | Orders of the company being accepted, aborted, delivered or expiring, and admin changes to them | yes |
-| `my_orders`| Your own orders being accepted, done, reopened, removed, about to be removed or changed by an admin | no |
+| `my_orders`| Your own orders being accepted, done, reopened, removed, about to be removed or changed by an admin, and your repeating orders | no |
 | `payments` | Payments for delivered orders and money granted by an admin               | yes     |
+| `alerts`   | New orders matching an alert of your company, and digests                 | yes     |
 | `invites`  | Invites and applications                                                  | no      |
 | `level`    | The company level going up or down                                        | yes     |
 
@@ -357,10 +422,12 @@ contributed orders for all time and the last 30 days, and sorts the list by one 
 | `/companyadmin board npc link <hook> <npc> [board]`      | `companies.admin.boards`        |
 | `/companyadmin board npc unlink <hook> <npc>`            | `companies.admin.boards`        |
 | `/companyadmin board npc list`                           | `companies.admin.boards`        |
+| `/companyadmin treasury <company>`                       | `companies.admin.treasury`      |
+| `/companyadmin treasury give\|take <company> <amount>`   | `companies.admin.treasury`      |
 | `/companyadmin syncconfiguration`                        | `companies.admin`               |
 | `/companyadmin debug`                                    | `companies.admin`               |
 
-Company names with spaces are quoted in `rename` and `transferowner`.
+Company names with spaces are quoted in `rename`, `transferowner` and `treasury`.
 
 `order info` shows both sides of an order, its times, money, the deliveries of every worker and its history.
 `unclaim`, `cancel` and `deliver` ask for a confirmation, given with the button or by appending `confirm`:
@@ -375,7 +442,8 @@ Company names with spaces are quoted in `rename` and `transferowner`.
 
 `player` shows a player's company, orders, waiting items and unread notifications. `grant items` stores the item in your
 main hand for the player (the held stack, or `amount` of that item), who collects it with `/order collect`; `grant
-money` pays the player through the economy. Players affected by an admin action get a notification that does not name
+money` pays the player through the economy. `treasury` shows a company's balance, payout share and latest
+transactions; `give` and `take` change the balance, at most down to 0, and are written to the treasury log. Players affected by an admin action get a notification that does not name
 the admin.
 
 Every admin command writes a line with the admin's name and the details to the server log, for example
@@ -404,6 +472,7 @@ a Citizens command trait `/npc command add -p company board iron` or a FancyNpcs
 | Permission                       | Default | Description                                                                    |
 |----------------------------------|---------|--------------------------------------------------------------------------------|
 | `companies.orders.create`        | all     | Create orders                                                                  |
+| `companies.orders.repeat`        | all     | Make orders repeat daily or weekly                                             |
 | `companies.orders.limit.<n>`     | none    | Raise or lower the order limit to `n` active orders. The highest number counts |
 | `companies.company.create`       | all     | Found a company                                                                |
 | `companies.company.join`         | all     | Be invited to and join a company                                               |
@@ -418,6 +487,7 @@ a Citizens command trait `/npc command add -p company board iron` or a FancyNpcs
 | `companies.admin.reload`         | op      | Reload the configuration                                                       |
 | `companies.admin.rename`         | op      | Rename companies                                                               |
 | `companies.admin.transferOwner`  | op      | Transfer the ownership of a company                                            |
+| `companies.admin.treasury`       | op      | Inspect company treasuries and add or remove money                             |
 
 `companies.orders.*`, `companies.company.*`, `companies.admin.*` and `companies.*` grant the permissions below them.
 Without a `companies.orders.limit.<n>` permission a player may have `maxOrders` active orders, as set in `user.yml`.
@@ -444,6 +514,8 @@ are those of the requesting player's company. Without a company, counts read `0`
 | `company_delivered`                  | Items delivered to completed orders, all time                          |
 | `company_earned`                     | Money earned with completed orders, formatted, all time                |
 | `company_earned_raw`                 | The same as a plain number with two decimals                           |
+| `company_treasury`                   | Balance of the treasury, formatted                                     |
+| `company_payout_share`               | Percentage of each payout kept in the treasury                         |
 | `company_rank_<order>[_<range>]`     | Place of the company in a ranking, empty when not ranked               |
 | `player_open_orders`                 | Own orders that are not delivered yet                                  |
 | `player_order_limit`                 | Most orders the player may have open at once                           |
@@ -536,6 +608,42 @@ until `menus: DIALOG` is added.
 Players whose client is older than 1.21.6, for example when joining through ViaVersion, always get chat menus. While a
 chat menu is open, other chat messages are held back and delivered once the menu is closed with `[x]`. This needs
 ProtocolLib and can be turned off with `generalSettings.messageBlocking: false`. Dialogs never hold back chat.
+
+### Treasury, repeating orders and alerts
+`company.yml` holds `treasury` and `alerts`, `order.yml` holds `repeating`. Files from an older version use these
+values until the sections are added.
+
+```yaml
+# company.yml
+treasury:
+  enabled: true
+  maxPayoutShare: 25
+  minTransaction: 1.0
+  payRename: true
+  logRetentionDays: 365
+  logPageSize: 10
+alerts:
+  enabled: true
+  maxPerCompany: 3
+  minMinutesBetween: 15
+# order.yml
+repeating:
+  enabled: true
+  maxSeriesPerPlayer: 3
+  maxCopies: 52
+  maxDays: 365
+  checkMinutes: 5
+```
+
+* `treasury.enabled: false` hides the bank commands and takes no payout share; balances are kept.
+  `maxPayoutShare` caps the share (0 to 100), `minTransaction` is the smallest deposit or withdrawal, `payRename` lets
+  owners pay renames from the treasury. Log entries are kept for `logRetentionDays` (0 keeps them forever) and shown
+  `logPageSize` per page (1 to 50).
+* `alerts.maxPerCompany` is the number of alerts per company (0 turns them off), unless a level in `company.yml` sets
+  its own `maxAlerts`. `minMinutesBetween` is the shortest time between two notifications of one alert.
+* `repeating.enabled: false` stops new and existing repeating orders from posting. `maxSeriesPerPlayer` limits the
+  active repeating orders of a player, `maxCopies` the copies of one, `maxDays` how far ahead its last day may lie.
+  The primary server posts due copies every `checkMinutes`.
 
 ### Notifications, placeholders and rankings
 `config.yml` holds these sections. A `config.yml` from an older version does not get them written, but uses the values

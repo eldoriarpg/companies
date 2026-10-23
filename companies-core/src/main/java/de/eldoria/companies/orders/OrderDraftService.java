@@ -14,11 +14,14 @@ import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.util.Permission;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -191,6 +194,31 @@ public final class OrderDraftService {
     }
 
     /**
+     * Makes a draft repeat once it is finished.
+     *
+     * @param draft      draft of the player
+     * @param player     player owning the draft
+     * @param repetition how the order repeats
+     * @throws CommandFailure when the player may not make orders repeat or the repetition breaks the settings
+     */
+    public void repeat(OrderBuilder draft, Player player, Repetition repetition) {
+        if (!player.hasPermission(Permission.Orders.REPEAT)) {
+            throw CommandFailure.actionBar("error.permission.repeatOrder");
+        }
+        repetition.validate(configuration.orderSetting().repeating(), LocalDate.now());
+        draft.repetition(Optional.of(repetition));
+    }
+
+    /**
+     * Makes a draft a one-off order again.
+     *
+     * @param draft draft of the player
+     */
+    public void once(OrderBuilder draft) {
+        draft.repetition(Optional.empty());
+    }
+
+    /**
      * Drops the draft of a player.
      *
      * @param player id of the player
@@ -200,13 +228,16 @@ public final class OrderDraftService {
     }
 
     /**
-     * Creates the order of the player's draft through the order creation, which charges the player.
+     * Creates the order of the player's draft through the order creation, which charges the player. A repeating draft
+     * starts a repeating order instead, whose first copy is the created order.
      *
      * @param player   player owning the draft
      * @param creation creates the order
+     * @param series   starts repeating orders
      * @return the created order, or a {@link CommandFailure} when it was not created
      */
-    public CompletableFuture<OrderCreationService.Created> done(Player player, OrderCreationService creation) {
+    public CompletableFuture<OrderCreationService.Created> done(
+            Player player, OrderCreationService creation, SeriesStarter series) {
         var draft = drafts.getIfPresent(player.getUniqueId());
         if (draft == null) return CompletableFuture.failedFuture(CommandFailure.of("order.create.draftExpired"));
         if (draft.lineCount() == 0)
@@ -214,14 +245,17 @@ public final class OrderDraftService {
         var order = drafts.asMap().remove(player.getUniqueId());
         if (order == null) return CompletableFuture.failedFuture(CommandFailure.of("order.create.draftExpired"));
 
-        return creation.create(player, toDraft(order), OrderSource.PLAYER, true, true)
-                .thenApply(outcome -> switch (outcome) {
-                    case OrderCreationService.Created created -> created;
-                    case OrderCreationService.Rejected rejected -> throw rejected.failure();
-                })
-                .whenComplete((created, err) -> {
-                    if (err != null) drafts.asMap().putIfAbsent(player.getUniqueId(), order);
-                });
+        var repetition = order.repetition();
+        var finished = repetition.isPresent()
+                ? series.start(player, order, repetition.get())
+                : creation.create(player, toDraft(order), OrderSource.PLAYER, true, true)
+                        .thenApply(outcome -> switch (outcome) {
+                            case OrderCreationService.Created done -> done;
+                            case OrderCreationService.Rejected rejected -> throw rejected.failure();
+                        });
+        return finished.whenComplete((created, err) -> {
+            if (err != null) drafts.asMap().putIfAbsent(player.getUniqueId(), order);
+        });
     }
 
     /**
@@ -231,8 +265,19 @@ public final class OrderDraftService {
      * @return a copy of the draft
      */
     static IOrderDraft toDraft(OrderBuilder order) {
-        var draft = IOrderDraft.of(order.name());
-        for (var line : order.lines()) {
+        return toDraft(order.name(), order.lines());
+    }
+
+    /**
+     * Lines of an order as listeners of the order creation see them.
+     *
+     * @param name  name of the order
+     * @param lines lines of the order
+     * @return a new draft
+     */
+    public static IOrderDraft toDraft(String name, List<OrderBuilder.DraftLine> lines) {
+        var draft = IOrderDraft.of(name);
+        for (var line : lines) {
             if (line.exact()) {
                 draft.addLine(line.template(), line.amount(), line.unitPrice());
             } else {
@@ -273,6 +318,20 @@ public final class OrderDraftService {
      * @param exact    whether the data of the item is requested as well
      */
     public record RequestedItem(ItemStack template, boolean exact) {}
+
+    /**
+     * Starts a repeating order from a finished draft.
+     */
+    @FunctionalInterface
+    public interface SeriesStarter {
+        /**
+         * @param owner      player owning the draft
+         * @param draft      the finished draft
+         * @param repetition how the order repeats
+         * @return the first copy, or a {@link CommandFailure} when the repeating order was not started
+         */
+        CompletableFuture<OrderCreationService.Created> start(Player owner, OrderBuilder draft, Repetition repetition);
+    }
 
     private record SettingsMatcher(ItemMatchSettings settings, ItemMatcher matcher) {}
 }

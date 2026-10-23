@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * One order as its owner sees it: progress per line, the price with fee and total, when it is refunded or due, and the
@@ -37,7 +38,8 @@ import java.util.Optional;
  * <p>
  * The company working on the order is never shown; the model does not even hold it. In chat the actions are click
  * callbacks, except raising the price, which suggests the typed {@code /order raise} command. As dialog, every line
- * shows its item, and the price increase is entered in the dialog.
+ * shows its item, and the price increase is entered in the dialog. A copy of a repeating order says so and links to
+ * the repeating order.
  */
 @SuppressWarnings("UnstableApiUsage")
 public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
@@ -72,6 +74,10 @@ public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
         }
         text.append(priceText(model)).newLine();
         var id = model.id();
+        model.series().ifPresent(series -> text.text(
+                        "<neutral>⟳ <i18n:order.info.copy> <act_series><modify>[<i18n:order.info.series>]</act_series>",
+                        buttons.chatAction("act_series", p -> actions.series(p, series)))
+                .newLine());
         switch (model.state()) {
             case UNCLAIMED -> {
                 text.append(OrderTexts.timeLeft("order.info.refundIn", model.timeLeft()))
@@ -117,6 +123,7 @@ public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
             case CLAIMED -> summary.newLine().append(OrderTexts.timeLeft("order.info.dueIn", model.timeLeft()));
             case DELIVERED, RECEIVED -> {}
         }
+        if (model.series().isPresent()) summary.newLine().text("<neutral>⟳ <i18n:order.info.copy>");
         body.add(DialogBody.plainMessage(components.of(summary)));
 
         List<DialogInput> inputs = new ArrayList<>();
@@ -144,6 +151,9 @@ public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
                         components.locale("words.receive"), null, (p, response) -> actions.receive(p, id)));
             case CLAIMED, RECEIVED -> {}
         }
+        model.series()
+                .ifPresent(series -> list.add(buttons.button(
+                        components.locale("order.info.series"), null, (p, response) -> actions.series(p, series))));
         list.add(buttons.button(components.locale("words.back"), null, (p, response) -> actions.list(p)));
 
         var base = DialogBase.builder(components.locale("order.info.title", Values.text("order_name", model.name())))
@@ -184,6 +194,7 @@ public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
      * @param fee            fee the owner paid
      * @param timeLeft       until an unclaimed order is refunded or a claimed one is due; zero otherwise
      * @param extensionsLeft how often the refund timer can still be restarted
+     * @param series         the repeating order this order is a copy of, empty for a one-off order
      */
     public record Model(
             int id,
@@ -193,7 +204,8 @@ public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
             double price,
             double fee,
             Duration timeLeft,
-            int extensionsLeft) {
+            int extensionsLeft,
+            OptionalInt series) {
         /**
          * @param order         order to show
          * @param configuration configuration providing the time limits
@@ -236,7 +248,8 @@ public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
                     order.price(),
                     order.fee(),
                     timeLeft,
-                    order.extensionsLeft(maxExtensions));
+                    order.extensionsLeft(maxExtensions),
+                    order.seriesId());
         }
     }
 }

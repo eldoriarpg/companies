@@ -6,6 +6,7 @@
 package de.eldoria.companies.configuration.elements;
 
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
+import de.eldoria.companies.configuration.elements.ordersettings.RepeatingSettings;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class OrderSettings {
@@ -16,6 +17,7 @@ public class OrderSettings {
     private int maxExtensions = 2;
     private int purgeWarningHours = 24;
     private ItemMatchSettings matching = new ItemMatchSettings();
+    private RepeatingSettings repeating = new RepeatingSettings();
 
     public OrderSettings() {}
 
@@ -90,5 +92,14 @@ public class OrderSettings {
      */
     public ItemMatchSettings matching() {
         return matching;
+    }
+
+    /**
+     * Repeating orders.
+     *
+     * @return repeating order settings
+     */
+    public RepeatingSettings repeating() {
+        return repeating == null ? new RepeatingSettings() : repeating;
     }
 }

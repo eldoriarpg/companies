@@ -8,6 +8,7 @@ package de.eldoria.companies.api;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.ICompanyStats;
 import de.eldoria.companies.components.company.IMemberStats;
+import de.eldoria.companies.components.company.ITreasury;
 import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.components.ranking.TimeRange;
 
@@ -72,6 +73,15 @@ public interface CompanyApi {
      * @return future of the statistics per worker, empty when the company is unknown or had no activity in the range
      */
     CompletableFuture<List<? extends IMemberStats>> memberStats(int company, TimeRange range);
+
+    /**
+     * The treasury of a company: its balance and the share of each payout it keeps. A company that never used its
+     * treasury has a balance and share of 0.
+     *
+     * @param company id of the company
+     * @return future of the treasury, empty when no company has this id
+     */
+    CompletableFuture<Optional<? extends ITreasury>> treasury(int company);
 
     /**
      * Adds a player to a company, regardless of the company's join mode.

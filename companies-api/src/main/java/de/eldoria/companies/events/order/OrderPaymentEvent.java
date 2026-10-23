@@ -20,8 +20,8 @@ import java.util.Objects;
  * A worker is about to be paid their share of a completed order.
  * <p>
  * Fired once per worker of the order, off the main thread. The worker receives {@link #amount()}, which is the
- * {@link #gross()} share of the order price minus the {@link #tax()} of the company. A cancelled payment is neither paid
- * nor taxed. It fires only on the server where the order was completed.
+ * {@link #gross()} share of the order price minus the {@link #tax()} and minus the {@link #share()} the company keeps
+ * in its treasury. A cancelled payment is neither paid, taxed nor shared. It fires only on the server where the order was completed.
  * <p>
  * Orders are anonymous: the worker must not learn who placed the order.
  */
@@ -37,6 +37,7 @@ public class OrderPaymentEvent extends OrderEvent<ISimpleOrder>
     private final double amount;
     private final double gross;
     private final double tax;
+    private final double share;
     private boolean cancelled;
 
     /**
@@ -75,12 +76,35 @@ public class OrderPaymentEvent extends OrderEvent<ISimpleOrder>
      */
     public OrderPaymentEvent(
             ISimpleOrder order, ISimpleCompany company, OfflinePlayer player, double amount, double gross, double tax) {
+        this(order, company, player, amount, gross, tax, 0.0);
+    }
+
+    /**
+     * Creates a taxed payment of which the company keeps a share in its treasury.
+     *
+     * @param order   order which is paid
+     * @param company company that completed the order
+     * @param player  worker receiving the payment
+     * @param amount  amount paid after tax and share
+     * @param gross   share of the order price before tax
+     * @param tax     tax taken from the share
+     * @param share   amount the company keeps in its treasury
+     */
+    public OrderPaymentEvent(
+            ISimpleOrder order,
+            ISimpleCompany company,
+            OfflinePlayer player,
+            double amount,
+            double gross,
+            double tax,
+            double share) {
         super(order, true);
         this.company = Objects.requireNonNull(company, "company");
         this.player = player;
         this.amount = amount;
         this.gross = gross;
         this.tax = tax;
+        this.share = share;
     }
 
     /**
@@ -124,7 +148,7 @@ public class OrderPaymentEvent extends OrderEvent<ISimpleOrder>
     }
 
     /**
-     * The amount the worker receives, after tax.
+     * The amount the worker receives, after tax and the treasury share.
      *
      * @return net amount
      */
@@ -148,6 +172,15 @@ public class OrderPaymentEvent extends OrderEvent<ISimpleOrder>
      */
     public double tax() {
         return tax;
+    }
+
+    /**
+     * The amount of the worker's share the company keeps in its treasury.
+     *
+     * @return treasury share, 0 when the company keeps none
+     */
+    public double share() {
+        return share;
     }
 
     @NotNull

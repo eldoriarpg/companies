@@ -29,6 +29,7 @@ public final class Permission {
         private static final String ORDERS = BASE + ".orders";
         public static final String LIMIT = ORDERS + ".limit";
         public static final String CREATE = ORDERS + ".create";
+        public static final String REPEAT = ORDERS + ".repeat";
 
         private Orders() {
             throw new UnsupportedOperationException("This is a utility class.");
@@ -76,6 +77,7 @@ public final class Permission {
         public static final String ORDERS = ADMIN + ".orders";
         public static final String PLAYER = ADMIN + ".player";
         public static final String GRANT = ADMIN + ".grant";
+        public static final String TREASURY = ADMIN + ".treasury";
         /**
          * The permission to create and break board signs and to manage boards.
          */

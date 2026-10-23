@@ -132,4 +132,54 @@ class ConfirmFlowTest {
         assertEquals(List.of("second"), confirmed);
         assertEquals(List.of("expired", "canceled"), answers);
     }
+
+    private ConfirmMenu.Prompt askWithAlternative(String value, List<String> chosen) {
+        return flow.prompt(
+                player,
+                value,
+                MenuText.create().text(value),
+                MenuText.create().text("Pay myself"),
+                new ConfirmFlow.Alternative<>(
+                        MenuText.create().text("Pay from treasury"),
+                        (clicked, confirmedValue) -> chosen.add(confirmedValue)));
+    }
+
+    @Test
+    void alternativeButtonPerformsItsOwnActionOnce() {
+        List<String> chosen = new ArrayList<>();
+        var prompt = askWithAlternative("name", chosen);
+
+        prompt.alternative().orElseThrow().onChoose().accept(player);
+        prompt.onConfirm().accept(player);
+
+        assertEquals(List.of("name"), chosen);
+        assertTrue(confirmed.isEmpty());
+        assertEquals(List.of("expired"), answers);
+    }
+
+    @Test
+    void confirmButtonOfAPromptWithAlternativeUsesItUp() {
+        List<String> chosen = new ArrayList<>();
+        var prompt = askWithAlternative("name", chosen);
+
+        prompt.onConfirm().accept(player);
+        prompt.alternative().orElseThrow().onChoose().accept(player);
+
+        assertEquals(List.of("name"), confirmed);
+        assertTrue(chosen.isEmpty());
+        assertEquals(List.of("expired"), answers);
+    }
+
+    @Test
+    void typedAlternativePerformsItsAction() {
+        List<String> chosen = new ArrayList<>();
+        askWithAlternative("name", chosen);
+
+        flow.confirmWith(player, (clicked, value) -> chosen.add(value));
+        flow.confirm(player);
+
+        assertEquals(List.of("name"), chosen);
+        assertTrue(confirmed.isEmpty());
+        assertEquals(List.of("expired"), answers);
+    }
 }

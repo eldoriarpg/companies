@@ -18,6 +18,7 @@ import java.util.UUID;
  * @param items   items the worker delivered to the order
  * @param gross   share before tax
  * @param tax     tax taken from the share
+ * @param share   part of the share after tax that went to the company treasury
  * @param net     amount paid out
  * @param paid    false when the payment was cancelled; such records count items and orders but no money
  * @param created when the order was completed
@@ -29,6 +30,33 @@ public record PayoutRecord(
         int items,
         double gross,
         double tax,
+        double share,
         double net,
         boolean paid,
-        LocalDateTime created) {}
+        LocalDateTime created) {
+    /**
+     * Creates a record of a payout without a treasury share.
+     *
+     * @param order   id of the order
+     * @param company id of the company that completed the order
+     * @param worker  worker who delivered items
+     * @param items   items the worker delivered to the order
+     * @param gross   share before tax
+     * @param tax     tax taken from the share
+     * @param net     amount paid out
+     * @param paid    false when the payment was cancelled
+     * @param created when the order was completed
+     */
+    public PayoutRecord(
+            int order,
+            int company,
+            UUID worker,
+            int items,
+            double gross,
+            double tax,
+            double net,
+            boolean paid,
+            LocalDateTime created) {
+        this(order, company, worker, items, gross, tax, 0.0, net, paid, created);
+    }
+}

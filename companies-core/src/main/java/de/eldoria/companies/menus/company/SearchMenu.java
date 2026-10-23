@@ -41,6 +41,9 @@ import java.util.function.Consumer;
  * As a dialog it is one form whose {@code [Search]} button runs the search. In chat every choice is a button that
  * changes the query at once; names, materials, prices and sizes are typed as {@code /company order search query …}
  * commands, which the buttons suggest.
+ * <p>
+ * {@code [Save as alert]} saves the search as an order alert of the company: in chat it suggests
+ * {@code /company alerts add}, as a dialog it keeps the filled in form as the query and asks for the alert's name.
  */
 public final class SearchMenu implements Menu<SearchMenu.Model> {
     private static final String QUERY = "/company order search query";
@@ -112,7 +115,9 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                 .space()
                 .text(
                         "<act_reset><remove>[<i18n:words.clear>]</act_reset>",
-                        actions.chatAction("act_reset", search::reset));
+                        actions.chatAction("act_reset", search::reset))
+                .space()
+                .append(AlertNameMenu.saveButton());
     }
 
     @Override
@@ -158,13 +163,17 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                         texts.locale("words.search"),
                         null,
                         (clicker, response) -> search.submit(clicker, read(response))),
-                actions.button(texts.locale("words.clear"), null, (clicker, response) -> search.reset(clicker)));
+                actions.button(texts.locale("words.clear"), null, (clicker, response) -> search.reset(clicker)),
+                actions.button(
+                        texts.locale("company.order.search.saveAlert"),
+                        null,
+                        (clicker, response) -> search.saveAlert(clicker, read(response))));
         var base = DialogBase.builder(texts.locale("company.order.search.dialog.title"))
                 .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                 .body(body)
                 .inputs(inputs)
                 .build();
-        var type = DialogType.multiAction(buttons).columns(2).build();
+        var type = DialogType.multiAction(buttons).columns(3).build();
         return Optional.of(Dialog.create(factory -> factory.empty().base(base).type(type)));
     }
 
