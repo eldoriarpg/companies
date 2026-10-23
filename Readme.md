@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("de.eldoria", "companies-api", "version")
+    compileOnly("de.eldoria", "companies-api", "2.0.0")
 }
 ```
 
@@ -32,9 +32,139 @@ dependencies {
 <dependency>
     <groupId>de.eldoria</groupId>
     <artifactId>companies-api</artifactId>
-    <version>version</version>
+    <version>2.0.0</version>
 </dependency>
 ```
+
+# API
+
+## Getting the API
+Declare Companies as a dependency in your `plugin.yml`:
+
+```yaml
+depend: [Companies]
+# or, when your plugin also runs without it:
+softdepend: [Companies]
+```
+
+Companies registers the API with Bukkit's services manager while it enables, so it is available in your `onEnable`:
+
+```java
+CompaniesApi api = CompaniesApi.get();
+// or
+CompaniesApi api = getServer().getServicesManager().load(CompaniesApi.class);
+```
+
+`CompaniesApi.get()` throws an `IllegalStateException` when Companies is not enabled. With `softdepend`, check
+`getServer().getPluginManager().isPluginEnabled("Companies")` first. The API is split into `companies()`, `orders()`,
+`players()` and `ranking()`.
+
+## Futures and threads
+Every method returns a `CompletableFuture` that completes **off the main thread**. Never `join()` or `get()` it on the
+main thread. Hop back to the main thread for Bukkit calls:
+
+```java
+api.companies().of(player.getUniqueId())
+        .thenAcceptAsync(company -> company.ifPresent(c -> player.sendMessage("Member of " + c.name())),
+                task -> Bukkit.getScheduler().runTask(plugin, task));
+```
+
+Unknown ids and names give `Optional.empty()`. Reads work as soon as the API is registered. Write operations need the
+economy, which Companies sets up once the server has started; until then, and while Companies runs without an economy,
+their futures complete exceptionally with `ApiNotReadyException`.
+
+All data lives in the shared database, so on a network every server reads the same state. Events fire only on the
+server where the action happened; expiry and purges happen on the primary server.
+
+## Writing
+| Method                                         | What it does                                                                         |
+|------------------------------------------------|--------------------------------------------------------------------------------------|
+| `orders().create(OrderRequest)`                | Creates an order. Fires `PreOrderCreateEvent` and `OrderCreatedEvent`                 |
+| `companies().addMember(company, player)`       | Adds a player to a company, respecting its member limit. Fires `CompanyJoinEvent`     |
+| `players().grantItems(player, stack, amount)`  | Puts items into the player's returned items (`/order collect`). Fires `ItemsReturnedEvent` |
+
+```java
+OrderRequest request = OrderRequest.builder(owner, "Castle stone")
+        .line(OrderLineRequest.material(Material.STONE_BRICKS, 512, 2.5))
+        .line(OrderLineRequest.exact(enchantedPickaxe, 1, 500))
+        .charge(false)
+        .respectLimits(false)
+        .build();
+
+api.orders().create(request).thenAccept(result -> {
+    switch (result) {
+        case CreateOrderResult.Created created -> getLogger().info("Order " + created.order().id() + " created");
+        case CreateOrderResult.Rejected rejected -> getLogger().info("Rejected: " + rejected.reason());
+    }
+});
+```
+
+* **`charge(true)`** (default): the owner pays price and fee like with `/order create`. An owner who can not afford it
+  gets `RejectReason.INSUFFICIENT_FUNDS`; a failed save refunds the money; cancelling refunds as usual.
+* **`charge(false)`**: the server funds the order. Nothing is withdrawn and the fee is 0, but workers are still paid the
+  full price on completion. Cancelling or removing such an order refunds nothing. Meant for rewards and quests.
+* **`respectLimits(true)`** (default) applies the owner's order limit and the lines and items limits of `order.yml`.
+  With `false` only the name and the lines themselves are checked.
+
+A rejected order carries a `RejectReason` (`LIMIT_REACHED`, `TOO_MANY_LINES`, `TOO_MANY_ITEMS`, `INSUFFICIENT_FUNDS`,
+`CANCELLED`, `INVALID`) and a message you can show to a player.
+
+## Events
+Listen to them like any Bukkit event. Most are fired off the main thread; their javadoc names the thread.
+
+| Event                       | When                                                                                   |
+|-----------------------------|----------------------------------------------------------------------------------------|
+| `PreCompanyCreateEvent`     | A player is about to found a company, before the price is charged. Cancellable         |
+| `CompanyCreateEvent`        | A company was founded                                                                  |
+| `CompanyRenameEvent`        | A company was renamed by its owner or an admin                                         |
+| `CompanyOwnerTransferEvent` | The ownership passed to another member                                                 |
+| `CompanyProfileEditEvent`   | Description, tag, colour or join mode changed                                          |
+| `CompanyJoinEvent`          | A player joined a company                                                              |
+| `CompanyLeaveEvent`         | A member left; `CompanyKickEvent` when they were removed                               |
+| `CompanyLevelUpEvent`, `CompanyLevelDownEvent` | The level of a company changed                                      |
+| `CompanyDisbandEvent`       | A company was disbanded                                                                |
+| `PreOrderCreateEvent`       | An order is about to be created, before the owner is charged. Cancellable; the draft can be changed |
+| `OrderCreatedEvent`         | An order was saved                                                                     |
+| `PreOrderAcceptEvent`       | A member is about to accept an order for their company. Cancellable                    |
+| `OrderAcceptEvent`          | A company claimed an order                                                             |
+| `OrderDeliveryEvent`        | A worker delivered items to an order                                                   |
+| `OrderDoneEvent`            | All items of an order are delivered                                                    |
+| `OrderPaymentEvent`         | A worker is about to be paid their share. Cancellable                                  |
+| `OrderReceivedEvent`        | The owner received the items                                                           |
+| `OrderCanceledEvent`        | A company aborted a claimed order                                                      |
+| `OrderExpiredEvent`         | A company did not deliver in time                                                      |
+| `OrderRemovedEvent`         | An order was deleted before delivery; `reason()` is `PURGED`, `CANCELLED` or `ADMIN`   |
+| `ItemsReturnedEvent`        | Items were put into a player's returned items; `reason()` tells why                    |
+
+The pre-events implement `CancellableWithReason`. `cancel(Component)` stops the action and shows the reason to the
+player; `setCancelled(true)` shows a generic "Another plugin prevented this." Changes to the draft in
+`PreOrderCreateEvent` are checked against the limits again, and an order that breaks them is rejected with `INVALID`
+without charging anything.
+
+**Anonymity.** Companies keeps orders anonymous: workers never learn who placed an order, owners never learn which
+company works on theirs. Events and the API expose both sides. Use them for logic, logging or staff tools, and never
+show the owner of an order to the company's members or the company to the owner.
+
+## Migrating from 1.x
+The 1.x `CompaniesApi` had no reachable instance, so only event listeners can break.
+
+| 1.x                                                     | 2.0                                                                    |
+|---------------------------------------------------------|------------------------------------------------------------------------|
+| `CompaniesApi.getInstance()`                            | `CompaniesApi.get()` or `ServicesManager.load(CompaniesApi.class)`     |
+| `getPlayerCompanyProfile(OfflinePlayer)`, `getPlayerCompany` | `companies().of(uuid)`                                            |
+| `getCompanyStats(ISimpleCompany)`                       | `companies().stats(id)`                                                |
+| `getCompanyByName`, `getCompanyById`                    | `companies().byName`, `companies().byId`                               |
+| `retrieveOrderById`                                     | `orders().byId`, now an `IFullOrder`                                   |
+| `retrieveOrdersByCompany`, `retrieveOrdersByPlayer`     | `orders().byCompany`, `orders().byOwner`, now `IFullOrder`s            |
+| `retrieveMaterialPrice(Material)`                       | `orders().materialPrice`                                               |
+| Blocking return values                                  | `CompletableFuture`s, completed off the main thread                    |
+| Company and player objects as arguments                 | Company ids and player `UUID`s                                         |
+| `OrderRemovedEvent` on purge only                       | Also on owner and admin cancel; check `reason()`                       |
+| `OrderPaymentEvent`                                     | Also provides `company()`                                              |
+| Order events                                            | All provide the order's `owner()`                                      |
+| `CompanyPermission`, `TopOrder`                         | New constants `EDIT_PROFILE` and `LEVEL`; exhaustive switches need a branch |
+| `ICompanyRank`                                          | New `level()`, `tag()`, `color()`                                      |
+| `IOrderContent`                                         | Lines with `line()`, `exact()`, `unitPrice()`, `deliveries()`; `IFullOrder.content(Material)` is deprecated |
 
 # Setup
 
@@ -77,6 +207,8 @@ Line numbers start at 1.
 | `/order raise <id> <amount>`                     | Raise the price of an open order                              |
 | `/order receive <id>`                            | Receive the items of a delivered order                        |
 | `/order collect`                                 | Collect items that did not fit into your inventory            |
+| `/order history [page]`                          | List your ended orders                                        |
+| `/order history info <entry>`                    | Show an ended order with its items, price and outcome         |
 
 Drafts expire after 15 minutes.
 
@@ -100,9 +232,16 @@ Drafts expire after 15 minutes.
 | `/company disband`                                        | Disband your company                                |
 | `/company rename <name>`                                  | Rename your company                                 |
 | `/company member [id <id>]`                               | List the members                                    |
+| `/company member <sorting> [all\|30d]`                    | List your members sorted by `name`, `items`, `earned` or `orders` |
 | `/company permission <member> [give\|remove <permission>]` | Show or change the permissions of a member          |
-| `/company top [page] [ordering]`                          | Show the company ranking                            |
+| `/company top [page] [ordering] [all\|30d\|7d]`            | Show the company ranking                            |
 | `/company returns`                                        | Take back items returned from aborted orders        |
+| `/company inbox [page]`                                   | Show your notifications                             |
+| `/company inbox read\|clear`                              | Mark every notification read, or delete the read ones |
+| `/company inbox mute\|unmute <category>`                  | Stop or resume showing a category live              |
+| `/company inbox settings`                                 | Show and toggle the muted categories                |
+| `/company history [page]`                                 | List the ended orders of your company               |
+| `/company history info <entry>`                           | Show an ended order with its items, payouts and outcome |
 
 Confirmations are given with `confirm` after the command, e.g. `/company leave confirm`.
 
@@ -117,8 +256,7 @@ Every company has a join mode, shown on its profile:
 | `invite`       | Only invited players can join                                         |
 
 Invites work in every mode. Invites and applications stay open for `inviteHours` and the players involved are
-notified when they are answered or expire; notifications for offline players are shown on their next join. A company
-at its level's member limit can not take new members.
+notified when they are answered or expire. A company at its level's member limit can not take new members.
 
 ### Company profile
 
@@ -154,6 +292,46 @@ The owner has every permission and gives the others to members with `/company pe
 Delivery takes items from your inventory and from a shulker box held in the main hand. Plain items are used before
 items with extra data such as enchantments or names.
 
+### Inbox
+
+Every notification lands in the inbox of its player. Players who are online see it in chat, within
+`notifications.pollSeconds` when they play on another server of the network; important ones also show on the action bar
+with a sound. Players who were offline get a summary with the number of unread notifications and an `[Open]` button when
+they join. Opening the inbox marks the shown page as read.
+
+Some categories can be muted with `/company inbox mute <category>` or in `/company inbox settings`. Muted notifications
+still arrive in the inbox but are never shown live and are not counted in the join summary.
+
+| Category   | Contains                                                                  | Mutable |
+|------------|---------------------------------------------------------------------------|---------|
+| `company`  | Disbanding, being kicked, ownership transfers and profile changes         | no      |
+| `members`  | Members joining, leaving or being kicked                                  | yes     |
+| `orders`   | Orders of the company being accepted, aborted, delivered or expiring, and admin changes to them | yes |
+| `my_orders`| Your own orders being accepted, done, reopened, removed, about to be removed or changed by an admin | no |
+| `payments` | Payments for delivered orders and money granted by an admin               | yes     |
+| `invites`  | Invites and applications                                                  | no      |
+| `level`    | The company level going up or down                                        | yes     |
+
+Notifications are kept for `notifications.retentionDays`, read or not.
+
+### Rankings
+
+`/company top` ranks the companies by `orders`, `earned`, `member`, `items_delivered` or `level`. Orders, money and items
+are counted for all time (`all`, the default) or for the last 30 or 7 days (`30d`, `7d`); the ranges are rolling
+windows ending now. Members and level are the current values in every range. The ranking marks the place of your own
+company, and each company shows its tag in its colour. Pages and places are cached for `top.cacheSeconds`.
+
+### History and member statistics
+
+When an order ends for its owner, or for the company working on it, an entry is written to the history of that owner or
+company. The entry keeps the items, price, workers and payouts as they were, together with the outcome:
+received, cancelled, removed, delivered, aborted, expired, or cancelled or released by an admin. Entries are deleted
+after `generalSettings.historyDays`.
+
+Every payout to a member is recorded. `/company member` shows each member's delivered items, earned money and
+contributed orders for all time and the last 30 days, and sorts the list by one of them with `/company member
+<sorting> [all|30d]`. Earned money counts the payouts after tax that were actually paid.
+
 ### Administration: `/companyadmin`
 
 | Command                                                  | Permission                      |
@@ -164,10 +342,39 @@ items with extra data such as enchantments or names.
 | `/companyadmin rename <company> <name>`                  | `companies.admin.rename`        |
 | `/companyadmin transferowner <company> <player>`         | `companies.admin.transferOwner` |
 | `/companyadmin reload`                                   | `companies.admin.reload`        |
+| `/companyadmin order info <id>`                          | `companies.admin.orders`        |
+| `/companyadmin order search player <player>`             | `companies.admin.orders`        |
+| `/companyadmin order search company <company>`           | `companies.admin.orders`        |
+| `/companyadmin order unclaim <id>`                       | `companies.admin.orders`        |
+| `/companyadmin order cancel <id> refund\|keep`           | `companies.admin.orders`        |
+| `/companyadmin order deliver <id>`                       | `companies.admin.orders`        |
+| `/companyadmin order extend <id> <hours>`                | `companies.admin.orders`        |
+| `/companyadmin player <player>`                          | `companies.admin.player`        |
+| `/companyadmin grant items <player> [amount]`            | `companies.admin.grant`         |
+| `/companyadmin grant money <player> <amount>`            | `companies.admin.grant`         |
 | `/companyadmin syncconfiguration`                        | `companies.admin`               |
 | `/companyadmin debug`                                    | `companies.admin`               |
 
 Company names with spaces are quoted in `rename` and `transferowner`.
+
+`order info` shows both sides of an order, its times, money, the deliveries of every worker and its history.
+`unclaim`, `cancel` and `deliver` ask for a confirmation, given with the button or by appending `confirm`:
+
+* `unclaim` takes a claimed order away from its company. Delivered items go back to the workers and the order is open
+  again.
+* `cancel … refund` deletes the order and refunds price and fee to the owner; `cancel … keep` deletes it and sends the
+  fee to the collector. Delivered items go back to the workers.
+* `deliver` closes the order as delivered. The workers are paid for what they delivered and the owner gets the price of
+  the missing items back.
+* `extend` gives a claimed order more delivery time, or an open order more time before it is removed.
+
+`player` shows a player's company, orders, waiting items and unread notifications. `grant items` stores the item in your
+main hand for the player (the held stack, or `amount` of that item), who collects it with `/order collect`; `grant
+money` pays the player through the economy. Players affected by an admin action get a notification that does not name
+the admin.
+
+Every admin command writes a line with the admin's name and the details to the server log, for example
+`[admin] Steve order cancel id=42 refund=true owner=Alex company="Iron Works"`.
 Update notifications link to `/companies:eldo-update`, which is available to `companies.updates`.
 
 ## Permissions
@@ -182,7 +389,10 @@ Update notifications link to `/companies:eldo-update`, which is available to `co
 | `companies.admin`                | op      | Use `/companyadmin` and create debug reports                                   |
 | `companies.admin.calcLevel`      | op      | Recalculate company levels                                                     |
 | `companies.admin.delete`         | op      | Delete companies                                                               |
+| `companies.admin.grant`          | op      | Grant items and money to players                                               |
 | `companies.admin.level`          | op      | Manage the company levels                                                      |
+| `companies.admin.orders`         | op      | Inspect, release, cancel, complete and extend any order                        |
+| `companies.admin.player`         | op      | Look up the company, orders, items and notifications of a player               |
 | `companies.admin.reload`         | op      | Reload the configuration                                                       |
 | `companies.admin.rename`         | op      | Rename companies                                                               |
 | `companies.admin.transferOwner`  | op      | Transfer the ownership of a company                                            |
@@ -191,6 +401,42 @@ Update notifications link to `/companies:eldo-update`, which is available to `co
 Without a `companies.orders.limit.<n>` permission a player may have `maxOrders` active orders, as set in `user.yml`.
 `companies.orders.create` covers `/order create` and `/order draft`. `/companyadmin` is shown to holders of any admin
 permission, and each subcommand checks its own. Commands a player may not use are hidden from them.
+
+## Placeholders
+
+With [PAPI](https://www.spigotmc.org/resources/6245/) installed, the placeholders are `%companies_<id>%`. Company values
+are those of the requesting player's company. Without a company, counts read `0` and texts read empty.
+
+| Id                                   | Value                                                                  |
+|--------------------------------------|------------------------------------------------------------------------|
+| `company_name`                       | Name of the company                                                    |
+| `company_tag`                        | Tag of the company                                                     |
+| `company_tag_colored`                | Tag in the company colour                                              |
+| `company_color`                      | Colour of the company as configured, e.g. `gold` or `#4a90d9`           |
+| `company_owner`                      | Name of the owner                                                      |
+| `company_size`                       | Number of members                                                      |
+| `company_level`                      | Level number                                                           |
+| `company_level_name`                 | Level name                                                             |
+| `active_orders`                      | Orders the company works on                                            |
+| `company_orders`                     | Completed orders, all time                                             |
+| `company_delivered`                  | Items delivered to completed orders, all time                          |
+| `company_earned`                     | Money earned with completed orders, formatted, all time                |
+| `company_earned_raw`                 | The same as a plain number with two decimals                           |
+| `company_rank_<order>[_<range>]`     | Place of the company in a ranking, empty when not ranked               |
+| `player_open_orders`                 | Own orders that are not delivered yet                                  |
+| `player_order_limit`                 | Most orders the player may have open at once                           |
+| `player_items_waiting`               | Items waiting for the player: returned items and items of own orders  |
+| `player_role`                        | `Owner` or `Member` in the server language, empty without a company    |
+| `top_<order>[_<range>]_<place>_<field>` | A place of a ranking, empty when there is no such place             |
+
+`<order>` is `orders`, `earned`, `member`, `items_delivered` or `level`. `<range>` is `all` (the default when it is
+left out), `30d` or `7d`. `<place>` starts at 1 and goes up to `placeholders.leaderboardSize`. `<field>` is `name`,
+`tag`, `tag_colored` or `value`, the value the ranking is sorted by. Examples: `%companies_top_earned_30d_1_name%`,
+`%companies_company_rank_items_delivered_7d%`.
+
+Coloured tags are legacy text with `§` codes, hex colours as `§x§r§r§g§g§b§b`. Values are cached and refreshed every
+`placeholders.refreshSeconds`, so placeholders never wait for the database. A value requested for the first time reads
+`placeholders.loadingText` until it is loaded.
 
 ## Configuration
 A detailed guide on the configuration can be found at the [wiki](https://github.com/eldoriarpg/companies/wiki/Configuration)
@@ -268,6 +514,39 @@ until `menus: DIALOG` is added.
 Players whose client is older than 1.21.6, for example when joining through ViaVersion, always get chat menus. While a
 chat menu is open, other chat messages are held back and delivered once the menu is closed with `[x]`. This needs
 ProtocolLib and can be turned off with `generalSettings.messageBlocking: false`. Dialogs never hold back chat.
+
+### Notifications, placeholders and rankings
+`config.yml` holds these sections. A `config.yml` from an older version does not get them written, but uses the values
+shown here until they are added.
+
+```yaml
+generalSettings:
+  historyDays: 90
+notifications:
+  pollSeconds: 10
+  retentionDays: 30
+  pageSize: 10
+  actionBar: true
+  sound: minecraft:entity.experience_orb.pickup
+placeholders:
+  refreshSeconds: 300
+  offlineCacheSize: 500
+  leaderboardSize: 10
+  loadingText: ''
+top:
+  cacheSeconds: 30
+```
+
+* `generalSettings.historyDays` is how long history entries are kept after the order ended (at least 1).
+* `notifications.pollSeconds` is how often each server looks for notifications sent to its players from another server
+  (at least 1). `retentionDays` is how long notifications stay in the inbox (at least 1), `pageSize` the notifications
+  on one inbox page (1 to 50).
+* `notifications.actionBar` also shows important notifications on the action bar, `sound` plays with them; leave it
+  empty for no sound.
+* `placeholders.refreshSeconds` is how often a cached value is reloaded (at least 10), `offlineCacheSize` the number of
+  offline players whose values are kept, `leaderboardSize` the places of each ranking that `top_…` placeholders can
+  read, and `loadingText` the text shown while a value is loaded for the first time.
+* `top.cacheSeconds` is how long a page of `/company top` and the place of a company are kept; `0` turns the cache off.
 
 [wakatime]: https://wakatime.com/badge/github/eldoriarpg/companies
 [publish]: https://github.com/eldoriarpg/companies/actions/workflows/publish_to_nexus.yml
