@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.stats.MemberStats;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
+import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -186,6 +187,18 @@ class OrderCompletionServiceTest {
 
         assertTrue(history.retrieveCompanyHistory(COMPANY, 1, 10).join().isEmpty());
         assertEquals(0, SqLiteTestDatabase.count("order_payouts", "order_id = " + order.id()));
+    }
+
+    @Test
+    void paymentsCarryTheCompanyAndAreAsynchronous() {
+        var events = EventRecorder.listen(plugin, OrderPaymentEvent.class);
+
+        service.complete(deliveredByAliceAndBob(), PROFILE).join().orElseThrow();
+
+        var payments = events.of(OrderPaymentEvent.class);
+        assertEquals(2, payments.size());
+        assertTrue(payments.stream().allMatch(payment -> payment.company() == PROFILE));
+        assertTrue(payments.stream().allMatch(OrderPaymentEvent::isAsynchronous));
     }
 
     private record CancelPaymentsOf(UUID worker) implements Listener {
