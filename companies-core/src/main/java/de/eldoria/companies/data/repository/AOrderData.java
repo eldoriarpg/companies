@@ -180,7 +180,8 @@ public abstract class AOrderData {
 
     /**
      * Claims an unclaimed order for a single player, as long as the player has fewer than {@code maxActive} orders
-     * claimed alone. The limit is checked in the same statement as the claim.
+     * claimed alone. Claims of the same player are serialised by a lock on the player's row in
+     * {@code solo_cooldowns}, so two claims at the same time cannot both pass the limit.
      *
      * @param player    player claiming the order
      * @param order     order to claim
@@ -232,7 +233,7 @@ public abstract class AOrderData {
      * The end of the time in which a player may not claim solo orders.
      *
      * @param player the player
-     * @return a future providing the end of the cooldown, empty when the player never had one
+     * @return a future providing the end of the cooldown, which may lie in the past, empty when none is stored
      */
     public BukkitFutureResult<Optional<LocalDateTime>> retrieveSoloCooldown(UUID player) {
         return CompletableBukkitFuture.supplyAsync(() -> getSoloCooldown(player), VIRTUAL);

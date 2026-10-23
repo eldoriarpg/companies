@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -271,6 +272,21 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 row.getInt("delivery_bonus"),
                 row.getInt("series_id"),
                 row.get("solo_worker", UUID_BYTES));
+    }
+
+    /**
+     * Creates the row of the worker. SQLite has one writer at a time, and this write takes the lock of the
+     * transaction, so claims of the same worker run one after the other.
+     *
+     * @param conf   open transaction
+     * @param player the worker
+     */
+    @Override
+    protected void lockSoloWorker(ConnectedQueryConfiguration conf, UUID player) {
+        @Language("sqlite")
+        var insert = """
+                INSERT OR IGNORE INTO solo_cooldowns(worker_uuid, ends_at) VALUES (?, ?)""";
+        insertSoloWorker(conf, insert, player);
     }
 
     @Override

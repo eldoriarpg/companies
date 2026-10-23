@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.postgres;
 
+import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
@@ -14,10 +15,12 @@ import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class PostgresOrderData extends MariaDbOrderData {
     /**
@@ -161,6 +164,25 @@ public class PostgresOrderData extends MariaDbOrderData {
                 WHERE id = ?
                   AND state = ?""";
         return moveLastUpdate(query, order, hours);
+    }
+
+    @Override
+    protected void lockSoloWorker(ConnectedQueryConfiguration conf, UUID player) {
+        @Language("postgresql")
+        var insert = """
+                INSERT INTO solo_cooldowns(worker_uuid, ends_at) VALUES (?, ?)
+                ON CONFLICT (worker_uuid) DO NOTHING""";
+        insertSoloWorker(conf, insert, player);
+        @Language("postgresql")
+        var lock = """
+                SELECT worker_uuid
+                FROM solo_cooldowns
+                WHERE worker_uuid = ?
+                    FOR UPDATE""";
+        conf.query(lock)
+                .single(call().bind(player, UUID_BYTES))
+                .map(row -> row.getBytes("worker_uuid"))
+                .first();
     }
 
     @Override

@@ -51,6 +51,7 @@ import static de.chojo.sadu.queries.api.query.Query.query;
 import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class MariaDbOrderData extends AOrderData {
+    private static final LocalDateTime NO_COOLDOWN = LocalDateTime.of(2000, 1, 1, 0, 0);
 
     /**
      * Create a new QueryBuilderFactory
@@ -238,16 +239,59 @@ public class MariaDbOrderData extends AOrderData {
                              FROM order_states
                              WHERE solo_worker = ?
                                AND state = ?) active) < ?""";
-        return query(query)
-                .single(call().bind(OrderState.CLAIMED.stateId())
-                        .bind(player, UUID_BYTES)
-                        .bind(order.id())
-                        .bind(OrderState.UNCLAIMED.stateId())
-                        .bind(player, UUID_BYTES)
-                        .bind(OrderState.CLAIMED.stateId())
-                        .bind(maxActive))
-                .update()
-                .changed();
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        boolean claimed;
+        try (conf) {
+            lockSoloWorker(conf, player);
+            claimed = conf.query(query)
+                    .single(call().bind(OrderState.CLAIMED.stateId())
+                            .bind(player, UUID_BYTES)
+                            .bind(order.id())
+                            .bind(OrderState.UNCLAIMED.stateId())
+                            .bind(player, UUID_BYTES)
+                            .bind(OrderState.CLAIMED.stateId())
+                            .bind(maxActive))
+                    .update()
+                    .changed();
+        }
+        return claimed && conf.context().exceptions().isEmpty();
+    }
+
+    /**
+     * Locks the row of a solo worker for the rest of the transaction, creating it first when missing. A created row
+     * holds a cooldown that ended long ago, so it never blocks a claim.
+     *
+     * @param conf   open transaction
+     * @param player the worker
+     */
+    protected void lockSoloWorker(ConnectedQueryConfiguration conf, UUID player) {
+        @Language("mariadb")
+        var insert = """
+                INSERT IGNORE INTO solo_cooldowns(worker_uuid, ends_at) VALUES (?, ?)""";
+        insertSoloWorker(conf, insert, player);
+        @Language("mariadb")
+        var lock = """
+                SELECT worker_uuid
+                FROM solo_cooldowns
+                WHERE worker_uuid = ?
+                    FOR UPDATE""";
+        conf.query(lock)
+                .single(call().bind(player, UUID_BYTES))
+                .map(row -> row.getBytes("worker_uuid"))
+                .first();
+    }
+
+    /**
+     * Runs the dialect's statement creating the row of a solo worker unless it exists.
+     *
+     * @param conf   open transaction
+     * @param insert insert with the parameters worker and end of the cooldown
+     * @param player the worker
+     */
+    protected void insertSoloWorker(ConnectedQueryConfiguration conf, String insert, UUID player) {
+        conf.query(insert)
+                .single(call().bind(player, UUID_BYTES).bind(NO_COOLDOWN, time()))
+                .insert();
     }
 
     @Override

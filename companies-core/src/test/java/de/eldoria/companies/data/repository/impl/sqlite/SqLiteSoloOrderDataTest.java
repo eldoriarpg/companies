@@ -9,6 +9,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.Claimant;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderTable;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -20,10 +21,15 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
@@ -112,6 +118,39 @@ class SqLiteSoloOrderDataTest {
         Assertions.assertFalse(claim(alice, third, 2));
         Assertions.assertEquals(OrderState.UNCLAIMED, orders.reload(third).state());
         Assertions.assertTrue(claim(bob, third, 2));
+    }
+
+    @Test
+    void parallelClaimsOfOnePlayerRespectTheLimit() throws Exception {
+        List<SimpleOrder> open = new ArrayList<>();
+        for (var i = 0; i < 6; i++) open.add(orders.place(0.0));
+        var executor = Executors.newFixedThreadPool(6);
+        try {
+            var start = new CountDownLatch(1);
+            List<Future<Boolean>> claims = new ArrayList<>();
+            for (var order : open) {
+                claims.add(executor.submit(() -> {
+                    start.await();
+                    return claim(alice, order, 2);
+                }));
+            }
+            start.countDown();
+            var claimed = 0;
+            for (var future : claims) if (future.get(30, TimeUnit.SECONDS)) claimed++;
+
+            Assertions.assertEquals(2, claimed);
+            Assertions.assertEquals(2, orderData.retrieveSoloOrderCount(alice).join());
+        } finally {
+            TestExecutors.drain(executor);
+        }
+    }
+
+    @Test
+    void theClaimLockLeavesNoCooldown() {
+        Assertions.assertTrue(claim(alice, orders.place(0.0), 1));
+
+        var stored = orderData.retrieveSoloCooldown(alice).join();
+        Assertions.assertTrue(stored.isEmpty() || stored.get().isBefore(LocalDateTime.now()));
     }
 
     @Test
