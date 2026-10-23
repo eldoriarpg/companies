@@ -2,16 +2,16 @@ name: Verify
 
 on:
   push:
-    branches: [main, 'renovate/**']
-    tags: ['v*']
+    branches-ignore: [main]
   pull_request:
     types: [opened, ready_for_review, synchronize, reopened]
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-${{ github.event.pull_request.number || github.ref }}
+  group: verify-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 env:

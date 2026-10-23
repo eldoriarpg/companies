@@ -1,8 +1,3 @@
-[![Wakatime_Badge](https://wakatime.com/badge/github/eldoriarpg/companies.svg)][wakatime]
-
-[![Publish](https://img.shields.io/github/actions/workflow/status/eldoriarpg/companies/publish_to_nexus.yml?style=for-the-badge&label=Publish)][publish]
-[![Build](https://img.shields.io/github/actions/workflow/status/eldoriarpg/companies/verify.yml?style=for-the-badge&label=Build)][verify]
-
 [![Releases](https://img.shields.io/nexus/maven-releases/de.eldoria/companies-api?label=Release&logo=Release&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][release]
 [![Snapshots](https://img.shields.io/nexus/s/de.eldoria/companies-api?color=orange&label=Snapshot&server=https%3A%2F%2Feldonexus.de&style=for-the-badge)][snapshot]
 
@@ -13,6 +8,8 @@ Players place orders for items. Companies of players claim and deliver them.
 Companies is a Paper plugin that turns gathering and crafting into a player-run economy. Players order items and pay
 up front. Companies claim the orders, their members deliver the items, and every worker is paid for what they brought.
 Orders stay anonymous. Companies level up, keep a treasury and compete in rankings.
+
+**Requirements:** Paper 1.21.11 or newer, Java 25
 
 **Documentation:** https://docs.eldoria.de/companies
 
@@ -52,8 +49,5 @@ dependencies {
 
 See the [API documentation](https://docs.eldoria.de/companies/developers/api) for how to use it.
 
-[wakatime]: https://wakatime.com/badge/github/eldoriarpg/companies
-[publish]: https://github.com/eldoriarpg/companies/actions/workflows/publish_to_nexus.yml
-[verify]: https://github.com/eldoriarpg/companies/actions/workflows/verify.yml
 [release]: https://eldonexus.de/#browse/browse:maven-releases:de%2Feldoria%2Fcompanies-api
 [snapshot]: https://eldonexus.de/#browse/browse:maven-snapshots:de%2Feldoria%2Fcompanies-api
