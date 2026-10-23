@@ -103,7 +103,9 @@ loadScripts(document, 'script');</script>
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">CompanyLeaveEvent</span>
 <span class="extends-implements">extends <a href="CompanyEvent.html" title="class in de.eldoria.companies.events.company">CompanyEvent</a>&lt;<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;
 implements <a href="../components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;org.bukkit.OfflinePlayer&gt;</span></div>
-<div class="block">A user left a company.</div>
+<div class="block">A member left a company or was removed from it.
+<p>
+Fired after the membership was deleted, off the main thread.</div>
 </div>
 </section>
 <section class="summary">
@@ -128,7 +130,9 @@ implements <a href="../components/PlayerProvider.html" title="interface in de.el
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static final org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color"><code><a href="#HANDLERS" class="member-name-link">HANDLERS</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">The handlers of this event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -142,7 +146,9 @@ implements <a href="../components/PlayerProvider.html" title="interface in de.el
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.company.ICompanyProfile,org.bukkit.OfflinePlayer)" class="member-name-link">CompanyLeaveEvent</a><wbr>(<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company,
  org.bukkit.OfflinePlayer&nbsp;player)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a new event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -159,13 +165,17 @@ implements <a href="../components/PlayerProvider.html" title="interface in de.el
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getHandlerList()" class="member-name-link">getHandlerList</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">The handlers of this event.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>@NotNull org.bukkit.event.HandlerList</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getHandlers()" class="member-name-link">getHandlers</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.bukkit.OfflinePlayer</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#player()" class="member-name-link">player</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The player who left.</div>
+</div>
 </div>
 </div>
 </div>
@@ -194,6 +204,7 @@ implements <a href="../components/PlayerProvider.html" title="interface in de.el
 <h3>HANDLERS</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">HANDLERS</span></div>
+<div class="block">The handlers of this event.</div>
 </div>
 </section>
 </li>
@@ -211,6 +222,12 @@ implements <a href="../components/PlayerProvider.html" title="interface in de.el
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CompanyLeaveEvent</span><wbr><span class="parameters">(<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company,
  org.bukkit.OfflinePlayer&nbsp;player)</span></div>
+<div class="block">Creates a new event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>company</code> - the company without the member</dd>
+<dd><code>player</code> - player who left</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -227,6 +244,11 @@ implements <a href="../components/PlayerProvider.html" title="interface in de.el
 <h3>getHandlerList</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">getHandlerList</span>()</div>
+<div class="block">The handlers of this event.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>handler list</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -235,9 +257,12 @@ implements <a href="../components/PlayerProvider.html" title="interface in de.el
 <h3>player</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">org.bukkit.OfflinePlayer</span>&nbsp;<span class="element-name">player</span>()</div>
+<div class="block">The player who left.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../components/PlayerProvider.html#player()">player</a></code>&nbsp;in interface&nbsp;<code><a href="../components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;org.bukkit.OfflinePlayer&gt;</code></dd>
+<dt>Returns:</dt>
+<dd>former member</dd>
 </dl>
 </div>
 </section>

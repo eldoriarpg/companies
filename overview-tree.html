@@ -53,24 +53,27 @@ loadScripts(document, 'script');</script>
 <span class="package-hierarchy-label">Package Hierarchies:</span>
 <ul class="horizontal contents-list">
 <li><a href="de/eldoria/companies/api/package-tree.html">de.eldoria.companies.api</a>, </li>
+<li><a href="de/eldoria/companies/api/write/package-tree.html">de.eldoria.companies.api.write</a>, </li>
 <li><a href="de/eldoria/companies/components/company/package-tree.html">de.eldoria.companies.components.company</a>, </li>
+<li><a href="de/eldoria/companies/components/join/package-tree.html">de.eldoria.companies.components.join</a>, </li>
 <li><a href="de/eldoria/companies/components/level/package-tree.html">de.eldoria.companies.components.level</a>, </li>
 <li><a href="de/eldoria/companies/components/order/package-tree.html">de.eldoria.companies.components.order</a>, </li>
 <li><a href="de/eldoria/companies/components/ranking/package-tree.html">de.eldoria.companies.components.ranking</a>, </li>
 <li><a href="de/eldoria/companies/events/company/package-tree.html">de.eldoria.companies.events.company</a>, </li>
 <li><a href="de/eldoria/companies/events/components/package-tree.html">de.eldoria.companies.events.components</a>, </li>
-<li><a href="de/eldoria/companies/events/order/package-tree.html">de.eldoria.companies.events.order</a></li>
+<li><a href="de/eldoria/companies/events/order/package-tree.html">de.eldoria.companies.events.order</a>, </li>
+<li><a href="de/eldoria/companies/events/player/package-tree.html">de.eldoria.companies.events.player</a></li>
 </ul>
 <section class="hierarchy">
 <h2 title="Class Hierarchy">Class Hierarchy</h2>
 <ul>
 <li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" class="type-name-link external-link" title="class or interface in java.lang">Object</a>
 <ul>
-<li class="circle">de.eldoria.companies.api.<a href="de/eldoria/companies/api/CompaniesApi.html" class="type-name-link" title="class in de.eldoria.companies.api">CompaniesApi</a></li>
 <li class="circle">org.bukkit.event.Event
 <ul>
 <li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyEvent</a>&lt;Company&gt; (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;)
 <ul>
+<li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyCreateEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyCreateEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
 <li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyDisbandEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyDisbandEvent</a></li>
 <li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyJoinEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
 <li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyLeaveEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)
@@ -84,17 +87,44 @@ loadScripts(document, 'script');</script>
 <li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyLevelUpEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyLevelUpEvent</a></li>
 </ul>
 </li>
+<li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyOwnerTransferEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyOwnerTransferEvent</a></li>
 <li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyProfileEditEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
+<li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyRenameEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">CompanyRenameEvent</a></li>
 </ul>
 </li>
-<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderEvent</a>&lt;Order&gt; (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;O&gt;)
+<li class="circle">de.eldoria.companies.events.player.<a href="de/eldoria/companies/events/player/ItemsReturnedEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.player">ItemsReturnedEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderEvent</a>&lt;Order&gt; (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;O&gt;, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a>)
 <ul>
 <li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderAcceptEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;)</li>
 <li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderCanceledEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;)</li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderCreatedEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderCreatedEvent</a></li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderDeliveryEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderDeliveryEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
 <li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderDoneEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;)</li>
 <li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderExpiredEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;)</li>
-<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a> (implements org.bukkit.event.Cancellable, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a> (implements org.bukkit.event.Cancellable, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderReceivedEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderReceivedEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;)</li>
 <li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderRemovedEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a></li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/PreOrderAcceptEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">PreOrderAcceptEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CancellableWithReason.html" title="interface in de.eldoria.companies.events.components">CancellableWithReason</a>, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
+</ul>
+</li>
+<li class="circle">de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/PreCompanyCreateEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">PreCompanyCreateEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CancellableWithReason.html" title="interface in de.eldoria.companies.events.components">CancellableWithReason</a>, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;)</li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/PreOrderCreateEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.order">PreOrderCreateEvent</a> (implements de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CancellableWithReason.html" title="interface in de.eldoria.companies.events.components">CancellableWithReason</a>, de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a>)</li>
+</ul>
+</li>
+<li class="circle">de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/OrderRequest.Builder.html" class="type-name-link" title="class in de.eldoria.companies.api.write">OrderRequest.Builder</a></li>
+<li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" class="type-name-link external-link" title="class or interface in java.lang">Throwable</a> (implements java.io.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/Serializable.html" title="class or interface in java.io" class="external-link">Serializable</a>)
+<ul>
+<li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Exception.html" class="type-name-link external-link" title="class or interface in java.lang">Exception</a>
+<ul>
+<li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/RuntimeException.html" class="type-name-link external-link" title="class or interface in java.lang">RuntimeException</a>
+<ul>
+<li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/IllegalStateException.html" class="type-name-link external-link" title="class or interface in java.lang">IllegalStateException</a>
+<ul>
+<li class="circle">de.eldoria.companies.api.<a href="de/eldoria/companies/api/ApiNotReadyException.html" class="type-name-link" title="class in de.eldoria.companies.api">ApiNotReadyException</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -106,7 +136,15 @@ loadScripts(document, 'script');</script>
 <section class="hierarchy">
 <h2 title="Interface Hierarchy">Interface Hierarchy</h2>
 <ul>
+<li class="circle">org.bukkit.event.Cancellable
+<ul>
+<li class="circle">de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CancellableWithReason.html" class="type-name-link" title="interface in de.eldoria.companies.events.components">CancellableWithReason</a></li>
+</ul>
+</li>
+<li class="circle">de.eldoria.companies.api.<a href="de/eldoria/companies/api/CompaniesApi.html" class="type-name-link" title="interface in de.eldoria.companies.api">CompaniesApi</a></li>
+<li class="circle">de.eldoria.companies.api.<a href="de/eldoria/companies/api/CompanyApi.html" class="type-name-link" title="interface in de.eldoria.companies.api">CompanyApi</a></li>
 <li class="circle">de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/CompanyProvider.html" class="type-name-link" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;C&gt;</li>
+<li class="circle">de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/CreateOrderResult.html" class="type-name-link" title="interface in de.eldoria.companies.api.write">CreateOrderResult</a></li>
 <li class="circle">de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ICompanyLevel.html" class="type-name-link" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></li>
 <li class="circle">de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ICompanyMember.html" class="type-name-link" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></li>
 <li class="circle">de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ICompanyStats.html" class="type-name-link" title="interface in de.eldoria.companies.components.company">ICompanyStats</a>
@@ -116,10 +154,13 @@ loadScripts(document, 'script');</script>
 </li>
 <li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IContentPart.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IContentPart</a></li>
 <li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IDeliveredStack.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IDeliveredStack</a></li>
+<li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IDraftLine.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IDraftLine</a></li>
 <li class="circle">de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ILevelRequirement.html" class="type-name-link" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a></li>
 <li class="circle">de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ILevelSettings.html" class="type-name-link" title="interface in de.eldoria.companies.components.level">ILevelSettings</a></li>
 <li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IMaterialPrice.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IMaterialPrice</a></li>
+<li class="circle">de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/IMemberStats.html" class="type-name-link" title="interface in de.eldoria.companies.components.company">IMemberStats</a></li>
 <li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IOrderContent</a></li>
+<li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderDraft.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IOrderDraft</a></li>
 <li class="circle">de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ISimpleCompany.html" class="type-name-link" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>
 <ul>
 <li class="circle">de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ICompanyProfile.html" class="type-name-link" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a></li>
@@ -130,8 +171,12 @@ loadScripts(document, 'script');</script>
 <li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IFullOrder.html" class="type-name-link" title="interface in de.eldoria.companies.components.order">IFullOrder</a></li>
 </ul>
 </li>
+<li class="circle">de.eldoria.companies.api.<a href="de/eldoria/companies/api/OrderApi.html" class="type-name-link" title="interface in de.eldoria.companies.api">OrderApi</a></li>
 <li class="circle">de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/OrderProvider.html" class="type-name-link" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;O&gt;</li>
+<li class="circle">de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/OwnerProvider.html" class="type-name-link" title="interface in de.eldoria.companies.events.components">OwnerProvider</a></li>
+<li class="circle">de.eldoria.companies.api.<a href="de/eldoria/companies/api/PlayerApi.html" class="type-name-link" title="interface in de.eldoria.companies.api">PlayerApi</a></li>
 <li class="circle">de.eldoria.companies.events.components.<a href="de/eldoria/companies/events/components/PlayerProvider.html" class="type-name-link" title="interface in de.eldoria.companies.events.components">PlayerProvider</a>&lt;P&gt;</li>
+<li class="circle">de.eldoria.companies.api.<a href="de/eldoria/companies/api/RankingApi.html" class="type-name-link" title="interface in de.eldoria.companies.api">RankingApi</a></li>
 </ul>
 </section>
 <section class="hierarchy">
@@ -143,10 +188,33 @@ loadScripts(document, 'script');</script>
 <ul>
 <li class="circle">de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/CompanyPermission.html" class="type-name-link" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a> (implements net.kyori.adventure.translation.Translatable)</li>
 <li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/HistoryOutcome.html" class="type-name-link" title="enum class in de.eldoria.companies.components.order">HistoryOutcome</a> (implements net.kyori.adventure.translation.Translatable)</li>
+<li class="circle">de.eldoria.companies.events.player.<a href="de/eldoria/companies/events/player/ItemsReturnedEvent.Reason.html" class="type-name-link" title="enum class in de.eldoria.companies.events.player">ItemsReturnedEvent.Reason</a></li>
 <li class="circle">de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/JoinMode.html" class="type-name-link" title="enum class in de.eldoria.companies.components.company">JoinMode</a> (implements net.kyori.adventure.translation.Translatable)</li>
+<li class="circle">de.eldoria.companies.components.join.<a href="de/eldoria/companies/components/join/JoinResult.html" class="type-name-link" title="enum class in de.eldoria.companies.components.join">JoinResult</a></li>
+<li class="circle">de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderRemovedEvent.Reason.html" class="type-name-link" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a></li>
+<li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/OrderSource.html" class="type-name-link" title="enum class in de.eldoria.companies.components.order">OrderSource</a></li>
 <li class="circle">de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/OrderState.html" class="type-name-link" title="enum class in de.eldoria.companies.components.order">OrderState</a> (implements net.kyori.adventure.translation.Translatable)</li>
+<li class="circle">de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/RejectReason.html" class="type-name-link" title="enum class in de.eldoria.companies.api.write">RejectReason</a></li>
 <li class="circle">de.eldoria.companies.components.ranking.<a href="de/eldoria/companies/components/ranking/TimeRange.html" class="type-name-link" title="enum class in de.eldoria.companies.components.ranking">TimeRange</a> (implements net.kyori.adventure.translation.Translatable)</li>
 <li class="circle">de.eldoria.companies.components.ranking.<a href="de/eldoria/companies/components/ranking/TopOrder.html" class="type-name-link" title="enum class in de.eldoria.companies.components.ranking">TopOrder</a> (implements net.kyori.adventure.translation.Translatable)</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+<section class="hierarchy">
+<h2 title="Record Class Hierarchy">Record Class Hierarchy</h2>
+<ul>
+<li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" class="type-name-link external-link" title="class or interface in java.lang">Object</a>
+<ul>
+<li class="circle">java.lang.<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" class="type-name-link external-link" title="class or interface in java.lang">Record</a>
+<ul>
+<li class="circle">de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/CreateOrderResult.Created.html" class="type-name-link" title="class in de.eldoria.companies.api.write">CreateOrderResult.Created</a> (implements de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/CreateOrderResult.html" title="interface in de.eldoria.companies.api.write">CreateOrderResult</a>)</li>
+<li class="circle">de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/CreateOrderResult.Rejected.html" class="type-name-link" title="class in de.eldoria.companies.api.write">CreateOrderResult.Rejected</a> (implements de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/CreateOrderResult.html" title="interface in de.eldoria.companies.api.write">CreateOrderResult</a>)</li>
+<li class="circle">de.eldoria.companies.events.player.<a href="de/eldoria/companies/events/player/ItemsReturnedEvent.ReturnedStack.html" class="type-name-link" title="class in de.eldoria.companies.events.player">ItemsReturnedEvent.ReturnedStack</a></li>
+<li class="circle">de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/OrderLineRequest.html" class="type-name-link" title="class in de.eldoria.companies.api.write">OrderLineRequest</a></li>
+<li class="circle">de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/OrderRequest.html" class="type-name-link" title="class in de.eldoria.companies.api.write">OrderRequest</a></li>
 </ul>
 </li>
 </ul>

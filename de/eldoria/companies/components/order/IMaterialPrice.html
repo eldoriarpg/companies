@@ -74,6 +74,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">IMaterialPrice</span></div>
+<div class="block">The prices of one item of a material in past orders.</div>
 </div>
 </section>
 <section class="summary">
@@ -91,16 +92,24 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#avgPrice()" class="member-name-link">avgPrice</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The average price of one item.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#material()" class="member-name-link">material</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The material the prices are for.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#maxPrice()" class="member-name-link">maxPrice</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The highest price of one item.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#minPrice()" class="member-name-link">minPrice</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The lowest price of one item.</div>
+</div>
 </div>
 </div>
 </div>
@@ -120,6 +129,11 @@ loadScripts(document, 'script');</script>
 <h3>material</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">material</span>()</div>
+<div class="block">The material the prices are for.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>name of the material</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -128,6 +142,11 @@ loadScripts(document, 'script');</script>
 <h3>avgPrice</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">double</span>&nbsp;<span class="element-name">avgPrice</span>()</div>
+<div class="block">The average price of one item.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>average price, 0 when the material was never ordered</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -136,6 +155,11 @@ loadScripts(document, 'script');</script>
 <h3>minPrice</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">double</span>&nbsp;<span class="element-name">minPrice</span>()</div>
+<div class="block">The lowest price of one item.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>lowest price, 0 when the material was never ordered</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -144,6 +168,11 @@ loadScripts(document, 'script');</script>
 <h3>maxPrice</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">double</span>&nbsp;<span class="element-name">maxPrice</span>()</div>
+<div class="block">The highest price of one item.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>highest price, 0 when the material was never ordered</dd>
+</dl>
 </div>
 </section>
 </li>

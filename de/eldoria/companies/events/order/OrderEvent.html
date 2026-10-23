@@ -66,6 +66,7 @@ loadScripts(document, 'script');</script>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#order()" tabindex="0">order()</a></li>
+<li><a href="#owner()" tabindex="0">owner()</a></li>
 </ol>
 </li>
 </ol>
@@ -83,24 +84,28 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>Type Parameters:</dt>
-<dd><span id="type-param-Order"><code>Order</code> - Type of order implementation</span></dd>
+<dd><span id="type-param-Order"><code>Order</code> - type of order</span></dd>
 </dl>
 <dl class="notes">
 <dt>All Implemented Interfaces:</dt>
-<dd><code><a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;Order&gt;</code></dd>
+<dd><code><a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;Order&gt;, <a href="../components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Direct Known Subclasses:</dt>
-<dd><code><a href="OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a>, <a href="OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a>, <a href="OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a>, <a href="OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a>, <a href="OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a>, <a href="OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a></code></dd>
+<dd><code><a href="OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a>, <a href="OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a>, <a href="OrderCreatedEvent.html" title="class in de.eldoria.companies.events.order">OrderCreatedEvent</a>, <a href="OrderDeliveryEvent.html" title="class in de.eldoria.companies.events.order">OrderDeliveryEvent</a>, <a href="OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a>, <a href="OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a>, <a href="OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a>, <a href="OrderReceivedEvent.html" title="class in de.eldoria.companies.events.order">OrderReceivedEvent</a>, <a href="OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a>, <a href="PreOrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">PreOrderAcceptEvent</a></code></dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public abstract class </span><span class="element-name type-name-label">OrderEvent&lt;Order extends <a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</span>
 <span class="extends-implements">extends org.bukkit.event.Event
-implements <a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;Order&gt;</span></div>
-<div class="block">Represends a basic order event.
+implements <a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;Order&gt;, <a href="../components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a></span></div>
+<div class="block">Base of the events about an existing order. Listen to its subclasses; this class has no handler list.
 <p>
-This event is for internal use and should not be subscribed.</div>
+<b>Events carry both sides of an order. Companies keeps orders anonymous: never show the owner to the company's
+members or the company to the owner. Use both sides only for logic, logging or staff tools.</b>
+<p>
+Order events fire only on the server where the action happened. Expiry and removal of unclaimed orders happen on
+the primary server of a network.</div>
 </div>
 </section>
 <section class="summary">
@@ -123,10 +128,14 @@ This event is for internal use and should not be subscribed.</div>
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(Order)" class="member-name-link">OrderEvent</a><wbr>(<a href="#type-param-Order" title="type parameter in OrderEvent">Order</a>&nbsp;order)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a synchronous event.</div>
+</div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(Order,boolean)" class="member-name-link">OrderEvent</a><wbr>(<a href="#type-param-Order" title="type parameter in OrderEvent">Order</a>&nbsp;order,
  boolean&nbsp;async)</code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">Creates an event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -144,7 +153,12 @@ This event is for internal use and should not be subscribed.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type-param-Order" title="type parameter in OrderEvent">Order</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#order()" class="member-name-link">order</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">The order associated with this event/</div>
+<div class="block">The order involved in the event.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.bukkit.OfflinePlayer</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#owner()" class="member-name-link">owner</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The player who placed the order.</div>
 </div>
 </div>
 </div>
@@ -171,6 +185,11 @@ This event is for internal use and should not be subscribed.</div>
 <h3 id="&lt;init&gt;(de.eldoria.companies.components.order.ISimpleOrder)">OrderEvent</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderEvent</span><wbr><span class="parameters">(<a href="#type-param-Order" title="type parameter in OrderEvent">Order</a>&nbsp;order)</span></div>
+<div class="block">Creates a synchronous event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>order</code> - the order</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -180,6 +199,12 @@ This event is for internal use and should not be subscribed.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderEvent</span><wbr><span class="parameters">(<a href="#type-param-Order" title="type parameter in OrderEvent">Order</a>&nbsp;order,
  boolean&nbsp;async)</span></div>
+<div class="block">Creates an event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>order</code> - the order</dd>
+<dd><code>async</code> - whether the event is fired off the main thread</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -197,12 +222,27 @@ This event is for internal use and should not be subscribed.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="#type-param-Order" title="type parameter in OrderEvent">Order</a></span>&nbsp;<span class="element-name">order</span>()</div>
 <div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../components/OrderProvider.html#order()">OrderProvider</a></code></span></div>
-<div class="block">The order associated with this event/</div>
+<div class="block">The order involved in the event.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../components/OrderProvider.html#order()">order</a></code>&nbsp;in interface&nbsp;<code><a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;<a href="#type-param-Order" title="type parameter in OrderEvent">Order</a> extends <a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</code></dd>
 <dt>Returns:</dt>
 <dd>order</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="owner()">
+<h3>owner</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">org.bukkit.OfflinePlayer</span>&nbsp;<span class="element-name">owner</span>()</div>
+<div class="block">The player who placed the order.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../components/OwnerProvider.html#owner()">owner</a></code>&nbsp;in interface&nbsp;<code><a href="../components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a></code></dd>
+<dt>Returns:</dt>
+<dd>owner of the order, looked up by <a href="../../components/order/ISimpleOrder.html#owner()"><code>ISimpleOrder.owner()</code></a></dd>
 </dl>
 </div>
 </section>

@@ -103,9 +103,9 @@ loadScripts(document, 'script');</script>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">CompanyLevelChangeEvent</span>
 <span class="extends-implements">extends <a href="CompanyEvent.html" title="class in de.eldoria.companies.events.company">CompanyEvent</a>&lt;<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;</span></div>
-<div class="block">A company level changed.
+<div class="block">The level of a company changed.
 <p>
-Use <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.events.company"><code>CompanyLevelDownEvent</code></a> or <a href="CompanyLevelUpEvent.html" title="class in de.eldoria.companies.events.company"><code>CompanyLevelUpEvent</code></a>.</div>
+Fired off the main thread. Listen to <a href="CompanyLevelUpEvent.html" title="class in de.eldoria.companies.events.company"><code>CompanyLevelUpEvent</code></a> or <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.events.company"><code>CompanyLevelDownEvent</code></a> for one direction.</div>
 </div>
 </section>
 <section class="summary">
@@ -130,7 +130,9 @@ Use <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.ev
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static final org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color"><code><a href="#HANDLERS" class="member-name-link">HANDLERS</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">The handlers of this event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -145,7 +147,9 @@ Use <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.ev
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.company.ICompanyProfile,de.eldoria.companies.components.level.ICompanyLevel,de.eldoria.companies.components.level.ICompanyLevel)" class="member-name-link">CompanyLevelChangeEvent</a><wbr>(<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company,
  <a href="../../components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a>&nbsp;oldLevel,
  <a href="../../components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a>&nbsp;newLevel)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a new event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -162,7 +166,9 @@ Use <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.ev
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getHandlerList()" class="member-name-link">getHandlerList</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">The handlers of this event.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>@NotNull org.bukkit.event.HandlerList</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getHandlers()" class="member-name-link">getHandlers</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -204,6 +210,7 @@ Use <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.ev
 <h3>HANDLERS</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">HANDLERS</span></div>
+<div class="block">The handlers of this event.</div>
 </div>
 </section>
 </li>
@@ -222,6 +229,13 @@ Use <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.ev
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CompanyLevelChangeEvent</span><wbr><span class="parameters">(<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company,
  <a href="../../components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a>&nbsp;oldLevel,
  <a href="../../components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a>&nbsp;newLevel)</span></div>
+<div class="block">Creates a new event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>company</code> - the company</dd>
+<dd><code>oldLevel</code> - level before the change</dd>
+<dd><code>newLevel</code> - level after the change</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -238,6 +252,11 @@ Use <a href="CompanyLevelDownEvent.html" title="class in de.eldoria.companies.ev
 <h3>getHandlerList</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">getHandlerList</span>()</div>
+<div class="block">The handlers of this event.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>handler list</dd>
+</dl>
 </div>
 </section>
 </li>

@@ -51,127 +51,294 @@ loadScripts(document, 'script');</script>
 <h1 title="All Classes and Interfaces" class="title">All Classes and Interfaces</h1>
 </div>
 <div id="all-classes-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="all-classes-table-tab0" role="tab" aria-selected="true" aria-controls="all-classes-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table', 2)" class="active-table-tab">All Classes and Interfaces</button><button id="all-classes-table-tab1" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab1', 2)" class="table-tab">Interfaces</button><button id="all-classes-table-tab2" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab2', 2)" class="table-tab">Classes</button><button id="all-classes-table-tab3" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab3', 2)" class="table-tab">Enum Classes</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="all-classes-table-tab0" role="tab" aria-selected="true" aria-controls="all-classes-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table', 2)" class="active-table-tab">All Classes and Interfaces</button><button id="all-classes-table-tab1" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab1', 2)" class="table-tab">Interfaces</button><button id="all-classes-table-tab2" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab2', 2)" class="table-tab">Classes</button><button id="all-classes-table-tab3" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab3', 2)" class="table-tab">Enum Classes</button><button id="all-classes-table-tab4" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab4', 2)" class="table-tab">Record Classes</button><button id="all-classes-table-tab5" role="tab" aria-selected="false" aria-controls="all-classes-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('all-classes-table', 'all-classes-table-tab5', 2)" class="table-tab">Exception Classes</button></div>
 <div id="all-classes-table.tabpanel" role="tabpanel" aria-labelledby="all-classes-table-tab0">
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Class</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/api/CompaniesApi.html" title="class in de.eldoria.companies.api">CompaniesApi</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">&nbsp;</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab5"><a href="de/eldoria/companies/api/ApiNotReadyException.html" title="class in de.eldoria.companies.api">ApiNotReadyException</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab5">
+<div class="block">A write operation was requested before Companies could perform it.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/events/components/CancellableWithReason.html" title="interface in de.eldoria.companies.events.components">CancellableWithReason</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An event that stops an action when it is cancelled, and tells the player who triggered the action why.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/api/CompaniesApi.html" title="interface in de.eldoria.companies.api">CompaniesApi</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">Entry point of the Companies API.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/api/CompanyApi.html" title="interface in de.eldoria.companies.api">CompanyApi</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">Reads companies and adds members to them.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyCreateEvent.html" title="class in de.eldoria.companies.events.company">CompanyCreateEvent</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="block">A company was founded.</div>
+</div>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyDisbandEvent.html" title="class in de.eldoria.companies.events.company">CompanyDisbandEvent</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A company gets disbanded by its owner.</div>
+<div class="block">A company was disbanded.</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyEvent.html" title="class in de.eldoria.companies.events.company">CompanyEvent&lt;Company&gt;</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A company event.</div>
+<div class="block">Base of the events about a company.</div>
 </div>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyJoinEvent.html" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A user joined a company.</div>
+<div class="block">A player joined a company: by an open join, an accepted invite or application, or through the API.</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyKickEvent.html" title="class in de.eldoria.companies.events.company">CompanyKickEvent</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A user was kicked from a company.</div>
+<div class="block">A member was removed from a company by another member.</div>
 </div>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A user left a company.</div>
+<div class="block">A member left a company or was removed from it.</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyLevelChangeEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelChangeEvent</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A company level changed.</div>
+<div class="block">The level of a company changed.</div>
 </div>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyLevelDownEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelDownEvent</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A company level decreases.</div>
+<div class="block">The level of a company decreased.</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyLevelUpEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelUpEvent</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A company level increases.</div>
+<div class="block">The level of a company increased.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/company/CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyOwnerTransferEvent.html" title="class in de.eldoria.companies.events.company">CompanyOwnerTransferEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">The ownership of a company passed to another member, by the owner or by an admin.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/company/CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab3">
+<div class="block">A permission of a member within a company.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A member changed the description, tag, colour or join mode of a company.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider&lt;C&gt;</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/order/HistoryOutcome.html" title="enum class in de.eldoria.companies.components.order">HistoryOutcome</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab3">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/events/components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider&lt;C&gt;</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An event that involves a company.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/CompanyRenameEvent.html" title="class in de.eldoria.companies.events.company">CompanyRenameEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">A company was renamed, by its owner or by an admin.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/api/write/CreateOrderResult.html" title="interface in de.eldoria.companies.api.write">CreateOrderResult</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">The outcome of <a href="de/eldoria/companies/api/OrderApi.html#create(de.eldoria.companies.api.write.OrderRequest)"><code>OrderApi.create(OrderRequest)</code></a>: the created order or why it was not
+created.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab4"><a href="de/eldoria/companies/api/write/CreateOrderResult.Created.html" title="class in de.eldoria.companies.api.write">CreateOrderResult.Created</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab4">
+<div class="block">The order was created.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab4"><a href="de/eldoria/companies/api/write/CreateOrderResult.Rejected.html" title="class in de.eldoria.companies.api.write">CreateOrderResult.Rejected</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab4">
+<div class="block">The order was not created and nothing was charged.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/order/HistoryOutcome.html" title="enum class in de.eldoria.companies.components.order">HistoryOutcome</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
 <div class="block">How an order ended, as recorded in the order history.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyRank.html" title="interface in de.eldoria.companies.components.company">ICompanyRank</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyStats.html" title="interface in de.eldoria.companies.components.company">ICompanyStats</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IContentPart.html" title="interface in de.eldoria.companies.components.order">IContentPart</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IDeliveredStack.html" title="interface in de.eldoria.companies.components.order">IDeliveredStack</a></div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">A configured company level.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">A member of a company with their permissions in it.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">A company with its members and profile details.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyRank.html" title="interface in de.eldoria.companies.components.company">ICompanyRank</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">A company at its place in a ranking.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ICompanyStats.html" title="interface in de.eldoria.companies.components.company">ICompanyStats</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">Statistics of a company.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IContentPart.html" title="interface in de.eldoria.companies.components.order">IContentPart</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">The share one worker delivered to a line of an order.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IDeliveredStack.html" title="interface in de.eldoria.companies.components.order">IDeliveredStack</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
 <div class="block">Items a worker delivered to one line of an order, stored exactly as they were delivered.</div>
 </div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IDraftLine.html" title="interface in de.eldoria.companies.components.order">IDraftLine</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">One line of an <a href="de/eldoria/companies/components/order/IOrderDraft.html" title="interface in de.eldoria.companies.components.order"><code>IOrderDraft</code></a>.</div>
+</div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IFullOrder.html" title="interface in de.eldoria.companies.components.order">IFullOrder</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/level/ILevelRequirement.html" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/level/ILevelSettings.html" title="interface in de.eldoria.companies.components.level">ILevelSettings</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IMaterialPrice.html" title="interface in de.eldoria.companies.components.order">IMaterialPrice</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An order with its lines.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/level/ILevelRequirement.html" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">What a company needs to reach a level.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/level/ILevelSettings.html" title="interface in de.eldoria.companies.components.level">ILevelSettings</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">What a company on a level may do.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IMaterialPrice.html" title="interface in de.eldoria.companies.components.order">IMaterialPrice</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">The prices of one item of a material in past orders.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/IMemberStats.html" title="interface in de.eldoria.companies.components.company">IMemberStats</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">What one worker contributed to a company in a time range.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">One line of an order: an item and the amount and total price requested for it.</div>
 </div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/IOrderDraft.html" title="interface in de.eldoria.companies.components.order">IOrderDraft</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An order that is about to be created, as listeners of
+<a href="de/eldoria/companies/events/order/PreOrderCreateEvent.html" title="class in de.eldoria.companies.events.order"><code>PreOrderCreateEvent</code></a> see and change it.</div>
+</div>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">A company without its members.</div>
+</div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/company/JoinMode.html" title="enum class in de.eldoria.companies.components.company">JoinMode</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An order without its lines.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/player/ItemsReturnedEvent.html" title="class in de.eldoria.companies.events.player">ItemsReturnedEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">Items were put into a player's returned items, which the player picks up with <code>/order collect</code>.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/events/player/ItemsReturnedEvent.Reason.html" title="enum class in de.eldoria.companies.events.player">ItemsReturnedEvent.Reason</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab3">
+<div class="block">Why items were returned to a player.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab4"><a href="de/eldoria/companies/events/player/ItemsReturnedEvent.ReturnedStack.html" title="class in de.eldoria.companies.events.player">ItemsReturnedEvent.ReturnedStack</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab4">
+<div class="block">Returned items of one kind.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/company/JoinMode.html" title="enum class in de.eldoria.companies.components.company">JoinMode</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab3">
 <div class="block">How players can become members of a company.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/join/JoinResult.html" title="enum class in de.eldoria.companies.components.join">JoinResult</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
+<div class="block">Outcome of adding a player to a company.</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A company has accepted a order.</div>
+<div class="block">A company accepted an order and claimed it.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A active and claimed order was canceled.</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/api/OrderApi.html" title="interface in de.eldoria.companies.api">OrderApi</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">Reads and creates orders.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a></div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
-<div class="block">All items for a order are delivered and the order is ready for retrieval.</div>
+<div class="block">A company aborted a claimed order; the order is open again for other companies.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderEvent.html" title="class in de.eldoria.companies.events.order">OrderEvent&lt;Order&gt;</a></div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderCreatedEvent.html" title="class in de.eldoria.companies.events.order">OrderCreatedEvent</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">Represends a basic order event.</div>
+<div class="block">An order was created and saved, by a player or through the API.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a></div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderDeliveryEvent.html" title="class in de.eldoria.companies.events.order">OrderDeliveryEvent</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A order expired.</div>
+<div class="block">A worker delivered items to an order.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">All items of an order are delivered and the owner can receive it.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderEvent.html" title="class in de.eldoria.companies.events.order">OrderEvent&lt;Order&gt;</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="block">Base of the events about an existing order.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">A company did not deliver a claimed order in time; the order is open again for other companies.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab4"><a href="de/eldoria/companies/api/write/OrderLineRequest.html" title="class in de.eldoria.companies.api.write">OrderLineRequest</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab4">
+<div class="block">One line of an <a href="de/eldoria/companies/api/write/OrderRequest.html" title="class in de.eldoria.companies.api.write"><code>OrderRequest</code></a>: the requested item, how many of it and the price of one.</div>
 </div>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A payment for a order was retrieved by one user.</div>
+<div class="block">A worker is about to be paid their share of a completed order.</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/events/components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider&lt;O&gt;</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
-<div class="block">A active and claimed order was canceled.</div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An event that involves an order.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider&lt;P&gt;</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">&nbsp;</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderReceivedEvent.html" title="class in de.eldoria.companies.events.order">OrderReceivedEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">The owner received the items of a delivered order.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="block">An order was deleted before it was delivered: removed because nobody accepted it, cancelled by its owner, or deleted
+by an admin.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/events/order/OrderRemovedEvent.Reason.html" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
+<div class="block">Why an order was deleted.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab4"><a href="de/eldoria/companies/api/write/OrderRequest.html" title="class in de.eldoria.companies.api.write">OrderRequest</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab4">
+<div class="block">An order to create with <a href="de/eldoria/companies/api/OrderApi.html#create(de.eldoria.companies.api.write.OrderRequest)"><code>OrderApi.create(OrderRequest)</code></a>.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/api/write/OrderRequest.Builder.html" title="class in de.eldoria.companies.api.write">OrderRequest.Builder</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">Builds an <a href="de/eldoria/companies/api/write/OrderRequest.html" title="class in de.eldoria.companies.api.write"><code>OrderRequest</code></a>.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/order/OrderSource.html" title="enum class in de.eldoria.companies.components.order">OrderSource</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab3">
+<div class="block">Where the creation of an order came from.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
+<div class="block">The life cycle of an order.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/events/components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An event that involves the owner of an order.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/api/PlayerApi.html" title="interface in de.eldoria.companies.api">PlayerApi</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="block">Reads and changes the per-player data of Companies.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/events/components/PlayerProvider.html" title="interface in de.eldoria.companies.events.components">PlayerProvider&lt;P&gt;</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">An event that involves a player.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/company/PreCompanyCreateEvent.html" title="class in de.eldoria.companies.events.company">PreCompanyCreateEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">A player is about to found a company.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/PreOrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">PreOrderAcceptEvent</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="block">A member of a company is about to accept an order for the company.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="de/eldoria/companies/events/order/PreOrderCreateEvent.html" title="class in de.eldoria.companies.events.order">PreOrderCreateEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">An order is about to be created, by a player or through the API.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="de/eldoria/companies/api/RankingApi.html" title="interface in de.eldoria.companies.api">RankingApi</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="block">Reads the company ranking that <code>/company top</code> shows.</div>
+</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/api/write/RejectReason.html" title="enum class in de.eldoria.companies.api.write">RejectReason</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
+<div class="block">Why an order was not created.</div>
+</div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="de/eldoria/companies/components/ranking/TimeRange.html" title="enum class in de.eldoria.companies.components.ranking">TimeRange</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab3">
 <div class="block">The time a ranking or a statistic covers.</div>

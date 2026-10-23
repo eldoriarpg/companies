@@ -84,6 +84,7 @@ loadScripts(document, 'script');</script>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">IFullOrder</span><span class="extends-implements">
 extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></span></div>
+<div class="block">An order with its lines.</div>
 </div>
 </section>
 <section class="summary">
@@ -101,7 +102,9 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#amount()" class="member-name-link">amount</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The number of requested items over all lines.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3 method-summary-table-tab6"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;? extends <a href="IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3 method-summary-table-tab6"><code><a href="#content(org.bukkit.Material)" class="member-name-link">content</a><wbr>(org.bukkit.Material&nbsp;material)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3 method-summary-table-tab6">
@@ -111,13 +114,19 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;? extends <a href="IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#contents()" class="member-name-link">contents</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The lines of the order in their order.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#delivered()" class="member-name-link">delivered</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The number of delivered items over all lines.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#isDone()" class="member-name-link">isDone</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Whether every line is fully delivered.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;? extends <a href="IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#line(int)" class="member-name-link">line</a><wbr>(int&nbsp;line)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -125,10 +134,14 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#materialsAmount()" class="member-name-link">materialsAmount</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The number of lines.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#price()" class="member-name-link">price</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The price of the order, the sum of the line prices, without the fee.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#progress()" class="member-name-link">progress</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -156,6 +169,11 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 <h3>contents</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;? extends <a href="IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a>&gt;</span>&nbsp;<span class="element-name">contents</span>()</div>
+<div class="block">The lines of the order in their order.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>lines</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -164,6 +182,11 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 <h3>price</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">double</span>&nbsp;<span class="element-name">price</span>()</div>
+<div class="block">The price of the order, the sum of the line prices, without the fee.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>price</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -172,6 +195,11 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 <h3>amount</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">amount</span>()</div>
+<div class="block">The number of requested items over all lines.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>amount</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -180,6 +208,11 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 <h3>materialsAmount</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">materialsAmount</span>()</div>
+<div class="block">The number of lines.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>line count</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -188,6 +221,11 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 <h3>delivered</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">delivered</span>()</div>
+<div class="block">The number of delivered items over all lines.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>delivered items</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -243,6 +281,11 @@ extends <a href="ISimpleOrder.html" title="interface in de.eldoria.companies.com
 <h3>isDone</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">isDone</span>()</div>
+<div class="block">Whether every line is fully delivered.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>true when nothing is missing</dd>
+</dl>
 </div>
 </section>
 </li>

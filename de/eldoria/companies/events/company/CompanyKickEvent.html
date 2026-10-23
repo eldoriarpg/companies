@@ -88,9 +88,9 @@ loadScripts(document, 'script');</script>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">CompanyKickEvent</span>
 <span class="extends-implements">extends <a href="CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a></span></div>
-<div class="block">A user was kicked from a company.
+<div class="block">A member was removed from a company by another member.
 <p>
-This is a speification of the <a href="CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company"><code>CompanyLeaveEvent</code></a></div>
+A special case of <a href="CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company"><code>CompanyLeaveEvent</code></a>; listeners of that event receive it too.</div>
 </div>
 </section>
 <section class="summary">
@@ -123,7 +123,9 @@ This is a speification of the <a href="CompanyLeaveEvent.html" title="class in d
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.company.ICompanyProfile,org.bukkit.OfflinePlayer)" class="member-name-link">CompanyKickEvent</a><wbr>(<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company,
  org.bukkit.OfflinePlayer&nbsp;player)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a new event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -160,6 +162,12 @@ This is a speification of the <a href="CompanyLeaveEvent.html" title="class in d
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CompanyKickEvent</span><wbr><span class="parameters">(<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company,
  org.bukkit.OfflinePlayer&nbsp;player)</span></div>
+<div class="block">Creates a new event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>company</code> - the company without the member</dd>
+<dd><code>player</code> - player who was removed</dd>
+</dl>
 </div>
 </section>
 </li>

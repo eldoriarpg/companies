@@ -83,7 +83,7 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>Type Parameters:</dt>
-<dd><span id="type-param-Company"><code>Company</code> - type of company implementation</span></dd>
+<dd><span id="type-param-Company"><code>Company</code> - type of company</span></dd>
 </dl>
 <dl class="notes">
 <dt>All Implemented Interfaces:</dt>
@@ -91,16 +91,16 @@ loadScripts(document, 'script');</script>
 </dl>
 <dl class="notes">
 <dt>Direct Known Subclasses:</dt>
-<dd><code><a href="CompanyDisbandEvent.html" title="class in de.eldoria.companies.events.company">CompanyDisbandEvent</a>, <a href="CompanyJoinEvent.html" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a>, <a href="CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a>, <a href="CompanyLevelChangeEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelChangeEvent</a>, <a href="CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a></code></dd>
+<dd><code><a href="CompanyCreateEvent.html" title="class in de.eldoria.companies.events.company">CompanyCreateEvent</a>, <a href="CompanyDisbandEvent.html" title="class in de.eldoria.companies.events.company">CompanyDisbandEvent</a>, <a href="CompanyJoinEvent.html" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a>, <a href="CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a>, <a href="CompanyLevelChangeEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelChangeEvent</a>, <a href="CompanyOwnerTransferEvent.html" title="class in de.eldoria.companies.events.company">CompanyOwnerTransferEvent</a>, <a href="CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a>, <a href="CompanyRenameEvent.html" title="class in de.eldoria.companies.events.company">CompanyRenameEvent</a></code></dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public abstract class </span><span class="element-name type-name-label">CompanyEvent&lt;Company extends <a href="../../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</span>
 <span class="extends-implements">extends org.bukkit.event.Event
 implements <a href="../components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;Company&gt;</span></div>
-<div class="block">A company event.
+<div class="block">Base of the events about a company. Listen to its subclasses; this class has no handler list.
 <p>
-This event is for internal use and should not be subscribed directly</div>
+Company events fire only on the server where the action happened.</div>
 </div>
 </section>
 <section class="summary">
@@ -123,10 +123,14 @@ This event is for internal use and should not be subscribed directly</div>
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(Company)" class="member-name-link">CompanyEvent</a><wbr>(<a href="#type-param-Company" title="type parameter in CompanyEvent">Company</a>&nbsp;company)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a synchronous event.</div>
+</div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(Company,boolean)" class="member-name-link">CompanyEvent</a><wbr>(<a href="#type-param-Company" title="type parameter in CompanyEvent">Company</a>&nbsp;company,
  boolean&nbsp;async)</code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">Creates an event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -171,6 +175,11 @@ This event is for internal use and should not be subscribed directly</div>
 <h3 id="&lt;init&gt;(de.eldoria.companies.components.company.ISimpleCompany)">CompanyEvent</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CompanyEvent</span><wbr><span class="parameters">(<a href="#type-param-Company" title="type parameter in CompanyEvent">Company</a>&nbsp;company)</span></div>
+<div class="block">Creates a synchronous event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>company</code> - the company</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -180,6 +189,12 @@ This event is for internal use and should not be subscribed directly</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CompanyEvent</span><wbr><span class="parameters">(<a href="#type-param-Company" title="type parameter in CompanyEvent">Company</a>&nbsp;company,
  boolean&nbsp;async)</span></div>
+<div class="block">Creates an event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>company</code> - the company</dd>
+<dd><code>async</code> - whether the event is fired off the main thread</dd>
+</dl>
 </div>
 </section>
 </li>

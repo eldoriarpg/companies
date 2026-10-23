@@ -80,6 +80,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">ISimpleCompany</span></div>
+<div class="block">A company without its members.</div>
 </div>
 </section>
 <section class="summary">
@@ -98,23 +99,33 @@ loadScripts(document, 'script');</script>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#forId(int)" class="member-name-link">forId</a><wbr>(int&nbsp;id)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Creates a simple company from an id.</div>
+<div class="block">Creates a company that only knows its id.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/LocalDateTime.html" title="class or interface in java.time" class="external-link">LocalDateTime</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#founded()" class="member-name-link">founded</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">When the company was founded.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#foundedString()" class="member-name-link">foundedString</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">When the company was founded, formatted for display.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#id()" class="member-name-link">id</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The id of the company.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#level()" class="member-name-link">level</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The current level of the company.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#name()" class="member-name-link">name</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The name of the company.</div>
+</div>
 </div>
 </div>
 </div>
@@ -134,13 +145,13 @@ loadScripts(document, 'script');</script>
 <h3>forId</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a></span>&nbsp;<span class="element-name">forId</span><wbr><span class="parameters">(int&nbsp;id)</span></div>
-<div class="block">Creates a simple company from an id.
-This company is not usable and should only be used for requesting data.</div>
+<div class="block">Creates a company that only knows its id. Its name is empty, its founding time is null and its level is 1. Use
+it where only the id matters.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>id</code> - if of company</dd>
+<dd><code>id</code> - id of the company</dd>
 <dt>Returns:</dt>
-<dd>new simle company with this id</dd>
+<dd>a company with this id</dd>
 </dl>
 </div>
 </section>
@@ -150,6 +161,11 @@ This company is not usable and should only be used for requesting data.</div>
 <h3>id</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">id</span>()</div>
+<div class="block">The id of the company.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>id</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -158,6 +174,11 @@ This company is not usable and should only be used for requesting data.</div>
 <h3>name</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">name</span>()</div>
+<div class="block">The name of the company.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>name</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -166,6 +187,11 @@ This company is not usable and should only be used for requesting data.</div>
 <h3>founded</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/LocalDateTime.html" title="class or interface in java.time" class="external-link">LocalDateTime</a></span>&nbsp;<span class="element-name">founded</span>()</div>
+<div class="block">When the company was founded.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>founding time in the server's time zone</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -174,6 +200,11 @@ This company is not usable and should only be used for requesting data.</div>
 <h3>foundedString</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">foundedString</span>()</div>
+<div class="block">When the company was founded, formatted for display.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>formatted founding time</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -182,6 +213,11 @@ This company is not usable and should only be used for requesting data.</div>
 <h3>level</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">level</span>()</div>
+<div class="block">The current level of the company.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>level, starting at 1</dd>
+</dl>
 </div>
 </section>
 </li>

@@ -65,12 +65,16 @@ loadScripts(document, 'script');</script>
 <main role="main">
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
-<h1 title="Interface PlayerProvider" class="title">Interface PlayerProvider&lt;<span id="type-param-P">P extends org.bukkit.OfflinePlayer</span>&gt;</h1>
+<h1 title="Interface PlayerProvider" class="title">Interface PlayerProvider&lt;P extends org.bukkit.OfflinePlayer&gt;</h1>
 </div>
 <section class="class-description" id="class-description">
 <dl class="notes">
+<dt>Type Parameters:</dt>
+<dd><span id="type-param-P"><code>P</code> - type of player</span></dd>
+</dl>
+<dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="../company/CompanyJoinEvent.html" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a>, <a href="../company/CompanyKickEvent.html" title="class in de.eldoria.companies.events.company">CompanyKickEvent</a>, <a href="../company/CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a>, <a href="../company/CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a>, <a href="../order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></code></dd>
+<dd><code><a href="../company/CompanyCreateEvent.html" title="class in de.eldoria.companies.events.company">CompanyCreateEvent</a>, <a href="../company/CompanyJoinEvent.html" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a>, <a href="../company/CompanyKickEvent.html" title="class in de.eldoria.companies.events.company">CompanyKickEvent</a>, <a href="../company/CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a>, <a href="../company/CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a>, <a href="../player/ItemsReturnedEvent.html" title="class in de.eldoria.companies.events.player">ItemsReturnedEvent</a>, <a href="../order/OrderDeliveryEvent.html" title="class in de.eldoria.companies.events.order">OrderDeliveryEvent</a>, <a href="../order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a>, <a href="../company/PreCompanyCreateEvent.html" title="class in de.eldoria.companies.events.company">PreCompanyCreateEvent</a>, <a href="../order/PreOrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">PreOrderAcceptEvent</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Functional Interface:</dt>
@@ -80,6 +84,7 @@ loadScripts(document, 'script');</script>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="annotations"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/FunctionalInterface.html" title="class or interface in java.lang" class="external-link">@FunctionalInterface</a>
 </span><span class="modifiers">public interface </span><span class="element-name type-name-label">PlayerProvider&lt;P extends org.bukkit.OfflinePlayer&gt;</span></div>
+<div class="block">An event that involves a player.</div>
 </div>
 </section>
 <section class="summary">
@@ -97,7 +102,9 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#type-param-P" title="type parameter in PlayerProvider">P</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#player()" class="member-name-link">player</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The player involved in the event.</div>
+</div>
 </div>
 </div>
 </div>
@@ -117,6 +124,11 @@ loadScripts(document, 'script');</script>
 <h3>player</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="#type-param-P" title="type parameter in PlayerProvider">P</a></span>&nbsp;<span class="element-name">player</span>()</div>
+<div class="block">The player involved in the event.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>player</dd>
+</dl>
 </div>
 </section>
 </li>

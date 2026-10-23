@@ -81,6 +81,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">ICompanyMember</span></div>
+<div class="block">A member of a company with their permissions in it.</div>
 </div>
 </section>
 <section class="summary">
@@ -98,37 +99,59 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#addPermission(de.eldoria.companies.components.company.CompanyPermission)" class="member-name-link">addPermission</a><wbr>(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&nbsp;permission)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Grants a permission on this object.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#company()" class="member-name-link">company</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The company of the member.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#hasAnyPermissions(de.eldoria.companies.components.company.CompanyPermission...)" class="member-name-link">hasAnyPermissions</a><wbr>(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Whether the member has at least one of the permissions.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#hasPermission(de.eldoria.companies.components.company.CompanyPermission)" class="member-name-link">hasPermission</a><wbr>(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&nbsp;permissions)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Whether the member has a permission.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#hasPermissions(de.eldoria.companies.components.company.CompanyPermission...)" class="member-name-link">hasPermissions</a><wbr>(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Whether the member has all of the permissions.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#isOwner()" class="member-name-link">isOwner</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Whether the member owns the company.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>long</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#permission()" class="member-name-link">permission</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The permissions of the member as a bit mask, see <a href="CompanyPermission.html#mask()"><code>CompanyPermission.mask()</code></a>.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#permissions()" class="member-name-link">permissions</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The permissions of the member.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>org.bukkit.OfflinePlayer</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#player()" class="member-name-link">player</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The member as a player.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#removePermission(de.eldoria.companies.components.company.CompanyPermission)" class="member-name-link">removePermission</a><wbr>(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&nbsp;permission)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Revokes a permission on this object.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/UUID.html" title="class or interface in java.util" class="external-link">UUID</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#uuid()" class="member-name-link">uuid</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The id of the member.</div>
+</div>
 </div>
 </div>
 </div>
@@ -148,6 +171,13 @@ loadScripts(document, 'script');</script>
 <h3>hasPermission</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">hasPermission</span><wbr><span class="parameters">(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&nbsp;permissions)</span></div>
+<div class="block">Whether the member has a permission. The owner has every permission.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>permissions</code> - permission to check</dd>
+<dt>Returns:</dt>
+<dd>true when the member has it</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -156,6 +186,13 @@ loadScripts(document, 'script');</script>
 <h3>hasPermissions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">hasPermissions</span><wbr><span class="parameters">(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</span></div>
+<div class="block">Whether the member has all of the permissions. The owner has every permission.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>permissions</code> - permissions to check</dd>
+<dt>Returns:</dt>
+<dd>true when the member has every one of them</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -164,6 +201,13 @@ loadScripts(document, 'script');</script>
 <h3>hasAnyPermissions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">hasAnyPermissions</span><wbr><span class="parameters">(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</span></div>
+<div class="block">Whether the member has at least one of the permissions. The owner has every permission.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>permissions</code> - permissions to check</dd>
+<dt>Returns:</dt>
+<dd>true when the member has one of them</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -172,6 +216,13 @@ loadScripts(document, 'script');</script>
 <h3>addPermission</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></span>&nbsp;<span class="element-name">addPermission</span><wbr><span class="parameters">(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&nbsp;permission)</span></div>
+<div class="block">Grants a permission on this object. Nothing is saved.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>permission</code> - permission to grant</dd>
+<dt>Returns:</dt>
+<dd>this member</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -180,6 +231,13 @@ loadScripts(document, 'script');</script>
 <h3>removePermission</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></span>&nbsp;<span class="element-name">removePermission</span><wbr><span class="parameters">(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&nbsp;permission)</span></div>
+<div class="block">Revokes a permission on this object. Nothing is saved, and the owner keeps every permission.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>permission</code> - permission to revoke</dd>
+<dt>Returns:</dt>
+<dd>this member</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -188,6 +246,11 @@ loadScripts(document, 'script');</script>
 <h3>player</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">org.bukkit.OfflinePlayer</span>&nbsp;<span class="element-name">player</span>()</div>
+<div class="block">The member as a player.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>player of the member</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -196,6 +259,11 @@ loadScripts(document, 'script');</script>
 <h3>company</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">company</span>()</div>
+<div class="block">The company of the member.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>id of the company</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -204,6 +272,11 @@ loadScripts(document, 'script');</script>
 <h3>uuid</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/UUID.html" title="class or interface in java.util" class="external-link">UUID</a></span>&nbsp;<span class="element-name">uuid</span>()</div>
+<div class="block">The id of the member.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>id of the player</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -212,6 +285,11 @@ loadScripts(document, 'script');</script>
 <h3>permission</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">long</span>&nbsp;<span class="element-name">permission</span>()</div>
+<div class="block">The permissions of the member as a bit mask, see <a href="CompanyPermission.html#mask()"><code>CompanyPermission.mask()</code></a>.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>permission mask</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -220,6 +298,11 @@ loadScripts(document, 'script');</script>
 <h3>permissions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&gt;</span>&nbsp;<span class="element-name">permissions</span>()</div>
+<div class="block">The permissions of the member.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>granted permissions</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -228,6 +311,11 @@ loadScripts(document, 'script');</script>
 <h3>isOwner</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">isOwner</span>()</div>
+<div class="block">Whether the member owns the company.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>true for the owner</dd>
+</dl>
 </div>
 </section>
 </li>

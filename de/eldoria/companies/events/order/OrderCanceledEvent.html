@@ -92,18 +92,20 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>All Implemented Interfaces:</dt>
-<dd><code><a href="../components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;, <a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</code></dd>
+<dd><code><a href="../components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;, <a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;, <a href="../components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a></code></dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">OrderCanceledEvent</span>
 <span class="extends-implements">extends <a href="OrderEvent.html" title="class in de.eldoria.companies.events.order">OrderEvent</a>&lt;<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;
 implements <a href="../components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;</span></div>
-<div class="block">A active and claimed order was canceled.
+<div class="block">A company aborted a claimed order; the order is open again for other companies.
 <p>
-This event will not be fired when a order is aborted by the order owner.
+Fired after the order was released, off the main thread. It fires only on the server where the order was aborted.
+An order the owner cancels or that is removed fires <a href="OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order"><code>OrderRemovedEvent</code></a>; an order that runs out of time fires
+<a href="OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order"><code>OrderExpiredEvent</code></a>.
 <p>
-This event will not be called when an order expires. See <a href="OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order"><code>OrderExpiredEvent</code></a>.</div>
+Orders are anonymous: never show the owner to the company's members or the company to the owner.</div>
 </div>
 </section>
 <section class="summary">
@@ -128,7 +130,9 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static final org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color"><code><a href="#HANDLERS" class="member-name-link">HANDLERS</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">The handlers of this event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -142,7 +146,9 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.components.company.ICompanyProfile)" class="member-name-link">OrderCanceledEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
  <a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a new event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -159,10 +165,14 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#company()" class="member-name-link">company</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The company that aborted the order.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.bukkit.event.HandlerList</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getHandlerList()" class="member-name-link">getHandlerList</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">The handlers of this event.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>@NotNull org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getHandlers()" class="member-name-link">getHandlers</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -171,7 +181,7 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 </div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-de.eldoria.companies.events.order.OrderEvent">Methods inherited from class&nbsp;<a href="OrderEvent.html#method-summary" title="class in de.eldoria.companies.events.order">OrderEvent</a></h3>
-<code><a href="OrderEvent.html#order()" title="order()">order</a></code></div>
+<code><a href="OrderEvent.html#order()" title="order()">order</a>, <a href="OrderEvent.html#owner()" title="owner()">owner</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-org.bukkit.event.Event">Methods inherited from class&nbsp;org.bukkit.event.Event</h3>
 <code>callEvent, getEventName, isAsynchronous</code></div>
@@ -194,6 +204,7 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <h3>HANDLERS</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">HANDLERS</span></div>
+<div class="block">The handlers of this event.</div>
 </div>
 </section>
 </li>
@@ -211,6 +222,12 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderCanceledEvent</span><wbr><span class="parameters">(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
  <a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&nbsp;company)</span></div>
+<div class="block">Creates a new event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>order</code> - the released order</dd>
+<dd><code>company</code> - company that aborted the order</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -227,6 +244,11 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <h3>getHandlerList</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">getHandlerList</span>()</div>
+<div class="block">The handlers of this event.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>handler list</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -235,9 +257,12 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <h3>company</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a></span>&nbsp;<span class="element-name">company</span>()</div>
+<div class="block">The company that aborted the order.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../components/CompanyProvider.html#company()">company</a></code>&nbsp;in interface&nbsp;<code><a href="../components/CompanyProvider.html" title="interface in de.eldoria.companies.events.components">CompanyProvider</a>&lt;<a href="../../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;</code></dd>
+<dt>Returns:</dt>
+<dd>company</dd>
 </dl>
 </div>
 </section>

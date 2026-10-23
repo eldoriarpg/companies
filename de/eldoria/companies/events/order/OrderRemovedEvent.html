@@ -65,12 +65,13 @@ loadScripts(document, 'script');</script>
 </li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
-<li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder)" tabindex="0">OrderRemovedEvent(ISimpleOrder)</a></li>
+<li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.events.order.OrderRemovedEvent.Reason)" tabindex="0">OrderRemovedEvent(ISimpleOrder, OrderRemovedEvent.Reason)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#getHandlerList()" tabindex="0">getHandlerList()</a></li>
+<li><a href="#reason()" tabindex="0">reason()</a></li>
 <li><a href="#getHandlers()" tabindex="0">getHandlers()</a></li>
 </ol>
 </li>
@@ -91,17 +92,20 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>All Implemented Interfaces:</dt>
-<dd><code><a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</code></dd>
+<dd><code><a href="../components/OrderProvider.html" title="interface in de.eldoria.companies.events.components">OrderProvider</a>&lt;<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;, <a href="../components/OwnerProvider.html" title="interface in de.eldoria.companies.events.components">OwnerProvider</a></code></dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">OrderRemovedEvent</span>
 <span class="extends-implements">extends <a href="OrderEvent.html" title="class in de.eldoria.companies.events.order">OrderEvent</a>&lt;<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</span></div>
-<div class="block">A active and claimed order was canceled.
+<div class="block">An order was deleted before it was delivered: removed because nobody accepted it, cancelled by its owner, or deleted
+by an admin. The <a href="#reason()"><code>reason()</code></a> tells which.
 <p>
-This event will not be fired when a order is aborted by the order owner.
+Fired after the order was deleted, off the main thread. It fires only on the server where the order was removed;
+removals because nobody accepted the order happen on the primary server of a network.
 <p>
-This event will not be called when an order expires. See <a href="OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order"><code>OrderExpiredEvent</code></a>.</div>
+A claimed order that the company gives up fires <a href="OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order"><code>OrderCanceledEvent</code></a>, one that runs out of time fires
+<a href="OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order"><code>OrderExpiredEvent</code></a>.</div>
 </div>
 </section>
 <section class="summary">
@@ -110,6 +114,17 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <li>
 <section class="nested-class-summary" id="nested-class-summary">
 <h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="OrderRemovedEvent.Reason.html" class="type-name-link" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Why an order was deleted.</div>
+</div>
+</div>
 <div class="inherited-list">
 <h3 id="nested-classes-inherited-from-class-org.bukkit.event.Event">Nested classes/interfaces inherited from class&nbsp;org.bukkit.event.Event</h3>
 <code>org.bukkit.event.Event.Result</code></div>
@@ -126,7 +141,9 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static final org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color"><code><a href="#HANDLERS" class="member-name-link">HANDLERS</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">The handlers of this event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -138,8 +155,11 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder)" class="member-name-link">OrderRemovedEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.events.order.OrderRemovedEvent.Reason)" class="member-name-link">OrderRemovedEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+ <a href="OrderRemovedEvent.Reason.html" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a>&nbsp;reason)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Creates a new event.</div>
+</div>
 </div>
 </section>
 </li>
@@ -156,16 +176,23 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.bukkit.event.HandlerList</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getHandlerList()" class="member-name-link">getHandlerList</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">The handlers of this event.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>@NotNull org.bukkit.event.HandlerList</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getHandlers()" class="member-name-link">getHandlers</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="OrderRemovedEvent.Reason.html" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reason()" class="member-name-link">reason</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Why the order was deleted.</div>
+</div>
 </div>
 </div>
 </div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-de.eldoria.companies.events.order.OrderEvent">Methods inherited from class&nbsp;<a href="OrderEvent.html#method-summary" title="class in de.eldoria.companies.events.order">OrderEvent</a></h3>
-<code><a href="OrderEvent.html#order()" title="order()">order</a></code></div>
+<code><a href="OrderEvent.html#order()" title="order()">order</a>, <a href="OrderEvent.html#owner()" title="owner()">owner</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-org.bukkit.event.Event">Methods inherited from class&nbsp;org.bukkit.event.Event</h3>
 <code>callEvent, getEventName, isAsynchronous</code></div>
@@ -188,6 +215,7 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <h3>HANDLERS</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">HANDLERS</span></div>
+<div class="block">The handlers of this event.</div>
 </div>
 </section>
 </li>
@@ -200,10 +228,17 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="&lt;init&gt;(de.eldoria.companies.components.order.ISimpleOrder)">
+<section class="detail" id="&lt;init&gt;(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.events.order.OrderRemovedEvent.Reason)">
 <h3>OrderRemovedEvent</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderRemovedEvent</span><wbr><span class="parameters">(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderRemovedEvent</span><wbr><span class="parameters">(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+ <a href="OrderRemovedEvent.Reason.html" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a>&nbsp;reason)</span></div>
+<div class="block">Creates a new event.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>order</code> - the deleted order</dd>
+<dd><code>reason</code> - why the order was deleted</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -220,6 +255,24 @@ This event will not be called when an order expires. See <a href="OrderExpiredEv
 <h3>getHandlerList</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.bukkit.event.HandlerList</span>&nbsp;<span class="element-name">getHandlerList</span>()</div>
+<div class="block">The handlers of this event.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>handler list</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reason()">
+<h3>reason</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="OrderRemovedEvent.Reason.html" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a></span>&nbsp;<span class="element-name">reason</span>()</div>
+<div class="block">Why the order was deleted.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>reason</dd>
+</dl>
 </div>
 </section>
 </li>

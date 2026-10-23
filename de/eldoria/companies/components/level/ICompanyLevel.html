@@ -75,6 +75,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">ICompanyLevel</span></div>
+<div class="block">A configured company level.</div>
 </div>
 </section>
 <section class="summary">
@@ -92,19 +93,29 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#asComponent()" class="member-name-link">asComponent</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The level and its requirements as MiniMessage text with locale keys of Companies.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#level()" class="member-name-link">level</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The number of the level.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#levelName()" class="member-name-link">levelName</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The display name of the level.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ILevelRequirement.html" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#requirement()" class="member-name-link">requirement</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">What a company needs to reach the level.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ILevelSettings.html" title="interface in de.eldoria.companies.components.level">ILevelSettings</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#settings()" class="member-name-link">settings</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">What a company on this level may do.</div>
+</div>
 </div>
 </div>
 </div>
@@ -124,6 +135,11 @@ loadScripts(document, 'script');</script>
 <h3>asComponent</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">asComponent</span>()</div>
+<div class="block">The level and its requirements as MiniMessage text with locale keys of Companies.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>text for display</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -132,6 +148,11 @@ loadScripts(document, 'script');</script>
 <h3>level</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">level</span>()</div>
+<div class="block">The number of the level.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>level, starting at 1</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -140,6 +161,11 @@ loadScripts(document, 'script');</script>
 <h3>levelName</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">levelName</span>()</div>
+<div class="block">The display name of the level.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>name</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -148,6 +174,11 @@ loadScripts(document, 'script');</script>
 <h3>requirement</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="ILevelRequirement.html" title="interface in de.eldoria.companies.components.level">ILevelRequirement</a></span>&nbsp;<span class="element-name">requirement</span>()</div>
+<div class="block">What a company needs to reach the level.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>requirement</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -156,6 +187,11 @@ loadScripts(document, 'script');</script>
 <h3>settings</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="ILevelSettings.html" title="interface in de.eldoria.companies.components.level">ILevelSettings</a></span>&nbsp;<span class="element-name">settings</span>()</div>
+<div class="block">What a company on this level may do.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>settings</dd>
+</dl>
 </div>
 </section>
 </li>

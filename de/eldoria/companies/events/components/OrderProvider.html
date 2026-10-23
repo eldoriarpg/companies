@@ -65,12 +65,16 @@ loadScripts(document, 'script');</script>
 <main role="main">
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
-<h1 title="Interface OrderProvider" class="title">Interface OrderProvider&lt;<span id="type-param-O">O extends <a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></span>&gt;</h1>
+<h1 title="Interface OrderProvider" class="title">Interface OrderProvider&lt;O extends <a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</h1>
 </div>
 <section class="class-description" id="class-description">
 <dl class="notes">
+<dt>Type Parameters:</dt>
+<dd><span id="type-param-O"><code>O</code> - type of order</span></dd>
+</dl>
+<dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="../order/OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a>, <a href="../order/OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a>, <a href="../order/OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a>, <a href="../order/OrderEvent.html" title="class in de.eldoria.companies.events.order">OrderEvent</a>, <a href="../order/OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a>, <a href="../order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a>, <a href="../order/OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a></code></dd>
+<dd><code><a href="../order/OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a>, <a href="../order/OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a>, <a href="../order/OrderCreatedEvent.html" title="class in de.eldoria.companies.events.order">OrderCreatedEvent</a>, <a href="../order/OrderDeliveryEvent.html" title="class in de.eldoria.companies.events.order">OrderDeliveryEvent</a>, <a href="../order/OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a>, <a href="../order/OrderEvent.html" title="class in de.eldoria.companies.events.order">OrderEvent</a>, <a href="../order/OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a>, <a href="../order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a>, <a href="../order/OrderReceivedEvent.html" title="class in de.eldoria.companies.events.order">OrderReceivedEvent</a>, <a href="../order/OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a>, <a href="../order/PreOrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">PreOrderAcceptEvent</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Functional Interface:</dt>
@@ -80,6 +84,7 @@ loadScripts(document, 'script');</script>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="annotations"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/FunctionalInterface.html" title="class or interface in java.lang" class="external-link">@FunctionalInterface</a>
 </span><span class="modifiers">public interface </span><span class="element-name type-name-label">OrderProvider&lt;O extends <a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</span></div>
+<div class="block">An event that involves an order.</div>
 </div>
 </section>
 <section class="summary">
@@ -98,7 +103,7 @@ loadScripts(document, 'script');</script>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#type-param-O" title="type parameter in OrderProvider">O</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#order()" class="member-name-link">order</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">The order associated with this event/</div>
+<div class="block">The order involved in the event.</div>
 </div>
 </div>
 </div>
@@ -119,7 +124,7 @@ loadScripts(document, 'script');</script>
 <h3>order</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="#type-param-O" title="type parameter in OrderProvider">O</a></span>&nbsp;<span class="element-name">order</span>()</div>
-<div class="block">The order associated with this event/</div>
+<div class="block">The order involved in the event.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>order</dd>

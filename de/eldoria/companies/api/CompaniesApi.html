@@ -5,7 +5,7 @@
 <title>CompaniesApi (companies-api 2.0.0-SNAPSHOT API)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta name="description" content="declaration: package: de.eldoria.companies.api, class: CompaniesApi">
+<meta name="description" content="declaration: package: de.eldoria.companies.api, interface: CompaniesApi">
 <meta name="generator" content="javadoc/ClassWriter">
 <link rel="stylesheet" type="text/css" href="../../../../resource-files/jquery-ui.min.css">
 <link rel="stylesheet" type="text/css" href="../../../../resource-files/stylesheet.css">
@@ -54,25 +54,14 @@ loadScripts(document, 'script');</script>
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
-<li><a href="#constructor-summary" tabindex="0">Constructor Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
-<li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
-<ol class="toc-list">
-<li><a href="#%3Cinit%3E()" tabindex="0">CompaniesApi()</a></li>
-</ol>
-</li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
-<li><a href="#initInstance(de.eldoria.companies.api.CompaniesApi)" tabindex="0">initInstance(CompaniesApi)</a></li>
-<li><a href="#getPlayerCompanyProfile(org.bukkit.OfflinePlayer)" tabindex="0">getPlayerCompanyProfile(OfflinePlayer)</a></li>
-<li><a href="#getPlayerCompany(org.bukkit.OfflinePlayer)" tabindex="0">getPlayerCompany(OfflinePlayer)</a></li>
-<li><a href="#getCompanyStats(de.eldoria.companies.components.company.ISimpleCompany)" tabindex="0">getCompanyStats(ISimpleCompany)</a></li>
-<li><a href="#getCompanyByName(java.lang.String)" tabindex="0">getCompanyByName(String)</a></li>
-<li><a href="#getCompanyById(int)" tabindex="0">getCompanyById(int)</a></li>
-<li><a href="#retrieveOrderById(int)" tabindex="0">retrieveOrderById(int)</a></li>
-<li><a href="#retrieveOrdersByCompany(de.eldoria.companies.components.company.ISimpleCompany,de.eldoria.companies.components.order.OrderState,de.eldoria.companies.components.order.OrderState)" tabindex="0">retrieveOrdersByCompany(ISimpleCompany, OrderState, OrderState)</a></li>
-<li><a href="#retrieveOrdersByPlayer(org.bukkit.OfflinePlayer,de.eldoria.companies.components.order.OrderState,de.eldoria.companies.components.order.OrderState)" tabindex="0">retrieveOrdersByPlayer(OfflinePlayer, OrderState, OrderState)</a></li>
-<li><a href="#retrieveMaterialPrice(org.bukkit.Material)" tabindex="0">retrieveMaterialPrice(Material)</a></li>
+<li><a href="#get()" tabindex="0">get()</a></li>
+<li><a href="#companies()" tabindex="0">companies()</a></li>
+<li><a href="#orders()" tabindex="0">orders()</a></li>
+<li><a href="#players()" tabindex="0">players()</a></li>
+<li><a href="#ranking()" tabindex="0">ranking()</a></li>
 </ol>
 </li>
 </ol>
@@ -80,276 +69,150 @@ loadScripts(document, 'script');</script>
 <main role="main">
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
-<h1 title="Class CompaniesApi" class="title">Class CompaniesApi</h1>
-</div>
-<div class="inheritance" title="Inheritance Tree"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">java.lang.Object</a>
-<div class="inheritance">de.eldoria.companies.api.CompaniesApi</div>
+<h1 title="Interface CompaniesApi" class="title">Interface CompaniesApi</h1>
 </div>
 <section class="class-description" id="class-description">
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public abstract class </span><span class="element-name type-name-label">CompaniesApi</span>
-<span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
+<div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">CompaniesApi</span></div>
+<div class="block">Entry point of the Companies API.
+<p>
+Companies registers its implementation with Bukkit's <code>ServicesManager</code> while it enables. A
+plugin that declares Companies as <code>depend</code> (or <code>softdepend</code> and checks that it is enabled) can obtain it
+in its own <code>onEnable</code> with <a href="#get()"><code>get()</code></a> or with <code>getServicesManager().load(CompaniesApi.class)</code>.
+<p>
+<b>Threading.</b> Every method of the API returns a <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/CompletableFuture.html" title="class or interface in java.util.concurrent" class="external-link"><code>CompletableFuture</code></a> that completes off
+the main thread. Do not block the main thread on it with <code>join()</code> or <code>get()</code>. Run Bukkit calls that need
+the main thread through the scheduler, for example with
+<code>future.thenAcceptAsync(result -&gt; ..., runnable -&gt; Bukkit.getScheduler().runTask(plugin, runnable))</code>.
+<p>
+<b>Reads and writes.</b> Reads work as soon as the API is registered. Write operations need the economy, which
+Companies sets up once the server has started; before that, and while Companies runs without an economy, they
+complete exceptionally with an <a href="ApiNotReadyException.html" title="class in de.eldoria.companies.api"><code>ApiNotReadyException</code></a>.
+<p>
+<b>Anonymity.</b> Companies keeps orders anonymous: players never learn who placed an order they work on, and owners
+never learn which company works on theirs. The API and its events expose both sides. Use them for logic, logging or
+staff tools, and never show the owner of an order to the members of a company or the company to the owner.
+<p>
+<b>Multiple servers.</b> All data lives in the shared database, so reads see the changes of every server. Events are
+fired only on the server where the action happened.</div>
 </div>
 </section>
 <section class="summary">
 <ul class="summary-list">
-<!-- ======== CONSTRUCTOR SUMMARY ======== -->
-<li>
-<section class="constructor-summary" id="constructor-summary">
-<h2>Constructor Summary</h2>
-<div class="caption"><span>Constructors</span></div>
-<div class="summary-table two-column-summary">
-<div class="table-header col-first">Constructor</div>
-<div class="table-header col-last">Description</div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E()" class="member-name-link">CompaniesApi</a>()</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
-</div>
-</section>
-</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button><button id="method-summary-table-tab4" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab4', 3)" class="table-tab">Concrete Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel" aria-labelledby="method-summary-table-tab0">
 <div class="summary-table three-column-summary">
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;? extends <a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getCompanyById(int)" class="member-name-link">getCompanyById</a><wbr>(int&nbsp;id)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="CompanyApi.html" title="interface in de.eldoria.companies.api">CompanyApi</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#companies()" class="member-name-link">companies</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Get the company by id.</div>
+<div class="block">Access to companies and their members.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;? extends <a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getCompanyByName(java.lang.String)" class="member-name-link">getCompanyByName</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="CompaniesApi.html" title="interface in de.eldoria.companies.api">CompaniesApi</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#get()" class="member-name-link">get</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="block">The running API.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="OrderApi.html" title="interface in de.eldoria.companies.api">OrderApi</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#orders()" class="member-name-link">orders</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Access to orders, material prices and order creation.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="PlayerApi.html" title="interface in de.eldoria.companies.api">PlayerApi</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#players()" class="member-name-link">players</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Get the company by name.</div>
+<div class="block">Access to the per-player data of Companies, such as items waiting to be picked up.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="../components/company/ICompanyStats.html" title="interface in de.eldoria.companies.components.company">ICompanyStats</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getCompanyStats(de.eldoria.companies.components.company.ISimpleCompany)" class="member-name-link">getCompanyStats</a><wbr>(<a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&nbsp;company)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="RankingApi.html" title="interface in de.eldoria.companies.api">RankingApi</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#ranking()" class="member-name-link">ranking</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns stats for the company.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;? extends <a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getPlayerCompany(org.bukkit.OfflinePlayer)" class="member-name-link">getPlayerCompany</a><wbr>(org.bukkit.OfflinePlayer&nbsp;player)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Get the company profile of a player.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;? extends <a href="../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getPlayerCompanyProfile(org.bukkit.OfflinePlayer)" class="member-name-link">getPlayerCompanyProfile</a><wbr>(org.bukkit.OfflinePlayer&nbsp;player)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Get the company profile of a player</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>protected static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#initInstance(de.eldoria.companies.api.CompaniesApi)" class="member-name-link">initInstance</a><wbr>(<a href="CompaniesApi.html" title="class in de.eldoria.companies.api">CompaniesApi</a>&nbsp;instance)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="../components/order/IMaterialPrice.html" title="interface in de.eldoria.companies.components.order">IMaterialPrice</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#retrieveMaterialPrice(org.bukkit.Material)" class="member-name-link">retrieveMaterialPrice</a><wbr>(org.bukkit.Material&nbsp;material)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Retrieve the material price for a material</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;? extends <a href="../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#retrieveOrderById(int)" class="member-name-link">retrieveOrderById</a><wbr>(int&nbsp;id)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Retrieve a order by the id</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;? extends <a href="../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#retrieveOrdersByCompany(de.eldoria.companies.components.company.ISimpleCompany,de.eldoria.companies.components.order.OrderState,de.eldoria.companies.components.order.OrderState)" class="member-name-link">retrieveOrdersByCompany</a><wbr>(<a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&nbsp;company,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;min,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;max)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Retrieve all orders assigned to a company</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;? extends <a href="../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#retrieveOrdersByPlayer(org.bukkit.OfflinePlayer,de.eldoria.companies.components.order.OrderState,de.eldoria.companies.components.order.OrderState)" class="member-name-link">retrieveOrdersByPlayer</a><wbr>(org.bukkit.OfflinePlayer&nbsp;player,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;min,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;max)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Retrieve all orders assigned to a company</div>
+<div class="block">Access to the company ranking.</div>
 </div>
 </div>
 </div>
 </div>
-<div class="inherited-list">
-<h3 id="methods-inherited-from-class-java.lang.Object">Methods inherited from class&nbsp;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#method-summary" title="class or interface in java.lang" class="external-link">Object</a></h3>
-<code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#clone()" title="class or interface in java.lang" class="external-link">clone</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)" title="class or interface in java.lang" class="external-link">equals</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#finalize()" title="class or interface in java.lang" class="external-link">finalize</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#getClass()" title="class or interface in java.lang" class="external-link">getClass</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#hashCode()" title="class or interface in java.lang" class="external-link">hashCode</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notify()" title="class or interface in java.lang" class="external-link">notify</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#notifyAll()" title="class or interface in java.lang" class="external-link">notifyAll</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#toString()" title="class or interface in java.lang" class="external-link">toString</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait()" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long)" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html#wait(long,int)" title="class or interface in java.lang" class="external-link">wait</a></code></div>
 </section>
 </li>
 </ul>
 </section>
 <section class="details">
 <ul class="details-list">
-<!-- ========= CONSTRUCTOR DETAIL ======== -->
-<li>
-<section class="constructor-details" id="constructor-detail">
-<h2>Constructor Details</h2>
-<ul class="member-list">
-<li>
-<section class="detail" id="&lt;init&gt;()">
-<h3>CompaniesApi</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CompaniesApi</span>()</div>
-</div>
-</section>
-</li>
-</ul>
-</section>
-</li>
 <!-- ============ METHOD DETAIL ========== -->
 <li>
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="initInstance(de.eldoria.companies.api.CompaniesApi)">
-<h3>initInstance</h3>
+<section class="detail" id="get()">
+<h3>get</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">protected static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">initInstance</span><wbr><span class="parameters">(<a href="CompaniesApi.html" title="class in de.eldoria.companies.api">CompaniesApi</a>&nbsp;instance)</span></div>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="getPlayerCompanyProfile(org.bukkit.OfflinePlayer)">
-<h3>getPlayerCompanyProfile</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;? extends <a href="../components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a>&gt;</span>&nbsp;<span class="element-name">getPlayerCompanyProfile</span><wbr><span class="parameters">(org.bukkit.OfflinePlayer&nbsp;player)</span></div>
-<div class="block">Get the company profile of a player</div>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="CompaniesApi.html" title="interface in de.eldoria.companies.api">CompaniesApi</a></span>&nbsp;<span class="element-name">get</span>()</div>
+<div class="block">The running API.</div>
 <dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>player</code> - player</dd>
 <dt>Returns:</dt>
-<dd>optional holding the company profile if the player is part of a company</dd>
+<dd>the registered API</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/IllegalStateException.html" title="class or interface in java.lang" class="external-link">IllegalStateException</a></code> - when Companies is not enabled</dd>
 </dl>
 </div>
 </section>
 </li>
 <li>
-<section class="detail" id="getPlayerCompany(org.bukkit.OfflinePlayer)">
-<h3>getPlayerCompany</h3>
+<section class="detail" id="companies()">
+<h3>companies</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;? extends <a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</span>&nbsp;<span class="element-name">getPlayerCompany</span><wbr><span class="parameters">(org.bukkit.OfflinePlayer&nbsp;player)</span></div>
-<div class="block">Get the company profile of a player.</div>
+<div class="member-signature"><span class="return-type"><a href="CompanyApi.html" title="interface in de.eldoria.companies.api">CompanyApi</a></span>&nbsp;<span class="element-name">companies</span>()</div>
+<div class="block">Access to companies and their members.</div>
 <dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>player</code> - player</dd>
 <dt>Returns:</dt>
-<dd>optional holding the company profile if the player is part of a company</dd>
+<dd>company API</dd>
 </dl>
 </div>
 </section>
 </li>
 <li>
-<section class="detail" id="getCompanyStats(de.eldoria.companies.components.company.ISimpleCompany)">
-<h3>getCompanyStats</h3>
+<section class="detail" id="orders()">
+<h3>orders</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="../components/company/ICompanyStats.html" title="interface in de.eldoria.companies.components.company">ICompanyStats</a></span>&nbsp;<span class="element-name">getCompanyStats</span><wbr><span class="parameters">(<a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&nbsp;company)</span></div>
-<div class="block">Returns stats for the company.</div>
+<div class="member-signature"><span class="return-type"><a href="OrderApi.html" title="interface in de.eldoria.companies.api">OrderApi</a></span>&nbsp;<span class="element-name">orders</span>()</div>
+<div class="block">Access to orders, material prices and order creation.</div>
 <dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>company</code> - company to check</dd>
 <dt>Returns:</dt>
-<dd>company stats</dd>
+<dd>order API</dd>
 </dl>
 </div>
 </section>
 </li>
 <li>
-<section class="detail" id="getCompanyByName(java.lang.String)">
-<h3>getCompanyByName</h3>
+<section class="detail" id="players()">
+<h3>players</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;? extends <a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</span>&nbsp;<span class="element-name">getCompanyByName</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
-<div class="block">Get the company by name.</div>
+<div class="member-signature"><span class="return-type"><a href="PlayerApi.html" title="interface in de.eldoria.companies.api">PlayerApi</a></span>&nbsp;<span class="element-name">players</span>()</div>
+<div class="block">Access to the per-player data of Companies, such as items waiting to be picked up.</div>
 <dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>name</code> - name. Not case sensitive</dd>
 <dt>Returns:</dt>
-<dd>optional holding a company if available</dd>
+<dd>player API</dd>
 </dl>
 </div>
 </section>
 </li>
 <li>
-<section class="detail" id="getCompanyById(int)">
-<h3>getCompanyById</h3>
+<section class="detail" id="ranking()">
+<h3>ranking</h3>
 <div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;? extends <a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</span>&nbsp;<span class="element-name">getCompanyById</span><wbr><span class="parameters">(int&nbsp;id)</span></div>
-<div class="block">Get the company by id.</div>
+<div class="member-signature"><span class="return-type"><a href="RankingApi.html" title="interface in de.eldoria.companies.api">RankingApi</a></span>&nbsp;<span class="element-name">ranking</span>()</div>
+<div class="block">Access to the company ranking.</div>
 <dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>id</code> - positive id of the company</dd>
 <dt>Returns:</dt>
-<dd>optional holding a company if available</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="retrieveOrderById(int)">
-<h3>retrieveOrderById</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;? extends <a href="../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</span>&nbsp;<span class="element-name">retrieveOrderById</span><wbr><span class="parameters">(int&nbsp;id)</span></div>
-<div class="block">Retrieve a order by the id</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>id</code> - order id</dd>
-<dt>Returns:</dt>
-<dd>optional hodling the order id available</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="retrieveOrdersByCompany(de.eldoria.companies.components.company.ISimpleCompany,de.eldoria.companies.components.order.OrderState,de.eldoria.companies.components.order.OrderState)">
-<h3>retrieveOrdersByCompany</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;? extends <a href="../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</span>&nbsp;<span class="element-name">retrieveOrdersByCompany</span><wbr><span class="parameters">(<a href="../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&nbsp;company,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;min,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;max)</span></div>
-<div class="block">Retrieve all orders assigned to a company</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>company</code> - company to check. Can be a <a href="../components/company/ISimpleCompany.html#forId(int)"><code>ISimpleCompany.forId(int)</code></a>.</dd>
-<dd><code>min</code> - min order state</dd>
-<dd><code>max</code> - max order state</dd>
-<dt>Returns:</dt>
-<dd>List of orders. List may be empty</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="retrieveOrdersByPlayer(org.bukkit.OfflinePlayer,de.eldoria.companies.components.order.OrderState,de.eldoria.companies.components.order.OrderState)">
-<h3>retrieveOrdersByPlayer</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;? extends <a href="../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</span>&nbsp;<span class="element-name">retrieveOrdersByPlayer</span><wbr><span class="parameters">(org.bukkit.OfflinePlayer&nbsp;player,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;min,
- <a href="../components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a>&nbsp;max)</span></div>
-<div class="block">Retrieve all orders assigned to a company</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>player</code> - player to check.</dd>
-<dd><code>min</code> - min order state</dd>
-<dd><code>max</code> - max order state</dd>
-<dt>Returns:</dt>
-<dd>List of orders. List may be empty</dd>
-</dl>
-</div>
-</section>
-</li>
-<li>
-<section class="detail" id="retrieveMaterialPrice(org.bukkit.Material)">
-<h3>retrieveMaterialPrice</h3>
-<div class="horizontal-scroll">
-<div class="member-signature"><span class="modifiers">public abstract</span>&nbsp;<span class="return-type"><a href="../components/order/IMaterialPrice.html" title="interface in de.eldoria.companies.components.order">IMaterialPrice</a></span>&nbsp;<span class="element-name">retrieveMaterialPrice</span><wbr><span class="parameters">(org.bukkit.Material&nbsp;material)</span></div>
-<div class="block">Retrieve the material price for a material</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>material</code> - material to check.</dd>
-<dt>Returns:</dt>
-<dd>optional which holds the material price. This result may be cached or be retrived from the database</dd>
+<dd>ranking API</dd>
 </dl>
 </div>
 </section>

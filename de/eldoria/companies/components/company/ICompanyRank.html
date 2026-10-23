@@ -58,6 +58,9 @@ loadScripts(document, 'script');</script>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#rank()" tabindex="0">rank()</a></li>
+<li><a href="#level()" tabindex="0">level()</a></li>
+<li><a href="#tag()" tabindex="0">tag()</a></li>
+<li><a href="#color()" tabindex="0">color()</a></li>
 </ol>
 </li>
 </ol>
@@ -76,6 +79,11 @@ loadScripts(document, 'script');</script>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">ICompanyRank</span><span class="extends-implements">
 extends <a href="ICompanyStats.html" title="interface in de.eldoria.companies.components.company">ICompanyStats</a></span></div>
+<div class="block">A company at its place in a ranking.
+<p>
+The values of <a href="ICompanyStats.html" title="interface in de.eldoria.companies.components.company"><code>ICompanyStats</code></a> are those of the ranked time range: <a href="ICompanyStats.html#orderCount()"><code>ICompanyStats.orderCount()</code></a>,
+<a href="ICompanyStats.html#price()"><code>ICompanyStats.price()</code></a> and <a href="ICompanyStats.html#deliveredItems()"><code>ICompanyStats.deliveredItems()</code></a> cover only the range, <a href="ICompanyStats.html#memberCount()"><code>ICompanyStats.memberCount()</code></a> is the current number of
+members.</div>
 </div>
 </section>
 <section class="summary">
@@ -91,9 +99,26 @@ extends <a href="ICompanyStats.html" title="interface in de.eldoria.companies.co
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#color()" class="member-name-link">color</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The colour of the company's tag and name.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#level()" class="member-name-link">level</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The current level of the company.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#rank()" class="member-name-link">rank</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The place in the ranking.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tag()" class="member-name-link">tag</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The tag of the company, for display next to its name.</div>
+</div>
 </div>
 </div>
 </div>
@@ -116,6 +141,50 @@ extends <a href="ICompanyStats.html" title="interface in de.eldoria.companies.co
 <h3>rank</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">rank</span>()</div>
+<div class="block">The place in the ranking.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>rank, starting at 1</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="level()">
+<h3>level</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">level</span>()</div>
+<div class="block">The current level of the company.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>level, starting at 1</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="tag()">
+<h3>tag</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">tag</span>()</div>
+<div class="block">The tag of the company, for display next to its name.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>upper case tag, or empty when none is set</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="color()">
+<h3>color</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">color</span>()</div>
+<div class="block">The colour of the company's tag and name.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>name of a named text colour or a <code>#rrggbb</code> value, or empty when none is set</dd>
+</dl>
 </div>
 </section>
 </li>

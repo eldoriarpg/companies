@@ -65,12 +65,16 @@ loadScripts(document, 'script');</script>
 <main role="main">
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
-<h1 title="Interface CompanyProvider" class="title">Interface CompanyProvider&lt;<span id="type-param-C">C extends <a href="../../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a></span>&gt;</h1>
+<h1 title="Interface CompanyProvider" class="title">Interface CompanyProvider&lt;C extends <a href="../../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</h1>
 </div>
 <section class="class-description" id="class-description">
 <dl class="notes">
+<dt>Type Parameters:</dt>
+<dd><span id="type-param-C"><code>C</code> - type of company</span></dd>
+</dl>
+<dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="../company/CompanyDisbandEvent.html" title="class in de.eldoria.companies.events.company">CompanyDisbandEvent</a>, <a href="../company/CompanyEvent.html" title="class in de.eldoria.companies.events.company">CompanyEvent</a>, <a href="../company/CompanyJoinEvent.html" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a>, <a href="../company/CompanyKickEvent.html" title="class in de.eldoria.companies.events.company">CompanyKickEvent</a>, <a href="../company/CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a>, <a href="../company/CompanyLevelChangeEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelChangeEvent</a>, <a href="../company/CompanyLevelDownEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelDownEvent</a>, <a href="../company/CompanyLevelUpEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelUpEvent</a>, <a href="../company/CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a>, <a href="../order/OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a>, <a href="../order/OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a>, <a href="../order/OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a>, <a href="../order/OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a></code></dd>
+<dd><code><a href="../company/CompanyCreateEvent.html" title="class in de.eldoria.companies.events.company">CompanyCreateEvent</a>, <a href="../company/CompanyDisbandEvent.html" title="class in de.eldoria.companies.events.company">CompanyDisbandEvent</a>, <a href="../company/CompanyEvent.html" title="class in de.eldoria.companies.events.company">CompanyEvent</a>, <a href="../company/CompanyJoinEvent.html" title="class in de.eldoria.companies.events.company">CompanyJoinEvent</a>, <a href="../company/CompanyKickEvent.html" title="class in de.eldoria.companies.events.company">CompanyKickEvent</a>, <a href="../company/CompanyLeaveEvent.html" title="class in de.eldoria.companies.events.company">CompanyLeaveEvent</a>, <a href="../company/CompanyLevelChangeEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelChangeEvent</a>, <a href="../company/CompanyLevelDownEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelDownEvent</a>, <a href="../company/CompanyLevelUpEvent.html" title="class in de.eldoria.companies.events.company">CompanyLevelUpEvent</a>, <a href="../company/CompanyOwnerTransferEvent.html" title="class in de.eldoria.companies.events.company">CompanyOwnerTransferEvent</a>, <a href="../company/CompanyProfileEditEvent.html" title="class in de.eldoria.companies.events.company">CompanyProfileEditEvent</a>, <a href="../company/CompanyRenameEvent.html" title="class in de.eldoria.companies.events.company">CompanyRenameEvent</a>, <a href="../order/OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a>, <a href="../order/OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a>, <a href="../order/OrderDeliveryEvent.html" title="class in de.eldoria.companies.events.order">OrderDeliveryEvent</a>, <a href="../order/OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a>, <a href="../order/OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a>, <a href="../order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a>, <a href="../order/OrderReceivedEvent.html" title="class in de.eldoria.companies.events.order">OrderReceivedEvent</a>, <a href="../order/PreOrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">PreOrderAcceptEvent</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Functional Interface:</dt>
@@ -80,6 +84,7 @@ loadScripts(document, 'script');</script>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="annotations"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/FunctionalInterface.html" title="class or interface in java.lang" class="external-link">@FunctionalInterface</a>
 </span><span class="modifiers">public interface </span><span class="element-name type-name-label">CompanyProvider&lt;C extends <a href="../../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&gt;</span></div>
+<div class="block">An event that involves a company.</div>
 </div>
 </section>
 <section class="summary">
@@ -97,7 +102,9 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#type-param-C" title="type parameter in CompanyProvider">C</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#company()" class="member-name-link">company</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The company involved in the event.</div>
+</div>
 </div>
 </div>
 </div>
@@ -117,6 +124,11 @@ loadScripts(document, 'script');</script>
 <h3>company</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="#type-param-C" title="type parameter in CompanyProvider">C</a></span>&nbsp;<span class="element-name">company</span>()</div>
+<div class="block">The company involved in the event.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>company</dd>
+</dl>
 </div>
 </section>
 </li>

@@ -103,6 +103,7 @@ loadScripts(document, 'script');</script>
 <div class="type-signature"><span class="modifiers">public enum </span><span class="element-name type-name-label">CompanyPermission</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Enum.html" title="class or interface in java.lang" class="external-link">Enum</a>&lt;<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&gt;
 implements net.kyori.adventure.translation.Translatable</span></div>
+<div class="block">A permission of a member within a company. Permissions are stored as a bit mask.</div>
 </div>
 </section>
 <section class="summary">
@@ -129,15 +130,25 @@ implements net.kyori.adventure.translation.Translatable</span></div>
 <div class="block">Allows changing the description, tag, colour and join mode of the company.</div>
 </div>
 <div class="col-first odd-row-color"><code><a href="#INVITE" class="member-name-link">INVITE</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">Invites players and accepts or denies applications.</div>
+</div>
 <div class="col-first even-row-color"><code><a href="#KICK" class="member-name-link">KICK</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Removes members from the company.</div>
+</div>
 <div class="col-first odd-row-color"><code><a href="#MANAGE_ORDERS" class="member-name-link">MANAGE_ORDERS</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">Accepts and aborts orders for the company.</div>
+</div>
 <div class="col-first even-row-color"><code><a href="#MANAGE_PERMISSIONS" class="member-name-link">MANAGE_PERMISSIONS</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Grants and revokes the permissions of other members.</div>
+</div>
 <div class="col-first odd-row-color"><code><a href="#OWNER" class="member-name-link">OWNER</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">Owns the company.</div>
+</div>
 </div>
 </section>
 </li>
@@ -154,27 +165,41 @@ implements net.kyori.adventure.translation.Translatable</span></div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static long</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#composePermissions(de.eldoria.companies.components.company.CompanyPermission...)" class="member-name-link">composePermissions</a><wbr>(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Combines permissions into a bit mask.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a><wbr>&lt;<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getPermissions(long)" class="member-name-link">getPermissions</a><wbr>(long&nbsp;mask)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">The permissions contained in a mask.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasAnyPermission(long,de.eldoria.companies.components.company.CompanyPermission...)" class="member-name-link">hasAnyPermission</a><wbr>(long&nbsp;mask,
  <a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Whether a mask contains at least one of the permissions.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hasPermission(long)" class="member-name-link">hasPermission</a><wbr>(long&nbsp;mask)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Whether a mask contains this permission.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasPermission(long,de.eldoria.companies.components.company.CompanyPermission...)" class="member-name-link">hasPermission</a><wbr>(long&nbsp;mask,
  <a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Whether a mask contains all of the permissions.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>long</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#mask()" class="member-name-link">mask</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The bit of this permission in a permission mask.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rawMask()" class="member-name-link">rawMask</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The index of the bit of this permission, as stored in the database.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>@NotNull <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#translationKey()" class="member-name-link">translationKey</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -214,6 +239,7 @@ the order they are declared.</div>
 <h3>OWNER</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></span>&nbsp;<span class="element-name">OWNER</span></div>
+<div class="block">Owns the company. The owner has every permission and can not be kicked.</div>
 </div>
 </section>
 </li>
@@ -222,6 +248,7 @@ the order they are declared.</div>
 <h3>INVITE</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></span>&nbsp;<span class="element-name">INVITE</span></div>
+<div class="block">Invites players and accepts or denies applications.</div>
 </div>
 </section>
 </li>
@@ -230,6 +257,7 @@ the order they are declared.</div>
 <h3>KICK</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></span>&nbsp;<span class="element-name">KICK</span></div>
+<div class="block">Removes members from the company.</div>
 </div>
 </section>
 </li>
@@ -238,6 +266,7 @@ the order they are declared.</div>
 <h3>MANAGE_ORDERS</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></span>&nbsp;<span class="element-name">MANAGE_ORDERS</span></div>
+<div class="block">Accepts and aborts orders for the company.</div>
 </div>
 </section>
 </li>
@@ -246,6 +275,7 @@ the order they are declared.</div>
 <h3>MANAGE_PERMISSIONS</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></span>&nbsp;<span class="element-name">MANAGE_PERMISSIONS</span></div>
+<div class="block">Grants and revokes the permissions of other members.</div>
 </div>
 </section>
 </li>
@@ -306,6 +336,13 @@ not permitted.)</div>
 <h3>composePermissions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">composePermissions</span><wbr><span class="parameters">(<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</span></div>
+<div class="block">Combines permissions into a bit mask.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>permissions</code> - permissions to combine</dd>
+<dt>Returns:</dt>
+<dd>mask with the bits of the permissions</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -314,6 +351,11 @@ not permitted.)</div>
 <h3>mask</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">mask</span>()</div>
+<div class="block">The bit of this permission in a permission mask.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>mask with only this permission</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -322,6 +364,13 @@ not permitted.)</div>
 <h3>getPermissions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>&gt;</span>&nbsp;<span class="element-name">getPermissions</span><wbr><span class="parameters">(long&nbsp;mask)</span></div>
+<div class="block">The permissions contained in a mask.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>mask</code> - permission mask</dd>
+<dt>Returns:</dt>
+<dd>permissions</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -330,6 +379,13 @@ not permitted.)</div>
 <h3>hasPermission</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">hasPermission</span><wbr><span class="parameters">(long&nbsp;mask)</span></div>
+<div class="block">Whether a mask contains this permission.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>mask</code> - permission mask</dd>
+<dt>Returns:</dt>
+<dd>true when the bit is set</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -339,6 +395,14 @@ not permitted.)</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">hasAnyPermission</span><wbr><span class="parameters">(long&nbsp;mask,
  <a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</span></div>
+<div class="block">Whether a mask contains at least one of the permissions.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>mask</code> - permission mask</dd>
+<dd><code>permissions</code> - permissions to check</dd>
+<dt>Returns:</dt>
+<dd>true when one bit is set</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -348,6 +412,14 @@ not permitted.)</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">hasPermission</span><wbr><span class="parameters">(long&nbsp;mask,
  <a href="CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a>...&nbsp;permissions)</span></div>
+<div class="block">Whether a mask contains all of the permissions.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>mask</code> - permission mask</dd>
+<dd><code>permissions</code> - permissions to check</dd>
+<dt>Returns:</dt>
+<dd>true when every bit is set</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -356,6 +428,11 @@ not permitted.)</div>
 <h3>rawMask</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">rawMask</span>()</div>
+<div class="block">The index of the bit of this permission, as stored in the database.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>bit index</dd>
+</dl>
 </div>
 </section>
 </li>

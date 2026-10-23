@@ -68,37 +68,64 @@ loadScripts(document, 'script');</script>
 <ul class="summary-list">
 <li>
 <div id="class-summary">
-<div class="caption"><span>Classes</span></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="class-summary-tab0" role="tab" aria-selected="true" aria-controls="class-summary.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary', 2)" class="active-table-tab">All Classes and Interfaces</button><button id="class-summary-tab2" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab2', 2)" class="table-tab">Classes</button><button id="class-summary-tab3" role="tab" aria-selected="false" aria-controls="class-summary.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('class-summary', 'class-summary-tab3', 2)" class="table-tab">Enum Classes</button></div>
+<div id="class-summary.tabpanel" role="tabpanel" aria-labelledby="class-summary-tab0">
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Class</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color class-summary class-summary-tab2"><a href="OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
-<div class="block">A company has accepted a order.</div>
+<div class="block">A company accepted an order and claimed it.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="OrderCanceledEvent.html" title="class in de.eldoria.companies.events.order">OrderCanceledEvent</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">
-<div class="block">A active and claimed order was canceled.</div>
+<div class="block">A company aborted a claimed order; the order is open again for other companies.</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="OrderCreatedEvent.html" title="class in de.eldoria.companies.events.order">OrderCreatedEvent</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="block">An order was created and saved, by a player or through the API.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="OrderDeliveryEvent.html" title="class in de.eldoria.companies.events.order">OrderDeliveryEvent</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="block">A worker delivered items to an order.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab2"><a href="OrderDoneEvent.html" title="class in de.eldoria.companies.events.order">OrderDoneEvent</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
-<div class="block">All items for a order are delivered and the order is ready for retrieval.</div>
+<div class="block">All items of an order are delivered and the owner can receive it.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="OrderEvent.html" title="class in de.eldoria.companies.events.order">OrderEvent</a>&lt;Order extends <a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&gt;</div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">
-<div class="block">Represends a basic order event.</div>
+<div class="block">Base of the events about an existing order.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab2"><a href="OrderExpiredEvent.html" title="class in de.eldoria.companies.events.order">OrderExpiredEvent</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
-<div class="block">A order expired.</div>
+<div class="block">A company did not deliver a claimed order in time; the order is open again for other companies.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab2"><a href="OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab2">
-<div class="block">A payment for a order was retrieved by one user.</div>
+<div class="block">A worker is about to be paid their share of a completed order.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a></div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="OrderReceivedEvent.html" title="class in de.eldoria.companies.events.order">OrderReceivedEvent</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab2">
-<div class="block">A active and claimed order was canceled.</div>
+<div class="block">The owner received the items of a delivered order.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="OrderRemovedEvent.html" title="class in de.eldoria.companies.events.order">OrderRemovedEvent</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="block">An order was deleted before it was delivered: removed because nobody accepted it, cancelled by its owner, or deleted
+by an admin.</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="OrderRemovedEvent.Reason.html" title="enum class in de.eldoria.companies.events.order">OrderRemovedEvent.Reason</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="block">Why an order was deleted.</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="PreOrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">PreOrderAcceptEvent</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="block">A member of a company is about to accept an order for the company.</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="PreOrderCreateEvent.html" title="class in de.eldoria.companies.events.order">PreOrderCreateEvent</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="block">An order is about to be created, by a player or through the API.</div>
+</div>
 </div>
 </div>
 </div>

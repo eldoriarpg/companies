@@ -84,6 +84,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public interface </span><span class="element-name type-name-label">ISimpleOrder</span></div>
+<div class="block">An order without its lines.</div>
 </div>
 </section>
 <section class="summary">
@@ -101,13 +102,19 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/LocalDateTime.html" title="class or interface in java.time" class="external-link">LocalDateTime</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#claimed()" class="member-name-link">claimed</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">When the state of the order last changed; while it is claimed this is when it was accepted.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#company()" class="member-name-link">company</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The company working on the order.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/LocalDateTime.html" title="class or interface in java.time" class="external-link">LocalDateTime</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#created()" class="member-name-link">created</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">When the order was created.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#fee()" class="member-name-link">fee</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -115,22 +122,34 @@ loadScripts(document, 'script');</script>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#fullName()" class="member-name-link">fullName</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The id and name of the order for display, as <code>id - name</code>.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#id()" class="member-name-link">id</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The id of the order.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#name()" class="member-name-link">name</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The name of the order.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#name(java.lang.String)" class="member-name-link">name</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Renames the order on this object.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/UUID.html" title="class or interface in java.util" class="external-link">UUID</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#owner()" class="member-name-link">owner</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The player who placed the order.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#state()" class="member-name-link">state</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The state of the order.</div>
+</div>
 </div>
 </div>
 </div>
@@ -150,6 +169,11 @@ loadScripts(document, 'script');</script>
 <h3>name</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">void</span>&nbsp;<span class="element-name">name</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
+<div class="block">Renames the order on this object. Nothing is saved.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>name</code> - new name</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -158,6 +182,11 @@ loadScripts(document, 'script');</script>
 <h3>id</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">id</span>()</div>
+<div class="block">The id of the order.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>id</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -166,6 +195,11 @@ loadScripts(document, 'script');</script>
 <h3>owner</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/UUID.html" title="class or interface in java.util" class="external-link">UUID</a></span>&nbsp;<span class="element-name">owner</span>()</div>
+<div class="block">The player who placed the order. Never show the owner to the company working on the order.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>id of the owner</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -174,6 +208,11 @@ loadScripts(document, 'script');</script>
 <h3>name</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">name</span>()</div>
+<div class="block">The name of the order.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>name</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -182,6 +221,11 @@ loadScripts(document, 'script');</script>
 <h3>fullName</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">fullName</span>()</div>
+<div class="block">The id and name of the order for display, as <code>id - name</code>.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>full name</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -190,6 +234,11 @@ loadScripts(document, 'script');</script>
 <h3>created</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/LocalDateTime.html" title="class or interface in java.time" class="external-link">LocalDateTime</a></span>&nbsp;<span class="element-name">created</span>()</div>
+<div class="block">When the order was created.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>creation time in the server's time zone</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -198,6 +247,11 @@ loadScripts(document, 'script');</script>
 <h3>company</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">company</span>()</div>
+<div class="block">The company working on the order. Never show the company to the owner.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>id of the company, or a value below 1 when no company claimed the order</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -206,6 +260,11 @@ loadScripts(document, 'script');</script>
 <h3>claimed</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/LocalDateTime.html" title="class or interface in java.time" class="external-link">LocalDateTime</a></span>&nbsp;<span class="element-name">claimed</span>()</div>
+<div class="block">When the state of the order last changed; while it is claimed this is when it was accepted.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>time of the last state change, or null when unknown</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -214,6 +273,11 @@ loadScripts(document, 'script');</script>
 <h3>state</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a></span>&nbsp;<span class="element-name">state</span>()</div>
+<div class="block">The state of the order.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>state</dd>
+</dl>
 </div>
 </section>
 </li>
