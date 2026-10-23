@@ -174,6 +174,53 @@ class CompanyOrderMenusTest {
         assertTrue(shown.contains("7 | <red>Wood [words.info]"), shown);
     }
 
+    @Test
+    void soloActionsSuggestTheirOwnCommandsAndTitle() {
+        var text = new CompanyOrderMenu(new SoloActions(), messages, economy())
+                .chat(player, model(OrderState.CLAIMED, true), buttons)
+                .build();
+        var list = new CompanyOrderListMenu(new SoloActions(), messages, economy())
+                .chat(player, CompanyOrderListMenu.Model.of(List.of(order(OrderState.CLAIMED)), 0), buttons)
+                .build();
+
+        assertTrue(text.contains("suggest_command:/order work deliver 7 1 "), text);
+        assertTrue(list.contains("<i18n:solo.list.title>"), list);
+        assertFalse(list.contains("company.order.list.orders"), list);
+    }
+
+    private static final class SoloActions implements CompanyOrderActions {
+        @Override
+        public String deliverCommand() {
+            return "/order work deliver";
+        }
+
+        @Override
+        public String listTitle() {
+            return "solo.list.title";
+        }
+
+        @Override
+        public void info(Player player, int id) {}
+
+        @Override
+        public void list(Player player) {}
+
+        @Override
+        public void search(Player player) {}
+
+        @Override
+        public void deliver(Player player, int id, int line, int amount) {}
+
+        @Override
+        public void deliverAll(Player player, int id) {}
+
+        @Override
+        public void accept(Player player, int id) {}
+
+        @Override
+        public void abort(Player player, int id) {}
+    }
+
     private static final class NoActions implements CompanyOrderActions {
         @Override
         public void info(Player player, int id) {}

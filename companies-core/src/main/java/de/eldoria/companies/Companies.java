@@ -80,6 +80,7 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
@@ -279,6 +280,7 @@ public class Companies extends EldoPlugin {
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
                 this, orderData, information.stats(), historyRecorder, economy, configuration, treasuryService);
+        var soloOrders = SoloOrderService.create(this, orderData, companyData, outcomes, configuration);
 
         var orderCreation = new OrderCreationService(
                 orderData,
@@ -318,12 +320,13 @@ public class Companies extends EldoPlugin {
                     orderCompletion,
                     orderCreation,
                     treasuryService,
-                    seriesService));
+                    seriesService,
+                    soloOrders));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
         var expiringService = new ExpiringService(
-                this, orderData, companyData, configuration, economy, notificationService, outcomes);
+                this, orderData, companyData, configuration, economy, notificationService, outcomes, soloOrders);
         var alertNotices = new AlertNotices(notificationService::send, economy::format);
         var alertCompanies = AlertCompanies.of(companyData, orderData);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {

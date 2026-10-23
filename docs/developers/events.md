@@ -45,11 +45,12 @@ The base classes `CompanyEvent` and `OrderEvent` have no handler list. Listen to
 
 ## Pre-events and cancel reasons
 
-Three events fire **before** an action and can stop it:
+Four events fire **before** an action and can stop it:
 
 - `PreCompanyCreateEvent`: a player is about to found a company.
 - `PreOrderCreateEvent`: an order is about to be created.
 - `PreOrderAcceptEvent`: a member is about to claim an order for their company.
+- `PreSoloOrderAcceptEvent`: a player is about to take an order to work on it alone.
 
 They implement `CancellableWithReason`. Cancel them in one of two ways:
 
@@ -179,6 +180,28 @@ paid, not taxed and nothing goes to the treasury.
 A claimed order that the company gives back fires `OrderCanceledEvent`. One that runs out of time fires
 `OrderExpiredEvent`.
 
+## Solo order events
+
+A player can work on an order alone, without a company (see [Working alone](../players/working-alone.md)). Such an
+order has no company, so the company events above never fire for it. Its own events fire instead. They carry the
+worker as `player()`, and `order().soloWorker()` holds the worker's id.
+
+| Event                     | When                                                                                  | Thread                   | Cancellable | Key methods |
+|---------------------------|---------------------------------------------------------------------------------------|--------------------------|-------------|-------------|
+| `PreSoloOrderAcceptEvent` | A player is about to take an order alone                                              | Either, usually off main | With reason | `player()` |
+| `SoloOrderAcceptEvent`    | A player took an order alone                                                          | Async                    | No          | `player()` |
+| `SoloOrderDeliveryEvent`  | The player delivered at least one item                                                | Either, usually off main | No          | `player()`, `deliveries()` |
+| `SoloOrderDoneEvent`      | All items are delivered. The order is now `DELIVERED`. Fired before the player is paid | Async                    | No          | `player()` |
+| `SoloOrderPaymentEvent`   | The player is about to be paid                                                        | Async                    | Yes         | `player()`, `amount()`, `gross()`, `tax()` |
+| `SoloOrderReceivedEvent`  | The owner received the items. The order is now `RECEIVED`                             | Either, usually off main | No          | `player()` |
+| `SoloOrderAbortEvent`     | The player gave the order back. It is open again                                      | Async                    | No          | `player()` |
+| `SoloOrderExpiredEvent`   | The player did not deliver in time. It is open again                                  | Async                    | No          | `player()` |
+
+`OrderCreatedEvent` and `OrderRemovedEvent` have no company and fire for every order, whoever works on it.
+
+**Payments.** The player gets `amount()`: the `gross()` price of the delivered items minus the `tax()` of solo orders.
+There is no treasury share. Cancel the event and the player is neither paid nor taxed.
+
 ## Returned items
 
 `ItemsReturnedEvent` fires when items are put into a player's returned items, which they pick up with
@@ -191,10 +214,10 @@ A claimed order that the company gives back fires `OrderCanceledEvent`. One that
 
 | `ItemsReturnedEvent.Reason` | Meaning                                                                                          |
 |-----------------------------|--------------------------------------------------------------------------------------------------|
-| `ORDER_ABORTED`             | The company gave the order back. The worker gets back what they delivered                        |
-| `ORDER_EXPIRED`             | The company did not deliver in time. The worker gets back what they delivered                    |
+| `ORDER_ABORTED`             | The company or the player working alone gave the order back. The worker gets back what they delivered |
+| `ORDER_EXPIRED`             | The company or the player working alone did not deliver in time. The worker gets back what they delivered |
 | `COMPANY_DISBANDED`         | The company was disbanded while it worked on the order. The worker gets back what they delivered |
-| `ADMIN_RELEASE`             | An admin cancelled the order or took it away from the company                                    |
+| `ADMIN_RELEASE`             | An admin cancelled the order or took it away from the company or the player working alone        |
 | `DELIVERY_OVERFLOW`         | Items could not be handed over: the owner's inventory was full, or the worker went offline before the surplus of a delivery was given back |
 | `ADMIN_GRANT`               | An admin granted the items with a command                                                        |
 | `API`                       | A plugin granted the items with `players().grantItems(...)`                                      |
@@ -204,6 +227,7 @@ A claimed order that the company gives back fires `OrderCanceledEvent`. One that
 On a network, an event fires only on the server where the action happened. These run on the primary server only:
 
 - `OrderExpiredEvent`
+- `SoloOrderExpiredEvent`
 - `OrderRemovedEvent` with the reason `PURGED`
 - `ItemsReturnedEvent` with the reason `ORDER_EXPIRED`
 
@@ -219,6 +243,7 @@ logging or staff tools. In your listeners:
 
 - Never show the owner of an order to the worker or the other members of the company.
 - Never show the company or the workers to the owner.
+- Never show the player who works on an order alone to the owner, or the owner to that player.
 - When items return to a worker, never show who owned the order.
 
 :::tip

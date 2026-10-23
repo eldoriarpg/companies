@@ -331,6 +331,30 @@ class CompaniesApiImplTest {
     }
 
     @Test
+    void soloOrdersAreFoundByTheirWorker() throws Exception {
+        open();
+        var order = assertInstanceOf(
+                        CreateOrderResult.Created.class,
+                        api.orders().create(stoneRequest(false)).get(5, TimeUnit.SECONDS))
+                .order();
+        var worker = UUID.randomUUID();
+        var stored = orderData.retrieveOrderById(order.id()).join().orElseThrow();
+        assertTrue(orderData.submitSoloClaim(worker, stored, 1).join());
+
+        var found = api.orders()
+                .bySoloWorker(worker, OrderState.CLAIMED, OrderState.CLAIMED)
+                .get(5, TimeUnit.SECONDS);
+
+        assertEquals(1, found.size());
+        assertEquals(order.id(), found.get(0).id());
+        assertEquals(Optional.of(worker), found.get(0).soloWorker());
+        assertTrue(api.orders()
+                .bySoloWorker(UUID.randomUUID(), OrderState.UNCLAIMED, OrderState.RECEIVED)
+                .get(5, TimeUnit.SECONDS)
+                .isEmpty());
+    }
+
+    @Test
     void rankingRefusesPagesBelowOne() throws Exception {
         assertThrows(IllegalArgumentException.class, () -> api.ranking().page(TopOrder.ORDERS, TimeRange.ALL, 0, 10));
         assertThrows(IllegalArgumentException.class, () -> api.ranking().page(TopOrder.ORDERS, TimeRange.ALL, 1, 0));

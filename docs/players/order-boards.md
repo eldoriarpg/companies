@@ -35,6 +35,8 @@ info button.
 - **You are in a company** but may not manage orders: you see the orders, but cannot claim them.
 - **You are in no company**: you see every open order, but cannot claim it. It is a good way to see what is in demand
   before you found or join a company.
+- **Your server lets you work alone**: a `[Work alone]` button shows the orders of the board you could take on your
+  own. See [Working alone](./working-alone.md).
 
 `[Change]` opens the full search form, where you can change the filter. The search is explained in
 [Claiming and delivering](../companies/claiming-and-delivering.md#find-orders).

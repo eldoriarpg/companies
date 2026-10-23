@@ -70,6 +70,35 @@ public final class CompanyOrderProviders {
     }
 
     /**
+     * @return ids of the orders the sender works on alone, starting with what is typed
+     */
+    @SoloOrderIds
+    public static CompletableFuture<Suggestions> soloOrderIds(
+            CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        if (!(context.getSource().getSender() instanceof Player player)) return builder.buildFuture();
+        return CompanyOrderSources.current()
+                .map(sources -> sources.soloOrders()
+                        .suggest(player.getUniqueId(), builder, CompanyOrderProviders::suggestOrders))
+                .orElseGet(builder::buildFuture);
+    }
+
+    /**
+     * @return lines of the solo order in argument {@code id} that still miss items, starting with what is typed
+     */
+    @SoloOrderLines
+    public static CompletableFuture<Suggestions> soloOrderLines(
+            CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        if (!(context.getSource().getSender() instanceof Player player)) return builder.buildFuture();
+        var id = orderId(context);
+        if (id.isEmpty()) return builder.buildFuture();
+        return CompanyOrderSources.current()
+                .map(sources -> sources.soloOrders()
+                        .suggest(player.getUniqueId(), builder, (orders, target) -> order(orders, id.get())
+                                .ifPresent(order -> suggestLines(order, target))))
+                .orElseGet(builder::buildFuture);
+    }
+
+    /**
      * @return ids of the orders the sender's last search found, starting with what is typed
      */
     @SearchResultIds

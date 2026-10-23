@@ -13,7 +13,7 @@ import java.util.UUID;
  * member statistics and of the ranked time ranges.
  *
  * @param order   id of the order
- * @param company id of the company that completed the order
+ * @param company id of the company that completed the order, 0 for an order a player completed alone
  * @param worker  worker who delivered items
  * @param items   items the worker delivered to the order
  * @param gross   share before tax
@@ -58,5 +58,14 @@ public record PayoutRecord(
             boolean paid,
             LocalDateTime created) {
         this(order, company, worker, items, gross, tax, 0.0, net, paid, created);
+    }
+
+    /**
+     * Whether the worker completed the order alone, without a company.
+     *
+     * @return true for the payout of a solo order
+     */
+    public boolean solo() {
+        return company <= 0;
     }
 }

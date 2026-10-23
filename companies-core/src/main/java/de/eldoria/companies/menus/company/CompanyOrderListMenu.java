@@ -53,7 +53,8 @@ public final class CompanyOrderListMenu implements Menu<CompanyOrderListMenu.Mod
         var components = new MenuComponents(messages, player);
         var text = MenuText.create()
                 .text(
-                        "<heading><i18n:company.order.list.orders>: <act_search><show>[<i18n:words.search>]</act_search>",
+                        "<heading><i18n:" + actions.listTitle()
+                                + ">: <act_search><show>[<i18n:words.search>]</act_search>",
                         buttons.chatAction("act_search", actions::search));
         var orders = model.orders();
         for (var i = 0; i < orders.size(); i++) {
@@ -87,7 +88,7 @@ public final class CompanyOrderListMenu implements Menu<CompanyOrderListMenu.Mod
                     (p, response) -> actions.info(p, id)));
         }
         list.add(buttons.button(components.locale("words.search"), null, (p, response) -> actions.search(p)));
-        var base = DialogBase.builder(components.locale("company.order.list.orders"))
+        var base = DialogBase.builder(components.locale(actions.listTitle()))
                 .afterAction(DialogBase.DialogAfterAction.CLOSE)
                 .build();
         var type = DialogType.multiAction(list).columns(1).build();

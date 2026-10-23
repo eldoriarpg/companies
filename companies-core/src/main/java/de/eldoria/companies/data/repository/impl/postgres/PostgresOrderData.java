@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.postgres;
 
+import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
@@ -14,10 +15,12 @@ import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class PostgresOrderData extends MariaDbOrderData {
     /**
@@ -31,7 +34,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected List<SimpleOrder> getExpiredOrders(int hours) {
+    protected List<SimpleOrder> expiredClaims(int hours, String claimant) {
         @Language("postgresql")
         var query = """
                 SELECT o.id,
@@ -44,15 +47,16 @@ public class PostgresOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
                 WHERE last_update < now() - ((? + delivery_bonus) || ' HOUR')::INTERVAL
-                  AND company IS NOT NULL
+                  AND %s IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
-        return query(query)
+        return query(query, claimant)
                 .single(call().bind(hours).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
@@ -72,7 +76,8 @@ public class PostgresOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -99,7 +104,8 @@ public class PostgresOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -117,7 +123,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("postgresql")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
                 FROM orders o
                          LEFT JOIN (SELECT c.id, string_agg(c.material, ' ') AS materials, sum(amount) AS amount, sum(price) AS price
                                     FROM order_content c
@@ -158,6 +164,25 @@ public class PostgresOrderData extends MariaDbOrderData {
                 WHERE id = ?
                   AND state = ?""";
         return moveLastUpdate(query, order, hours);
+    }
+
+    @Override
+    protected void lockSoloWorker(ConnectedQueryConfiguration conf, UUID player) {
+        @Language("postgresql")
+        var insert = """
+                INSERT INTO solo_cooldowns(worker_uuid, ends_at) VALUES (?, ?)
+                ON CONFLICT (worker_uuid) DO NOTHING""";
+        insertSoloWorker(conf, insert, player);
+        @Language("postgresql")
+        var lock = """
+                SELECT worker_uuid
+                FROM solo_cooldowns
+                WHERE worker_uuid = ?
+                    FOR UPDATE""";
+        conf.query(lock)
+                .single(call().bind(player, UUID_BYTES))
+                .map(row -> row.getBytes("worker_uuid"))
+                .first();
     }
 
     @Override

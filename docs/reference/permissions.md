@@ -22,6 +22,7 @@ Every player has these by default. Take one away to block a feature.
 |---|---|---|
 | `companies.orders.create` | everyone | Create orders: `/order create` and every `/order draft` command. |
 | `companies.orders.repeat` | everyone | Make orders repeat daily or weekly: `/order draft repeat`, the repeat button of the order builder and `/order series resume`. |
+| `companies.orders.solo` | everyone | Take orders alone, without a company: `/order work accept` and the `[Work alone]` button of the order search. Only works while `solo.enabled` is on in [order.yml](../admin/configuration/order-yml.md#solo). |
 | `companies.company.create` | everyone | Found a company with `/company create`. |
 | `companies.company.join` | everyone | Join a company: `/company join`, `/company apply`, `/company apply withdraw` and `/company invites accept`. An online player without it cannot be invited. |
 | `companies.boards.use` | everyone | Open order boards through signs, NPCs and `/company board`. |
@@ -69,7 +70,7 @@ These give every permission listed below them. On their own, they do nothing.
 | Permission | Default | Gives |
 |---|---|---|
 | `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.admin.*`, `companies.updates` |
-| `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat` |
+| `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat`, `companies.orders.solo` |
 | `companies.company.*` | op | `companies.company.create`, `companies.company.join` |
 | `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.grant`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
 

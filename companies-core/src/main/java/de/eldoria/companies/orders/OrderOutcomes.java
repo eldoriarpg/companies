@@ -15,10 +15,12 @@ import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderReceivedEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.order.SoloOrderReceivedEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.Threading;
+import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 
@@ -42,8 +44,12 @@ import java.util.logging.Logger;
  * the returned items.
  * <p>
  * The events of an ending are fired on the executor, off the main thread, and only when the change succeeded: a
- * received order fires {@link OrderReceivedEvent}, a cancelled or purged one {@link OrderRemovedEvent}, and items that
- * did not fit or went back to workers {@link ItemsReturnedEvent}.
+ * received order fires {@link OrderReceivedEvent}, or {@link SoloOrderReceivedEvent} when a player delivered it alone,
+ * a cancelled or purged one {@link OrderRemovedEvent}, and items that did not fit or went back to workers
+ * {@link ItemsReturnedEvent}.
+ * <p>
+ * Abort and expiry work the same for a player who claimed an order alone, except that no history entry is written,
+ * since there is no company side.
  */
 public final class OrderOutcomes {
     private final AOrderData orderData;
@@ -156,8 +162,8 @@ public final class OrderOutcomes {
     }
 
     /**
-     * Gives a claimed order back to the market for its company and records {@link HistoryOutcome#ABORTED} for the
-     * company.
+     * Gives a claimed order back to the market for its company or its solo worker and records
+     * {@link HistoryOutcome#ABORTED} for the company.
      *
      * @param order claimed order
      * @return the items returned to the workers, or empty when the order was not claimed
@@ -167,7 +173,8 @@ public final class OrderOutcomes {
     }
 
     /**
-     * Releases a claimed order whose deadline passed and records {@link HistoryOutcome#EXPIRED} for the company.
+     * Releases a claimed order whose deadline passed and records {@link HistoryOutcome#EXPIRED} for the company, if a
+     * company claimed it.
      *
      * @param order claimed order
      * @return the items returned to the workers, or empty when the order was not claimed
@@ -200,6 +207,11 @@ public final class OrderOutcomes {
                 .flatMap(found -> found)
                 .map(orderData::toFullOrder)
                 .orElse(order);
+        var soloWorker = order.soloWorker();
+        if (soloWorker.isPresent()) {
+            events.accept(new SoloOrderReceivedEvent(current, Bukkit.getOfflinePlayer(soloWorker.get())));
+            return;
+        }
         events.accept(new OrderReceivedEvent(current, companies.apply(order.company())));
     }
 
@@ -215,6 +227,7 @@ public final class OrderOutcomes {
                                 return CompletableFuture.completedFuture(Optional.<ReturnedItems>empty());
                             }
                             itemReturns.returned(order, returned.get(), reason);
+                            if (order.isSolo()) return CompletableFuture.completedFuture(returned);
                             return logged(history.companyEntry(fullOrder, company, outcome, List.of()), order)
                                     .thenApply(ignored -> returned);
                         }));

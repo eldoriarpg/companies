@@ -285,7 +285,27 @@ public enum NotificationType {
             "notification.orderAlertDigest",
             NotificationCategory.ALERTS,
             false,
-            new Action("/company alerts show <alert_name>", "words.show"));
+            new Action("/company alerts show <alert_name>", "words.show")),
+    /**
+     * A player claimed the player's order to work on it alone. The worker is not named. Arguments:
+     * {@code order_name}, {@code order_id}.
+     */
+    MY_ORDER_TAKEN(
+            49,
+            "notification.ownerOrderTaken",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order info <order_id>", "words.info")),
+    /**
+     * An order the player worked on alone expired; the delivered items went back to the player. Arguments:
+     * {@code order_name}.
+     */
+    SOLO_ORDER_EXPIRED(50, "notification.soloOrderExpired", NotificationCategory.ORDERS, true, null),
+    /**
+     * An admin took an order away from the player who worked on it alone, or deleted it; the delivered items went
+     * back to the player. Arguments: {@code order_name}.
+     */
+    SOLO_ORDER_RELEASED_BY_ADMIN(51, "notification.soloOrderReleasedByAdmin", NotificationCategory.ORDERS, true, null);
 
     private final int id;
     private final String key;

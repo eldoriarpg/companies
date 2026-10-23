@@ -25,6 +25,11 @@ import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.order.SoloOrderAbortEvent;
+import de.eldoria.companies.events.order.SoloOrderAcceptEvent;
+import de.eldoria.companies.events.order.SoloOrderDoneEvent;
+import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
+import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Threading;
@@ -432,12 +437,71 @@ public class NotificationService implements Listener {
             send(event.player().getUniqueId(), NotificationType.PAYMENT_SHARED, args);
             return;
         }
-        if (event.tax() > 0) {
-            args.money("gross", format(event.gross())).money("tax", format(event.tax()));
-            send(event.player().getUniqueId(), NotificationType.PAYMENT_TAXED, args);
+        notifyPayment(event.player().getUniqueId(), event.order(), event.amount(), event.gross(), event.tax());
+    }
+
+    /**
+     * Tells the owner that a player works on their order alone, without naming the player.
+     *
+     * @param event accept event
+     */
+    @EventHandler
+    public void onSoloOrderAccept(SoloOrderAcceptEvent event) {
+        send(event.order().owner(), NotificationType.MY_ORDER_TAKEN, orderArgs(event.order()));
+    }
+
+    /**
+     * Tells the owner that the order is open again after its solo worker gave it up.
+     *
+     * @param event abort event
+     */
+    @EventHandler
+    public void onSoloOrderAbort(SoloOrderAbortEvent event) {
+        notifyOrderOpen(event.order());
+    }
+
+    /**
+     * Tells the owner that the order was delivered, as for an order of a company.
+     *
+     * @param event done event
+     */
+    @EventHandler
+    public void onSoloOrderDone(SoloOrderDoneEvent event) {
+        send(event.order().owner(), NotificationType.MY_ORDER_DONE, orderArgs(event.order()));
+    }
+
+    /**
+     * Tells the worker that the order ran out of time and the owner that it is open again.
+     *
+     * @param event expiry event
+     */
+    @EventHandler
+    public void onSoloOrderExpired(SoloOrderExpiredEvent event) {
+        send(
+                event.player().getUniqueId(),
+                NotificationType.SOLO_ORDER_EXPIRED,
+                NotificationArgs.create().text("order_name", event.order().fullName()));
+        notifyOrderOpen(event.order());
+    }
+
+    /**
+     * Tells a player who worked alone about the payout, with the tax when there is one.
+     *
+     * @param event payment event
+     */
+    @EventHandler
+    public void onSoloOrderPayment(SoloOrderPaymentEvent event) {
+        notifyPayment(event.player().getUniqueId(), event.order(), event.amount(), event.gross(), event.tax());
+    }
+
+    private void notifyPayment(UUID worker, ISimpleOrder order, double amount, double gross, double tax) {
+        var args = NotificationArgs.create().money("amount", format(amount)).text("order_name", order.fullName());
+        if (tax > 0) {
+            args.money("gross", format(gross)).money("tax", format(tax));
+            send(worker, NotificationType.PAYMENT_TAXED, args);
             return;
         }
-        send(event.player().getUniqueId(), NotificationType.PAYMENT, args);
+        send(worker, NotificationType.PAYMENT, args);
     }
 
     @EventHandler

@@ -16,10 +16,14 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
+import de.eldoria.companies.events.order.SoloOrderDoneEvent;
+import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.util.Threading;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.Cancellable;
+import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 
 import java.math.BigDecimal;
@@ -33,6 +37,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
+import java.util.function.DoubleFunction;
+import java.util.function.DoubleSupplier;
 import java.util.function.IntToDoubleFunction;
 import java.util.logging.Level;
 
@@ -45,6 +52,10 @@ import java.util.logging.Level;
  * treasury shares to the company in one transaction, writes one payout record per worker to the ledger and records
  * the company's history entry. A payment whose {@link OrderPaymentEvent} was cancelled is not paid and
  * is written to the ledger as not paid; it is neither taxed nor shared. Events are fired off the main thread, as they are asynchronous.
+ * <p>
+ * An order a player worked on alone fires {@link SoloOrderDoneEvent} and one {@link SoloOrderPaymentEvent} per worker
+ * instead. Its payout is taxed by the solo tax, nothing goes to a treasury, its ledger records name no company and no
+ * company history entry is written.
  */
 public final class OrderCompletionService {
     private final Plugin plugin;
@@ -53,6 +64,7 @@ public final class OrderCompletionService {
     private final HistoryRecorder history;
     private final Treasury treasury;
     private final IntToDoubleFunction taxPercent;
+    private final DoubleSupplier soloTaxPercent;
     private final Clock clock;
     private final Executor executor;
 
@@ -62,9 +74,10 @@ public final class OrderCompletionService {
      * @param statsData  payout ledger
      * @param history    records the company's history entry
      * @param treasury   pays the workers and the collector
-     * @param taxPercent tax percentage of a company level
-     * @param clock      clock giving the completion time of the payouts
-     * @param executor   runs the settlement off the main thread
+     * @param taxPercent     tax percentage of a company level
+     * @param soloTaxPercent tax percentage of solo orders
+     * @param clock          clock giving the completion time of the payouts
+     * @param executor       runs the settlement off the main thread
      */
     public OrderCompletionService(
             Plugin plugin,
@@ -73,6 +86,7 @@ public final class OrderCompletionService {
             HistoryRecorder history,
             Treasury treasury,
             IntToDoubleFunction taxPercent,
+            DoubleSupplier soloTaxPercent,
             Clock clock,
             Executor executor) {
         this.plugin = plugin;
@@ -81,6 +95,7 @@ public final class OrderCompletionService {
         this.history = history;
         this.treasury = treasury;
         this.taxPercent = taxPercent;
+        this.soloTaxPercent = soloTaxPercent;
         this.clock = clock;
         this.executor = executor;
     }
@@ -135,6 +150,7 @@ public final class OrderCompletionService {
                 history,
                 treasury,
                 level -> configuration.companySettings().taxPercent(level),
+                () -> configuration.orderSetting().solo().taxPercent(),
                 Clock.systemDefaultZone(),
                 Threading.VIRTUAL);
     }
@@ -164,10 +180,74 @@ public final class OrderCompletionService {
                 .thenCompose(completion -> record(completion, company).thenApply(ignored -> completion));
     }
 
+    /**
+     * Marks a completely delivered order a player worked on alone as delivered and settles it.
+     *
+     * @param order claimed solo order whose lines are all delivered
+     * @return the completion, or empty when the order was not claimed, not complete or completed by another call
+     */
+    public CompletableFuture<Optional<Completion>> completeSolo(SimpleOrder order) {
+        return orderData.submitOrderDelivered(order).asFuture().thenCompose(delivered -> delivered
+                .map(fullOrder -> settleSolo(fullOrder).thenApply(Optional::of))
+                .orElseGet(() -> CompletableFuture.completedFuture(Optional.empty())));
+    }
+
+    /**
+     * Settles an order a player worked on alone that is already marked delivered, such as one an admin marked
+     * delivered.
+     *
+     * @param order delivered solo order with its deliveries
+     * @return the completion, once the ledger was written
+     */
+    public CompletableFuture<Completion> settleSolo(FullOrder order) {
+        return CompletableFuture.supplyAsync(() -> paySolo(order), executor)
+                .thenCompose(completion -> recordPayouts(completion).thenApply(ignored -> completion));
+    }
+
     private Completion pay(FullOrder order, CompanyProfile company) {
         plugin.getServer().getPluginManager().callEvent(new OrderDoneEvent(order, company));
         var percent = taxPercent.applyAsDouble(company.level());
         var sharePercent = treasury.payoutShare(company);
+        var settled = payWorkers(
+                order,
+                company.id(),
+                gross -> Payout.split(gross, percent, sharePercent),
+                (player, payout) -> new OrderPaymentEvent(
+                        order, company, player, payout.net(), payout.gross(), payout.tax(), payout.share()));
+        if (settled.kept() > 0) treasury.keep(company, order.id(), settled.kept());
+        return settled.completion();
+    }
+
+    private Completion paySolo(FullOrder order) {
+        order.soloWorker()
+                .map(worker -> plugin.getServer().getOfflinePlayer(worker))
+                .ifPresent(worker ->
+                        plugin.getServer().getPluginManager().callEvent(new SoloOrderDoneEvent(order, worker)));
+        var percent = soloTaxPercent.getAsDouble();
+        return payWorkers(
+                        order,
+                        0,
+                        gross -> Payout.split(gross, percent),
+                        (player, payout) ->
+                                new SoloOrderPaymentEvent(order, player, payout.net(), payout.gross(), payout.tax()))
+                .completion();
+    }
+
+    /**
+     * Pays every worker their share of an order and hands the fee and the taxes to the collector. A payment whose
+     * event was cancelled is recorded as not paid.
+     *
+     * @param order   delivered order
+     * @param company id of the company that completed it, 0 for a solo order
+     * @param split   splits the share of a worker
+     * @param event   the cancellable payment event of a worker
+     * @return the completion and the treasury shares kept, in cents
+     */
+    private Settled payWorkers(
+            FullOrder order,
+            int company,
+            DoubleFunction<Payout> split,
+            BiFunction<OfflinePlayer, Payout, ? extends Event> event) {
         var completed = LocalDateTime.now(clock);
         var items = itemsByWorker(order);
         List<PayoutRecord> ledger = new ArrayList<>();
@@ -176,29 +256,35 @@ public final class OrderCompletionService {
         for (var entry : order.payments(PaymentType.STACK).entrySet()) {
             var worker = entry.getKey();
             var player = plugin.getServer().getOfflinePlayer(worker);
-            var payout = Payout.split(entry.getValue(), percent, sharePercent);
-            var event = new OrderPaymentEvent(
-                    order, company, player, payout.net(), payout.gross(), payout.tax(), payout.share());
-            plugin.getServer().getPluginManager().callEvent(event);
-            var paid = !event.isCancelled();
-            ledger.add(
-                    payoutRecord(order, company.id(), worker, items.getOrDefault(worker, 0), payout, paid, completed));
+            var payout = split.apply(entry.getValue());
+            var payment = event.apply(player, payout);
+            plugin.getServer().getPluginManager().callEvent(payment);
+            var paid = !(payment instanceof Cancellable cancellable && cancellable.isCancelled());
+            ledger.add(payoutRecord(order, company, worker, items.getOrDefault(worker, 0), payout, paid, completed));
             if (!paid) continue;
             treasury.pay(player, payout.net());
             collected = collected.add(BigDecimal.valueOf(payout.tax()));
             kept += payout.shareCents();
         }
         treasury.collect(collected.doubleValue());
-        if (kept > 0) treasury.keep(company, order.id(), kept);
-        return new Completion(order, List.copyOf(ledger));
+        return new Settled(new Completion(order, List.copyOf(ledger)), kept);
+    }
+
+    private CompletableFuture<Boolean> recordPayouts(Completion completion) {
+        return statsData.submitPayouts(completion.payouts()).exceptionally(err -> {
+            plugin.getLogger()
+                    .log(
+                            Level.SEVERE,
+                            "Could not write the payouts of order "
+                                    + completion.order().id(),
+                            err);
+            return false;
+        });
     }
 
     private CompletableFuture<Void> record(Completion completion, CompanyProfile company) {
         var order = completion.order();
-        var ledger = statsData.submitPayouts(completion.payouts()).exceptionally(err -> {
-            plugin.getLogger().log(Level.SEVERE, "Could not write the payouts of order " + order.id(), err);
-            return false;
-        });
+        var ledger = recordPayouts(completion);
         var entry = history.companyEntry(order, company.id(), HistoryOutcome.DELIVERED, completion.payouts())
                 .exceptionally(err -> {
                     plugin.getLogger()
@@ -302,4 +388,12 @@ public final class OrderCompletionService {
      * @param payouts one record per worker, as written to the ledger
      */
     public record Completion(FullOrder order, List<PayoutRecord> payouts) {}
+
+    /**
+     * The payment of all workers of an order.
+     *
+     * @param completion the settled order
+     * @param kept       treasury shares of the paid workers, in cents
+     */
+    private record Settled(Completion completion, long kept) {}
 }

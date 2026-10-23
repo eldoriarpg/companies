@@ -18,6 +18,7 @@ import de.eldoria.companies.util.Colors;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.dialog.DialogResponseView;
+import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.input.DialogInput;
@@ -44,9 +45,9 @@ import java.util.function.Consumer;
  * <p>
  * {@code [Save as alert]} saves the search as an order alert of the company: in chat it suggests
  * {@code /company alerts add}, as a dialog it keeps the filled in form as the query and asks for the alert's name.
+ * The search of orders to work on alone has no alerts, and its typed commands are {@code /order work search query …}.
  */
 public final class SearchMenu implements Menu<SearchMenu.Model> {
-    private static final String QUERY = "/company order search query";
     private static final String SETTING = "company.order.search.query.searchQuery.";
     private static final int MAX_NAME_LENGTH = 32;
     private static final int MAX_MATERIALS_LENGTH = 256;
@@ -100,7 +101,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
     @Override
     public MenuText chat(Player player, Model model, MenuActions actions) {
         var query = model.query();
-        return MenuText.create()
+        var text = MenuText.create()
                 .text("<heading>")
                 .locale(SETTING + "searchSetting")
                 .newLine()
@@ -115,9 +116,9 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                 .space()
                 .text(
                         "<act_reset><remove>[<i18n:words.clear>]</act_reset>",
-                        actions.chatAction("act_reset", search::reset))
-                .space()
-                .append(AlertNameMenu.saveButton());
+                        actions.chatAction("act_reset", search::reset));
+        if (search.mode().alerts()) text.space().append(AlertNameMenu.saveButton());
+        return text;
     }
 
     @Override
@@ -158,30 +159,36 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                 DialogInput.bool(SearchForm.FILLABLE, label(texts, SearchForm.FILLABLE))
                         .initial(form.fillable())
                         .build());
-        var buttons = List.of(
+        List<ActionButton> buttons = new ArrayList<>(List.of(
                 actions.button(
                         texts.locale("words.search"),
                         null,
                         (clicker, response) -> search.submit(clicker, read(response))),
-                actions.button(texts.locale("words.clear"), null, (clicker, response) -> search.reset(clicker)),
-                actions.button(
-                        texts.locale("company.order.search.saveAlert"),
-                        null,
-                        (clicker, response) -> search.saveAlert(clicker, read(response))));
+                actions.button(texts.locale("words.clear"), null, (clicker, response) -> search.reset(clicker))));
+        if (search.mode().alerts()) {
+            buttons.add(actions.button(
+                    texts.locale("company.order.search.saveAlert"),
+                    null,
+                    (clicker, response) -> search.saveAlert(clicker, read(response))));
+        }
         var base = DialogBase.builder(texts.locale("company.order.search.dialog.title"))
                 .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                 .body(body)
                 .inputs(inputs)
                 .build();
-        var type = DialogType.multiAction(buttons).columns(3).build();
+        var type = DialogType.multiAction(buttons).columns(buttons.size()).build();
         return Optional.of(Dialog.create(factory -> factory.empty().base(base).type(type)));
+    }
+
+    private String queryCommand() {
+        return search.mode().queryCommand();
     }
 
     private MenuText nameLine(SearchQuery query, MenuActions actions) {
         var name = query.name().isBlank() ? "_____" : query.name();
         return MenuText.create()
                 .text("<name><i18n:words.name>: <value><search_name> ", Values.text("search_name", name))
-                .text("<click:suggest_command:'" + QUERY + " name '><modify>[<i18n:words.change>]</click>")
+                .text("<click:suggest_command:'" + queryCommand() + " name '><modify>[<i18n:words.change>]</click>")
                 .text(
                         "<act_name_clear><remove>[<i18n:words.clear>]</act_name_clear>",
                         actions.chatAction("act_name_clear", p -> search.change(p, q -> q.name(null))))
@@ -191,7 +198,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
     private MenuText materialLines(SearchQuery query, MenuActions actions) {
         var text = MenuText.create()
                 .text("<name><i18n:words.materials>: ")
-                .text("<click:suggest_command:'" + QUERY + " material_add '><add>[<i18n:words.add>]</click>")
+                .text("<click:suggest_command:'" + queryCommand() + " material_add '><add>[<i18n:words.add>]</click>")
                 .text(
                         "<act_materials_clear><remove>[<i18n:words.clear>]</act_materials_clear>",
                         actions.chatAction(
@@ -232,7 +239,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
         return text;
     }
 
-    private static MenuText rangeLines(SearchQuery query) {
+    private MenuText rangeLines(SearchQuery query) {
         var max = MenuText.create().text("<i18n:words.max>");
         return MenuText.create()
                 .append(rangeLine("min_price", Values.number("min_price", query.minPrice())))
@@ -247,18 +254,20 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                                 : rangeLine("max_size", Values.number("max_size", query.maxOrderSize())));
     }
 
-    private static MenuText rangeLine(String input, TagResolver.Single value) {
+    private MenuText rangeLine(String input, TagResolver.Single value) {
         return MenuText.create()
                 .text("<name><i18n:" + LABELS.get(input) + "> <value><" + value.key() + "> ", value)
-                .text("<click:suggest_command:'" + QUERY + " " + input + " '><modify>[<i18n:words.change>]</click>")
+                .text("<click:suggest_command:'" + queryCommand() + " " + input
+                        + " '><modify>[<i18n:words.change>]</click>")
                 .newLine();
     }
 
-    private static MenuText rangeLine(String input, MenuText max) {
+    private MenuText rangeLine(String input, MenuText max) {
         return MenuText.create()
                 .text("<name><i18n:" + LABELS.get(input) + "> <value>")
                 .append(max)
-                .text(" <click:suggest_command:'" + QUERY + " " + input + " '><modify>[<i18n:words.change>]</click>")
+                .text(" <click:suggest_command:'" + queryCommand() + " " + input
+                        + " '><modify>[<i18n:words.change>]</click>")
                 .newLine();
     }
 

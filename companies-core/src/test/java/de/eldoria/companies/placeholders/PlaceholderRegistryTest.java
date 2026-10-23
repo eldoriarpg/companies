@@ -44,7 +44,7 @@ class PlaceholderRegistryTest {
     @BeforeEach
     void setUp() {
         playerViews.put(OWNER, new PlayerView(OWNER, OptionalInt.of(7), Optional.of(Role.OWNER), 2, 5, 12));
-        playerViews.put(LONER, new PlayerView(LONER, OptionalInt.empty(), Optional.empty(), 0, 7, 0));
+        playerViews.put(LONER, new PlayerView(LONER, OptionalInt.empty(), Optional.empty(), 0, 7, 0, 1, 4));
         companyViews.put(
                 7,
                 new CompanyView(
@@ -147,6 +147,16 @@ class PlaceholderRegistryTest {
     }
 
     @Test
+    void soloIdsCountTheOrdersWorkedOnAlone() {
+        loadAll();
+
+        assertEquals("1", registry.resolve(LONER, "player_solo_active"));
+        assertEquals("4", registry.resolve(LONER, "player_solo_completed"));
+        assertEquals("0", registry.resolve(OWNER, "player_solo_active"));
+        assertEquals("0", registry.resolve(OWNER, "player_solo_completed"));
+    }
+
+    @Test
     void withoutCompanyNamesAreEmptyAndCountsZero() {
         loadAll();
 
@@ -207,7 +217,7 @@ class PlaceholderRegistryTest {
         List<String> fixed = new ArrayList<>();
         for (var id : registry.ids()) if (!id.contains("<")) fixed.add(id);
 
-        assertEquals(19, fixed.size());
+        assertEquals(21, fixed.size());
         for (var id : fixed) assertFalse(registry.resolve(OWNER, id) == null, id);
         assertTrue(registry.ids().contains("company_rank_<order>[_<range>]"));
     }

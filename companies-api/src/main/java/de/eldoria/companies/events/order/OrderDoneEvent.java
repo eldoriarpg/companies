@@ -16,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  * Fired after the order changed to {@link de.eldoria.companies.components.order.OrderState#DELIVERED}, off the main
  * thread. It fires only on the server where the last delivery happened. The workers are paid afterwards, see
- * {@link OrderPaymentEvent}.
+ * {@link OrderPaymentEvent}. An order a player delivered alone fires {@link SoloOrderDoneEvent} instead.
  * <p>
  * Orders are anonymous: never show the owner to the company's members or the company to the owner.
  */

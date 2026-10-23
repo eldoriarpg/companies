@@ -5,13 +5,16 @@
  */
 package de.eldoria.companies.data.repository.impl.mariadb;
 
+import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.Call;
+import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
@@ -31,6 +34,8 @@ import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +51,7 @@ import static de.chojo.sadu.queries.api.query.Query.query;
 import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class MariaDbOrderData extends AOrderData {
+    private static final LocalDateTime NO_COOLDOWN = LocalDateTime.of(2000, 1, 1, 0, 0);
 
     /**
      * Create a new QueryBuilderFactory
@@ -120,6 +126,22 @@ public class MariaDbOrderData extends AOrderData {
 
     @Override
     protected List<SimpleOrder> getExpiredOrders(int hours) {
+        return expiredClaims(hours, "company");
+    }
+
+    @Override
+    protected List<SimpleOrder> getExpiredSoloOrders(int hours) {
+        return expiredClaims(hours, "solo_worker");
+    }
+
+    /**
+     * Claimed orders whose delivery time passed, of one kind of claimant.
+     *
+     * @param hours    delivery hours without the bonus of the order
+     * @param claimant column that is set for the kind of claim, {@code company} or {@code solo_worker}
+     * @return expired claims, the oldest first
+     */
+    protected List<SimpleOrder> expiredClaims(int hours, String claimant) {
         @Language("mariadb")
         var query = """
                 SELECT
@@ -133,16 +155,17 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     order_states s
                         LEFT JOIN orders o
                         ON o.id = s.id
                 WHERE last_update < NOW() - INTERVAL (? + delivery_bonus) HOUR
-                  AND company IS NOT NULL
+                  AND %s IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
-        return query(query)
+        return query(query, claimant)
                 .single(call().bind(hours).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
@@ -163,7 +186,8 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     order_states s
                         JOIN orders o
@@ -199,6 +223,191 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    protected boolean claimSoloOrder(UUID player, SimpleOrder order, int maxActive) {
+        @Language("mariadb")
+        var query = """
+                UPDATE order_states
+                SET state          = ?,
+                    company        = NULL,
+                    solo_worker    = ?,
+                    delivery_bonus = 0,
+                    last_update    = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND state = ?
+                  AND (SELECT COUNT(1)
+                       FROM (SELECT id
+                             FROM order_states
+                             WHERE solo_worker = ?
+                               AND state = ?) active) < ?""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        boolean claimed;
+        try (conf) {
+            lockSoloWorker(conf, player);
+            claimed = conf.query(query)
+                    .single(call().bind(OrderState.CLAIMED.stateId())
+                            .bind(player, UUID_BYTES)
+                            .bind(order.id())
+                            .bind(OrderState.UNCLAIMED.stateId())
+                            .bind(player, UUID_BYTES)
+                            .bind(OrderState.CLAIMED.stateId())
+                            .bind(maxActive))
+                    .update()
+                    .changed();
+        }
+        return claimed && conf.context().exceptions().isEmpty();
+    }
+
+    /**
+     * Locks the row of a solo worker for the rest of the transaction, creating it first when missing. A created row
+     * holds a cooldown that ended long ago, so it never blocks a claim.
+     *
+     * @param conf   open transaction
+     * @param player the worker
+     */
+    protected void lockSoloWorker(ConnectedQueryConfiguration conf, UUID player) {
+        @Language("mariadb")
+        var insert = """
+                INSERT IGNORE INTO solo_cooldowns(worker_uuid, ends_at) VALUES (?, ?)""";
+        insertSoloWorker(conf, insert, player);
+        @Language("mariadb")
+        var lock = """
+                SELECT worker_uuid
+                FROM solo_cooldowns
+                WHERE worker_uuid = ?
+                    FOR UPDATE""";
+        conf.query(lock)
+                .single(call().bind(player, UUID_BYTES))
+                .map(row -> row.getBytes("worker_uuid"))
+                .first();
+    }
+
+    /**
+     * Runs the dialect's statement creating the row of a solo worker unless it exists.
+     *
+     * @param conf   open transaction
+     * @param insert insert with the parameters worker and end of the cooldown
+     * @param player the worker
+     */
+    protected void insertSoloWorker(ConnectedQueryConfiguration conf, String insert, UUID player) {
+        conf.query(insert)
+                .single(call().bind(player, UUID_BYTES).bind(NO_COOLDOWN, time()))
+                .insert();
+    }
+
+    @Override
+    protected List<SimpleOrder> ordersBySoloWorker(UUID player, OrderState min, OrderState max) {
+        @Language("mariadb")
+        var query = """
+                SELECT
+                    o.id,
+                    owner_uuid,
+                    name,
+                    created,
+                    company,
+                    last_update,
+                    state,
+                    o.fee,
+                    extensions,
+                    delivery_bonus,
+                    series_id,
+                    solo_worker
+                FROM
+                    orders o
+                        JOIN order_states oc
+                        ON o.id = oc.id
+                WHERE oc.solo_worker = ?
+                  AND state >= ?
+                  AND state <= ?
+                ORDER BY last_update""";
+        return query(query)
+                .single(call().bind(player, UUID_BYTES).bind(min.stateId()).bind(max.stateId()))
+                .map(this::buildSimpleOrder)
+                .all();
+    }
+
+    @Override
+    protected int getSoloOrderCount(UUID player) {
+        @Language("mariadb")
+        var query = """
+                SELECT COUNT(1) AS count
+                FROM order_states
+                WHERE solo_worker = ?
+                  AND state = ?""";
+        return query(query)
+                .single(call().bind(player, UUID_BYTES).bind(OrderState.CLAIMED.stateId()))
+                .map(row -> row.getInt("count"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
+    protected int getSoloCompletedCount(UUID player) {
+        @Language("mariadb")
+        var query = """
+                SELECT COUNT(1) AS count
+                FROM order_states
+                WHERE solo_worker = ?
+                  AND state >= ?""";
+        return query(query)
+                .single(call().bind(player, UUID_BYTES).bind(OrderState.DELIVERED.stateId()))
+                .map(row -> row.getInt("count"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
+    protected Optional<LocalDateTime> getSoloCooldown(UUID player) {
+        @Language("mariadb")
+        var query = """
+                SELECT ends_at
+                FROM solo_cooldowns
+                WHERE worker_uuid = ?""";
+        return query(query)
+                .single(call().bind(player, UUID_BYTES))
+                .map(row -> readTime(row, "ends_at"))
+                .first();
+    }
+
+    @Override
+    protected boolean putSoloCooldown(UUID player, LocalDateTime endsAt) {
+        @Language("mariadb")
+        var delete = """
+                DELETE FROM solo_cooldowns WHERE worker_uuid = ?""";
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO solo_cooldowns(worker_uuid, ends_at) VALUES (?, ?)""";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            conf.query(delete).single(call().bind(player, UUID_BYTES)).delete();
+            conf.query(insert)
+                    .single(call().bind(player, UUID_BYTES).bind(endsAt, time()))
+                    .insert();
+        }
+        return conf.context().exceptions().isEmpty();
+    }
+
+    /**
+     * Binds a point in time in the form the time columns of this dialect compare correctly.
+     *
+     * @return adapter for times
+     */
+    protected Adapter<LocalDateTime> time() {
+        return TimeColumns.TIMESTAMP;
+    }
+
+    /**
+     * Reads a time column.
+     *
+     * @param row    row
+     * @param column name of the column
+     * @return time
+     * @throws SQLException when the column is missing
+     */
+    protected LocalDateTime readTime(Row row, String column) throws SQLException {
+        return row.getTimestamp(column).toLocalDateTime();
+    }
+
+    @Override
     protected boolean orderDelivered(SimpleOrder order) {
         @Language("mariadb")
         var update = """
@@ -229,6 +438,7 @@ public class MariaDbOrderData extends AOrderData {
                 UPDATE order_states
                 SET state          = ?,
                     company        = NULL,
+                    solo_worker    = NULL,
                     delivery_bonus = 0,
                     last_update    = CURRENT_TIMESTAMP
                 WHERE id = ?
@@ -397,7 +607,8 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -449,7 +660,8 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     order_states s
                         JOIN orders o
@@ -699,7 +911,8 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -723,7 +936,8 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -751,7 +965,8 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -780,7 +995,8 @@ public class MariaDbOrderData extends AOrderData {
                     o.fee,
                     extensions,
                     delivery_bonus,
-                    series_id
+                    series_id,
+                    solo_worker
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -921,7 +1137,7 @@ public class MariaDbOrderData extends AOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("mariadb")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
                 FROM orders o
                          LEFT JOIN (SELECT c.id, GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c

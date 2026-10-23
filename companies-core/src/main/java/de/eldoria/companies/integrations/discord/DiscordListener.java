@@ -6,10 +6,12 @@
 package de.eldoria.companies.integrations.discord;
 
 import de.eldoria.companies.components.order.IFullOrder;
+import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.configuration.elements.DiscordSettings;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
+import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -69,8 +71,21 @@ public final class DiscordListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onOrderDone(OrderDoneEvent event) {
+        orderCompleted(event.order());
+    }
+
+    /**
+     * Posts a fully delivered order a player worked on alone, the same way as one of a company. Nobody is named.
+     *
+     * @param event the event
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderDone(SoloOrderDoneEvent event) {
+        orderCompleted(event.order());
+    }
+
+    private void orderCompleted(ISimpleOrder order) {
         if (!settings.get().posts(WebhookEvent.ORDER_COMPLETED)) return;
-        var order = event.order();
         if (order instanceof IFullOrder full) {
             queue.accept(embeds.orderCompleted(
                     full.name(), DiscordEmbeds.lines(full), Optional.of(prices.apply(full.price()))));

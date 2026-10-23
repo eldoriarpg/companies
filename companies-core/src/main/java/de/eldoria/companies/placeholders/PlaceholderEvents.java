@@ -17,6 +17,11 @@ import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.order.SoloOrderAbortEvent;
+import de.eldoria.companies.events.order.SoloOrderAcceptEvent;
+import de.eldoria.companies.events.order.SoloOrderDoneEvent;
+import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -106,6 +111,31 @@ public final class PlaceholderEvents implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onOrderRemoved(OrderRemovedEvent event) {
         players.invalidate(event.order().owner());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderAccept(SoloOrderAcceptEvent event) {
+        soloChanged(event.order(), event.player());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderDone(SoloOrderDoneEvent event) {
+        soloChanged(event.order(), event.player());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderAbort(SoloOrderAbortEvent event) {
+        soloChanged(event.order(), event.player());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderExpired(SoloOrderExpiredEvent event) {
+        soloChanged(event.order(), event.player());
+    }
+
+    private void soloChanged(ISimpleOrder order, OfflinePlayer worker) {
+        players.invalidate(order.owner());
+        players.invalidate(worker.getUniqueId());
     }
 
     private void changed(ISimpleOrder order, int company) {

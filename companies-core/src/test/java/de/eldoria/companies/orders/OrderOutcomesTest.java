@@ -13,9 +13,11 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
+import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderReceivedEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.order.SoloOrderReceivedEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.TestExecutors;
@@ -317,5 +319,55 @@ class OrderOutcomesTest {
         assertTrue(outcomes.abort(orders.reload(order)).join().isPresent());
 
         assertTrue(events.of(ItemsReturnedEvent.class).isEmpty());
+    }
+
+    private SimpleOrder soloClaimed() {
+        var order = orders.place(0.0);
+        assertTrue(orders.orderData().submitSoloClaim(worker, order, 1).join());
+        orders.deliver(order, 0, Material.STONE, worker, 4);
+        return orders.reload(order);
+    }
+
+    @Test
+    void abortingASoloOrderReturnsTheItemsWithoutHistory() {
+        var order = soloClaimed();
+
+        var returned = outcomes.abort(order).join().orElseThrow();
+
+        assertEquals(Set.of(worker), returned.workers());
+        assertEquals(
+                ItemsReturnedEvent.Reason.ORDER_ABORTED,
+                events.single(ItemsReturnedEvent.class).reason());
+        assertEquals(OrderState.UNCLAIMED, orders.reload(order).state());
+        assertEquals(0, SqLiteTestDatabase.count("order_history", "1 = 1"));
+    }
+
+    @Test
+    void expiringASoloOrderReturnsTheItemsWithoutHistory() {
+        var order = soloClaimed();
+
+        assertTrue(outcomes.expire(order).join().isPresent());
+        assertTrue(outcomes.expire(orders.reload(order)).join().isEmpty());
+
+        var returned = events.single(ItemsReturnedEvent.class);
+        assertEquals(ItemsReturnedEvent.Reason.ORDER_EXPIRED, returned.reason());
+        assertEquals(worker, returned.player().getUniqueId());
+        assertEquals(0, SqLiteTestDatabase.count("order_history", "1 = 1"));
+    }
+
+    @Test
+    void receivingASoloOrderFiresTheSoloReception() {
+        var order = soloClaimed();
+        orders.deliver(order, 0, Material.STONE, worker, 6);
+        orders.deliver(order, 1, Material.DIRT, worker, 5);
+        SqLiteTestDatabase.setState(order.id(), OrderState.DELIVERED.stateId(), 0);
+
+        assertTrue(outcomes.receive(orders.full(order), List.of()).join());
+
+        var received = events.single(SoloOrderReceivedEvent.class);
+        assertEquals(worker, received.player().getUniqueId());
+        assertEquals(OrderState.RECEIVED, received.order().state());
+        assertTrue(events.of(OrderReceivedEvent.class).isEmpty());
+        assertOwnerOnly(HistoryOutcome.RECEIVED);
     }
 }

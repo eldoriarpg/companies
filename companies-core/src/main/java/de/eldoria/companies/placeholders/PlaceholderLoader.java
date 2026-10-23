@@ -86,7 +86,9 @@ public final class PlaceholderLoader {
         var returned =
                 orderData.retrieveItemReturnCount(uuid, ReturnKind.WORKER).asFuture();
         var pending = orderData.retrieveItemReturnCount(uuid, ReturnKind.OWNER).asFuture();
-        return CompletableFuture.allOf(company, orders, returned, pending)
+        var soloActive = orderData.retrieveSoloOrderCount(uuid).asFuture();
+        var soloCompleted = orderData.retrieveSoloCompletedCount(uuid).asFuture();
+        return CompletableFuture.allOf(company, orders, returned, pending, soloActive, soloCompleted)
                 .thenApply(done -> Optional.of(new PlayerView(
                         uuid,
                         company.join()
@@ -95,7 +97,9 @@ public final class PlaceholderLoader {
                         company.join().flatMap(profile -> role(profile, player)),
                         count(orders.join()),
                         limit,
-                        count(returned.join()) + count(pending.join()))));
+                        count(returned.join()) + count(pending.join()),
+                        count(soloActive.join()),
+                        count(soloCompleted.join()))));
     }
 
     /**

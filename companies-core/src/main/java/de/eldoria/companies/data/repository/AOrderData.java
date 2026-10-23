@@ -35,6 +35,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -145,7 +146,25 @@ public abstract class AOrderData {
         return CompletableFuture.supplyAsync(() -> getExpiredOrders(hours), VIRTUAL);
     }
 
+    /**
+     * Orders claimed by a company whose delivery time passed.
+     *
+     * @param hours delivery hours of a company, without the bonus of the order
+     * @return expired company claims
+     */
     protected abstract List<SimpleOrder> getExpiredOrders(int hours);
+
+    public CompletableFuture<List<SimpleOrder>> retrieveExpiredSoloOrders(int hours) {
+        return CompletableFuture.supplyAsync(() -> getExpiredSoloOrders(hours), VIRTUAL);
+    }
+
+    /**
+     * Orders claimed by a single player whose delivery time passed.
+     *
+     * @param hours delivery hours of a solo claim, without the bonus of the order
+     * @return expired solo claims
+     */
+    protected abstract List<SimpleOrder> getExpiredSoloOrders(int hours);
 
     public CompletableFuture<List<SimpleOrder>> retrieveDeadOrders(int hours) {
         return CompletableFuture.supplyAsync(() -> getDeadOrders(hours), VIRTUAL);
@@ -168,6 +187,101 @@ public abstract class AOrderData {
      * @return true if the order was unclaimed and is now claimed
      */
     protected abstract boolean claimOrder(SimpleCompany company, SimpleOrder order, int deliveryBonus);
+
+    /**
+     * Claims an unclaimed order for a player who works on it alone.
+     *
+     * @param player    player claiming the order
+     * @param order     order to claim
+     * @param maxActive orders the player may have claimed alone at the same time
+     * @return a future providing true if the order was unclaimed, the player was below the limit and the order is now
+     *     claimed
+     */
+    public BukkitFutureResult<Boolean> submitSoloClaim(UUID player, SimpleOrder order, int maxActive) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var result = claimSoloOrder(player, order, maxActive);
+                    invalidateFullOrder(order);
+                    return result;
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Claims an unclaimed order for a single player, as long as the player has fewer than {@code maxActive} orders
+     * claimed alone. Claims of the same player are serialised by a lock on the player's row in
+     * {@code solo_cooldowns}, so two claims at the same time cannot both pass the limit.
+     *
+     * @param player    player claiming the order
+     * @param order     order to claim
+     * @param maxActive orders the player may have claimed alone at the same time
+     * @return true if the order is now claimed by the player
+     */
+    protected abstract boolean claimSoloOrder(UUID player, SimpleOrder order, int maxActive);
+
+    /**
+     * The orders a player works on alone, within a range of states.
+     *
+     * @param player the worker
+     * @param min    lowest state to include
+     * @param max    highest state to include
+     * @return a future providing the orders, the oldest first
+     */
+    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersBySoloWorker(
+            UUID player, OrderState min, OrderState max) {
+        return CompletableBukkitFuture.supplyAsync(() -> ordersBySoloWorker(player, min, max), VIRTUAL);
+    }
+
+    protected abstract List<SimpleOrder> ordersBySoloWorker(UUID player, OrderState min, OrderState max);
+
+    /**
+     * Counts the orders a player has claimed alone and not delivered yet.
+     *
+     * @param player the worker
+     * @return a future providing the number of claimed solo orders
+     */
+    public BukkitFutureResult<Integer> retrieveSoloOrderCount(UUID player) {
+        return CompletableBukkitFuture.supplyAsync(() -> getSoloOrderCount(player), VIRTUAL);
+    }
+
+    protected abstract int getSoloOrderCount(UUID player);
+
+    /**
+     * Counts the orders a player delivered alone, received by their owner or not.
+     *
+     * @param player the worker
+     * @return a future providing the number of delivered solo orders
+     */
+    public BukkitFutureResult<Integer> retrieveSoloCompletedCount(UUID player) {
+        return CompletableBukkitFuture.supplyAsync(() -> getSoloCompletedCount(player), VIRTUAL);
+    }
+
+    protected abstract int getSoloCompletedCount(UUID player);
+
+    /**
+     * The end of the time in which a player may not claim solo orders.
+     *
+     * @param player the player
+     * @return a future providing the end of the cooldown, which may lie in the past, empty when none is stored
+     */
+    public BukkitFutureResult<Optional<LocalDateTime>> retrieveSoloCooldown(UUID player) {
+        return CompletableBukkitFuture.supplyAsync(() -> getSoloCooldown(player), VIRTUAL);
+    }
+
+    protected abstract Optional<LocalDateTime> getSoloCooldown(UUID player);
+
+    /**
+     * Starts or replaces the time in which a player may not claim solo orders.
+     *
+     * @param player the player
+     * @param endsAt when the player may claim solo orders again
+     * @return a future providing true if the cooldown was stored
+     */
+    public BukkitFutureResult<Boolean> submitSoloCooldown(UUID player, LocalDateTime endsAt) {
+        return CompletableBukkitFuture.supplyAsync(() -> putSoloCooldown(player, endsAt), VIRTUAL);
+    }
+
+    protected abstract boolean putSoloCooldown(UUID player, LocalDateTime endsAt);
 
     public BukkitFutureResult<Boolean> submitOrderExtension(SimpleOrder order, int maxExtensions) {
         return CompletableBukkitFuture.supplyAsync(
@@ -290,7 +404,7 @@ public abstract class AOrderData {
     }
 
     /**
-     * Releases a claimed order back to the market.
+     * Releases a claimed order back to the market, whether a company or a single player claimed it.
      * <p>
      * The stacks already delivered to the order are moved unchanged to the item returns of the workers who delivered
      * them.
@@ -538,7 +652,8 @@ public abstract class AOrderData {
                 row.getDouble("fee"),
                 row.getInt("extensions"),
                 row.getInt("delivery_bonus"),
-                row.getInt("series_id"));
+                row.getInt("series_id"),
+                row.get("solo_worker", UUID_BYTES));
     }
 
     public BukkitFutureResult<List<FullOrder>> retrieveFullOrders(List<SimpleOrder> orders) {

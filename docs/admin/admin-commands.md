@@ -83,6 +83,11 @@ use up the owner's own extensions.
 The players affected get a notification. It never names the admin, and it does not tell the owner which company had
 the order or the company who the owner is.
 
+**Orders worked on alone.** A player may work on an order alone, without a company (see
+[Working alone](../players/working-alone.md)). `info` and the search lists show that player instead of a company, marked
+as alone. Every action works on these orders the same way: the player gets the delivered items back and a
+notification, and `deliver` pays them with the solo tax. Nothing counts for or against a company.
+
 ## Players
 
 | Command | Permission | What it does |
