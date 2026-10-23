@@ -354,9 +354,9 @@ public class Companies extends EldoPlugin {
         }
 
         discord = DiscordWebhook.start(
-                        this, configuration::discordSettings, economy, ILocalizer.getPluginLocalizer(this))
-                .orElse(null);
-        if (discord != null) registerListener(discord.listener());
+                this, configuration::discordSettings, economy, ILocalizer.getPluginLocalizer(this));
+        registerListener(discord.listener());
+        if (commands != null) commands.onReload(discord::restart);
         registerListener(seriesService);
         registerListener(new AlertMatcher(
                 this.economy.alerts(),
