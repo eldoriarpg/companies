@@ -61,6 +61,20 @@ public class DatabaseSettings {
         return messaging == null ? new MessagingSettings() : messaging;
     }
 
+    /**
+     * The prefix of every channel of the node bus, for Redis and PostgreSQL notify alike. It is
+     * {@code messaging.channelPrefix}, unless that is left at its default and the older {@code redis.channelPrefix}
+     * is set, so files written before the key moved keep their prefix.
+     *
+     * @return the prefix
+     */
+    public String channelPrefix() {
+        var prefix = messaging().channelPrefix();
+        var older = redis().channelPrefix();
+        if (prefix.equals(MessagingSettings.DEFAULT_CHANNEL_PREFIX) && !older.isEmpty()) return older;
+        return prefix;
+    }
+
     public enum StorageType {
         SQLITE,
         MARIADB,

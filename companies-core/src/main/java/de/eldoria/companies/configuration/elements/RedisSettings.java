@@ -5,12 +5,15 @@
  */
 package de.eldoria.companies.configuration.elements;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /**
  * The optional Redis (or Valkey, KeyDB) server the nodes of a network send each other messages through, the
  * {@code redis} section of {@code database.yml}. Read at start only and never synced.
  * <p>
  * The password may be written as {@code env:NAME} to read it from an environment variable. All nodes of a network
- * use the same server, database and channel prefix.
+ * use the same server, database and channel prefix. The channel prefix moved to {@code messaging.channelPrefix};
+ * {@code channelPrefix} in this section is still read from files that set it, and not written into new files.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class RedisSettings {
@@ -24,7 +27,9 @@ public class RedisSettings {
     private String password = "env:COMPANIES_REDIS_PASSWORD";
     private boolean ssl = false;
     private int database = 0;
-    private String channelPrefix = "companies";
+
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private String channelPrefix = "";
 
     public RedisSettings() {}
 
@@ -80,11 +85,11 @@ public class RedisSettings {
     }
 
     /**
-     * The prefix of every channel, so several networks can share one server.
+     * The channel prefix in its older place, see {@link DatabaseSettings#channelPrefix()}.
      *
-     * @return the prefix, {@code companies} when none is set
+     * @return the prefix, empty when none is set here
      */
     public String channelPrefix() {
-        return channelPrefix == null || channelPrefix.isBlank() ? "companies" : channelPrefix.trim();
+        return channelPrefix == null ? "" : channelPrefix.trim();
     }
 }

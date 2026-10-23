@@ -7,7 +7,6 @@ package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.configuration.EnvReference;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
-import de.eldoria.companies.configuration.elements.RedisSettings;
 import de.eldoria.companies.data.repository.ANodeMessageData;
 
 import java.time.Duration;
@@ -57,7 +56,7 @@ public final class NodeBuses {
                 logger.warning("Redis and low latency mode are both enabled in database.yml. Low latency mode is"
                         + " ignored while Redis is enabled.");
             }
-            return redis(settings.redis(), node, handlers, environment, logger);
+            return redis(settings, node, handlers, environment, logger);
         }
         if (lowLatency) {
             logger.info("Low latency mode is on: the servers exchange messages through the database every second."
@@ -69,7 +68,8 @@ public final class NodeBuses {
     }
 
     private static NodeBus redis(
-            RedisSettings settings, UUID node, Executor handlers, UnaryOperator<String> environment, Logger logger) {
+            DatabaseSettings database, UUID node, Executor handlers, UnaryOperator<String> environment, Logger logger) {
+        var settings = database.redis();
         var password = EnvReference.resolve(
                 settings.password(),
                 environment,
@@ -83,7 +83,7 @@ public final class NodeBuses {
                 password.get(),
                 settings.ssl(),
                 settings.database(),
-                settings.channelPrefix());
+                database.channelPrefix());
         return RedisBus.start(server, node, handlers, logger, START_WAIT);
     }
 }

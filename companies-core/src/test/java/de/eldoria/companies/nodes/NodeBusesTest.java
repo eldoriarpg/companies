@@ -90,4 +90,25 @@ class NodeBusesTest {
             assertTrue(logs.stream().noneMatch(log -> log.contains("Low latency mode is on")), logs.toString());
         }
     }
+
+    @Test
+    void theChannelPrefixMovedToTheMessagingSection() {
+        assertEquals("companies", settings("storageType: POSTGRES\n").channelPrefix());
+        assertEquals("old", settings("redis:\n  channelPrefix: old\n").channelPrefix());
+        assertEquals(
+                "new",
+                settings("redis:\n  channelPrefix: old\nmessaging:\n  channelPrefix: new\n")
+                        .channelPrefix());
+        assertEquals("new", settings("messaging:\n  channelPrefix: new\n").channelPrefix());
+    }
+
+    @Test
+    void newFilesNoLongerWriteTheOlderChannelPrefix() {
+        var written = YAMLMapper.builder()
+                .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
+                .build()
+                .writeValueAsString(new DatabaseSettings());
+
+        assertEquals(1, written.split("channelPrefix", -1).length - 1, written);
+    }
 }
