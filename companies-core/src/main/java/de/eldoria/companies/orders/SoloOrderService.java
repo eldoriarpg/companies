@@ -173,12 +173,10 @@ public final class SoloOrderService {
      */
     public CompletableFuture<Result<FullOrder>> workerOrder(Player player, int id) {
         return CompletableFuture.supplyAsync(
-                () -> ownClaim(player.getUniqueId(), id)
-                        .map(Result::<FullOrder>refused)
-                        .orElseGet(() -> {
-                            var order = orderData.retrieveOrderById(id).join().orElseThrow();
-                            return Result.done(orderData.toFullOrder(order));
-                        }),
+                () -> switch (ownClaim(player.getUniqueId(), id)) {
+                    case Result.Refused<SimpleOrder> refused -> Result.<FullOrder>refused(refused.failure());
+                    case Result.Done<SimpleOrder> claim -> Result.done(orderData.toFullOrder(claim.value()));
+                },
                 executor);
     }
 
@@ -190,9 +188,12 @@ public final class SoloOrderService {
      */
     public CompletableFuture<List<FullOrder>> workerOrders(UUID player) {
         return CompletableFuture.supplyAsync(
-                () -> orderData.toFullOrders(orderData
-                        .retrieveOrdersBySoloWorker(player, OrderState.CLAIMED, OrderState.CLAIMED)
-                        .join()),
+                () -> {
+                    var orders = orderData
+                            .retrieveOrdersBySoloWorker(player, OrderState.CLAIMED, OrderState.CLAIMED)
+                            .join();
+                    return orders == null ? List.<FullOrder>of() : orderData.toFullOrders(orders);
+                },
                 executor);
     }
 
@@ -257,9 +258,10 @@ public final class SoloOrderService {
     }
 
     private Result<ReturnedItems> abortNow(Player player, int id) {
-        var refused = ownClaim(player.getUniqueId(), id);
-        if (refused.isPresent()) return Result.refused(refused.get());
-        var order = orderData.retrieveOrderById(id).join().orElseThrow();
+        var claim = ownClaim(player.getUniqueId(), id);
+        if (!(claim instanceof Result.Done<SimpleOrder>(var order))) {
+            return Result.refused(((Result.Refused<SimpleOrder>) claim).failure());
+        }
         var returned = outcomes.abort(order).join();
         if (returned == null || returned.isEmpty()) return refused("error.orderNotActive");
         startCooldown(player.getUniqueId());
@@ -272,6 +274,7 @@ public final class SoloOrderService {
                 .retrieveExpiredSoloOrders(settings.get().deliveryHours())
                 .join();
         List<SimpleOrder> released = new ArrayList<>();
+        if (expired == null) return released;
         for (var order : expired) {
             var worker = order.soloWorker();
             if (worker.isEmpty()) continue;
@@ -285,21 +288,19 @@ public final class SoloOrderService {
     }
 
     /**
-     * Why an order is no claim of the player: unknown, not claimed alone by the player or no longer claimed.
+     * Loads an order the player works on alone.
      *
      * @param player the worker
      * @param id     id of the order
-     * @return the refusal, or empty when the player works on the order alone
+     * @return the order, or why it is unknown, not claimed alone by the player or no longer claimed
      */
-    private Optional<CommandFailure> ownClaim(UUID player, int id) {
+    private Result<SimpleOrder> ownClaim(UUID player, int id) {
         var found = orderData.retrieveOrderById(id).join();
-        if (found == null || found.isEmpty()) return Optional.of(CommandFailure.actionBar("error.unknownOrder"));
+        if (found == null || found.isEmpty()) return refused("error.unknownOrder");
         var order = found.get();
-        if (!order.soloWorker().map(player::equals).orElse(false)) {
-            return Optional.of(CommandFailure.actionBar("solo.error.notYours"));
-        }
-        if (order.state() != OrderState.CLAIMED) return Optional.of(CommandFailure.actionBar("error.orderNotActive"));
-        return Optional.empty();
+        if (!order.soloWorker().map(player::equals).orElse(false)) return refused("solo.error.notYours");
+        if (order.state() != OrderState.CLAIMED) return refused("error.orderNotActive");
+        return Result.done(order);
     }
 
     private Optional<CommandFailure> refusal(Player player) {
