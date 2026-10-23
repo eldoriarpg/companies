@@ -13,6 +13,9 @@ import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.order.SoloOrderAbortEvent;
+import de.eldoria.companies.events.order.SoloOrderAcceptEvent;
+import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
 import net.kyori.adventure.text.Component;
@@ -264,6 +267,30 @@ public final class SignBoards implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onOrderRemoved(OrderRemovedEvent event) {
+        refresher.markDirty();
+    }
+
+    /**
+     * @param event an order a player claimed alone
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderAccepted(SoloOrderAcceptEvent event) {
+        refresher.markDirty();
+    }
+
+    /**
+     * @param event an order a player working alone gave up
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderAborted(SoloOrderAbortEvent event) {
+        refresher.markDirty();
+    }
+
+    /**
+     * @param event an order a player working alone did not deliver in time
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderExpired(SoloOrderExpiredEvent event) {
         refresher.markDirty();
     }
 

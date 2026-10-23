@@ -12,12 +12,14 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.events.order.OrderDeliveryEvent;
+import de.eldoria.companies.events.order.SoloOrderDeliveryEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.Inventories;
 import de.eldoria.companies.util.Threading;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
@@ -25,20 +27,19 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
 /**
- * Delivers items of workers to the orders of their company.
+ * Delivers items of workers to the orders of their company, and of players to the orders they work on alone.
  * <p>
  * A delivery takes the matching items on the main thread, records them as delivered stacks in one transaction that
  * caps every line at what it still misses, and hands the surplus of every part back with that part's own item: into
  * the inventory, dropped when it is full, or into the item returns when the worker went offline. A delivery that
- * recorded at least one item fires {@link OrderDeliveryEvent} with the refreshed order. When the order is complete
- * afterwards, {@link OrderCompletionService} completes it.
+ * recorded at least one item fires {@link OrderDeliveryEvent}, or {@link SoloOrderDeliveryEvent} for a solo order, with
+ * the refreshed order. When the order is complete afterwards, {@link OrderCompletionService} completes it.
  */
 public final class DeliveryService {
     private final Plugin plugin;
@@ -95,13 +96,29 @@ public final class DeliveryService {
      */
     public CompletableFuture<DeliveryResult> deliver(
             Player worker, CompanyProfile company, FullOrder order, int line, int amount) {
+        return submit(worker, company, order, lineParts(worker, order, line, amount));
+    }
+
+    /**
+     * Delivers items to one line of an order the worker works on alone. Has to be called on the main thread.
+     *
+     * @param worker delivering player, who claimed the order alone
+     * @param order  order as it was loaded
+     * @param line   line of the order
+     * @param amount the most items to deliver; capped by what the line misses
+     * @return what was delivered
+     */
+    public CompletableFuture<DeliveryResult> deliverSolo(Player worker, FullOrder order, int line, int amount) {
+        return submitSolo(worker, order, lineParts(worker, order, line, amount));
+    }
+
+    private List<DeliveryPart> lineParts(Player worker, FullOrder order, int line, int amount) {
         var matcher = matcher();
         var slots = ItemSources.collect(worker);
-        var parts = order.line(line)
+        return order.line(line)
                 .map(content -> ItemSources.take(
                         slots, content.line(), content.stack(), matcher, Math.min(amount, content.missing())))
                 .orElse(List.of());
-        return submit(worker, company, order, parts);
     }
 
     /**
@@ -113,6 +130,22 @@ public final class DeliveryService {
      * @return what was delivered
      */
     public CompletableFuture<DeliveryResult> deliverAll(Player worker, CompanyProfile company, FullOrder order) {
+        return submit(worker, company, order, allParts(worker, order));
+    }
+
+    /**
+     * Delivers every matching item the worker carries to all lines of an order the worker works on alone. Has to be
+     * called on the main thread.
+     *
+     * @param worker delivering player, who claimed the order alone
+     * @param order  order as it was loaded
+     * @return what was delivered
+     */
+    public CompletableFuture<DeliveryResult> deliverAllSolo(Player worker, FullOrder order) {
+        return submitSolo(worker, order, allParts(worker, order));
+    }
+
+    private List<DeliveryPart> allParts(Player worker, FullOrder order) {
         var matcher = matcher();
         var slots = ItemSources.collect(worker);
         List<DeliveryPart> parts = new ArrayList<>();
@@ -120,7 +153,7 @@ public final class DeliveryService {
             if (content.missing() <= 0) continue;
             parts.addAll(ItemSources.take(slots, content.line(), content.stack(), matcher, content.missing()));
         }
-        return submit(worker, company, order, parts);
+        return parts;
     }
 
     /**
@@ -135,6 +168,44 @@ public final class DeliveryService {
      */
     CompletableFuture<DeliveryResult> submit(
             Player worker, CompanyProfile company, FullOrder order, List<DeliveryPart> parts) {
+        return submit(worker, order, parts, new Claim() {
+            @Override
+            public Event delivered(FullOrder refreshed, List<IDeliveredStack> stacks) {
+                return new OrderDeliveryEvent(refreshed, company, worker, stacks);
+            }
+
+            @Override
+            public CompletableFuture<?> complete(FullOrder refreshed) {
+                return completion.complete(refreshed, company);
+            }
+        });
+    }
+
+    /**
+     * Records items taken from a worker as a delivery to an order the worker works on alone, hands back the surplus
+     * and completes the order once it is done. Has to be called on the main thread.
+     *
+     * @param worker delivering player, who claimed the order alone
+     * @param order  order as it was loaded
+     * @param parts  items taken from the worker
+     * @return what was delivered
+     */
+    CompletableFuture<DeliveryResult> submitSolo(Player worker, FullOrder order, List<DeliveryPart> parts) {
+        return submit(worker, order, parts, new Claim() {
+            @Override
+            public Event delivered(FullOrder refreshed, List<IDeliveredStack> stacks) {
+                return new SoloOrderDeliveryEvent(refreshed, worker, stacks);
+            }
+
+            @Override
+            public CompletableFuture<?> complete(FullOrder refreshed) {
+                return completion.completeSolo(refreshed);
+            }
+        });
+    }
+
+    private CompletableFuture<DeliveryResult> submit(
+            Player worker, FullOrder order, List<DeliveryPart> parts, Claim claim) {
         return record(worker, order, parts)
                 .thenApplyAsync(
                         recorded -> {
@@ -149,11 +220,10 @@ public final class DeliveryService {
                             if (!recorded.stacks().isEmpty()) {
                                 plugin.getServer()
                                         .getPluginManager()
-                                        .callEvent(
-                                                new OrderDeliveryEvent(refreshed, company, worker, recorded.stacks()));
+                                        .callEvent(claim.delivered(refreshed, recorded.stacks()));
                             }
                             var done = refreshed.isDone();
-                            if (done) orderDone(refreshed, company);
+                            if (done) orderDone(refreshed, claim);
                             return new DeliveryResult(recorded.byLine(), refreshed, done);
                         }));
     }
@@ -245,11 +315,31 @@ public final class DeliveryService {
                 worker.getUniqueId(), ReturnKind.WORKER, stacks, ItemsReturnedEvent.Reason.DELIVERY_OVERFLOW, order);
     }
 
-    private void orderDone(FullOrder order, CompanyProfile company) {
-        completion.complete(order, company).exceptionally(err -> {
+    private void orderDone(FullOrder order, Claim claim) {
+        claim.complete(order).exceptionally(err -> {
             plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
-            return Optional.empty();
+            return null;
         });
+    }
+
+    /**
+     * What a delivery does that depends on who claimed the order.
+     */
+    private interface Claim {
+        /**
+         * @param refreshed the order after the delivery
+         * @param stacks    the recorded stacks
+         * @return the event announcing the delivery
+         */
+        Event delivered(FullOrder refreshed, List<IDeliveredStack> stacks);
+
+        /**
+         * Completes the order once everything was delivered.
+         *
+         * @param refreshed the completely delivered order
+         * @return the running completion
+         */
+        CompletableFuture<?> complete(FullOrder refreshed);
     }
 
     private record CachedMatcher(ItemMatchSettings settings, ItemMatcher matcher) {}

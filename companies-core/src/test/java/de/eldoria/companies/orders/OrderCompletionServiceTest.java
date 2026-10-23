@@ -18,6 +18,8 @@ import de.eldoria.companies.data.wrapper.stats.MemberStats;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
+import de.eldoria.companies.events.order.SoloOrderDoneEvent;
+import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -109,6 +111,7 @@ class OrderCompletionServiceTest {
                 new HistoryRecorder(history, Clock.systemDefaultZone()),
                 treasury,
                 level -> 10.0,
+                () -> 5.0,
                 Clock.systemDefaultZone(),
                 executor);
     }
@@ -259,7 +262,71 @@ class OrderCompletionServiceTest {
         assertTrue(completion.payouts().stream().allMatch(payout -> payout.share() == 0.0));
     }
 
+    private SimpleOrder deliveredByAliceAlone() {
+        var order = orders.place(5.0);
+        assertTrue(orders.orderData().submitSoloClaim(alice, order, 1).join());
+        orders.deliver(order, 0, Material.STONE, alice, 10);
+        orders.deliver(order, 1, Material.DIRT, alice, 5);
+        return orders.reload(order);
+    }
+
+    @Test
+    void soloWorkerGetsTheWholePriceMinusTheSoloTax() {
+        sharePercent.set(10);
+        var events = EventRecorder.listen(
+                plugin, SoloOrderDoneEvent.class, SoloOrderPaymentEvent.class, OrderPaymentEvent.class);
+
+        var completion = service.completeSolo(deliveredByAliceAlone()).join().orElseThrow();
+
+        assertEquals(Map.of(alice, 142.5), paid);
+        assertEquals(12.5, collected.get(), 0.001);
+        assertTrue(kept.isEmpty());
+        var payout = completion.payouts().get(0);
+        assertEquals(1, completion.payouts().size());
+        assertTrue(payout.solo());
+        assertEquals(150.0, payout.gross());
+        assertEquals(7.5, payout.tax());
+        assertEquals(0.0, payout.share());
+        assertEquals(alice, events.single(SoloOrderDoneEvent.class).player().getUniqueId());
+        var payment = events.single(SoloOrderPaymentEvent.class);
+        assertEquals(142.5, payment.amount());
+        assertEquals(7.5, payment.tax());
+        assertTrue(events.of(OrderPaymentEvent.class).isEmpty());
+    }
+
+    @Test
+    void soloPayoutsNameNoCompanyAndWriteNoCompanyHistory() {
+        var order = deliveredByAliceAlone();
+
+        assertTrue(service.completeSolo(order).join().isPresent());
+        assertFalse(service.completeSolo(order).join().isPresent());
+
+        assertEquals(1, SqLiteTestDatabase.count("order_payouts", "company_id IS NULL AND order_id = " + order.id()));
+        assertEquals(1, stats.retrieveSoloCompleted(alice).join());
+        assertTrue(memberStats().isEmpty());
+        assertEquals(0, SqLiteTestDatabase.count("order_history", "1 = 1"));
+        assertEquals(OrderState.DELIVERED, orders.reload(order).state());
+    }
+
+    @Test
+    void cancelledSoloPaymentIsNotPaid() {
+        plugin.getServer().getPluginManager().registerEvents(new CancelSoloPayments(), plugin);
+
+        var completion = service.completeSolo(deliveredByAliceAlone()).join().orElseThrow();
+
+        assertTrue(paid.isEmpty());
+        assertEquals(5.0, collected.get(), 0.001);
+        assertFalse(completion.payouts().get(0).paid());
+    }
+
     private record Kept(int company, int order, long cents) {}
+
+    private static final class CancelSoloPayments implements Listener {
+        @EventHandler
+        public void onPayment(SoloOrderPaymentEvent event) {
+            event.setCancelled(true);
+        }
+    }
 
     private record CancelPaymentsOf(UUID worker) implements Listener {
         @EventHandler

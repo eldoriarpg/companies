@@ -121,6 +121,7 @@ class AdminOrderServiceTest {
                 recorder,
                 treasury,
                 level -> 10.0,
+                () -> 5.0,
                 Clock.systemDefaultZone(),
                 executor);
         var funds = new AdminOrderService.Funds() {
