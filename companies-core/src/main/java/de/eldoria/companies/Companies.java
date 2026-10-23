@@ -309,6 +309,7 @@ public class Companies extends EldoPlugin {
                     companyData,
                     orderData,
                     information.stats(),
+                    this.economy.treasury(),
                     economy,
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();

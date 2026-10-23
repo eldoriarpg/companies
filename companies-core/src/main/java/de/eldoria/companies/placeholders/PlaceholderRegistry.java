@@ -93,6 +93,8 @@ public final class PlaceholderRegistry {
         companyIds.put("company_earned_raw", CompanyId.text(view -> raw(view.earned())));
         companyIds.put("company_delivered", CompanyId.count(view -> view.delivered()));
         companyIds.put("company_orders", CompanyId.count(view -> view.orders()));
+        companyIds.put("company_treasury", CompanyId.text(view -> money.apply(view.treasury())));
+        companyIds.put("company_payout_share", CompanyId.count(view -> view.payoutShare()));
     }
 
     /**
