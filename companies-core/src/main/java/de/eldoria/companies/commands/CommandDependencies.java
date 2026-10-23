@@ -19,6 +19,7 @@ import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
@@ -183,6 +184,24 @@ public final class CommandDependencies {
      */
     public OrderOutcomes outcomes() {
         return new OrderOutcomes(orderData, history(), plugin.getLogger(), Threading.VIRTUAL);
+    }
+
+    /**
+     * @return the order actions of admins
+     * @throws CommandFailure {@code error.notReady} while the services do not exist
+     */
+    public AdminOrderService adminOrders() {
+        var ready = services();
+        return AdminOrderService.create(
+                plugin,
+                orderData,
+                companyData,
+                ready.orderCompletion(),
+                history(),
+                ready.economy(),
+                configuration,
+                ready.notificationService(),
+                ready.itemReturnService());
     }
 
     /**
