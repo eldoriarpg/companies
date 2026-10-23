@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.configuration;
 
+import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.configuration.elements.EconomySettings;
@@ -104,6 +105,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public TopSettings topSettings() {
         return main().top();
+    }
+
+    /**
+     * @return the order boards on signs and NPCs
+     */
+    public BoardSettings boardSettings() {
+        return main().boards();
     }
 
     public DatabaseSettings databaseSettings() {
