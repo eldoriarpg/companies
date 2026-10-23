@@ -34,7 +34,9 @@ public final class SyncConfiguration {
     @Executes
     public void sync(CommandSender sender) {
         deps.requireReady();
-        deps.configuration().syncConfigurations(deps.nodeData()).whenComplete((res, err) -> deps.messages()
-                .sendMessage(sender, "companyadmin.syncconfiguration.done"));
+        deps.configuration().syncConfigurations(deps.nodeData()).whenComplete((res, err) -> {
+            if (err == null) deps.adminLog().entry(sender, "syncconfiguration").write();
+            deps.messages().sendMessage(sender, "companyadmin.syncconfiguration.done");
+        });
     }
 }

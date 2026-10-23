@@ -147,6 +147,17 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
+    protected boolean extendUnclaimed(SimpleOrder order, int hours) {
+        @Language("postgresql")
+        var query = """
+                UPDATE order_states
+                SET last_update = last_update + (? || ' HOUR')::INTERVAL
+                WHERE id = ?
+                  AND state = ?""";
+        return moveLastUpdate(query, order, hours);
+    }
+
+    @Override
     public void refreshMaterialPrices() {
         @Language("postgresql")
         var query = """

@@ -11,22 +11,17 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
-import de.eldoria.companies.events.order.OrderDoneEvent;
-import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.util.Inventories;
 import de.eldoria.companies.util.Threading;
-import net.milkbowl.vault.economy.Economy;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -36,28 +31,27 @@ import java.util.logging.Level;
  * A delivery takes the matching items on the main thread, records them as delivered stacks in one transaction that
  * caps every line at what it still misses, and hands the surplus of every part back with that part's own item: into
  * the inventory, dropped when it is full, or into the item returns when the worker went offline. When the order is
- * complete afterwards, it is marked delivered and the workers are paid.
+ * complete afterwards, {@link OrderCompletionService} completes it.
  */
 public final class DeliveryService {
     private final Plugin plugin;
     private final AOrderData orderData;
-    private final Economy economy;
+    private final OrderCompletionService completion;
     private final Configuration configuration;
-    private final Collector collector;
     private volatile CachedMatcher cachedMatcher;
 
     /**
      * @param plugin        the plugin
      * @param orderData     order repository
-     * @param economy       economy paying the workers
+     * @param completion    completes orders once everything was delivered
      * @param configuration configuration of the plugin
      */
-    public DeliveryService(Plugin plugin, AOrderData orderData, Economy economy, Configuration configuration) {
+    public DeliveryService(
+            Plugin plugin, AOrderData orderData, OrderCompletionService completion, Configuration configuration) {
         this.plugin = plugin;
         this.orderData = orderData;
-        this.economy = economy;
+        this.completion = completion;
         this.configuration = configuration;
-        this.collector = new Collector(plugin, economy, configuration);
     }
 
     /**
@@ -202,42 +196,10 @@ public final class DeliveryService {
     }
 
     private void orderDone(FullOrder order, CompanyProfile company) {
-        orderData
-                .submitOrderDelivered(order)
-                .asFuture()
-                .thenAccept(delivered -> delivered.ifPresent(deliveredOrder -> {
-                    plugin.getServer().getPluginManager().callEvent(new OrderDoneEvent(deliveredOrder, company));
-                    pay(deliveredOrder, company);
-                }))
-                .exceptionally(err -> {
-                    plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
-    }
-
-    /**
-     * Pays the workers of a delivered order their share minus the tax of the company's level.
-     * <p>
-     * The fee of the order and the tax of every payout that is not cancelled go to the collector.
-     *
-     * @param order   delivered order
-     * @param company company which delivered the order
-     */
-    private void pay(FullOrder order, CompanyProfile company) {
-        var taxPercent = configuration.companySettings().taxPercent(company.level());
-        Map<OfflinePlayer, Double> payments = new HashMap<>();
-        var collected = BigDecimal.valueOf(order.fee());
-        for (var entry : order.payments(PaymentType.STACK).entrySet()) {
-            var player = plugin.getServer().getOfflinePlayer(entry.getKey());
-            var payout = Payout.split(entry.getValue(), taxPercent);
-            var event = new OrderPaymentEvent(order, player, payout.net(), payout.gross(), payout.tax());
-            plugin.getServer().getPluginManager().callEvent(event);
-            if (event.isCancelled()) continue;
-            payments.put(player, payout.net());
-            collected = collected.add(BigDecimal.valueOf(payout.tax()));
-        }
-        Threading.mainThread(plugin).execute(() -> payments.forEach(economy::depositPlayer));
-        collector.collect(collected.doubleValue());
+        completion.complete(order, company).exceptionally(err -> {
+            plugin.getLogger().log(Level.SEVERE, "Something went wrong", err);
+            return Optional.empty();
+        });
     }
 
     private record CachedMatcher(ItemMatchSettings settings, ItemMatcher matcher) {}

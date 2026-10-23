@@ -15,7 +15,9 @@ import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.strokkur.commands.Executes;
@@ -106,10 +108,10 @@ public final class Transfer {
                     var name = Replacement.unparsed(
                             "name", String.valueOf(target.player().getName()));
                     messages().sendMessage(player, "company.transfer.done", name);
-                    notificationService.sendMessage(
-                            target.player(),
-                            "notification.ownerTransferred",
-                            Replacement.unparsed("company", company.name()));
+                    notificationService.send(
+                            target.uuid(),
+                            NotificationType.OWNERSHIP_TRANSFERRED,
+                            NotificationArgs.create().text("company", company.name()));
                 });
     }
 

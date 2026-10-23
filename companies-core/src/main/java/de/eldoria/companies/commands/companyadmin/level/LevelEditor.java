@@ -21,6 +21,7 @@ import de.eldoria.companies.menus.admin.LevelListMenu;
 import de.eldoria.companies.menus.admin.LevelListView;
 import de.eldoria.companies.menus.admin.LevelMenu;
 import de.eldoria.companies.menus.admin.LevelView;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -56,7 +57,7 @@ public final class LevelEditor implements LevelActions {
     @Override
     public void create(Player viewer, int position) {
         try {
-            info(viewer, create(position));
+            info(viewer, createLevel(viewer, position));
         } catch (CommandFailure failure) {
             showList(viewer, LevelListView.of(settings()).rejected(failure));
         }
@@ -84,6 +85,11 @@ public final class LevelEditor implements LevelActions {
                     if (target != level.level()) settings().moveLevel(level.level(), target);
                 });
                 deps.configuration().save();
+                deps.adminLog()
+                        .entry(viewer, "level save")
+                        .with("level", level.level())
+                        .with("name", level.levelName())
+                        .write();
                 info(viewer, level);
             }
         }
@@ -110,53 +116,73 @@ public final class LevelEditor implements LevelActions {
     /**
      * Adds a level and saves the configuration.
      *
+     * @param admin    who adds the level
      * @param position position of the new level, clamped to the existing positions
      * @return the new level
      */
-    CompanyLevel create(int position) {
+    CompanyLevel createLevel(CommandSender admin, int position) {
         requirePrimary();
         var level = settings().createLevel(position);
         deps.configuration().save();
+        deps.adminLog()
+                .entry(admin, "level create")
+                .with("level", level.level())
+                .write();
         return level;
     }
 
     /**
      * Changes one field of a level and saves the configuration.
      *
+     * @param admin who changes the level
      * @param level the level
      * @param field name of the field
      * @param value entered value
      */
-    void edit(CompanyLevel level, String field, String value) {
+    void edit(CommandSender admin, CompanyLevel level, String field, String value) {
         requirePrimary();
         LevelField.byKey(field)
                 .orElseThrow(() -> CommandFailure.actionBar("error.unkownField"))
                 .apply(level, value);
         deps.configuration().save();
+        deps.adminLog()
+                .entry(admin, "level edit")
+                .with("level", level.level())
+                .with("field", field)
+                .with("value", value)
+                .write();
     }
 
     /**
      * Moves a level and saves the configuration.
      *
+     * @param admin  who moves the level
      * @param source number of the level
      * @param target position it moves to
      */
-    void move(int source, int target) {
+    void move(CommandSender admin, int source, int target) {
         requirePrimary();
         level(source);
         settings().moveLevel(source, target);
         deps.configuration().save();
+        deps.adminLog()
+                .entry(admin, "level move")
+                .with("level", source)
+                .with("to", target)
+                .write();
     }
 
     /**
      * Removes a level and saves the configuration.
      *
+     * @param admin who removes the level
      * @param level number of the level
      */
-    void remove(int level) {
+    void remove(CommandSender admin, int level) {
         requirePrimary();
         Checks.isTrue(settings().deleteLevel(level), "error.invalidLevel");
         deps.configuration().save();
+        deps.adminLog().entry(admin, "level remove").with("level", level).write();
     }
 
     /**
@@ -170,7 +196,7 @@ public final class LevelEditor implements LevelActions {
     private void removeConfirmed(Player viewer, CompanyLevel level) {
         try {
             requireExisting(level);
-            remove(level.level());
+            remove(viewer, level.level());
             list(viewer);
         } catch (CommandFailure failure) {
             showList(viewer, LevelListView.of(settings()).rejected(failure));

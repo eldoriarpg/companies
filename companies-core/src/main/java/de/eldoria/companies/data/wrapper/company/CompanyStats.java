@@ -69,8 +69,4 @@ public class CompanyStats implements ICompanyStats {
     public int deliveredItems() {
         return deliveredItems;
     }
-
-    public CompanyRank toRank(int rank) {
-        return new CompanyRank(rank, id, name, founded, memberCount, orderCount, price, deliveredItems);
-    }
 }

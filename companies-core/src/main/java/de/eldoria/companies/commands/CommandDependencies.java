@@ -12,20 +12,28 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
+import de.eldoria.companies.orders.HistoryRecorder;
+import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.AdminLog;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
+import java.time.Clock;
 import java.util.Optional;
 
 /**
@@ -43,6 +51,7 @@ public final class CommandDependencies {
     private final AOrderData orderData;
     private final ANodeData nodeData;
     private final AMembershipData membershipData;
+    private final InformationData information;
     private final OrderDraftService drafts;
     private final SearchSessions searches = new SearchSessions();
     private volatile Optional<Services> services = Optional.empty();
@@ -54,6 +63,7 @@ public final class CommandDependencies {
      * @param orderData     order repository
      * @param nodeData       node repository
      * @param membershipData invite and application repository
+     * @param information    inbox, payout ledger and history repositories
      */
     public CommandDependencies(
             Plugin plugin,
@@ -61,13 +71,15 @@ public final class CommandDependencies {
             ACompanyData companyData,
             AOrderData orderData,
             ANodeData nodeData,
-            AMembershipData membershipData) {
+            AMembershipData membershipData,
+            InformationData information) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.companyData = companyData;
         this.orderData = orderData;
         this.nodeData = nodeData;
         this.membershipData = membershipData;
+        this.information = information;
         this.drafts = new OrderDraftService(plugin, orderData, configuration);
     }
 
@@ -147,10 +159,56 @@ public final class CommandDependencies {
     }
 
     /**
+     * @return inbox, payout ledger and history repositories
+     */
+    public InformationData information() {
+        return information;
+    }
+
+    /**
      * @return the order drafts of the players
      */
     public OrderDraftService drafts() {
         return drafts;
+    }
+
+    /**
+     * @return writes the history entries of ended orders
+     */
+    public HistoryRecorder history() {
+        return new HistoryRecorder(information.history(), Clock.systemDefaultZone());
+    }
+
+    /**
+     * @return ends orders and records their history
+     */
+    public OrderOutcomes outcomes() {
+        return new OrderOutcomes(orderData, history(), plugin.getLogger(), Threading.VIRTUAL);
+    }
+
+    /**
+     * @return the order actions of admins
+     * @throws CommandFailure {@code error.notReady} while the services do not exist
+     */
+    public AdminOrderService adminOrders() {
+        var ready = services();
+        return AdminOrderService.create(
+                plugin,
+                orderData,
+                companyData,
+                ready.orderCompletion(),
+                history(),
+                ready.economy(),
+                configuration,
+                ready.notificationService(),
+                ready.itemReturnService());
+    }
+
+    /**
+     * @return writes admin actions to the server log
+     */
+    public AdminLog adminLog() {
+        return new AdminLog(plugin.getLogger());
     }
 
     /**
@@ -180,6 +238,7 @@ public final class CommandDependencies {
      * @param deliveryService     delivers items to orders
      * @param menus               shows menus as dialogs or in chat
      * @param membershipService   invites, applications and joining
+     * @param orderCompletion     completes delivered orders
      */
     public record Services(
             Economy economy,
@@ -191,5 +250,6 @@ public final class CommandDependencies {
             Updates updates,
             DeliveryService deliveryService,
             MenuService menus,
-            MembershipService membershipService) {}
+            MembershipService membershipService,
+            OrderCompletionService orderCompletion) {}
 }

@@ -29,6 +29,7 @@ import de.eldoria.eldoutilities.threading.futures.FutureResult;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -262,6 +263,127 @@ public abstract class AOrderData {
      * @return the workers who got items returned, or an empty optional if the order was not claimed
      */
     protected abstract Optional<Set<UUID>> unclaimOrder(SimpleOrder order);
+
+    /**
+     * Marks a claimed order as delivered for an admin, whether or not every item was delivered.
+     *
+     * @param order order to mark
+     * @return a future providing the delivered order, or an empty optional if the order was not claimed
+     */
+    public BukkitFutureResult<Optional<FullOrder>> submitForcedDelivery(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var delivered = forceDelivered(order);
+                    invalidateFullOrder(order);
+                    if (!delivered) return Optional.<FullOrder>empty();
+                    return orderById(order.id()).map(this::toFullOrder);
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Changes the state of a claimed order to delivered, however much was delivered.
+     *
+     * @param order order to change
+     * @return true if the order was claimed and is now delivered
+     */
+    protected abstract boolean forceDelivered(SimpleOrder order);
+
+    /**
+     * Deletes an unclaimed or claimed order for an admin.
+     *
+     * @param order order to delete
+     * @return a future providing the workers who got items returned (empty for an unclaimed order), or an empty
+     *     optional if the order was neither unclaimed nor claimed
+     */
+    public BukkitFutureResult<Optional<Set<UUID>>> submitAdminDeletion(SimpleOrder order) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var deleted = adminDelete(order);
+                    invalidateFullOrder(order);
+                    return deleted;
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Deletes an unclaimed or claimed order in one step. The stacks delivered to a claimed order are moved unchanged
+     * to the item returns of the workers who delivered them first. Delivered and received orders are kept.
+     *
+     * @param order order to delete
+     * @return the workers who got items returned, or an empty optional if nothing was deleted
+     */
+    protected abstract Optional<Set<UUID>> adminDelete(SimpleOrder order);
+
+    /**
+     * Gives a claimed order more time to be delivered.
+     *
+     * @param order order to extend
+     * @param hours hours to add to the delivery time
+     * @return a future providing true if the order was claimed and is extended
+     */
+    public BukkitFutureResult<Boolean> submitClaimExtension(SimpleOrder order, int hours) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var extended = extendClaim(order, hours);
+                    invalidateFullOrder(order);
+                    return extended;
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Adds hours to the delivery bonus of a claimed order.
+     *
+     * @param order order to extend
+     * @param hours hours to add
+     * @return true if the order was claimed and is extended
+     */
+    protected abstract boolean extendClaim(SimpleOrder order, int hours);
+
+    /**
+     * Moves the purge of an unclaimed order back without counting an extension.
+     *
+     * @param order order to extend
+     * @param hours hours to move the purge back
+     * @return a future providing true if the order was unclaimed and is extended
+     */
+    public BukkitFutureResult<Boolean> submitUnclaimedExtension(SimpleOrder order, int hours) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> {
+                    var extended = extendUnclaimed(order, hours);
+                    invalidateFullOrder(order);
+                    return extended;
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Adds hours to the last update of an unclaimed order, which the purge counts from. The extensions of the owner
+     * stay untouched.
+     *
+     * @param order order to extend
+     * @param hours hours to add
+     * @return true if the order was unclaimed and is extended
+     */
+    protected abstract boolean extendUnclaimed(SimpleOrder order, int hours);
+
+    /**
+     * One page of all orders for admins, the newest first, optionally of one owner or one company.
+     *
+     * @param owner   owner to filter by, or null for every owner
+     * @param company company to filter by, or null for every company
+     * @param page    page, starting at 1
+     * @param size    orders per page
+     * @return orders of the page
+     */
+    public BukkitFutureResult<List<SimpleOrder>> retrieveOrdersForAdmin(
+            @Nullable UUID owner, @Nullable Integer company, int page, int size) {
+        return CompletableBukkitFuture.supplyAsync(() -> ordersForAdmin(owner, company, page, size), VIRTUAL);
+    }
+
+    protected abstract List<SimpleOrder> ordersForAdmin(
+            @Nullable UUID owner, @Nullable Integer company, int page, int size);
 
     public BukkitFutureResult<List<ItemReturn>> retrieveItemReturns(UUID player, ReturnKind kind) {
         return CompletableBukkitFuture.supplyAsync(() -> getItemReturns(player, kind), VIRTUAL);
