@@ -15,6 +15,7 @@ public class DatabaseSettings {
     private String database = "public";
     private String schema = "public";
     private RedisSettings redis = new RedisSettings();
+    private MessagingSettings messaging = new MessagingSettings();
 
     public DatabaseSettings() {}
 
@@ -51,6 +52,13 @@ public class DatabaseSettings {
      */
     public RedisSettings redis() {
         return redis == null ? new RedisSettings() : redis;
+    }
+
+    /**
+     * @return how the nodes exchange messages without Redis
+     */
+    public MessagingSettings messaging() {
+        return messaging == null ? new MessagingSettings() : messaging;
     }
 
     public enum StorageType {

@@ -5,6 +5,10 @@
  */
 package de.eldoria.companies.nodes;
 
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -33,7 +37,9 @@ public interface NodeBus extends AutoCloseable {
     <T extends NodeMessage> void subscribe(Class<T> type, Handler<T> handler);
 
     /**
-     * Calls the listener whenever the state changes, on the thread noticing the change.
+     * Calls the listener whenever the state or the {@link #transport()} changes, on the thread noticing the change. A
+     * change of the transport while connected is reported as {@link State#CONNECTED} again, since messages may have
+     * been missed during the switch.
      *
      * @param listener receives the new state
      */
@@ -51,6 +57,13 @@ public interface NodeBus extends AutoCloseable {
      */
     default boolean realtime() {
         return state() == State.CONNECTED;
+    }
+
+    /**
+     * @return how messages travel right now
+     */
+    default Transport transport() {
+        return Transport.DATABASE;
     }
 
     /**
@@ -89,5 +102,44 @@ public interface NodeBus extends AutoCloseable {
          * The connection is lost or was never made and is being retried; the nodes fall back to polling meanwhile.
          */
         DISCONNECTED
+    }
+
+    /**
+     * How messages travel between the nodes.
+     */
+    enum Transport {
+        /**
+         * Not at all; the nodes poll the database and let caches expire.
+         */
+        DATABASE("database"),
+        /**
+         * Through the message table, which every node reads every second.
+         */
+        LOW_LATENCY("lowLatency"),
+        /**
+         * Over Redis pub/sub.
+         */
+        REDIS("redis");
+
+        private final String id;
+
+        Transport(String id) {
+            this.id = id;
+        }
+
+        /**
+         * @return the name in messages and locale keys, for example {@code lowLatency}
+         */
+        public String id() {
+            return id;
+        }
+
+        /**
+         * @param id a name returned by {@link #id()}
+         * @return the transport, empty for an unknown name
+         */
+        public static Optional<Transport> of(@Nullable String id) {
+            return Arrays.stream(values()).filter(value -> value.id.equals(id)).findFirst();
+        }
     }
 }

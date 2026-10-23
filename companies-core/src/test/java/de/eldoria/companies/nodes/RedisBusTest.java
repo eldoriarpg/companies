@@ -6,7 +6,7 @@
 package de.eldoria.companies.nodes;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import de.eldoria.companies.configuration.elements.RedisSettings;
+import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
@@ -30,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BooleanSupplier;
+import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -209,13 +210,8 @@ class RedisBusTest {
 
     @Test
     void theFactoryUsesTheDatabaseBusWithoutRedisOrPassword() {
-        var disabled = NodeBuses.create(new RedisSettings(), UUID.randomUUID(), handlers, name -> null, LOGGER);
-        var missing = NodeBuses.create(
-                settings("enabled: true\npassword: env:UNSET_VARIABLE"),
-                UUID.randomUUID(),
-                handlers,
-                name -> null,
-                LOGGER);
+        var disabled = create(new DatabaseSettings(), name -> null);
+        var missing = create(settings("redis:\n  enabled: true\n  password: env:UNSET_VARIABLE"), name -> null);
 
         assertInstanceOf(DatabaseBus.class, disabled);
         assertInstanceOf(DatabaseBus.class, missing);
@@ -223,22 +219,38 @@ class RedisBusTest {
 
     @Test
     void theFactoryConnectsWithAnEnvironmentPassword() {
-        var yaml = """
-                enabled: true
-                host: %s
-                port: %d
-                password: env:COMPANIES_REDIS_PASSWORD
-                """.formatted(redis.getHost(), redis.getMappedPort(6379));
-        var bus = NodeBuses.create(
-                settings(yaml),
-                UUID.randomUUID(),
-                handlers,
-                name -> name.equals("COMPANIES_REDIS_PASSWORD") ? PASSWORD : null,
-                LOGGER);
+        var bus = create(settings(redisYaml()), name -> name.equals("COMPANIES_REDIS_PASSWORD") ? PASSWORD : null);
         buses.add(bus);
 
         assertInstanceOf(RedisBus.class, bus);
         assertTrue(bus.realtime());
+    }
+
+    @Test
+    void theFactoryKeepsLowLatencyModeAsFallbackForRedis() {
+        var yaml = redisYaml() + "messaging:\n  lowLatency: true\n";
+        var bus = create(settings(yaml), name -> name.equals("COMPANIES_REDIS_PASSWORD") ? PASSWORD : null);
+        buses.add(bus);
+
+        var failover = assertInstanceOf(FailoverBus.class, bus);
+        assertTrue(bus.realtime());
+        assertFalse(failover.fallingBack());
+        assertEquals(NodeBus.Transport.REDIS, bus.transport());
+    }
+
+    private static String redisYaml() {
+        return """
+                redis:
+                  enabled: true
+                  host: %s
+                  port: %d
+                  password: env:COMPANIES_REDIS_PASSWORD
+                """.formatted(redis.getHost(), redis.getMappedPort(6379));
+    }
+
+    private NodeBus create(DatabaseSettings settings, UnaryOperator<String> environment) {
+        return NodeBuses.create(
+                settings, UUID.randomUUID(), false, new MemoryMessageTable(), handlers, environment, LOGGER);
     }
 
     @Test
@@ -254,10 +266,10 @@ class RedisBusTest {
         assertFalse(server(PASSWORD, "companies").toString().contains(PASSWORD));
     }
 
-    private static RedisSettings settings(String yaml) {
+    private static DatabaseSettings settings(String yaml) {
         return YAMLMapper.builder()
                 .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
                 .build()
-                .readValue(yaml, RedisSettings.class);
+                .readValue(yaml, DatabaseSettings.class);
     }
 }
