@@ -34,7 +34,7 @@ import java.util.logging.Logger;
  *     the claim succeeds once across all nodes, so an entry is shown once.</li>
  *     <li>{@code player.presence}, {@code node.heartbeat}, {@code node.stopped}: kept in the {@link NetworkPresence}.
  *     A node uid the database does not know is reported once, since it points at a node of another network using
- *     the same Redis and channel prefix.</li>
+ *     the same Redis server or PostgreSQL database and channel prefix.</li>
  *     <li>{@code cache.invalidate}, {@code ranking.changed}, {@code boards.changed}: passed to the {@link NodeCaches}.
  *     </li>
  *     <li>{@code config.synced}: a secondary loads the configuration from the database and applies it.</li>
@@ -130,8 +130,8 @@ public final class NodeMessaging {
         if (known.get().contains(sender)) return;
         if (reported.add(sender)) {
             logger.warning("Received a message from the node " + sender + ", which is not registered in this"
-                    + " database. All nodes of a network must use the same Redis and channel prefix, and other"
-                    + " networks on the same Redis need their own channelPrefix.");
+                    + " database. All nodes of a network must use the same channel prefix, and other networks on the"
+                    + " same Redis server or PostgreSQL database need their own messaging.channelPrefix.");
         }
     }
 

@@ -17,18 +17,29 @@ public class MessagingSettings {
     public static final String DEFAULT_CHANNEL_PREFIX = "companies";
 
     private boolean lowLatency = false;
+    private boolean postgresNotify = false;
     private String channelPrefix = DEFAULT_CHANNEL_PREFIX;
 
     public MessagingSettings() {}
 
     /**
      * Whether the nodes exchange their messages through a table in the database, which every node reads every
-     * second. Ignored while Redis is enabled.
+     * second. Ignored while Redis or PostgreSQL notify is used.
      *
      * @return true when low latency mode is on
      */
     public boolean lowLatency() {
         return lowLatency;
+    }
+
+    /**
+     * Whether the nodes exchange their messages with {@code LISTEN} and {@code NOTIFY} of PostgreSQL. Only used with
+     * the storage type {@code POSTGRES}, and ignored while Redis is enabled.
+     *
+     * @return true when PostgreSQL notify is on
+     */
+    public boolean postgresNotify() {
+        return postgresNotify;
     }
 
     /**
