@@ -66,6 +66,23 @@ Commands for players who place orders. Read [Orders](../players/orders.md) and [
 
 How many orders a player may have is set by `maxOrders` in [user.yml](../admin/configuration/user-yml.md), or by the permission `companies.orders.limit.<n>`.
 
+## Working alone
+
+Commands for players who work on orders alone, without a company. They need `solo.enabled` in
+[order.yml](../admin/configuration/order-yml.md#solo). Read [Working alone](../players/working-alone.md) for a guide.
+
+| Command | Permission | What it does |
+|---|---|---|
+| `/order work` or `/order work list` | none | Lists the orders you work on alone. Opens the search when there are none. |
+| `/order work info <id>` | none | Shows an order you work on alone, or an open order you could take. |
+| `/order work accept <id>` | `companies.orders.solo` | Takes an order to work on it alone. |
+| `/order work deliver <id> <line> <amount>` | none | Delivers up to `amount` items to one line. |
+| `/order work deliver <id> <line> max` | none | Delivers as many items as the line still misses. |
+| `/order work deliver <id> all` | none | Delivers everything you carry that fits the order. |
+| `/order work abort <id>` | none | Gives an order back. Asks you to confirm. Items you delivered come back to you and the cooldown starts. |
+| `/order work abort confirm` | none | Confirms giving the order back. |
+| `/order work search …` | none | The order search for working alone. It has the same `query …` subcommands as `/company order search`, without alerts. |
+
 ## Companies
 
 Commands for company members and owners. Read [Founding and joining](../companies/founding-and-joining.md) and [Members and permissions](../companies/members-and-permissions.md) for a guide.

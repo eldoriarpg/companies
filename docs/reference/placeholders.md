@@ -27,6 +27,8 @@ These show values of the player who looks at the placeholder.
 | `%companies_player_order_limit%` | The most orders the player may have at once. For online players, this respects `companies.orders.limit.<n>`. For offline players, it is `maxOrders` from [user.yml](../admin/configuration/user-yml.md). | `7` |
 | `%companies_player_items_waiting%` | Items waiting for the player: items of delivered own orders and items that came back from orders. | `128` |
 | `%companies_player_role%` | `Owner` or `Member` in the server language. Empty without a company. | `Owner` |
+| `%companies_player_solo_active%` | Orders the player works on alone right now. See [Working alone](../players/working-alone.md). | `1` |
+| `%companies_player_solo_completed%` | Orders the player delivered alone, all time. | `12` |
 
 ## Company placeholders
 
