@@ -67,20 +67,16 @@ alerts:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `deliveryHours` | number (hours) | `48` | Time a company has to deliver an order after accepting it. A level can add more with `deliveryHoursBonus`. |
+| `deliveryHours` | number (hours) | `48` | Time a company has to deliver an order after claiming it. A level can add more with `deliveryHoursBonus`. |
 | `foundingPrice` | number | `20000.0` | Price to found a company. |
 | `renamePrice` | number | `10000.0` | Price to rename a company. `0` or less makes it free. |
 | `expiredOrderPenalty` | number | `3` | Added to the failed orders of a company when a claimed order runs out of time. |
 | `abortedOrderPenalty` | number | `1` | Added to the failed orders of a company when it gives a claimed order back. |
-| `allowMemberOrders` | true/false | `false` | Allow a company to accept orders of its own members. |
+| `allowMemberOrders` | true/false | `false` | Allow a company to claim orders of its own members. |
 | `inviteHours` | number (hours) | `24` | How long invites and applications stay open. |
 | `expiryWarningHours` | number (hours) | `12` | When a member joins the server, claimed orders that end within this time are shown to them. |
 
-Failed orders are subtracted from the completed orders a company shows, for example in the `company_orders` [placeholder](../../reference/placeholders.md#company-placeholders).
-
-:::warning TODO
-Confirm how failed orders affect the level requirement `orderCount` and the rankings. Only the counter itself was checked.
-:::
+Failed orders are subtracted from the completed orders of a company. This counts for the level requirement `orderCount`, the `orders` ranking over all time and the `company_orders` [placeholder](../../reference/placeholders.md#company-placeholders). See [Levels](../levels.md#penalties).
 
 ## level
 
@@ -98,15 +94,15 @@ You can edit levels in game with `/companyadmin level`. See [Levels](../levels.m
 | `requirement.memberCount` | number | `1` | Members needed. |
 | `settings.maxMembers` | number | `20` | Most members the company may have. |
 | `settings.maxOrders` | number | `5` | Most orders the company may work on at once. |
-| `settings.maxOrderSize` | number | `0` | Most items an order may have for the company to accept it. `0` or less means no limit. |
+| `settings.maxOrderSize` | number | `0` | Most items an order may have for the company to claim it. `0` or less means no limit. |
 | `settings.deliveryHoursBonus` | number (hours) | `0` | Hours added to `deliveryHours`. |
 | `settings.taxPercent` | number | not set | Tax for this level. Replaces `tax.percent`. Leave it out to use `tax.percent`. |
 | `settings.maxAlerts` | number | not set | Order alerts for this level. Replaces `alerts.maxPerCompany`. `0` means none. Leave it out to use `alerts.maxPerCompany`. |
 
 The defaults in this table are those of a level added with `/companyadmin level create`.
 
-:::warning TODO
-Confirm what happens when the `level` numbers in the file are edited by hand and no longer run 1, 2, 3 in order. Use the level editor to be safe.
+:::warning
+The `level` numbers have to run 1, 2, 3 in the order of the list. Companies does not renumber them after loading the file, and numbers out of order give companies wrong levels. The level editor keeps them in order. If you edit the file by hand, renumber the entries after you move or remove one.
 :::
 
 ### Starter levels

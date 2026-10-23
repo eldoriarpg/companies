@@ -45,6 +45,10 @@ Keep `node.yml` when you move or rebuild a server. A new `nodeUid` registers a n
 the database. If the old entry was the primary, the network then has two primaries and refuses to start.
 :::
 
+:::warning TODO
+How to remove an old server entry from the database. Companies has no command for it yet.
+:::
+
 See [node.yml](./configuration/node-yml.md) for the file reference.
 
 ## What is shared
@@ -99,7 +103,7 @@ Some work runs on a timer. To do it once for the whole network, only the primary
 
 | Job | How often |
 |---|---|
-| Release claimed orders past their deadline, remove orders nobody accepted, warn owners before removal | Every `generalSettings.orderCheckInterval` minutes (default `60`), first after 10 minutes |
+| Release claimed orders past their deadline, remove orders nobody claimed, warn owners before removal | Every `generalSettings.orderCheckInterval` minutes (default `60`), first after 10 minutes |
 | Post due copies of repeating orders | Every `repeating.checkMinutes` minutes (default `5`) |
 | Send order alert digests | Every 5 minutes |
 | Expire old invites and applications | Every 5 minutes |
