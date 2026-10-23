@@ -51,6 +51,20 @@ public final class Permission {
         }
     }
 
+    /**
+     * Permissions of the order boards.
+     */
+    public static final class Boards {
+        /**
+         * The permission to open boards through signs, NPCs and {@code /company board}.
+         */
+        public static final String USE = BASE + ".boards.use";
+
+        private Boards() {
+            throw new UnsupportedOperationException("This is a utility class.");
+        }
+    }
+
     public static final class Admin {
         public static final String ADMIN = BASE + ".admin";
         public static final String CALC_LEVEL = ADMIN + ".calcLevel";
@@ -62,6 +76,10 @@ public final class Permission {
         public static final String ORDERS = ADMIN + ".orders";
         public static final String PLAYER = ADMIN + ".player";
         public static final String GRANT = ADMIN + ".grant";
+        /**
+         * The permission to create and break board signs and to manage boards.
+         */
+        public static final String BOARDS = ADMIN + ".boards";
         /**
          * The permission EldoUtil grants debug reports with, accepted next to {@link #ADMIN}.
          */

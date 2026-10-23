@@ -94,6 +94,7 @@ bukkit {
             children = listOf(
                 "companies.orders.*",
                 "companies.company.*",
+                "companies.boards.use",
                 "companies.admin.*",
                 "companies.updates"
             )
@@ -125,10 +126,16 @@ bukkit {
             default = Default.TRUE
         }
 
+        register("companies.boards.use") {
+            description = "Allows opening order boards through signs, NPCs and /company board"
+            default = Default.TRUE
+        }
+
         register("companies.admin.*") {
             description = "Gives access to all admin commands"
             children = listOf(
                 "companies.admin",
+                "companies.admin.boards",
                 "companies.admin.calcLevel",
                 "companies.admin.delete",
                 "companies.admin.grant",
@@ -142,6 +149,9 @@ bukkit {
         }
         register("companies.admin") {
             description = "Allows using the admin command and creating debug reports"
+        }
+        register("companies.admin.boards") {
+            description = "Allows creating and breaking board signs and managing boards"
         }
         register("companies.admin.calcLevel") {
             description = "Allows recalculating company levels"
