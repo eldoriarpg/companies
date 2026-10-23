@@ -102,7 +102,6 @@ class SqLiteSoloMigrationTest {
         var stats = new SqLiteStatsData(executor);
         Assertions.assertEquals(
                 4, stats.retrieveMemberStats(company, null).join().get(0).items());
-        Assertions.assertEquals(0, stats.retrieveSoloCompleted(worker).join());
     }
 
     @Test
@@ -112,7 +111,7 @@ class SqLiteSoloMigrationTest {
         Assertions.assertTrue(stats.submitPayouts(List.of(new PayoutRecord(
                         order + 1, 0, worker, 2, 20.0, 0.0, 20.0, true, LocalDateTime.of(2026, 7, 2, 10, 0, 0))))
                 .join());
-        Assertions.assertEquals(1, stats.retrieveSoloCompleted(worker).join());
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("order_payouts", "company_id IS NULL"));
     }
 
     @Test

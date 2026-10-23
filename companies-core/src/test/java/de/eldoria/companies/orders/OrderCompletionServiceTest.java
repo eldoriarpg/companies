@@ -302,7 +302,7 @@ class OrderCompletionServiceTest {
         assertFalse(service.completeSolo(order).join().isPresent());
 
         assertEquals(1, SqLiteTestDatabase.count("order_payouts", "company_id IS NULL AND order_id = " + order.id()));
-        assertEquals(1, stats.retrieveSoloCompleted(alice).join());
+        assertEquals(1, orders.orderData().retrieveSoloCompletedCount(alice).join());
         assertTrue(memberStats().isEmpty());
         assertEquals(0, SqLiteTestDatabase.count("order_history", "1 = 1"));
         assertEquals(OrderState.DELIVERED, orders.reload(order).state());

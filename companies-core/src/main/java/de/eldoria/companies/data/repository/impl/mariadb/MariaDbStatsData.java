@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -124,21 +123,6 @@ public class MariaDbStatsData extends AStatsData {
                         .bind(payout.created(), time())))
                 .insert();
         return !result.hasExceptions() && result.rows() == payouts.size();
-    }
-
-    @Override
-    protected int getSoloCompleted(UUID worker) {
-        @Language("mariadb")
-        var query = """
-                SELECT COUNT(DISTINCT order_id) AS orders
-                FROM order_payouts
-                WHERE company_id IS NULL
-                  AND worker_uuid = ?""";
-        return query(query)
-                .single(call().bind(worker, UUID_BYTES))
-                .map(row -> row.getInt("orders"))
-                .first()
-                .orElse(0);
     }
 
     @Override

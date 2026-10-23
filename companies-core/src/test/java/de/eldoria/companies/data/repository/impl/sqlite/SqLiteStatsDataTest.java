@@ -278,8 +278,6 @@ class SqLiteStatsDataTest {
                 .join());
 
         Assertions.assertEquals(2, SqLiteTestDatabase.count("order_payouts", "company_id IS NULL"));
-        Assertions.assertEquals(2, stats.retrieveSoloCompleted(loner).join());
-        Assertions.assertEquals(0, stats.retrieveSoloCompleted(alice).join());
     }
 
     @Test

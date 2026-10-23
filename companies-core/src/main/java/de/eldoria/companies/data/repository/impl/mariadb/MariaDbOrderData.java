@@ -297,6 +297,21 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    protected int getSoloCompletedCount(UUID player) {
+        @Language("mariadb")
+        var query = """
+                SELECT COUNT(1) AS count
+                FROM order_states
+                WHERE solo_worker = ?
+                  AND state >= ?""";
+        return query(query)
+                .single(call().bind(player, UUID_BYTES).bind(OrderState.DELIVERED.stateId()))
+                .map(row -> row.getInt("count"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
     protected Optional<LocalDateTime> getSoloCooldown(UUID player) {
         @Language("mariadb")
         var query = """

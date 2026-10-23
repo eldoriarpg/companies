@@ -77,6 +77,8 @@ public final class PlaceholderRegistry {
         playerIds.put("player_open_orders", view -> String.valueOf(view.openOrders()));
         playerIds.put("player_order_limit", view -> String.valueOf(view.orderLimit()));
         playerIds.put("player_items_waiting", view -> String.valueOf(view.itemsWaiting()));
+        playerIds.put("player_solo_active", view -> String.valueOf(view.soloActive()));
+        playerIds.put("player_solo_completed", view -> String.valueOf(view.soloCompleted()));
         playerIds.put("player_role", view -> view.role()
                 .map(role -> translate.apply(role.translationKey()))
                 .orElse(""));

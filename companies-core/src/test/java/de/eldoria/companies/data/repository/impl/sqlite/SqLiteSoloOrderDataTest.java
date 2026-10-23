@@ -199,6 +199,22 @@ class SqLiteSoloOrderDataTest {
     }
 
     @Test
+    void deliveredAndReceivedSoloOrdersCountAsCompleted() {
+        var claimed = orders.place(0.0);
+        var delivered = orders.place(0.0);
+        var received = orders.place(0.0);
+        claim(alice, claimed, 5);
+        claim(alice, delivered, 5);
+        claim(alice, received, 5);
+        SqLiteTestDatabase.setState(delivered.id(), OrderState.DELIVERED.stateId(), 0);
+        SqLiteTestDatabase.setState(received.id(), OrderState.RECEIVED.stateId(), 0);
+
+        Assertions.assertEquals(2, orderData.retrieveSoloCompletedCount(alice).join());
+        Assertions.assertEquals(1, orderData.retrieveSoloOrderCount(alice).join());
+        Assertions.assertEquals(0, orderData.retrieveSoloCompletedCount(bob).join());
+    }
+
+    @Test
     void cooldownsAreStoredAndReplaced() {
         var first = LocalDateTime.of(2026, 5, 1, 12, 30, 0);
         var second = LocalDateTime.of(2026, 5, 2, 8, 0, 0);

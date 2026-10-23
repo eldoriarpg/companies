@@ -217,6 +217,18 @@ public abstract class AOrderData {
     protected abstract int getSoloOrderCount(UUID player);
 
     /**
+     * Counts the orders a player delivered alone, received by their owner or not.
+     *
+     * @param player the worker
+     * @return a future providing the number of delivered solo orders
+     */
+    public BukkitFutureResult<Integer> retrieveSoloCompletedCount(UUID player) {
+        return CompletableBukkitFuture.supplyAsync(() -> getSoloCompletedCount(player), VIRTUAL);
+    }
+
+    protected abstract int getSoloCompletedCount(UUID player);
+
+    /**
      * The end of the time in which a player may not claim solo orders.
      *
      * @param player the player
