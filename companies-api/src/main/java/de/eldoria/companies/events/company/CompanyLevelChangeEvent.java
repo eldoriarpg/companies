@@ -13,7 +13,9 @@ import org.jetbrains.annotations.NotNull;
 /**
  * The level of a company changed.
  * <p>
- * Fired off the main thread. Listen to {@link CompanyLevelUpEvent} or {@link CompanyLevelDownEvent} for one direction.
+ * Fired off the main thread, always as one of its subclasses. Both share this handler list, so a listener of this
+ * event receives every change. Listen to {@link CompanyLevelUpEvent} or {@link CompanyLevelDownEvent} for one
+ * direction.
  */
 public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
     /**
