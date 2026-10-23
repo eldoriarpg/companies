@@ -244,7 +244,9 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, orderCompletion, configuration),
+                    new DeliveryService(this, orderData, orderCompletion, itemReturnService, () -> configuration
+                            .orderSetting()
+                            .matching()),
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
