@@ -31,7 +31,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected List<SimpleOrder> getExpiredOrders(int hours) {
+    protected List<SimpleOrder> expiredClaims(int hours, String claimant) {
         @Language("postgresql")
         var query = """
                 SELECT o.id,
@@ -44,15 +44,16 @@ public class PostgresOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
                 WHERE last_update < now() - ((? + delivery_bonus) || ' HOUR')::INTERVAL
-                  AND company IS NOT NULL
+                  AND %s IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
-        return query(query)
+        return query(query, claimant)
                 .single(call().bind(hours).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
@@ -72,7 +73,8 @@ public class PostgresOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -99,7 +101,8 @@ public class PostgresOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -117,7 +120,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("postgresql")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
                 FROM orders o
                          LEFT JOIN (SELECT c.id, string_agg(c.material, ' ') AS materials, sum(amount) AS amount, sum(price) AS price
                                     FROM order_content c

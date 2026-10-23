@@ -6,6 +6,7 @@
 package de.eldoria.companies.components.order;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -57,9 +58,23 @@ public interface ISimpleOrder {
     /**
      * The company working on the order. Never show the company to the owner.
      *
-     * @return id of the company, or a value below 1 when no company claimed the order
+     * @return id of the company, or a value below 1 when no company claimed the order, which includes orders a player
+     *     works on alone (see {@link #soloWorker()})
      */
     int company();
+
+    /**
+     * The player working on the order alone, without a company. Never show the worker to the owner or the owner to
+     * the worker.
+     * <p>
+     * An order is claimed by a company or by a single player, never by both: while this is present,
+     * {@link #company()} is below 1.
+     *
+     * @return id of the player, or empty when a company or nobody claimed the order
+     */
+    default Optional<UUID> soloWorker() {
+        return Optional.empty();
+    }
 
     /**
      * When the state of the order last changed; while it is claimed this is when it was accepted.

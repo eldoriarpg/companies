@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -47,6 +48,19 @@ public abstract class AStatsData {
     }
 
     protected abstract boolean savePayouts(List<PayoutRecord> payouts);
+
+    /**
+     * Counts the orders a player completed alone, without a company. Orders whose payment was cancelled count as
+     * well.
+     *
+     * @param worker the player
+     * @return number of completed solo orders
+     */
+    public CompletableFuture<Integer> retrieveSoloCompleted(UUID worker) {
+        return CompletableFuture.supplyAsync(() -> getSoloCompleted(worker), executor);
+    }
+
+    protected abstract int getSoloCompleted(UUID worker);
 
     /**
      * What every worker contributed to a company, the most money earned first. Workers who left the company are

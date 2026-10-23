@@ -269,6 +269,35 @@ class SqLiteStatsDataTest {
         Assertions.assertTrue(stats.submitPayouts(List.of()).join());
     }
 
+    @Test
+    void soloPayoutsAreStoredWithoutACompany() {
+        var loner = UUID.randomUUID();
+        Assertions.assertTrue(stats.submitPayouts(List.of(
+                        payout(20, 0, loner, 8, 80, true, NOW.minusDays(1)),
+                        payout(21, 0, loner, 3, 30, false, NOW.minusDays(1))))
+                .join());
+
+        Assertions.assertEquals(2, SqLiteTestDatabase.count("order_payouts", "company_id IS NULL"));
+        Assertions.assertEquals(2, stats.retrieveSoloCompleted(loner).join());
+        Assertions.assertEquals(0, stats.retrieveSoloCompleted(alice).join());
+    }
+
+    @Test
+    void soloPayoutsCountForNoCompany() {
+        var loner = UUID.randomUUID();
+        stats.submitPayouts(List.of(payout(20, 0, alice, 500, 5000, true, NOW.minusDays(1))))
+                .join();
+        stats.submitPayouts(List.of(payout(21, 0, loner, 500, 5000, true, NOW.minusDays(1))))
+                .join();
+
+        Assertions.assertEquals(List.of(farmers, miners), ranking(TopOrder.EARNED, TimeRange.LAST_7_DAYS));
+        Assertions.assertEquals(
+                10,
+                byWorker(stats.retrieveMemberStats(miners, NOW.minusDays(7)).join())
+                        .get(alice)
+                        .items());
+    }
+
     private static Map<UUID, MemberStats> byWorker(List<MemberStats> stats) {
         return stats.stream().collect(Collectors.toMap(MemberStats::worker, Function.identity()));
     }
