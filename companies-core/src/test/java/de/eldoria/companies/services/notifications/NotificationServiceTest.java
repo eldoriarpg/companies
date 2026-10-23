@@ -8,6 +8,8 @@ package de.eldoria.companies.services.notifications;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
+import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -70,6 +72,24 @@ class NotificationServiceTest {
 
     private static NotificationArgs args() {
         return NotificationArgs.create().text("order_name", "Wood").number("order_id", 4);
+    }
+
+    @Test
+    void onlyPurgedOrdersTellTheOwnerAboutTheRemoval() throws InterruptedException {
+        var owner = UUID.randomUUID();
+        for (var reason : List.of(OrderRemovedEvent.Reason.CANCELLED, OrderRemovedEvent.Reason.ADMIN)) {
+            service.onOrderRemoved(new OrderRemovedEvent(new SimpleOrder(UUID.randomUUID(), "Wood", 0), reason));
+        }
+        service.onOrderRemoved(
+                new OrderRemovedEvent(new SimpleOrder(owner, "Wood", 0), OrderRemovedEvent.Reason.PURGED));
+
+        var deadline = System.currentTimeMillis() + 5_000;
+        while (data.all().isEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(5);
+        }
+        var entry = data.only();
+        assertEquals(owner, entry.recipient());
+        assertEquals(NotificationType.MY_ORDER_REMOVED, entry.type());
     }
 
     @Test
