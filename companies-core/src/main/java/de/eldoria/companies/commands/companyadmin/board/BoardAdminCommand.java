@@ -24,7 +24,8 @@ import java.util.logging.Level;
  * <ul>
  *     <li>{@code presets} lists the configured presets with their open orders;</li>
  *     <li>{@code reload} writes every loaded board sign again, after the presets changed and the configuration was
- *     reloaded.</li>
+ *     reloaded;</li>
+ *     <li>{@code npc} binds NPCs to boards, see {@link NpcBoardCommand}.</li>
  * </ul>
  */
 @Subcommand("board")
@@ -32,11 +33,15 @@ import java.util.logging.Level;
 public final class BoardAdminCommand {
     private final CommandDependencies deps;
 
+    @Subcommand
+    public final NpcBoardCommand npc;
+
     /**
      * @param deps what the commands need
      */
     public BoardAdminCommand(CommandDependencies deps) {
         this.deps = deps;
+        npc = new NpcBoardCommand(deps);
     }
 
     /**
