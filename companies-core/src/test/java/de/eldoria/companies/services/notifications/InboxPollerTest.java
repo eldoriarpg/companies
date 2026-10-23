@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -102,6 +103,58 @@ class InboxPollerTest {
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    @Test
+    void whileRealtimeThePollsOnlyRunInTheSafetyInterval() {
+        var pool = new ScheduledThreadPoolExecutor(1);
+        pool.setRemoveOnCancelPolicy(true);
+        var realtime = new AtomicBoolean(true);
+        var poller = poller();
+
+        try {
+            poller.start(pool, () -> settings("pollSeconds: 10"), realtime::get);
+            assertEquals(InboxPoller.SAFETY_SECONDS, poller.interval());
+
+            realtime.set(false);
+            poller.reschedule();
+
+            assertEquals(10, poller.interval());
+            assertEquals(1, pool.getQueue().size());
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void aLongerPollIntervalIsKeptWhileRealtime() {
+        assertEquals(900, InboxPoller.interval(settings("pollSeconds: 900"), true));
+        assertEquals(InboxPoller.SAFETY_SECONDS, InboxPoller.interval(settings("pollSeconds: 10"), true));
+        assertEquals(10, InboxPoller.interval(settings("pollSeconds: 10"), false));
+    }
+
+    @Test
+    void anAnnouncedEntryIsShownOnceToThePlayerOnlineHere() {
+        pending(online.getUniqueId(), NotificationType.ORDER_DELIVERED);
+        var first = poller();
+        var second = poller();
+
+        assertEquals(1, first.deliver(online.getUniqueId(), NOW));
+        assertEquals(0, second.deliver(online.getUniqueId(), NOW));
+        assertEquals(0, second.poll(NOW));
+
+        assertEquals(List.of(online.getUniqueId()), shown);
+    }
+
+    @Test
+    void anAnnouncedEntryOfAPlayerElsewhereStaysPending() {
+        var elsewhere = UUID.randomUUID();
+        pending(elsewhere, NotificationType.ORDER_DELIVERED);
+        pending(online.getUniqueId(), NotificationType.ORDER_DELIVERED);
+
+        assertEquals(0, poller().deliver(elsewhere, NOW));
+
+        assertTrue(shown.isEmpty());
     }
 
     private static NotificationSettings settings(String yaml) {

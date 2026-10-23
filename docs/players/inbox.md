@@ -12,7 +12,8 @@ offline or played on another server of the network.
 
 - **You are online.** The message shows in chat right away. Important ones, like a delivered order, also show on the
   action bar and play a sound.
-- **You are online on another server of the network.** The message arrives after a few seconds.
+- **You are online on another server of the network.** The message arrives after a few seconds, or at once when the
+  network uses Redis.
 - **You are offline.** The message waits in your inbox. When you join, you see how many unread messages you have, with
   an `[Open]` button.
 

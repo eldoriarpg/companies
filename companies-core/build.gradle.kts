@@ -16,6 +16,7 @@ dependencies {
     compileOnly(platform(libs.jackson.bom))
     compileOnly(libs.bundles.jackson)
     compileOnly(libs.bundles.database)
+    compileOnly(libs.jedis)
     compileOnly(libs.strokkcommands.annotations)
     annotationProcessor(libs.strokkcommands.processor)
 
@@ -23,4 +24,8 @@ dependencies {
     testImplementation(libs.vault)
     testImplementation(platform(libs.jackson.bom))
     testImplementation(libs.bundles.jackson)
+    testImplementation(libs.jedis)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.postgres)
 }

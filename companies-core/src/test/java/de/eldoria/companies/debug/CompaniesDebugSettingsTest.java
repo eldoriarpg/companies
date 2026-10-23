@@ -83,4 +83,24 @@ class CompaniesDebugSettingsTest {
         assertEquals("sent to *****", redaction.redact("sent to https://relay.example.org/s3cr3t"));
         assertFalse(redaction.redact(URL).contains(TOKEN));
     }
+
+    @Test
+    void redisPasswordIsMaskedInDatabaseFile() {
+        var config = """
+                storageType: POSTGRES
+                password: dbSecret
+                redis:
+                  enabled: true
+                  host: redis.internal
+                  password: "redisSecret"
+                  channelPrefix: companies
+                """;
+
+        var filtered = settings.applyFilter(config);
+
+        assertFalse(filtered.contains("dbSecret"), filtered);
+        assertFalse(filtered.contains("redisSecret"), filtered);
+        assertTrue(filtered.contains("host: redis.internal"), filtered);
+        assertTrue(filtered.contains("channelPrefix: companies"), filtered);
+    }
 }

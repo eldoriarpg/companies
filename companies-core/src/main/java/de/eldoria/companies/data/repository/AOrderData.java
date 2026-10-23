@@ -45,6 +45,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -58,6 +59,7 @@ public abstract class AOrderData {
     private final Cache<String, MaterialPrice> materialPriceCache =
             CacheBuilder.newBuilder().expireAfterAccess(1L, TimeUnit.HOURS).build();
     private final ObjectMapper mapper;
+    private volatile IntConsumer fullOrderChanged = id -> {};
 
     public AOrderData(ObjectMapper mapper) {
         this.mapper = mapper;
@@ -111,6 +113,33 @@ public abstract class AOrderData {
 
     protected void invalidateFullOrder(int id) {
         fullOrderCache.invalidate(id);
+        fullOrderChanged.accept(id);
+    }
+
+    /**
+     * Tells the listener about every order whose cached full order was dropped after a change on this node, so other
+     * nodes can drop theirs.
+     *
+     * @param listener receives the id of the changed order
+     */
+    public void onFullOrderChanged(IntConsumer listener) {
+        fullOrderChanged = listener;
+    }
+
+    /**
+     * Drops a cached full order without telling anyone, after another node changed it.
+     *
+     * @param id id of the order
+     */
+    public void forgetFullOrder(int id) {
+        fullOrderCache.invalidate(id);
+    }
+
+    /**
+     * Drops every cached full order without telling anyone, after changes of other nodes may have been missed.
+     */
+    public void forgetFullOrders() {
+        fullOrderCache.invalidateAll();
     }
 
     public CompletableFuture<List<SimpleOrder>> retrieveExpiredOrders(int hours) {

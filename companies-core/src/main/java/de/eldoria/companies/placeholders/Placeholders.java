@@ -18,6 +18,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -25,7 +26,7 @@ import java.util.function.Supplier;
  * <p>
  * The settings are read again where they are used, so a reloaded refresh interval, leaderboard size and loading text
  * apply; {@link #reload()} restarts the periodic refresh with the new interval. The size of the offline caches is read
- * once.
+ * once. Changes announced by other nodes reload the affected values at once.
  */
 public final class Placeholders {
     private static final long TICKS_PER_SECOND = 20L;
@@ -99,6 +100,45 @@ public final class Placeholders {
      */
     public void reload() {
         scheduleRefresh();
+    }
+
+    /**
+     * Reloads a company and its members, after a node changed it. Thread safe.
+     *
+     * @param company id of the company
+     */
+    public void companyChanged(int company) {
+        onMainThread(() -> {
+            companies.invalidate(company);
+            players.invalidateCompany(company);
+        });
+    }
+
+    /**
+     * Reloads a player, after a node changed the orders the player owns or works on alone. Thread safe.
+     *
+     * @param player uuid of the player
+     */
+    public void playerChanged(UUID player) {
+        onMainThread(() -> players.invalidate(player));
+    }
+
+    /**
+     * Reloads the leaderboards, after a node changed the ranking. Thread safe.
+     */
+    public void rankingChanged() {
+        onMainThread(leaderboards::refresh);
+    }
+
+    /**
+     * Reloads every value, after changes of other nodes may have been missed. Thread safe.
+     */
+    public void refreshAll() {
+        onMainThread(this::refresh);
+    }
+
+    private void onMainThread(Runnable task) {
+        if (plugin.isEnabled()) plugin.getServer().getScheduler().runTask(plugin, task);
     }
 
     private void scheduleRefresh() {

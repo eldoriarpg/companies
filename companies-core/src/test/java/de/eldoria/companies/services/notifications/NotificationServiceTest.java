@@ -151,6 +151,24 @@ class NotificationServiceTest {
     }
 
     @Test
+    void onlyPendingEntriesAreAnnounced() {
+        record Announced(long entry, UUID recipient) {}
+        List<Announced> announced = new CopyOnWriteArrayList<>();
+        service.announcePending((entry, recipient) -> announced.add(new Announced(entry, recipient)));
+        var offline = UUID.randomUUID();
+
+        service.send(online.getUniqueId(), NotificationType.ORDER_DELIVERED, args())
+                .join();
+        service.send(offline, NotificationType.ORDER_DELIVERED, args()).join();
+
+        var pending = data.all().stream()
+                .filter(entry -> entry.recipient().equals(offline))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(List.of(new Announced(pending.id(), offline)), announced);
+    }
+
+    @Test
     void mutedIsStoredDeliveredUnreadAndNotShown() {
         data.submitMuted(online.getUniqueId(), NotificationCategory.ORDERS.bit())
                 .join();

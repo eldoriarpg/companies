@@ -143,7 +143,7 @@ again. See [Levels](./levels.md).
 | `/companyadmin reload` | `companies.admin.reload` | Reads the configuration files again and applies them |
 | `/companyadmin syncconfiguration` | `companies.admin` | Copies the configuration between the primary server and the database |
 | `/companyadmin debug` | `companies.admin.debug` | Creates a debug report for support |
-| `/companyadmin node list` | `companies.admin.nodes` | Lists the servers registered in the database |
+| `/companyadmin node list` | `companies.admin.nodes` | Lists the servers registered in the database and whether they are connected to Redis |
 | `/companyadmin node remove <uid>` | `companies.admin.nodes` | Removes the entry of a server that no longer runs, after you confirm |
 
 Some settings are only read at start. `reload` does not apply them. The
@@ -152,8 +152,8 @@ Some settings are only read at start. `reload` does not apply them. The
 `syncconfiguration` only matters on [several servers](./multiserver.md#when-the-configuration-is-copied). The same goes
 for `node`, see [Old server entries](./multiserver.md#old-server-entries).
 
-`debug` creates a report with your settings, the server setup and a check of the database and the economy. Passwords
-and the Discord webhook secret are masked. See [Discord webhook](./discord-webhook.md#secrets-in-logs-and-debug-reports).
+`debug` creates a report with your settings, the server setup and a check of the database, the economy and, when
+used, Redis. Passwords and the Discord webhook secret are masked. See [Discord webhook](./discord-webhook.md#secrets-in-logs-and-debug-reports).
 
 ## The admin log
 

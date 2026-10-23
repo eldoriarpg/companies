@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.menus.company.TopMenu;
 import de.eldoria.companies.menus.company.TopView;
+import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.util.FutureCache;
 import de.eldoria.companies.util.Threading;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -41,7 +42,8 @@ import java.util.stream.Collectors;
  * the last 30 or 7 days.
  * <p>
  * Pages and the places of the viewers' companies are cached on this node for {@code top.cacheSeconds}. A reload
- * starts with empty caches of the new lifetime.
+ * starts with empty caches of the new lifetime. While the node bus is realtime, a changed ranking on any node drops
+ * them at once.
  */
 @Subcommand("top")
 @PlayerOnly
@@ -64,6 +66,12 @@ public final class TopCommand {
         this.profiles = profiles;
         createCaches();
         deps.onReload(this::createCaches);
+        deps.caches().register(NodeCaches.RANKING, key -> clearCaches());
+    }
+
+    private void clearCaches() {
+        pages.clear();
+        ranks.clear();
     }
 
     private void createCaches() {

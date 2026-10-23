@@ -11,8 +11,11 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -27,6 +30,8 @@ import java.util.function.Function;
  * Suggestions never block the server thread. A cached value is suggested at once. On a miss the value is loaded on
  * the executor and suggested when it arrives within {@link #WAIT}; otherwise the suggestions stay empty and the next
  * keystroke finds the value in the cache.
+ * <p>
+ * Every cache can be dropped at once with {@link #dropAll()}, when another node changed data behind them.
  *
  * @param <K> key, such as the player
  * @param <V> cached value
@@ -36,6 +41,9 @@ public final class SuggestionCache<K, V> {
      * How long a suggestion waits for a value that is not cached yet.
      */
     public static final Duration WAIT = Duration.ofMillis(300);
+
+    private static final Set<SuggestionCache<?, ?>> INSTANCES =
+            Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
     private final Cache<K, V> cache;
     private final Map<K, CompletableFuture<V>> loading = new ConcurrentHashMap<>();
@@ -63,6 +71,16 @@ public final class SuggestionCache<K, V> {
         this.executor = executor;
         this.loader = loader;
         this.wait = wait;
+        INSTANCES.add(this);
+    }
+
+    /**
+     * Drops every value of every suggestion cache, so the next suggestions load them again.
+     */
+    public static void dropAll() {
+        synchronized (INSTANCES) {
+            INSTANCES.forEach(SuggestionCache::invalidateAll);
+        }
     }
 
     /**
@@ -106,6 +124,13 @@ public final class SuggestionCache<K, V> {
      */
     public void invalidate(K key) {
         cache.invalidate(key);
+    }
+
+    /**
+     * Drops every value, so the next suggestions load them again.
+     */
+    public void invalidateAll() {
+        cache.invalidateAll();
     }
 
     /**

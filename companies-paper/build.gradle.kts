@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.bundles.jackson)
     bukkitLibrary(libs.bundles.database)
     bukkitLibrary(libs.bundles.sadu)
+    bukkitLibrary(libs.jedis)
 }
 
 publishData {

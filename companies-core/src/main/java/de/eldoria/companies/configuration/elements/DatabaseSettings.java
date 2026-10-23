@@ -14,6 +14,7 @@ public class DatabaseSettings {
     private String password = "pass";
     private String database = "public";
     private String schema = "public";
+    private RedisSettings redis = new RedisSettings();
 
     public DatabaseSettings() {}
 
@@ -43,6 +44,13 @@ public class DatabaseSettings {
 
     public String schema() {
         return schema;
+    }
+
+    /**
+     * @return the Redis server the nodes send each other messages through
+     */
+    public RedisSettings redis() {
+        return redis == null ? new RedisSettings() : redis;
     }
 
     public enum StorageType {

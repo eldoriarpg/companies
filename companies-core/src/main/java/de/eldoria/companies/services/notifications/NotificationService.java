@@ -51,6 +51,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -63,8 +64,9 @@ import java.util.logging.Level;
  *     <li>a muted category is stored delivered but unread: never shown live, not in the join summary, unread in the
  *     inbox;</li>
  *     <li>a recipient online on this server sees it live, which counts as read;</li>
- *     <li>otherwise it is stored pending. The {@link InboxPoller} of the server the recipient is on shows it, or their
- *     next join summary counts it.</li>
+ *     <li>otherwise it is stored pending and announced to the other servers. The server the recipient is on shows it,
+ *     at once when the node bus is realtime and otherwise with its next {@link InboxPoller} poll, or their next join
+ *     summary counts it.</li>
  * </ul>
  * Whether the recipient is online is decided on the main thread, where it is shown as well.
  */
@@ -81,6 +83,8 @@ public class NotificationService implements Listener {
     private final NotificationRenderer renderer;
     private final LiveDisplay display;
     private final Inbox inbox;
+    private volatile BiConsumer<Long, UUID> announcePending = (entry, recipient) -> {};
+    private volatile OnlinePlayers online;
 
     @Nullable
     private final Economy economy;
@@ -112,6 +116,16 @@ public class NotificationService implements Listener {
         renderer = renderer(plugin);
         inbox = new Inbox(inboxData, settings);
         economy = plugin.getServer().getServicesManager().load(Economy.class);
+        online = OnlinePlayers.of(plugin.getServer());
+    }
+
+    /**
+     * Decides from now on who counts as online on this node, instead of the players of the server.
+     *
+     * @param players the players online here
+     */
+    public void useOnlinePlayers(OnlinePlayers players) {
+        online = players;
     }
 
     /**
@@ -139,6 +153,16 @@ public class NotificationService implements Listener {
     private static NotificationRenderer renderer(Plugin plugin) {
         var localizer = ILocalizer.getPluginLocalizer(plugin);
         return new NotificationRenderer(localizer::localize);
+    }
+
+    /**
+     * Tells other nodes about every entry stored pending from now on, so the node the recipient is on can show it at
+     * once instead of with its next poll.
+     *
+     * @param announce receives the id of the entry and its recipient
+     */
+    public void announcePending(BiConsumer<Long, UUID> announce) {
+        announcePending = announce;
     }
 
     /**
@@ -209,6 +233,7 @@ public class NotificationService implements Listener {
             UUID recipient, NotificationType type, NotificationArgs args, LocalDateTime now, InboxStatus status) {
         return inboxData.submit(recipient, type, args, now, status).thenAccept(id -> {
             if (id.isEmpty()) plugin.getLogger().warning("A notification could not be stored for " + recipient);
+            if (status == InboxStatus.PENDING) id.ifPresent(entry -> announcePending.accept(entry, recipient));
         });
     }
 
@@ -221,7 +246,7 @@ public class NotificationService implements Listener {
      * @return true when it was shown
      */
     boolean showIfOnline(UUID recipient, NotificationType type, NotificationArgs args) {
-        var player = plugin.getServer().getPlayer(recipient);
+        var player = online.find(recipient);
         if (player == null) return false;
         display.show(player, type, args);
         return true;
@@ -233,11 +258,7 @@ public class NotificationService implements Listener {
      * @return their ids
      */
     CompletableFuture<List<UUID>> onlineHere() {
-        return CompletableFuture.supplyAsync(
-                () -> plugin.getServer().getOnlinePlayers().stream()
-                        .map(Player::getUniqueId)
-                        .toList(),
-                mainThread);
+        return CompletableFuture.supplyAsync(() -> online.ids(), mainThread);
     }
 
     /**
