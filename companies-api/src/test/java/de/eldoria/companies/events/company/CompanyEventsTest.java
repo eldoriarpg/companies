@@ -6,6 +6,7 @@
 package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
+import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.testing.Stubs;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -87,6 +89,33 @@ class CompanyEventsTest {
         assertSame(previous, event.previousOwner());
         assertSame(next, event.newOwner());
         assertFalse(event.byAdmin());
+    }
+
+    @Test
+    void treasuryTransactionExposesKindAmountAndActor() {
+        var actor = UUID.randomUUID();
+
+        var withdrawal = new TreasuryTransactionEvent(
+                company("Miners"), TreasuryKind.WITHDRAW, new BigDecimal("-12.50"), new BigDecimal("87.50"), actor);
+        var share = new TreasuryTransactionEvent(
+                company("Miners"), TreasuryKind.PAYOUT_SHARE, new BigDecimal("2.00"), new BigDecimal("89.50"), null);
+
+        assertEquals(TreasuryKind.WITHDRAW, withdrawal.kind());
+        assertEquals(new BigDecimal("-12.50"), withdrawal.amount());
+        assertEquals(new BigDecimal("87.50"), withdrawal.balance());
+        assertEquals(actor, withdrawal.actor().orElseThrow());
+        assertTrue(share.actor().isEmpty());
+        assertFalse(share.isAsynchronous());
+    }
+
+    @Test
+    void treasuryKindsHaveStableIds() {
+        for (var kind : TreasuryKind.values()) {
+            assertSame(kind, TreasuryKind.byId(kind.id()).orElseThrow());
+        }
+        assertEquals(8, TreasuryKind.SHARE_CHANGED.id());
+        assertTrue(TreasuryKind.byId(99).isEmpty());
+        assertEquals("enums.treasuryKind.payout_share", TreasuryKind.PAYOUT_SHARE.translationKey());
     }
 
     private static ICompanyProfile company(String name) {

@@ -22,7 +22,8 @@ public enum NotificationCategory {
     MY_ORDERS(3, false),
     PAYMENTS(4, true),
     INVITES(5, false),
-    LEVEL(6, true);
+    LEVEL(6, true),
+    ALERTS(7, true);
 
     private final int bitIndex;
     private final boolean mutable;

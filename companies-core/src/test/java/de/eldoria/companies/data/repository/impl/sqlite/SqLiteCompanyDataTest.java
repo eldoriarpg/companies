@@ -286,4 +286,30 @@ class SqLiteCompanyDataTest {
         Assertions.assertEquals(0, SqLiteTestDatabase.count("company_invites", "company_id = " + id));
         Assertions.assertEquals(0, SqLiteTestDatabase.count("company_applications", "company_id = " + id));
     }
+
+    @Test
+    void purgeRemovesTheTreasuryItsLogAndTheAlerts() {
+        var id = createCompany("Miners");
+        var other = createCompany("Farmers");
+        for (var company : new int[] {id, other}) {
+            query("INSERT INTO company_treasury(company_id, balance, payout_share) VALUES (?, 500, 10)")
+                    .single(call().bind(company))
+                    .insert();
+            query("INSERT INTO treasury_log(company_id, kind, amount, balance, created)"
+                            + " VALUES (?, 0, 500, 500, '2026-01-01 10:00:00')")
+                    .single(call().bind(company))
+                    .insert();
+            query("INSERT INTO order_alerts(company_id, name, filter, creator_uuid, created)"
+                            + " VALUES (?, 'iron', '{}', ?, '2026-01-01 10:00:00')")
+                    .single(call().bind(company).bind(UUID.randomUUID(), UUID_BYTES))
+                    .insert();
+        }
+
+        Assertions.assertTrue(companyData.submitCompanyPurge(company(id)).join());
+
+        for (var table : new String[] {"company_treasury", "treasury_log", "order_alerts"}) {
+            Assertions.assertEquals(0, SqLiteTestDatabase.count(table, "company_id = " + id), table);
+            Assertions.assertEquals(1, SqLiteTestDatabase.count(table, "company_id = " + other), table);
+        }
+    }
 }

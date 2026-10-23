@@ -8,9 +8,11 @@ package de.eldoria.companies.configuration.elements;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import de.eldoria.companies.configuration.elements.companylevel.LevelSettings;
 import de.eldoria.companies.configuration.elements.companylevel.StarterLevels;
+import de.eldoria.companies.configuration.elements.companysettings.AlertSettings;
 import de.eldoria.companies.configuration.elements.companysettings.JoiningSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.configuration.elements.companysettings.TaxSettings;
+import de.eldoria.companies.configuration.elements.companysettings.TreasurySettings;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 
 import java.util.List;
@@ -30,6 +32,8 @@ public class CompanySettings {
     private TaxSettings tax = new TaxSettings();
     private JoiningSettings joining = new JoiningSettings();
     private ProfileSettings profile = new ProfileSettings();
+    private TreasurySettings treasury = new TreasurySettings();
+    private AlertSettings alerts = new AlertSettings();
 
     public CompanySettings() {
         updateLevel();
@@ -203,5 +207,35 @@ public class CompanySettings {
      */
     public LevelSettings levelSettings(int level) {
         return level(level).orElse(CompanyLevel.DEFAULT).settings();
+    }
+
+    /**
+     * The company treasury.
+     *
+     * @return treasury settings
+     */
+    public TreasurySettings treasury() {
+        return treasury == null ? new TreasurySettings() : treasury;
+    }
+
+    /**
+     * Saved order alerts.
+     *
+     * @return alert settings
+     */
+    public AlertSettings alerts() {
+        return alerts == null ? new AlertSettings() : alerts;
+    }
+
+    /**
+     * How many order alerts a company of the given level may save: the level's limit when it has one, otherwise the
+     * global limit. Disabled alerts allow none.
+     *
+     * @param level level of the company
+     * @return alerts per company, 0 when the company may save none
+     */
+    public int maxAlerts(int level) {
+        if (!alerts().enabled()) return 0;
+        return Math.max(0, levelSettings(level).maxAlerts().orElse(alerts().maxPerCompany()));
     }
 }

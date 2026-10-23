@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -27,6 +28,8 @@ import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.SeriesService;
+import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
@@ -55,6 +58,7 @@ public final class CommandDependencies {
     private final ANodeData nodeData;
     private final AMembershipData membershipData;
     private final InformationData information;
+    private final EconomyData economy;
     private final OrderDraftService drafts;
     private final SearchSessions searches = new SearchSessions();
     private volatile Optional<Services> services = Optional.empty();
@@ -67,6 +71,7 @@ public final class CommandDependencies {
      * @param nodeData       node repository
      * @param membershipData invite and application repository
      * @param information    inbox, payout ledger and history repositories
+     * @param economy        treasury, repeating order and alert repositories
      */
     public CommandDependencies(
             Plugin plugin,
@@ -75,7 +80,8 @@ public final class CommandDependencies {
             AOrderData orderData,
             ANodeData nodeData,
             AMembershipData membershipData,
-            InformationData information) {
+            InformationData information,
+            EconomyData economy) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.companyData = companyData;
@@ -83,6 +89,7 @@ public final class CommandDependencies {
         this.nodeData = nodeData;
         this.membershipData = membershipData;
         this.information = information;
+        this.economy = economy;
         this.drafts = new OrderDraftService(plugin, orderData, configuration);
     }
 
@@ -169,6 +176,13 @@ public final class CommandDependencies {
     }
 
     /**
+     * @return treasury, repeating order and alert repositories
+     */
+    public EconomyData economy() {
+        return economy;
+    }
+
+    /**
      * @return the order drafts of the players
      */
     public OrderDraftService drafts() {
@@ -224,7 +238,8 @@ public final class CommandDependencies {
                 ready.economy(),
                 configuration,
                 ready.notificationService(),
-                ready.itemReturnService());
+                ready.itemReturnService(),
+                ready.series());
     }
 
     /**
@@ -263,6 +278,8 @@ public final class CommandDependencies {
      * @param membershipService   invites, applications and joining
      * @param orderCompletion     completes delivered orders
      * @param orderCreation       creates orders and charges their owners
+     * @param treasury            moves money into and out of company treasuries
+     * @param series              starts, stops and resumes repeating orders
      */
     public record Services(
             Economy economy,
@@ -276,5 +293,7 @@ public final class CommandDependencies {
             MenuService menus,
             MembershipService membershipService,
             OrderCompletionService orderCompletion,
-            OrderCreationService orderCreation) {}
+            OrderCreationService orderCreation,
+            TreasuryService treasury,
+            SeriesService series) {}
 }

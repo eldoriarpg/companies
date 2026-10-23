@@ -7,6 +7,7 @@ package de.eldoria.companies.services.notifications;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -215,22 +216,99 @@ public enum NotificationType {
     /**
      * An admin gave the player money. Arguments: {@code amount}.
      */
-    MONEY_GRANTED(37, "notification.moneyGranted", NotificationCategory.PAYMENTS, false, null);
+    MONEY_GRANTED(37, "notification.moneyGranted", NotificationCategory.PAYMENTS, false, null),
+    /**
+     * The player was paid for an order after tax and the company's treasury share. Arguments: {@code amount},
+     * {@code order_name}, {@code gross}, {@code tax}, {@code share}.
+     */
+    PAYMENT_SHARED(40, "notification.orderPaymentShared", NotificationCategory.PAYMENTS, false, null),
+    /**
+     * A member changed the share of payouts that goes to the treasury. Arguments: {@code player_name} (member),
+     * {@code percent}.
+     */
+    TREASURY_SHARE_CHANGED(41, "notification.treasuryShareChanged", NotificationCategory.COMPANY, false, null),
+    /**
+     * The treasury of the player's disbanded or deleted company was paid out to them. Arguments: {@code amount},
+     * {@code company_name}.
+     */
+    TREASURY_DISBAND_PAYOUT(42, "notification.treasuryDisbandPayout", NotificationCategory.COMPANY, true, null),
+    /**
+     * A repeating order posted a copy. Arguments: {@code series_name}, {@code amount} (charged), {@code copy} (number
+     * of the copy, with the count limit when there is one, such as {@code 3/5}), {@code order_id}.
+     */
+    SERIES_POSTED(
+            43,
+            "notification.seriesPosted",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order info <order_id>", "words.info")),
+    /**
+     * A repeating order holds its next copy back because the player reached the order limit. Arguments:
+     * {@code series_name}, {@code series_id}.
+     */
+    SERIES_WAITING_LIMIT(
+            44,
+            "notification.seriesWaitingLimit",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order series info <series_id>", "words.info")),
+    /**
+     * A repeating order stopped; its info shows why. Arguments: {@code series_name}, {@code series_id}.
+     */
+    SERIES_STOPPED(
+            45,
+            "notification.seriesStopped",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order series info <series_id>", "words.info")),
+    /**
+     * A repeating order posted its last copy. Arguments: {@code series_name}.
+     */
+    SERIES_FINISHED(46, "notification.seriesFinished", NotificationCategory.MY_ORDERS, false, null),
+    /**
+     * A new order matches saved alerts of the company. Arguments: {@code alert_name} (names of the matching alerts),
+     * {@code order_name}, {@code order_id}, {@code contents}, {@code amount} (price), {@code net} (after the company's
+     * tax).
+     */
+    ORDER_ALERT(
+            47,
+            "notification.orderAlert",
+            NotificationCategory.ALERTS,
+            false,
+            new Action("/company order info <order_id>", "words.view"),
+            new Action("/company order accept <order_id>", "words.accept")),
+    /**
+     * More orders matched an alert while it was rate limited. Arguments: {@code alert_name}, {@code count}.
+     */
+    ORDER_ALERT_DIGEST(
+            48,
+            "notification.orderAlertDigest",
+            NotificationCategory.ALERTS,
+            false,
+            new Action("/company alerts show <alert_name>", "words.show"));
 
     private final int id;
     private final String key;
     private final NotificationCategory category;
     private final boolean important;
 
-    @Nullable
-    private final Action action;
+    private final List<Action> actions;
 
     NotificationType(int id, String key, NotificationCategory category, boolean important, @Nullable Action action) {
         this.id = id;
         this.key = key;
         this.category = category;
         this.important = important;
-        this.action = action;
+        this.actions = action == null ? List.of() : List.of(action);
+    }
+
+    NotificationType(
+            int id, String key, NotificationCategory category, boolean important, Action first, Action second) {
+        this.id = id;
+        this.key = key;
+        this.category = category;
+        this.important = important;
+        this.actions = List.of(first, second);
     }
 
     /**
@@ -281,12 +359,12 @@ public enum NotificationType {
     }
 
     /**
-     * The button next to the message.
+     * The buttons next to the message, in the order they are shown.
      *
-     * @return the button, or empty when the message has none
+     * @return the buttons, empty when the message has none
      */
-    public Optional<Action> action() {
-        return Optional.ofNullable(action);
+    public List<Action> actions() {
+        return actions;
     }
 
     /**

@@ -65,7 +65,7 @@ class OrderBuilderMenuTest {
         messages = StyledMessageSender.register(plugin, ILocalizer.DEFAULT, StyleSettings::new);
         player = server.addPlayer();
         var controller =
-                new OrderBuilderController(new CommandDependencies(plugin, null, null, null, null, null, null));
+                new OrderBuilderController(new CommandDependencies(plugin, null, null, null, null, null, null, null));
         menu = new OrderBuilderMenu(controller, economy(), messages);
     }
 

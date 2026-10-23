@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
+import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
@@ -52,6 +53,7 @@ public final class Placeholders {
      * @param companyData   company repository
      * @param orderData     order repository
      * @param stats         statistics repository
+     * @param treasuries    treasury repository
      * @param economy       economy formatting money
      * @param localizer     localizer of the plugin
      * @return the placeholders, not yet started
@@ -62,9 +64,11 @@ public final class Placeholders {
             ACompanyData companyData,
             AOrderData orderData,
             AStatsData stats,
+            ATreasuryData treasuries,
             Economy economy,
             ILocalizer localizer) {
-        var loader = new PlaceholderLoader(plugin.getServer(), configuration, companyData, orderData, stats);
+        var loader =
+                new PlaceholderLoader(plugin.getServer(), configuration, companyData, orderData, stats, treasuries);
         return new Placeholders(plugin, configuration.placeholderSettings(), loader, economy, localizer);
     }
 

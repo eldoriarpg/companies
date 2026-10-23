@@ -34,7 +34,39 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
             int extensions,
             int deliveryBonus,
             List<OrderContent> contents) {
-        super(id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus);
+        this(id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus, 0, contents);
+    }
+
+    /**
+     * Creates a saved order with its lines that may be a copy of a repeating order.
+     *
+     * @param id            id of the order
+     * @param owner         owner of the order
+     * @param name          name of the order
+     * @param created       when the order was placed
+     * @param company       company working on the order, or 0 when none
+     * @param claimed       last state change
+     * @param state         state of the order
+     * @param fee           fee the owner paid
+     * @param extensions    how often the owner extended the purge timer
+     * @param deliveryBonus extra delivery hours of the accepting company
+     * @param seriesId      id of the repeating order that posted this copy, or 0 for a one-off order
+     * @param contents      lines of the order
+     */
+    public FullOrder(
+            int id,
+            UUID owner,
+            String name,
+            LocalDateTime created,
+            int company,
+            LocalDateTime claimed,
+            OrderState state,
+            double fee,
+            int extensions,
+            int deliveryBonus,
+            int seriesId,
+            List<OrderContent> contents) {
+        super(id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus, seriesId);
         this.contents = contents;
     }
 

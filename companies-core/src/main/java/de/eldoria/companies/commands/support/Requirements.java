@@ -27,6 +27,7 @@ public final class Requirements {
             Permission.Admin.ORDERS,
             Permission.Admin.PLAYER,
             Permission.Admin.GRANT,
+            Permission.Admin.TREASURY,
             Permission.Admin.DEBUG);
 
     private Requirements() {

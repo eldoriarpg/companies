@@ -7,6 +7,7 @@ package de.eldoria.companies.menus.order;
 
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
+import de.eldoria.companies.data.wrapper.series.RepeatInterval;
 import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.Menu;
 import de.eldoria.companies.menus.MenuActions;
@@ -15,6 +16,7 @@ import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.PriceLines;
+import de.eldoria.companies.orders.Repetition;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.dialog.DialogResponseView;
@@ -22,6 +24,7 @@ import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.input.DialogInput;
+import io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -30,6 +33,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +47,10 @@ import java.util.function.Consumer;
  * amounts and prices are suggested as {@code /order draft …} commands. As dialog, the builder has a name input and a
  * button per line, which open the add and line dialogs with amount slider and unit price input. Both renderings
  * finish with done, which works once, and cancel.
+ * <p>
+ * A player who may make orders repeat sees how the order repeats and what each copy charges. In chat the repetition is
+ * typed as {@code /order draft repeat …}; as dialog it is chosen in its own dialog with interval, copy count and end
+ * date.
  * <p>
  * Exact lines never offer the market average.
  */
@@ -67,6 +75,26 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
      * Key of the unit price input.
      */
     static final String UNIT_PRICE = "unit_price";
+
+    /**
+     * Key of the interval choice of a repeating order.
+     */
+    static final String INTERVAL = "interval";
+
+    /**
+     * Key of the copy count input of a repeating order.
+     */
+    static final String COUNT = "count";
+
+    /**
+     * Key of the end date input of a repeating order.
+     */
+    static final String UNTIL = "until";
+
+    /**
+     * Option of the interval choice for a one-off order.
+     */
+    static final String ONCE = "once";
 
     private static final String DRAFT = "/order draft";
 
@@ -109,8 +137,11 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
         for (var line : draft.lines()) {
             text.newLine().text("  ").append(chatLine(line, actions));
         }
-        return totals(text.newLine(), draft)
-                .newLine()
+        totals(text.newLine(), draft);
+        if (draft.repeatable() || draft.repetition().isPresent()) {
+            text.newLine().append(repeatChat(draft, actions));
+        }
+        return text.newLine()
                 .text("<act_done><add>[", actions.chatActionOnce("act_done", controller::done))
                 .locale("words.done")
                 .text("]</act_done>")
@@ -128,6 +159,7 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
                     case Screen.Done done -> mainDialog(player, view, actions);
                     case Screen.Add add -> addDialog(player, view, add, actions);
                     case Screen.Edit edit -> editDialog(player, view, edit, actions);
+                    case Screen.Repeat repeat -> repeatDialog(player, view, repeat, actions);
                 };
         return Optional.of(dialog);
     }
@@ -176,6 +208,39 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
                     .text("]</" + market + ">");
         }
         return text;
+    }
+
+    private MenuText repeatChat(DraftView draft, MenuActions actions) {
+        var text = repeatSummary(draft);
+        if (draft.repeatable()) {
+            text.text(" <click:suggest_command:" + DRAFT + " repeat ><modify>[")
+                    .locale("order.draft.repeat.change")
+                    .text("]</click>");
+        }
+        if (draft.repetition().isPresent()) {
+            text.text(
+                            " <act_once><remove>[",
+                            actions.chatActionOnce(
+                                    "act_once",
+                                    viewer -> change(
+                                            viewer,
+                                            current -> controller.drafts().once(current))))
+                    .locale("order.draft.repeat.once")
+                    .text("]</act_once>");
+        }
+        return text;
+    }
+
+    private MenuText repeatSummary(DraftView draft) {
+        var text = MenuText.create()
+                .text("<name>")
+                .locale("order.draft.repeat.label")
+                .text(": ");
+        if (draft.repetition().isEmpty()) return text.text("<value>").locale("order.draft.repeat.once");
+        return text.append(RepetitionTexts.summary(draft.repetition().get()))
+                .newLine()
+                .text("<name>")
+                .locale("order.draft.repeat.charge", Values.money("copy_total", economy, draft.total()));
     }
 
     private void change(Player viewer, Consumer<OrderBuilder> change) {
@@ -273,6 +338,15 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
                     (viewer, response) -> controller.apply(viewer, new Screen.Main(), (p, current) -> {
                         rename(current, response);
                         return Screen.Add.hand(controller.drafts(), p);
+                    })));
+        }
+        if (draft.repeatable()) {
+            buttons.add(actions.button(
+                    locale(player, "order.draft.repeat.change"),
+                    render(player, repeatSummary(draft)),
+                    (viewer, response) -> controller.apply(viewer, new Screen.Main(), (p, current) -> {
+                        rename(current, response);
+                        return Screen.Repeat.of(current.repetition());
                     })));
         }
         buttons.add(actions.buttonOnce(
@@ -375,6 +449,39 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
                 buttons);
     }
 
+    private Dialog repeatDialog(Player player, View view, Screen.Repeat repeat, MenuActions actions) {
+        var body = errorBody(player, view);
+        body.add(DialogBody.plainMessage(render(player, repeatSummary(view.draft()))));
+        body.add(DialogBody.plainMessage(render(player, MenuText.create().locale("order.draft.repeat.hint"))));
+        var options = List.of(
+                option(ONCE, locale(player, "order.draft.repeat.once"), repeat),
+                option(RepeatInterval.DAILY.name(), locale(player, RepeatInterval.DAILY.translationKey()), repeat),
+                option(RepeatInterval.WEEKLY.name(), locale(player, RepeatInterval.WEEKLY.translationKey()), repeat));
+        var inputs = List.<DialogInput>of(
+                DialogInput.singleOption(INTERVAL, locale(player, "order.draft.repeat.interval"), options)
+                        .build(),
+                DialogInput.text(COUNT, locale(player, "order.draft.repeat.count"))
+                        .initial(repeat.count())
+                        .build(),
+                DialogInput.text(UNTIL, locale(player, "order.draft.repeat.until"))
+                        .initial(repeat.until())
+                        .build());
+        var buttons = new ArrayList<ActionButton>();
+        buttons.add(actions.button(locale(player, "order.draft.save"), null, (viewer, response) -> {
+            var entered = repeat.entered(response);
+            controller.apply(viewer, entered, (p, current) -> {
+                entered.applyTo(controller.drafts(), p, current);
+                return new Screen.Main();
+            });
+        }));
+        buttons.add(back(player, actions));
+        return dialog(locale(player, "order.draft.repeat.title"), body, inputs, buttons);
+    }
+
+    private static SingleOptionDialogInput.OptionEntry option(String id, Component label, Screen.Repeat repeat) {
+        return SingleOptionDialogInput.OptionEntry.create(id, label, id.equalsIgnoreCase(repeat.interval()));
+    }
+
     private ActionButton back(Player player, MenuActions actions) {
         return actions.button(
                 locale(player, "order.draft.back"),
@@ -460,7 +567,7 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
     /**
      * Which dialog of the builder is shown, with what was entered into it.
      */
-    public sealed interface Screen permits Screen.Main, Screen.Add, Screen.Edit, Screen.Done {
+    public sealed interface Screen permits Screen.Main, Screen.Add, Screen.Edit, Screen.Repeat, Screen.Done {
         /**
          * The draft with its lines.
          */
@@ -564,6 +671,63 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
              */
             Edit withUnitPrice(double price) {
                 return new Edit(line, amount, DraftInput.unitPrice(price));
+            }
+        }
+
+        /**
+         * Choosing how the order repeats.
+         *
+         * @param interval chosen interval, {@link #ONCE} for a one-off order
+         * @param count    entered number of copies, blank without count limit
+         * @param until    entered end date, blank without end date
+         */
+        record Repeat(String interval, String count, String until) implements Screen {
+            /**
+             * @param repetition current repetition of the draft
+             * @return the dialog showing it
+             */
+            static Repeat of(Optional<Repetition> repetition) {
+                if (repetition.isEmpty()) return new Repeat(ONCE, "", "");
+                var current = repetition.get();
+                var count = current.count().isPresent()
+                        ? String.valueOf(current.count().getAsInt())
+                        : "";
+                var until = current.until().map(LocalDate::toString).orElse("");
+                return new Repeat(current.interval().name(), count, until);
+            }
+
+            /**
+             * @param response values of the dialog inputs
+             * @return this screen with what was entered
+             */
+            Repeat entered(DialogResponseView response) {
+                return new Repeat(
+                        Objects.requireNonNullElse(response.getText(INTERVAL), interval),
+                        Objects.requireNonNullElse(response.getText(COUNT), count),
+                        Objects.requireNonNullElse(response.getText(UNTIL), until));
+            }
+
+            /**
+             * Makes the draft repeat as entered, or a one-off order when no interval is chosen.
+             *
+             * @param drafts performs the change
+             * @param player owner of the draft
+             * @param draft  the draft
+             * @throws CommandFailure when the count or the date can not be read, or the repetition is refused
+             */
+            void applyTo(OrderDraftService drafts, Player player, OrderBuilder draft) {
+                var chosen = Repetition.interval(interval);
+                if (chosen.isEmpty()) {
+                    drafts.once(draft);
+                    return;
+                }
+                var copies = Repetition.count(count);
+                if (!count.isBlank() && copies.isEmpty()) throw CommandFailure.actionBar("error.invalidNumber");
+                var end = Repetition.date(until);
+                if (!until.isBlank() && end.isEmpty()) {
+                    throw CommandFailure.actionBar("order.draft.repeat.error.date");
+                }
+                drafts.repeat(draft, player, new Repetition(chosen.get(), copies, end));
             }
         }
     }

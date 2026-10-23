@@ -16,5 +16,9 @@ public enum OrderSource {
     /**
      * A plugin created the order through {@link de.eldoria.companies.api.OrderApi#create}.
      */
-    API
+    API,
+    /**
+     * A repeating order of a player posted its next copy. The copy is a normal order of that player.
+     */
+    REPEATING
 }

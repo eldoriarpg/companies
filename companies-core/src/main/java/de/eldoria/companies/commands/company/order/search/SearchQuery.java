@@ -6,12 +6,16 @@
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.orders.query.OrderFilter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * The order search of one player: an editable {@link OrderFilter} plus sorting and the fillable switch.
+ */
 public class SearchQuery {
     private String name;
     private List<String> materials = new ArrayList<>();
@@ -24,6 +28,35 @@ public class SearchQuery {
     private SortingType sortingType = SortingType.AGE;
     private boolean asc = true;
     private boolean fillable;
+
+    /**
+     * A search with the given filter, sorted by age.
+     *
+     * @param filter filter to start from
+     * @return new search
+     */
+    public static SearchQuery of(OrderFilter filter) {
+        var query = new SearchQuery();
+        query.name(filter.name());
+        query.materials(new ArrayList<>(filter.materials()));
+        query.anyMaterial(filter.anyMaterial());
+        query.exactMatch(filter.exactMatch());
+        query.minPrice = Math.max(0, filter.minPrice());
+        query.maxPrice = Math.max(0, filter.maxPrice());
+        query.minOrderSize = Math.max(0, filter.minSize());
+        query.maxOrderSize = Math.max(0, filter.maxSize());
+        return query;
+    }
+
+    /**
+     * The filter part of this search as it is now.
+     *
+     * @return snapshot of the filter
+     */
+    public OrderFilter filter() {
+        return new OrderFilter(
+                name, materials, anyMaterial, exactMatch, minPrice, maxPrice, minOrderSize, maxOrderSize);
+    }
 
     public void sort(List<FullOrder> orders) {
         sortingType().sort(orders, isAsc());

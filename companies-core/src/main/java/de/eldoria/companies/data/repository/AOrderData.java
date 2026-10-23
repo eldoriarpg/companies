@@ -508,7 +508,8 @@ public abstract class AOrderData {
                 OrderState.byId(row.getInt("state")),
                 row.getDouble("fee"),
                 row.getInt("extensions"),
-                row.getInt("delivery_bonus"));
+                row.getInt("delivery_bonus"),
+                row.getInt("series_id"));
     }
 
     public BukkitFutureResult<List<FullOrder>> retrieveFullOrders(List<SimpleOrder> orders) {

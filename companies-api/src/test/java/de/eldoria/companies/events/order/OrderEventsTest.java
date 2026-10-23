@@ -143,6 +143,20 @@ class OrderEventsTest {
         assertEquals(10.0, withoutCompany.tax());
         assertEquals(50.0, untaxed.gross());
         assertEquals(0.0, untaxed.tax());
+        assertEquals(0.0, withCompany.share());
+    }
+
+    @Test
+    void paymentCarriesTheTreasuryShare() {
+        var worker = server.addPlayer();
+        var order = order(UUID.randomUUID(), 7);
+        var company = Stubs.of(ICompanyProfile.class, Map.of("id", 7));
+
+        var event = new OrderPaymentEvent(order, company, worker, 81.0, 100.0, 10.0, 9.0);
+
+        assertEquals(81.0, event.amount());
+        assertEquals(10.0, event.tax());
+        assertEquals(9.0, event.share());
     }
 
     private static IFullOrder order(UUID owner, int company) {

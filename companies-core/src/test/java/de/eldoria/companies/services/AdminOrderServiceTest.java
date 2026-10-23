@@ -129,6 +129,7 @@ class AdminOrderServiceTest {
                 new RecordingNotices(notices),
                 new ItemReturnService(plugin, orders.orderData()),
                 events,
+                order -> {},
                 Logger.getAnonymousLogger(),
                 executor);
     }

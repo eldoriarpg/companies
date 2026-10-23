@@ -8,6 +8,7 @@ package de.eldoria.companies.menus.order;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.orders.OrderBuilder;
+import de.eldoria.companies.orders.Repetition;
 import net.kyori.adventure.text.Component;
 import org.bukkit.inventory.ItemStack;
 
@@ -25,25 +26,37 @@ import java.util.function.Function;
  * @param items    number of items over all lines
  * @param maxItems most items an order may have
  * @param price    price of the order, the sum of the line totals
- * @param fee      fee the owner pays on top of the price
+ * @param fee        fee the owner pays on top of the price
+ * @param repetition how the order repeats, empty for a one-off order
+ * @param repeatable whether the owner may make the order repeat
  */
 public record DraftView(
-        String name, List<Line> lines, int maxLines, int items, int maxItems, double price, double fee) {
+        String name,
+        List<Line> lines,
+        int maxLines,
+        int items,
+        int maxItems,
+        double price,
+        double fee,
+        Optional<Repetition> repetition,
+        boolean repeatable) {
     /**
-     * @param name     name of the order
-     * @param lines    lines in their order, numbered from 1
-     * @param maxLines most lines an order may have
-     * @param items    number of items over all lines
-     * @param maxItems most items an order may have
-     * @param price    price of the order, the sum of the line totals
-     * @param fee      fee the owner pays on top of the price
+     * @param name       name of the order
+     * @param lines      lines in their order, numbered from 1
+     * @param maxLines   most lines an order may have
+     * @param items      number of items over all lines
+     * @param maxItems   most items an order may have
+     * @param price      price of the order, the sum of the line totals
+     * @param fee        fee the owner pays on top of the price
+     * @param repetition how the order repeats, empty for a one-off order
+     * @param repeatable whether the owner may make the order repeat
      */
     public DraftView {
         lines = List.copyOf(lines);
     }
 
     /**
-     * Builds the view of a draft.
+     * Builds the view of a draft whose owner may make it repeat while repeating orders are enabled.
      *
      * @param draft    the draft
      * @param settings order settings providing the limits and the fee
@@ -51,6 +64,20 @@ public record DraftView(
      * @return the view
      */
     public static DraftView of(OrderBuilder draft, OrderSettings settings, Function<String, MaterialPrice> prices) {
+        return of(draft, settings, prices, true);
+    }
+
+    /**
+     * Builds the view of a draft.
+     *
+     * @param draft     draft
+     * @param settings  order settings providing the limits, the fee and whether orders may repeat
+     * @param prices    market price of a material, by its identifier
+     * @param mayRepeat whether the owner holds the permission to make orders repeat
+     * @return the view
+     */
+    public static DraftView of(
+            OrderBuilder draft, OrderSettings settings, Function<String, MaterialPrice> prices, boolean mayRepeat) {
         var lines = new ArrayList<Line>();
         var number = 1;
         for (var line : draft.lines()) {
@@ -64,7 +91,9 @@ public record DraftView(
                 draft.amount(),
                 settings.maxItems(),
                 price,
-                settings.fee().of(price));
+                settings.fee().of(price),
+                draft.repetition(),
+                mayRepeat && settings.repeating().enabled());
     }
 
     /**

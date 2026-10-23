@@ -254,6 +254,16 @@ class SqLiteStatsDataTest {
     }
 
     @Test
+    void theTreasuryShareIsStoredAndDefaultsToZero() {
+        Assertions.assertTrue(
+                stats.submitPayouts(List.of(new PayoutRecord(9, farmers, carol, 1, 100, 10, 9, 81, true, NOW)))
+                        .join());
+
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("order_payouts", "order_id = 9 AND share = 9"));
+        Assertions.assertEquals(0, SqLiteTestDatabase.count("order_payouts", "order_id <> 9 AND share <> 0"));
+    }
+
+    @Test
     void anEmptyBatchIsWritten() {
         Assertions.assertTrue(stats.submitPayouts(List.of()).join());
     }

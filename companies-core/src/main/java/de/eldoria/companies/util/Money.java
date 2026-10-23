@@ -13,6 +13,9 @@ import java.math.RoundingMode;
 
 /**
  * Rounding of money amounts. Amounts are rounded down, so rounding never creates money.
+ * <p>
+ * The treasury stores money as whole cents. Amounts enter it as values with at most two decimals, so converting them
+ * to cents and back is exact.
  */
 public final class Money {
     private Money() {}
@@ -46,6 +49,37 @@ public final class Money {
      */
     public static BigDecimal percentOf(double amount, double percent) {
         return BigDecimal.valueOf(amount).multiply(BigDecimal.valueOf(percent)).movePointLeft(2);
+    }
+
+    /**
+     * Converts an amount with at most two decimals to whole cents.
+     *
+     * @param amount amount to convert
+     * @return the amount in cents
+     * @throws ArithmeticException when the amount has more than two decimals or does not fit into a long
+     */
+    public static long toCents(BigDecimal amount) {
+        return amount.setScale(2, RoundingMode.UNNECESSARY).movePointRight(2).longValueExact();
+    }
+
+    /**
+     * Converts an amount to whole cents, rounding it down to two decimals first.
+     *
+     * @param amount amount to convert
+     * @return the amount rounded down in cents
+     */
+    public static long floorCents(double amount) {
+        return toCents(floorDecimal(amount));
+    }
+
+    /**
+     * Converts whole cents to an amount with two decimals.
+     *
+     * @param cents amount in cents
+     * @return the amount
+     */
+    public static BigDecimal fromCents(long cents) {
+        return BigDecimal.valueOf(cents, 2);
     }
 
     /**

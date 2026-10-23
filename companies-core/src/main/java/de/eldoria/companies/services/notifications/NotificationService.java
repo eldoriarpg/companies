@@ -394,7 +394,8 @@ public class NotificationService implements Listener {
     }
 
     /**
-     * Tells a worker about a payout. A taxed payout shows the share before tax, the tax and the amount paid.
+     * Tells a worker about a payout. A taxed payout shows the share before tax, the tax and the amount paid; a payout
+     * of which the company kept a treasury share shows that share as well.
      *
      * @param event payment event
      */
@@ -403,6 +404,13 @@ public class NotificationService implements Listener {
         var args = NotificationArgs.create()
                 .money("amount", format(event.amount()))
                 .text("order_name", event.order().fullName());
+        if (event.share() > 0) {
+            args.money("gross", format(event.gross()))
+                    .money("tax", format(event.tax()))
+                    .money("share", format(event.share()));
+            send(event.player().getUniqueId(), NotificationType.PAYMENT_SHARED, args);
+            return;
+        }
         if (event.tax() > 0) {
             args.money("gross", format(event.gross())).money("tax", format(event.tax()));
             send(event.player().getUniqueId(), NotificationType.PAYMENT_TAXED, args);

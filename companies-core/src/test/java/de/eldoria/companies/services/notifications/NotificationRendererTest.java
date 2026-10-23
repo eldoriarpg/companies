@@ -86,6 +86,22 @@ class NotificationRendererTest {
     }
 
     @Test
+    void everyActionGetsItsOwnButton() {
+        var text = renderer.message(
+                NotificationType.ORDER_ALERT,
+                NotificationArgs.create()
+                        .text("alert_name", "ores")
+                        .text("order_name", "Wood")
+                        .number("order_id", 42));
+
+        assertEquals(
+                List.of(
+                        ClickEvent.runCommand("/company order info 42"),
+                        ClickEvent.runCommand("/company order accept 42")),
+                clicks(render(text)));
+    }
+
+    @Test
     void theBodyHasNoButton() {
         var text = renderer.body(
                 NotificationType.MY_ORDER_DONE,

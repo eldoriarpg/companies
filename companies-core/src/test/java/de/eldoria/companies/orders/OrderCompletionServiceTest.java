@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
@@ -37,8 +38,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -55,6 +58,8 @@ class OrderCompletionServiceTest {
     private final UUID bob = UUID.randomUUID();
     private final Map<UUID, Double> paid = new ConcurrentHashMap<>();
     private final AtomicReference<Double> collected = new AtomicReference<>(0.0);
+    private final AtomicInteger sharePercent = new AtomicInteger();
+    private final List<Kept> kept = new CopyOnWriteArrayList<>();
 
     @TempDir
     Path directory;
@@ -84,6 +89,16 @@ class OrderCompletionServiceTest {
             @Override
             public void collect(double amount) {
                 collected.accumulateAndGet(amount, Double::sum);
+            }
+
+            @Override
+            public int payoutShare(ISimpleCompany company) {
+                return sharePercent.get();
+            }
+
+            @Override
+            public void keep(ISimpleCompany company, int order, long cents) {
+                kept.add(new Kept(company.id(), order, cents));
             }
         };
         service = new OrderCompletionService(
@@ -200,6 +215,50 @@ class OrderCompletionServiceTest {
         assertTrue(payments.stream().allMatch(payment -> payment.company() == PROFILE));
         assertTrue(payments.stream().allMatch(OrderPaymentEvent::isAsynchronous));
     }
+
+    @Test
+    void treasurySharesAreCreditedOncePerOrderAndWrittenToTheLedger() {
+        sharePercent.set(10);
+        var events = EventRecorder.listen(plugin, OrderPaymentEvent.class);
+
+        var completion =
+                service.complete(deliveredByAliceAndBob(), PROFILE).join().orElseThrow();
+
+        var order = completion.order().id();
+        assertEquals(List.of(new Kept(COMPANY, order, 1350)), kept);
+        assertEquals(Map.of(alice, 81.0, bob, 40.5), paid);
+        assertEquals(20.0, collected.get(), 0.001);
+        var shares = completion.payouts().stream().collect(Collectors.toMap(PayoutRecord::worker, PayoutRecord::share));
+        assertEquals(Map.of(alice, 9.0, bob, 4.5), shares);
+        assertEquals(1, SqLiteTestDatabase.count("order_payouts", "order_id = " + order + " AND share = 9.0"));
+        assertEquals(1, SqLiteTestDatabase.count("order_payouts", "order_id = " + order + " AND share = 4.5"));
+        var payments = events.of(OrderPaymentEvent.class).stream()
+                .collect(Collectors.toMap(payment -> payment.player().getUniqueId(), OrderPaymentEvent::share));
+        assertEquals(Map.of(alice, 9.0, bob, 4.5), payments);
+    }
+
+    @Test
+    void cancelledPaymentIsNotShared() {
+        sharePercent.set(10);
+        plugin.getServer().getPluginManager().registerEvents(new CancelPaymentsOf(bob), plugin);
+
+        var completion =
+                service.complete(deliveredByAliceAndBob(), PROFILE).join().orElseThrow();
+
+        assertEquals(List.of(new Kept(COMPANY, completion.order().id(), 900)), kept);
+        assertEquals(Map.of(alice, 81.0), paid);
+    }
+
+    @Test
+    void withoutShareNothingIsCredited() {
+        var completion =
+                service.complete(deliveredByAliceAndBob(), PROFILE).join().orElseThrow();
+
+        assertTrue(kept.isEmpty());
+        assertTrue(completion.payouts().stream().allMatch(payout -> payout.share() == 0.0));
+    }
+
+    private record Kept(int company, int order, long cents) {}
 
     private record CancelPaymentsOf(UUID worker) implements Listener {
         @EventHandler
