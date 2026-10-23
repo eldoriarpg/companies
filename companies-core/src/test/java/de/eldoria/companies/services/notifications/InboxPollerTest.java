@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.services.notifications;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.entity.PlayerMock;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,6 +27,10 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -71,6 +77,38 @@ class InboxPollerTest {
     private void pending(UUID player, NotificationType type) {
         data.submit(player, type, NotificationArgs.create(), NOW, InboxStatus.PENDING)
                 .join();
+    }
+
+    @Test
+    void aReloadedIntervalReschedulesThePolls() {
+        var pool = new ScheduledThreadPoolExecutor(1);
+        pool.setRemoveOnCancelPolicy(true);
+        var current = new AtomicReference<>(settings("pollSeconds: 100"));
+        var poller = poller();
+
+        try {
+            poller.start(pool, current::get);
+            poller.reschedule();
+            assertEquals(100, poller.interval());
+            assertEquals(1, pool.getQueue().size());
+
+            current.set(settings("pollSeconds: 200"));
+            poller.reschedule();
+
+            assertEquals(200, poller.interval());
+            assertEquals(1, pool.getQueue().size());
+            var next = (ScheduledFuture<?>) pool.getQueue().peek();
+            assertTrue(next.getDelay(TimeUnit.SECONDS) > 100);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private static NotificationSettings settings(String yaml) {
+        return YAMLMapper.builder()
+                .changeDefaultVisibility(visibility -> visibility.withFieldVisibility(JsonAutoDetect.Visibility.ANY))
+                .build()
+                .readValue(yaml, NotificationSettings.class);
     }
 
     @Test

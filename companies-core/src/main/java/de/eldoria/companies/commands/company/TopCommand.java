@@ -40,7 +40,8 @@ import java.util.stream.Collectors;
  * {@code /company top [page] [ordering] [range]}: the ranking of all companies, one page at a time, all time or over
  * the last 30 or 7 days.
  * <p>
- * Pages and the places of the viewers' companies are cached on this node for {@code top.cacheSeconds}.
+ * Pages and the places of the viewers' companies are cached on this node for {@code top.cacheSeconds}. A reload
+ * starts with empty caches of the new lifetime.
  */
 @Subcommand("top")
 @PlayerOnly
@@ -51,8 +52,8 @@ public final class TopCommand {
     private static final TimeRange DEFAULT_RANGE = TimeRange.ALL;
     private final CommandDependencies deps;
     private final ProfileCommand profiles;
-    private final FutureCache<PageKey, List<CompanyRank>> pages;
-    private final FutureCache<RankKey, Optional<CompanyRank>> ranks;
+    private volatile FutureCache<PageKey, List<CompanyRank>> pages;
+    private volatile FutureCache<RankKey, Optional<CompanyRank>> ranks;
 
     /**
      * @param deps     what the commands need
@@ -61,9 +62,14 @@ public final class TopCommand {
     public TopCommand(CommandDependencies deps, ProfileCommand profiles) {
         this.deps = deps;
         this.profiles = profiles;
+        createCaches();
+        deps.onReload(this::createCaches);
+    }
+
+    private void createCaches() {
         var lifetime = deps.configuration().topSettings().cache();
-        this.pages = new FutureCache<>(lifetime, CACHE_SIZE);
-        this.ranks = new FutureCache<>(lifetime, CACHE_SIZE);
+        pages = new FutureCache<>(lifetime, CACHE_SIZE);
+        ranks = new FutureCache<>(lifetime, CACHE_SIZE);
     }
 
     /**

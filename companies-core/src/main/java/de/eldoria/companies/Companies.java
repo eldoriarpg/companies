@@ -330,8 +330,9 @@ public class Companies extends EldoPlugin {
                             getLogger())
                     .start(workerPool);
         }
-        new InboxPoller(information.inbox(), notificationService, getLogger())
-                .start(workerPool, configuration.notificationSettings());
+        var inboxPoller = new InboxPoller(information.inbox(), notificationService, getLogger());
+        inboxPoller.start(workerPool, configuration::notificationSettings);
+        if (commands != null) commands.onReload(inboxPoller::reschedule);
         registerListener(expiringService);
         registerListener(levelService);
         registerListener(itemReturnService);
@@ -380,6 +381,7 @@ public class Companies extends EldoPlugin {
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();
             registerListener(placeholders.events());
+            if (commands != null) commands.onReload(placeholders::reload);
         }
     }
 

@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * A bounded cache of asynchronously loaded values that never blocks the reader.
@@ -33,18 +34,22 @@ final class StaleCache<K, V> {
     private final Cache<K, Entry<V>> cache;
     private final Map<K, CompletableFuture<Void>> loading = new ConcurrentHashMap<>();
     private final Function<K, CompletableFuture<Optional<V>>> loader;
-    private final long refreshNanos;
+    private final Supplier<Duration> refresh;
     private final Ticker ticker;
 
     /**
      * @param loader      loads the value of a key; an empty result means the key has no value
      * @param maximumSize most keys kept at once
-     * @param refresh     age after which a value is reloaded on the next read
+     * @param refresh     age after which a value is reloaded on the next read, read on every read
      * @param ticker      source of time
      */
-    StaleCache(Function<K, CompletableFuture<Optional<V>>> loader, long maximumSize, Duration refresh, Ticker ticker) {
+    StaleCache(
+            Function<K, CompletableFuture<Optional<V>>> loader,
+            long maximumSize,
+            Supplier<Duration> refresh,
+            Ticker ticker) {
         this.loader = loader;
-        this.refreshNanos = refresh.toNanos();
+        this.refresh = refresh;
         this.ticker = ticker;
         this.cache = CacheBuilder.newBuilder().maximumSize(maximumSize).build();
     }
@@ -61,7 +66,7 @@ final class StaleCache<K, V> {
             reload(key);
             return Optional.empty();
         }
-        if (ticker.read() - entry.loaded() >= refreshNanos) reload(key);
+        if (ticker.read() - entry.loaded() >= refresh.get().toNanos()) reload(key);
         return entry.value();
     }
 

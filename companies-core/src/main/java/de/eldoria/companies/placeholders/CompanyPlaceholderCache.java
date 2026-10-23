@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The placeholder values of companies, kept for the companies of cached players.
@@ -24,23 +25,25 @@ public final class CompanyPlaceholderCache {
     /**
      * @param loader      loads the values of a company; empty when the company does not exist
      * @param maximumSize most companies kept
-     * @param refresh     age after which a value is reloaded
+     * @param refresh     age after which a value is reloaded, read on every read
      */
     public CompanyPlaceholderCache(
-            Function<Integer, CompletableFuture<Optional<CompanyView>>> loader, int maximumSize, Duration refresh) {
+            Function<Integer, CompletableFuture<Optional<CompanyView>>> loader,
+            int maximumSize,
+            Supplier<Duration> refresh) {
         this(loader, maximumSize, refresh, Ticker.systemTicker());
     }
 
     /**
      * @param loader      loads the values of a company; empty when the company does not exist
      * @param maximumSize most companies kept
-     * @param refresh     age after which a value is reloaded
+     * @param refresh     age after which a value is reloaded, read on every read
      * @param ticker      source of time
      */
     public CompanyPlaceholderCache(
             Function<Integer, CompletableFuture<Optional<CompanyView>>> loader,
             int maximumSize,
-            Duration refresh,
+            Supplier<Duration> refresh,
             Ticker ticker) {
         this.cache = new StaleCache<>(loader, maximumSize, refresh, ticker);
     }

@@ -16,33 +16,46 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.function.Supplier;
 
 /**
  * The placeholder caches, the expansion and the periodic refresh, wired together.
+ * <p>
+ * The settings are read again where they are used, so a reloaded refresh interval, leaderboard size and loading text
+ * apply; {@link #reload()} restarts the periodic refresh with the new interval. The size of the offline caches is read
+ * once.
  */
 public final class Placeholders {
     private static final long TICKS_PER_SECOND = 20L;
 
     private final Plugin plugin;
-    private final PlaceholderSettings settings;
+    private final Supplier<PlaceholderSettings> settings;
     private final PlayerPlaceholderCache players;
     private final CompanyPlaceholderCache companies;
     private final LeaderboardCache leaderboards;
     private final PlaceholderRegistry registry;
+    private BukkitTask refreshTask;
 
     private Placeholders(
             Plugin plugin,
-            PlaceholderSettings settings,
+            Supplier<PlaceholderSettings> settings,
             PlaceholderLoader loader,
             Economy economy,
             ILocalizer localizer) {
         this.plugin = plugin;
         this.settings = settings;
-        this.players = new PlayerPlaceholderCache(loader::player, settings.offlineCacheSize(), settings.refresh());
-        this.companies = new CompanyPlaceholderCache(loader::company, settings.offlineCacheSize(), settings.refresh());
-        this.leaderboards = new LeaderboardCache(loader::ranking, settings.leaderboardSize());
+        var cacheSize = settings.get().offlineCacheSize();
+        this.players = new PlayerPlaceholderCache(
+                loader::player, cacheSize, () -> settings.get().refresh());
+        this.companies = new CompanyPlaceholderCache(
+                loader::company, cacheSize, () -> settings.get().refresh());
+        this.leaderboards =
+                new LeaderboardCache(loader::ranking, () -> settings.get().leaderboardSize());
         this.registry = new PlaceholderRegistry(
-                players, companies, leaderboards, economy::format, localizer::localize, settings::loadingText);
+                players, companies, leaderboards, economy::format, localizer::localize, () -> settings.get()
+                        .loadingText());
     }
 
     /**
@@ -69,7 +82,7 @@ public final class Placeholders {
             ILocalizer localizer) {
         var loader =
                 new PlaceholderLoader(plugin.getServer(), configuration, companyData, orderData, stats, treasuries);
-        return new Placeholders(plugin, configuration.placeholderSettings(), loader, economy, localizer);
+        return new Placeholders(plugin, configuration::placeholderSettings, loader, economy, localizer);
     }
 
     /**
@@ -78,8 +91,20 @@ public final class Placeholders {
     public void start() {
         new CompaniesExpansion(plugin, registry).register();
         plugin.getServer().getOnlinePlayers().stream().map(Player::getUniqueId).forEach(players::join);
-        var period = settings.refresh().toSeconds() * TICKS_PER_SECOND;
-        plugin.getServer().getScheduler().runTaskTimer(plugin, this::refresh, 1L, period);
+        scheduleRefresh();
+    }
+
+    /**
+     * Restarts the periodic refresh with the current interval, refreshing once right away.
+     */
+    public void reload() {
+        scheduleRefresh();
+    }
+
+    private void scheduleRefresh() {
+        if (refreshTask != null) refreshTask.cancel();
+        var period = settings.get().refresh().toSeconds() * TICKS_PER_SECOND;
+        refreshTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::refresh, 1L, period);
     }
 
     /**

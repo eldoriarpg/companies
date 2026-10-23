@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntSupplier;
 
 /**
  * The company rankings for every ordering and time range, as the placeholders read them.
@@ -28,13 +29,21 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class LeaderboardCache {
     private final Map<Board, Ranking> rankings = new ConcurrentHashMap<>();
     private final Loader loader;
-    private final int size;
+    private final IntSupplier size;
 
     /**
      * @param loader loads a complete ranking
      * @param size   places kept for the leaderboards
      */
     public LeaderboardCache(Loader loader, int size) {
+        this(loader, () -> size);
+    }
+
+    /**
+     * @param loader loads a complete ranking
+     * @param size   places kept for the leaderboards, read on every refresh
+     */
+    public LeaderboardCache(Loader loader, IntSupplier size) {
         this.loader = loader;
         this.size = size;
     }
@@ -50,7 +59,7 @@ public final class LeaderboardCache {
             for (var range : TimeRange.values()) {
                 var board = new Board(order, range);
                 loads.add(loader.ranking(order, range)
-                        .thenAccept(ranks -> rankings.put(board, Ranking.of(ranks, size)))
+                        .thenAccept(ranks -> rankings.put(board, Ranking.of(ranks, size.getAsInt())))
                         .exceptionally(error -> null));
             }
         }

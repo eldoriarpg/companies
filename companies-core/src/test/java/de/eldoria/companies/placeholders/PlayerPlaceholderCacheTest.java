@@ -44,7 +44,7 @@ class PlayerPlaceholderCacheTest {
     }
 
     private PlayerPlaceholderCache cache(int size) {
-        return new PlayerPlaceholderCache(this::load, size, Duration.ofMinutes(5), ticker);
+        return new PlayerPlaceholderCache(this::load, size, () -> Duration.ofMinutes(5), ticker);
     }
 
     @Test
