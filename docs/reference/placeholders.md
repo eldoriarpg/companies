@@ -43,7 +43,7 @@ These show values of the company of the player who looks at the placeholder. Wit
 | `%companies_company_level%` | Level number. | `2` | `0` |
 | `%companies_company_level_name%` | Level name from [company.yml](../admin/configuration/company-yml.md). Empty if that level no longer exists. | `Business` | empty |
 | `%companies_active_orders%` | Orders the company works on now. | `3` | `0` |
-| `%companies_company_orders%` | Completed orders, minus the penalties for expired and aborted orders. | `41` | `0` |
+| `%companies_company_orders%` | Completed orders, minus the penalties for orders that expired or were given back. | `41` | `0` |
 | `%companies_company_delivered%` | Items delivered to completed orders, all time. | `15230` | `0` |
 | `%companies_company_earned%` | Money earned with completed orders, all time, formatted by your economy plugin. | `$25,400.00` | empty |
 | `%companies_company_earned_raw%` | The same as a plain number with two decimals. | `25400.00` | empty |

@@ -13,7 +13,7 @@ Most plugins only used the events. Those keep working, with a few changes listed
 ## Update the dependency
 
 The coordinates stay the same: `de.eldoria:companies-api` from the EldoNexus repository. Change the version to
-`2.0.0`. Keep it `compileOnly`, Companies brings the API with it.
+`2.0.0`. Keep it `compileOnly`. Companies brings the API with it.
 
 ```kotlin
 repositories {

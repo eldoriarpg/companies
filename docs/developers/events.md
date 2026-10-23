@@ -49,7 +49,7 @@ Three events fire **before** an action and can stop it:
 
 - `PreCompanyCreateEvent`: a player is about to found a company.
 - `PreOrderCreateEvent`: an order is about to be created.
-- `PreOrderAcceptEvent`: a member is about to accept an order for their company.
+- `PreOrderAcceptEvent`: a member is about to claim an order for their company.
 
 They implement `CancellableWithReason`. Cancel them in one of two ways:
 
@@ -67,7 +67,7 @@ the `Rejected` result. See [Create an order](./api.md#create-an-order).
 @EventHandler
 public void onPreOrderAccept(PreOrderAcceptEvent event) {
     if (isInJail(event.player())) {
-        event.cancel(Component.text("You can not accept orders while you are in jail.", NamedTextColor.RED));
+        event.cancel(Component.text("You cannot claim orders while you are in jail.", NamedTextColor.RED));
     }
 }
 ```
@@ -151,13 +151,13 @@ An exception thrown by a `TreasuryTransactionEvent` listener is caught and logge
 |-----------------------|------------------------------------------------------------------------------------------|--------------------------|-------------|-------------|
 | `PreOrderCreateEvent` | An order is about to be created, before the owner is charged                              | Main                     | With reason | `owner()`, `draft()`, `source()` |
 | `OrderCreatedEvent`   | An order was created and saved                                                           | Either, usually off main | No          | `owner()`, `source()` |
-| `PreOrderAcceptEvent` | A member is about to accept an order for their company                                   | Either, usually off main | With reason | `company()`, `player()` (the member) |
+| `PreOrderAcceptEvent` | A member is about to claim an order for their company                                    | Either, usually off main | With reason | `company()`, `player()` (the member) |
 | `OrderAcceptEvent`    | A company claimed an order                                                               | Async                    | No          | `company()` |
 | `OrderDeliveryEvent`  | A worker delivered at least one item to an order                                         | Either, usually off main | No          | `company()`, `player()` (the worker), `deliveries()` |
 | `OrderDoneEvent`      | All items are delivered. The order is now `DELIVERED`. Fired before the workers are paid  | Async                    | No          | `company()` |
 | `OrderPaymentEvent`   | A worker is about to be paid their share of a completed order. Once per worker           | Async                    | Yes         | `company()`, `player()`, `amount()`, `gross()`, `tax()`, `share()` |
 | `OrderReceivedEvent`  | The owner received the items. The order is now `RECEIVED`                                | Either, usually off main | No          | `company()` |
-| `OrderCanceledEvent`  | A company aborted a claimed order. It is open again for other companies                  | Async                    | No          | `company()` |
+| `OrderCanceledEvent`  | A company gave a claimed order back. It is open again for other companies                | Async                    | No          | `company()` |
 | `OrderExpiredEvent`   | A company did not deliver a claimed order in time. It is open again for other companies  | Async                    | No          | `company()` |
 | `OrderRemovedEvent`   | An order was deleted before it was delivered                                             | Async                    | No          | `reason()` |
 
@@ -175,7 +175,7 @@ paid, not taxed and nothing goes to the treasury.
 | `CANCELLED`                | The owner cancelled the unclaimed order                                     |
 | `ADMIN`                    | An admin deleted the order                                                  |
 
-A claimed order that the company gives up fires `OrderCanceledEvent`. One that runs out of time fires
+A claimed order that the company gives back fires `OrderCanceledEvent`. One that runs out of time fires
 `OrderExpiredEvent`.
 
 ## Returned items
@@ -190,7 +190,7 @@ A claimed order that the company gives up fires `OrderCanceledEvent`. One that r
 
 | `ItemsReturnedEvent.Reason` | Meaning                                                                                          |
 |-----------------------------|--------------------------------------------------------------------------------------------------|
-| `ORDER_ABORTED`             | The company aborted the order. The worker gets back what they delivered                          |
+| `ORDER_ABORTED`             | The company gave the order back. The worker gets back what they delivered                        |
 | `ORDER_EXPIRED`             | The company did not deliver in time. The worker gets back what they delivered                    |
 | `COMPANY_DISBANDED`         | The company was disbanded while it worked on the order. The worker gets back what they delivered |
 | `ADMIN_RELEASE`             | An admin cancelled the order or took it away from the company                                    |

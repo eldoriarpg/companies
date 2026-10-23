@@ -44,7 +44,7 @@ Commands for players who place orders. Read [Orders](../players/orders.md) and [
 | `/order create <name>` | `companies.orders.create` | Starts a new order draft and shows the order builder. If you already have a draft, it shows that one. |
 | `/order draft name <name>` | `companies.orders.create` | Renames the draft. |
 | `/order draft add <item> <amount> <unitPrice>` | `companies.orders.create` | Adds a line. A plain material makes a material line. An item with components makes an exact line. |
-| `/order draft add hand <amount> <unitPrice>` | `companies.orders.create` | Adds the item in your main hand as an exact line. |
+| `/order draft add hand <amount> <unitPrice>` | `companies.orders.create` | Adds the item in your main hand. A plain item makes a material line. An item with components makes an exact line. |
 | `/order draft remove <line>` | `companies.orders.create` | Removes a line. |
 | `/order draft amount <line> <amount>` | `companies.orders.create` | Changes the amount of a line. |
 | `/order draft price <line> <unitPrice>` | `companies.orders.create` | Changes the price per item of a line. |
@@ -166,7 +166,7 @@ See [Order alerts](../companies/order-alerts.md) for a guide.
 | `/company history [page]` | none | member | Shows the ended orders of your company. |
 | `/company history info <entry>` | none | member | Shows one ended order of your company. |
 | `/company top [page] [ordering] [range]` | none | none | Shows the ranking of all companies. |
-| `/company returns` | none | none | Hands out items that came back to you from orders your company gave back. |
+| `/company returns` | none | none | Hands out items you delivered that came back to you, for example from an order your company gave back or that expired. |
 
 - `<category>` is one of `members`, `orders`, `payments`, `level` and `alerts`.
 - `[ordering]` is one of `orders`, `earned`, `member`, `items_delivered` and `level`. The default is `orders`.

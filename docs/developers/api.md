@@ -179,7 +179,7 @@ api.orders().create(request).whenComplete((result, error) -> {
 :::tip
 Want to write right when the server starts? Do not call a write operation in your `onEnable`. Schedule it from there
 with a short delay instead, for example `Bukkit.getScheduler().runTaskLater(plugin, task, 20)`. If it still fails
-with `ApiNotReadyException`, the server has no economy and Companies runs in failsafe mode.
+with `ApiNotReadyException`, the server has no economy and Companies runs in its safe mode.
 :::
 
 ## Several servers
@@ -300,8 +300,8 @@ not air. A line that breaks one of these rules throws an `IllegalArgumentExcepti
 **`charge`: who pays**
 
 - `charge(true)`: the owner pays the price and the order fee, like with `/order create`. Companies takes the money on
-  the main thread. An owner who cannot afford it gets the order rejected with `INSUFFICIENT_FUNDS`. If the order can
-  not be saved, the money is refunded. Cancelling and removing the order refund the owner as usual.
+  the main thread. An owner who cannot afford it gets the order rejected with `INSUFFICIENT_FUNDS`. If the order cannot
+  be saved, the money is refunded. Cancelling and removing the order refund the owner as usual.
 - `charge(false)`: the server funds the order. Nothing is taken and the fee is 0. The workers are still paid the full
   price when the order is completed, so this money is created at that point. Cancelling or removing such an order
   refunds nothing, because nothing was paid. Use this for rewards and quests.
@@ -380,6 +380,34 @@ An `ICompanyRank` has the statistics of the company plus its `rank()`, `level()`
 api.ranking().page(TopOrder.EARNED, TimeRange.LAST_7_DAYS, 1, 10).thenAccept(page ->
         page.forEach(rank -> getLogger().info(rank.rank() + ". " + rank.name())));
 ```
+
+## Data types
+
+The methods and events hand you these types. They are in `de.eldoria.companies.components` and its subpackages.
+
+| Type | What it holds |
+|---|---|
+| `ISimpleCompany` | Id, name, founding date and level of a company |
+| `ICompanyProfile` | An `ISimpleCompany` with its members, owner, description, tag, colour and `JoinMode` |
+| `ICompanyMember` | A member: the player, the company and the company permissions, with `hasPermission(...)`, `permissions()` and `isOwner()` |
+| `ICompanyStats`, `ICompanyRank` | Statistics of a company, and its place in a ranking |
+| `IMemberStats` | What one worker contributed: items, money earned and orders |
+| `ITreasury` | Balance and payout share of a treasury |
+| `ICompanyLevel` | A level from `company.yml`, with its `ILevelRequirement` and `ILevelSettings` |
+| `ISimpleOrder`, `IFullOrder` | An order without and with its lines |
+| `IOrderContent` | One line of an order, with its deliveries |
+| `IDeliveredStack` | Items one worker delivered to a line: the worker, the item and the amount |
+| `IContentPart` | How many items one worker delivered to a line, from `IOrderContent.parts()` |
+| `IOrderDraft`, `IDraftLine` | An order before it is created, as `PreOrderCreateEvent.draft()` hands it to you |
+| `IMaterialPrice` | Average, lowest and highest price paid for a material |
+
+The enums are `CompanyPermission`, `JoinMode`, `OrderState`, `OrderSource`, `TimeRange`, `TopOrder` and
+`TreasuryKind`. `HistoryOutcome` describes how an order ended in the history. No method or event of the API uses it
+yet.
+
+:::note
+`ICompanyMember.addPermission(...)` and `removePermission(...)` only change the object you hold. Nothing is saved.
+:::
 
 ## Keep orders anonymous
 
