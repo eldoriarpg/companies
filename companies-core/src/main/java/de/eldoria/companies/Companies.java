@@ -164,7 +164,7 @@ public class Companies extends EldoPlugin {
         registerCommands();
         api = CompaniesApiImpl.create(
                 this,
-                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats()),
+                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats(), economy.treasury()),
                 Threading.VIRTUAL);
         api.register(this);
     }

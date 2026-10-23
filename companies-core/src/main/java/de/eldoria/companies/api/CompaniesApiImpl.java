@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
+import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
@@ -45,7 +46,13 @@ public final class CompaniesApiImpl implements CompaniesApi {
      */
     public CompaniesApiImpl(Repositories repositories, Server server, Executor executor) {
         companies = new CompanyApiImpl(
-                repositories.companies(), repositories.stats(), writes, server.players(), server.clock(), executor);
+                repositories.companies(),
+                repositories.stats(),
+                repositories.treasuries(),
+                writes,
+                server.players(),
+                server.clock(),
+                executor);
         orders = new OrderApiImpl(repositories.orders(), writes, server.players(), server.messages(), executor);
         players = new PlayerApiImpl(repositories.orders(), writes, executor);
         ranking = new RankingApiImpl(repositories.stats(), server.clock(), executor);
@@ -121,9 +128,10 @@ public final class CompaniesApiImpl implements CompaniesApi {
      *
      * @param companies company repository
      * @param orders    order repository
-     * @param stats     statistics repository
+     * @param stats      statistics repository
+     * @param treasuries treasury repository
      */
-    public record Repositories(ACompanyData companies, AOrderData orders, AStatsData stats) {}
+    public record Repositories(ACompanyData companies, AOrderData orders, AStatsData stats, ATreasuryData treasuries) {}
 
     /**
      * What the API needs from the server.
