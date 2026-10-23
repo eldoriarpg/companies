@@ -15,6 +15,9 @@ dependencies {
         exclude("*")
     }
     implementation(project(":companies-api"))
+    implementation(project(":companies-hooks")) {
+        exclude("*")
+    }
     implementation(libs.messageblocker)
     implementation(libs.bundles.eldoria.utilities) {
         exclude("net.kyori")
@@ -45,6 +48,13 @@ pluginManifest {
     }
     optional("ProtocolLib") {
         link("https://github.com/dmulloy2/ProtocolLib")
+    }
+    optional("Citizens") {
+        link("https://citizensnpcs.co")
+    }
+    optional("FancyNpcs") {
+        modrinth("fancynpcs")
+        hangar("Oliver/FancyNpcs")
     }
 }
 
@@ -86,7 +96,7 @@ bukkit {
     version = project.version.toString()
     authors = listOf("RainbowDashLabs")
     depend = listOf("Vault")
-    softDepend = listOf("PlaceholderAPI", "ProtocolLib")
+    softDepend = listOf("PlaceholderAPI", "ProtocolLib", "Citizens", "FancyNpcs")
 
     permissions {
         register("companies.*") {
