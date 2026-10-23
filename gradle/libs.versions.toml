@@ -6,6 +6,7 @@ sadu = "2.3.9"
 paper = "1.21.11-R0.1-SNAPSHOT"
 junit = "6.1.3"
 strokkcommands = "2.3.1"
+testcontainers = "2.0.5"
 
 [libraries]
 strokkcommands-annotations = { module = "net.strokkur.commands:annotations-paper", version.ref = "strokkcommands" }
@@ -46,7 +47,8 @@ mockbukkit = "org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.116.3"
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
-testcontainers = "org.testcontainers:testcontainers:2.0.5"
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 
 gradle-spotless = "com.diffplug.spotless:spotless-plugin-gradle:8.10.4"
 gradle-publishdata = "de.chojo:publishdata:2.1.0"
