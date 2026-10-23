@@ -53,7 +53,7 @@ public final class Accept {
     @Executes
     public void accept(CommandSender sender, @SearchResultIds @IntArg(min = 0) int id) {
         var player = Senders.player(sender);
-        var messageBlocker = deps.services().messageBlocker();
+        var menus = deps.services().menus();
         var messages = deps.messages();
         var orderData = deps.orderData();
         var configuration = deps.configuration();
@@ -119,7 +119,7 @@ public final class Accept {
                         var refreshed = orderData.retrieveOrderById(id).join();
                         var claimedOrder = refreshed == null ? simpleOrder : refreshed.orElse(simpleOrder);
                         var claimed = orderData.retrieveFullOrder(claimedOrder).join();
-                        messageBlocker.unblockPlayer(player).thenRun(() -> {
+                        menus.close(player).thenRun(() -> {
                             player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
                             views.renderOrder(player, profile, companyMember, claimed);
                         });

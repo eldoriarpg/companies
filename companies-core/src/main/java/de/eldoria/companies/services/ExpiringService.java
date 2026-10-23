@@ -12,12 +12,17 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.menus.Keys;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import de.eldoria.eldoutilities.messages.MessageSender;
-import de.eldoria.eldoutilities.messages.Replacement;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -46,7 +51,18 @@ public class ExpiringService implements Runnable, Listener {
     private final ItemReturnService itemReturnService;
     private final Economy economy;
     private final NotificationService notificationService;
+    private final OrderOutcomes outcomes;
 
+    /**
+     * @param plugin              the plugin
+     * @param orderData           order repository
+     * @param companyData         company repository
+     * @param configuration       configuration of the plugin
+     * @param itemReturnService   tells workers about returned items
+     * @param economy             refunds purged orders
+     * @param notificationService warns owners
+     * @param outcomes            releases and purges orders and records their history
+     */
     public ExpiringService(
             Plugin plugin,
             AOrderData orderData,
@@ -54,7 +70,8 @@ public class ExpiringService implements Runnable, Listener {
             Configuration configuration,
             ItemReturnService itemReturnService,
             Economy economy,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            OrderOutcomes outcomes) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
@@ -63,6 +80,7 @@ public class ExpiringService implements Runnable, Listener {
         this.itemReturnService = itemReturnService;
         this.economy = economy;
         this.notificationService = notificationService;
+        this.outcomes = outcomes;
     }
 
     /**
@@ -111,18 +129,38 @@ public class ExpiringService implements Runnable, Listener {
 
     private void reportOrderExpiring(Player player, List<SimpleOrder> orders) {
         if (orders.isEmpty() || !player.isOnline()) return;
-        var composer = MessageComposer.create().localeCode("expiring.notice").newLine();
-        for (var order : orders) {
-            composer.localeCode(
-                            "expiring.element",
-                            Replacement.unparsed("name", order.fullName()),
-                            Replacement.create("duration", order.runningOutTime(configuration)))
-                    .text("<click:run_command:/company order info %s>[", order.id())
-                    .localeCode("words.info")
-                    .text("]</click>")
-                    .newLine();
+        var text = MenuText.create().locale("expiring.notice");
+        for (var index = 0; index < orders.size(); index++) {
+            text.newLine().append(expiringElement(player, orders.get(index), index));
         }
-        messageSender.sendMessage(player, composer);
+        messageSender.sendMessage(player, text);
+    }
+
+    /**
+     * One expiring order with a button opening it. The element's own text uses {@code order_name} and
+     * {@code duration}, so it is rendered on its own and inserted as a component.
+     *
+     * @param player player receiving the notice
+     * @param order  expiring order
+     * @param index  position of the order in the notice
+     * @return the line of the order
+     */
+    private MenuText expiringElement(Player player, SimpleOrder order, int index) {
+        var element = Keys.of("order", index);
+        var info = Keys.of("order", index, "info");
+        var line = MenuText.create()
+                .locale(
+                        "expiring.element",
+                        Values.text("order_name", order.fullName()),
+                        Values.text("duration", order.runningOutTime(configuration)));
+        return MenuText.create()
+                .text(
+                        "<" + element + "> <" + info + ">[",
+                        Values.component(
+                                element, messageSender.serializeMessage(player, line.build(), resolvers(line))),
+                        Values.click(info, ClickEvent.runCommand("/company order info " + order.id())))
+                .locale("words.info")
+                .text("]</" + info + ">");
     }
 
     @Override
@@ -155,28 +193,14 @@ public class ExpiringService implements Runnable, Listener {
         for (var order : orders) {
             if (!Boolean.TRUE.equals(orderData.submitPurgeWarning(order).join())) continue;
             var left = Duration.between(LocalDateTime.now(), order.claimed().plusHours(settings.maxUnclaimedHours()));
-            notificationService.sendMessage(
-                    plugin.getServer().getOfflinePlayer(order.owner()),
-                    purgeWarning(order, settings.maxExtensions()),
-                    Replacement.unparsed("order_name", order.fullName()),
-                    Replacement.create("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left)),
-                    Replacement.create("left", order.extensionsLeft(settings.maxExtensions())));
+            var args = NotificationService.orderArgs(order)
+                    .text("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left));
+            notificationService.send(order.owner(), NotificationType.MY_ORDER_PURGE_WARNING, args);
         }
     }
 
-    private String purgeWarning(SimpleOrder order, int maxExtensions) {
-        var composer = MessageComposer.create().text("<neutral>").localeCode("notification.orderPurgeWarning");
-        if (order.extensionsLeft(maxExtensions) > 0) {
-            composer.space()
-                    .text("<click:run_command:/order extend %s><modify>[", order.id())
-                    .localeCode("order.info.extend")
-                    .text("]</click>");
-        }
-        return composer.space()
-                .text("<click:suggest_command:/order raise %s ><modify>[", order.id())
-                .localeCode("order.info.raise")
-                .text("]</click>")
-                .build();
+    private static TagResolver[] resolvers(MenuText text) {
+        return text.replacements().toArray(TagResolver[]::new);
     }
 
     private void releaseExpiredOrders() {
@@ -185,7 +209,7 @@ public class ExpiringService implements Runnable, Listener {
                 .join();
 
         for (var order : expired) {
-            var workers = orderData.submitUnclaimOrder(order).join();
+            var workers = outcomes.expire(order).join();
             if (workers == null || workers.isEmpty()) continue;
             itemReturnService.notifyWorkers(workers.get());
             var profile = companyData
@@ -216,7 +240,7 @@ public class ExpiringService implements Runnable, Listener {
             if (fullOrder == null) {
                 continue;
             }
-            if (!Boolean.TRUE.equals(orderData.submitOrderPurge(order).join())) {
+            if (!Boolean.TRUE.equals(outcomes.purge(fullOrder).join())) {
                 continue;
             }
             var owner = plugin.getServer().getOfflinePlayer(order.owner());

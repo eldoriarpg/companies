@@ -5,9 +5,7 @@
  */
 package de.eldoria.companies.commands.companyadmin.level;
 
-import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.LevelNumbers;
-import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.Senders;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -18,13 +16,13 @@ import org.bukkit.command.CommandSender;
  */
 @Subcommand("info")
 public final class Info {
-    private final CommandDependencies deps;
+    private final LevelEditor editor;
 
     /**
-     * @param deps what the commands need
+     * @param editor runs the level editor
      */
-    public Info(CommandDependencies deps) {
-        this.deps = deps;
+    public Info(LevelEditor editor) {
+        this.editor = editor;
     }
 
     /**
@@ -34,11 +32,6 @@ public final class Info {
     @Executes
     public void info(CommandSender sender, @LevelNumbers int level) {
         var player = Senders.player(sender);
-        var menus = deps.services().menus();
-        var companyLevel = deps.configuration()
-                .companySettings()
-                .level(level)
-                .orElseThrow(() -> CommandFailure.actionBar("error.invalidLevel"));
-        LevelMenus.info(player, companyLevel, menus);
+        editor.info(player, editor.level(level));
     }
 }

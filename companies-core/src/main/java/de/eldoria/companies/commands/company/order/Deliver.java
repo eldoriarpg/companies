@@ -158,7 +158,7 @@ public final class Deliver {
         delivery.run(company, order).ifPresent(result -> result.thenAccept(delivered -> {
                     CompanyOrderSources.invalidate(player.getUniqueId());
                     if (delivered.orderDone()) {
-                        deps.services().messageBlocker().unblockPlayer(player);
+                        deps.services().menus().close(player);
                         return;
                     }
                     views.renderOrder(player, company, company.member(player).get(), delivered.order());

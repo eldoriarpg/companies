@@ -7,9 +7,10 @@ package de.eldoria.companies.commands;
 
 import de.eldoria.companies.commands.company.ApplicationsCommand;
 import de.eldoria.companies.commands.company.ApplyCommand;
-import de.eldoria.companies.commands.company.Chatblock;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Disband;
+import de.eldoria.companies.commands.company.HistoryCommand;
+import de.eldoria.companies.commands.company.InboxCommand;
 import de.eldoria.companies.commands.company.InviteCommand;
 import de.eldoria.companies.commands.company.InvitesCommand;
 import de.eldoria.companies.commands.company.JoinCommand;
@@ -19,7 +20,7 @@ import de.eldoria.companies.commands.company.Leave;
 import de.eldoria.companies.commands.company.Permission;
 import de.eldoria.companies.commands.company.Rename;
 import de.eldoria.companies.commands.company.Returns;
-import de.eldoria.companies.commands.company.Top;
+import de.eldoria.companies.commands.company.TopCommand;
 import de.eldoria.companies.commands.company.Transfer;
 import de.eldoria.companies.commands.company.member.MemberCommand;
 import de.eldoria.companies.commands.company.order.CompanyOrderCommand;
@@ -87,16 +88,19 @@ final class CompanyCommand {
     final Permission permission;
 
     @Subcommand
-    final Top top;
+    final TopCommand top;
 
     @Subcommand
     final Rename rename;
 
     @Subcommand
-    final Chatblock chatblock;
+    final Returns returns;
 
     @Subcommand
-    final Returns returns;
+    final InboxCommand inbox;
+
+    @Subcommand
+    final HistoryCommand history;
 
     CompanyCommand(CommandDependencies deps) {
         order = new CompanyOrderCommand(deps);
@@ -111,13 +115,14 @@ final class CompanyCommand {
         applications = new ApplicationsCommand(deps);
         joinMode = new JoinModeCommand(deps);
         kick = new Kick(deps);
-        leave = new Leave(deps);
-        transfer = new Transfer(deps);
         disband = new Disband(deps);
-        top = new Top(deps, profile);
+        leave = new Leave(deps, disband::disband);
+        transfer = new Transfer(deps);
+        top = new TopCommand(deps, profile);
         rename = new Rename(deps);
-        chatblock = new Chatblock(deps);
         returns = new Returns(deps);
+        inbox = new InboxCommand(deps);
+        history = new HistoryCommand(deps);
     }
 
     /**

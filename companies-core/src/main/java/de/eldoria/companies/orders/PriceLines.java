@@ -8,7 +8,6 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Texts;
-import de.eldoria.eldoutilities.localization.MessageComposer;
 import net.milkbowl.vault.economy.Economy;
 
 /**
@@ -17,29 +16,6 @@ import net.milkbowl.vault.economy.Economy;
  */
 public final class PriceLines {
     private PriceLines() {}
-
-    /**
-     * Adds the fee and the total below the price, when there is a fee.
-     *
-     * @param composer composer ending with the price line
-     * @param economy  economy formatting the amounts
-     * @param price    price of the order
-     * @param fee      fee of the order
-     * @return the composer
-     */
-    public static MessageComposer fee(MessageComposer composer, Economy economy, double price, double fee) {
-        if (!(fee > 0)) return composer;
-        return composer.newLine()
-                .text("<name>")
-                .localeCode("words.fee")
-                .text(": <value>%s <inactive>(", economy.format(fee))
-                .localeCode("order.fee.nonRefundable")
-                .text(")")
-                .newLine()
-                .text("<name>")
-                .localeCode("words.total")
-                .text(": <value>%s", economy.format(price + fee));
-    }
 
     /**
      * Adds the fee and the total below the price, when there is a fee, as named placeholders {@code fee} and
@@ -66,26 +42,26 @@ public final class PriceLines {
     }
 
     /**
-     * Adds the tax and the net payout below the price, when the company pays tax.
+     * Adds the tax and the net payout below the price, when the company pays tax, as named placeholders
+     * {@code order_tax}, {@code tax_percent} and {@code order_net}.
      * <p>
      * The values are for the whole price; the payout rounds each worker's share separately.
      *
-     * @param composer   composer ending with the price line
+     * @param text       text ending with the price line
      * @param economy    economy formatting the amounts
      * @param price      price of the order
      * @param taxPercent tax of the company, where 5 means 5 %
-     * @return the composer
+     * @return the text
      */
-    public static MessageComposer tax(MessageComposer composer, Economy economy, double price, double taxPercent) {
+    public static MenuText tax(MenuText text, Economy economy, double price, double taxPercent) {
         var payout = Payout.split(price, taxPercent);
-        if (!(payout.tax() > 0)) return composer;
-        return composer.newLine()
-                .text("<name>")
-                .localeCode("words.tax")
-                .text(": <value>%s (%s %%)", economy.format(payout.tax()), Texts.percent(taxPercent))
+        if (!(payout.tax() > 0)) return text;
+        return text.newLine()
+                .text(
+                        "<name><i18n:words.tax>: <value><order_tax> (<tax_percent> %)",
+                        Values.money("order_tax", economy, payout.tax()),
+                        Values.text("tax_percent", Texts.percent(taxPercent)))
                 .newLine()
-                .text("<name>")
-                .localeCode("words.net")
-                .text(": <value>%s", economy.format(payout.net()));
+                .text("<name><i18n:words.net>: <value><order_net>", Values.money("order_net", economy, payout.net()));
     }
 }

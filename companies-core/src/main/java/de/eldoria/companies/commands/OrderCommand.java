@@ -8,10 +8,12 @@ package de.eldoria.companies.commands;
 import de.eldoria.companies.commands.order.Cancel;
 import de.eldoria.companies.commands.order.Collect;
 import de.eldoria.companies.commands.order.Extend;
+import de.eldoria.companies.commands.order.HistoryCommand;
 import de.eldoria.companies.commands.order.Info;
 import de.eldoria.companies.commands.order.List;
 import de.eldoria.companies.commands.order.OrderCreateCommand;
 import de.eldoria.companies.commands.order.OrderDraftCommand;
+import de.eldoria.companies.commands.order.OwnerOrderViews;
 import de.eldoria.companies.commands.order.Raise;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.commands.support.HandleFailures;
@@ -56,16 +58,22 @@ final class OrderCommand {
     @Subcommand
     final OrderCreateCommand create;
 
+    @Subcommand
+    final HistoryCommand history;
+
     OrderCommand(CommandDependencies deps) {
-        list = new List(deps);
-        info = new Info(deps);
-        cancel = new Cancel(deps, list);
+        var views = new OwnerOrderViews(deps);
+        list = new List(deps, views);
+        info = new Info(views);
+        cancel = new Cancel(deps, views);
         receive = new Receive(deps);
         collect = new Collect(deps);
         extend = new Extend(deps);
         raise = new Raise(deps);
         draft = new OrderDraftCommand(deps);
         create = new OrderCreateCommand(deps, draft);
+        history = new HistoryCommand(deps);
+        views.bind(new OwnerOrderViews.Commands(cancel, extend, raise, receive, create));
     }
 
     /**

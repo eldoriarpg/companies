@@ -8,7 +8,7 @@ package de.eldoria.companies.services.notifications;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import de.eldoria.eldoutilities.messages.Replacement;
+import de.eldoria.companies.menus.Values;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 
 import java.util.Collections;
@@ -138,15 +138,14 @@ public final class NotificationArgs {
     }
 
     /**
-     * Resolvers inserting every argument as plain text.
+     * Placeholders inserting every argument as plain text.
      *
-     * @return one resolver per argument
+     * @return one placeholder per argument
      */
-    public TagResolver[] resolvers() {
+    public TagResolver.Single[] resolvers() {
         return args.entrySet().stream()
-                .map(entry ->
-                        Replacement.unparsed(entry.getKey(), entry.getValue().value()))
-                .toArray(TagResolver[]::new);
+                .map(entry -> Values.text(entry.getKey(), entry.getValue().value()))
+                .toArray(TagResolver.Single[]::new);
     }
 
     /**

@@ -5,20 +5,25 @@
  */
 package de.eldoria.companies.menus.company;
 
+import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
-import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.Menu;
 import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Colors;
+import de.eldoria.companies.util.ProfileColors;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 
@@ -27,12 +32,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
- * The company ranking, one page at a time, by a chosen ordering.
+ * The company ranking, one page at a time, by a chosen ordering and time range.
  * <p>
- * Every company shows its statistics when hovered and opens its profile when clicked. The orderings are buttons, the
- * one in use highlighted.
+ * Every company shows its tag in its colour, its statistics in the range when hovered and opens its profile when
+ * clicked. The orderings and ranges are buttons, the ones in use highlighted. Below the page the viewer's own company
+ * is shown with its place, or a dash when it is not ranked in the range.
  */
 public final class TopMenu implements Menu<TopView> {
     private static final DateTimeFormatter FOUNDED = DateTimeFormatter.ofPattern("dd.MM.yy");
@@ -64,7 +71,15 @@ public final class TopMenu implements Menu<TopView> {
             text.space()
                     .text(
                             "<" + key + ">" + orderingLabel(model, ordering) + "</" + key + ">",
-                            actions.chatAction(key, viewer -> navigation.show(viewer, model.page(), ordering)));
+                            actions.chatAction(key, viewer -> navigation.show(viewer, 1, ordering, model.range())));
+        }
+        text.newLine().text("<name><i18n:company.top.range>:");
+        for (var range : TimeRange.values()) {
+            var key = Keys.of("act_range", range.id());
+            text.space()
+                    .text(
+                            "<" + key + ">" + rangeLabel(model, range) + "</" + key + ">",
+                            actions.chatAction(key, viewer -> navigation.show(viewer, 1, model.ordering(), range)));
         }
         text.newLine();
         var ranks = model.ranks();
@@ -72,22 +87,22 @@ public final class TopMenu implements Menu<TopView> {
             var rank = ranks.get(i);
             var positionKey = Keys.of("rank", i, "position");
             var statsKey = Keys.of("rank", i, "stats");
+            var tagKey = Keys.of("rank", i, "tag");
             var nameKey = Keys.of("rank", i, "name");
             var openKey = Keys.of("act_rank", i);
             text.text(
-                            "<name><" + positionKey + "> | <" + openKey + "><hover:show_text:'<" + statsKey
-                                    + ">'><gold><" + nameKey + "></hover></" + openKey + ">",
+                            "<name><" + positionKey + "> | <" + openKey + "><hover:show_text:'<" + statsKey + ">'><"
+                                    + tagKey + "><gold><" + nameKey + "></hover></" + openKey + ">",
                             Values.number(positionKey, rank.rank()),
                             Values.component(statsKey, texts.of(stats(rank))),
+                            tag(tagKey, rank.tag(), rank.color()),
                             Values.text(nameKey, rank.name()),
                             actions.chatAction(openKey, viewer -> navigation.profile(viewer, rank.id())))
                     .newLine();
         }
-        return text.append(model.paging()
-                .chat(
-                        actions,
-                        viewer -> navigation.show(viewer, model.page() - 1, model.ordering()),
-                        viewer -> navigation.show(viewer, model.page() + 1, model.ordering())));
+        text.append(model.paging().chat(actions, previous(model), next(model)));
+        model.own().ifPresent(own -> text.newLine().append(ownLine(own)));
+        return text;
     }
 
     @Override
@@ -98,13 +113,20 @@ public final class TopMenu implements Menu<TopView> {
             buttons.add(actions.button(
                     texts.of(MenuText.create().text(orderingLabel(model, ordering))),
                     null,
-                    (clicker, response) -> navigation.show(clicker, model.page(), ordering)));
+                    (clicker, response) -> navigation.show(clicker, 1, ordering, model.range())));
+        }
+        for (var range : TimeRange.values()) {
+            buttons.add(actions.button(
+                    texts.of(MenuText.create().text(rangeLabel(model, range))),
+                    null,
+                    (clicker, response) -> navigation.show(clicker, 1, model.ordering(), range)));
         }
         for (var rank : model.ranks()) {
             var label = MenuText.create()
                     .text(
-                            "<name><rank_position> | <gold><rank_name>",
+                            "<name><rank_position> | <rank_tag><gold><rank_name>",
                             Values.number("rank_position", rank.rank()),
+                            tag("rank_tag", rank.tag(), rank.color()),
                             Values.text("rank_name", rank.name()));
             buttons.add(actions.button(
                     texts.of(label),
@@ -112,17 +134,17 @@ public final class TopMenu implements Menu<TopView> {
                     (clicker, response) -> navigation.profile(clicker, rank.id())));
         }
         var paging = model.paging();
-        paging.addButtons(
-                buttons,
-                actions,
-                viewer -> navigation.show(viewer, model.page() - 1, model.ordering()),
-                viewer -> navigation.show(viewer, model.page() + 1, model.ordering()));
+        paging.addButtons(buttons, actions, previous(model), next(model));
         var body = MenuText.create()
                 .text("<name><i18n:words.ordering>: <value><i18n:"
                         + model.ordering().translationKey() + ">")
                 .newLine()
+                .text("<name><i18n:company.top.range>: <value><i18n:"
+                        + model.range().translationKey() + ">")
+                .newLine()
                 .text("<name><i18n:words.page>: ")
                 .append(paging.label());
+        model.own().ifPresent(own -> body.newLine().append(ownLine(own)));
         var base = DialogBase.builder(texts.locale("company.top.ranking"))
                 .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                 .body(List.of(DialogBody.plainMessage(texts.of(body))))
@@ -133,39 +155,91 @@ public final class TopMenu implements Menu<TopView> {
     }
 
     /**
-     * The statistics of a company, shown when it is hovered.
+     * The statistics of a ranked company in the ranked time range, shown when it is hovered.
      *
-     * @param stats statistics of the company
+     * @param rank the ranked company
      * @return the text
      */
-    MenuText stats(CompanyStats stats) {
+    MenuText stats(CompanyRank rank) {
         return MenuText.create()
-                .text("<heading><company_name>", Values.text("company_name", stats.name()))
+                .text("<heading><company_name>", Values.text("company_name", rank.name()))
                 .newLine()
                 .text(
                         "<name><i18n:words.founded>: <value><founded>",
-                        Values.text("founded", FOUNDED.format(stats.founded())))
+                        Values.text("founded", FOUNDED.format(rank.founded())))
+                .newLine()
+                .text("<name><i18n:words.level>: <value><company_level>", Values.number("company_level", rank.level()))
                 .newLine()
                 .text(
                         "<name><i18n:words.member>: <value><member_count>",
-                        Values.number("member_count", stats.memberCount()))
+                        Values.number("member_count", rank.memberCount()))
                 .newLine()
                 .text(
                         "<name><i18n:words.orders>: <value><order_count>",
-                        Values.number("order_count", stats.orderCount()))
+                        Values.number("order_count", rank.orderCount()))
                 .newLine()
                 .text(
                         "<name><i18n:level.earnedMoney>: <value><earned_money>",
-                        Values.money("earned_money", economy, stats.price()))
+                        Values.money("earned_money", economy, rank.price()))
                 .newLine()
                 .text(
                         "<name><i18n:level.deliveredItems>: <value><delivered_items>",
-                        Values.number("delivered_items", stats.deliveredItems()));
+                        Values.number("delivered_items", rank.deliveredItems()));
+    }
+
+    /**
+     * The viewer's company with its place, or with a dash when it is not ranked.
+     *
+     * @param own the viewer's company
+     * @return the line
+     */
+    static MenuText ownLine(TopView.OwnCompany own) {
+        var place = own.rank().isPresent()
+                ? MenuText.create()
+                        .locale(
+                                "company.top.ownRank",
+                                Values.number("own_rank", own.rank().getAsInt()))
+                : MenuText.create().locale("company.top.notRanked");
+        return MenuText.create()
+                .text("<name><i18n:company.top.yourCompany>: ")
+                .append(place)
+                .space()
+                .text(
+                        "<own_tag><gold><own_name>",
+                        tag("own_tag", own.tag(), own.color()),
+                        Values.text("own_name", own.name()));
+    }
+
+    /**
+     * The tag of a company in its colour, followed by a space, inserted unparsed. Nothing without a tag.
+     *
+     * @param key   placeholder key
+     * @param tag   tag of the company
+     * @param color stored colour of the company
+     * @return placeholder
+     */
+    private static TagResolver.Single tag(String key, Optional<String> tag, Optional<String> color) {
+        if (tag.isEmpty()) return Values.component(key, Component.empty());
+        TextColor textColor = color.flatMap(ProfileColors::resolve).orElse(null);
+        return Values.component(key, Component.text("[" + tag.get() + "] ", textColor));
+    }
+
+    private Consumer<Player> previous(TopView model) {
+        return viewer -> navigation.show(viewer, model.page() - 1, model.ordering(), model.range());
+    }
+
+    private Consumer<Player> next(TopView model) {
+        return viewer -> navigation.show(viewer, model.page() + 1, model.ordering(), model.range());
     }
 
     private static String orderingLabel(TopView model, TopOrder ordering) {
         var style = Colors.active(model.ordering() == ordering);
         return "<" + style + ">[<i18n:" + ordering.translationKey() + ">]</" + style + ">";
+    }
+
+    private static String rangeLabel(TopView model, TimeRange range) {
+        var style = Colors.active(model.range() == range);
+        return "<" + style + ">[<i18n:" + range.translationKey() + ">]</" + style + ">";
     }
 
     /**
@@ -178,8 +252,9 @@ public final class TopMenu implements Menu<TopView> {
          * @param viewer   player who clicked
          * @param page     number of the page, from one
          * @param ordering what the companies are ranked by
+         * @param range    time range of the ranked values
          */
-        void show(Player viewer, int page, TopOrder ordering);
+        void show(Player viewer, int page, TopOrder ordering, TimeRange range);
 
         /**
          * Shows the profile of a company.

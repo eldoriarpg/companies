@@ -14,8 +14,10 @@ import de.eldoria.messageblocker.blocker.MessageBlocker;
 import io.papermc.paper.dialog.Dialog;
 import net.kyori.adventure.dialog.DialogLike;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -93,14 +95,10 @@ class MenuServiceTest {
     }
 
     /**
-     * The chat menu as the commands built it before the menu service: the close button when the chat is held, 25
-     * empty lines, then {@code Menus.show}.
+     * The chat menu as the commands built it before the menu service, without the close button: 25 empty lines, then
+     * {@code Menus.show}.
      */
     private static Component previousShow(MessageBlocker blocker, Player player, MessageComposer composer) {
-        blocker.blockPlayer(player);
-        if (blocker.isBlocked(player)) {
-            composer.newLine().text("<click:run_command:/company chatblock false><red>[x]</red></click>");
-        }
         composer.prependLines(25);
         var sender = MessageSender.getPluginMessageSender(blocker.plugin());
         var content = sender.serializeMessage(
@@ -109,24 +107,19 @@ class MenuServiceTest {
     }
 
     @Test
-    void composerRenderingEqualsPreviousMenus() {
+    void heldChatEndsWithACloseCallback() {
         var player = client(MenuMode.DIALOG_PROTOCOL);
-        var expected = previousShow(new RecordingBlocker(plugin), player, orders());
-
-        service.show(player, orders());
-
-        assertEquals(List.of(expected), blocker.sent);
-        assertTrue(blocker.isBlocked(player));
-    }
-
-    @Test
-    void menuRenderingEqualsPreviousMenus() {
-        var player = client(MenuMode.DIALOG_PROTOCOL);
-        var expected = previousShow(new RecordingBlocker(plugin), player, orders());
+        var menuText = PlainTextComponentSerializer.plainText()
+                .serialize(previousShow(MessageBlocker.dummy(plugin), player, orders()));
 
         service.show(player, new TestMenu(Optional.empty()), "model");
 
-        assertEquals(List.of(expected), blocker.sent);
+        assertTrue(blocker.isBlocked(player));
+        assertEquals(1, blocker.sent.size());
+        var sent = blocker.sent.getFirst();
+        assertEquals(
+                menuText + "\n[x]", PlainTextComponentSerializer.plainText().serialize(sent));
+        assertFalse(MiniMessage.miniMessage().serialize(sent).contains("chatblock"));
     }
 
     @Test
@@ -135,7 +128,8 @@ class MenuServiceTest {
         var expected = previousShow(MessageBlocker.dummy(plugin), player, orders());
         player.nextComponentMessage();
 
-        new MenuService(MessageBlocker.dummy(plugin), () -> MenuMode.CHAT).show(player, orders());
+        new MenuService(MessageBlocker.dummy(plugin), () -> MenuMode.CHAT)
+                .show(player, new TestMenu(Optional.empty()), "model");
 
         assertEquals(expected, player.nextComponentMessage());
         assertNull(player.nextComponentMessage());
@@ -207,7 +201,7 @@ class MenuServiceTest {
     @Test
     void closeReleasesTheChat() {
         var player = client(OLD_CLIENT);
-        service.show(player, orders());
+        service.show(player, new TestMenu(Optional.empty()), "model");
 
         service.close(player).join();
 
