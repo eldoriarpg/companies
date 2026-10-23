@@ -8,6 +8,7 @@ package de.eldoria.companies.data.repository.impl.sqlite;
 import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryLogEntry;
+import de.eldoria.companies.util.TestExecutors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +55,7 @@ class SqLiteTreasuryDataTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     private static TreasuryEntry entry(TreasuryKind kind, LocalDateTime created) {

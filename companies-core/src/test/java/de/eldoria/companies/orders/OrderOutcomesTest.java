@@ -18,6 +18,7 @@ import de.eldoria.companies.events.order.OrderReceivedEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterAll;
@@ -88,7 +89,7 @@ class OrderOutcomesTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     private List<HistoryEntry> ownerEntries() {

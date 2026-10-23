@@ -36,6 +36,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.util.TestExecutors;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -126,7 +127,7 @@ class CompaniesApiImplTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.stats.MemberStats;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventHandler;
@@ -114,7 +115,7 @@ class OrderCompletionServiceTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

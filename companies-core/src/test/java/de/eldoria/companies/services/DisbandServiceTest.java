@@ -22,6 +22,7 @@ import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.StyledMessageSender;
+import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import org.bukkit.OfflinePlayer;
@@ -103,7 +104,7 @@ class DisbandServiceTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MessageSender.unregister(plugin);
         MockBukkit.unmock();
     }

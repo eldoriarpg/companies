@@ -31,6 +31,7 @@ import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.orders.Repetition;
 import de.eldoria.companies.services.SeriesService.Decision;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventPriority;
@@ -111,7 +112,7 @@ class SeriesServiceTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

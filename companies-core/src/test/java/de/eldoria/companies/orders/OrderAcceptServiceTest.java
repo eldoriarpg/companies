@@ -16,6 +16,7 @@ import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.events.order.PreOrderAcceptEvent;
 import de.eldoria.companies.orders.OrderAcceptService.Result;
+import de.eldoria.companies.util.TestExecutors;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -70,7 +71,7 @@ class OrderAcceptServiceTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

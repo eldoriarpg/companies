@@ -26,6 +26,7 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.services.AdminOrderService.Refusal;
 import de.eldoria.companies.services.AdminOrderService.Result;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -136,7 +137,7 @@ class AdminOrderServiceTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

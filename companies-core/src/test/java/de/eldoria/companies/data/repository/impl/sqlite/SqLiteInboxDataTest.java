@@ -10,6 +10,7 @@ import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationCategory;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.TestExecutors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +52,7 @@ class SqLiteInboxDataTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     private long send(UUID recipient, NotificationType type, LocalDateTime created, InboxStatus status) {
