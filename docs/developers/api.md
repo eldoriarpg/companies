@@ -64,7 +64,7 @@ snapshot version `2.0.0-SNAPSHOT`. It holds the latest build of the main branch.
 The API is compiled with **Java 25** and against the Paper API `1.21.11`. Your plugin needs Java 25 or newer to
 compile against it. The jar comes with sources and Javadoc, so your IDE shows the documentation of every method.
 
-You can also read the Javadoc online at [docs.eldoria.de/companies/javadoc](https://docs.eldoria.de/companies/javadoc/).
+You can also read the Javadoc online at [docs.eldoria.de/companies/javadoc](pathname:///companies/javadoc/).
 
 ## Declare Companies in your plugin.yml
 
