@@ -10,8 +10,17 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.TestMappers;
+import de.eldoria.companies.data.repository.AInboxData;
+import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.repository.ANodeMessageData;
+import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeMessageData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeMessageData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.services.notifications.InboxPoller;
@@ -49,8 +58,8 @@ import java.util.logging.Logger;
 
 /**
  * One node of a test network: its own files, node settings, repositories on the shared database, notification
- * service, inbox poller and Redis bus, connected through {@link NodeConnection} as the plugin does it. All nodes run in
- * one JVM on one MockBukkit server; each node has its own set of players that count as online on it.
+ * service, inbox poller and bus, connected through {@link NodeConnection} as the plugin does it. All nodes run in one
+ * JVM on one MockBukkit server; each node has its own set of players that count as online on it.
  */
 final class NetworkNode implements AutoCloseable {
     static final RedisBus.Timings FAST =
@@ -60,12 +69,13 @@ final class NetworkNode implements AutoCloseable {
     final UUID uid;
     final boolean primary;
     final Configuration configuration;
-    final PostgresNodeData nodeData;
-    final PostgresInboxData inbox;
-    final PostgresOrderData orders;
+    final ANodeData nodeData;
+    final AInboxData inbox;
+    final AOrderData orders;
+    final ANodeMessageData messages;
     final NotificationService notifications;
     final InboxPoller poller;
-    final RedisBus bus;
+    final NodeBus bus;
     final NodeCaches caches;
     final NetworkPresence presence;
     final NodeConnection connection;
@@ -73,6 +83,7 @@ final class NetworkNode implements AutoCloseable {
     final List<Shown> shown = new CopyOnWriteArrayList<>();
     final AtomicInteger reloads = new AtomicInteger();
     final AtomicInteger cacheDrops = new AtomicInteger();
+    final List<String> probes = new CopyOnWriteArrayList<>();
 
     private final ScheduledThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(2);
     private final ExecutorService handlers = Executors.newVirtualThreadPerTaskExecutor();
@@ -95,13 +106,16 @@ final class NetworkNode implements AutoCloseable {
         Files.writeString(
                 setup.folder().resolve("node.yml"),
                 "nodeType: " + (primary ? "PRIMARY" : "SECONDARY") + "\nnodeUid: " + uid + "\n");
-        Files.writeString(setup.folder().resolve("database.yml"), "storageType: POSTGRES\n");
+        Files.writeString(
+                setup.folder().resolve("database.yml"),
+                "storageType: " + setup.dialect().name() + "\n");
         configuration = new Configuration(configPlugin(setup.folder(), logger));
-        nodeData = new PostgresNodeData(configuration.nodeSettings());
+        nodeData = setup.dialect().nodeData(configuration);
         configuration.syncConfigurations(nodeData).join();
 
-        inbox = new PostgresInboxData(handlers);
-        orders = new PostgresOrderData(handlers, TestMappers.items());
+        inbox = setup.dialect().inbox(handlers);
+        orders = setup.dialect().orders(handlers);
+        messages = setup.dialect().messages();
         plugin = MockBukkit.createMockPlugin(
                 "Node" + name + UUID.randomUUID().toString().substring(0, 8));
         StyledMessageSender.register(plugin, ILocalizer.DEFAULT, StyleSettings::new);
@@ -117,11 +131,9 @@ final class NetworkNode implements AutoCloseable {
         notifications.useOnlinePlayers(players(setup.server()));
         poller = new InboxPoller(inbox, notifications, logger);
 
-        bus = RedisBus.start(setup.redis(), uid, handlers, logger, Duration.ofSeconds(5), FAST);
+        bus = setup.bus().create(this, handlers, logger);
         caches = new NodeCaches(logger);
-        caches.register("probe", key -> {
-            if (key.isEmpty()) cacheDrops.incrementAndGet();
-        });
+        caches.register("probe", key -> key.ifPresentOrElse(probes::add, cacheDrops::incrementAndGet));
         presence = new NetworkPresence(setup.clock());
         poller.start(pool, () -> settings, bus::realtime);
         connection = NodeConnection.connect(
@@ -239,6 +251,14 @@ final class NetworkNode implements AutoCloseable {
     }
 
     /**
+     * Sends a heartbeat at once, as the node does every 30 seconds.
+     */
+    void beat() {
+        bus.publish(
+                new NodeMessage.Heartbeat(List.copyOf(online), bus.transport().id()));
+    }
+
+    /**
      * How a node is set up.
      *
      * @param name        short name for logs
@@ -246,8 +266,9 @@ final class NetworkNode implements AutoCloseable {
      * @param folder      folder of the node's files
      * @param uid         node uid
      * @param primary     true for the primary node
-     * @param redis       the Redis server and channel prefix
-     * @param pollSeconds inbox poll interval while Redis is not connected
+     * @param dialect     the database all nodes share
+     * @param bus         creates the bus of the node
+     * @param pollSeconds inbox poll interval while the bus is not realtime
      * @param clock       clock of the presence
      */
     record Setup(
@@ -256,7 +277,107 @@ final class NetworkNode implements AutoCloseable {
             Path folder,
             UUID uid,
             boolean primary,
-            RedisBus.Server redis,
+            Dialect dialect,
+            Buses bus,
             int pollSeconds,
             Clock clock) {}
+
+    /**
+     * Creates the bus of a node.
+     */
+    @FunctionalInterface
+    interface Buses {
+        /**
+         * @param node     the node, with its uid, role and message table set
+         * @param handlers runs the handlers of received messages
+         * @param logger   logger of the node
+         * @return the started bus
+         */
+        NodeBus create(NetworkNode node, ExecutorService handlers, Logger logger);
+
+        /**
+         * @param server the Redis server and channel prefix
+         * @return Redis only
+         */
+        static Buses redis(RedisBus.Server server) {
+            return (node, handlers, logger) ->
+                    RedisBus.start(server, node.uid, handlers, logger, Duration.ofSeconds(5), FAST);
+        }
+
+        /**
+         * @param timings how the message table is read and cleaned up
+         * @return low latency mode only
+         */
+        static Buses lowLatency(MessageTableBus.Timings timings) {
+            return (node, handlers, logger) ->
+                    MessageTableBus.start(node.messages, node.uid, node.primary, handlers, logger, timings);
+        }
+
+        /**
+         * @param server  the Redis server and channel prefix
+         * @param timings how the message table is read and cleaned up
+         * @return Redis with low latency mode as fallback
+         */
+        static Buses failover(RedisBus.Server server, MessageTableBus.Timings timings) {
+            return (node, handlers, logger) -> FailoverBus.start(
+                    RedisBus.start(server, node.uid, handlers, logger, Duration.ofSeconds(5), FAST),
+                    MessageTableBus.create(node.messages, node.uid, node.primary, handlers, logger, timings));
+        }
+    }
+
+    /**
+     * The repositories of one database type.
+     */
+    enum Dialect {
+        POSTGRES {
+            @Override
+            ANodeData nodeData(Configuration configuration) {
+                return new PostgresNodeData(configuration.nodeSettings());
+            }
+
+            @Override
+            AInboxData inbox(ExecutorService executor) {
+                return new PostgresInboxData(executor);
+            }
+
+            @Override
+            AOrderData orders(ExecutorService executor) {
+                return new PostgresOrderData(executor, TestMappers.items());
+            }
+
+            @Override
+            ANodeMessageData messages() {
+                return new PostgresNodeMessageData();
+            }
+        },
+        MARIADB {
+            @Override
+            ANodeData nodeData(Configuration configuration) {
+                return new MariaDbNodeData(configuration.nodeSettings());
+            }
+
+            @Override
+            AInboxData inbox(ExecutorService executor) {
+                return new MariaDbInboxData(executor);
+            }
+
+            @Override
+            AOrderData orders(ExecutorService executor) {
+                return new MariaDbOrderData(TestMappers.items());
+            }
+
+            @Override
+            ANodeMessageData messages() {
+                return new MariaDbNodeMessageData();
+            }
+        };
+
+        abstract ANodeData nodeData(Configuration configuration);
+
+        abstract AInboxData inbox(ExecutorService executor);
+
+        abstract AOrderData orders(ExecutorService executor);
+
+        abstract ANodeMessageData messages();
+    }
 }

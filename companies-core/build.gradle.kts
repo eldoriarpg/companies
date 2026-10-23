@@ -27,5 +27,7 @@ dependencies {
     testImplementation(libs.jedis)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.mariadb)
     testImplementation(libs.postgres)
+    testImplementation(libs.mariadb)
 }

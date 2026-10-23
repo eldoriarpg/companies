@@ -131,7 +131,15 @@ class NetworkIntegrationTest {
 
     private NetworkNode node(String name, UUID uid, boolean primary, RedisBus.Server redisServer, int pollSeconds) {
         var node = NetworkNode.start(new NetworkNode.Setup(
-                name, server, folder.resolve(name), uid, primary, redisServer, pollSeconds, clock));
+                name,
+                server,
+                folder.resolve(name),
+                uid,
+                primary,
+                NetworkNode.Dialect.POSTGRES,
+                NetworkNode.Buses.redis(redisServer),
+                pollSeconds,
+                clock));
         nodes.add(node);
         return node;
     }
