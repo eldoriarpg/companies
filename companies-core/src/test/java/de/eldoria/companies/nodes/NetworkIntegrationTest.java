@@ -20,6 +20,7 @@ import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.company.CompanyRenameEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.order.SoloOrderAcceptEvent;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
@@ -292,6 +293,56 @@ class NetworkIntegrationTest {
                 DELIVERY,
                 "B to read the claimed order");
         await(() -> suggestions.cached("orders").isEmpty(), DELIVERY, "the suggestions to drop");
+    }
+
+    @Test
+    void aSoloClaimOnOneNodeIsReadFreshOnTheOther() throws InterruptedException {
+        var a = primary();
+        var b = secondary();
+        List<String> dropped = new CopyOnWriteArrayList<>();
+        b.caches.register(NodeCaches.PLAYER, key -> dropped.add("player:" + key.orElse("*")));
+        b.caches.register(NodeCaches.BOARDS, key -> dropped.add("boards"));
+        var owner = SqLiteTestDatabase.player(UUID.randomUUID());
+        var worker = server.addPlayer();
+        var contents = List.of(new OrderContent(0, new ItemStack(Material.OAK_LOG), false, 16, 32.0));
+        a.orders
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "logs", 0.0).toFullOrder(contents))
+                .join();
+        var order = a.orders
+                .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .join()
+                .getFirst();
+        assertEquals(
+                OrderState.UNCLAIMED, b.orders.retrieveFullOrder(order).join().state());
+
+        assertTrue(a.orders.submitSoloClaim(worker.getUniqueId(), order, 3).join());
+        a.connection.signals().onSoloOrderAccept(new SoloOrderAcceptEvent(order, worker));
+
+        await(
+                () -> b.orders
+                                .retrieveFullOrder(b.orders
+                                        .retrieveOrderById(order.id())
+                                        .join()
+                                        .orElseThrow())
+                                .join()
+                                .state()
+                        == OrderState.CLAIMED,
+                DELIVERY,
+                "B to read the solo claim");
+        await(
+                () -> dropped.containsAll(
+                        List.of("player:" + owner.getUniqueId(), "player:" + worker.getUniqueId(), "boards")),
+                DELIVERY,
+                "the player and board caches of B to drop");
+        assertEquals(
+                List.of(order.id()),
+                b
+                        .orders
+                        .retrieveOrdersBySoloWorker(worker.getUniqueId(), OrderState.CLAIMED, OrderState.CLAIMED)
+                        .join()
+                        .stream()
+                        .map(SimpleOrder::id)
+                        .toList());
     }
 
     @Test

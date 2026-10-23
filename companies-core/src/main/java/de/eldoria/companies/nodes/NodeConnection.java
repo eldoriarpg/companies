@@ -60,6 +60,7 @@ public final class NodeConnection {
         caches.register(NodeCaches.PRICES, key -> orders.invalidateMaterialPriceCache());
         caches.register(NodeCaches.COMPANY, key -> SuggestionCache.dropAll());
         caches.register(NodeCaches.ORDER, key -> SuggestionCache.dropAll());
+        caches.register(NodeCaches.PLAYER, key -> SuggestionCache.dropAll());
 
         var inbox = parts.inbox();
         var messaging = new NodeMessaging(bus, caches, parts.presence(), parts.logger());

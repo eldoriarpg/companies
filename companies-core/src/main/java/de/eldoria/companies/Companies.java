@@ -417,13 +417,15 @@ public class Companies extends EldoPlugin {
     }
 
     /**
-     * Lets other nodes drop the cached placeholder values of companies and rankings.
+     * Lets other nodes drop the cached placeholder values of companies, players and rankings.
      *
      * @param placeholders the placeholders
      */
     private void registerPlaceholderCaches(Placeholders placeholders) {
         caches.register(NodeCaches.COMPANY, key -> key.map(Integer::parseInt)
                 .ifPresentOrElse(placeholders::companyChanged, placeholders::refreshAll));
+        caches.register(NodeCaches.PLAYER, key -> key.map(UUID::fromString)
+                .ifPresentOrElse(placeholders::playerChanged, placeholders::refreshAll));
         caches.register(NodeCaches.RANKING, key -> placeholders.rankingChanged());
     }
 

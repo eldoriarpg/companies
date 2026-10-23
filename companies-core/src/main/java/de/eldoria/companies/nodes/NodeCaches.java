@@ -27,6 +27,10 @@ public final class NodeCaches {
      */
     public static final String COMPANY = "company";
     /**
+     * Values of a single player, such as the orders they work on alone. Key: the player's uuid.
+     */
+    public static final String PLAYER = "player";
+    /**
      * Single orders. Key: the order id.
      */
     public static final String ORDER = "order";

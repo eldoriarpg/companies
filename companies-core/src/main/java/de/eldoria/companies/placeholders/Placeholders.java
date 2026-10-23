@@ -18,6 +18,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -111,6 +112,15 @@ public final class Placeholders {
             companies.invalidate(company);
             players.invalidateCompany(company);
         });
+    }
+
+    /**
+     * Reloads a player, after a node changed the orders the player owns or works on alone. Thread safe.
+     *
+     * @param player uuid of the player
+     */
+    public void playerChanged(UUID player) {
+        onMainThread(() -> players.invalidate(player));
     }
 
     /**

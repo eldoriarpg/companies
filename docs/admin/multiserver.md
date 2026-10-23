@@ -175,7 +175,7 @@ lost message only costs a short delay.
 | What | Without Redis | With Redis |
 |---|---|---|
 | Notifications for a player on another server | after up to `notifications.pollSeconds` (default `10`) | at once |
-| Placeholder values of companies and rankings | after up to `placeholders.refreshSeconds` | at once |
+| Placeholder values of companies, players (also `player_solo_*`) and rankings | after up to `placeholders.refreshSeconds` | at once |
 | `/company top` | after up to `top.cacheSeconds` | at once |
 | Open order counts on board signs | after up to `boards.refreshSeconds` | a few seconds after the change |
 | Order details, market prices and tab completions | when their cache runs out | at once |

@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.nodes;
 
+import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.events.company.CompanyCreateEvent;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyEvent;
@@ -21,22 +22,31 @@ import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.order.SoloOrderAbortEvent;
+import de.eldoria.companies.events.order.SoloOrderAcceptEvent;
+import de.eldoria.companies.events.order.SoloOrderDeliveryEvent;
+import de.eldoria.companies.events.order.SoloOrderDoneEvent;
+import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
+import de.eldoria.companies.events.order.SoloOrderReceivedEvent;
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.UUID;
+
 /**
  * Tells the other nodes about the changes made on this node, by turning the plugin's events into node messages.
  * <p>
  * Events stay node-local; only the signals cross: a changed company invalidates its cached values, order changes
- * outdate the board sign counts, completed orders and level changes outdate the rankings, and joins and quits keep
- * the presence of players current. Changed single orders are announced by the order repository itself. On the
+ * outdate the board sign counts, completed orders and level changes outdate the rankings, orders worked on alone
+ * outdate the values of their owner and worker, and joins and quits keep the presence of players current. Changed single orders are announced by the order repository itself. On the
  * {@link DatabaseBus} every message is dropped.
  */
 public final class NodeSignals implements Listener {
@@ -149,6 +159,48 @@ public final class NodeSignals implements Listener {
     public void onOrderDone(OrderDoneEvent event) {
         companyChanged(event.company().id());
         bus.publish(new RankingChanged());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderAccept(SoloOrderAcceptEvent event) {
+        soloChanged(event.order(), event.player());
+        bus.publish(new BoardsChanged());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderAbort(SoloOrderAbortEvent event) {
+        soloChanged(event.order(), event.player());
+        bus.publish(new BoardsChanged());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderExpired(SoloOrderExpiredEvent event) {
+        soloChanged(event.order(), event.player());
+        bus.publish(new BoardsChanged());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderDelivery(SoloOrderDeliveryEvent event) {
+        soloChanged(event.order(), event.player());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderDone(SoloOrderDoneEvent event) {
+        soloChanged(event.order(), event.player());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onSoloOrderReceived(SoloOrderReceivedEvent event) {
+        soloChanged(event.order(), event.player());
+    }
+
+    private void soloChanged(ISimpleOrder order, OfflinePlayer worker) {
+        playerChanged(order.owner());
+        playerChanged(worker.getUniqueId());
+    }
+
+    private void playerChanged(UUID player) {
+        bus.publish(new CacheInvalidate(NodeCaches.PLAYER, player.toString()));
     }
 
     private void companyChanged(CompanyEvent<?> event) {
