@@ -13,7 +13,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.notifications.NotificationService;
-import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.AsyncEvents;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -95,8 +95,7 @@ public class DisbandService {
             return false;
         }
         treasuryService.payOwner(company, drained);
-        Threading.mainThread(plugin)
-                .execute(() -> plugin.getServer().getPluginManager().callEvent(new CompanyDisbandEvent(company)));
+        AsyncEvents.fire(plugin, new CompanyDisbandEvent(company));
         return true;
     }
 }

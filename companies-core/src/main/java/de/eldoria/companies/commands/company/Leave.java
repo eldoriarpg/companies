@@ -14,7 +14,7 @@ import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.strokkur.commands.Executes;
@@ -132,10 +132,7 @@ public final class Leave {
             deps.companyData()
                     .submitMemberUpdate(profile.member(player).get().kick())
                     .join();
-            Threading.mainThread(deps.plugin()).execute(() -> deps.plugin()
-                    .getServer()
-                    .getPluginManager()
-                    .callEvent(new CompanyLeaveEvent(profile, player)));
+            AsyncEvents.fire(deps.plugin(), new CompanyLeaveEvent(profile, player));
             messages().sendMessage(player, "company.leave.left");
         });
     }
