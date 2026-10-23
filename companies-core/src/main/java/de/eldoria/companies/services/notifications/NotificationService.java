@@ -370,8 +370,14 @@ public class NotificationService implements Listener {
         notifyOrderOpen(event.order());
     }
 
+    /**
+     * Tells the owner that an order nobody claimed was removed. Cancelled orders are told by whoever cancelled them.
+     *
+     * @param event removal event
+     */
     @EventHandler
     public void onOrderRemoved(OrderRemovedEvent event) {
+        if (event.reason() != OrderRemovedEvent.Reason.PURGED) return;
         send(event.order().owner(), NotificationType.MY_ORDER_REMOVED, orderArgs(event.order()));
     }
 

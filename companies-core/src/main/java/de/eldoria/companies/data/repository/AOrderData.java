@@ -21,6 +21,7 @@ import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
@@ -38,7 +39,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -250,7 +250,7 @@ public abstract class AOrderData {
      */
     protected abstract boolean orderDelivered(SimpleOrder order);
 
-    public BukkitFutureResult<Optional<Set<UUID>>> submitUnclaimOrder(SimpleOrder order) {
+    public BukkitFutureResult<Optional<ReturnedItems>> submitUnclaimOrder(SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(
                 () -> {
                     var result = unclaimOrder(order);
@@ -267,9 +267,9 @@ public abstract class AOrderData {
      * them.
      *
      * @param order order to release
-     * @return the workers who got items returned, or an empty optional if the order was not claimed
+     * @return the items returned to the workers, or an empty optional if the order was not claimed
      */
-    protected abstract Optional<Set<UUID>> unclaimOrder(SimpleOrder order);
+    protected abstract Optional<ReturnedItems> unclaimOrder(SimpleOrder order);
 
     /**
      * Marks a claimed order as delivered for an admin, whether or not every item was delivered.
@@ -300,10 +300,10 @@ public abstract class AOrderData {
      * Deletes an unclaimed or claimed order for an admin.
      *
      * @param order order to delete
-     * @return a future providing the workers who got items returned (empty for an unclaimed order), or an empty
+     * @return a future providing the items returned to the workers (none for an unclaimed order), or an empty
      *     optional if the order was neither unclaimed nor claimed
      */
-    public BukkitFutureResult<Optional<Set<UUID>>> submitAdminDeletion(SimpleOrder order) {
+    public BukkitFutureResult<Optional<ReturnedItems>> submitAdminDeletion(SimpleOrder order) {
         return CompletableBukkitFuture.supplyAsync(
                 () -> {
                     var deleted = adminDelete(order);
@@ -318,9 +318,9 @@ public abstract class AOrderData {
      * to the item returns of the workers who delivered them first. Delivered and received orders are kept.
      *
      * @param order order to delete
-     * @return the workers who got items returned, or an empty optional if nothing was deleted
+     * @return the items returned to the workers, or an empty optional if nothing was deleted
      */
-    protected abstract Optional<Set<UUID>> adminDelete(SimpleOrder order);
+    protected abstract Optional<ReturnedItems> adminDelete(SimpleOrder order);
 
     /**
      * Gives a claimed order more time to be delivered.

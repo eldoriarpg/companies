@@ -12,6 +12,7 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.DeliveryPart;
 import org.bukkit.Material;
@@ -114,9 +115,13 @@ class SqLiteOrderDataTest {
         claim(order);
         addDelivery(order, 0, Material.STONE, 4);
 
-        var workers = orderData.submitUnclaimOrder(reload(order)).join();
+        var returned = orderData.submitUnclaimOrder(reload(order)).join().orElseThrow();
 
-        Assertions.assertEquals(Set.of(worker.getUniqueId()), workers.orElseThrow());
+        Assertions.assertEquals(Set.of(worker.getUniqueId()), returned.workers());
+        var stacks = returned.byWorker().get(worker.getUniqueId());
+        Assertions.assertEquals(1, stacks.size());
+        Assertions.assertEquals(Material.STONE, stacks.get(0).stack().getType());
+        Assertions.assertEquals(4, stacks.get(0).amount());
         Assertions.assertEquals(OrderState.UNCLAIMED, reload(order).state());
         Assertions.assertEquals(0, SqLiteTestDatabase.count("order_deliveries", "order_id = " + order.id()));
         var returns = orderData
@@ -545,6 +550,15 @@ class SqLiteOrderDataTest {
                 List.of(order.id()),
                 released.orders().stream().map(SimpleOrder::id).toList());
         Assertions.assertEquals(Set.of(worker.getUniqueId()), released.workers());
+        Assertions.assertEquals(
+                2,
+                released.releases()
+                        .get(0)
+                        .returned()
+                        .byWorker()
+                        .get(worker.getUniqueId())
+                        .get(0)
+                        .amount());
         Assertions.assertEquals(OrderState.UNCLAIMED, reload(untouched).state());
     }
 
@@ -809,9 +823,15 @@ class SqLiteOrderDataTest {
         claim(order);
         addDelivery(order, 0, Material.STONE, 4);
 
-        var workers = orderData.submitAdminDeletion(reload(order)).join();
+        var returned = orderData.submitAdminDeletion(reload(order)).join();
 
-        Assertions.assertEquals(Set.of(worker.getUniqueId()), workers.orElseThrow());
+        Assertions.assertEquals(
+                4,
+                returned.orElseThrow()
+                        .byWorker()
+                        .get(worker.getUniqueId())
+                        .get(0)
+                        .amount());
         Assertions.assertTrue(orderData.retrieveOrderById(order.id()).join().isEmpty());
         for (var table : List.of("order_content", "order_states", "orders")) {
             Assertions.assertEquals(0, SqLiteTestDatabase.count(table, "id = " + order.id()));
@@ -828,7 +848,8 @@ class SqLiteOrderDataTest {
         var order = createOrder(10, 5);
 
         Assertions.assertEquals(
-                Set.of(), orderData.submitAdminDeletion(reload(order)).join().orElseThrow());
+                ReturnedItems.NONE,
+                orderData.submitAdminDeletion(reload(order)).join().orElseThrow());
         Assertions.assertTrue(orderData.retrieveOrderById(order.id()).join().isEmpty());
     }
 

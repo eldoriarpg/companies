@@ -18,6 +18,9 @@ import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
+import de.eldoria.companies.events.EventRecorder;
+import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderTable;
@@ -74,11 +77,13 @@ class AdminOrderServiceTest {
     private OrderTable orders;
     private SqLiteHistoryData history;
     private AdminOrderService service;
+    private EventRecorder events;
 
     @BeforeEach
     void setUp() throws Exception {
         MockBukkit.mock();
         var plugin = MockBukkit.createMockPlugin();
+        events = EventRecorder.listen(plugin, ItemsReturnedEvent.class);
         SqLiteTestDatabase.create(directory);
         executor = Executors.newFixedThreadPool(8);
         orders = OrderTable.create();
@@ -122,6 +127,8 @@ class AdminOrderServiceTest {
                 recorder,
                 funds,
                 new RecordingNotices(notices),
+                new ItemReturnService(plugin, orders.orderData()),
+                events,
                 Logger.getAnonymousLogger(),
                 executor);
     }
@@ -219,9 +226,70 @@ class AdminOrderServiceTest {
         assertEquals(5, returned(bob));
         assertEquals(List.of(HistoryOutcome.UNCLAIMED_BY_ADMIN), companyOutcomes());
         assertTrue(ownerOutcomes().isEmpty());
-        assertEquals(List.of("company unclaimed " + COMPANY, "owner reopened", "returned 2"), notices);
+        assertEquals(List.of("company unclaimed " + COMPANY, "owner reopened"), notices);
         assertTrue(refunded.isEmpty());
         assertTrue(paid.isEmpty());
+    }
+
+    @Test
+    void unclaimReportsTheReturnedItemsOfEveryWorker() {
+        var order = claimedWithDeliveries();
+
+        done(service.unclaim(order.id()).join());
+
+        var returned = events.of(ItemsReturnedEvent.class);
+        assertEquals(2, returned.size());
+        var byPlayer = returned.stream()
+                .collect(Collectors.toMap(event -> event.player().getUniqueId(), event -> event));
+        assertReturned(byPlayer.get(alice), order, Material.STONE, 4);
+        assertReturned(byPlayer.get(bob), order, Material.DIRT, 5);
+        assertTrue(events.of(OrderRemovedEvent.class).isEmpty());
+    }
+
+    @Test
+    void cancelOfClaimedOrderFiresTheRemovalAndTheReturns() {
+        var order = claimedWithDeliveries();
+
+        done(service.cancel(order.id(), false).join());
+
+        var removed = events.single(OrderRemovedEvent.class);
+        assertEquals(OrderRemovedEvent.Reason.ADMIN, removed.reason());
+        assertEquals(order.id(), removed.order().id());
+        assertTrue(removed.isAsynchronous());
+        assertEquals(2, events.of(ItemsReturnedEvent.class).size());
+    }
+
+    @Test
+    void cancelOfOpenOrderReturnsNoItems() {
+        var order = orders.place(FEE);
+
+        done(service.cancel(order.id(), true).join());
+
+        assertEquals(
+                OrderRemovedEvent.Reason.ADMIN,
+                events.single(OrderRemovedEvent.class).reason());
+        assertTrue(events.of(ItemsReturnedEvent.class).isEmpty());
+    }
+
+    @Test
+    void refusedActionsFireNothing() {
+        var order = claimedWithDeliveries();
+        orders.state(order, OrderState.DELIVERED, COMPANY);
+
+        refused(Refusal.NOT_OPEN, service.cancel(order.id(), true).join());
+        refused(Refusal.NOT_CLAIMED, service.unclaim(order.id()).join());
+
+        assertTrue(events.of(OrderRemovedEvent.class).isEmpty());
+        assertTrue(events.of(ItemsReturnedEvent.class).isEmpty());
+    }
+
+    private static void assertReturned(ItemsReturnedEvent event, SimpleOrder order, Material material, int amount) {
+        assertEquals(ItemsReturnedEvent.Reason.ADMIN_RELEASE, event.reason());
+        assertEquals(order.id(), event.order().orElseThrow().id());
+        assertEquals(1, event.stacks().size());
+        assertEquals(material, event.stacks().get(0).stack().getType());
+        assertEquals(amount, event.stacks().get(0).amount());
+        assertTrue(event.isAsynchronous());
     }
 
     @Test
@@ -249,7 +317,7 @@ class AdminOrderServiceTest {
         assertEquals(4, returned(alice));
         assertEquals(List.of(HistoryOutcome.CANCELLED_BY_ADMIN), ownerOutcomes());
         assertEquals(List.of(HistoryOutcome.CANCELLED_BY_ADMIN), companyOutcomes());
-        assertEquals(List.of("company cancelled " + COMPANY, "owner cancelled 155.0", "returned 2"), notices);
+        assertEquals(List.of("company cancelled " + COMPANY, "owner cancelled 155.0"), notices);
     }
 
     @Test
@@ -264,7 +332,7 @@ class AdminOrderServiceTest {
         assertEquals(FEE, collected.get());
         assertEquals(List.of(HistoryOutcome.CANCELLED_BY_ADMIN), ownerOutcomes());
         assertTrue(companyOutcomes().isEmpty());
-        assertEquals(List.of("owner cancelled 0.0", "returned 0"), notices);
+        assertEquals(List.of("owner cancelled 0.0"), notices);
     }
 
     @Test
@@ -394,11 +462,6 @@ class AdminOrderServiceTest {
         @Override
         public void ownerRefunded(SimpleOrder order, double refund) {
             log.add("owner refunded " + refund);
-        }
-
-        @Override
-        public void itemsReturned(Set<UUID> workers) {
-            log.add("returned " + workers.size());
         }
     }
 }

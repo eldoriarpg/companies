@@ -28,7 +28,6 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
-import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
@@ -182,9 +181,11 @@ public final class CommandDependencies {
 
     /**
      * @return ends orders and records their history
+     * @throws CommandFailure {@code error.notReady} while the services do not exist
      */
     public OrderOutcomes outcomes() {
-        return new OrderOutcomes(orderData, history(), plugin.getLogger(), Threading.VIRTUAL);
+        return OrderOutcomes.create(
+                plugin, orderData, companyData, history(), services().itemReturnService());
     }
 
     /**

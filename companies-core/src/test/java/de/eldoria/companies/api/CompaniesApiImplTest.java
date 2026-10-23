@@ -31,6 +31,7 @@ import de.eldoria.companies.events.order.PreOrderCreateEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderLimits;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -112,7 +113,6 @@ class CompaniesApiImplTest {
                 new CompaniesApiImpl.Repositories(companyData, orderData, stats),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer,
-                        server.getPluginManager()::callEvent,
                         failure -> failure.message().orElse(Component.text(failure.localeKey())),
                         LocalDateTime::now),
                 executor);
@@ -338,7 +338,7 @@ class CompaniesApiImplTest {
                 LocalDateTime::now,
                 executor,
                 Logger.getLogger("test"));
-        api.open(new CompaniesApiImpl.Writes(creation, memberships));
+        api.open(new CompaniesApiImpl.Writes(creation, memberships, new ItemReturnService(plugin, orderData)));
     }
 
     private OrderRequest stoneRequest(boolean charge) {

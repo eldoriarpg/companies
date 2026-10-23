@@ -11,6 +11,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Permission.Admin;
@@ -118,9 +119,14 @@ public final class GrantCommand {
         if (held.isEmpty()) throw CommandFailure.of("companyadmin.grant.error.emptyHand");
         var target = target(player);
         var stack = held.asOne();
-        deps.orderData()
-                .submitItemReturn(target.getUniqueId(), ReturnKind.OWNER, stack, amount)
-                .asFuture()
+        services.itemReturnService()
+                .store(
+                        target.getUniqueId(),
+                        ReturnKind.OWNER,
+                        stack,
+                        amount,
+                        ItemsReturnedEvent.Reason.ADMIN_GRANT,
+                        null)
                 .thenAccept(stored -> {
                     if (!Boolean.TRUE.equals(stored)) {
                         deps.messages().sendError(admin, "error.saveFailed");
