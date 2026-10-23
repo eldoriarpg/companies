@@ -33,7 +33,7 @@ See [Installation](../getting-started/installation.md) for everything Companies 
 ## Your data
 
 You do not have to do anything. On the first start, Companies brings the database up to date step by step, from
-version 1.0 to 1.7. This happens for SQLite, MariaDB and PostgreSQL alike. The data moves into the new tables:
+version 1.0 to 1.8. This happens for SQLite, MariaDB and PostgreSQL alike. The data moves into the new tables:
 
 - Deliveries move into the new delivery records.
 - Old company notifications move into the new [inbox](../players/inbox.md).
