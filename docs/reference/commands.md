@@ -34,12 +34,12 @@ Commands for players who place orders. Read [Orders](../players/orders.md) and [
 | `/order` | none | Same as `/order list`. |
 | `/order list` | none | Shows your orders that you have not received yet, your order limit and items waiting for you. |
 | `/order info <id>` | none | Shows one of your orders. |
-| `/order cancel <id>` | none | Cancels an order nobody accepted yet. You get the price back, but not the fee. Asks you to confirm when the order is a copy of an active repeating order. |
+| `/order cancel <id>` | none | Cancels an order nobody claimed yet. You get the price back, but not the fee. Asks you to confirm when the order is a copy of an active repeating order. |
 | `/order cancel confirm` | none | Confirms the cancel. |
 | `/order receive <id>` | none | Hands out the items of a delivered order. |
 | `/order collect` | none | Hands out items that did not fit into your inventory, and items an admin granted you. |
-| `/order extend <id>` | none | Restarts the timer of an order nobody accepted yet, so it is not removed. Works up to `maxExtensions` times ([order.yml](../admin/configuration/order-yml.md)). |
-| `/order raise <id> <amount>` | none | Raises the price of an order nobody accepted yet by `amount`. You pay the increase plus the percentage fee on it. Asks you to confirm. |
+| `/order extend <id>` | none | Restarts the timer of an order nobody claimed yet, so it is not removed. Works up to `maxExtensions` times ([order.yml](../admin/configuration/order-yml.md)). |
+| `/order raise <id> <amount>` | none | Raises the price of an order nobody claimed yet by `amount`. You pay the increase plus the percentage fee on it. Asks you to confirm. |
 | `/order raise confirm` | none | Confirms the raise. |
 | `/order create <name>` | `companies.orders.create` | Starts a new order draft and shows the order builder. If you already have a draft, it shows that one. |
 | `/order draft name <name>` | `companies.orders.create` | Renames the draft. |
@@ -216,7 +216,7 @@ Commands to find, claim and deliver orders. Read [Claiming and delivering](../co
 | `/company order search query min_size\|max_size <size>` | none | none | Sets the lowest or highest number of items. |
 | `/company order search query sorting age\|name\|price\|size\|unit_price` | none | none | Sets what the results are sorted by. |
 
-You move between result pages with the buttons of the result list. There is no command for it. The results show an accept button only to members with `manage_orders`.
+You move between result pages with the buttons of the result list. There is no command for it. The results show an `[Accept]` button only to members with `manage_orders`.
 
 ## Administration
 
@@ -256,7 +256,7 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin order search company <company>` | `companies.admin.orders` | no | Lists the orders of a company. |
 | `/companyadmin order unclaim <id>` | `companies.admin.orders` | no | Releases a claimed order. Asks you to confirm. |
 | `/companyadmin order unclaim confirm` | `companies.admin.orders` | no | Confirms the release. |
-| `/companyadmin order cancel <id> refund\|keep` | `companies.admin.orders` | no | Deletes an order. `refund` pays price and fee back to the owner. `keep` pays nothing back, and the fee goes to the collector account. Asks you to confirm. |
+| `/companyadmin order cancel <id> refund\|keep` | `companies.admin.orders` | no | Deletes an order. `refund` pays price and fee back to the owner. `keep` pays nothing back: price and fee go to the collector account. Asks you to confirm. |
 | `/companyadmin order cancel confirm` | `companies.admin.orders` | no | Confirms the cancel. |
 | `/companyadmin order deliver <id>` | `companies.admin.orders` | no | Closes an order as delivered. Asks you to confirm. |
 | `/companyadmin order deliver confirm` | `companies.admin.orders` | no | Confirms the delivery. |

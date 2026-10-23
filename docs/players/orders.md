@@ -80,7 +80,7 @@ becomes an exact line.
 
 Some things to know:
 
-- Items that hold other items, like a filled shulker box or bundle, can not be ordered.
+- Items that hold other items, like a filled shulker box or bundle, cannot be ordered.
 - Names, lore and repair costs are removed from the item you order. Workers do not see them, and they do not count
   when items are delivered.
 - Delivered items may carry more than you asked for. A worker may deliver a sword with an extra enchantment.
@@ -148,7 +148,7 @@ that percentage on the increase. A fixed fee is not charged again.
 
 `/order cancel <id>` cancels an order that nobody claimed yet. You get the price back. The fee is kept.
 
-Once a company claimed your order, you can not cancel it, extend it or raise its price.
+Once a company claimed your order, you cannot cancel it, extend it or raise its price.
 
 ## While a company works on it
 

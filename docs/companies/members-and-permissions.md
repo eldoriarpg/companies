@@ -33,7 +33,7 @@ server.
 |---|---|
 | `invite` | Invite players, take invites back and answer applications |
 | `kick` | Kick members who do not have `kick` themselves |
-| `manage_orders` | Accept and abort orders, and manage [order alerts](./order-alerts.md) |
+| `manage_orders` | Claim orders and give them back, and manage [order alerts](./order-alerts.md) |
 | `manage_permissions` | Give and remove permissions of other members |
 | `edit_profile` | Change the description, tag, colour and join mode |
 | `treasury` | Take money from the [treasury](./treasury.md) and set the payout share |
@@ -97,7 +97,7 @@ When a company is disbanded:
 - Every member gets a message.
 
 :::danger
-Disbanding can not be undone. The company, its profile and its members are gone.
+Disbanding cannot be undone. The company, its profile and its members are gone.
 :::
 
 ## Leave

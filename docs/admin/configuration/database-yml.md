@@ -39,7 +39,7 @@ With `MARIADB`, `schema` is ignored. The tables go into `database`.
 
 With `POSTGRES`, the schema must exist already. Companies creates its tables, but not the schema.
 
-MariaDB needs version 10.5 or newer. MySQL does not work, because it lacks features Companies uses.
+MariaDB needs version 10.5 or newer. MySQL does not work, because it lacks features Companies uses. PostgreSQL needs version 13 or newer.
 
 :::warning
 The password is stored as plain text in this file. Give the database user only the rights Companies needs on its own database.
@@ -49,4 +49,4 @@ The password is stored as plain text in this file. Give the database user only t
 SQLite works for a single server only. A network of servers needs MariaDB or PostgreSQL. A secondary server refuses to start with SQLite. See [node.yml](./node-yml.md).
 :::
 
-See [Installation](../../getting-started/installation.md) for choosing a database, and [Multiple servers](../multiserver.md) for networks.
+See [Installation](../../getting-started/installation.md) for choosing a database, and [Several servers](../multiserver.md) for networks.

@@ -56,7 +56,7 @@ The search shows a form. Run it to see the open orders. Click `[Accept]` next to
 company. From now on your company has a fixed time to deliver it.
 
 :::note
-Your company can not claim orders that its own members placed. If you test alone, use a second player for the order.
+Your company cannot claim orders that its own members placed. If you test alone, use a second player for the order.
 Server owners can change this with `allowMemberOrders` in [company.yml](../admin/configuration/company-yml.md).
 :::
 

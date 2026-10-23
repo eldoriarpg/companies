@@ -91,7 +91,7 @@ Company permissions are given inside a company. They are not server permissions.
 |---|---|
 | `invite` | Invite players, take invites back, see sent invites and answer applications. Members with it are told about new applications. |
 | `kick` | Kick members who do not have `kick` themselves. |
-| `manage_orders` | Accept orders, give claimed orders back, and add, remove and switch order alerts. Members with it see the accept buttons and get alert notifications. |
+| `manage_orders` | Claim orders, give claimed orders back, and add, remove and switch order alerts. Members with it see the `[Accept]` buttons and get alert notifications. |
 | `manage_permissions` | Give and remove the permissions of other members. Only permissions you hold yourself, and never those of the owner. |
 | `edit_profile` | Change the description, tag, colour and join mode. |
 | `treasury` | Take money out of the treasury and set the payout share. |

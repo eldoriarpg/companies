@@ -77,7 +77,7 @@ Add `depend: [Companies]` or `softdepend: [Companies]` to your `plugin.yml`. See
 
 In 1.x an order asked for materials. In 2.0 an order has lines. A line is either a material line, which accepts every
 item of the material, or an exact line, which accepts only items that match a template. An order can have several
-lines of the same material, so `IFullOrder.content(Material)` can not tell which one you mean. It is deprecated.
+lines of the same material, so `IFullOrder.content(Material)` cannot tell which one you mean. It is deprecated.
 
 Go through `contents()` or ask for a line by its number:
 
@@ -111,7 +111,7 @@ reason:
 @EventHandler
 public void onOrderRemoved(OrderRemovedEvent event) {
     if (event.reason() != OrderRemovedEvent.Reason.PURGED) return;
-    getLogger().info("Nobody accepted order " + event.order().id());
+    getLogger().info("Nobody claimed order " + event.order().id());
 }
 ```
 

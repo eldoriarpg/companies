@@ -54,7 +54,7 @@ If a file cannot be read, for example because of a YAML error, a wrong type or a
 
 ## In a network
 
-When several servers share one database, one server is the primary and the others are secondaries. See [node.yml](./node-yml.md) and [Multiple servers](../multiserver.md).
+When several servers share one database, one server is the primary and the others are secondaries. See [node.yml](./node-yml.md) and [Several servers](../multiserver.md).
 
 - `config.yml`, `company.yml`, `order.yml` and `user.yml` are shared. Edit them on the **primary** server.
 - When the primary starts, it writes these four files into the database.

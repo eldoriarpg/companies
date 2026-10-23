@@ -41,7 +41,7 @@ Invites work in every join mode.
 `/company joinmode applications` or `/company joinmode invite`. This needs the `edit_profile` permission. Applications
 that are already open stay open when you change the mode, and you can still accept them.
 
-A company can not take new members while it is at the member limit of its level.
+A company cannot take new members while it is at the member limit of its level.
 
 ## Invites
 
@@ -99,7 +99,7 @@ its treasury. The owner, or a member with the `manage_permissions` permission, c
 
 `/company leave` leaves your company. Confirm with the button or `/company leave confirm`.
 
-The owner can not leave. Hand the company to another member first with `/company transfer`, or disband it. Both are
+The owner cannot leave. Hand the company to another member first with `/company transfer`, or disband it. Both are
 explained in [Members and permissions](./members-and-permissions.md).
 
 ## Permissions

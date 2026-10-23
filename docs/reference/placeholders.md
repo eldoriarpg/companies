@@ -96,7 +96,7 @@ Placeholders never wait for the database. They read values that Companies keeps 
 
 - The first time a value is needed, it reads `placeholders.loadingText` until it is loaded. This text is empty by default.
 - All values are loaded again every `placeholders.refreshSeconds` (300 by default).
-- Player and company values are also loaded again at once when something changes on the same server, for example when a player joins a company or a company accepts an order.
+- Player and company values are also loaded again at once when something changes on the same server, for example when a player joins a company or a company claims an order.
 - Rankings change only with the timer.
 - Without a player, for example in a console or a hologram without a viewer, player placeholders read empty. Company placeholders read `0` or empty.
 

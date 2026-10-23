@@ -39,11 +39,11 @@ Every message belongs to a category. Some categories can be muted.
 
 | Category | What it holds | Can be muted |
 |---|---|---|
-| `my_orders` | Your own orders: accepted, delivered, open again, about to be removed, removed, changed by an admin. Your repeating orders. Items an admin gave you. | no |
+| `my_orders` | Your own orders: claimed, delivered, open again, about to be removed, removed, changed by an admin. Your repeating orders. Items an admin gave you. | no |
 | `invites` | Invites and applications | no |
 | `company` | Your company was disbanded, you were kicked, ownership changes, profile changes, treasury share changes and payouts | no |
 | `members` | Members joining, leaving or being kicked | yes |
-| `orders` | Orders of your company: accepted, aborted, delivered, expired or changed by an admin | yes |
+| `orders` | Orders of your company: claimed, given back, delivered, expired or changed by an admin | yes |
 | `payments` | Your payments for delivered orders, and money an admin gave you | yes |
 | `level` | Your company level going up or down | yes |
 | `alerts` | New orders that match an order alert of your company | yes |
@@ -60,5 +60,5 @@ Muted messages still land in your inbox. They are just not shown in chat, and th
 you join. Look at them any time with `/company inbox`.
 
 :::note
-Messages about your own orders, invites and your company can not be muted. They are always shown.
+Messages about your own orders, invites and your company cannot be muted. They are always shown.
 :::

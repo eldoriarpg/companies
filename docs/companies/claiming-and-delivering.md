@@ -52,7 +52,7 @@ You need the `manage_orders` permission. Click `[Accept]` next to an order in th
 Now the order belongs to your company. Nobody else can claim it, and the clock starts. Your company has 48 hours by
 default to deliver everything. Higher levels may give you more time.
 
-The player who placed the order is told that a company accepted it, without your name. Your members get a message too.
+The player who placed the order is told that a company claimed it, without your name. Your members get a message too.
 
 ## Your orders
 
@@ -94,7 +94,7 @@ ones. Undamaged items go before damaged ones.
 
 For a material line, any item of that material counts. For an exact line, the item needs the same data as the ordered
 item, such as its enchantments. Extra data on your item is fine. Damaged items are not accepted unless your server
-allows them. Items that hold other items, like a filled shulker box, can not be delivered.
+allows them. Items that hold other items, like a filled shulker box, cannot be delivered.
 
 The player who ordered gets exactly the items you delivered. Names and lore you put on an item are visible to them.
 
@@ -127,7 +127,7 @@ If the deadline passes before everything is delivered, the order expires. The sa
 the order is open again and delivered items go back to the workers. Your members get a message.
 
 :::warning
-Failed orders cost your company. By default, every aborted order takes 1 and every expired order takes 3 from the
+Failed orders cost your company. By default, every order you give back takes 1 and every expired order takes 3 from the
 number of orders your company completed. That number decides your level and your place in the ranking, so your level
 can even drop.
 :::

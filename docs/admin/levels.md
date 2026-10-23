@@ -44,7 +44,7 @@ The plugin checks the level of a company when something changes it:
 
 - an order of the company is delivered,
 - a member joins, leaves or is kicked,
-- the company aborts an order or misses a deadline.
+- the company gives an order back or misses a deadline.
 
 Changing the levels does **not** check every company again. Run `/companyadmin calclevel` after you changed the
 requirements, so all companies move to the level that fits them now.

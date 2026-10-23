@@ -20,8 +20,8 @@ A board is one of these:
 - **Nothing.** An empty board shows every open order.
 
 A board opens the first page of results. Players can press **[Change]** to adjust the search from there. Members with
-the `MANAGE_ORDERS` company permission can accept orders right from the board. Everyone else sees the list without
-accept buttons.
+the `manage_orders` company permission can claim orders right from the board. Everyone else sees the list without
+`[Accept]` buttons.
 
 Using a board needs `companies.boards.use`, which every player has by default. A player opens at most one board per
 second, so a double click shows one menu.
@@ -93,7 +93,7 @@ If you remove a preset later, its signs stay, but clicking them shows the same "
 ### Counts
 
 The open order count on each sign is refreshed every `boards.refreshSeconds` (default `60`, at least `10`). It is
-also refreshed a few seconds after an order on this server is created, accepted, released or removed. Only signs in
+also refreshed a few seconds after an order on this server is created, claimed, released or removed. Only signs in
 loaded chunks are counted, and each different board is counted once, however many signs show it.
 
 ### Protection

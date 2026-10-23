@@ -43,4 +43,4 @@ Every server checks at start that there is exactly one primary, and that the pri
 A secondary server needs MariaDB or PostgreSQL. With `storageType: SQLITE` in [database.yml](./database-yml.md), a secondary refuses to start.
 :::
 
-See [Configuration](./index.md#in-a-network) for how to change shared settings, and [Multiple servers](../multiserver.md) for a guide.
+See [Configuration](./index.md#in-a-network) for how to change shared settings, and [Several servers](../multiserver.md) for a guide.

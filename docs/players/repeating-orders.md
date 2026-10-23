@@ -45,7 +45,7 @@ missing.
 
 A copy waits in two cases:
 
-- **The previous copy is still open.** A new copy is only posted once a company accepted the previous one. You are not
+- **The previous copy is still open.** A new copy is only posted once a company claimed the previous one. You are not
   told about this.
 - **You reached your order limit.** You get one message when this holds a copy back. The copy is posted once you have
   room again.
@@ -86,7 +86,7 @@ A later copy that breaks the order rules, or that another plugin prevents, is sk
 used, and the order goes on with the next one.
 
 :::tip
-Make sure you have enough money for the next copy. A copy you can not pay stops the whole repeating order.
+Make sure you have enough money for the next copy. A copy you cannot pay stops the whole repeating order.
 :::
 
 ### Stopping
@@ -105,4 +105,4 @@ the button or `/order cancel confirm`.
 if you are still allowed to make orders repeat, the repeating order has not reached its end, and you are below the
 limit of active repeating orders.
 
-A repeating order that posted its last copy is finished. It can not be resumed.
+A repeating order that posted its last copy is finished. It cannot be resumed.

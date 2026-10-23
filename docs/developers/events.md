@@ -171,7 +171,7 @@ paid, not taxed and nothing goes to the treasury.
 
 | `OrderRemovedEvent.Reason` | Meaning                                                                     |
 |----------------------------|-----------------------------------------------------------------------------|
-| `PURGED`                   | Nobody accepted the order in time. The owner got back what they paid        |
+| `PURGED`                   | Nobody claimed the order in time. The owner got back what they paid        |
 | `CANCELLED`                | The owner cancelled the unclaimed order                                     |
 | `ADMIN`                    | An admin deleted the order                                                  |
 
@@ -198,7 +198,7 @@ A claimed order that the company gives up fires `OrderCanceledEvent`. One that r
 | `ADMIN_GRANT`               | An admin granted the items with a command                                                        |
 | `API`                       | A plugin granted the items with `players().grantItems(...)`                                      |
 
-## Multiple servers
+## Several servers
 
 On a network, an event fires only on the server where the action happened. These run on the primary server only:
 
@@ -206,7 +206,7 @@ On a network, an event fires only on the server where the action happened. These
 - `OrderRemovedEvent` with the reason `PURGED`
 - `ItemsReturnedEvent` with the reason `ORDER_EXPIRED`
 
-See [Multiple servers](../admin/multiserver.md) for how a network is set up.
+See [Several servers](../admin/multiserver.md) for how a network is set up.
 
 ## Keep orders anonymous
 

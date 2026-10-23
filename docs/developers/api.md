@@ -182,12 +182,12 @@ with a short delay instead, for example `Bukkit.getScheduler().runTaskLater(plug
 with `ApiNotReadyException`, the server has no economy and Companies runs in failsafe mode.
 :::
 
-## Multiple servers
+## Several servers
 
 All data lives in the shared database. On a network, every server reads the same state.
 
 Events fire only on the server where the action happened. Expired orders and the removal of unclaimed orders are
-handled on the primary server. See [Multiple servers](../admin/multiserver.md) for how a network is set up.
+handled on the primary server. See [Several servers](../admin/multiserver.md) for how a network is set up.
 
 ## Companies: `companies()`
 
@@ -300,7 +300,7 @@ not air. A line that breaks one of these rules throws an `IllegalArgumentExcepti
 **`charge`: who pays**
 
 - `charge(true)`: the owner pays the price and the order fee, like with `/order create`. Companies takes the money on
-  the main thread. An owner who can not afford it gets the order rejected with `INSUFFICIENT_FUNDS`. If the order can
+  the main thread. An owner who cannot afford it gets the order rejected with `INSUFFICIENT_FUNDS`. If the order can
   not be saved, the money is refunded. Cancelling and removing the order refund the owner as usual.
 - `charge(false)`: the server funds the order. Nothing is taken and the fee is 0. The workers are still paid the full
   price when the order is completed, so this money is created at that point. Cancelling or removing such an order
@@ -337,11 +337,11 @@ A rule the order breaks does not fail the future. The future completes with a `C
 | `LIMIT_REACHED`      | The owner has reached their limit of active orders                              |
 | `TOO_MANY_LINES`     | The order has more lines than the server allows                                 |
 | `TOO_MANY_ITEMS`     | The order requests more items than the server allows                            |
-| `INSUFFICIENT_FUNDS` | The owner can not pay the price and the fee                                     |
+| `INSUFFICIENT_FUNDS` | The owner cannot pay the price and the fee                                     |
 | `CANCELLED`          | A listener cancelled the `PreOrderCreateEvent`                                  |
-| `INVALID`            | The name is too long, a line is invalid, an exact item can not be ordered, or a listener left the order broken or empty |
+| `INVALID`            | The name is too long, a line is invalid, an exact item cannot be ordered, or a listener left the order broken or empty |
 
-If the order can not be saved, the money is refunded and the future fails. The cause is an
+If the order cannot be saved, the money is refunded and the future fails. The cause is an
 `IllegalStateException` with the message "The order could not be saved".
 
 ## Players: `players()`
@@ -355,7 +355,7 @@ Players pick up their returned items with `/order collect`. The items are stored
 pick them up on any server, and also when they are offline right now.
 
 `grantItems` ignores the amount of the stack itself and uses the `amount` you pass. Once the items are stored,
-Companies fires an `ItemsReturnedEvent` with the reason `API`. If the items can not be stored, the future fails with
+Companies fires an `ItemsReturnedEvent` with the reason `API`. If the items cannot be stored, the future fails with
 an `IllegalStateException`.
 
 ```java
