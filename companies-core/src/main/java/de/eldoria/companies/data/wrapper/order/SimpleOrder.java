@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 public class SimpleOrder implements ISimpleOrder {
@@ -26,6 +27,7 @@ public class SimpleOrder implements ISimpleOrder {
     private final double fee;
     private final int extensions;
     private final int deliveryBonus;
+    private final int seriesId;
     private String name;
 
     public SimpleOrder(UUID owner, String name) {
@@ -50,6 +52,7 @@ public class SimpleOrder implements ISimpleOrder {
         this.fee = fee;
         extensions = 0;
         deliveryBonus = 0;
+        seriesId = 0;
     }
 
     /**
@@ -77,6 +80,36 @@ public class SimpleOrder implements ISimpleOrder {
             double fee,
             int extensions,
             int deliveryBonus) {
+        this(id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus, 0);
+    }
+
+    /**
+     * Creates a saved order that may be a copy of a repeating order.
+     *
+     * @param id            id of the order
+     * @param owner         owner of the order
+     * @param name          name of the order
+     * @param created       when the order was placed
+     * @param company       company working on the order, or 0 when none
+     * @param claimed       last state change, which is when the order was accepted while it is claimed
+     * @param state         state of the order
+     * @param fee           fee the owner paid
+     * @param extensions    how often the owner extended the purge timer
+     * @param deliveryBonus extra delivery hours the accepting company got from its level
+     * @param seriesId      id of the repeating order that posted this copy, or 0 for a one-off order
+     */
+    public SimpleOrder(
+            int id,
+            UUID owner,
+            String name,
+            LocalDateTime created,
+            int company,
+            LocalDateTime claimed,
+            OrderState state,
+            double fee,
+            int extensions,
+            int deliveryBonus,
+            int seriesId) {
         this.id = id;
         this.owner = owner;
         this.name = Texts.trimLeft(name, 32);
@@ -87,11 +120,12 @@ public class SimpleOrder implements ISimpleOrder {
         this.fee = fee;
         this.extensions = extensions;
         this.deliveryBonus = deliveryBonus;
+        this.seriesId = seriesId;
     }
 
     public FullOrder toFullOrder(List<OrderContent> contents) {
         return new FullOrder(
-                id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus, contents);
+                id, owner, name, created, company, claimed, state, fee, extensions, deliveryBonus, seriesId, contents);
     }
 
     @Override
@@ -170,6 +204,16 @@ public class SimpleOrder implements ISimpleOrder {
      */
     public int deliveryBonus() {
         return deliveryBonus;
+    }
+
+    /**
+     * The repeating order that posted this order. Only the owner's views use it; companies never learn that an order
+     * repeats.
+     *
+     * @return id of the repeating order, or empty for a one-off order
+     */
+    public OptionalInt seriesId() {
+        return seriesId > 0 ? OptionalInt.of(seriesId) : OptionalInt.empty();
     }
 
     /**

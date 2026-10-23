@@ -132,7 +132,8 @@ public class MariaDbOrderData extends AOrderData {
                     created,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     order_states s
                         LEFT JOIN orders o
@@ -161,7 +162,8 @@ public class MariaDbOrderData extends AOrderData {
                     created,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     order_states s
                         JOIN orders o
@@ -391,7 +393,8 @@ public class MariaDbOrderData extends AOrderData {
                     state,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -442,7 +445,8 @@ public class MariaDbOrderData extends AOrderData {
                     created,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     order_states s
                         JOIN orders o
@@ -691,7 +695,8 @@ public class MariaDbOrderData extends AOrderData {
                     state,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -714,7 +719,8 @@ public class MariaDbOrderData extends AOrderData {
                     state,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -741,7 +747,8 @@ public class MariaDbOrderData extends AOrderData {
                     state,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -769,7 +776,8 @@ public class MariaDbOrderData extends AOrderData {
                     state,
                     o.fee,
                     extensions,
-                    delivery_bonus
+                    delivery_bonus,
+                    series_id
                 FROM
                     orders o
                         LEFT JOIN order_states oc
@@ -913,7 +921,7 @@ public class MariaDbOrderData extends AOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("mariadb")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id
                 FROM orders o
                          LEFT JOIN (SELECT c.id, GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c

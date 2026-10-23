@@ -610,6 +610,27 @@ class SqLiteOrderDataTest {
         Assertions.assertEquals(OrderState.UNCLAIMED, saved.state());
         Assertions.assertEquals(1, saved.contents().size());
         Assertions.assertEquals(30.0, saved.price());
+        Assertions.assertTrue(saved.seriesId().isEmpty());
+    }
+
+    @Test
+    void theSeriesOfACopyIsReadBack() {
+        var order = createOrder(3, 4);
+        query("UPDATE orders SET series_id = 12 WHERE id = ?")
+                .single(call().bind(order.id()))
+                .update();
+
+        var copy = reload(order);
+
+        Assertions.assertEquals(12, copy.seriesId().orElseThrow());
+        Assertions.assertEquals(
+                12, orderData.retrieveFullOrder(copy).join().seriesId().orElseThrow());
+        Assertions.assertTrue(
+                orderData
+                        .retrieveOrdersByQuery(new SearchQuery(), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                        .join()
+                        .stream()
+                        .allMatch(found -> found.seriesId().orElseThrow() == 12));
     }
 
     @Test
