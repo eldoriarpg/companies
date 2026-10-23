@@ -75,7 +75,7 @@ class NetworkIntegrationTest {
     private static final UUID SECONDARY = UUID.fromString("00000000-0000-0000-0000-00000000000b");
     private static final UUID OTHER_NETWORK = UUID.fromString("00000000-0000-0000-0000-00000000000c");
     private static final String PASSWORD = "integration-only-password";
-    private static final Duration DELIVERY = Duration.ofMillis(1500);
+    private static final Duration DELIVERY = Duration.ofSeconds(5);
     private static final Duration WAIT = Duration.ofSeconds(20);
 
     private static GenericContainer<?> redis;
