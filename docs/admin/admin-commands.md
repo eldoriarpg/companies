@@ -13,8 +13,8 @@ for anyone who has at least one of them. The [Commands](../reference/commands.md
 [Permissions](../reference/permissions.md) pages list them all.
 
 :::note Run them in game
-Most admin commands only work for players. From the console you can run `debug`, `syncconfiguration`, `calclevel`
-and the `board` commands.
+Most admin commands only work for players. From the console you can run `debug`, `syncconfiguration`, `calclevel`,
+the `board` commands and the `node` commands.
 :::
 
 ## Orders
@@ -101,7 +101,7 @@ through the economy plugin. The player gets a notification for both.
 
 | Command | Permission | What it does |
 |---|---|---|
-| `/companyadmin delete <company>` | `companies.admin.delete` | Dissolves a company |
+| `/companyadmin delete <company>` | `companies.admin.delete` | Dissolves a company, after you confirm |
 | `/companyadmin rename <company> <name>` | `companies.admin.rename` | Renames a company for free |
 | `/companyadmin transferowner <company> <player>` | `companies.admin.transferOwner` | Makes a member the owner |
 | `/companyadmin treasury <company>` | `companies.admin.treasury` | Shows balance, payout share and latest transactions |
@@ -115,10 +115,9 @@ Put company names with spaces in quotes for `rename`, `transferowner` and `treas
 /companyadmin treasury give "Iron Works" 500
 ```
 
-:::danger delete does not ask
-`/companyadmin delete` dissolves the company at once, without a confirmation. It works like a disband: claimed orders
-are released, and the owner gets the treasury balance.
-:::
+`delete` first shows the company with its members, the orders it works on and its treasury balance, and asks you to
+confirm. Confirm with the button or `/companyadmin delete confirm` within 30 seconds. It works like a disband: claimed
+orders are released, and the owner gets the treasury balance.
 
 `treasury give` and `take` create and remove money. The money does not come from or go to your own balance. Both are
 written to the company's treasury log with you as the actor.
@@ -136,14 +135,17 @@ again. See [Levels](./levels.md).
 
 | Command | Permission | What it does |
 |---|---|---|
-| `/companyadmin reload` | `companies.admin.reload` | Reads the configuration files again and applies the update settings |
+| `/companyadmin reload` | `companies.admin.reload` | Reads the configuration files again and applies them |
 | `/companyadmin syncconfiguration` | `companies.admin` | Copies the configuration between the primary server and the database |
-| `/companyadmin debug` | `companies.admin` | Creates a debug report for support |
+| `/companyadmin debug` | `companies.admin.debug` | Creates a debug report for support |
+| `/companyadmin node list` | `companies.admin.nodes` | Lists the servers registered in the database |
+| `/companyadmin node remove <uid>` | `companies.admin.nodes` | Removes the entry of a server that no longer runs, after you confirm |
 
 Some settings are only read at start. `reload` does not apply them. The
 [configuration pages](./configuration/index.md) say which ones need a restart.
 
-`syncconfiguration` only matters on [several servers](./multiserver.md#when-the-configuration-is-copied).
+`syncconfiguration` only matters on [several servers](./multiserver.md#when-the-configuration-is-copied). The same goes
+for `node`, see [Old server entries](./multiserver.md#old-server-entries).
 
 `debug` creates a report with your settings, the server setup and a check of the database and the economy. Passwords
 and the Discord webhook secret are masked. See [Discord webhook](./discord-webhook.md#secrets-in-logs-and-debug-reports).
@@ -156,7 +158,7 @@ Every admin action writes one line to the server log. It names the admin and wha
 [admin] Steve order cancel id=42 refund=true owner=Alex company="Iron Works"
 ```
 
-This covers the order, player, grant, treasury, company, level and board commands, as well as `reload`,
+This covers the order, player, grant, treasury, company, level, board and node commands, as well as `reload`,
 `syncconfiguration` and `calclevel`. Looking things up is logged too: `order info`, `order search` and `player`.
 
 Use the log to check what your staff did. Search your `latest.log` for `[admin]`.

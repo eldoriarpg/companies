@@ -36,13 +36,24 @@ public class CompanySettings {
     private AlertSettings alerts = new AlertSettings();
 
     public CompanySettings() {
-        updateLevel();
+        renumberLevels();
     }
 
-    private void updateLevel() {
+    /**
+     * Numbers the levels 1 to n in list order, which is the order they are reached in. Levels read from a file keep
+     * the numbers written there until this runs.
+     *
+     * @return true when a level had another number before
+     */
+    public boolean renumberLevels() {
+        var changed = false;
         for (var i = 0; i < level.size(); i++) {
-            level.get(i).level(i + 1);
+            var current = level.get(i);
+            if (current.level() == i + 1) continue;
+            current.level(i + 1);
+            changed = true;
         }
+        return changed;
     }
 
     public int deliveryHours() {
@@ -106,7 +117,7 @@ public class CompanySettings {
         var newLevel = new CompanyLevel();
         var clampedLevel = Math.max(0, Math.min(level - 1, this.level.size()));
         this.level.add(clampedLevel, newLevel);
-        updateLevel();
+        renumberLevels();
         return newLevel;
     }
 
@@ -119,7 +130,7 @@ public class CompanySettings {
         if (source == target) return;
         var clampedTarget = Math.max(1, Math.min(target, level.size())) - 1;
         level.add(clampedTarget, level.remove(source - 1));
-        updateLevel();
+        renumberLevels();
     }
 
     public List<CompanyLevel> level() {
@@ -139,7 +150,7 @@ public class CompanySettings {
     public boolean deleteLevel(int level) {
         if (level < 1 || level > this.level.size()) return false;
         this.level.remove(level - 1);
-        updateLevel();
+        renumberLevels();
         return true;
     }
 

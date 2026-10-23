@@ -60,6 +60,42 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         super(plugin, CONFIG_YML);
     }
 
+    @Override
+    public synchronized <V> V secondary(Key<V> key) {
+        var first = !loaded(key);
+        var value = super.secondary(key);
+        if (first && loaded(key)) afterRead(key, value);
+        return value;
+    }
+
+    @Override
+    public void reload(Key<?> key) {
+        super.reload(key);
+        afterRead(key, secondary(key));
+    }
+
+    @Override
+    public <V> void replace(Key<V> key, V newValue) {
+        if (newValue instanceof CompanySettings settings) settings.renumberLevels();
+        super.replace(key, newValue);
+    }
+
+    /**
+     * Numbers the levels of a freshly read {@code company.yml} 1 to n in list order. When a number changed, the file
+     * is written again and a warning tells the admin.
+     *
+     * @param key   key of the file that was read
+     * @param value the content read
+     */
+    private void afterRead(Key<?> key, Object value) {
+        if (!(value instanceof CompanySettings settings) || !settings.renumberLevels()) return;
+        plugin().getLogger()
+                .warning("The levels in " + key.path() + " were not numbered 1 to "
+                        + settings.level().size()
+                        + " in list order. They were renumbered in list order and the file was saved.");
+        save(key);
+    }
+
     public CompanySettings companySettings() {
         return secondary(COMPANY_SETTINGS);
     }

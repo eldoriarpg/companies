@@ -29,6 +29,7 @@ public final class Requirements {
             Permission.Admin.GRANT,
             Permission.Admin.BOARDS,
             Permission.Admin.TREASURY,
+            Permission.Admin.NODES,
             Permission.Admin.DEBUG);
 
     private Requirements() {
@@ -71,13 +72,11 @@ public final class Requirements {
     }
 
     /**
-     * Debug reports are open to plugin admins and to holders of EldoUtil's debug permission.
-     *
      * @param sender sender of the command
      * @return whether the sender may create debug reports
      */
     public static boolean mayDebug(CommandSender sender) {
-        return sender.hasPermission(Permission.Admin.ADMIN) || sender.hasPermission(Permission.Admin.DEBUG);
+        return sender.hasPermission(Permission.Admin.DEBUG);
     }
 
     /**

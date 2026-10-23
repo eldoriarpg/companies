@@ -38,6 +38,4 @@ npcs:
 
 The hooks are switched with `generalSettings.hooks.citizens` and `generalSettings.hooks.fancynpcs` in [config.yml](./config-yml.md#generalsettings).
 
-:::warning TODO
-Confirm whether NPCs pick up changes made to this file by hand after `/companyadmin reload`. The link and unlink commands apply at once.
-:::
+The link and unlink commands apply at once. Changes you make to this file by hand apply after `/companyadmin reload`.

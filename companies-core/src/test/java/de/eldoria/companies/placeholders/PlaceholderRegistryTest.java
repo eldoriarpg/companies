@@ -68,11 +68,11 @@ class PlaceholderRegistryTest {
         players = new PlayerPlaceholderCache(
                 uuid -> CompletableFuture.completedFuture(Optional.ofNullable(playerViews.get(uuid))),
                 10,
-                Duration.ofMinutes(5));
+                () -> Duration.ofMinutes(5));
         companies = new CompanyPlaceholderCache(
                 id -> CompletableFuture.completedFuture(Optional.ofNullable(companyViews.get(id))),
                 10,
-                Duration.ofMinutes(5));
+                () -> Duration.ofMinutes(5));
         leaderboards =
                 new LeaderboardCache((order, range) -> CompletableFuture.completedFuture(rankings.get(range)), 10);
         registry = new PlaceholderRegistry(

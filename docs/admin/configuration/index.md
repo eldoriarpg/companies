@@ -38,7 +38,7 @@ The messages live in the plugin's language files. Pick the language with `genera
 These need a restart:
 
 - all of `database.yml` and `node.yml`,
-- in `config.yml`: `generalSettings.orderCheckInterval`, `generalSettings.messageBlocking`, `generalSettings.hooks`, `notifications.pollSeconds`, all of `placeholders`, `top.cacheSeconds`, `boards.enabled` and every `discord` key except `events`,
+- in `config.yml`: `generalSettings.orderCheckInterval`, `generalSettings.messageBlocking`, `generalSettings.hooks`, `placeholders.offlineCacheSize` and `boards.enabled`,
 - in `order.yml`: `repeating.checkMinutes`.
 
 ## How the files are read
@@ -67,6 +67,6 @@ To change a shared setting in a network:
 
 1. Edit the file on the primary server.
 2. Run `/companyadmin reload` on the primary, then `/companyadmin syncconfiguration` on the primary.
-3. Run `/companyadmin syncconfiguration` on every secondary. It saves the new files and applies them at once.
+3. Run `/companyadmin syncconfiguration` on every secondary. It saves the new files and applies them at once, like a reload.
 
 The reload in step 2 matters: `syncconfiguration` writes what the primary has loaded, not what is in its files. Settings marked **restart** need a restart of each server that should pick them up.

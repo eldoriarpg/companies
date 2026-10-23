@@ -42,7 +42,10 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Level;
 
 /**
  * Everything the commands need, handed to every command class through its constructor.
@@ -65,6 +68,7 @@ public final class CommandDependencies {
     private final SearchSessions searches = new SearchSessions();
     private final Boards boards;
     private final NpcBoards npcBoards;
+    private final List<Runnable> reloadHooks = new CopyOnWriteArrayList<>();
     private volatile Optional<Services> services = Optional.empty();
 
     /**
@@ -118,6 +122,28 @@ public final class CommandDependencies {
      */
     public void withdraw() {
         services = Optional.empty();
+    }
+
+    /**
+     * Runs the hook after every {@code /companyadmin reload}, once the configuration was read again.
+     *
+     * @param hook applies the reloaded configuration
+     */
+    public void onReload(Runnable hook) {
+        reloadHooks.add(hook);
+    }
+
+    /**
+     * Applies a reloaded configuration through every hook. A failing hook is logged and does not stop the others.
+     */
+    public void reloaded() {
+        for (var hook : reloadHooks) {
+            try {
+                hook.run();
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.SEVERE, "Could not apply the reloaded configuration.", e);
+            }
+        }
     }
 
     /**

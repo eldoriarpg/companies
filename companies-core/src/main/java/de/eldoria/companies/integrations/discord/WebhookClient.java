@@ -26,8 +26,9 @@ import java.util.regex.Pattern;
  * and to the rate limit Discord answers with: the {@code X-RateLimit-Remaining} and {@code X-RateLimit-Reset-After}
  * headers and the {@code retry_after} of a 429. Server errors and failed connections are retried three times after
  * 2, 4 and 8 seconds, then the embeds are dropped. A 400 is logged with Discord's answer and dropped. A 401, 403 or 404
- * means the webhook is gone, so it is disabled until the next reload. Dropped embeds are reported at most once a
- * minute. No log line contains the webhook url.
+ * means the webhook is gone, so it is disabled until {@code /companyadmin reload} replaces the client, see
+ * {@link DiscordWebhook#restart()}. Dropped embeds are reported at most once a minute. No log line contains the
+ * webhook url.
  */
 public final class WebhookClient {
     static final int MAX_EMBEDS = 10;
@@ -231,7 +232,7 @@ public final class WebhookClient {
                 drop(batch, "the webhook is disabled");
                 logger.warning("Discord answered " + status
                         + " to the webhook, so it no longer exists or is not allowed. Webhook messages are disabled "
-                        + "until the next reload.");
+                        + "until /companyadmin reload.");
                 return;
             }
             logger.warning("Discord refused a webhook message with " + status + ": " + bodyOf(answer.get()));

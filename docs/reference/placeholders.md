@@ -100,4 +100,4 @@ Placeholders never wait for the database. They read values that Companies keeps 
 - Rankings change only with the timer.
 - Without a player, for example in a console or a hologram without a viewer, player placeholders read empty. Company placeholders read `0` or empty.
 
-You set all of this in the `placeholders` section of [config.yml](../admin/configuration/config-yml.md#placeholders). Those settings need a restart.
+You set all of this in the `placeholders` section of [config.yml](../admin/configuration/config-yml.md#placeholders). The settings apply on `/companyadmin reload`, except `offlineCacheSize`, which needs a restart.

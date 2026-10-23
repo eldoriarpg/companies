@@ -77,10 +77,10 @@ public final class LevelProviders {
 
     /**
      * @param field the edited field
-     * @return values worth suggesting for the field; the tax can be cleared with {@code none}
+     * @return values worth suggesting for the field; the tax and the alert limit can be cleared with {@code none}
      */
     public static List<String> exampleValues(String field) {
-        if ("tax_percent".equals(field)) return List.of("none", "0", "5", "10");
+        if ("tax_percent".equals(field) || "max_alerts".equals(field)) return List.of("none", "0", "5", "10");
         return List.of();
     }
 

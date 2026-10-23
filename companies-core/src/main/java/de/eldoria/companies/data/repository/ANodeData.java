@@ -17,6 +17,7 @@ import dev.chojo.ocular.key.Key;
 import org.bukkit.plugin.Plugin;
 import tools.jackson.core.JacksonException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,7 +32,7 @@ public abstract class ANodeData {
     }
 
     /**
-     * Updates the state of the current node.
+     * Updates the state of the current node and records it as seen now.
      *
      * @param plugin plugin
      */
@@ -39,10 +40,37 @@ public abstract class ANodeData {
         updateNode(
                 nodeSettings.nodeUid(),
                 nodeSettings.nodeType(),
-                plugin.getPluginMeta().getVersion());
+                plugin.getPluginMeta().getVersion(),
+                LocalDateTime.now());
     }
 
-    protected abstract void updateNode(UUID nodeId, NodeType type, String version);
+    protected abstract void updateNode(UUID nodeId, NodeType type, String version, LocalDateTime seen);
+
+    /**
+     * Every node registered in the database, in the order they were registered.
+     *
+     * @return the nodes
+     */
+    public abstract List<Node> nodes();
+
+    /**
+     * Removes a node and the configuration it stored. The node of this server is never removed.
+     *
+     * @param uid uid of the node
+     * @return what happened
+     */
+    public Removal removeNode(UUID uid) {
+        if (uid.equals(nodeUid())) return Removal.CURRENT;
+        return deleteNode(uid) ? Removal.REMOVED : Removal.UNKNOWN;
+    }
+
+    /**
+     * Deletes a node and the configuration it stored.
+     *
+     * @param uid uid of the node
+     * @return true when a node was deleted
+     */
+    protected abstract boolean deleteNode(UUID uid);
 
     /**
      * Check whether there is more than one node marked as main.
@@ -57,10 +85,11 @@ public abstract class ANodeData {
             throw new IllegalStateException("No primary node is present. Set one node to PRIMARY in node.yml");
         }
         if (mainNodes.size() > 1) {
-            String nodes = mainNodes.stream().map(node -> node.uid().toString()).collect(Collectors.joining(", "));
+            String nodes = mainNodes.stream().map(ANodeData::describe).collect(Collectors.joining(", "));
             throw new IllegalStateException(
-                    "Multiple nodes are set as primary. Only one node is allowed to be a primary node. Nodes marked as primary: "
-                            + nodes);
+                    "Multiple nodes are set as primary. Only one node is allowed to be a primary"
+                            + " node. This node is " + nodeUid() + ". Nodes marked as primary: " + nodes
+                            + ". Remove the ones that no longer run with /companyadmin node remove <uid>.");
         }
         Node node = mainNodes.get(0);
         if (Version.parse(node.version())
@@ -75,6 +104,11 @@ public abstract class ANodeData {
                     "Primary node is on version " + node.version() + ". However this node already on "
                             + plugin.getPluginMeta().getVersion() + ". Please update primary first.");
         }
+    }
+
+    private static String describe(Node node) {
+        return node.uid() + " (version " + node.version() + ", last seen "
+                + node.seen().map(LocalDateTime::toString).orElse("unknown") + ")";
     }
 
     /**
@@ -141,5 +175,23 @@ public abstract class ANodeData {
 
     public UUID nodeUid() {
         return nodeSettings.nodeUid();
+    }
+
+    /**
+     * What removing a node did.
+     */
+    public enum Removal {
+        /**
+         * The node was removed.
+         */
+        REMOVED,
+        /**
+         * No node has that uid.
+         */
+        UNKNOWN,
+        /**
+         * The node is the one of this server and was kept.
+         */
+        CURRENT
     }
 }

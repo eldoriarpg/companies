@@ -15,6 +15,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The placeholder values of players.
@@ -32,23 +33,25 @@ public final class PlayerPlaceholderCache {
     /**
      * @param loader           loads the values of a player
      * @param offlineCacheSize most offline players kept
-     * @param refresh          age after which a value is reloaded
+     * @param refresh          age after which a value is reloaded, read on every read
      */
     public PlayerPlaceholderCache(
-            Function<UUID, CompletableFuture<Optional<PlayerView>>> loader, int offlineCacheSize, Duration refresh) {
+            Function<UUID, CompletableFuture<Optional<PlayerView>>> loader,
+            int offlineCacheSize,
+            Supplier<Duration> refresh) {
         this(loader, offlineCacheSize, refresh, Ticker.systemTicker());
     }
 
     /**
      * @param loader           loads the values of a player
      * @param offlineCacheSize most offline players kept
-     * @param refresh          age after which a value is reloaded
+     * @param refresh          age after which a value is reloaded, read on every read
      * @param ticker           source of time
      */
     public PlayerPlaceholderCache(
             Function<UUID, CompletableFuture<Optional<PlayerView>>> loader,
             int offlineCacheSize,
-            Duration refresh,
+            Supplier<Duration> refresh,
             Ticker ticker) {
         this.online = new StaleCache<>(loader, Long.MAX_VALUE, refresh, ticker);
         this.offline = new StaleCache<>(loader, offlineCacheSize, refresh, ticker);

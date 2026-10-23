@@ -12,7 +12,9 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,6 +35,10 @@ public final class InboxPoller {
     private final AInboxData inbox;
     private final NotificationService notifications;
     private final Logger logger;
+    private ScheduledExecutorService pool;
+    private Supplier<NotificationSettings> settings;
+    private ScheduledFuture<?> task;
+    private int interval;
 
     /**
      * @param inbox         the stored notifications
@@ -49,11 +55,34 @@ public final class InboxPoller {
      * Polls in a fixed interval.
      *
      * @param pool     runs the polls
-     * @param settings notification settings, read once for the interval
+     * @param settings notification settings, read for the interval now and on {@link #reschedule()}
      */
-    public void start(ScheduledExecutorService pool, NotificationSettings settings) {
-        var seconds = settings.pollSeconds();
-        pool.scheduleWithFixedDelay(this::pollSafely, seconds, seconds, TimeUnit.SECONDS);
+    public synchronized void start(ScheduledExecutorService pool, Supplier<NotificationSettings> settings) {
+        this.pool = pool;
+        this.settings = settings;
+        schedule();
+    }
+
+    /**
+     * Polls in the interval of the current settings from now on. Does nothing before {@link #start} or while the
+     * interval stays the same.
+     */
+    public synchronized void reschedule() {
+        if (pool == null || settings.get().pollSeconds() == interval) return;
+        task.cancel(false);
+        schedule();
+    }
+
+    /**
+     * @return seconds between two polls, 0 before the polls started
+     */
+    synchronized int interval() {
+        return interval;
+    }
+
+    private void schedule() {
+        interval = settings.get().pollSeconds();
+        task = pool.scheduleWithFixedDelay(this::pollSafely, interval, interval, TimeUnit.SECONDS);
     }
 
     private void pollSafely() {

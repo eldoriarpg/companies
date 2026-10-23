@@ -5,12 +5,18 @@
  */
 package de.eldoria.companies.data.repository.impl.mariadb;
 
+import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import org.intellij.lang.annotations.Language;
+import org.jetbrains.annotations.Nullable;
 
+import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,16 +31,17 @@ public class MariaDbNodeData extends ANodeData {
     }
 
     @Override
-    protected void updateNode(UUID nodeId, NodeType type, String version) {
+    protected void updateNode(UUID nodeId, NodeType type, String version, LocalDateTime seen) {
         @Language("mariadb")
         var insert = """
-                INSERT INTO node(uid, type, version)
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE type    = VALUES(type),
-                                        version = VALUES(version)""";
+                INSERT INTO node(uid, type, version, last_seen)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE type      = VALUES(type),
+                                        version   = VALUES(version),
+                                        last_seen = VALUES(last_seen)""";
 
         query(insert)
-                .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version))
+                .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version).bind(seen, time()))
                 .insert();
     }
 
@@ -42,14 +49,65 @@ public class MariaDbNodeData extends ANodeData {
     public List<Node> getPrimaryNodes() {
         @Language("mariadb")
         var select = """
-                SELECT id, uid, type, version
+                SELECT id, uid, type, version, last_seen
                 FROM node
                 WHERE type = 'PRIMARY'""";
 
-        return query(select)
-                .single()
-                .map(row -> new Node(row.getInt("id"), row.get("uid", UUID_BYTES), row.getString("version")))
-                .all();
+        return query(select).single().map(this::node).all();
+    }
+
+    @Override
+    public List<Node> nodes() {
+        @Language("mariadb")
+        var select = """
+                SELECT id, uid, type, version, last_seen
+                FROM node
+                ORDER BY id""";
+
+        return query(select).single().map(this::node).all();
+    }
+
+    @Override
+    protected boolean deleteNode(UUID uid) {
+        @Language("mariadb")
+        var deleteConfiguration = """
+                DELETE FROM node_configuration
+                WHERE node_id = (SELECT id FROM node WHERE uid = ?)""";
+        @Language("mariadb")
+        var deleteNode = """
+                DELETE FROM node
+                WHERE uid = ?""";
+
+        query(deleteConfiguration).single(call().bind(uid, UUID_BYTES)).delete();
+        return query(deleteNode).single(call().bind(uid, UUID_BYTES)).delete().changed();
+    }
+
+    private Node node(Row row) throws SQLException {
+        return new Node(
+                row.getInt("id"),
+                row.get("uid", UUID_BYTES),
+                NodeType.valueOf(row.getString("type")),
+                row.getString("version"),
+                readLastSeen(row));
+    }
+
+    /**
+     * @return adapter for times
+     */
+    protected Adapter<LocalDateTime> time() {
+        return TimeColumns.TIMESTAMP;
+    }
+
+    /**
+     * Reads the time a node was last seen.
+     *
+     * @param row row of the node
+     * @return the time, or null before it was recorded
+     * @throws SQLException when the column can not be read
+     */
+    protected @Nullable LocalDateTime readLastSeen(Row row) throws SQLException {
+        var timestamp = row.getTimestamp("last_seen");
+        return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
     @Override

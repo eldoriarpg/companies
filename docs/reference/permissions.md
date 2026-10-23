@@ -44,12 +44,14 @@ Only operators have these by default.
 
 | Permission | Default | What it covers |
 |---|---|---|
-| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin debug` and `/companyadmin syncconfiguration`. |
+| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin syncconfiguration`. |
 | `companies.admin.boards` | op | Create and break board signs, list presets, rewrite board signs and bind NPCs to boards (`/companyadmin board`). |
 | `companies.admin.calcLevel` | op | Recalculate company levels with `/companyadmin calclevel`. |
+| `companies.admin.debug` | op | Create debug reports with `/companyadmin debug`. |
 | `companies.admin.delete` | op | Delete companies with `/companyadmin delete`. |
 | `companies.admin.grant` | op | Give items and money to players with `/companyadmin grant`. |
 | `companies.admin.level` | op | Edit the company levels with `/companyadmin level`. |
+| `companies.admin.nodes` | op | List and remove the servers registered in the database with `/companyadmin node`. |
 | `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. |
 | `companies.admin.player` | op | Look up the company, orders, items and notifications of a player with `/companyadmin player`. |
 | `companies.admin.reload` | op | Reload the configuration with `/companyadmin reload`. |
@@ -60,10 +62,6 @@ Only operators have these by default.
 
 Every admin permission also makes `/companyadmin` visible. Each subcommand then checks its own permission.
 
-:::warning TODO
-`/companyadmin debug` also accepts the permission `eldoutilitites.debug` (spelled like this), and that permission also makes `/companyadmin` visible. Companies does not register it, so operators have it as with any unregistered permission. It is not confirmed that any other plugin checks it.
-:::
-
 ## Wildcard permissions
 
 These give every permission listed below them. On their own, they do nothing.
@@ -73,7 +71,7 @@ These give every permission listed below them. On their own, they do nothing.
 | `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.admin.*`, `companies.updates` |
 | `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat` |
 | `companies.company.*` | op | `companies.company.create`, `companies.company.join` |
-| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.delete`, `companies.admin.grant`, `companies.admin.level`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
+| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.grant`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
 
 :::note
 The player permissions have the default "everyone". So players have them even without `companies.*`. To block a feature, set the permission to `false` for that player or group.

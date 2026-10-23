@@ -7,7 +7,10 @@ package de.eldoria.companies.events.company;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.TreasuryKind;
+import de.eldoria.companies.components.level.ICompanyLevel;
 import de.eldoria.companies.testing.Stubs;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -15,8 +18,11 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -118,7 +124,52 @@ class CompanyEventsTest {
         assertEquals("enums.treasuryKind.payout_share", TreasuryKind.PAYOUT_SHARE.translationKey());
     }
 
+    @Test
+    void levelChangeListenersReceiveBothDirections() {
+        var changes = new ArrayList<CompanyLevelChangeEvent>();
+        var ups = new ArrayList<CompanyLevelUpEvent>();
+        var listener = new LevelListener(changes, ups);
+        server.getPluginManager().registerEvents(listener, MockBukkit.createMockPlugin());
+        var low = Stubs.of(ICompanyLevel.class, Map.of("level", 1));
+        var high = Stubs.of(ICompanyLevel.class, Map.of("level", 2));
+        var up = new CompanyLevelUpEvent(company("Miners"), low, high);
+        var down = new CompanyLevelDownEvent(company("Miners"), high, low);
+
+        CompletableFuture.runAsync(() -> {
+                    server.getPluginManager().callEvent(up);
+                    server.getPluginManager().callEvent(down);
+                })
+                .join();
+
+        assertEquals(List.of(up, down), changes);
+        assertEquals(List.of(up), ups);
+        assertSame(CompanyLevelChangeEvent.getHandlerList(), up.getHandlers());
+        assertSame(CompanyLevelChangeEvent.getHandlerList(), down.getHandlers());
+    }
+
     private static ICompanyProfile company(String name) {
         return Stubs.of(ICompanyProfile.class, Map.of("id", 1, "name", name));
+    }
+
+    /**
+     * Records the level changes it hears, once through the parent event and once through the level up event.
+     */
+    public record LevelListener(List<CompanyLevelChangeEvent> changes, List<CompanyLevelUpEvent> ups)
+            implements Listener {
+        /**
+         * @param event the change
+         */
+        @EventHandler
+        public void onChange(CompanyLevelChangeEvent event) {
+            changes.add(event);
+        }
+
+        /**
+         * @param event the level up
+         */
+        @EventHandler
+        public void onUp(CompanyLevelUpEvent event) {
+            ups.add(event);
+        }
     }
 }

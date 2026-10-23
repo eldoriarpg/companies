@@ -15,7 +15,8 @@ import net.strokkur.commands.permission.Permission;
 import org.bukkit.command.CommandSender;
 
 /**
- * {@code /companyadmin reload}: reloads the configuration and applies the update settings.
+ * {@code /companyadmin reload}: reloads the configuration and applies the update settings and everything registered
+ * with {@link CommandDependencies#onReload(Runnable)}.
  */
 @Subcommand("reload")
 @Permission(Admin.RELOAD)
@@ -39,6 +40,7 @@ public final class Reload {
         var updates = deps.services().updates();
         deps.configuration().reload();
         updates.apply();
+        deps.reloaded();
         deps.adminLog().entry(player, "reload").write();
         deps.messages().sendMessage(player, "companyadmin.reload.done");
     }

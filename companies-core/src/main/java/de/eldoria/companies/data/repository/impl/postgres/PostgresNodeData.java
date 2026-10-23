@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import org.intellij.lang.annotations.Language;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -22,16 +23,17 @@ public class PostgresNodeData extends MariaDbNodeData {
     }
 
     @Override
-    protected void updateNode(UUID nodeId, NodeType type, String version) {
+    protected void updateNode(UUID nodeId, NodeType type, String version, LocalDateTime seen) {
         @Language("postgresql")
         var insert = """
-                INSERT INTO node(uid, type, version)
-                VALUES (?, ?, ?)
-                ON CONFLICT(uid) DO UPDATE SET type    = excluded.type,
-                                               version = excluded.version""";
+                INSERT INTO node(uid, type, version, last_seen)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(uid) DO UPDATE SET type      = excluded.type,
+                                               version   = excluded.version,
+                                               last_seen = excluded.last_seen""";
 
         query(insert)
-                .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version))
+                .single(call().bind(nodeId, UUID_BYTES).bind(type).bind(version).bind(seen, time()))
                 .insert();
     }
 

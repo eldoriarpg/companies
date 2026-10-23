@@ -57,21 +57,14 @@ dependencies {
 ```
 
 :::note Version
-`2.0.0` is the version of the 2.0 release. It is available once that release is published. Builds of the main
-branch are published as snapshots before that.
-:::
-
-:::warning TODO
-Confirm the exact snapshot version string for builds of the main branch (for example `2.0.0-SNAPSHOT`) before
-recommending it here.
+`2.0.0` is the version of the 2.0 release. It is available once that release is published. Until then, use the
+snapshot version `2.0.0-SNAPSHOT`. It holds the latest build of the main branch.
 :::
 
 The API is compiled with **Java 25** and against the Paper API `1.21.11`. Your plugin needs Java 25 or newer to
 compile against it. The jar comes with sources and Javadoc, so your IDE shows the documentation of every method.
 
-:::warning TODO
-Link the published Javadoc site. The Javadoc is built to GitHub Pages, but the address is not confirmed yet.
-:::
+You can also read the Javadoc online at [docs.eldoria.de/companies/javadoc](https://docs.eldoria.de/companies/javadoc/).
 
 ## Declare Companies in your plugin.yml
 

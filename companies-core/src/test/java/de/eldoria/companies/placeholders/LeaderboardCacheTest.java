@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -28,6 +29,20 @@ class LeaderboardCacheTest {
             ranks.add(new CompanyRank(i, 100 + i, "C" + i, LocalDateTime.MIN, 1, 1, 1, 1, 1, null, null));
         }
         return ranks;
+    }
+
+    @Test
+    void aChangedSizeAppliesOnTheNextRefresh() {
+        var size = new AtomicInteger(2);
+        var cache = new LeaderboardCache((order, range) -> CompletableFuture.completedFuture(ranking(5)), size::get);
+        cache.refresh().join();
+        assertTrue(cache.at(TopOrder.EARNED, TimeRange.ALL, 3).isEmpty());
+
+        size.set(4);
+        cache.refresh().join();
+
+        assertEquals(
+                "C4", cache.at(TopOrder.EARNED, TimeRange.ALL, 4).orElseThrow().name());
     }
 
     @Test

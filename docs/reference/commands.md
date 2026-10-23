@@ -226,11 +226,12 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 
 | Command | Permission | Console | What it does |
 |---|---|---|---|
-| `/companyadmin debug` | `companies.admin` | yes | Creates a debug report. The Discord webhook URL is masked in it. |
-| `/companyadmin reload` | `companies.admin.reload` | no | Reloads the configuration files and applies the update settings. See [Configuration](../admin/configuration/index.md) for what needs a restart. |
-| `/companyadmin syncconfiguration` | `companies.admin` | yes | Primary server: writes the shared configuration to the database. Secondary server: reads it from the database. |
+| `/companyadmin debug` | `companies.admin.debug` | yes | Creates a debug report. The Discord webhook URL is masked in it. |
+| `/companyadmin reload` | `companies.admin.reload` | no | Reloads the configuration files and applies them, including the update settings and the Discord webhook. See [Configuration](../admin/configuration/index.md) for what needs a restart. |
+| `/companyadmin syncconfiguration` | `companies.admin` | yes | Primary server: writes the shared configuration to the database. Secondary server: reads it from the database and applies it like a reload. |
 | `/companyadmin calclevel` | `companies.admin.calcLevel` | yes | Recalculates the level of every company. |
-| `/companyadmin delete <name>` | `companies.admin.delete` | no | Dissolves a company. |
+| `/companyadmin delete <name>` | `companies.admin.delete` | no | Dissolves a company. Shows its members, the orders it works on and its treasury, and asks you to confirm. |
+| `/companyadmin delete confirm` | `companies.admin.delete` | no | Confirms the delete. |
 | `/companyadmin rename <company> <name>` | `companies.admin.rename` | no | Renames a company. Put the old name in quotes if it has spaces. |
 | `/companyadmin transferowner <company> <player>` | `companies.admin.transferOwner` | no | Makes a member the owner of a company. |
 
@@ -245,7 +246,7 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin level move <source> <target>` | `companies.admin.level` | no | Moves a level to another position. |
 | `/companyadmin level remove <level>` | `companies.admin.level` | no | Removes a level at once. Only the menu asks you to confirm. |
 
-`<field>` is one of `name`, `order_count`, `member_count`, `earned_money`, `delivered_items`, `max_members`, `max_orders`, `max_order_size`, `delivery_hours_bonus` and `tax_percent`. The level editor works on the primary server only. See [Levels](../admin/levels.md).
+`<field>` is one of `name`, `order_count`, `member_count`, `earned_money`, `delivered_items`, `max_members`, `max_orders`, `max_order_size`, `delivery_hours_bonus`, `tax_percent` and `max_alerts`. `tax_percent` and `max_alerts` take `none` to use the global value again. The level editor works on the primary server only. See [Levels](../admin/levels.md).
 
 ### Orders and players
 
@@ -289,6 +290,12 @@ See [Boards](../admin/boards.md) for a guide.
 
 Put the company name in quotes if it has spaces.
 
-:::warning TODO
-`/companyadmin debug` also works with the permission `eldoutilitites.debug` (spelled like this), and that permission also makes `/companyadmin` visible. It is not registered by Companies. It is not confirmed that any other plugin checks it.
-:::
+### Servers
+
+| Command | Permission | Console | What it does |
+|---|---|---|---|
+| `/companyadmin node list` | `companies.admin.nodes` | yes | Lists the servers registered in the database with their uid, role, version and when they were last seen. |
+| `/companyadmin node remove <uid>` | `companies.admin.nodes` | yes | Removes the entry of a server that no longer runs. Asks you to confirm. The server you run it on can not be removed. |
+| `/companyadmin node remove confirm` | `companies.admin.nodes` | yes | Confirms the remove. |
+
+These commands also work in the safe mode after the error about two primary servers. See [Several servers](../admin/multiserver.md#old-server-entries).

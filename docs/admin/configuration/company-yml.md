@@ -87,7 +87,7 @@ You can edit levels in game with `/companyadmin level`. See [Levels](../levels.m
 | Key | Type | Default for a new level | Meaning |
 |---|---|---|---|
 | `levelName` | text | `none` | Name of the level. |
-| `level` | number | set by Companies | Number of the level. Companies sets it when the file is created and in the level editor. |
+| `level` | number | set by Companies | Number of the level. Companies sets it from the place in the list. |
 | `requirement.orderCount` | number | `1` | Completed orders needed. |
 | `requirement.earnedMoney` | number | `1000.0` | Money earned needed. |
 | `requirement.deliveredItems` | number | `1000` | Delivered items needed. |
@@ -101,9 +101,9 @@ You can edit levels in game with `/companyadmin level`. See [Levels](../levels.m
 
 The defaults in this table are those of a level added with `/companyadmin level create`.
 
-:::warning
-The `level` numbers have to run 1, 2, 3 in the order of the list. Companies does not renumber them after loading the file, and numbers out of order give companies wrong levels. The level editor keeps them in order. If you edit the file by hand, renumber the entries after you move or remove one.
-:::
+Companies numbers the levels 1, 2, 3 in the order of the list each time it loads the file, at start and on `/companyadmin reload`. When a `level` number in the file was different, it logs a warning and saves the file with the new numbers. Move or remove entries by hand without fixing the numbers.
+
+`settings.taxPercent` and `settings.maxAlerts` can also be set in the level editor. Enter `none` there to leave them out again.
 
 ### Starter levels
 
