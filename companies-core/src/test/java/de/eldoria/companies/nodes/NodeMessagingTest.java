@@ -137,6 +137,17 @@ class NodeMessagingTest {
     }
 
     @Test
+    void heartbeatsTellTheBusOfTheirNode() {
+        start(false);
+
+        bus.receive(OTHER, new Heartbeat(List.of(PLAYER), "lowLatency"));
+        assertEquals(Optional.of(NodeBus.Transport.LOW_LATENCY), presence.transport(OTHER));
+
+        bus.receive(OTHER, new Heartbeat(List.of(PLAYER), "carrierPigeon"));
+        assertEquals(Optional.empty(), presence.transport(OTHER));
+    }
+
+    @Test
     void anUnknownNodeIsReportedOnceAndKnownNodesAreLookedUpOnce() {
         start(false);
         var stranger = UUID.randomUUID();
@@ -167,7 +178,7 @@ class NodeMessagingTest {
 
         assertEquals(2, stateChanges.get());
         assertTrue(dropped.containsAll(List.of("company:*", "ranking", "boards")), dropped.toString());
-        assertTrue(bus.published.contains(new Heartbeat(List.of(PLAYER))));
+        assertTrue(bus.published.contains(new Heartbeat(List.of(PLAYER), "database")));
     }
 
     @Test

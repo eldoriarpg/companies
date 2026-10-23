@@ -35,6 +35,7 @@ public final class NetworkPresence {
 
     private final Map<UUID, UUID> players = new ConcurrentHashMap<>();
     private final Map<UUID, Instant> nodes = new ConcurrentHashMap<>();
+    private final Map<UUID, NodeBus.Transport> transports = new ConcurrentHashMap<>();
     private final Clock clock;
 
     /**
@@ -67,7 +68,19 @@ public final class NetworkPresence {
      * @param online players online on the node
      */
     public void heartbeat(UUID node, Collection<UUID> online) {
+        heartbeat(node, online, Optional.empty());
+    }
+
+    /**
+     * A node sent its heartbeat; its players replace the ones known for it.
+     *
+     * @param node      the node
+     * @param online    players online on the node
+     * @param transport how the node sends its messages, empty when it did not tell
+     */
+    public void heartbeat(UUID node, Collection<UUID> online, Optional<NodeBus.Transport> transport) {
         nodes.put(node, clock.instant());
+        transport.ifPresentOrElse(value -> transports.put(node, value), () -> transports.remove(node));
         var current = Set.copyOf(online);
         players.entrySet().removeIf(entry -> entry.getValue().equals(node) && !current.contains(entry.getKey()));
         current.forEach(player -> players.put(player, node));
@@ -80,6 +93,7 @@ public final class NetworkPresence {
      */
     public void stopped(UUID node) {
         nodes.remove(node);
+        transports.remove(node);
         players.values().removeIf(node::equals);
     }
 
@@ -88,6 +102,7 @@ public final class NetworkPresence {
      */
     public void clear() {
         nodes.clear();
+        transports.clear();
         players.clear();
     }
 
@@ -108,6 +123,14 @@ public final class NetworkPresence {
     public boolean alive(UUID node) {
         var seen = nodes.get(node);
         return seen != null && !seen.isBefore(clock.instant().minus(TIMEOUT));
+    }
+
+    /**
+     * @param node a node
+     * @return how the node sends its messages as told in its last heartbeat, empty when not alive or not told
+     */
+    public Optional<NodeBus.Transport> transport(UUID node) {
+        return Optional.ofNullable(transports.get(node)).filter(value -> alive(node));
     }
 
     /**

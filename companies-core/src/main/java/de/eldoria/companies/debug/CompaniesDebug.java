@@ -7,6 +7,7 @@ package de.eldoria.companies.debug;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.nodes.DatabaseBus;
+import de.eldoria.companies.nodes.FailoverBus;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.RedisBus;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
@@ -24,7 +25,8 @@ import javax.sql.DataSource;
 
 /**
  * Adds the state of the storage, the economy, the node setup and the node bus to debug reports. The bus is described
- * by its state and server address, never by its credentials.
+ * by how messages travel (Redis, low latency or database polling), its state and the Redis address, never by
+ * credentials.
  */
 public class CompaniesDebug implements DebugDataProvider {
     private static final int CONNECTION_TIMEOUT_SECONDS = 5;
@@ -62,7 +64,7 @@ public class CompaniesDebug implements DebugDataProvider {
                             "Node type", nodeSettings.nodeType().name(),
                             "Node id", nodeSettings.nodeUid().toString(),
                             "Message blocking", String.valueOf(generalSettings.messageBlocking()),
-                            "Redis", redis(),
+                            "Node bus", bus(),
                             "PlaceholderAPI hook",
                                     String.valueOf(generalSettings.hooks().placeholderapi())))
         };
@@ -71,17 +73,38 @@ public class CompaniesDebug implements DebugDataProvider {
     @Override
     public @NotNull List<HealthCheck> getHealthChecks() {
         if (bus.state() == NodeBus.State.OFF) return List.of(database(), economy());
-        return List.of(database(), economy(), redisHealth());
+        return List.of(database(), economy(), busHealth());
     }
 
-    private String redis() {
-        if (!(bus instanceof RedisBus redisBus)) return bus.state().name();
-        return bus.state().name() + " (" + redisBus.address() + ")";
+    /**
+     * Describes a bus for the report.
+     *
+     * @param bus the bus
+     * @return for example {@code lowLatency CONNECTED, Redis DISCONNECTED (redis.internal:6379)}
+     */
+    static String describe(NodeBus bus) {
+        if (bus.state() == NodeBus.State.OFF) return NodeBus.Transport.DATABASE.id();
+        var description = bus.transport().id() + " " + bus.state().name();
+        if (bus instanceof FailoverBus failover) {
+            if (!failover.fallingBack())
+                return description + " (" + address(failover.redis()) + "), lowLatency fallback";
+            return description + ", Redis " + failover.redis().state().name() + " (" + address(failover.redis()) + ")";
+        }
+        if (bus instanceof RedisBus redis) return description + " (" + redis.address() + ")";
+        return description;
     }
 
-    private HealthCheck redisHealth() {
-        if (bus.realtime()) return HealthCheck.ok("Redis", "Connected: " + redis());
-        return HealthCheck.error("Redis", "Not connected, polling until it is back: " + redis());
+    private static String address(NodeBus bus) {
+        return bus instanceof RedisBus redis ? redis.address() : "-";
+    }
+
+    private String bus() {
+        return describe(bus);
+    }
+
+    private HealthCheck busHealth() {
+        if (bus.realtime()) return HealthCheck.ok("Node bus", "Connected: " + bus());
+        return HealthCheck.error("Node bus", "Not connected, polling until it is back: " + bus());
     }
 
     private HealthCheck database() {

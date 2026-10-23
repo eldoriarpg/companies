@@ -70,13 +70,31 @@ public sealed interface NodeMessage {
      * players of that node.
      *
      * @param players players online on the sending node
+     * @param bus     the {@link NodeBus.Transport#id()} the sending node uses, null when not told
      */
-    record Heartbeat(List<UUID> players) implements NodeMessage {
+    record Heartbeat(List<UUID> players, @Nullable String bus) implements NodeMessage {
         /**
          * @param players players online on the sending node
+         * @param bus     the transport the sending node uses, null when not told
          */
         public Heartbeat {
             players = List.copyOf(players);
+        }
+
+        /**
+         * A heartbeat that does not tell the transport.
+         *
+         * @param players players online on the sending node
+         */
+        public Heartbeat(List<UUID> players) {
+            this(players, null);
+        }
+
+        /**
+         * @return the transport the sending node uses, empty when not told or unknown here
+         */
+        public Optional<NodeBus.Transport> transport() {
+            return NodeBus.Transport.of(bus);
         }
     }
 
