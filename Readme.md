@@ -181,6 +181,8 @@ The plugin is plug & play. However, you can do several configurations.
 ## Optional Dependencies
 * [PAPI](https://www.spigotmc.org/resources/6245/) for Placeholders
 * [ProtocolLib](https://www.spigotmc.org/resources/1997/) for the best experience with the text UIs. **This is highly recommended.**
+* [Citizens](https://citizensnpcs.co) or [FancyNpcs](https://modrinth.com/plugin/fancynpcs) for NPCs that open order
+  boards
 
 ## Commands
 
@@ -352,6 +354,9 @@ contributed orders for all time and the last 30 days, and sorts the list by one 
 | `/companyadmin player <player>`                          | `companies.admin.player`        |
 | `/companyadmin grant items <player> [amount]`            | `companies.admin.grant`         |
 | `/companyadmin grant money <player> <amount>`            | `companies.admin.grant`         |
+| `/companyadmin board npc link <hook> <npc> [board]`      | `companies.admin.boards`        |
+| `/companyadmin board npc unlink <hook> <npc>`            | `companies.admin.boards`        |
+| `/companyadmin board npc list`                           | `companies.admin.boards`        |
 | `/companyadmin syncconfiguration`                        | `companies.admin`               |
 | `/companyadmin debug`                                    | `companies.admin`               |
 
@@ -376,6 +381,23 @@ the admin.
 Every admin command writes a line with the admin's name and the details to the server log, for example
 `[admin] Steve order cancel id=42 refund=true owner=Alex company="Iron Works"`.
 Update notifications link to `/companies:eldo-update`, which is available to `companies.updates`.
+
+### NPC boards
+
+A right-click on a bound NPC opens its order board, like `/company board [board]` and with the same permission
+(`companies.boards.use`) and limit of one board per second. `<board>` is a preset name, materials separated by spaces,
+or nothing for every open order.
+
+* **Citizens:** `/companyadmin board npc link Citizens <id|selected> [board]`, `selected` being the NPC selected with
+  `/npc select`.
+* **FancyNpcs:** `/companyadmin board npc link FancyNpcs <name> [board]`.
+
+The hooks load when the NPC plugin is enabled and `generalSettings.hooks.citizens` or `generalSettings.hooks.fancynpcs`
+is `true`. Bindings are stored per server in `boards.yml` and are not copied to other nodes.
+
+**Any other NPC or menu plugin** opens a board by running `company board [board]` as the clicking player, for example
+a Citizens command trait `/npc command add -p company board iron` or a FancyNpcs action
+`player_command company board iron`. No hook is needed for that.
 
 ## Permissions
 
