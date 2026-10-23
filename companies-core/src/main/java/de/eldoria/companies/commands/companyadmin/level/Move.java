@@ -33,7 +33,7 @@ public final class Move {
     @Executes
     public void move(CommandSender sender, @LevelNumbers int source, @LevelNumbers int target) {
         var player = Senders.player(sender);
-        editor.move(source, target);
+        editor.move(player, source, target);
         editor.list(player);
     }
 }

@@ -65,6 +65,11 @@ public final class Delete {
                         messages().sendError(player, "company.disband.failed");
                         return;
                     }
+                    deps.adminLog()
+                            .entry(player, "delete")
+                            .with("company", profile.get().name())
+                            .with("company_id", profile.get().id())
+                            .write();
                     messages().sendMessage(player, "company.disband.disbanded");
                 })
                 .exceptionally(err -> {

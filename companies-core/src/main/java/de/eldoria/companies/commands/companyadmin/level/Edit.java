@@ -43,7 +43,7 @@ public final class Edit {
             @LevelValues @StringArg(StringArgType.GREEDY) String value) {
         var player = Senders.player(sender);
         var companyLevel = editor.level(level);
-        editor.edit(companyLevel, field, value);
+        editor.edit(player, companyLevel, field, value);
         editor.info(player, companyLevel);
     }
 }

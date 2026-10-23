@@ -25,6 +25,7 @@ import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -182,6 +183,13 @@ public final class CommandDependencies {
      */
     public OrderOutcomes outcomes() {
         return new OrderOutcomes(orderData, history(), plugin.getLogger(), Threading.VIRTUAL);
+    }
+
+    /**
+     * @return writes admin actions to the server log
+     */
+    public AdminLog adminLog() {
+        return new AdminLog(plugin.getLogger());
     }
 
     /**

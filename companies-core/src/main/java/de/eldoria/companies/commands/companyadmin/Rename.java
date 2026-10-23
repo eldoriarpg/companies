@@ -70,6 +70,12 @@ public final class Rename {
                 messages().sendError(player, "error.companyNameUsed");
                 return;
             }
+            deps.adminLog()
+                    .entry(player, "rename")
+                    .with("company_id", company.get().id())
+                    .with("from", current)
+                    .with("to", name)
+                    .write();
             messages().sendMessage(player, "company.rename.changed");
         });
     }

@@ -80,6 +80,13 @@ public final class TransferOwner {
             newOwner.get().isOwner(true);
             companyData.submitMemberUpdate(newOwner.get());
             companyData.submitMemberUpdate(owner);
+            deps.adminLog()
+                    .entry(admin, "transferowner")
+                    .with("company", profile.name())
+                    .with("company_id", profile.id())
+                    .with("from", owner.player().getName())
+                    .with("to", newOwner.get().player().getName())
+                    .write();
             messages()
                     .sendMessage(
                             admin,
