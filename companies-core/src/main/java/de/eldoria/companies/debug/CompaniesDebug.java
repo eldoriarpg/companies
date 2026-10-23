@@ -8,6 +8,7 @@ package de.eldoria.companies.debug;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NodeBus;
+import de.eldoria.companies.nodes.PostgresNotifyBus;
 import de.eldoria.companies.nodes.RedisBus;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.debug.HealthCheck;
@@ -85,6 +86,7 @@ public class CompaniesDebug implements DebugDataProvider {
         if (bus.state() == NodeBus.State.OFF) return NodeBus.Transport.DATABASE.id();
         var description = bus.transport().id() + " " + bus.state().name();
         if (bus instanceof RedisBus redis) return description + " (" + redis.address() + ")";
+        if (bus instanceof PostgresNotifyBus notify) return description + " (" + notify.address() + ")";
         return description;
     }
 

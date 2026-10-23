@@ -27,9 +27,10 @@ redis:
   password: env:COMPANIES_REDIS_PASSWORD
   ssl: false
   database: 0
-  channelPrefix: companies
 messaging:
   lowLatency: false
+  postgresNotify: false
+  channelPrefix: companies
 ```
 
 ## Keys
@@ -74,25 +75,31 @@ A single server does not need it. See [Several servers](../multiserver.md#redis)
 | `password` | text | `env:COMPANIES_REDIS_PASSWORD` | Password of the Redis server. `env:NAME` reads it from the environment variable `NAME`. Leave it empty for a server without password. |
 | `ssl` | true/false | `false` | Connect with TLS. |
 | `database` | number | `0` | Number of the Redis database. |
-| `channelPrefix` | text | `companies` | Start of every channel name. Networks sharing one Redis server need different prefixes. |
 
-All servers of a network need the same `host`, `port`, `database` and `channelPrefix`.
+All servers of a network need the same `host`, `port`, `database` and [`messaging.channelPrefix`](#messaging).
+
+Older files may still have `channelPrefix` in this section. It keeps working as long as `messaging.channelPrefix` is
+left at `companies`; once you set `messaging.channelPrefix`, that one counts. New files no longer contain it.
 
 With `env:`, the password never appears in the file or the logs. If the variable is not set, Companies logs a warning
 and runs without Redis. The debug report masks the password either way.
 
 ## messaging
 
-How the servers of a network send each other messages without Redis. A single server does not need it.
+How the servers of a network send each other messages besides Redis. A single server does not need it.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `lowLatency` | true/false | `false` | Turn on [low latency mode](../multiserver.md#low-latency-mode): the servers send each other messages through a table in the database, and every server reads it every second. Ignored when `redis.enabled` is `true`. |
+| `lowLatency` | true/false | `false` | Turn on [low latency mode](../multiserver.md#low-latency-mode): the servers send each other messages through a table in the database, and every server reads it every second. Ignored when Redis or PostgreSQL notify is used. |
+| `postgresNotify` | true/false | `false` | Turn on [PostgreSQL notify](../multiserver.md#postgresql-notify): the servers send each other messages with `LISTEN` and `NOTIFY` of PostgreSQL. Needs `storageType: POSTGRES`. Ignored when `redis.enabled` is `true`. |
+| `channelPrefix` | text | `companies` | Start of every Redis channel name, and the name of the PostgreSQL notify channel. Networks sharing one Redis server or one PostgreSQL database need different prefixes. At most 63 characters with PostgreSQL notify. |
 
-Use the same value on all servers of a network. Each server reads the table once per second, so this costs one small
-query per second for each server.
+Use the same values on all servers of a network. In low latency mode, each server reads the table once per second,
+so this costs one small query per second for each server. PostgreSQL notify adds no such query.
 
-Redis and low latency mode are one or the other. With both `redis.enabled` and `lowLatency` set to `true`, the server
-uses Redis, ignores `lowLatency` and logs a warning.
+A server uses one way only, picked at start in this order: Redis (`redis.enabled`), PostgreSQL notify
+(`postgresNotify`), low latency mode (`lowLatency`), plain polling. When more than one is turned on, the server uses
+the first one, ignores the others and logs one warning naming them. With `postgresNotify: true` and a storage type
+other than `POSTGRES`, the server logs a warning and ignores it.
 
 See [Installation](../../getting-started/installation.md) for choosing a database, and [Several servers](../multiserver.md) for networks.

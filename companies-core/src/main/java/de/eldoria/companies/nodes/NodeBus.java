@@ -115,6 +115,10 @@ public interface NodeBus extends AutoCloseable {
          */
         LOW_LATENCY("lowLatency"),
         /**
+         * Over {@code LISTEN} and {@code NOTIFY} of PostgreSQL.
+         */
+        POSTGRES_NOTIFY("postgresNotify"),
+        /**
          * Over Redis pub/sub.
          */
         REDIS("redis");

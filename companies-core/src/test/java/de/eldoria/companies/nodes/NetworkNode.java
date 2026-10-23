@@ -64,6 +64,8 @@ import java.util.logging.Logger;
 final class NetworkNode implements AutoCloseable {
     static final RedisBus.Timings FAST =
             new RedisBus.Timings(Duration.ofMillis(300), Duration.ofMillis(1500), Duration.ofMillis(500));
+    static final PostgresNotifyBus.Timings FAST_NOTIFY =
+            new PostgresNotifyBus.Timings(Duration.ofMillis(300), Duration.ofMillis(500));
 
     final String name;
     final UUID uid;
@@ -302,6 +304,21 @@ final class NetworkNode implements AutoCloseable {
         static Buses redis(RedisBus.Server server) {
             return (node, handlers, logger) ->
                     RedisBus.start(server, node.uid, handlers, logger, Duration.ofSeconds(5), FAST);
+        }
+
+        /**
+         * @param server the database to listen on and the channel
+         * @return PostgreSQL notify only, publishing through the default query configuration
+         */
+        static Buses postgresNotify(PostgresNotifyBus.Server server) {
+            return (node, handlers, logger) -> PostgresNotifyBus.start(
+                    server,
+                    node.uid,
+                    PostgresNotifyBus.Notifier.pooled(),
+                    handlers,
+                    logger,
+                    Duration.ofSeconds(5),
+                    FAST_NOTIFY);
         }
 
         /**
