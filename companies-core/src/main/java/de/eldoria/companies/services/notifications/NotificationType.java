@@ -177,7 +177,74 @@ public enum NotificationType {
     /**
      * A member changed the company profile. Arguments: {@code player_name} (member).
      */
-    PROFILE_CHANGED(30, "notification.profileChanged", NotificationCategory.COMPANY, false, null);
+    PROFILE_CHANGED(30, "notification.profileChanged", NotificationCategory.COMPANY, false, null),
+    /**
+     * The player was paid for an order after tax and the company's treasury share. Arguments: {@code amount},
+     * {@code order_name}, {@code gross}, {@code tax}, {@code share}.
+     */
+    PAYMENT_SHARED(31, "notification.orderPaymentShared", NotificationCategory.PAYMENTS, false, null),
+    /**
+     * A member changed the share of payouts that goes to the treasury. Arguments: {@code player_name} (member),
+     * {@code percent}.
+     */
+    TREASURY_SHARE_CHANGED(32, "notification.treasuryShareChanged", NotificationCategory.COMPANY, false, null),
+    /**
+     * The treasury of the player's disbanded or deleted company was paid out to them. Arguments: {@code amount},
+     * {@code company_name}.
+     */
+    TREASURY_DISBAND_PAYOUT(33, "notification.treasuryDisbandPayout", NotificationCategory.COMPANY, true, null),
+    /**
+     * A repeating order posted a copy. Arguments: {@code series_name}, {@code amount} (charged), {@code copy} (number
+     * of the copy, with the count limit when there is one, such as {@code 3/5}), {@code order_id}.
+     */
+    SERIES_POSTED(
+            34,
+            "notification.seriesPosted",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order info <order_id>", "words.info")),
+    /**
+     * A repeating order holds its next copy back because the player reached the order limit. Arguments:
+     * {@code series_name}, {@code series_id}.
+     */
+    SERIES_WAITING_LIMIT(
+            35,
+            "notification.seriesWaitingLimit",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order series info <series_id>", "words.info")),
+    /**
+     * A repeating order stopped; its info shows why. Arguments: {@code series_name}, {@code series_id}.
+     */
+    SERIES_STOPPED(
+            36,
+            "notification.seriesStopped",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order series info <series_id>", "words.info")),
+    /**
+     * A repeating order posted its last copy. Arguments: {@code series_name}.
+     */
+    SERIES_FINISHED(37, "notification.seriesFinished", NotificationCategory.MY_ORDERS, false, null),
+    /**
+     * A new order matches saved alerts of the company. Arguments: {@code alert_name} (names of the matching alerts),
+     * {@code order_name}, {@code contents}, {@code amount} (price), {@code net} (after the company's tax).
+     */
+    ORDER_ALERT(
+            38,
+            "notification.orderAlert",
+            NotificationCategory.ALERTS,
+            false,
+            new Action("/company alerts show <alert_name>", "words.show")),
+    /**
+     * More orders matched an alert while it was rate limited. Arguments: {@code alert_name}, {@code count}.
+     */
+    ORDER_ALERT_DIGEST(
+            39,
+            "notification.orderAlertDigest",
+            NotificationCategory.ALERTS,
+            false,
+            new Action("/company alerts show <alert_name>", "words.show"));
 
     private final int id;
     private final String key;
