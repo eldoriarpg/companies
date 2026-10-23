@@ -16,6 +16,7 @@ import net.milkbowl.vault.economy.Economy;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -91,15 +92,17 @@ public final class TreasuryTexts {
     }
 
     private static String detail(TreasuryLogEntry entry, Map<UUID, String> names) {
+        var note = Objects.requireNonNullElse(entry.note(), "");
         if (entry.kind() == TreasuryKind.SHARE_CHANGED) {
             var who = entry.actorId()
                     .map(id -> names.getOrDefault(id, "?") + ": ")
                     .orElse("");
-            return who + (entry.note() == null ? "" : entry.note() + " %");
+            return note.isEmpty() ? who : who + note + " %";
         }
-        if (entry.order() != null) return "#" + entry.order();
+        var order = entry.orderId();
+        if (order.isPresent()) return "#" + order.get();
         var who = entry.actorId().map(id -> names.getOrDefault(id, "?")).orElse("");
-        if (entry.note() == null || entry.note().isBlank()) return who;
-        return who.isEmpty() ? entry.note() : who + " (" + entry.note() + ")";
+        if (note.isBlank()) return who;
+        return who.isEmpty() ? note : who + " (" + note + ")";
     }
 }
