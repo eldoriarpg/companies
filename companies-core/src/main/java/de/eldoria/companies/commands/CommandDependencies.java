@@ -16,6 +16,7 @@ import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
+import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
@@ -28,6 +29,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
@@ -186,6 +188,17 @@ public final class CommandDependencies {
     public OrderOutcomes outcomes() {
         return OrderOutcomes.create(
                 plugin, orderData, companyData, history(), services().itemReturnService());
+    }
+
+    /**
+     * @return accepts orders for companies
+     */
+    public OrderAcceptService orderAccept() {
+        return new OrderAcceptService(
+                orderData,
+                configuration::companySettings,
+                plugin.getServer().getPluginManager()::callEvent,
+                Threading.VIRTUAL);
     }
 
     /**
