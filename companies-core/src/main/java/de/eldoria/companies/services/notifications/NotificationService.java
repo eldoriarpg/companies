@@ -79,6 +79,7 @@ public class NotificationService implements Listener {
     private final LiveDisplay display;
     private final Inbox inbox;
     private volatile BiConsumer<Long, UUID> announcePending = (entry, recipient) -> {};
+    private volatile OnlinePlayers online;
 
     @Nullable
     private final Economy economy;
@@ -110,6 +111,16 @@ public class NotificationService implements Listener {
         renderer = renderer(plugin);
         inbox = new Inbox(inboxData, settings);
         economy = plugin.getServer().getServicesManager().load(Economy.class);
+        online = OnlinePlayers.of(plugin.getServer());
+    }
+
+    /**
+     * Decides from now on who counts as online on this node, instead of the players of the server.
+     *
+     * @param players the players online here
+     */
+    public void useOnlinePlayers(OnlinePlayers players) {
+        online = players;
     }
 
     /**
@@ -230,7 +241,7 @@ public class NotificationService implements Listener {
      * @return true when it was shown
      */
     boolean showIfOnline(UUID recipient, NotificationType type, NotificationArgs args) {
-        var player = plugin.getServer().getPlayer(recipient);
+        var player = online.find(recipient);
         if (player == null) return false;
         display.show(player, type, args);
         return true;
@@ -242,11 +253,7 @@ public class NotificationService implements Listener {
      * @return their ids
      */
     CompletableFuture<List<UUID>> onlineHere() {
-        return CompletableFuture.supplyAsync(
-                () -> plugin.getServer().getOnlinePlayers().stream()
-                        .map(Player::getUniqueId)
-                        .toList(),
-                mainThread);
+        return CompletableFuture.supplyAsync(() -> online.ids(), mainThread);
     }
 
     /**
