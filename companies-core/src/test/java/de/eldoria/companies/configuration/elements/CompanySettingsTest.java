@@ -267,4 +267,105 @@ class CompanySettingsTest {
         Assertions.assertEquals(15, settings.profile().colors().size());
         Assertions.assertEquals(5, settings.profile().tagLength().max());
     }
+
+    @Test
+    void treasuryAndAlertsHaveTheAgreedDefaults() {
+        var settings = new CompanySettings();
+
+        Assertions.assertTrue(settings.treasury().enabled());
+        Assertions.assertEquals(25, settings.treasury().maxPayoutShare());
+        Assertions.assertEquals(1.0, settings.treasury().minTransaction());
+        Assertions.assertTrue(settings.treasury().payRename());
+        Assertions.assertEquals(365, settings.treasury().logRetentionDays());
+        Assertions.assertEquals(10, settings.treasury().logPageSize());
+        Assertions.assertTrue(settings.alerts().enabled());
+        Assertions.assertEquals(3, settings.alerts().maxPerCompany());
+        Assertions.assertEquals(15, settings.alerts().minMinutesBetween());
+    }
+
+    @Test
+    void configWithoutTreasuryAndAlertsGetsTheDefaults() {
+        var settings = mapper.readValue("deliveryHours: 24", CompanySettings.class);
+
+        Assertions.assertEquals(25, settings.treasury().maxPayoutShare());
+        Assertions.assertEquals(3, settings.maxAlerts(1));
+    }
+
+    @Test
+    void treasuryAndAlertsAreReadFromYaml() {
+        var settings = mapper.readValue("""
+                treasury:
+                  enabled: false
+                  maxPayoutShare: 40
+                  minTransaction: 5
+                  payRename: false
+                  logRetentionDays: 0
+                  logPageSize: 20
+                alerts:
+                  maxPerCompany: 7
+                  minMinutesBetween: 30
+                """, CompanySettings.class);
+
+        Assertions.assertFalse(settings.treasury().enabled());
+        Assertions.assertEquals(40, settings.treasury().maxPayoutShare());
+        Assertions.assertEquals(5.0, settings.treasury().minTransaction());
+        Assertions.assertFalse(settings.treasury().payRename());
+        Assertions.assertEquals(0, settings.treasury().logRetentionDays());
+        Assertions.assertEquals(20, settings.treasury().logPageSize());
+        Assertions.assertEquals(7, settings.alerts().maxPerCompany());
+        Assertions.assertEquals(30, settings.alerts().minMinutesBetween());
+    }
+
+    @Test
+    void payoutShareIsClampedToTheCurrentCap() {
+        var treasury = new CompanySettings().treasury();
+
+        Assertions.assertEquals(10, treasury.effectiveShare(10));
+        Assertions.assertEquals(25, treasury.effectiveShare(80));
+        Assertions.assertEquals(0, treasury.effectiveShare(-3));
+        treasury.maxPayoutShare(5);
+        Assertions.assertEquals(5, treasury.effectiveShare(10));
+        treasury.maxPayoutShare(500);
+        Assertions.assertEquals(100, treasury.maxPayoutShare());
+        treasury.enabled(false);
+        Assertions.assertEquals(0, treasury.effectiveShare(10));
+    }
+
+    @Test
+    void levelAlertLimitReplacesTheGlobalLimit() {
+        var settings = new CompanySettings();
+        settings.levelSettings(3).maxAlerts(5);
+        settings.levelSettings(4).maxAlerts(0);
+
+        Assertions.assertEquals(3, settings.maxAlerts(1));
+        Assertions.assertEquals(5, settings.maxAlerts(3));
+        Assertions.assertEquals(0, settings.maxAlerts(4));
+        Assertions.assertEquals(3, settings.maxAlerts(99));
+        settings.alerts().enabled(false);
+        Assertions.assertEquals(0, settings.maxAlerts(3));
+    }
+
+    @Test
+    void unsetAlertLimitIsNotWritten() {
+        var yaml = mapper.writeValueAsString(new CompanySettings());
+
+        Assertions.assertFalse(yaml.contains("maxAlerts"), yaml);
+        Assertions.assertTrue(yaml.contains("treasury:"), yaml);
+        Assertions.assertTrue(yaml.contains("alerts:"), yaml);
+    }
+
+    @Test
+    void levelAlertLimitIsReadFromYaml() {
+        var settings = mapper.readValue("""
+                level:
+                  - levelName: Solo
+                    settings:
+                      maxAlerts: 6
+                  - levelName: Duo
+                """, CompanySettings.class);
+
+        Assertions.assertEquals(6, settings.maxAlerts(1));
+        Assertions.assertEquals(3, settings.maxAlerts(2));
+        Assertions.assertTrue(mapper.writeValueAsString(settings).contains("maxAlerts: 6"));
+    }
 }
