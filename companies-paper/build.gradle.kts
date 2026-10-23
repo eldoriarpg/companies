@@ -81,6 +81,7 @@ tasks {
         minecraftVersion("26.3")
         downloadPlugins {
             url("https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar")
+            url("https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsX-2.22.0.jar")
             modrinth("luckperms", "v5.5.71-bukkit")
         }
 
