@@ -261,6 +261,15 @@ public class MariaDbCompanyData extends ACompanyData {
         var deletePayouts = """
                 DELETE FROM order_payouts WHERE company_id = ?""";
         @Language("mariadb")
+        var deleteTreasury = """
+                DELETE FROM company_treasury WHERE company_id = ?""";
+        @Language("mariadb")
+        var deleteTreasuryLog = """
+                DELETE FROM treasury_log WHERE company_id = ?""";
+        @Language("mariadb")
+        var deleteAlerts = """
+                DELETE FROM order_alerts WHERE company_id = ?""";
+        @Language("mariadb")
         var deleteCompany = """
                 DELETE FROM companies WHERE id = ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
@@ -270,6 +279,9 @@ public class MariaDbCompanyData extends ACompanyData {
             conf.query(deleteInvites).single(call().bind(company.id())).delete();
             conf.query(deleteApplications).single(call().bind(company.id())).delete();
             conf.query(deletePayouts).single(call().bind(company.id())).delete();
+            conf.query(deleteTreasury).single(call().bind(company.id())).delete();
+            conf.query(deleteTreasuryLog).single(call().bind(company.id())).delete();
+            conf.query(deleteAlerts).single(call().bind(company.id())).delete();
             conf.query(deleteCompany).single(call().bind(company.id())).delete();
         }
         return conf.context().exceptions().isEmpty();
