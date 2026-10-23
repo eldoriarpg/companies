@@ -75,6 +75,7 @@ import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.RefreshService;
+import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -222,6 +223,8 @@ public class Companies extends EldoPlugin {
 
         var notificationService = NotificationService.create(
                 this, information.inbox(), orderData, workerPool, configuration::notificationSettings);
+        var treasuryService =
+                TreasuryService.create(this, this.economy.treasury(), economy, configuration, notificationService);
         var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
         var membershipService = MembershipService.create(
                 this,
@@ -234,7 +237,7 @@ public class Companies extends EldoPlugin {
         var historyRecorder = new HistoryRecorder(information.history(), Clock.systemDefaultZone());
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
-                this, orderData, information.stats(), historyRecorder, economy, configuration);
+                this, orderData, information.stats(), historyRecorder, economy, configuration, treasuryService);
 
         var orderCreation = new OrderCreationService(
                 orderData,
