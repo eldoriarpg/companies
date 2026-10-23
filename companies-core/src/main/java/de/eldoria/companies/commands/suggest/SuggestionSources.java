@@ -168,6 +168,13 @@ public final class SuggestionSources {
         return configuration.companySettings().profile().colors();
     }
 
+    /**
+     * @return the names of the configured board presets
+     */
+    public List<String> boardPresets() {
+        return List.copyOf(configuration.boardSettings().presets().keySet());
+    }
+
     private static List<String> memberNames(CompanyProfile profile) {
         return profile.members().stream()
                 .map(member -> member.player().getName())
