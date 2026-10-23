@@ -111,6 +111,7 @@ public class Companies extends EldoPlugin {
     private Updates updates;
     private CommandDependencies commands;
     private OrderDraftService drafts;
+    private CompaniesApiImpl api;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -135,8 +136,6 @@ public class Companies extends EldoPlugin {
         }
 
         configuration.syncConfigurations(nodeData).join();
-
-        CompaniesApiImpl.create(companyData, orderData);
     }
 
     @Override
@@ -149,6 +148,11 @@ public class Companies extends EldoPlugin {
 
         StyledMessageSender.register(this, localizer, configuration::styleSettings);
         registerCommands();
+        api = CompaniesApiImpl.create(
+                this,
+                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats()),
+                Threading.VIRTUAL);
+        api.register(this);
     }
 
     /**
@@ -247,6 +251,7 @@ public class Companies extends EldoPlugin {
                     orderCompletion,
                     orderCreation));
         }
+        if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService));
 
         var expiringService = new ExpiringService(
                 this, orderData, companyData, configuration, itemReturnService, economy, notificationService, outcomes);
@@ -291,6 +296,7 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
+        if (api != null) api.unregister(this);
         if (commands != null) commands.withdraw();
         SuggestionSources.clear();
         CompanyOrderSources.clear();

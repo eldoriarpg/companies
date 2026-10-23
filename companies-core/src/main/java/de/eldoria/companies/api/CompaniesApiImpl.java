@@ -5,70 +5,147 @@
  */
 package de.eldoria.companies.api;
 
-import de.eldoria.companies.components.company.ICompanyProfile;
-import de.eldoria.companies.components.company.ICompanyStats;
-import de.eldoria.companies.components.company.ISimpleCompany;
-import de.eldoria.companies.components.order.IMaterialPrice;
-import de.eldoria.companies.components.order.ISimpleOrder;
-import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import org.bukkit.Material;
+import de.eldoria.companies.data.repository.AStatsData;
+import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.services.MembershipService;
+import de.eldoria.eldoutilities.messages.MessageSender;
+import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.Event;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.ServicePriority;
 
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
-// TODO implement CompaniesApi and register it with the services manager
-@SuppressWarnings("UnusedReturnValue")
-public class CompaniesApiImpl {
-    private final ACompanyData companyData;
-    private final AOrderData orderData;
+/**
+ * The API of the plugin, registered as a Bukkit service.
+ * <p>
+ * Reads work from the start. Writes need the services built on the economy, which are handed over with
+ * {@link #open(Writes)} once the server has started; until then they complete exceptionally with an
+ * {@link ApiNotReadyException}. Every future completes on the given executor, never on the main thread.
+ */
+public final class CompaniesApiImpl implements CompaniesApi {
+    private final WriteAccess writes = new WriteAccess();
+    private final CompanyApi companies;
+    private final OrderApi orders;
+    private final PlayerApi players;
+    private final RankingApi ranking;
 
-    private CompaniesApiImpl(ACompanyData companyData, AOrderData orderData) {
-        this.companyData = companyData;
-        this.orderData = orderData;
+    /**
+     * @param repositories the repositories the API reads from
+     * @param server       what the API needs from the server
+     * @param executor     completes the futures, off the main thread
+     */
+    public CompaniesApiImpl(Repositories repositories, Server server, Executor executor) {
+        companies = new CompanyApiImpl(
+                repositories.companies(), repositories.stats(), writes, server.players(), server.clock(), executor);
+        orders = new OrderApiImpl(repositories.orders(), writes, server.players(), server.messages(), executor);
+        players = new PlayerApiImpl(repositories.orders(), writes, server.players(), server.events(), executor);
+        ranking = new RankingApiImpl(repositories.stats(), server.clock(), executor);
     }
 
-    public static CompaniesApiImpl create(ACompanyData companyData, AOrderData orderData) {
-        return new CompaniesApiImpl(companyData, orderData);
+    /**
+     * Creates the API of a plugin: players are looked up on its server, events are fired through its plugin manager
+     * and messages are rendered by its message sender in the server's language.
+     *
+     * @param plugin       the plugin
+     * @param repositories the repositories the API reads from
+     * @param executor     completes the futures, off the main thread
+     * @return the API, not registered yet
+     */
+    public static CompaniesApiImpl create(Plugin plugin, Repositories repositories, Executor executor) {
+        var server = new Server(
+                plugin.getServer()::getOfflinePlayer,
+                plugin.getServer().getPluginManager()::callEvent,
+                failure -> failure.render(null, MessageSender.getPluginMessageSender(plugin)),
+                LocalDateTime::now);
+        return new CompaniesApiImpl(repositories, server, executor);
     }
 
-    public Optional<? extends ICompanyProfile> getPlayerCompanyProfile(OfflinePlayer player) {
-        return companyData.retrievePlayerCompanyProfile(player).join();
+    /**
+     * Registers the API with the services manager, so other plugins can load it.
+     *
+     * @param plugin plugin providing the API
+     */
+    public void register(Plugin plugin) {
+        plugin.getServer().getServicesManager().register(CompaniesApi.class, this, plugin, ServicePriority.Normal);
     }
 
-    public Optional<? extends ISimpleCompany> getPlayerCompany(OfflinePlayer player) {
-        return companyData.retrievePlayerCompany(player).join();
+    /**
+     * Refuses writes and removes the API from the services manager.
+     *
+     * @param plugin plugin providing the API
+     */
+    public void unregister(Plugin plugin) {
+        writes.close();
+        plugin.getServer().getServicesManager().unregister(CompaniesApi.class, this);
     }
 
-    public ICompanyStats getCompanyStats(ISimpleCompany company) {
-        return companyData.retrieveCompanyStats(company).join();
+    /**
+     * Allows write operations.
+     *
+     * @param services the services of the write operations
+     */
+    public void open(Writes services) {
+        writes.open(services);
     }
 
-    public Optional<? extends ISimpleCompany> getCompanyByName(String name) {
-        return companyData.retrieveCompanyByName(name).join();
+    @Override
+    public CompanyApi companies() {
+        return companies;
     }
 
-    public Optional<? extends ISimpleCompany> getCompanyById(int id) {
-        return companyData.retrieveCompanyById(id).join();
+    @Override
+    public OrderApi orders() {
+        return orders;
     }
 
-    public Optional<? extends ISimpleOrder> retrieveOrderById(int id) {
-        return orderData.retrieveOrderById(id).join();
+    @Override
+    public PlayerApi players() {
+        return players;
     }
 
-    public List<? extends ISimpleOrder> retrieveOrdersByCompany(
-            ISimpleCompany company, OrderState min, OrderState max) {
-        return orderData.retrieveOrdersByCompany(company, min, max).join();
+    @Override
+    public RankingApi ranking() {
+        return ranking;
     }
 
-    public List<? extends SimpleOrder> retrieveOrdersByPlayer(OfflinePlayer player, OrderState min, OrderState max) {
-        return orderData.retrieveOrdersByPlayer(player, min, max).join();
-    }
+    /**
+     * The repositories the API reads from.
+     *
+     * @param companies company repository
+     * @param orders    order repository
+     * @param stats     statistics repository
+     */
+    public record Repositories(ACompanyData companies, AOrderData orders, AStatsData stats) {}
 
-    public IMaterialPrice retrieveMaterialPrice(Material material) {
-        return orderData.retrieveMaterialPrice(material.name()).join();
-    }
+    /**
+     * What the API needs from the server.
+     *
+     * @param players  looks up a player by id
+     * @param events   fires events
+     * @param messages renders the error of a rejected write as the player would see it
+     * @param clock    the current time
+     */
+    public record Server(
+            Function<UUID, OfflinePlayer> players,
+            Consumer<Event> events,
+            Function<CommandFailure, Component> messages,
+            Supplier<LocalDateTime> clock) {}
+
+    /**
+     * The services of the write operations, which exist only once the economy is set up.
+     *
+     * @param orders      creates orders
+     * @param memberships adds members to companies
+     */
+    public record Writes(OrderCreationService orders, MembershipService memberships) {}
 }
