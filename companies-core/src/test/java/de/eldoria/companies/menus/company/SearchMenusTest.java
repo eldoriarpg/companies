@@ -57,6 +57,14 @@ class SearchMenusTest {
     }
 
     @Test
+    void theChatFormOffersSavingTheSearchAsAlert() {
+        var text = new SearchMenu(search, null).chat(player, SearchMenu.Model.of(new SearchQuery()), actions);
+
+        assertTrue(text.build().contains("suggest_command:'/company alerts add '"));
+        assertTrue(text.build().contains("<i18n:company.order.search.saveAlert>"));
+    }
+
+    @Test
     void theChatResultsUseCallbacksInsteadOfCommands() {
         var results = new SearchResults(List.of(), 5, true, true);
 
