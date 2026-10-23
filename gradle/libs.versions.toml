@@ -30,6 +30,7 @@ hikari = "com.zaxxer:HikariCP:7.1.0"
 mariadb = "org.mariadb.jdbc:mariadb-java-client:3.5.11"
 sqlite = "org.xerial:sqlite-jdbc:3.53.4.0"
 postgres = "org.postgresql:postgresql:42.7.14"
+jedis = "redis.clients:jedis:8.0.2"
 
 sadu-queries = { module = "de.chojo.sadu:sadu-queries", version.ref = "sadu" }
 sadu-updater = { module = "de.chojo.sadu:sadu-updater", version.ref = "sadu" }
@@ -45,6 +46,7 @@ mockbukkit = "org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.116.3"
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+testcontainers = "org.testcontainers:testcontainers:2.0.5"
 
 gradle-spotless = "com.diffplug.spotless:spotless-plugin-gradle:8.10.4"
 gradle-publishdata = "de.chojo:publishdata:2.1.0"
