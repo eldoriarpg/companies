@@ -17,6 +17,7 @@ import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
+import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.services.DisbandService;
@@ -212,6 +213,7 @@ public final class CommandDependencies {
      * @param menus               shows menus as dialogs or in chat
      * @param membershipService   invites, applications and joining
      * @param orderCompletion     completes delivered orders
+     * @param orderCreation       creates orders and charges their owners
      */
     public record Services(
             Economy economy,
@@ -224,5 +226,6 @@ public final class CommandDependencies {
             DeliveryService deliveryService,
             MenuService menus,
             MembershipService membershipService,
-            OrderCompletionService orderCompletion) {}
+            OrderCompletionService orderCompletion,
+            OrderCreationService orderCreation) {}
 }

@@ -398,9 +398,7 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
 
     private List<DialogBody> errorBody(Player player, View view) {
         var body = new ArrayList<DialogBody>();
-        view.error()
-                .ifPresent(error -> body.add(DialogBody.plainMessage(
-                        messages.serializeError(player, "<i18n:" + error.localeKey() + ">", error.values()))));
+        view.error().ifPresent(error -> body.add(DialogBody.plainMessage(error.render(player, messages))));
         return body;
     }
 

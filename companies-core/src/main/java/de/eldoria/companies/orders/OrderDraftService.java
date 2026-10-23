@@ -9,13 +9,11 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.order.IOrderDraft;
+import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.util.Money;
-import de.eldoria.companies.util.Threading;
-import de.eldoria.eldoutilities.messages.Replacement;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -24,7 +22,6 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 
 /**
  * Holds the order drafts of the players and performs the builder actions on them.
@@ -203,13 +200,13 @@ public final class OrderDraftService {
     }
 
     /**
-     * Charges the player the price and the fee and saves the draft as an order.
+     * Creates the order of the player's draft through the order creation, which charges the player.
      *
-     * @param player  player owning the draft
-     * @param economy economy charging the player
-     * @return price and fee of the created order, or a {@link CommandFailure} when it was not created
+     * @param player   player owning the draft
+     * @param creation creates the order
+     * @return the created order, or a {@link CommandFailure} when it was not created
      */
-    public CompletableFuture<Created> done(Player player, Economy economy) {
+    public CompletableFuture<OrderCreationService.Created> done(Player player, OrderCreationService creation) {
         var draft = drafts.getIfPresent(player.getUniqueId());
         if (draft == null) return CompletableFuture.failedFuture(CommandFailure.of("order.create.draftExpired"));
         if (draft.lineCount() == 0)
@@ -217,32 +214,32 @@ public final class OrderDraftService {
         var order = drafts.asMap().remove(player.getUniqueId());
         if (order == null) return CompletableFuture.failedFuture(CommandFailure.of("order.create.draftExpired"));
 
-        var price = order.price();
-        var fee = configuration.orderSetting().fee().of(price);
-        var mainThread = Threading.mainThread(plugin);
-        return limits.usage(player)
-                .asFuture()
-                .thenAcceptAsync(usage -> charge(player, economy, usage, price + fee), mainThread)
-                .thenCompose(charged -> orderData
-                        .submitOrder(player, order.build(fee))
-                        .asFuture()
-                        .thenApply(Optional::isPresent)
-                        .exceptionally(err -> {
-                            plugin.getLogger().log(Level.SEVERE, "Could not save order", err);
-                            return false;
-                        }))
-                .thenApplyAsync(
-                        created -> {
-                            if (!created) {
-                                economy.depositPlayer(player, price + fee);
-                                throw CommandFailure.of("error.saveFailed");
-                            }
-                            return new Created(price, fee);
-                        },
-                        mainThread)
+        return creation.create(player, toDraft(order), OrderSource.PLAYER, true, true)
+                .thenApply(outcome -> switch (outcome) {
+                    case OrderCreationService.Created created -> created;
+                    case OrderCreationService.Rejected rejected -> throw rejected.failure();
+                })
                 .whenComplete((created, err) -> {
                     if (err != null) drafts.asMap().putIfAbsent(player.getUniqueId(), order);
                 });
+    }
+
+    /**
+     * The draft of a player as listeners of the order creation see it.
+     *
+     * @param order draft of the player
+     * @return a copy of the draft
+     */
+    static IOrderDraft toDraft(OrderBuilder order) {
+        var draft = IOrderDraft.of(order.name());
+        for (var line : order.lines()) {
+            if (line.exact()) {
+                draft.addLine(line.template(), line.amount(), line.unitPrice());
+            } else {
+                draft.addLine(line.template().getType(), line.amount(), line.unitPrice());
+            }
+        }
+        return draft;
     }
 
     /**
@@ -254,17 +251,6 @@ public final class OrderDraftService {
     public Optional<RequestedItem> request(ItemStack item) {
         var itemMatcher = matcher();
         return itemMatcher.template(item).map(template -> new RequestedItem(template, itemMatcher.isExact(template)));
-    }
-
-    private static void charge(Player player, Economy economy, OrderLimits.Usage usage, double total) {
-        if (usage.reached()) throw CommandFailure.actionBar("order.create.error.limitReached");
-        if (!economy.has(player, total)
-                || !economy.withdrawPlayer(player, total).transactionSuccess()) {
-            throw CommandFailure.of(
-                    "error.insufficientCurrency",
-                    Replacement.create("currency", Money.currencyName(economy)),
-                    Replacement.create("amount", economy.format(total)));
-        }
     }
 
     private ItemMatcher matcher() {
@@ -287,14 +273,6 @@ public final class OrderDraftService {
      * @param exact    whether the data of the item is requested as well
      */
     public record RequestedItem(ItemStack template, boolean exact) {}
-
-    /**
-     * An order that was created from a draft.
-     *
-     * @param price price of the order
-     * @param fee   fee the owner paid on top
-     */
-    public record Created(double price, double fee) {}
 
     private record SettingsMatcher(ItemMatchSettings settings, ItemMatcher matcher) {}
 }

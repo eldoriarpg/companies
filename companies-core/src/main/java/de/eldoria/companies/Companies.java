@@ -54,6 +54,8 @@ import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
+import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.DisbandService;
@@ -108,6 +110,7 @@ public class Companies extends EldoPlugin {
     private AMembershipData membershipData;
     private Updates updates;
     private CommandDependencies commands;
+    private OrderDraftService drafts;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -156,6 +159,7 @@ public class Companies extends EldoPlugin {
         var dependencies = new CommandDependencies(
                 this, configuration, companyData, orderData, nodeData, membershipData, information);
         commands = dependencies;
+        drafts = dependencies.drafts();
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
         SuggestionSources.use(new SuggestionSources(
                 companyData,
@@ -217,6 +221,16 @@ public class Companies extends EldoPlugin {
         var orderCompletion = OrderCompletionService.create(
                 this, orderData, information.stats(), historyRecorder, economy, configuration);
 
+        var orderCreation = new OrderCreationService(
+                orderData,
+                configuration::orderSetting,
+                drafts.limits(),
+                drafts::request,
+                OrderCreationService.Wallet.of(economy),
+                getServer().getPluginManager()::callEvent,
+                Threading.mainThread(this),
+                getLogger());
+
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
                     economy,
@@ -230,7 +244,8 @@ public class Companies extends EldoPlugin {
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
-                    orderCompletion));
+                    orderCompletion,
+                    orderCreation));
         }
 
         var expiringService = new ExpiringService(
