@@ -46,9 +46,6 @@ import java.util.logging.Logger;
  */
 public final class RedisBus implements NodeBus {
     private static final Duration MIN_BACKOFF = Duration.ofSeconds(1);
-    private static final Duration MAX_BACKOFF = Duration.ofSeconds(30);
-    private static final Duration PING_INTERVAL = Duration.ofSeconds(10);
-    private static final Duration SILENCE_LIMIT = Duration.ofSeconds(30);
     private static final int TIMEOUT_MILLIS = 2000;
     private static final int POOL_SIZE = 2;
     private static final String FALLBACK = "Notifications and caches fall back to polling until it is back.";
@@ -57,6 +54,7 @@ public final class RedisBus implements NodeBus {
     private final UUID node;
     private final Executor handlers;
     private final Logger logger;
+    private final Timings timings;
     private final NodeMessageCodec codec = new NodeMessageCodec();
     private final Map<Class<? extends NodeMessage>, List<Handler<NodeMessage>>> subscriptions =
             new ConcurrentHashMap<>();
@@ -76,7 +74,8 @@ public final class RedisBus implements NodeBus {
     private volatile Jedis subscriberClient;
     private volatile long lastHeard;
 
-    private RedisBus(Server server, UUID node, Executor handlers, Logger logger) {
+    private RedisBus(Server server, UUID node, Executor handlers, Logger logger, Timings timings) {
+        this.timings = timings;
         this.server = server;
         this.node = node;
         this.handlers = handlers;
@@ -109,10 +108,25 @@ public final class RedisBus implements NodeBus {
      * @return the started bus, connected or retrying
      */
     public static RedisBus start(Server server, UUID node, Executor handlers, Logger logger, Duration wait) {
-        var bus = new RedisBus(server, node, handlers, logger);
+        return start(server, node, handlers, logger, wait, Timings.DEFAULT);
+    }
+
+    /**
+     * Starts the bus with other timings, see {@link #start(Server, UUID, Executor, Logger, Duration)}.
+     *
+     * @param server   the server to connect to
+     * @param node     uid of this node, sent with every message
+     * @param handlers runs the handlers of received messages
+     * @param logger   reports connects and losses
+     * @param wait     longest wait for the first attempt
+     * @param timings  how often to ping, when to give up on a silent connection and the longest backoff
+     * @return the started bus, connected or retrying
+     */
+    static RedisBus start(Server server, UUID node, Executor handlers, Logger logger, Duration wait, Timings timings) {
+        var bus = new RedisBus(server, node, handlers, logger, timings);
         bus.subscriberThread.start();
-        bus.watchdog.scheduleWithFixedDelay(
-                bus::watch, PING_INTERVAL.toMillis(), PING_INTERVAL.toMillis(), TimeUnit.MILLISECONDS);
+        var ping = timings.pingInterval().toMillis();
+        bus.watchdog.scheduleWithFixedDelay(bus::watch, ping, ping, TimeUnit.MILLISECONDS);
         try {
             bus.firstAttempt.await(wait.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -228,7 +242,8 @@ public final class RedisBus implements NodeBus {
             if (!running) return;
             changeState(State.DISCONNECTED);
             if (!pause(backoff)) return;
-            backoff = backoff.multipliedBy(2).compareTo(MAX_BACKOFF) > 0 ? MAX_BACKOFF : backoff.multipliedBy(2);
+            var doubled = backoff.multipliedBy(2);
+            backoff = doubled.compareTo(timings.maxBackoff()) > 0 ? timings.maxBackoff() : doubled;
         }
     }
 
@@ -245,7 +260,7 @@ public final class RedisBus implements NodeBus {
     private void watch() {
         var current = subscriber;
         if (state != State.CONNECTED || current == null || !current.isSubscribed()) return;
-        if (System.nanoTime() - lastHeard > SILENCE_LIMIT.toNanos()) {
+        if (System.nanoTime() - lastHeard > timings.silenceLimit().toNanos()) {
             logger.warning("Redis at " + server.address() + " did not answer. Reconnecting.");
             disconnectSubscriber();
             return;
@@ -342,6 +357,21 @@ public final class RedisBus implements NodeBus {
             return "Server[" + address() + ", user=" + user + ", ssl=" + ssl + ", database=" + database
                     + ", channelPrefix=" + channelPrefix + "]";
         }
+    }
+
+    /**
+     * How the bus watches its connection.
+     *
+     * @param pingInterval time between two pings of the subscriber connection
+     * @param silenceLimit time without any answer after which the connection counts as dead
+     * @param maxBackoff   longest wait between two connection attempts
+     */
+    record Timings(Duration pingInterval, Duration silenceLimit, Duration maxBackoff) {
+        /**
+         * Pings every 10 seconds, gives up after 30 silent seconds and retries at least every 30 seconds.
+         */
+        static final Timings DEFAULT =
+                new Timings(Duration.ofSeconds(10), Duration.ofSeconds(30), Duration.ofSeconds(30));
     }
 
     private final class Subscriber extends JedisPubSub {
