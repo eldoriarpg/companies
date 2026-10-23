@@ -152,7 +152,7 @@ Confirm what happens when `menus:` is written with no value. The code is meant t
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `collectorAccount` | text | `''` | The account that receives fees and taxes. A player UUID or a Vault account name. When empty, fees and taxes are removed from the economy. | reload |
+| `collectorAccount` | text | `''` | The account that receives fees, taxes and the price of orders an admin cancels with `keep`. A player UUID or a Vault account name. When empty, this money is removed from the economy. | reload |
 
 See [Economy](../economy.md) for where money goes.
 

@@ -62,8 +62,9 @@ Each action treats everyone fairly. Nobody is paid for work they did not do, and
 
 **Cancel with `keep`** deletes the order without a refund:
 
-- The fee goes to the [collector account](./economy.md#the-collector-account).
-- The price is not paid back to anyone.
+- The owner gets nothing back.
+- The price and the fee go to the [collector account](./economy.md#the-collector-account). Without a collector,
+  the money leaves the economy.
 - Delivered items go back to the workers.
 
 If the order was a copy of a [repeating order](../players/repeating-orders.md), that repeating order stops and the

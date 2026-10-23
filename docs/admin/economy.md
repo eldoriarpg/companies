@@ -27,12 +27,13 @@ Amounts are shown in the format of your economy plugin, with its currency name.
 | Raising the price | The player pays the increase plus the fee on it | The order holds the money |
 | Completing an order | The order | Workers get their share minus tax and treasury share. Tax and fee go to the collector. The treasury share goes to the company treasury |
 | Cancelling an order (`/order cancel`) | The order | The owner gets the price back. The fee goes to the collector |
-| Order removed because nobody accepted it | The order | The owner gets price and fee back |
+| Order removed because nobody claimed it | The order | The owner gets price and fee back |
 | Founding a company | The founder pays `foundingPrice` | Nobody. The money leaves the economy |
 | Renaming a company | The owner pays `renamePrice`, from the wallet or the treasury | Nobody. The money leaves the economy |
 | Disbanding a company | The treasury | The owner |
+| Admin cancels an order with `keep` | The order | Price and fee go to the collector. The owner gets nothing back |
 
-Admin actions have their own rules. See [Settling orders](./admin-commands.md#settling-orders).
+The other admin actions have their own rules. See [Settling orders](./admin-commands.md#settling-orders).
 
 Orders that other plugins create through the [API](../developers/api.md) can be paid by the server instead. Then
 nothing is taken from the player and the order has no fee.
@@ -40,9 +41,9 @@ nothing is taken from the player and the order has no fee.
 ## Prices
 
 The price of an order is the sum of its lines: amount times unit price. The player sets the unit prices in the order
-builder, or take the market price, an average price for that item.
+builder, or takes the market price, an average price for that item.
 
-Players can raise the price of an order nobody has accepted yet. See [Placing orders](../players/orders.md).
+Players can raise the price of an order nobody has claimed yet. See [Placing orders](../players/orders.md).
 
 `company.yml` sets the prices for companies:
 
@@ -73,7 +74,7 @@ When a player raises the price, they pay `percent` of the increase. `min` and `m
 The fixed part is not charged again.
 
 The fee stays with the order until the order ends. Then it goes to the collector, or back to the owner if the order
-was removed because nobody accepted it.
+was removed because nobody claimed it.
 
 ## Tax
 
@@ -89,7 +90,8 @@ tax:
 
 ## The collector account
 
-Fees and taxes go to the collector account in `config.yml`:
+Fees and taxes go to the collector account. So does the price of an order an admin cancels with `keep`. Set the
+account in `config.yml`:
 
 ```yaml
 economy:
