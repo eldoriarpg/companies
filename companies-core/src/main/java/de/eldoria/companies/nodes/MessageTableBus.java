@@ -11,12 +11,14 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -40,6 +42,7 @@ public final class MessageTableBus implements NodeBus {
     static final int PAGE = 500;
 
     private static final Duration GAP_WAIT = Duration.ofSeconds(10);
+    private static final Duration START_WAIT = Duration.ofSeconds(3);
     private static final long STOP_WAIT_MILLIS = 2000;
 
     private final ANodeMessageData data;
@@ -65,7 +68,8 @@ public final class MessageTableBus implements NodeBus {
     }
 
     /**
-     * Creates the bus and starts reading. The primary starts deleting old rows as well.
+     * Creates the bus and starts reading, after waiting for the first read. The primary starts deleting old rows as
+     * well.
      *
      * @param data     the message table
      * @param node     uid of this node, sent with every message
@@ -82,9 +86,24 @@ public final class MessageTableBus implements NodeBus {
             var purge = timings.purgeInterval().toMillis();
             bus.reader.scheduleWithFixedDelay(bus::purge, purge, purge, TimeUnit.MILLISECONDS);
         }
+        bus.firstRead();
         var read = timings.readInterval().toMillis();
-        bus.reader.scheduleWithFixedDelay(bus::read, 0, read, TimeUnit.MILLISECONDS);
+        bus.reader.scheduleWithFixedDelay(bus::read, read, read, TimeUnit.MILLISECONDS);
         return bus;
+    }
+
+    /**
+     * Reads once and waits for it, at most {@link #START_WAIT}, so a bus that can read the table is
+     * {@link State#CONNECTED} when it is returned and whoever reads the state right after starting sees it.
+     */
+    private void firstRead() {
+        try {
+            reader.submit(this::read).get(START_WAIT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | TimeoutException e) {
+            logger.log(Level.FINE, "The first read of node messages did not finish in time.", e);
+        }
     }
 
     @Override

@@ -90,7 +90,8 @@ public final class RedisBus implements NodeBus {
 
     /**
      * Starts the bus and waits until the first connection attempt succeeded or failed, at most for the given time.
-     * The bus keeps trying in the background either way.
+     * When it succeeded, the bus is {@link State#CONNECTED} on return, so whoever reads the state right after starting
+     * sees it. The bus keeps trying in the background either way.
      *
      * @param server     the server to connect to
      * @param node       uid of this node, sent with every message
@@ -369,8 +370,8 @@ public final class RedisBus implements NodeBus {
             lastHeard = System.nanoTime();
             connected = true;
             logger.info("Connected to Redis at " + server.address() + ".");
-            firstAttempt.countDown();
             changeState(State.CONNECTED);
+            firstAttempt.countDown();
         }
 
         @Override
