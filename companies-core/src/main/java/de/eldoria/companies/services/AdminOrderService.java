@@ -53,8 +53,9 @@ import java.util.logging.Logger;
  * <p>
  * Money follows the fair settlement:
  * <ul>
- *     <li>deleting with a refund returns price and fee to the owner; deleting without one returns nothing and the fee
- *     goes to the collector;</li>
+ *     <li>deleting with a refund returns price and fee to the owner; deleting without one returns nothing to the
+ *     owner, and price and fee go to the collector, which removes them from the economy when no collector account is
+ *     set;</li>
  *     <li>marking a partly delivered order delivered pays the workers for what they delivered, as a normal completion
  *     does, and refunds the owner the price share of the missing items.</li>
  * </ul>
@@ -81,7 +82,7 @@ public final class AdminOrderService {
      * @param companies  loads a company with its members by id
      * @param completion settles orders marked delivered
      * @param history    writes the history entries
-     * @param funds      refunds owners and pays the collector
+     * @param funds       refunds owners and pays the collector
      * @param notices     tells the affected players
      * @param itemReturns reports the items returned to workers and tells them
      * @param events      fires the events of the actions
@@ -115,7 +116,7 @@ public final class AdminOrderService {
     }
 
     /**
-     * The service of a running plugin: Vault refunds the owners, the collector account gets kept fees, and the
+     * The service of a running plugin: Vault refunds the owners, the collector account gets kept money, and the
      * notifications go to the inbox.
      *
      * @param plugin        the plugin
@@ -193,7 +194,7 @@ public final class AdminOrderService {
      * Deletes an open or claimed order. The items delivered to a claimed order go back to the workers.
      *
      * @param id     id of the order
-     * @param refund true to return price and fee to the owner, false to keep the price and collect the fee
+     * @param refund true to return price and fee to the owner, false to hand price and fee to the collector
      * @return the deleted order, or why it was refused
      */
     public CompletableFuture<Result<Cancelled>> cancel(int id, boolean refund) {
@@ -228,14 +229,13 @@ public final class AdminOrderService {
      *
      * @param order  order as it was before the deletion
      * @param refund true to refund the owner
-     * @return price and fee for the owner on a refund, otherwise the fee for the collector
+     * @return price and fee for the owner on a refund, otherwise price and fee for the collector
      */
     public static CancelMoney cancelMoney(FullOrder order, boolean refund) {
-        if (refund) {
-            var total = BigDecimal.valueOf(order.price()).add(BigDecimal.valueOf(order.fee()));
-            return new CancelMoney(total.doubleValue(), 0);
-        }
-        return new CancelMoney(0, order.fee());
+        var total = BigDecimal.valueOf(order.price())
+                .add(BigDecimal.valueOf(order.fee()))
+                .doubleValue();
+        return refund ? new CancelMoney(total, 0) : new CancelMoney(0, total);
     }
 
     /**
@@ -482,7 +482,7 @@ public final class AdminOrderService {
         void refund(UUID owner, double amount);
 
         /**
-         * Hands a kept fee to the collector.
+         * Hands kept money to the collector.
          *
          * @param amount amount collected
          */
