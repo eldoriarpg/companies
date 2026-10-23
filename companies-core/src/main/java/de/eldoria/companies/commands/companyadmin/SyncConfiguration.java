@@ -14,7 +14,8 @@ import org.bukkit.command.CommandSender;
 
 /**
  * {@code /companyadmin syncconfiguration}: writes the configuration of this node to the database or reads it from
- * there, depending on the node type.
+ * there, depending on the node type. Afterwards everything registered with
+ * {@link CommandDependencies#onReload(Runnable)} applies the configuration, as after a reload.
  */
 @Subcommand("syncconfiguration")
 @Permission(Admin.ADMIN)
@@ -35,7 +36,10 @@ public final class SyncConfiguration {
     public void sync(CommandSender sender) {
         deps.requireReady();
         deps.configuration().syncConfigurations(deps.nodeData()).whenComplete((res, err) -> {
-            if (err == null) deps.adminLog().entry(sender, "syncconfiguration").write();
+            if (err == null) {
+                deps.adminLog().entry(sender, "syncconfiguration").write();
+                deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::reloaded);
+            }
             deps.messages().sendMessage(sender, "companyadmin.syncconfiguration.done");
         });
     }
