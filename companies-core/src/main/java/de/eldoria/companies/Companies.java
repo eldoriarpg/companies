@@ -22,6 +22,7 @@ import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SeriesSources;
+import de.eldoria.companies.commands.suggest.SuggestionCache;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
@@ -64,9 +65,18 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
+import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.menus.MenuService;
+import de.eldoria.companies.nodes.DatabaseBus;
+import de.eldoria.companies.nodes.NetworkPresence;
+import de.eldoria.companies.nodes.NodeBus;
+import de.eldoria.companies.nodes.NodeBuses;
+import de.eldoria.companies.nodes.NodeCaches;
+import de.eldoria.companies.nodes.NodeMessage;
+import de.eldoria.companies.nodes.NodeMessaging;
+import de.eldoria.companies.nodes.NodeSignals;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
@@ -104,12 +114,16 @@ import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -119,6 +133,7 @@ import java.util.logging.Level;
 
 @SuppressWarnings("InstanceVariableMayNotBeInitialized")
 public class Companies extends EldoPlugin {
+    private static final long ONLINE_TIMEOUT_SECONDS = 5L;
     private final Thread.UncaughtExceptionHandler exceptionHandler = (t, e) -> getLogger()
             .log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
@@ -137,6 +152,10 @@ public class Companies extends EldoPlugin {
     private OrderDraftService drafts;
     private CompaniesApiImpl api;
     private DiscordWebhook discord;
+    private NodeBus bus = new DatabaseBus();
+    private final NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
+    private NodeCaches caches;
+    private NodeMessaging nodeMessaging;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -172,6 +191,13 @@ public class Companies extends EldoPlugin {
                 .build();
 
         StyledMessageSender.register(this, localizer, configuration::styleSettings);
+        caches = new NodeCaches(getLogger());
+        bus = NodeBuses.create(
+                configuration.databaseSettings().redis(),
+                configuration.nodeSettings().nodeUid(),
+                Threading.VIRTUAL,
+                System::getenv,
+                getLogger());
         registerCommands();
         api = CompaniesApiImpl.create(
                 this,
@@ -188,6 +214,7 @@ public class Companies extends EldoPlugin {
         var dependencies = new CommandDependencies(
                 this, configuration, companyData, orderData, nodeData, membershipData, information, economy);
         commands = dependencies;
+        dependencies.useNodes(bus, presence, caches);
         drafts = dependencies.drafts();
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
         SuggestionSources.use(new SuggestionSources(
@@ -305,7 +332,8 @@ public class Companies extends EldoPlugin {
         var alertCompanies = AlertCompanies.of(companyData, orderData);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
-            RefreshService.start(orderData, workerPool);
+            RefreshService.start(
+                    orderData, workerPool, () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.PRICES, null)));
             membershipService.start(workerPool);
             seriesService.schedule(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
@@ -331,21 +359,22 @@ public class Companies extends EldoPlugin {
                     .start(workerPool);
         }
         var inboxPoller = new InboxPoller(information.inbox(), notificationService, getLogger());
-        inboxPoller.start(workerPool, configuration::notificationSettings);
+        inboxPoller.start(workerPool, configuration::notificationSettings, bus::realtime);
         if (commands != null) commands.onReload(inboxPoller::reschedule);
         registerListener(expiringService);
         registerListener(levelService);
         registerListener(itemReturnService);
         registerListener(notificationService);
         if (commands != null && configuration.boardSettings().enabled()) {
-            new SignBoards(
-                            this,
-                            commands.boards(),
-                            configuration::boardSettings,
-                            ILocalizer.getPluginLocalizer(this)::localize,
-                            (sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)),
-                            Clock.systemUTC())
-                    .start();
+            var signBoards = new SignBoards(
+                    this,
+                    commands.boards(),
+                    configuration::boardSettings,
+                    ILocalizer.getPluginLocalizer(this)::localize,
+                    (sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)),
+                    Clock.systemUTC());
+            signBoards.start();
+            caches.register(NodeCaches.BOARDS, key -> signBoards.refresher().markDirty());
         }
         if (commands != null) {
             commands.npcBoards()
@@ -382,7 +411,77 @@ public class Companies extends EldoPlugin {
             placeholders.start();
             registerListener(placeholders.events());
             if (commands != null) commands.onReload(placeholders::reload);
+            registerPlaceholderCaches(placeholders);
         }
+        connectNodes(notificationService, inboxPoller);
+    }
+
+    /**
+     * Lets other nodes drop the cached placeholder values of companies and rankings.
+     *
+     * @param placeholders the placeholders
+     */
+    private void registerPlaceholderCaches(Placeholders placeholders) {
+        caches.register(NodeCaches.COMPANY, key -> key.map(Integer::parseInt)
+                .ifPresentOrElse(placeholders::companyChanged, placeholders::refreshAll));
+        caches.register(NodeCaches.RANKING, key -> placeholders.rankingChanged());
+    }
+
+    /**
+     * Connects this node to the others over the node bus: announces pending notifications and changed orders, lets
+     * other nodes drop the caches of this node, and acts on their messages. On the {@link DatabaseBus} nothing is
+     * sent or received and the polls and cache lifetimes stay in charge.
+     *
+     * @param notifications sends notifications
+     * @param inboxPoller   shows notifications sent from other nodes
+     */
+    private void connectNodes(NotificationService notifications, InboxPoller inboxPoller) {
+        if (commands == null) return;
+        notifications.announcePending((entry, recipient) -> bus.publish(new NodeMessage.InboxNew(entry, recipient)));
+        orderData.onFullOrderChanged(
+                id -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.ORDER, String.valueOf(id))));
+        caches.register(NodeCaches.ORDER, key -> key.map(Integer::parseInt)
+                .ifPresentOrElse(orderData::forgetFullOrder, orderData::forgetFullOrders));
+        caches.register(NodeCaches.PRICES, key -> orderData.invalidateMaterialPriceCache());
+        caches.register(NodeCaches.COMPANY, key -> SuggestionCache.dropAll());
+        caches.register(NodeCaches.ORDER, key -> SuggestionCache.dropAll());
+
+        var primary = configuration.nodeSettings().nodeType() == NodeType.PRIMARY;
+        nodeMessaging = new NodeMessaging(bus, caches, presence, getLogger());
+        nodeMessaging.start(
+                new NodeMessaging.Node(
+                        primary,
+                        player -> inboxPoller.deliver(player, LocalDateTime.now()),
+                        this::loadSyncedConfiguration,
+                        () -> {
+                            inboxPoller.reschedule();
+                            inboxPoller.pollNow();
+                        },
+                        this::onlineHere,
+                        () -> nodeData.nodes().stream().map(Node::uid).toList()),
+                workerPool);
+        registerListener(new NodeSignals(bus));
+        if (primary) bus.publish(new NodeMessage.ConfigSynced());
+    }
+
+    /**
+     * Loads the configuration the primary synced to the database and applies it, as
+     * {@code /companyadmin syncconfiguration} does on a secondary.
+     */
+    private void loadSyncedConfiguration() {
+        configuration.syncConfigurations(nodeData).join();
+        getLogger().info("Loaded the configuration the primary node synced.");
+        Threading.mainThread(this).execute(commands::reloaded);
+    }
+
+    private List<UUID> onlineHere() {
+        return CompletableFuture.supplyAsync(
+                        () -> getServer().getOnlinePlayers().stream()
+                                .map(Player::getUniqueId)
+                                .toList(),
+                        Threading.mainThread(this))
+                .orTimeout(ONLINE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .join();
     }
 
     @Override
@@ -406,6 +505,11 @@ public class Companies extends EldoPlugin {
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
+        if (nodeMessaging != null) {
+            nodeMessaging.stop();
+        } else {
+            bus.close();
+        }
         workerPool.shutdown();
         Threading.VIRTUAL.shutdown();
         awaitTermination(workerPool);

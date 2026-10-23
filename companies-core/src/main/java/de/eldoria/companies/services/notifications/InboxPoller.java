@@ -114,6 +114,14 @@ public final class InboxPoller {
     }
 
     /**
+     * Polls once on the pool right away, for example after announcements may have been missed. Does nothing before
+     * {@link #start}.
+     */
+    public synchronized void pollNow() {
+        if (pool != null) pool.execute(this::pollSafely);
+    }
+
+    /**
      * @return seconds between two polls, 0 before the polls started
      */
     synchronized int interval() {

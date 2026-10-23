@@ -6,6 +6,8 @@
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.util.Permission.Admin;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -15,7 +17,8 @@ import org.bukkit.command.CommandSender;
 /**
  * {@code /companyadmin syncconfiguration}: writes the configuration of this node to the database or reads it from
  * there, depending on the node type. Afterwards everything registered with
- * {@link CommandDependencies#onReload(Runnable)} applies the configuration, as after a reload.
+ * {@link CommandDependencies#onReload(Runnable)} applies the configuration, as after a reload. On the primary, the
+ * secondaries are told over the node bus and load the configuration as well while the bus is realtime.
  */
 @Subcommand("syncconfiguration")
 @Permission(Admin.ADMIN)
@@ -38,6 +41,7 @@ public final class SyncConfiguration {
         deps.configuration().syncConfigurations(deps.nodeData()).whenComplete((res, err) -> {
             if (err == null) {
                 deps.adminLog().entry(sender, "syncconfiguration").write();
+                if (deps.nodeData().nodeType() == NodeType.PRIMARY) deps.bus().publish(new ConfigSynced());
                 deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::reloaded);
             }
             deps.messages().sendMessage(sender, "companyadmin.syncconfiguration.done");

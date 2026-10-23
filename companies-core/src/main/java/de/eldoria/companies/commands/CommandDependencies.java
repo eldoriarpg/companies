@@ -17,6 +17,10 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.menus.MenuService;
+import de.eldoria.companies.nodes.DatabaseBus;
+import de.eldoria.companies.nodes.NetworkPresence;
+import de.eldoria.companies.nodes.NodeBus;
+import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
@@ -46,6 +50,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Everything the commands need, handed to every command class through its constructor.
@@ -69,6 +74,9 @@ public final class CommandDependencies {
     private final Boards boards;
     private final NpcBoards npcBoards;
     private final List<Runnable> reloadHooks = new CopyOnWriteArrayList<>();
+    private volatile NodeCaches caches = new NodeCaches(Logger.getLogger(CommandDependencies.class.getName()));
+    private volatile NodeBus bus = new DatabaseBus();
+    private volatile NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private volatile Optional<Services> services = Optional.empty();
 
     /**
@@ -122,6 +130,41 @@ public final class CommandDependencies {
      */
     public void withdraw() {
         services = Optional.empty();
+    }
+
+    /**
+     * Hands in the bus of this node, what it knows about the network and the caches other nodes can invalidate,
+     * before the commands are registered.
+     *
+     * @param bus      the bus of this node
+     * @param presence where the players of the network are and which nodes were heard from
+     * @param caches   the caches other nodes can invalidate
+     */
+    public void useNodes(NodeBus bus, NetworkPresence presence, NodeCaches caches) {
+        this.bus = bus;
+        this.presence = presence;
+        this.caches = caches;
+    }
+
+    /**
+     * @return the bus of this node, the {@link DatabaseBus} until {@link #useNodes} handed in another
+     */
+    public NodeBus bus() {
+        return bus;
+    }
+
+    /**
+     * @return where the players of the network are and which nodes were heard from
+     */
+    public NetworkPresence presence() {
+        return presence;
+    }
+
+    /**
+     * @return the caches of this node that other nodes can invalidate
+     */
+    public NodeCaches caches() {
+        return caches;
     }
 
     /**
