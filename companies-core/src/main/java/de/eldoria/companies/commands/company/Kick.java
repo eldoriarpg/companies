@@ -18,6 +18,7 @@ import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.strokkur.commands.Executes;
@@ -138,7 +139,7 @@ public final class Kick {
                             player,
                             "company.kick.kicked",
                             Replacement.unparsed("name", target.player().getName()));
-            deps.plugin().getServer().getPluginManager().callEvent(new CompanyKickEvent(profile, target.player()));
+            AsyncEvents.fire(deps.plugin(), new CompanyKickEvent(profile, target.player()));
         });
     }
 
