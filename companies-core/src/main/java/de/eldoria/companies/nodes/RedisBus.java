@@ -317,7 +317,8 @@ public final class RedisBus implements NodeBus {
     }
 
     /**
-     * The Redis server and how to log in.
+     * The Redis server and how to log in. Connections speak RESP2 without negotiating, which every Redis, Valkey and
+     * KeyDB version understands and which the subscriber connection needs.
      *
      * @param host          address of the server
      * @param port          port of the server
@@ -342,7 +343,8 @@ public final class RedisBus implements NodeBus {
                     .password(password.isEmpty() ? null : password)
                     .database(database)
                     .clientName(clientName)
-                    .timeoutMillis(TIMEOUT_MILLIS);
+                    .timeoutMillis(TIMEOUT_MILLIS)
+                    .autoNegotiateProtocol(false);
             if (ssl) builder.sslOptions(SslOptions.defaults());
             return builder.build();
         }
