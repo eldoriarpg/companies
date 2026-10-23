@@ -160,7 +160,7 @@ public final class OrderCompletionService {
             var worker = entry.getKey();
             var player = plugin.getServer().getOfflinePlayer(worker);
             var payout = Payout.split(entry.getValue(), percent);
-            var event = new OrderPaymentEvent(order, player, payout.net(), payout.gross(), payout.tax());
+            var event = new OrderPaymentEvent(order, company, player, payout.net(), payout.gross(), payout.tax());
             plugin.getServer().getPluginManager().callEvent(event);
             var paid = !event.isCancelled();
             ledger.add(

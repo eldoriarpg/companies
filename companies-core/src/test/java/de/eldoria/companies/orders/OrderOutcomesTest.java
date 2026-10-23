@@ -5,13 +5,21 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
+import de.eldoria.companies.data.wrapper.order.ItemAmount;
+import de.eldoria.companies.events.EventRecorder;
+import de.eldoria.companies.events.order.OrderReceivedEvent;
+import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
+import de.eldoria.companies.services.ItemReturnService;
 import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -28,6 +36,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -46,6 +55,7 @@ class OrderOutcomesTest {
     private OrderTable orders;
     private SqLiteHistoryData history;
     private OrderOutcomes outcomes;
+    private EventRecorder events;
 
     @BeforeAll
     static void startServer() {
@@ -64,7 +74,16 @@ class OrderOutcomesTest {
         orders = OrderTable.create();
         history = new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor);
         var recorder = new HistoryRecorder(history, Clock.systemDefaultZone());
-        outcomes = new OrderOutcomes(orders.orderData(), recorder, Logger.getAnonymousLogger(), executor);
+        var plugin = MockBukkit.createMockPlugin();
+        events = EventRecorder.listen(plugin, ItemsReturnedEvent.class);
+        outcomes = new OrderOutcomes(
+                orders.orderData(),
+                recorder,
+                new ItemReturnService(plugin, orders.orderData()),
+                events,
+                id -> ISimpleCompany.forId(id),
+                Logger.getAnonymousLogger(),
+                executor);
     }
 
     @AfterEach
@@ -146,9 +165,9 @@ class OrderOutcomesTest {
         orders.state(order, OrderState.CLAIMED, COMPANY);
         orders.deliver(order, 0, Material.STONE, worker, 4);
 
-        var workers = outcomes.abort(orders.reload(order)).join();
+        var returned = outcomes.abort(orders.reload(order)).join();
 
-        assertEquals(Set.of(worker), workers.orElseThrow());
+        assertEquals(Set.of(worker), returned.orElseThrow().workers());
         assertTrue(ownerEntries().isEmpty());
         var entries = companyEntries();
         assertEquals(1, entries.size());
@@ -181,5 +200,121 @@ class OrderOutcomesTest {
         assertTrue(outcomes.expire(order).join().isEmpty());
 
         assertTrue(companyEntries().isEmpty());
+    }
+
+    @Test
+    void receivingFiresTheReceptionAndTheOverflowOnce() {
+        var order = orders.place(5.0);
+        orders.state(order, OrderState.CLAIMED, COMPANY);
+        orders.deliver(order, 0, Material.STONE, worker, 10);
+        orders.deliver(order, 1, Material.DIRT, worker, 5);
+        orders.state(order, OrderState.DELIVERED, COMPANY);
+        var full = orders.full(order);
+        var pending = List.of(new ItemAmount(new ItemStack(Material.DIRT), 3));
+
+        assertTrue(outcomes.receive(full, pending).join());
+        assertFalse(outcomes.receive(full, pending).join());
+
+        var received = events.single(OrderReceivedEvent.class);
+        assertEquals(order.id(), received.order().id());
+        assertEquals(OrderState.RECEIVED, received.order().state());
+        assertEquals(COMPANY, received.company().id());
+        assertTrue(received.isAsynchronous());
+        var overflow = events.single(ItemsReturnedEvent.class);
+        assertEquals(ItemsReturnedEvent.Reason.DELIVERY_OVERFLOW, overflow.reason());
+        assertEquals(orders.owner().getUniqueId(), overflow.player().getUniqueId());
+        assertEquals(3, overflow.stacks().get(0).amount());
+        assertEquals(order.id(), overflow.order().orElseThrow().id());
+    }
+
+    @Test
+    void receivingWithoutOverflowReturnsNothing() {
+        var order = orders.place(0.0);
+        orders.state(order, OrderState.DELIVERED, COMPANY);
+
+        assertTrue(outcomes.receive(orders.full(order), List.of()).join());
+
+        assertEquals(1, events.of(OrderReceivedEvent.class).size());
+        assertTrue(events.of(ItemsReturnedEvent.class).isEmpty());
+    }
+
+    @Test
+    void cancellingFiresTheRemovalAsCancelled() {
+        var order = orders.place(0.0);
+        var full = orders.full(order);
+
+        assertTrue(outcomes.cancel(full).join());
+        assertFalse(outcomes.cancel(full).join());
+
+        var removed = events.single(OrderRemovedEvent.class);
+        assertEquals(OrderRemovedEvent.Reason.CANCELLED, removed.reason());
+        assertEquals(order.id(), removed.order().id());
+    }
+
+    @Test
+    void purgingFiresTheRemovalAsPurged() {
+        var order = orders.place(0.0);
+
+        assertTrue(outcomes.purge(orders.full(order)).join());
+
+        assertEquals(
+                OrderRemovedEvent.Reason.PURGED,
+                events.single(OrderRemovedEvent.class).reason());
+    }
+
+    @Test
+    void cancellingAClaimedOrderFiresNothing() {
+        var order = orders.place(0.0);
+        var full = orders.full(order);
+        orders.state(order, OrderState.CLAIMED, COMPANY);
+
+        assertFalse(outcomes.cancel(full).join());
+
+        assertTrue(events.of(OrderRemovedEvent.class).isEmpty());
+    }
+
+    @Test
+    void abortingReturnsTheDeliveriesOfEveryWorker() {
+        var other = UUID.randomUUID();
+        var order = orders.place(0.0);
+        orders.state(order, OrderState.CLAIMED, COMPANY);
+        orders.deliver(order, 0, Material.STONE, worker, 4);
+        orders.deliver(order, 1, Material.DIRT, other, 2);
+
+        outcomes.abort(orders.reload(order)).join();
+
+        var returned = events.of(ItemsReturnedEvent.class);
+        assertEquals(2, returned.size());
+        assertTrue(returned.stream().allMatch(event -> event.reason() == ItemsReturnedEvent.Reason.ORDER_ABORTED));
+        assertTrue(returned.stream().allMatch(ItemsReturnedEvent::isAsynchronous));
+        assertEquals(
+                Set.of(worker, other),
+                returned.stream().map(event -> event.player().getUniqueId()).collect(Collectors.toSet()));
+    }
+
+    @Test
+    void expiryReturnsTheDeliveriesAsExpired() {
+        var order = orders.place(0.0);
+        orders.state(order, OrderState.CLAIMED, COMPANY);
+        orders.deliver(order, 0, Material.STONE, worker, 4);
+
+        outcomes.expire(orders.reload(order)).join();
+        outcomes.expire(orders.reload(order)).join();
+
+        var returned = events.single(ItemsReturnedEvent.class);
+        assertEquals(ItemsReturnedEvent.Reason.ORDER_EXPIRED, returned.reason());
+        assertEquals(4, returned.stacks().get(0).amount());
+        assertEquals(Material.STONE, returned.stacks().get(0).stack().getType());
+        assertEquals(order.id(), returned.order().orElseThrow().id());
+    }
+
+    @Test
+    void releasingWithoutDeliveriesReturnsNothing() {
+        var order = orders.place(0.0);
+        orders.state(order, OrderState.CLAIMED, COMPANY);
+
+        assertTrue(outcomes.abort(orders.reload(order)).join().isPresent());
+
+        assertTrue(events.of(ItemsReturnedEvent.class).isEmpty());
     }
 }

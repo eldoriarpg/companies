@@ -21,7 +21,9 @@ import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.orders.DeliveryPart;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -31,12 +33,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -223,7 +223,7 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected Optional<Set<UUID>> unclaimOrder(SimpleOrder order) {
+    protected Optional<ReturnedItems> unclaimOrder(SimpleOrder order) {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
@@ -234,7 +234,7 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE id = ?
                   AND state = ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
-        List<UUID> workers;
+        ReturnedItems returned;
         try (conf) {
             var unclaimed = conf.query(query)
                     .single(call().bind(OrderState.UNCLAIMED.stateId())
@@ -242,10 +242,10 @@ public class MariaDbOrderData extends AOrderData {
                             .bind(OrderState.CLAIMED.stateId()))
                     .update();
             if (!unclaimed.changed()) return Optional.empty();
-            workers = returnDeliveries(conf, order);
+            returned = returnDeliveries(conf, order);
         }
         if (!conf.context().exceptions().isEmpty()) return Optional.empty();
-        return Optional.of(Set.copyOf(workers));
+        return Optional.of(returned);
     }
 
     /**
@@ -254,15 +254,16 @@ public class MariaDbOrderData extends AOrderData {
      *
      * @param conf  open transaction
      * @param order order whose deliveries are returned
-     * @return the workers who got items returned
+     * @return the returned stacks by worker
      */
-    private List<UUID> returnDeliveries(ConnectedQueryConfiguration conf, SimpleOrder order) {
+    private ReturnedItems returnDeliveries(ConnectedQueryConfiguration conf, SimpleOrder order) {
         @Language("mariadb")
-        var workerQuery = """
-                SELECT DISTINCT worker_uuid
+        var deliveryQuery = """
+                SELECT worker_uuid, stack, amount
                 FROM order_deliveries
                 WHERE order_id = ?
-                  AND amount > 0""";
+                  AND amount > 0
+                ORDER BY id""";
         @Language("mariadb")
         var returnItems = """
                 INSERT INTO item_returns(worker_uuid, material, stack, amount)
@@ -280,13 +281,15 @@ public class MariaDbOrderData extends AOrderData {
         @Language("mariadb")
         var delete = """
                 DELETE FROM order_deliveries WHERE order_id = ?""";
-        var workers = conf.query(workerQuery)
+        var stacks = conf.query(deliveryQuery)
                 .single(call().bind(order.id()))
-                .map(row -> row.get("worker_uuid", UUID_BYTES))
+                .map(row -> Map.entry(
+                        row.get("worker_uuid", UUID_BYTES),
+                        new ReturnedStack(toItemStack(row.getString("stack")), row.getInt("amount"))))
                 .all();
         conf.query(returnItems).single(call().bind(order.id())).insert();
         conf.query(delete).single(call().bind(order.id())).delete();
-        return workers;
+        return ReturnedItems.of(stacks);
     }
 
     @Override
@@ -307,14 +310,14 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected Optional<Set<UUID>> adminDelete(SimpleOrder order) {
+    protected Optional<ReturnedItems> adminDelete(SimpleOrder order) {
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
-        Optional<List<UUID>> workers;
+        Optional<ReturnedItems> returned;
         try (conf) {
-            workers = deleteLocked(conf, order);
+            returned = deleteLocked(conf, order);
         }
-        if (workers.isEmpty() || !conf.context().exceptions().isEmpty()) return Optional.empty();
-        return Optional.of(Set.copyOf(workers.get()));
+        if (returned.isEmpty() || !conf.context().exceptions().isEmpty()) return Optional.empty();
+        return returned;
     }
 
     /**
@@ -322,12 +325,12 @@ public class MariaDbOrderData extends AOrderData {
      *
      * @param conf  open transaction
      * @param order order to delete
-     * @return the workers who got items returned, or empty when the order was neither unclaimed nor claimed
+     * @return the items returned to the workers, or empty when the order was neither unclaimed nor claimed
      */
-    private Optional<List<UUID>> deleteLocked(ConnectedQueryConfiguration conf, SimpleOrder order) {
-        List<UUID> workers = List.of();
+    private Optional<ReturnedItems> deleteLocked(ConnectedQueryConfiguration conf, SimpleOrder order) {
+        var returned = ReturnedItems.NONE;
         if (lockOrder(conf, order, OrderState.CLAIMED)) {
-            workers = returnDeliveries(conf, order);
+            returned = returnDeliveries(conf, order);
         } else if (!lockOrder(conf, order, OrderState.UNCLAIMED)) {
             return Optional.empty();
         }
@@ -336,7 +339,7 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(order.id()))
                     .delete();
         }
-        return Optional.of(workers);
+        return Optional.of(returned);
     }
 
     @Override
@@ -876,16 +879,13 @@ public class MariaDbOrderData extends AOrderData {
 
     @Override
     protected ReleasedOrders purgeCompanyOrders(SimpleCompany profile) {
-        Set<UUID> workers = new HashSet<>();
-        List<SimpleOrder> released = new ArrayList<>();
+        List<ReleasedOrders.Release> released = new ArrayList<>();
         for (var simpleOrder : ordersByCompany(profile, OrderState.CLAIMED, OrderState.CLAIMED)) {
             var returned = unclaimOrder(simpleOrder);
             invalidateFullOrder(simpleOrder);
-            if (returned.isEmpty()) continue;
-            workers.addAll(returned.get());
-            released.add(simpleOrder);
+            returned.ifPresent(items -> released.add(new ReleasedOrders.Release(simpleOrder, items)));
         }
-        return new ReleasedOrders(released, workers);
+        return new ReleasedOrders(released);
     }
 
     @Override

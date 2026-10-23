@@ -131,7 +131,10 @@ bukkit {
                 "companies.admin",
                 "companies.admin.calcLevel",
                 "companies.admin.delete",
+                "companies.admin.grant",
                 "companies.admin.level",
+                "companies.admin.orders",
+                "companies.admin.player",
                 "companies.admin.reload",
                 "companies.admin.rename",
                 "companies.admin.transferOwner"
@@ -146,8 +149,17 @@ bukkit {
         register("companies.admin.delete") {
             description = "Allows deleting companies"
         }
+        register("companies.admin.grant") {
+            description = "Allows granting items and money to players"
+        }
         register("companies.admin.level") {
             description = "Allows managing of company level settings"
+        }
+        register("companies.admin.orders") {
+            description = "Allows inspecting, releasing, cancelling, completing and extending any order"
+        }
+        register("companies.admin.player") {
+            description = "Allows looking up the company, orders, items and notifications of a player"
         }
         register("companies.admin.reload") {
             description = "Allows reloading the plugin"

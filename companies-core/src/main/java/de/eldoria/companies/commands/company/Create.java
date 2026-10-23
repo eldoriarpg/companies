@@ -33,6 +33,9 @@ import java.util.logging.Level;
 
 /**
  * {@code /company create <name>}: founds a company for the founding price after the founder confirmed it.
+ * <p>
+ * Integrations may refuse the founding before the founder is charged, and learn about the new company once its owner
+ * is saved.
  */
 @Subcommand("create")
 @Permission(Company.CREATE)
@@ -121,6 +124,12 @@ public final class Create {
 
     private void foundCompany(Player player, String name, Economy economy) {
         var price = deps.configuration().companySettings().foundingPrice();
+        var changes = deps.companyChanges();
+        var refusal = changes.mayFound(player, name, price);
+        if (refusal.isPresent()) {
+            refusal.get().sendTo(player, messages());
+            return;
+        }
         if (!economy.has(player, price)
                 || economy.withdrawPlayer(player, price).type != EconomyResponse.ResponseType.SUCCESS) {
             var fallbackCurr = economy.currencyNameSingular().isBlank()
@@ -149,6 +158,7 @@ public final class Create {
                             .submitMemberUpdate(
                                     CompanyMember.forCompanyId(id, player).addPermission(CompanyPermission.OWNER))
                             .join();
+                    changes.founded(id, player);
                     return true;
                 })
                 .thenAcceptAsync(

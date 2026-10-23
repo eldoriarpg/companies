@@ -9,6 +9,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Threading;
 import org.bukkit.plugin.Plugin;
@@ -48,8 +49,11 @@ public class DisbandService {
     public boolean disband(CompanyProfile company) {
         var released = orderData.submitCompanyOrdersPurge(company).join();
         if (released != null) {
-            itemReturnService.notifyWorkers(released.workers());
-            released.orders().forEach(notificationService::notifyOrderOpen);
+            for (var release : released.releases()) {
+                itemReturnService.returned(
+                        release.order(), release.returned(), ItemsReturnedEvent.Reason.COMPANY_DISBANDED);
+                notificationService.notifyOrderOpen(release.order());
+            }
         }
         if (!Boolean.TRUE.equals(companyData.submitCompanyPurge(company).join())) return false;
         Threading.mainThread(plugin)

@@ -10,18 +10,17 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.ServicePriority;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -48,13 +47,13 @@ public final class CompaniesApiImpl implements CompaniesApi {
         companies = new CompanyApiImpl(
                 repositories.companies(), repositories.stats(), writes, server.players(), server.clock(), executor);
         orders = new OrderApiImpl(repositories.orders(), writes, server.players(), server.messages(), executor);
-        players = new PlayerApiImpl(repositories.orders(), writes, server.players(), server.events(), executor);
+        players = new PlayerApiImpl(repositories.orders(), writes, executor);
         ranking = new RankingApiImpl(repositories.stats(), server.clock(), executor);
     }
 
     /**
-     * Creates the API of a plugin: players are looked up on its server, events are fired through its plugin manager
-     * and messages are rendered by its message sender in the server's language.
+     * Creates the API of a plugin: players are looked up on its server and messages are rendered by its message
+     * sender in the server's language.
      *
      * @param plugin       the plugin
      * @param repositories the repositories the API reads from
@@ -64,7 +63,6 @@ public final class CompaniesApiImpl implements CompaniesApi {
     public static CompaniesApiImpl create(Plugin plugin, Repositories repositories, Executor executor) {
         var server = new Server(
                 plugin.getServer()::getOfflinePlayer,
-                plugin.getServer().getPluginManager()::callEvent,
                 failure -> failure.render(null, MessageSender.getPluginMessageSender(plugin)),
                 LocalDateTime::now);
         return new CompaniesApiImpl(repositories, server, executor);
@@ -131,13 +129,11 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * What the API needs from the server.
      *
      * @param players  looks up a player by id
-     * @param events   fires events
      * @param messages renders the error of a rejected write as the player would see it
      * @param clock    the current time
      */
     public record Server(
             Function<UUID, OfflinePlayer> players,
-            Consumer<Event> events,
             Function<CommandFailure, Component> messages,
             Supplier<LocalDateTime> clock) {}
 
@@ -146,6 +142,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
      *
      * @param orders      creates orders
      * @param memberships adds members to companies
+     * @param itemReturns stores granted items
      */
-    public record Writes(OrderCreationService orders, MembershipService memberships) {}
+    public record Writes(OrderCreationService orders, MembershipService memberships, ItemReturnService itemReturns) {}
 }

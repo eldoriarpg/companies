@@ -24,6 +24,9 @@ public final class Requirements {
             Permission.Admin.RELOAD,
             Permission.Admin.RENAME,
             Permission.Admin.TRANSFER_OWNER,
+            Permission.Admin.ORDERS,
+            Permission.Admin.PLAYER,
+            Permission.Admin.GRANT,
             Permission.Admin.DEBUG);
 
     private Requirements() {

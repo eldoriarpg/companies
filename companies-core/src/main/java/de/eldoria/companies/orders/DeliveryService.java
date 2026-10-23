@@ -5,12 +5,16 @@
  */
 package de.eldoria.companies.orders;
 
-import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.components.order.IDeliveredStack;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.events.order.OrderDeliveryEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.Inventories;
 import de.eldoria.companies.util.Threading;
 import org.bukkit.entity.Player;
@@ -22,7 +26,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 
 /**
@@ -30,28 +36,36 @@ import java.util.logging.Level;
  * <p>
  * A delivery takes the matching items on the main thread, records them as delivered stacks in one transaction that
  * caps every line at what it still misses, and hands the surplus of every part back with that part's own item: into
- * the inventory, dropped when it is full, or into the item returns when the worker went offline. When the order is
- * complete afterwards, {@link OrderCompletionService} completes it.
+ * the inventory, dropped when it is full, or into the item returns when the worker went offline. A delivery that
+ * recorded at least one item fires {@link OrderDeliveryEvent} with the refreshed order. When the order is complete
+ * afterwards, {@link OrderCompletionService} completes it.
  */
 public final class DeliveryService {
     private final Plugin plugin;
     private final AOrderData orderData;
     private final OrderCompletionService completion;
-    private final Configuration configuration;
+    private final ItemReturnService itemReturns;
+    private final Supplier<ItemMatchSettings> matching;
     private volatile CachedMatcher cachedMatcher;
 
     /**
-     * @param plugin        the plugin
-     * @param orderData     order repository
-     * @param completion    completes orders once everything was delivered
-     * @param configuration configuration of the plugin
+     * @param plugin      the plugin, which fires the events
+     * @param orderData   order repository
+     * @param completion  completes orders once everything was delivered
+     * @param itemReturns stores the surplus of workers who went offline
+     * @param matching    the current item matching settings
      */
     public DeliveryService(
-            Plugin plugin, AOrderData orderData, OrderCompletionService completion, Configuration configuration) {
+            Plugin plugin,
+            AOrderData orderData,
+            OrderCompletionService completion,
+            ItemReturnService itemReturns,
+            Supplier<ItemMatchSettings> matching) {
         this.plugin = plugin;
         this.orderData = orderData;
         this.completion = completion;
-        this.configuration = configuration;
+        this.itemReturns = itemReturns;
+        this.matching = matching;
     }
 
     /**
@@ -60,7 +74,7 @@ public final class DeliveryService {
      * @return the matcher
      */
     public ItemMatcher matcher() {
-        var settings = configuration.orderSetting().matching();
+        var settings = matching.get();
         var cached = cachedMatcher;
         if (cached == null || cached.settings() != settings) {
             cached = new CachedMatcher(settings, ItemMatcher.of(settings, plugin.getLogger()));
@@ -109,21 +123,58 @@ public final class DeliveryService {
         return submit(worker, company, order, parts);
     }
 
-    private CompletableFuture<DeliveryResult> submit(
+    /**
+     * Records items taken from a worker as a delivery, hands back the surplus and completes the order once it is
+     * done. Has to be called on the main thread.
+     *
+     * @param worker  delivering player
+     * @param company company of the worker, which claimed the order
+     * @param order   order as it was loaded
+     * @param parts   items taken from the worker
+     * @return what was delivered
+     */
+    CompletableFuture<DeliveryResult> submit(
             Player worker, CompanyProfile company, FullOrder order, List<DeliveryPart> parts) {
         return record(worker, order, parts)
                 .thenApplyAsync(
                         recorded -> {
-                            returnSurplus(worker, parts, recorded);
-                            return byLine(parts, recorded);
+                            returnSurplus(worker, order, parts, recorded);
+                            return new Recorded(byLine(parts, recorded), delivered(worker, parts, recorded));
                         },
                         Threading.mainThread(plugin))
-                .thenCompose(
-                        byLine -> orderData.retrieveFullOrder(order).asFuture().thenApply(refreshed -> {
+                .thenCompose(recorded -> orderData
+                        .retrieveFullOrder(order)
+                        .asFuture()
+                        .thenApply(refreshed -> {
+                            if (!recorded.stacks().isEmpty()) {
+                                plugin.getServer()
+                                        .getPluginManager()
+                                        .callEvent(
+                                                new OrderDeliveryEvent(refreshed, company, worker, recorded.stacks()));
+                            }
                             var done = refreshed.isDone();
                             if (done) orderDone(refreshed, company);
-                            return new DeliveryResult(byLine, refreshed, done);
+                            return new DeliveryResult(recorded.byLine(), refreshed, done);
                         }));
+    }
+
+    /**
+     * The stacks a delivery recorded, each with the item of its part.
+     *
+     * @param worker   delivering player
+     * @param parts    offered parts
+     * @param recorded recorded amount per part, may be null or short after a failure
+     * @return the recorded stacks, leaving out parts without a recorded item
+     */
+    static List<IDeliveredStack> delivered(Player worker, List<DeliveryPart> parts, List<Integer> recorded) {
+        List<IDeliveredStack> stacks = new ArrayList<>();
+        for (var index = 0; index < parts.size(); index++) {
+            var amount = recorded(recorded, index);
+            if (amount <= 0) continue;
+            stacks.add(
+                    new Delivered(worker.getUniqueId(), parts.get(index).stack().asOne(), amount));
+        }
+        return stacks;
     }
 
     private CompletableFuture<List<Integer>> record(Player worker, FullOrder order, List<DeliveryPart> parts) {
@@ -181,18 +232,17 @@ public final class DeliveryService {
         return surplus;
     }
 
-    private void returnSurplus(Player worker, List<DeliveryPart> parts, List<Integer> recorded) {
-        for (var part : surplus(parts, recorded)) {
-            giveBack(worker, part.stack(), part.amount());
-        }
-    }
-
-    private void giveBack(Player worker, ItemStack stack, int amount) {
+    private void returnSurplus(Player worker, FullOrder order, List<DeliveryPart> parts, List<Integer> recorded) {
+        var surplus = surplus(parts, recorded);
         if (worker.isOnline()) {
-            Inventories.give(worker, Inventories.split(stack, amount));
+            surplus.forEach(part -> Inventories.give(worker, Inventories.split(part.stack(), part.amount())));
             return;
         }
-        orderData.submitItemReturn(worker.getUniqueId(), ReturnKind.WORKER, stack, amount);
+        var stacks = surplus.stream()
+                .map(part -> new ReturnedStack(part.stack(), part.amount()))
+                .toList();
+        itemReturns.storeAll(
+                worker.getUniqueId(), ReturnKind.WORKER, stacks, ItemsReturnedEvent.Reason.DELIVERY_OVERFLOW, order);
     }
 
     private void orderDone(FullOrder order, CompanyProfile company) {
@@ -203,4 +253,13 @@ public final class DeliveryService {
     }
 
     private record CachedMatcher(ItemMatchSettings settings, ItemMatcher matcher) {}
+
+    private record Recorded(Map<Integer, Integer> byLine, List<IDeliveredStack> stacks) {}
+
+    private record Delivered(UUID worker, ItemStack stack, int amount) implements IDeliveredStack {
+        @Override
+        public ItemStack stack() {
+            return stack.clone();
+        }
+    }
 }

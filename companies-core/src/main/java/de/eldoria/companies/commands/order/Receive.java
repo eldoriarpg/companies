@@ -14,6 +14,8 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
@@ -25,6 +27,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.List;
 import java.util.logging.Level;
 
 /**
@@ -112,7 +115,7 @@ public final class Receive {
         }
         SuggestionSources.current().ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
         if (!player.isOnline()) {
-            keep(player, placement.fitting());
+            keep(player, order, placement.fitting());
             return;
         }
         var stacks = placement.fitting().stream()
@@ -121,6 +124,7 @@ public final class Receive {
         var leftovers = Inventories.add(player, stacks);
         keep(
                 player,
+                order,
                 leftovers.stream()
                         .map(stack -> new ItemAmount(stack, stack.getAmount()))
                         .toList());
@@ -129,10 +133,19 @@ public final class Receive {
         menus.close(player).thenRun(() -> sendReceived(player, order.amount(), waiting));
     }
 
-    private void keep(Player player, java.util.List<ItemAmount> items) {
-        for (var item : items) {
-            deps.orderData().submitItemReturn(player.getUniqueId(), ReturnKind.OWNER, item.stack(), item.amount());
-        }
+    private void keep(Player player, FullOrder order, List<ItemAmount> items) {
+        var stacks = items.stream()
+                .filter(item -> item.amount() > 0)
+                .map(item -> new ReturnedStack(item.stack(), item.amount()))
+                .toList();
+        deps.services()
+                .itemReturnService()
+                .storeAll(
+                        player.getUniqueId(),
+                        ReturnKind.OWNER,
+                        stacks,
+                        ItemsReturnedEvent.Reason.DELIVERY_OVERFLOW,
+                        order);
     }
 
     private void sendReceived(Player player, int total, int waiting) {

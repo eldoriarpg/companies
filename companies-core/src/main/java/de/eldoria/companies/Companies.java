@@ -232,7 +232,7 @@ public class Companies extends EldoPlugin {
                 Threading.VIRTUAL);
 
         var historyRecorder = new HistoryRecorder(information.history(), Clock.systemDefaultZone());
-        var outcomes = new OrderOutcomes(orderData, historyRecorder, getLogger(), Threading.VIRTUAL);
+        var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
                 this, orderData, information.stats(), historyRecorder, economy, configuration);
 
@@ -255,17 +255,19 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, orderCompletion, configuration),
+                    new DeliveryService(this, orderData, orderCompletion, itemReturnService, () -> configuration
+                            .orderSetting()
+                            .matching()),
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
                     orderCompletion,
                     orderCreation));
         }
-        if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService));
+        if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
         var expiringService = new ExpiringService(
-                this, orderData, companyData, configuration, itemReturnService, economy, notificationService, outcomes);
+                this, orderData, companyData, configuration, economy, notificationService, outcomes);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);

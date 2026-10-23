@@ -128,7 +128,8 @@ public class ItemsReturnedEvent extends Event implements PlayerProvider<OfflineP
          */
         ADMIN_RELEASE,
         /**
-         * The owner's inventory could not hold all received items; the rest waits for them.
+         * Items of a delivery could not be handed over: the owner's inventory could not hold all received items, or
+         * the worker went offline before the surplus of a delivery was given back. The rest waits for them.
          */
         DELIVERY_OVERFLOW,
         /**

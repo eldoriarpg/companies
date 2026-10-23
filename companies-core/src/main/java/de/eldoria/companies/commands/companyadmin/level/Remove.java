@@ -32,7 +32,7 @@ public final class Remove {
     @Executes
     public void remove(CommandSender sender, @LevelNumbers int level) {
         var player = Senders.player(sender);
-        editor.remove(level);
+        editor.remove(player, level);
         editor.list(player);
     }
 }

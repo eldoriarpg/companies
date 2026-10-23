@@ -179,26 +179,64 @@ public enum NotificationType {
      */
     PROFILE_CHANGED(30, "notification.profileChanged", NotificationCategory.COMPANY, false, null),
     /**
+     * An admin took an order away from the company; the delivered items went back to the workers. Arguments:
+     * {@code order_name}.
+     */
+    ORDER_UNCLAIMED_BY_ADMIN(31, "notification.orderUnclaimedByAdmin", NotificationCategory.ORDERS, true, null),
+    /**
+     * An admin deleted an order the company worked on; the delivered items went back to the workers. Arguments:
+     * {@code order_name}.
+     */
+    ORDER_CANCELLED_BY_ADMIN(32, "notification.orderCancelledByAdmin", NotificationCategory.ORDERS, true, null),
+    /**
+     * An admin deleted the player's order and refunded it. Arguments: {@code order_name}, {@code amount}.
+     */
+    MY_ORDER_CANCELLED_BY_ADMIN(
+            33, "notification.ownerOrderCancelledByAdmin", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * An admin deleted the player's order without a refund. Arguments: {@code order_name}.
+     */
+    MY_ORDER_CANCELLED_BY_ADMIN_KEPT(
+            34, "notification.ownerOrderCancelledByAdminKept", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * An admin marked the player's partly delivered order as delivered and refunded the missing items. Arguments:
+     * {@code order_name}, {@code amount}.
+     */
+    MY_ORDER_PARTLY_REFUNDED(35, "notification.ownerOrderPartlyRefunded", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * An admin gave the player items to collect. Arguments: {@code amount}.
+     */
+    ITEMS_GRANTED(
+            36,
+            "notification.itemsGranted",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order collect", "words.collect")),
+    /**
+     * An admin gave the player money. Arguments: {@code amount}.
+     */
+    MONEY_GRANTED(37, "notification.moneyGranted", NotificationCategory.PAYMENTS, false, null),
+    /**
      * The player was paid for an order after tax and the company's treasury share. Arguments: {@code amount},
      * {@code order_name}, {@code gross}, {@code tax}, {@code share}.
      */
-    PAYMENT_SHARED(31, "notification.orderPaymentShared", NotificationCategory.PAYMENTS, false, null),
+    PAYMENT_SHARED(40, "notification.orderPaymentShared", NotificationCategory.PAYMENTS, false, null),
     /**
      * A member changed the share of payouts that goes to the treasury. Arguments: {@code player_name} (member),
      * {@code percent}.
      */
-    TREASURY_SHARE_CHANGED(32, "notification.treasuryShareChanged", NotificationCategory.COMPANY, false, null),
+    TREASURY_SHARE_CHANGED(41, "notification.treasuryShareChanged", NotificationCategory.COMPANY, false, null),
     /**
      * The treasury of the player's disbanded or deleted company was paid out to them. Arguments: {@code amount},
      * {@code company_name}.
      */
-    TREASURY_DISBAND_PAYOUT(33, "notification.treasuryDisbandPayout", NotificationCategory.COMPANY, true, null),
+    TREASURY_DISBAND_PAYOUT(42, "notification.treasuryDisbandPayout", NotificationCategory.COMPANY, true, null),
     /**
      * A repeating order posted a copy. Arguments: {@code series_name}, {@code amount} (charged), {@code copy} (number
      * of the copy, with the count limit when there is one, such as {@code 3/5}), {@code order_id}.
      */
     SERIES_POSTED(
-            34,
+            43,
             "notification.seriesPosted",
             NotificationCategory.MY_ORDERS,
             false,
@@ -208,7 +246,7 @@ public enum NotificationType {
      * {@code series_name}, {@code series_id}.
      */
     SERIES_WAITING_LIMIT(
-            35,
+            44,
             "notification.seriesWaitingLimit",
             NotificationCategory.MY_ORDERS,
             false,
@@ -217,7 +255,7 @@ public enum NotificationType {
      * A repeating order stopped; its info shows why. Arguments: {@code series_name}, {@code series_id}.
      */
     SERIES_STOPPED(
-            36,
+            45,
             "notification.seriesStopped",
             NotificationCategory.MY_ORDERS,
             true,
@@ -225,13 +263,13 @@ public enum NotificationType {
     /**
      * A repeating order posted its last copy. Arguments: {@code series_name}.
      */
-    SERIES_FINISHED(37, "notification.seriesFinished", NotificationCategory.MY_ORDERS, false, null),
+    SERIES_FINISHED(46, "notification.seriesFinished", NotificationCategory.MY_ORDERS, false, null),
     /**
      * A new order matches saved alerts of the company. Arguments: {@code alert_name} (names of the matching alerts),
      * {@code order_name}, {@code contents}, {@code amount} (price), {@code net} (after the company's tax).
      */
     ORDER_ALERT(
-            38,
+            47,
             "notification.orderAlert",
             NotificationCategory.ALERTS,
             false,
@@ -240,7 +278,7 @@ public enum NotificationType {
      * More orders matched an alert while it was rate limited. Arguments: {@code alert_name}, {@code count}.
      */
     ORDER_ALERT_DIGEST(
-            39,
+            48,
             "notification.orderAlertDigest",
             NotificationCategory.ALERTS,
             false,
