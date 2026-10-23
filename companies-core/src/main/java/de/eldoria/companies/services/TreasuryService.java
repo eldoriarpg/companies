@@ -245,22 +245,42 @@ public final class TreasuryService {
     }
 
     /**
-     * Pays a cost of the company from its treasury. The cost is destroyed, like a cost paid by a player.
+     * Pays a cost of the company from its treasury, such as a rename. The cost is debited first, so it is paid only
+     * once; then the purchase runs, and when it does not happen the cost goes back into the treasury. A paid cost is
+     * destroyed, like a cost paid by a player.
      *
-     * @param company company paying
-     * @param actor   member who chose to pay from the treasury
-     * @param amount  cost
-     * @param kind    what is paid, such as {@link TreasuryKind#RENAME}
-     * @param note    note of the log entry, such as the new name
-     * @return the outcome with the new balance; {@link Outcome#TREASURY_FUNDS} when the balance is too low
+     * @param company  company paying
+     * @param actor    member who chose to pay from the treasury
+     * @param amount   cost
+     * @param kind     what is paid, such as {@link TreasuryKind#RENAME}
+     * @param note     note of the log entry, such as the new name
+     * @param purchase what is bought, completing with false when it did not happen
+     * @return the outcome with the new balance; {@link Outcome#TREASURY_FUNDS} when the balance is too low, in which
+     *         case the purchase does not run, and {@link Outcome#PURCHASE_FAILED} when the cost was given back
      */
     public CompletableFuture<Result> spend(
-            ISimpleCompany company, UUID actor, BigDecimal amount, TreasuryKind kind, String note) {
+            ISimpleCompany company,
+            UUID actor,
+            BigDecimal amount,
+            TreasuryKind kind,
+            String note,
+            Supplier<CompletableFuture<Boolean>> purchase) {
         if (!settings.get().enabled()) return CompletableFuture.completedFuture(Result.of(Outcome.DISABLED));
         var cents = cents(amount);
         if (cents.isEmpty()) return CompletableFuture.completedFuture(Result.of(Outcome.INVALID_AMOUNT));
-        return debit(company, cents.get(), entry(kind, actor, null, note))
-                .thenApply(balance -> balance.map(Result::done).orElseGet(() -> Result.of(Outcome.TREASURY_FUNDS)));
+        return debit(company, cents.get(), entry(kind, actor, null, note)).thenCompose(balance -> {
+            if (balance.isEmpty()) return CompletableFuture.completedFuture(Result.of(Outcome.TREASURY_FUNDS));
+            return purchase.get()
+                    .exceptionally(err -> {
+                        logger.log(
+                                Level.SEVERE, "A purchase paid from the treasury of " + company.id() + " failed", err);
+                        return false;
+                    })
+                    .thenCompose(bought -> Boolean.TRUE.equals(bought)
+                            ? CompletableFuture.completedFuture(Result.done(balance.get()))
+                            : restore(company, cents.get(), actor, note)
+                                    .thenApply(restored -> Result.of(Outcome.PURCHASE_FAILED)));
+        });
     }
 
     /**
@@ -531,6 +551,10 @@ public final class TreasuryService {
          * The share is above the configured cap.
          */
         SHARE_CAP,
+        /**
+         * What was paid from the treasury did not happen; the cost went back into the treasury.
+         */
+        PURCHASE_FAILED,
         /**
          * Saving or paying failed; nothing was charged.
          */

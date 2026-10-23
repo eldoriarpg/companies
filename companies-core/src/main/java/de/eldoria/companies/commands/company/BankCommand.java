@@ -249,7 +249,7 @@ public final class BankCommand {
                 Reply.error(
                         "company.bank.error.shareCap",
                         Values.number("max", treasury().settings().maxPayoutShare()));
-            case FAILED, DONE -> Reply.error("error.saveFailed");
+            case FAILED, PURCHASE_FAILED, DONE -> Reply.error("error.saveFailed");
         };
     }
 

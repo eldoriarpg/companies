@@ -26,6 +26,7 @@ import org.mockbukkit.mockbukkit.entity.PlayerMock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,6 +72,27 @@ class ConfirmMenuTest {
                 .map(value -> ((TagResolver.Single) value).key())
                 .toList();
         assertEquals(List.of("member_name", ConfirmMenu.CONFIRM, ConfirmMenu.DENY), keys);
+    }
+
+    @Test
+    void alternativeIsAThirdButtonBetweenConfirmAndDeny() {
+        var player = server.addPlayer();
+        var prompt = new ConfirmMenu.Prompt(
+                MenuText.create().text("Rename?"),
+                clicked -> {},
+                clicked -> {},
+                MenuText.create().text("Pay myself"),
+                Optional.of(new ConfirmMenu.Choice(
+                        MenuText.create().text("Pay from treasury (<bank_balance>)", Values.text("bank_balance", "$5")),
+                        clicked -> {})));
+
+        var text = menu.chat(player, prompt, new MenuActions(plugin, player, menu.lifetime()));
+
+        var keys = text.replacements().stream()
+                .map(value -> ((TagResolver.Single) value).key())
+                .toList();
+        assertEquals(List.of(ConfirmMenu.CONFIRM, ConfirmMenu.ALTERNATIVE, "bank_balance", ConfirmMenu.DENY), keys);
+        assertTrue(text.build().indexOf("Pay myself") < text.build().indexOf("Pay from treasury"));
     }
 
     @Test

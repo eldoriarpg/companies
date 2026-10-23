@@ -306,7 +306,13 @@ class TreasuryServiceTest {
             var spend = CompletableFuture.supplyAsync(
                     () -> {
                         await(start);
-                        return service.spend(company, owner.getUniqueId(), amount("50"), TreasuryKind.RENAME, "Diggers")
+                        return service.spend(
+                                        company,
+                                        owner.getUniqueId(),
+                                        amount("50"),
+                                        TreasuryKind.RENAME,
+                                        "Diggers",
+                                        TreasuryServiceTest::bought)
                                 .join();
                     },
                     pool);
@@ -330,9 +336,21 @@ class TreasuryServiceTest {
     void spendPaysOnlyWhatTheBalanceCovers() {
         fund(2500);
 
-        var refused = service.spend(company, owner.getUniqueId(), amount("25.01"), TreasuryKind.RENAME, "Diggers")
+        var refused = service.spend(
+                        company,
+                        owner.getUniqueId(),
+                        amount("25.01"),
+                        TreasuryKind.RENAME,
+                        "Diggers",
+                        TreasuryServiceTest::bought)
                 .join();
-        var paid = service.spend(company, owner.getUniqueId(), amount("25"), TreasuryKind.RENAME, "Diggers")
+        var paid = service.spend(
+                        company,
+                        owner.getUniqueId(),
+                        amount("25"),
+                        TreasuryKind.RENAME,
+                        "Diggers",
+                        TreasuryServiceTest::bought)
                 .join();
 
         assertEquals(Outcome.TREASURY_FUNDS, refused.outcome());
@@ -347,7 +365,13 @@ class TreasuryServiceTest {
     @Test
     void refundGivesASpentCostBack() {
         fund(2500);
-        service.spend(company, owner.getUniqueId(), amount("25"), TreasuryKind.RENAME, "Diggers")
+        service.spend(
+                        company,
+                        owner.getUniqueId(),
+                        amount("25"),
+                        TreasuryKind.RENAME,
+                        "Diggers",
+                        TreasuryServiceTest::bought)
                 .join();
 
         var result = service.refund(company, owner.getUniqueId(), amount("25"), "Diggers")
@@ -460,6 +484,44 @@ class TreasuryServiceTest {
 
         assertEquals(Outcome.TREASURY_FUNDS, taken.outcome());
         assertEquals(500, balance());
+    }
+
+    @Test
+    void failedPurchaseGivesTheCostBack() {
+        fund(2500);
+
+        var result = service.spend(
+                        company,
+                        owner.getUniqueId(),
+                        amount("25"),
+                        TreasuryKind.RENAME,
+                        "Diggers",
+                        () -> CompletableFuture.completedFuture(false))
+                .join();
+
+        assertEquals(Outcome.PURCHASE_FAILED, result.outcome());
+        assertEquals(2500, balance());
+        assertEquals(List.of(TreasuryKind.REFUND, TreasuryKind.RENAME, TreasuryKind.ADMIN_GIVE), logKinds());
+    }
+
+    @Test
+    void purchaseDoesNotRunWithoutEnoughMoney() {
+        fund(100);
+        var ran = new AtomicBoolean();
+
+        var result = service.spend(company, owner.getUniqueId(), amount("25"), TreasuryKind.RENAME, "Diggers", () -> {
+                    ran.set(true);
+                    return CompletableFuture.completedFuture(true);
+                })
+                .join();
+
+        assertEquals(Outcome.TREASURY_FUNDS, result.outcome());
+        assertFalse(ran.get());
+        assertEquals(100, balance());
+    }
+
+    private static CompletableFuture<Boolean> bought() {
+        return CompletableFuture.completedFuture(true);
     }
 
     private static void await(CountDownLatch latch) {

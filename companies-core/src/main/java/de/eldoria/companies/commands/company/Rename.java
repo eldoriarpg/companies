@@ -10,6 +10,8 @@ import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.TreasuryKind;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuService;
@@ -28,11 +30,17 @@ import net.strokkur.commands.arguments.StringArgType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 /**
  * {@code /company rename <name>}: renames the company of its owner for the rename price after the owner confirmed it.
+ * <p>
+ * When the server allows it and the treasury covers the price, the confirmation offers to pay from the treasury
+ * instead; {@code /company rename confirm treasury} does the same when typed. A rename paid from the treasury whose name
+ * was taken meanwhile gives the price back to the treasury.
  */
 @Subcommand("rename")
 @PlayerOnly
@@ -91,8 +99,9 @@ public final class Rename {
                         return;
                     }
 
+                    var treasuryBalance = treasuryBalance(profile);
                     Threading.mainThread(deps.plugin())
-                            .execute(() -> requestConfirmation(menus, player, name, economy));
+                            .execute(() -> requestConfirmation(menus, player, name, economy, treasuryBalance));
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -112,8 +121,29 @@ public final class Rename {
         renames.confirm(player);
     }
 
+    /**
+     * Renames the company to the name the owner confirmed and pays the price from the treasury.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("confirm treasury")
+    public void confirmTreasury(CommandSender sender) {
+        var player = Senders.player(sender);
+        deps.requireReady();
+        renames.confirmWith(player, this::renameFromTreasury);
+    }
+
     private void renameConfirmed(Player player, String name) {
         var economy = deps.services().economy();
+        whenStillValid(player, name, profile -> Threading.mainThread(deps.plugin())
+                .execute(() -> rename(player, profile, name, economy)));
+    }
+
+    private void renameFromTreasury(Player player, String name) {
+        whenStillValid(player, name, profile -> payFromTreasury(player, profile, name));
+    }
+
+    private void whenStillValid(Player player, String name, Consumer<CompanyProfile> action) {
         var companyData = deps.companyData();
         companyData
                 .retrievePlayerCompanyProfile(player)
@@ -143,7 +173,7 @@ public final class Rename {
                         return;
                     }
 
-                    Threading.mainThread(deps.plugin()).execute(() -> rename(player, profile, name, economy));
+                    action.accept(profile);
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
@@ -151,9 +181,11 @@ public final class Rename {
                 });
     }
 
-    private void requestConfirmation(MenuService menus, Player player, String name, Economy economy) {
+    private void requestConfirmation(
+            MenuService menus, Player player, String name, Economy economy, Optional<BigDecimal> treasuryBalance) {
         var price = deps.configuration().companySettings().renamePrice();
-        if (!economy.has(player, price)) {
+        var fromTreasury = treasuryBalance.filter(balance -> balance.compareTo(BigDecimal.valueOf(price)) >= 0);
+        if (!economy.has(player, price) && fromTreasury.isEmpty()) {
             sendInsufficientCurrency(player, price, economy);
             return;
         }
@@ -163,7 +195,67 @@ public final class Rename {
                         "company.rename.confirm",
                         Values.money("amount", economy, price),
                         Values.text("company_name", name));
-        renames.ask(menus, player, name, question);
+        if (fromTreasury.isEmpty()) {
+            renames.ask(menus, player, name, question);
+            return;
+        }
+        var treasuryLabel = MenuText.create()
+                .locale(
+                        "company.rename.payFromTreasury",
+                        Values.money("bank_balance", economy, fromTreasury.get().doubleValue()));
+        renames.ask(
+                menus,
+                player,
+                name,
+                question,
+                MenuText.create().locale("company.rename.paySelf"),
+                new ConfirmFlow.Alternative<>(treasuryLabel, this::renameFromTreasury));
+    }
+
+    /**
+     * The balance of the company's treasury when the rename may be paid from it. Blocks.
+     *
+     * @param company company to rename
+     * @return the balance, or empty when the rename cannot be paid from the treasury
+     */
+    private Optional<BigDecimal> treasuryBalance(CompanyProfile company) {
+        var treasury = deps.services().treasury();
+        var settings = treasury.settings();
+        if (!settings.enabled() || !settings.payRename()) return Optional.empty();
+        if (!(deps.configuration().companySettings().renamePrice() > 0)) return Optional.empty();
+        return Optional.of(treasury.treasury(company.id()).join().balance());
+    }
+
+    private void payFromTreasury(Player player, CompanyProfile company, String name) {
+        var treasury = deps.services().treasury();
+        if (!treasury.settings().enabled() || !treasury.settings().payRename()) {
+            messages().sendErrorActionBar(player, "company.bank.error.disabled");
+            return;
+        }
+        var price = BigDecimal.valueOf(deps.configuration().companySettings().renamePrice());
+        treasury.spend(company, player.getUniqueId(), price, TreasuryKind.RENAME, name, () -> deps.companyData()
+                        .updateCompanyName(company, name)
+                        .asFuture())
+                .thenAcceptAsync(
+                        result -> {
+                            switch (result.outcome()) {
+                                case DONE -> {
+                                    deps.companyChanges()
+                                            .renamed(company.id(), company.name(), player.getUniqueId(), false);
+                                    messages().sendMessage(player, "company.rename.changed");
+                                }
+                                case PURCHASE_FAILED -> messages().sendErrorActionBar(player, "error.companyNameUsed");
+                                case TREASURY_FUNDS ->
+                                    messages().sendErrorActionBar(player, "company.bank.error.insufficient");
+                                case DISABLED -> messages().sendErrorActionBar(player, "company.bank.error.disabled");
+                                default -> messages().sendErrorActionBar(player, "error.saveFailed");
+                            }
+                        },
+                        Threading.mainThread(deps.plugin()))
+                .exceptionally(err -> {
+                    deps.plugin().getLogger().log(Level.SEVERE, "Could not rename a company", err);
+                    return null;
+                });
     }
 
     private void sendInsufficientCurrency(Player player, double price, Economy economy) {
