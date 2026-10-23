@@ -8,6 +8,7 @@ package de.eldoria.companies.configuration;
 import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
+import de.eldoria.companies.configuration.elements.DiscordSettings;
 import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.MenuSettings;
@@ -112,6 +113,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public BoardSettings boardSettings() {
         return main().boards();
+    }
+
+    /**
+     * @return the Discord webhook
+     */
+    public DiscordSettings discordSettings() {
+        return main().discord();
     }
 
     public DatabaseSettings databaseSettings() {

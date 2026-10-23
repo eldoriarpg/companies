@@ -51,6 +51,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.debug.CompaniesDebug;
+import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -113,6 +114,7 @@ public class Companies extends EldoPlugin {
     private CommandDependencies commands;
     private OrderDraftService drafts;
     private CompaniesApiImpl api;
+    private DiscordWebhook discord;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -287,6 +289,11 @@ public class Companies extends EldoPlugin {
                     .start();
         }
 
+        discord = DiscordWebhook.start(
+                        this, configuration::discordSettings, economy, ILocalizer.getPluginLocalizer(this))
+                .orElse(null);
+        if (discord != null) registerListener(discord.listener());
+
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
                 && configuration.generalSettings().hooks().placeholderapi()) {
             var placeholders = Placeholders.create(
@@ -316,6 +323,7 @@ public class Companies extends EldoPlugin {
         MembershipSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
+        if (discord != null) discord.stop();
         workerPool.shutdown();
         Threading.VIRTUAL.shutdown();
         awaitTermination(workerPool);
