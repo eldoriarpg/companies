@@ -437,8 +437,9 @@ Company names with spaces are quoted in `rename`, `transferowner` and `treasury`
 
 * `unclaim` takes a claimed order away from its company. Delivered items go back to the workers and the order is open
   again.
-* `cancel … refund` deletes the order and refunds price and fee to the owner; `cancel … keep` deletes it and sends the
-  fee to the collector. Delivered items go back to the workers.
+* `cancel … refund` deletes the order and refunds price and fee to the owner; `cancel … keep` deletes it and sends
+  price and fee to the collector account, or removes them from the economy when none is set. Delivered items go back to
+  the workers.
 * `deliver` closes the order as delivered. The workers are paid for what they delivered and the owner gets the price of
   the missing items back.
 * `extend` gives a claimed order more delivery time, or an open order more time before it is removed.

@@ -7,6 +7,8 @@ package de.eldoria.companies.services;
 
 import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
@@ -21,21 +23,27 @@ import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
+import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.services.AdminOrderService.Refusal;
 import de.eldoria.companies.services.AdminOrderService.Result;
 import de.eldoria.companies.util.TestExecutors;
+import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockbukkit.mockbukkit.ServerMock;
 
+import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -70,26 +78,31 @@ class AdminOrderServiceTest {
     private final Map<UUID, Double> refunded = new ConcurrentHashMap<>();
     private final AtomicReference<Double> collected = new AtomicReference<>(0.0);
     private final List<String> notices = new CopyOnWriteArrayList<>();
+    private final Map<String, Double> deposits = new ConcurrentHashMap<>();
 
     @TempDir
     Path directory;
 
+    private ServerMock server;
+    private Plugin plugin;
     private ExecutorService executor;
     private OrderTable orders;
     private SqLiteHistoryData history;
+    private HistoryRecorder recorder;
+    private OrderCompletionService completion;
     private AdminOrderService service;
     private EventRecorder events;
 
     @BeforeEach
     void setUp() throws Exception {
-        MockBukkit.mock();
-        var plugin = MockBukkit.createMockPlugin();
+        server = MockBukkit.mock();
+        plugin = MockBukkit.createMockPlugin();
         events = EventRecorder.listen(plugin, ItemsReturnedEvent.class);
         SqLiteTestDatabase.create(directory);
         executor = Executors.newFixedThreadPool(8);
         orders = OrderTable.create();
         history = new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor);
-        var recorder = new HistoryRecorder(history, Clock.systemDefaultZone());
+        recorder = new HistoryRecorder(history, Clock.systemDefaultZone());
         var treasury = new OrderCompletionService.Treasury() {
             @Override
             public void pay(OfflinePlayer worker, double amount) {
@@ -101,7 +114,7 @@ class AdminOrderServiceTest {
                 collected.accumulateAndGet(amount, Double::sum);
             }
         };
-        var completion = new OrderCompletionService(
+        completion = new OrderCompletionService(
                 plugin,
                 orders.orderData(),
                 new SqLiteStatsData(executor),
@@ -121,7 +134,11 @@ class AdminOrderServiceTest {
                 collected.accumulateAndGet(amount, Double::sum);
             }
         };
-        service = new AdminOrderService(
+        service = service(funds);
+    }
+
+    private AdminOrderService service(AdminOrderService.Funds funds) {
+        return new AdminOrderService(
                 orders.orderData(),
                 id -> id == COMPANY ? Optional.of(PROFILE) : Optional.empty(),
                 completion,
@@ -133,6 +150,40 @@ class AdminOrderServiceTest {
                 order -> {},
                 Logger.getAnonymousLogger(),
                 executor);
+    }
+
+    private AdminOrderService serviceWithCollector(String account) {
+        var settings = new EconomySettings();
+        settings.collectorAccount(account);
+        var configuration = new Configuration(plugin) {
+            @Override
+            public EconomySettings economySettings() {
+                return settings;
+            }
+        };
+        var collector = new Collector(plugin, recordingEconomy(), configuration);
+        return service(new AdminOrderService.Funds() {
+            @Override
+            public void refund(UUID owner, double amount) {
+                refunded.merge(owner, amount, Double::sum);
+            }
+
+            @Override
+            public void collect(double amount) {
+                collector.collect(amount);
+            }
+        });
+    }
+
+    private Economy recordingEconomy() {
+        return (Economy) Proxy.newProxyInstance(
+                Economy.class.getClassLoader(), new Class<?>[] {Economy.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("depositPlayer") && args[0] instanceof String account) {
+                        deposits.merge(account, (double) args[1], Double::sum);
+                        return new EconomyResponse((double) args[1], 0, EconomyResponse.ResponseType.SUCCESS, null);
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                });
     }
 
     @AfterEach
@@ -191,13 +242,13 @@ class AdminOrderServiceTest {
     }
 
     @Test
-    void cancelWithoutRefundCollectsTheFee() {
+    void cancelWithoutRefundCollectsPriceAndFee() {
         var order = orders.full(orders.place(FEE));
 
         var money = AdminOrderService.cancelMoney(order, false);
 
         assertEquals(0.0, money.refund());
-        assertEquals(FEE, money.collected());
+        assertEquals(155.0, money.collected());
     }
 
     @Test
@@ -323,7 +374,7 @@ class AdminOrderServiceTest {
     }
 
     @Test
-    void cancelOfOpenOrderWithoutRefundCollectsTheFee() {
+    void cancelOfOpenOrderWithoutRefundCollectsPriceAndFee() {
         var order = orders.place(FEE);
 
         AdminOrderService.Cancelled cancelled =
@@ -331,10 +382,72 @@ class AdminOrderServiceTest {
 
         assertFalse(cancelled.wasClaimed());
         assertTrue(refunded.isEmpty());
-        assertEquals(FEE, collected.get());
+        assertEquals(155.0, collected.get());
+        assertEquals(new AdminOrderService.CancelMoney(0, 155.0), cancelled.money());
         assertEquals(List.of(HistoryOutcome.CANCELLED_BY_ADMIN), ownerOutcomes());
         assertTrue(companyOutcomes().isEmpty());
         assertEquals(List.of("owner cancelled 0.0"), notices);
+    }
+
+    @Test
+    void cancelOfClaimedOrderWithoutRefundCollectsPriceAndFeeAndReturnsTheItems() {
+        var order = claimedWithDeliveries();
+
+        done(service.cancel(order.id(), false).join());
+
+        assertTrue(refunded.isEmpty());
+        assertEquals(155.0, collected.get());
+        assertEquals(4, returned(alice));
+        assertEquals(5, returned(bob));
+        assertEquals(List.of("company cancelled " + COMPANY, "owner cancelled 0.0"), notices);
+    }
+
+    @Test
+    void cancelWithoutRefundDepositsPriceAndFeeToTheCollectorAccount() {
+        var order = orders.place(FEE);
+
+        done(serviceWithCollector("bank").cancel(order.id(), false).join());
+        server.getScheduler().performOneTick();
+
+        assertEquals(Map.of("bank", 155.0), deposits);
+        assertTrue(refunded.isEmpty());
+    }
+
+    @Test
+    void cancelWithoutRefundDepositsNothingWithoutACollectorAccount() {
+        var order = orders.place(FEE);
+
+        done(serviceWithCollector("").cancel(order.id(), false).join());
+        server.getScheduler().performOneTick();
+
+        assertTrue(deposits.isEmpty());
+        assertTrue(refunded.isEmpty());
+        assertTrue(orders.orderData().retrieveOrderById(order.id()).join().isEmpty());
+    }
+
+    @Test
+    void cancelWithRefundDepositsNothingToTheCollectorAccount() {
+        var order = orders.place(FEE);
+
+        done(serviceWithCollector("bank").cancel(order.id(), true).join());
+        server.getScheduler().performOneTick();
+
+        assertTrue(deposits.isEmpty());
+        assertEquals(Map.of(owner(), 155.0), refunded);
+    }
+
+    @Test
+    void refusedCancelWithoutRefundMovesNoMoney() {
+        var order = claimedWithDeliveries();
+        orders.state(order, OrderState.DELIVERED, COMPANY);
+
+        refused(
+                Refusal.NOT_OPEN,
+                serviceWithCollector("bank").cancel(order.id(), false).join());
+        server.getScheduler().performOneTick();
+
+        assertTrue(deposits.isEmpty());
+        assertEquals(0.0, collected.get());
     }
 
     @Test
