@@ -83,9 +83,9 @@ public final class Permission {
          */
         public static final String BOARDS = ADMIN + ".boards";
         /**
-         * The permission EldoUtil grants debug reports with, accepted next to {@link #ADMIN}.
+         * The permission to create debug reports.
          */
-        public static final String DEBUG = "eldoutilitites.debug";
+        public static final String DEBUG = ADMIN + ".debug";
 
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");

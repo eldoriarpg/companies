@@ -48,15 +48,18 @@ class RequirementsTest {
     }
 
     @Test
-    void debugNeedsTheAdminOrTheEldoUtilDebugPermission() {
+    void debugNeedsTheDebugPermission() {
         var plain = server.addPlayer();
         var admin = server.addPlayer();
         admin.addAttachment(plugin, Permission.Admin.ADMIN, true);
+        var eldoUtilDebugger = server.addPlayer();
+        eldoUtilDebugger.addAttachment(plugin, "eldoutilitites.debug", true);
         var debugger = server.addPlayer();
         debugger.addAttachment(plugin, Permission.Admin.DEBUG, true);
 
         assertFalse(Requirements.mayDebug(new SourceStack(plain)));
-        assertTrue(Requirements.mayDebug(new SourceStack(admin)));
+        assertFalse(Requirements.mayDebug(new SourceStack(admin)));
+        assertFalse(Requirements.mayDebug(new SourceStack(eldoUtilDebugger)));
         assertTrue(Requirements.mayDebug(new SourceStack(debugger)));
     }
 

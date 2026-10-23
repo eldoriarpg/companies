@@ -153,6 +153,7 @@ bukkit {
                 "companies.admin",
                 "companies.admin.boards",
                 "companies.admin.calcLevel",
+                "companies.admin.debug",
                 "companies.admin.delete",
                 "companies.admin.grant",
                 "companies.admin.level",
@@ -165,13 +166,17 @@ bukkit {
             )
         }
         register("companies.admin") {
-            description = "Allows using the admin command and creating debug reports"
+            description = "Allows syncing the configuration between nodes"
         }
         register("companies.admin.boards") {
             description = "Allows creating and breaking board signs and managing boards"
         }
         register("companies.admin.calcLevel") {
             description = "Allows recalculating company levels"
+        }
+        register("companies.admin.debug") {
+            description = "Allows creating debug reports"
+            default = Default.OP
         }
         register("companies.admin.delete") {
             description = "Allows deleting companies"
