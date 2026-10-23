@@ -15,6 +15,7 @@ import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.boards.SignBoards;
+import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
@@ -174,6 +175,7 @@ public class Companies extends EldoPlugin {
                 dependencies.drafts(),
                 configuration,
                 ILocalizer.getPluginLocalizer(this),
+                dependencies.npcBoards(),
                 Threading.VIRTUAL));
         MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
         CompanyOrderSources.use(
@@ -288,6 +290,12 @@ public class Companies extends EldoPlugin {
                             Clock.systemUTC())
                     .start();
         }
+        if (commands != null) {
+            commands.npcBoards()
+                    .start(NpcHooks.create(
+                            this,
+                            name -> configuration.generalSettings().hooks().npc(name)));
+        }
 
         discord = DiscordWebhook.start(
                         this, configuration::discordSettings, economy, ILocalizer.getPluginLocalizer(this))
@@ -317,7 +325,10 @@ public class Companies extends EldoPlugin {
     @Override
     public void onPluginDisable() {
         if (api != null) api.unregister(this);
-        if (commands != null) commands.withdraw();
+        if (commands != null) {
+            commands.npcBoards().stop();
+            commands.withdraw();
+        }
         SuggestionSources.clear();
         CompanyOrderSources.clear();
         MembershipSources.clear();
