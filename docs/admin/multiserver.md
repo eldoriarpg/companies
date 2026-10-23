@@ -15,7 +15,8 @@ database, so players see the same orders and companies everywhere.
 - **The same Companies version** on every server.
 - **Exactly one primary server.** All other servers are secondary.
 - **Optional: a Redis server.** With Redis, the servers tell each other about changes at once. See
-  [Redis](#redis). Without Redis, [low latency mode](#low-latency-mode) does nearly the same through the database.
+  [Redis](#redis). Without Redis, [PostgreSQL notify](#postgresql-notify) does the same on PostgreSQL, and
+  [low latency mode](#low-latency-mode) nearly the same on any database. See [Which one to choose](#which-one-to-choose).
 
 Set up the database in `database.yml` on each server. See [database.yml](./configuration/database-yml.md).
 
@@ -96,8 +97,8 @@ The copy happens at two moments only:
 - when a server starts,
 - when you run `/companyadmin syncconfiguration` on that server.
 
-With [Redis](#redis) or in [low latency mode](#low-latency-mode), a secondary also copies the files whenever the
-primary writes them: when the primary starts and when you run `/companyadmin syncconfiguration` on the primary.
+With [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode), a
+secondary also copies the files whenever the primary writes them: when the primary starts and when you run `/companyadmin syncconfiguration` on the primary.
 
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
@@ -106,8 +107,8 @@ To change the configuration of a running network:
 1. Edit the files on the primary server.
 2. Run `/companyadmin reload` on the primary, so it reads your changes.
 3. Run `/companyadmin syncconfiguration` on the primary. It writes the files to the database.
-4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database. With Redis or in
-   low latency mode, skip this step: every connected secondary copies and applies the files on its own.
+4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database. With Redis,
+   PostgreSQL notify or in low latency mode, skip this step: every connected secondary copies and applies the files on its own.
 
 Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.
@@ -138,8 +139,9 @@ post in the meantime. Everything else keeps working on the other servers.
 
 A notification for a player who is online on the same server is shown at once. For a player on another server, it is
 stored in the inbox. Every server checks the inbox every `notifications.pollSeconds` seconds (default `10`) and shows
-new entries to its players. So a message from another server can take a few seconds. With [Redis](#redis), it
-arrives at once, and in [low latency mode](#low-latency-mode) within about a second.
+new entries to its players. So a message from another server can take a few seconds. With [Redis](#redis) or
+[PostgreSQL notify](#postgresql-notify), it arrives at once, and in [low latency mode](#low-latency-mode) within about
+a second.
 
 When players join any server, they get a summary of their unread notifications.
 
@@ -160,8 +162,8 @@ Some things are updated on each server on their own:
 - **The company ranking** (`/company top`) is cached on each server for `top.cacheSeconds`.
 - **The Discord webhook limits** count for each server.
 
-With [Redis](#redis) or in [low latency mode](#low-latency-mode), the first three follow changes on every server at
-once.
+With [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode), the first
+three follow changes on every server at once.
 
 ## Redis
 
@@ -190,8 +192,8 @@ The inbox is still checked with Redis, in case a message was missed, but only ev
 
 1. Run a Redis server that all servers of the network can reach. Protect it with a password, and keep it out of
    reach of the internet.
-2. Set the `redis` section in `database.yml` on **every** server, with the same server, `database` and
-   `channelPrefix`. See [database.yml](./configuration/database-yml.md#redis).
+2. Set the `redis` section in `database.yml` on **every** server, with the same server and `database`, and the same
+   `messaging.channelPrefix`. See [database.yml](./configuration/database-yml.md#redis).
 3. Put the password into an environment variable, by default `COMPANIES_REDIS_PASSWORD`, so it is not in the file.
 4. Restart the servers.
 
@@ -199,7 +201,7 @@ Each server logs `Connected to Redis at <host>:<port>.` when it starts. `/compan
 Redis` for this server, and the same for every other server it heard from in the last minute and a half. A server it
 did not hear from shows `-` there.
 
-Several networks can share one Redis server when each network uses its own `channelPrefix`. If a server receives a
+Several networks can share one Redis server when each network uses its own `messaging.channelPrefix`. If a server receives a
 message from a server that is not in its database, it logs a warning naming that server once: two networks use the
 same prefix.
 
@@ -209,7 +211,7 @@ Nothing breaks without Redis. A server that cannot reach Redis logs it and works
 every `notifications.pollSeconds` again and lets its caches run out as usual. It keeps trying to connect, first
 after a second and then less often, up to every 30 seconds. Once it is back, it drops its cached values once, since it
 may have missed changes, and switches back to the fast way. It does not switch to
-[low latency mode](#low-latency-mode) meanwhile.
+[PostgreSQL notify](#postgresql-notify) or [low latency mode](#low-latency-mode) meanwhile.
 
 A server with `enabled: true` whose password variable is not set logs that and does not use Redis until it is
 restarted with the variable set.
@@ -244,21 +246,6 @@ Each server runs one small query per second on the table, plus one short insert 
 network of five servers, that is five queries per second on the database. The query only reads the rows written
 since the last second, through the primary key, so it stays cheap even on a busy network.
 
-### Redis or low latency mode
-
-| | Redis | Low latency mode |
-|---|---|---|
-| Delay | at once | up to a second |
-| Extra service to run | a Redis server | none |
-| Load on the database | none | one query per second per server |
-| Works with | MariaDB, PostgreSQL | MariaDB, PostgreSQL |
-
-- **Choose Redis** if you already run one, for large networks, or when every query on the database counts.
-- **Choose low latency mode** for a small or medium network without Redis, when a second of delay is fine.
-
-It is one or the other. A server with `redis.enabled: true` uses Redis and ignores `messaging.lowLatency`; it logs a
-warning when both are on. While Redis is away, it polls as described in [When Redis is away](#when-redis-is-away).
-
 Low latency mode also works with SQLite, but there is only one server then, which has nothing to tell.
 
 ### Checking it
@@ -267,6 +254,73 @@ Low latency mode also works with SQLite, but there is only one server then, whic
 the last minute and a half. When the table can not be read, for example while the database is down, the server falls back to polling and
 logs it once, and switches back by itself once it can read the table again. The [debug report](./admin-commands.md)
 shows which way the server sends its messages and whether that works.
+
+## PostgreSQL notify
+
+On PostgreSQL, the servers can send each other the messages through the database itself, with PostgreSQL's
+`LISTEN` and `NOTIFY`. Messages arrive at once, as with Redis, without a Redis server and without the query per
+second of low latency mode. Turn it on with `messaging.postgresNotify: true` in `database.yml` on **every** server
+and restart them. See [database.yml](./configuration/database-yml.md#messaging). It needs `storageType: POSTGRES`;
+with MariaDB or SQLite the server logs a warning and ignores it.
+
+### What it changes
+
+Everything under [What gets faster](#what-gets-faster) behaves as with Redis: notifications, placeholder values,
+`/company top`, order details, market prices, tab completions and the configuration from the primary follow changes
+on any server at once. `notifications.pollSeconds`, `placeholders.refreshSeconds` and `top.cacheSeconds` stay only as
+a slow safety fallback, exactly as with Redis. Each server says so in its log when it starts:
+`PostgreSQL notify is on: ...`.
+
+### What it costs
+
+Each server keeps one extra connection to the database open, outside its connection pool, and waits on it for
+messages. Sending a message is one short statement. There is no polling query: a quiet network puts no load on the
+database, apart from a tiny check of the waiting connection every 10 seconds.
+
+The messages travel on one channel per database, named after `messaging.channelPrefix`. Two networks on the same
+PostgreSQL database, for example in different schemas, need different prefixes.
+
+### Limits
+
+- **No PgBouncer in transaction mode.** Waiting for messages needs a session of its own. Through PgBouncer or another
+  pooler in transaction pooling mode, the server does not hear the messages. Connect the servers to PostgreSQL directly,
+  or through a pooler in session mode.
+- **Small messages only.** PostgreSQL carries messages of up to about 8000 bytes. Companies only sends short signals,
+  far below that. A message longer than 7900 bytes would not be sent; the server logs a warning once and the other
+  servers pick up the change by polling.
+- **Messages sent while a server is not listening are lost for that server**, as with Redis. The safety fallback
+  covers them, see below.
+
+### When the connection is lost
+
+If the waiting connection breaks, for example while the database restarts, the server logs it and works as without
+messages: it checks the inbox every `notifications.pollSeconds` again and lets its caches run out as usual. It keeps
+trying to listen again, first after a second and then less often, up to every 30 seconds. Once it listens again, it
+drops its cached values once, since it may have missed changes, and switches back to the fast way. It does not switch
+to [low latency mode](#low-latency-mode) meanwhile. This is the same as [When Redis is away](#when-redis-is-away).
+
+`/companyadmin node list` shows `messages PostgreSQL notify` for this server, and for every other server it heard from
+in the last minute and a half. The [debug report](./admin-commands.md) shows the state and the database address,
+never the password.
+
+## Which one to choose
+
+| | Redis | PostgreSQL notify | Low latency mode |
+|---|---|---|---|
+| Delay | at once | at once | up to a second |
+| Extra service to run | a Redis server | none | none |
+| Load on the database | none | one waiting connection per server | one query per second per server |
+| Works with | MariaDB, PostgreSQL | PostgreSQL, not through PgBouncer in transaction mode | MariaDB, PostgreSQL |
+
+- **Choose Redis** if you already run one, or for large networks.
+- **Choose PostgreSQL notify** when your network uses PostgreSQL without Redis. It is as fast as Redis and adds
+  nothing to run.
+- **Choose low latency mode** on MariaDB without Redis, when a second of delay is fine.
+
+A network uses exactly one of them; set the same on every server. Each server picks one at start in this order:
+Redis (`redis.enabled`), PostgreSQL notify (`messaging.postgresNotify`), low latency mode (`messaging.lowLatency`).
+When more than one is turned on, it uses the first, ignores the others and logs one warning naming them. It never
+switches to another one while it runs: when its own way breaks, it polls until that way works again.
 
 ## Admin tools on a network
 
