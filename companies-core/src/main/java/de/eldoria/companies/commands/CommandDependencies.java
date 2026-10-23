@@ -24,6 +24,7 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.DisbandService;
@@ -331,6 +332,7 @@ public final class CommandDependencies {
      * @param orderCreation       creates orders and charges their owners
      * @param treasury            moves money into and out of company treasuries
      * @param series              starts, stops and resumes repeating orders
+     * @param soloOrders          claims and aborts the orders players work on alone
      */
     public record Services(
             Economy economy,
@@ -346,5 +348,6 @@ public final class CommandDependencies {
             OrderCompletionService orderCompletion,
             OrderCreationService orderCreation,
             TreasuryService treasury,
-            SeriesService series) {}
+            SeriesService series,
+            SoloOrderService soloOrders) {}
 }

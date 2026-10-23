@@ -30,6 +30,10 @@ public final class Permission {
         public static final String LIMIT = ORDERS + ".limit";
         public static final String CREATE = ORDERS + ".create";
         public static final String REPEAT = ORDERS + ".repeat";
+        /**
+         * The permission to claim orders alone, without a company, while solo orders are enabled.
+         */
+        public static final String SOLO = ORDERS + ".solo";
 
         private Orders() {
             throw new UnsupportedOperationException("This is a utility class.");

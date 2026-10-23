@@ -15,6 +15,7 @@ import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
@@ -39,9 +40,13 @@ import java.util.logging.Level;
 
 /**
  * Releases claimed orders after their deadline, warns owners before and purges orders nobody claimed, and warns company
- * members on join about claimed orders that are about to expire.
+ * members on join about claimed orders that are about to expire. Orders players work on alone are released and warned
+ * about the same way, with the solo delivery time.
  */
 public class ExpiringService implements Runnable, Listener {
+    private static final String COMPANY_ORDER_INFO = "/company order info ";
+    private static final String SOLO_ORDER_INFO = "/order work info ";
+
     private final Plugin plugin;
     private final AOrderData orderData;
     private final ACompanyData companyData;
@@ -50,6 +55,7 @@ public class ExpiringService implements Runnable, Listener {
     private final Economy economy;
     private final NotificationService notificationService;
     private final OrderOutcomes outcomes;
+    private final SoloOrderService soloOrders;
 
     /**
      * @param plugin              the plugin
@@ -59,6 +65,7 @@ public class ExpiringService implements Runnable, Listener {
      * @param economy             refunds purged orders
      * @param notificationService warns owners
      * @param outcomes            releases and purges orders and records their history
+     * @param soloOrders          releases the orders players work on alone
      */
     public ExpiringService(
             Plugin plugin,
@@ -67,7 +74,8 @@ public class ExpiringService implements Runnable, Listener {
             Configuration configuration,
             Economy economy,
             NotificationService notificationService,
-            OrderOutcomes outcomes) {
+            OrderOutcomes outcomes,
+            SoloOrderService soloOrders) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
@@ -76,6 +84,7 @@ public class ExpiringService implements Runnable, Listener {
         this.economy = economy;
         this.notificationService = notificationService;
         this.outcomes = outcomes;
+        this.soloOrders = soloOrders;
     }
 
     /**
@@ -110,7 +119,11 @@ public class ExpiringService implements Runnable, Listener {
                 .retrievePlayerCompany(player)
                 .whenComplete(optCompany -> optCompany.ifPresent(company -> orderData
                         .retrieveOrdersByCompany(company, OrderState.CLAIMED, OrderState.CLAIMED)
-                        .whenComplete(orders -> reportOrderExpiring(player, expiringOrders(orders)))));
+                        .whenComplete(
+                                orders -> reportOrderExpiring(player, expiringOrders(orders), COMPANY_ORDER_INFO))));
+        orderData
+                .retrieveOrdersBySoloWorker(player.getUniqueId(), OrderState.CLAIMED, OrderState.CLAIMED)
+                .whenComplete(orders -> reportOrderExpiring(player, expiringOrders(orders), SOLO_ORDER_INFO));
     }
 
     private List<SimpleOrder> expiringOrders(List<SimpleOrder> orders) {
@@ -122,11 +135,11 @@ public class ExpiringService implements Runnable, Listener {
                 .toList();
     }
 
-    private void reportOrderExpiring(Player player, List<SimpleOrder> orders) {
+    private void reportOrderExpiring(Player player, List<SimpleOrder> orders, String infoCommand) {
         if (orders.isEmpty() || !player.isOnline()) return;
         var text = MenuText.create().locale("expiring.notice");
         for (var index = 0; index < orders.size(); index++) {
-            text.newLine().append(expiringElement(player, orders.get(index), index));
+            text.newLine().append(expiringElement(player, orders.get(index), index, infoCommand));
         }
         messageSender.sendMessage(player, text);
     }
@@ -135,12 +148,13 @@ public class ExpiringService implements Runnable, Listener {
      * One expiring order with a button opening it. The element's own text uses {@code order_name} and
      * {@code duration}, so it is rendered on its own and inserted as a component.
      *
-     * @param player player receiving the notice
-     * @param order  expiring order
-     * @param index  position of the order in the notice
+     * @param player      player receiving the notice
+     * @param order       expiring order
+     * @param index       position of the order in the notice
+     * @param infoCommand command showing the order, followed by its id
      * @return the line of the order
      */
-    private MenuText expiringElement(Player player, SimpleOrder order, int index) {
+    private MenuText expiringElement(Player player, SimpleOrder order, int index, String infoCommand) {
         var element = Keys.of("order", index);
         var info = Keys.of("order", index, "info");
         var line = MenuText.create()
@@ -153,7 +167,7 @@ public class ExpiringService implements Runnable, Listener {
                         "<" + element + "> <" + info + ">[",
                         Values.component(
                                 element, messageSender.serializeMessage(player, line.build(), resolvers(line))),
-                        Values.click(info, ClickEvent.runCommand("/company order info " + order.id())))
+                        Values.click(info, ClickEvent.runCommand(infoCommand + order.id())))
                 .locale("words.info")
                 .text("]</" + info + ">");
     }
@@ -164,6 +178,11 @@ public class ExpiringService implements Runnable, Listener {
             releaseExpiredOrders();
         } catch (RuntimeException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not release expired orders", e);
+        }
+        try {
+            soloOrders.releaseExpired().join();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not release expired solo orders", e);
         }
         try {
             warnOwners();

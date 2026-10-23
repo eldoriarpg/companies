@@ -5,7 +5,7 @@ sidebar_position: 3
 
 # order.yml
 
-Order settings: fees, item matching, extensions and repeating orders.
+Order settings: fees, item matching, extensions, repeating orders and working alone.
 
 In a network, this file is shared. Edit it on the primary server. See [Configuration](./index.md#in-a-network).
 
@@ -36,6 +36,14 @@ repeating:
   maxCopies: 52
   maxDays: 365
   checkMinutes: 5
+solo:
+  enabled: false
+  maxActive: 1
+  maxOrderSize: 64
+  deliveryHours: 24
+  taxPercent: 0.0
+  forCompanyMembers: false
+  abortCooldownMinutes: 60
 ```
 
 ## General
@@ -95,3 +103,23 @@ Orders that are placed again daily or weekly. See [Repeating orders](../../playe
 | `repeating.maxCopies` | number | `52` | Most copies of one repeating order. At least 1. | reload |
 | `repeating.maxDays` | number (days) | `365` | How far ahead the last day of a repeating order may be. At least 1. | reload |
 | `repeating.checkMinutes` | number (minutes) | `5` | How often the primary server posts copies that are due. At least 1. | restart |
+
+## solo
+
+Players who take an order alone, without a company. See [Working alone](../../players/working-alone.md) for a guide.
+Working alone also needs the permission `companies.orders.solo`, which every player has by default.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `solo.enabled` | true/false | `false` | Turn working alone on. With `false`, nobody can take an order alone. Orders already taken can still be delivered or given back. |
+| `solo.maxActive` | number | `1` | Most orders one player works on alone at the same time. At least 1. |
+| `solo.maxOrderSize` | number | `64` | Most items, over all lines, of an order a player may take alone. `0` means no limit. |
+| `solo.deliveryHours` | number (hours) | `24` | How long a player has to deliver an order taken alone. At least 1. Admins can add time with `/companyadmin order extend`. |
+| `solo.taxPercent` | number | `0.0` | Tax on the payout of an order delivered alone. `5` means 5 %. It goes to the `economy.collectorAccount` in [config.yml](./config-yml.md#economy), like the tax of companies. |
+| `solo.forCompanyMembers` | true/false | `false` | Let members of a company take orders alone as well. |
+| `solo.abortCooldownMinutes` | number (minutes) | `60` | After a player gives an order back or lets it expire, they cannot take another order alone for this long. `0` turns the cooldown off. |
+
+- The whole price of the order goes to the player, minus the tax. No company keeps a treasury share.
+- Orders delivered alone count for nobody's company. They do not change any level or ranking.
+- On a network, the claims and cooldowns are stored in the database, so they hold on every server. Expired orders are
+  released by the primary server, like those of companies.

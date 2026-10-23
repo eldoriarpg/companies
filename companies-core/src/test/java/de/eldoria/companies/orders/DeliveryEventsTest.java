@@ -80,6 +80,7 @@ class DeliveryEventsTest {
                         new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor), Clock.systemDefaultZone()),
                 treasury,
                 level -> 0.0,
+                () -> 5.0,
                 Clock.systemDefaultZone(),
                 executor);
         service = new DeliveryService(

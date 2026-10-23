@@ -185,7 +185,7 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
         return text.text(
                         "<" + max + ">[<i18n:words.max>]</" + max + ">",
                         buttons.chatAction(max, p -> actions.deliver(p, id, number, Integer.MAX_VALUE)))
-                .text("<click:suggest_command:/company order deliver " + id + " " + number
+                .text("<click:suggest_command:" + actions.deliverCommand() + " " + id + " " + number
                         + " >[<i18n:words.add>]</click>");
     }
 

@@ -12,6 +12,7 @@ import de.eldoria.companies.menus.company.AlertNameMenu;
 import de.eldoria.companies.menus.company.SearchMenu;
 import de.eldoria.companies.menus.company.SearchResultsMenu;
 import de.eldoria.companies.orders.query.OrderFilter;
+import de.eldoria.companies.util.Permission;
 import org.bukkit.entity.Player;
 
 import java.util.function.Consumer;
@@ -31,24 +32,83 @@ public final class OrderSearch {
 
     private final CommandDependencies deps;
     private final SearchSessions sessions;
-    private final SearchExecutor executor;
+    private final SearchMode mode;
+    private final OrderFinder executor;
     private final ObjIntConsumer<Player> info;
     private final ObjIntConsumer<Player> accept;
 
     /**
+     * The search of a company.
+     *
      * @param deps   what the commands need
      * @param info   shows a company order to a player
      * @param accept accepts an order for the company of a player
      */
     public OrderSearch(CommandDependencies deps, ObjIntConsumer<Player> info, ObjIntConsumer<Player> accept) {
-        this.deps = deps;
-        this.sessions = deps.searches();
-        this.executor =
+        this(
+                deps,
+                SearchMode.COMPANY,
                 new SearchExecutor(deps.orderData(), deps.companyData(), deps.configuration(), () -> deps.services()
                         .deliveryService()
-                        .matcher());
+                        .matcher()),
+                info,
+                accept);
+    }
+
+    /**
+     * A search of one mode.
+     *
+     * @param deps   what the commands need
+     * @param mode   what the search is for
+     * @param finder runs the searches
+     * @param info   shows an order found to a player
+     * @param accept accepts an order found for a player
+     */
+    public OrderSearch(
+            CommandDependencies deps,
+            SearchMode mode,
+            OrderFinder finder,
+            ObjIntConsumer<Player> info,
+            ObjIntConsumer<Player> accept) {
+        this.deps = deps;
+        this.sessions = deps.searches();
+        this.mode = mode;
+        this.executor = finder;
         this.info = info;
         this.accept = accept;
+    }
+
+    /**
+     * What this search is for.
+     *
+     * @return the mode
+     */
+    public SearchMode mode() {
+        return mode;
+    }
+
+    /**
+     * Whether the results offer the player to look for orders to work on alone: the search offers it, solo orders are
+     * enabled, the player has the permission and is no company member, unless members may work alone as well.
+     *
+     * @param player  player searching
+     * @param results what the search found
+     * @return true when the button is shown
+     */
+    public boolean offersSolo(Player player, SearchResults results) {
+        if (!mode.offersSolo()) return false;
+        var solo = deps.configuration().orderSetting().solo();
+        if (!solo.enabled() || !player.hasPermission(Permission.Orders.SOLO)) return false;
+        return solo.forCompanyMembers() || !results.companyMember();
+    }
+
+    /**
+     * Shows the orders the player could take alone, with the current query.
+     *
+     * @param player player searching
+     */
+    public void searchSolo(Player player) {
+        player.performCommand(SearchMode.SOLO_SEARCH);
     }
 
     /**
@@ -153,7 +213,7 @@ public final class OrderSearch {
         executor.execute(player, query).whenComplete(found -> {
             sessions.results(player.getUniqueId(), found);
             var shown = Page.of(found.orders(), page, PAGE_SIZE);
-            menus().show(player, resultsMenu(), new SearchResultsMenu.Model(found, shown));
+            menus().show(player, resultsMenu(), new SearchResultsMenu.Model(found, shown, offersSolo(player, found)));
         });
     }
 
@@ -168,7 +228,7 @@ public final class OrderSearch {
     }
 
     /**
-     * Accepts an order found by the search for the player's company.
+     * Accepts an order found by the search for the player's company, or for the player alone.
      *
      * @param player player searching
      * @param id     id of the order

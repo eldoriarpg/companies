@@ -112,7 +112,7 @@ public class MariaDbStatsData extends AStatsData {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
         var result = query(query)
                 .batch(payouts.stream().map(payout -> call().bind(payout.order())
-                        .bind(payout.company())
+                        .bind(payout.solo() ? null : (Integer) payout.company())
                         .bind(payout.worker(), UUID_BYTES)
                         .bind(payout.items())
                         .bind(payout.gross())

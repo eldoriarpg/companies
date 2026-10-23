@@ -17,6 +17,7 @@ import de.eldoria.companies.commands.order.OwnerOrderViews;
 import de.eldoria.companies.commands.order.Raise;
 import de.eldoria.companies.commands.order.Receive;
 import de.eldoria.companies.commands.order.SeriesCommand;
+import de.eldoria.companies.commands.order.WorkCommand;
 import de.eldoria.companies.commands.support.HandleFailures;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import net.strokkur.commands.Command;
@@ -65,6 +66,9 @@ final class OrderCommand {
     @Subcommand
     final SeriesCommand series;
 
+    @Subcommand
+    final WorkCommand work;
+
     OrderCommand(CommandDependencies deps) {
         var views = new OwnerOrderViews(deps);
         list = new List(deps, views);
@@ -78,6 +82,7 @@ final class OrderCommand {
         create = new OrderCreateCommand(deps, draft);
         history = new HistoryCommand(deps);
         series = new SeriesCommand(deps, views);
+        work = new WorkCommand(deps);
         views.bind(new OwnerOrderViews.Commands(cancel, extend, raise, receive, create, series));
     }
 

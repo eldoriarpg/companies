@@ -6,9 +6,11 @@
 package de.eldoria.companies.data.repository.impl.sqlite;
 
 import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -16,10 +18,12 @@ import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -40,7 +44,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
     }
 
     @Override
-    protected List<SimpleOrder> getExpiredOrders(int hours) {
+    protected List<SimpleOrder> expiredClaims(int hours, String claimant) {
         @Language("sqlite")
         var query = """
                 SELECT o.id,
@@ -53,15 +57,16 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
                 WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || (? + delivery_bonus) || ' HOUR')
-                  AND company IS NOT NULL
+                  AND %s IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
-        return query(query)
+        return query(query, claimant)
                 .single(call().bind(hours).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
@@ -81,7 +86,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -108,7 +114,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        o.fee,
                        extensions,
                        delivery_bonus,
-                       series_id
+                       series_id,
+                       solo_worker
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
@@ -189,7 +196,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
         @Language("sqlite")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
                 FROM orders o
                          LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c
@@ -263,6 +270,32 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 row.getDouble("fee"),
                 row.getInt("extensions"),
                 row.getInt("delivery_bonus"),
-                row.getInt("series_id"));
+                row.getInt("series_id"),
+                row.get("solo_worker", UUID_BYTES));
+    }
+
+    /**
+     * Creates the row of the worker. SQLite has one writer at a time, and this write takes the lock of the
+     * transaction, so claims of the same worker run one after the other.
+     *
+     * @param conf   open transaction
+     * @param player the worker
+     */
+    @Override
+    protected void lockSoloWorker(ConnectedQueryConfiguration conf, UUID player) {
+        @Language("sqlite")
+        var insert = """
+                INSERT OR IGNORE INTO solo_cooldowns(worker_uuid, ends_at) VALUES (?, ?)""";
+        insertSoloWorker(conf, insert, player);
+    }
+
+    @Override
+    protected Adapter<LocalDateTime> time() {
+        return TimeColumns.SQLITE_TEXT;
+    }
+
+    @Override
+    protected LocalDateTime readTime(Row row, String column) throws SQLException {
+        return SqLiteAdapter.getTimestamp(row, column);
     }
 }

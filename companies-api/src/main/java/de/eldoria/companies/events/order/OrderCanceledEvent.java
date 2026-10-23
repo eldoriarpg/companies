@@ -16,7 +16,8 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  * Fired after the order was released, off the main thread. It fires only on the server where the order was aborted.
  * An order the owner cancels or that is removed fires {@link OrderRemovedEvent}; an order that runs out of time fires
- * {@link OrderExpiredEvent}.
+ * {@link OrderExpiredEvent}. A player giving up an order they work on alone fires {@link SoloOrderAbortEvent}
+ * instead.
  * <p>
  * Orders are anonymous: never show the owner to the company's members or the company to the owner.
  */

@@ -28,7 +28,8 @@ import java.util.Optional;
  * the member accepts the order.
  * <p>
  * Orders are anonymous: never show the owner of the order to the member.
- * {@link OrderAcceptEvent} follows once the order is claimed.
+ * {@link OrderAcceptEvent} follows once the order is claimed. A player claiming an order alone fires
+ * {@link PreSoloOrderAcceptEvent} instead.
  */
 public class PreOrderAcceptEvent extends OrderEvent<IFullOrder>
         implements CompanyProvider<ICompanyProfile>, PlayerProvider<Player>, CancellableWithReason {

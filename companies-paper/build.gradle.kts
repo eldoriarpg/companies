@@ -117,7 +117,7 @@ bukkit {
 
         register("companies.orders.*") {
             description = "Gives full access to orders. Does not raise the order limit, use companies.orders.limit.<n> for that"
-            children = listOf("companies.orders.create", "companies.orders.repeat")
+            children = listOf("companies.orders.create", "companies.orders.repeat", "companies.orders.solo")
         }
         register("companies.orders.create") {
             description = "Allows creation of orders, up to maxOrders in user.yml or the highest companies.orders.limit.<n>"
@@ -126,6 +126,11 @@ bukkit {
 
         register("companies.orders.repeat") {
             description = "Allows making orders repeat daily or weekly"
+            default = Default.TRUE
+        }
+
+        register("companies.orders.solo") {
+            description = "Allows working on orders alone, without a company, while solo orders are enabled in order.yml"
             default = Default.TRUE
         }
 

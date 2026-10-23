@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  * Hidden are orders of the company's own members (unless allowed), orders larger than the company's level allows and,
  * with the fillable filter, orders the player can deliver nothing to. A company at its order limit gets no orders.
  */
-public class SearchExecutor {
+public class SearchExecutor implements OrderFinder {
     private final AOrderData orderData;
     private final ACompanyData companyData;
     private final Configuration configuration;
@@ -61,6 +61,7 @@ public class SearchExecutor {
      * @param query  query to run
      * @return the orders the player's company could accept
      */
+    @Override
     public BukkitFutureResult<SearchResults> execute(Player player, SearchQuery query) {
         List<ItemStack> available = query.fillable() ? Deliverable.available(player) : List.of();
         var itemMatcher = matcher.get();
@@ -76,7 +77,16 @@ public class SearchExecutor {
                         Threading.VIRTUAL));
     }
 
-    private static List<FullOrder> filled(
+    /**
+     * Keeps the orders the player can deliver to when the query asks for it, the most deliverable first.
+     *
+     * @param orders    orders found
+     * @param query     the query
+     * @param matcher   decides what the player can deliver
+     * @param available the items the player carries
+     * @return the orders, unchanged without the fillable filter
+     */
+    static List<FullOrder> filled(
             List<FullOrder> orders, SearchQuery query, ItemMatcher matcher, List<ItemStack> available) {
         if (!query.fillable()) return orders;
         var fillable = new ArrayList<>(orders.stream()
@@ -99,12 +109,12 @@ public class SearchExecutor {
         var level = settings.levelSettings(company.level());
         var accepted = orderData.retrieveCompanyOrderCount(company).join();
         if (accepted != null && accepted >= level.maxOrders()) {
-            return new SearchResults(List.of(), taxPercent, canAccept, true);
+            return new SearchResults(List.of(), taxPercent, canAccept, true, true);
         }
         var acceptable = orders.stream()
                 .filter(order -> company.mayAcceptOrderOf(order.owner(), settings.allowMemberOrders()))
                 .filter(order -> !level.exceedsOrderSize(order.amount()))
                 .toList();
-        return new SearchResults(acceptable, taxPercent, canAccept, false);
+        return new SearchResults(acceptable, taxPercent, canAccept, false, true);
     }
 }

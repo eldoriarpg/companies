@@ -10,8 +10,28 @@ import org.bukkit.entity.Player;
 /**
  * What the buttons of the company's order menus do. Every action checks membership, permission and order again, as
  * the typed command does.
+ * <p>
+ * The same menus show the orders a player works on alone; those actions run the solo commands instead.
  */
 public interface CompanyOrderActions {
+    /**
+     * The command the chat menu suggests for delivering another amount, followed by order id and line.
+     *
+     * @return command with leading slash and without trailing space
+     */
+    default String deliverCommand() {
+        return "/company order deliver";
+    }
+
+    /**
+     * The locale key of the heading of the order list.
+     *
+     * @return locale key
+     */
+    default String listTitle() {
+        return "company.order.list.orders";
+    }
+
     /**
      * Shows an order of the player's company.
      *

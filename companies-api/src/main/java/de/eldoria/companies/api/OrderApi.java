@@ -44,6 +44,16 @@ public interface OrderApi {
     CompletableFuture<List<? extends IFullOrder>> byCompany(int company, OrderState min, OrderState max);
 
     /**
+     * The orders a player has claimed to work on alone, without a company, within a range of states.
+     *
+     * @param worker id of the player
+     * @param min    lowest state to include
+     * @param max    highest state to include
+     * @return future of the orders with their lines, empty when there are none
+     */
+    CompletableFuture<List<? extends IFullOrder>> bySoloWorker(UUID worker, OrderState min, OrderState max);
+
+    /**
      * The orders a player has placed, within a range of states.
      *
      * @param owner id of the owner

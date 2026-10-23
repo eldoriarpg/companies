@@ -123,6 +123,38 @@ class AdminMenusTest {
     }
 
     @Test
+    void soloOrderNamesTheWorkerInsteadOfACompany() {
+        var menu = new AdminOrderMenu(messages, economy(), new NoActions());
+        var logs = new OrderContent(0, named(Material.OAK_LOG), false, 10, 15);
+        var order = new FullOrder(
+                7, OWNER, "Wood", CLAIMED, 0, CLAIMED, OrderState.CLAIMED, 2.5, 1, 0, 0, WORKER, List.of(logs));
+        var model = new AdminOrderMenu.Model(
+                order,
+                "Owner",
+                Optional.empty(),
+                Optional.empty(),
+                Map.of(WORKER, "Loner"),
+                List.of(),
+                Optional.empty());
+
+        var shown = plainText(menu.chat(viewer, model, buttons));
+
+        assertTrue(shown.contains("companyadmin.order.soloWorker: Loner"), shown);
+        assertFalse(shown.contains("companyadmin.order.company:"), shown);
+    }
+
+    @Test
+    void soloRowsAreMarked() {
+        var order = new FullOrder(
+                7, OWNER, "Wood", CLAIMED, 0, CLAIMED, OrderState.CLAIMED, 2.5, 1, 0, 0, WORKER, List.of());
+
+        var shown = plainText(
+                AdminOrderListMenu.summary("row", new AdminOrderListMenu.Row(order, "Owner", Optional.of("Loner"))));
+
+        assertTrue(shown.contains("Loner (companyadmin.order.solo)"), shown);
+    }
+
+    @Test
     void claimedOrderOffersEveryAction() {
         var menu = new AdminOrderMenu(messages, economy(), new NoActions());
 

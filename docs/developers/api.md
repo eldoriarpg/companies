@@ -235,6 +235,7 @@ api.companies().addMember(companyId, player.getUniqueId()).thenAccept(result -> 
 | `byId(int id)`                                        | `CompletableFuture<Optional<? extends IFullOrder>>` | The order with its lines                          |
 | `byCompany(int company, OrderState min, OrderState max)` | `CompletableFuture<List<? extends IFullOrder>>` | Orders the company claimed, with a state from `min` to `max` |
 | `byOwner(UUID owner, OrderState min, OrderState max)` | same                                             | Orders the player placed, with a state from `min` to `max` |
+| `bySoloWorker(UUID worker, OrderState min, OrderState max)` | same                                       | Orders the player took to work on alone, with a state from `min` to `max` |
 | `materialPrice(Material material)`                    | `CompletableFuture<? extends IMaterialPrice>`    | Average, lowest and highest price paid for the material. All 0 if it was never ordered |
 | `create(OrderRequest request)`                        | `CompletableFuture<CreateOrderResult>`           | **Write.** Creates an order                          |
 
@@ -248,6 +249,10 @@ api.orders().byOwner(player.getUniqueId(), OrderState.UNCLAIMED, OrderState.DELI
 
 An `IFullOrder` has its lines in `contents()`. Each line (`IOrderContent`) tells its item, whether it is an exact
 line, the amount, the unit price and what was delivered so far.
+
+An order is claimed by a company or by a single player working alone, never by both. `company()` is the id of the
+company, or a value below 1 when no company claimed it. `soloWorker()` is the id of the player working on it alone,
+or empty. See [Working alone](../players/working-alone.md) and the [solo order events](./events.md#solo-order-events).
 
 ### Create an order
 

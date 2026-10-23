@@ -7,6 +7,7 @@ package de.eldoria.companies.configuration.elements;
 
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.configuration.elements.ordersettings.RepeatingSettings;
+import de.eldoria.companies.configuration.elements.ordersettings.SoloSettings;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class OrderSettings {
@@ -18,6 +19,7 @@ public class OrderSettings {
     private int purgeWarningHours = 24;
     private ItemMatchSettings matching = new ItemMatchSettings();
     private RepeatingSettings repeating = new RepeatingSettings();
+    private SoloSettings solo = new SoloSettings();
 
     public OrderSettings() {}
 
@@ -101,5 +103,14 @@ public class OrderSettings {
      */
     public RepeatingSettings repeating() {
         return repeating == null ? new RepeatingSettings() : repeating;
+    }
+
+    /**
+     * Orders players work on alone, without a company.
+     *
+     * @return solo order settings
+     */
+    public SoloSettings solo() {
+        return solo == null ? new SoloSettings() : solo;
     }
 }

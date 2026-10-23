@@ -23,7 +23,8 @@ import java.util.Objects;
  * <p>
  * Fired once per delivery that recorded at least one item, after it was saved, usually off the main thread; the event
  * may be asynchronous. It fires only on the server where the worker delivered. When the delivery completes the order,
- * {@link OrderDoneEvent} follows.
+ * {@link OrderDoneEvent} follows. A delivery to an order a player works on alone fires
+ * {@link SoloOrderDeliveryEvent} instead.
  * <p>
  * Orders are anonymous: never show the {@link #owner() owner} to the worker or the other members of the company.
  */

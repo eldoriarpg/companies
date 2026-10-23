@@ -69,6 +69,16 @@ final class OrderApiImpl implements OrderApi {
     }
 
     @Override
+    public CompletableFuture<List<? extends IFullOrder>> bySoloWorker(UUID worker, OrderState min, OrderState max) {
+        return CompletableFuture.<List<? extends IFullOrder>>supplyAsync(
+                () -> orderData.toFullOrders(orderData
+                        .retrieveOrdersBySoloWorker(worker, min, max)
+                        .asFuture()
+                        .join()),
+                executor);
+    }
+
+    @Override
     public CompletableFuture<List<? extends IFullOrder>> byOwner(UUID owner, OrderState min, OrderState max) {
         return CompletableFuture.<List<? extends IFullOrder>>supplyAsync(
                 () -> orderData.toFullOrders(orderData

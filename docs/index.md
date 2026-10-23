@@ -41,6 +41,13 @@ own inventory and is paid for their part.
 
 [Claiming and delivering](./companies/claiming-and-delivering.md)
 
+### Working alone
+
+Players without a company can take a single order on their own, deliver it alone and keep the whole price. Server
+owners turn it on and set its limits.
+
+[Working alone](./players/working-alone.md)
+
 ### Treasury
 
 Every company has a treasury. Members pay into it, and the company can keep a share of every payout.

@@ -59,6 +59,9 @@ import java.util.logging.Logger;
  *     <li>marking a partly delivered order delivered pays the workers for what they delivered, as a normal completion
  *     does, and refunds the owner the price share of the missing items.</li>
  * </ul>
+ * An order a player works on alone is handled the same way: the player is told instead of a company, no company
+ * history entry is written, and marking it delivered settles it as a solo order.
+ * <p>
  * Deposits are made on the main thread. Released and deleted orders fire {@link ItemsReturnedEvent} with
  * {@link ItemsReturnedEvent.Reason#ADMIN_RELEASE} for the workers' items, and a deletion fires {@link OrderRemovedEvent}
  * with {@link OrderRemovedEvent.Reason#ADMIN}. Marking an order delivered fires the events of a normal completion.
@@ -260,8 +263,15 @@ public final class AdminOrderService {
         var snapshot = orderData.toFullOrder(order);
         var returned = orderData.submitUnclaimOrder(order).join();
         if (returned == null || returned.isEmpty()) return Result.refused(Refusal.NOT_CLAIMED);
-        record(() -> history.companyEntry(snapshot, order.company(), HistoryOutcome.UNCLAIMED_BY_ADMIN, List.of()), id);
-        companies.apply(order.company()).ifPresent(company -> notices.companyUnclaimed(company, order));
+        var soloWorker = order.soloWorker();
+        if (soloWorker.isPresent()) {
+            notices.soloReleased(soloWorker.get(), order);
+        } else {
+            record(
+                    () -> history.companyEntry(snapshot, order.company(), HistoryOutcome.UNCLAIMED_BY_ADMIN, List.of()),
+                    id);
+            companies.apply(order.company()).ifPresent(company -> notices.companyUnclaimed(company, order));
+        }
         notices.ownerReopened(order);
         itemReturns.returned(order, returned.get(), ItemsReturnedEvent.Reason.ADMIN_RELEASE);
         return Result.done(new Unclaimed(snapshot, returned.get().workers()));
@@ -280,7 +290,10 @@ public final class AdminOrderService {
         if (money.collected() > 0) funds.collect(money.collected());
         var claimed = order.state() == OrderState.CLAIMED;
         record(() -> history.ownerEntry(snapshot, HistoryOutcome.CANCELLED_BY_ADMIN), id);
-        if (claimed) {
+        var soloWorker = order.soloWorker();
+        if (claimed && soloWorker.isPresent()) {
+            notices.soloReleased(soloWorker.get(), order);
+        } else if (claimed) {
             record(
                     () -> history.companyEntry(snapshot, order.company(), HistoryOutcome.CANCELLED_BY_ADMIN, List.of()),
                     id);
@@ -298,13 +311,15 @@ public final class AdminOrderService {
         if (found.isEmpty()) return Result.refused(Refusal.UNKNOWN_ORDER);
         var order = found.get();
         if (order.state() != OrderState.CLAIMED) return Result.refused(Refusal.NOT_CLAIMED);
-        var company = companies.apply(order.company());
-        if (company.isEmpty()) return Result.refused(Refusal.UNKNOWN_COMPANY);
+        var company = order.isSolo() ? Optional.<CompanyProfile>empty() : companies.apply(order.company());
+        if (!order.isSolo() && company.isEmpty()) return Result.refused(Refusal.UNKNOWN_COMPANY);
         var delivered = orderData.submitForcedDelivery(order).join();
         if (delivered == null || delivered.isEmpty()) return Result.refused(Refusal.NOT_CLAIMED);
         var fullOrder = delivered.get();
         var refund = undeliveredRefund(fullOrder);
-        var settled = completion.settle(fullOrder, company.get()).join();
+        var settled = company.map(profile -> completion.settle(fullOrder, profile))
+                .orElseGet(() -> completion.settleSolo(fullOrder))
+                .join();
         if (refund > 0) {
             funds.refund(order.owner(), refund);
             notices.ownerRefunded(order, refund);
@@ -435,7 +450,7 @@ public final class AdminOrderService {
      * A deleted order.
      *
      * @param order       the order as it was before the deletion
-     * @param wasClaimed  whether a company worked on it
+     * @param wasClaimed  whether a company or a solo worker worked on it
      * @param workers     workers who got items returned
      * @param money       what was refunded and collected
      */
@@ -522,6 +537,12 @@ public final class AdminOrderService {
          * @param refund price share of the missing items
          */
         void ownerRefunded(SimpleOrder order, double refund);
+
+        /**
+         * @param worker player who worked on the order alone and got the delivered items back
+         * @param order  the released or deleted order
+         */
+        void soloReleased(UUID worker, SimpleOrder order);
     }
 
     /**
@@ -564,6 +585,14 @@ public final class AdminOrderService {
         @Override
         public void ownerRefunded(SimpleOrder order, double refund) {
             notifications.send(order.owner(), NotificationType.MY_ORDER_PARTLY_REFUNDED, withAmount(order, refund));
+        }
+
+        @Override
+        public void soloReleased(UUID worker, SimpleOrder order) {
+            notifications.send(
+                    worker,
+                    NotificationType.SOLO_ORDER_RELEASED_BY_ADMIN,
+                    NotificationArgs.create().text("order_name", order.fullName()));
         }
 
         private NotificationArgs withAmount(SimpleOrder order, double amount) {

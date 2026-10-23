@@ -118,11 +118,12 @@ public final class AdminOrderListMenu implements Menu<AdminOrderListMenu.Model> 
         var owner = Keys.of(prefix, "owner");
         var company = Keys.of(prefix, "company");
         var placed = Keys.of(prefix, "placed");
+        var solo = order.isSolo() ? " <inactive>(<i18n:companyadmin.order.solo>)" : "";
         return MenuText.create()
                 .text(
                         "<inactive>#<" + id + "> <value><" + name + "> <name><i18n:"
                                 + order.state().translationKey() + "> <yellow><" + owner + "> <aqua><" + company
-                                + "> <inactive><" + placed + ">",
+                                + ">" + solo + " <inactive><" + placed + ">",
                         Values.number(id, order.id()),
                         Values.text(name, order.name()),
                         Values.text(owner, row.ownerName()),
@@ -143,7 +144,8 @@ public final class AdminOrderListMenu implements Menu<AdminOrderListMenu.Model> 
      *
      * @param order       the order
      * @param ownerName   name of the owner
-     * @param companyName name of the company working on it, empty while nobody claimed it
+     * @param companyName name of the company working on it, or of the player working on it alone; empty while nobody
+     *                    claimed it
      */
     public record Row(SimpleOrder order, String ownerName, Optional<String> companyName) {}
 
