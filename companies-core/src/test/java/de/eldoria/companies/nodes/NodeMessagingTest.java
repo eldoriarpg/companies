@@ -17,6 +17,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -83,7 +84,20 @@ class NodeMessagingTest {
                             return List.of(SELF, OTHER);
                         }),
                 timer);
+        awaitFirstHeartbeat();
         return messaging;
+    }
+
+    /**
+     * Waits until the heartbeat sent at start put the players of this node into the presence, so it can not interleave
+     * with the messages a test sends.
+     */
+    private void awaitFirstHeartbeat() {
+        var deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (!presence.nodeOf(PLAYER).equals(Optional.of(SELF))) {
+            if (System.nanoTime() > deadline) throw new AssertionError("Timed out waiting for the first heartbeat");
+            Thread.onSpinWait();
+        }
     }
 
     @Test
@@ -137,6 +151,17 @@ class NodeMessagingTest {
     }
 
     @Test
+    void heartbeatsTellTheBusOfTheirNode() {
+        start(false);
+
+        bus.receive(OTHER, new Heartbeat(List.of(PLAYER), "lowLatency"));
+        assertEquals(Optional.of(NodeBus.Transport.LOW_LATENCY), presence.transport(OTHER));
+
+        bus.receive(OTHER, new Heartbeat(List.of(PLAYER), "carrierPigeon"));
+        assertEquals(Optional.empty(), presence.transport(OTHER));
+    }
+
+    @Test
     void anUnknownNodeIsReportedOnceAndKnownNodesAreLookedUpOnce() {
         start(false);
         var stranger = UUID.randomUUID();
@@ -167,7 +192,7 @@ class NodeMessagingTest {
 
         assertEquals(2, stateChanges.get());
         assertTrue(dropped.containsAll(List.of("company:*", "ranking", "boards")), dropped.toString());
-        assertTrue(bus.published.contains(new Heartbeat(List.of(PLAYER))));
+        assertTrue(bus.published.contains(new Heartbeat(List.of(PLAYER), "database")));
     }
 
     @Test

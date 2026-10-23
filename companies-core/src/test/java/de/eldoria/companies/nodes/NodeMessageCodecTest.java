@@ -41,6 +41,7 @@ class NodeMessageCodecTest {
                 new BoardsChanged(),
                 new ConfigSynced(),
                 new Heartbeat(List.of(PLAYER)),
+                new Heartbeat(List.of(PLAYER), "redis"),
                 new NodeStopped());
 
         for (var message : messages) {

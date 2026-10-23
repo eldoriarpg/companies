@@ -16,11 +16,7 @@ import redis.clients.jedis.RedisClient;
 import redis.clients.jedis.SslOptions;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -52,13 +48,9 @@ public final class RedisBus implements NodeBus {
 
     private final Server server;
     private final UUID node;
-    private final Executor handlers;
     private final Logger logger;
     private final Timings timings;
-    private final NodeMessageCodec codec = new NodeMessageCodec();
-    private final Map<Class<? extends NodeMessage>, List<Handler<NodeMessage>>> subscriptions =
-            new ConcurrentHashMap<>();
-    private final List<Consumer<State>> listeners = new CopyOnWriteArrayList<>();
+    private final MessageDispatch dispatch;
     private final JedisClientConfig clientConfig;
     private final HostAndPort address;
     private final RedisClient client;
@@ -78,7 +70,7 @@ public final class RedisBus implements NodeBus {
         this.timings = timings;
         this.server = server;
         this.node = node;
-        this.handlers = handlers;
+        this.dispatch = new MessageDispatch(handlers, logger);
         this.logger = logger;
         this.address = new HostAndPort(server.host(), server.port());
         this.clientConfig = server.clientConfig("companies-" + node);
@@ -98,7 +90,8 @@ public final class RedisBus implements NodeBus {
 
     /**
      * Starts the bus and waits until the first connection attempt succeeded or failed, at most for the given time.
-     * The bus keeps trying in the background either way.
+     * When it succeeded, the bus is {@link State#CONNECTED} on return, so whoever reads the state right after starting
+     * sees it. The bus keeps trying in the background either way.
      *
      * @param server     the server to connect to
      * @param node       uid of this node, sent with every message
@@ -139,7 +132,7 @@ public final class RedisBus implements NodeBus {
     public void publish(NodeMessage message) {
         if (!running) return;
         var channel = channel(NodeMessageCodec.type(message.getClass()));
-        var text = codec.encode(node, message);
+        var text = dispatch.codec().encode(node, message);
         try {
             publisher.execute(() -> send(channel, text));
         } catch (RejectedExecutionException e) {
@@ -156,21 +149,23 @@ public final class RedisBus implements NodeBus {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T extends NodeMessage> void subscribe(Class<T> type, Handler<T> handler) {
-        subscriptions
-                .computeIfAbsent(type, ignored -> new CopyOnWriteArrayList<>())
-                .add((Handler<NodeMessage>) handler);
+        dispatch.subscribe(type, handler);
     }
 
     @Override
     public void onStateChange(Consumer<State> listener) {
-        listeners.add(listener);
+        dispatch.onStateChange(listener);
     }
 
     @Override
     public State state() {
         return state;
+    }
+
+    @Override
+    public Transport transport() {
+        return Transport.REDIS;
     }
 
     /**
@@ -299,35 +294,12 @@ public final class RedisBus implements NodeBus {
     private void changeState(State next) {
         if (state == next) return;
         state = next;
-        for (var listener : listeners) {
-            try {
-                listener.accept(next);
-            } catch (RuntimeException e) {
-                logger.log(Level.SEVERE, "Could not apply the new Redis connection state.", e);
-            }
-        }
+        dispatch.stateChanged(next);
     }
 
     private void receive(String text) {
         lastHeard = System.nanoTime();
-        var envelope = codec.decode(text);
-        if (envelope.isEmpty()) return;
-        var message = envelope.get().message();
-        for (var handler : subscriptions.getOrDefault(message.getClass(), List.of())) {
-            try {
-                handlers.execute(() -> handle(handler, envelope.get().node(), message));
-            } catch (RejectedExecutionException e) {
-                return;
-            }
-        }
-    }
-
-    private void handle(Handler<NodeMessage> handler, UUID sender, NodeMessage message) {
-        try {
-            handler.handle(sender, message);
-        } catch (RuntimeException e) {
-            logger.log(Level.SEVERE, "Could not handle the node message " + message + ".", e);
-        }
+        dispatch.receive(text);
     }
 
     /**
@@ -398,8 +370,8 @@ public final class RedisBus implements NodeBus {
             lastHeard = System.nanoTime();
             connected = true;
             logger.info("Connected to Redis at " + server.address() + ".");
-            firstAttempt.countDown();
             changeState(State.CONNECTED);
+            firstAttempt.countDown();
         }
 
         @Override

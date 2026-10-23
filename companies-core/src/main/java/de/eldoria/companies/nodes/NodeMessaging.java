@@ -39,7 +39,8 @@ import java.util.logging.Logger;
  *     </li>
  *     <li>{@code config.synced}: a secondary loads the configuration from the database and applies it.</li>
  * </ul>
- * A heartbeat with the players online here is sent every {@link NetworkPresence#HEARTBEAT}. When the bus changes its
+ * A heartbeat with the players online here and the transport of this node is sent every
+ * {@link NetworkPresence#HEARTBEAT}. When the bus changes its
  * state, the inbox polls change their interval and poll once. After a reconnect every cache is dropped once, since
  * messages may have been missed meanwhile.
  */
@@ -78,7 +79,7 @@ public final class NodeMessaging {
         });
         bus.subscribe(Heartbeat.class, (sender, message) -> {
             checkKnown(sender, node.knownNodes());
-            presence.heartbeat(sender, message.players());
+            presence.heartbeat(sender, message.players(), message.transport());
         });
         bus.subscribe(NodeStopped.class, (sender, message) -> presence.stopped(sender));
         bus.subscribe(
@@ -116,7 +117,9 @@ public final class NodeMessaging {
     private void beat(Node node) {
         try {
             presence.expire();
-            if (bus.realtime()) bus.publish(new Heartbeat(node.onlineHere().get()));
+            if (bus.realtime())
+                bus.publish(
+                        new Heartbeat(node.onlineHere().get(), bus.transport().id()));
         } catch (RuntimeException e) {
             logger.log(Level.WARNING, "Could not send the node heartbeat.", e);
         }

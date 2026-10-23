@@ -38,9 +38,10 @@ import java.util.logging.Level;
  * ones that no longer run. They need only the database, so they work from the console and while the plugin is in its
  * failsafe mode:
  * <ul>
- *     <li>{@code list} shows each node with its role, its version, when it was last seen and whether it is connected
- *     to Redis. For this server that is the state of its own connection; another node counts as connected when this
- *     server heard its heartbeat over Redis lately, and shows {@code -} otherwise;</li>
+ *     <li>{@code list} shows each node with its role, its version, when it was last seen and how it exchanges
+ *     messages with the other nodes: over Redis, in low latency mode through the database, or not at all (database
+ *     polling). For this server that is its own bus and its state; for another node it is the bus named in the
+ *     heartbeat this server heard lately, and {@code -} when it heard none;</li>
  *     <li>{@code remove <uid>} asks for a confirmation, given within 30 seconds with {@code remove confirm}. The node of
  *     this server is never removed.</li>
  * </ul>
@@ -151,7 +152,7 @@ public final class NodeCommand {
                         Values.text("role", node.type().name()),
                         Values.text("version", node.version()),
                         Values.text("last_seen", lastSeen(node)),
-                        Values.text("redis", redis(nodeData, node)));
+                        Values.text("bus", bus(nodeData, node)));
         if (node.uid().equals(nodeData.nodeUid())) {
             return text.space().text("<neutral>").locale("companyadmin.node.current");
         }
@@ -160,21 +161,25 @@ public final class NodeCommand {
                 Values.click("act_remove", ClickEvent.suggestCommand("/companyadmin node remove " + uid)));
     }
 
-    private String redis(ANodeData nodeData, Node node) {
+    private String bus(ANodeData nodeData, Node node) {
         var bus = deps.bus();
-        if (node.uid().equals(nodeData.nodeUid())) return localize("companyadmin.node.redis." + key(bus.state()));
-        if (bus.realtime() && deps.presence().alive(node.uid())) {
-            return localize("companyadmin.node.redis.connected");
-        }
-        return "-";
+        if (node.uid().equals(nodeData.nodeUid())) return localize("companyadmin.node.bus." + key(bus));
+        if (!bus.realtime()) return "-";
+        return deps.presence()
+                .transport(node.uid())
+                .map(transport -> localize("companyadmin.node.bus." + transport.id() + ".connected"))
+                .orElse("-");
     }
 
-    private static String key(NodeBus.State state) {
-        return switch (state) {
-            case OFF -> "off";
-            case CONNECTED -> "connected";
-            case DISCONNECTED -> "disconnected";
-        };
+    /**
+     * The locale key of the bus of this node, below {@code companyadmin.node.bus}.
+     *
+     * @param bus the bus of this node
+     * @return the key, for example {@code lowLatency.connected}
+     */
+    static String key(NodeBus bus) {
+        if (bus.state() == NodeBus.State.OFF) return NodeBus.Transport.DATABASE.id();
+        return bus.transport().id() + (bus.realtime() ? ".connected" : ".disconnected");
     }
 
     private String localize(String key) {
