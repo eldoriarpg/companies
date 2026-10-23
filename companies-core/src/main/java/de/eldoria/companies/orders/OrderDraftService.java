@@ -226,6 +226,7 @@ public final class OrderDraftService {
                 .thenCompose(charged -> orderData
                         .submitOrder(player, order.build(fee))
                         .asFuture()
+                        .thenApply(Optional::isPresent)
                         .exceptionally(err -> {
                             plugin.getLogger().log(Level.SEVERE, "Could not save order", err);
                             return false;

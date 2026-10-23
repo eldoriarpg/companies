@@ -597,6 +597,22 @@ class SqLiteOrderDataTest {
     }
 
     @Test
+    void submitOrderReturnsTheSavedOrder() {
+        var contents = List.of(new OrderContent(0, new ItemStack(Material.STONE), false, 3, 30.0));
+        var saved = orderData
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "saved", 1.5).toFullOrder(contents))
+                .join()
+                .orElseThrow();
+
+        Assertions.assertEquals(reload(saved).id(), saved.id());
+        Assertions.assertEquals("saved", saved.name());
+        Assertions.assertEquals(1.5, saved.fee());
+        Assertions.assertEquals(OrderState.UNCLAIMED, saved.state());
+        Assertions.assertEquals(1, saved.contents().size());
+        Assertions.assertEquals(30.0, saved.price());
+    }
+
+    @Test
     void linesAreStoredInOrderWithTheirKind() {
         var order = createOrder(
                 new OrderContent(0, new ItemStack(Material.STONE), false, 10, 10.0),

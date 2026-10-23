@@ -62,9 +62,16 @@ public abstract class AOrderData {
         this.mapper = mapper;
     }
 
-    // Order Management
-    public BukkitFutureResult<Boolean> submitOrder(OfflinePlayer player, FullOrder order) {
-        return CompletableBukkitFuture.supplyAsync(() -> putOrder(player, order), VIRTUAL);
+    /**
+     * Saves a new order with its content.
+     *
+     * @param player owner of the order
+     * @param order  order to save
+     * @return a future providing the saved order as it is stored, empty when it could not be saved
+     */
+    public BukkitFutureResult<Optional<FullOrder>> submitOrder(OfflinePlayer player, FullOrder order) {
+        return CompletableBukkitFuture.supplyAsync(
+                () -> putOrder(player, order).flatMap(this::orderById).map(this::toFullOrder), VIRTUAL);
     }
 
     /**
@@ -72,9 +79,9 @@ public abstract class AOrderData {
      *
      * @param player owner of the order
      * @param order  order to save
-     * @return true if the order and its content were saved
+     * @return the id of the saved order, empty if the order and its content were not saved
      */
-    protected abstract boolean putOrder(OfflinePlayer player, FullOrder order);
+    protected abstract Optional<Integer> putOrder(OfflinePlayer player, FullOrder order);
 
     public BukkitFutureResult<Boolean> submitOrderStateUpdate(
             SimpleOrder order, OrderState expected, OrderState state) {
