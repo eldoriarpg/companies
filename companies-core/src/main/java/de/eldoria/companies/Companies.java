@@ -76,6 +76,7 @@ import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.RefreshService;
+import de.eldoria.companies.services.TreasuryLogRetention;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
@@ -283,6 +284,12 @@ public class Companies extends EldoPlugin {
             new HistoryRetention(
                             information.history(),
                             () -> configuration.generalSettings().historyDays(),
+                            Clock.systemDefaultZone(),
+                            getLogger())
+                    .start(workerPool);
+            new TreasuryLogRetention(
+                            this.economy.treasury(),
+                            () -> configuration.companySettings().treasury().logRetentionDays(),
                             Clock.systemDefaultZone(),
                             getLogger())
                     .start(workerPool);
