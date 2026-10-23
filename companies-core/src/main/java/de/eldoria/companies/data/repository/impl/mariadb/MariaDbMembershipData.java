@@ -10,12 +10,12 @@ import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.chojo.sadu.queries.configuration.ConnectedQueryConfigurationImpl;
+import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ConstraintViolations;
 import de.eldoria.companies.data.wrapper.company.Application;
 import de.eldoria.companies.data.wrapper.company.ApplyResult;
 import de.eldoria.companies.data.wrapper.company.Invite;
-import de.eldoria.companies.data.wrapper.company.JoinResult;
 import org.intellij.lang.annotations.Language;
 
 import java.sql.PreparedStatement;
