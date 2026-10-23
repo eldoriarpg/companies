@@ -26,11 +26,13 @@ import java.util.UUID;
  * Lines are numbered from 1 in the order they were added. A line is either a material line, whose template is the
  * plain item, or an exact line, whose template carries the data of the requested item. Adding an item similar to an
  * existing line of the same kind adds the amounts and takes the newly entered unit price. The total of a line is its
- * unit price times its amount, so changing the amount scales the total.
+ * unit price times its amount, so changing the amount scales the total. A draft may repeat; finishing it then starts
+ * a repeating order instead of a one-off order.
  */
 public class OrderBuilder {
     private final SimpleOrder order;
     private final List<DraftLine> lines = new ArrayList<>();
+    private Optional<Repetition> repetition = Optional.empty();
 
     /**
      * @param owner owner of the order
@@ -189,6 +191,20 @@ public class OrderBuilder {
      */
     public void name(String name) {
         order.name(name);
+    }
+
+    /**
+     * @return how the order repeats once it is finished, empty for a one-off order
+     */
+    public Optional<Repetition> repetition() {
+        return repetition;
+    }
+
+    /**
+     * @param repetition how the order repeats, empty for a one-off order
+     */
+    public void repetition(Optional<Repetition> repetition) {
+        this.repetition = repetition;
     }
 
     /**
