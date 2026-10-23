@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.configuration;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.configuration.elements.DiscordSettings;
 import de.eldoria.companies.configuration.elements.EconomySettings;
@@ -20,7 +22,10 @@ import de.eldoria.companies.menus.MenuMode;
 public class ConfigFile {
     private GeneralSettings generalSettings = new GeneralSettings();
     private StyleSettings style = new StyleSettings();
+
+    @JsonSetter(nulls = Nulls.SKIP)
     private MenuSettings menus = new MenuSettings();
+
     private EconomySettings economy = new EconomySettings();
     private NotificationSettings notifications = new NotificationSettings();
     private PlaceholderSettings placeholders = new PlaceholderSettings();
@@ -32,7 +37,8 @@ public class ConfigFile {
      * The configuration written for a new installation, which shows menus as dialogs.
      * <p>
      * A file without the {@code menus} setting was written before menus had dialogs. It is read with chat menus, so
-     * an existing installation keeps showing menus the way it did until the setting is changed.
+     * an existing installation keeps showing menus the way it did until the setting is changed. The setting without
+     * a value ({@code menus:}) is read the same way.
      *
      * @return the configuration of a new installation
      */

@@ -7,11 +7,18 @@ package de.eldoria.companies.configuration.elements;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import de.eldoria.companies.configuration.ConfigFile;
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.menus.MenuMode;
+import dev.chojo.ocular.Configurations;
+import dev.chojo.ocular.dataformats.YamlDataFormat;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,6 +44,16 @@ class MenuSettingsTest {
         var config = mapper.readValue("style: {}", ConfigFile.class);
 
         assertEquals(MenuMode.CHAT, config.menus().mode());
+    }
+
+    @Test
+    void menusWithoutValueShowChat(@TempDir Path base) throws IOException {
+        Files.writeString(base.resolve("config.yml"), "menus:\n");
+        var configurations = Configurations.builder(Configuration.CONFIG_YML, new YamlDataFormat())
+                .setBase(base)
+                .build();
+
+        assertEquals(MenuMode.CHAT, configurations.main().menus().mode());
     }
 
     @Test
