@@ -63,6 +63,7 @@ loadScripts(document, 'script');</script>
 <li><a href="#of(java.util.UUID)" tabindex="0">of(UUID)</a></li>
 <li><a href="#stats(int)" tabindex="0">stats(int)</a></li>
 <li><a href="#memberStats(int,de.eldoria.companies.components.ranking.TimeRange)" tabindex="0">memberStats(int, TimeRange)</a></li>
+<li><a href="#treasury(int)" tabindex="0">treasury(int)</a></li>
 <li><a href="#addMember(int,java.util.UUID)" tabindex="0">addMember(int, UUID)</a></li>
 </ol>
 </li>
@@ -131,6 +132,11 @@ Every future completes off the main thread; see <a href="CompaniesApi.html" titl
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#stats(int)" class="member-name-link">stats</a><wbr>(int&nbsp;company)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">The all time statistics of a company.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/CompletableFuture.html" title="class or interface in java.util.concurrent" class="external-link">CompletableFuture</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;? extends <a href="../components/company/ITreasury.html" title="interface in de.eldoria.companies.components.company">ITreasury</a>&gt;&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#treasury(int)" class="member-name-link">treasury</a><wbr>(int&nbsp;company)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The treasury of a company: its balance and the share of each payout it keeps.</div>
 </div>
 </div>
 </div>
@@ -236,6 +242,22 @@ Workers without a completed order in the range are left out. Former members who 
 <dd><code>range</code> - time range of the values</dd>
 <dt>Returns:</dt>
 <dd>future of the statistics per worker, empty when the company is unknown or had no activity in the range</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="treasury(int)">
+<h3>treasury</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/CompletableFuture.html" title="class or interface in java.util.concurrent" class="external-link">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;? extends <a href="../components/company/ITreasury.html" title="interface in de.eldoria.companies.components.company">ITreasury</a>&gt;&gt;</span>&nbsp;<span class="element-name">treasury</span><wbr><span class="parameters">(int&nbsp;company)</span></div>
+<div class="block">The treasury of a company: its balance and the share of each payout it keeps. A company that never used its
+treasury has a balance and share of 0.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>company</code> - id of the company</dd>
+<dt>Returns:</dt>
+<dd>future of the treasury, empty when no company has this id</dd>
 </dl>
 </div>
 </section>

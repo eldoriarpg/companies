@@ -61,6 +61,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">The player who renamed the company.</div>
 </dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html#actor()" class="member-name-link">actor()</a> - Method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a></dt>
+<dd>
+<div class="block">The member or admin who caused the transaction.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/IOrderDraft.html#addLine(org.bukkit.inventory.ItemStack,int,double)" class="member-name-link">addLine(ItemStack, int, double)</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderDraft.html" title="interface in de.eldoria.companies.components.order">IOrderDraft</a></dt>
 <dd>
 <div class="block">Adds a line that accepts only items matching a template.</div>
@@ -81,6 +85,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">An admin deleted the order.</div>
 </dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#ADMIN_GIVE" class="member-name-link">ADMIN_GIVE</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">An admin added money.</div>
+</dd>
 <dt><a href="de/eldoria/companies/events/player/ItemsReturnedEvent.Reason.html#ADMIN_GRANT" class="member-name-link">ADMIN_GRANT</a> - Enum constant in enum class de.eldoria.companies.events.player.<a href="de/eldoria/companies/events/player/ItemsReturnedEvent.Reason.html" title="enum class in de.eldoria.companies.events.player">ItemsReturnedEvent.Reason</a></dt>
 <dd>
 <div class="block">An admin granted the items with a command.</div>
@@ -88,6 +96,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/events/player/ItemsReturnedEvent.Reason.html#ADMIN_RELEASE" class="member-name-link">ADMIN_RELEASE</a> - Enum constant in enum class de.eldoria.companies.events.player.<a href="de/eldoria/companies/events/player/ItemsReturnedEvent.Reason.html" title="enum class in de.eldoria.companies.events.player">ItemsReturnedEvent.Reason</a></dt>
 <dd>
 <div class="block">An admin cancelled the order or took it away from the company; the worker gets back what they delivered.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#ADMIN_TAKE" class="member-name-link">ADMIN_TAKE</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">An admin removed money.</div>
 </dd>
 <dt><a href="de/eldoria/companies/components/ranking/TimeRange.html#ALL" class="member-name-link">ALL</a> - Enum constant in enum class de.eldoria.companies.components.ranking.<a href="de/eldoria/companies/components/ranking/TimeRange.html" title="enum class in de.eldoria.companies.components.ranking">TimeRange</a></dt>
 <dd>
@@ -125,9 +137,13 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">The number of items over all lines.</div>
 </dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html#amount()" class="member-name-link">amount()</a> - Method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a></dt>
+<dd>
+<div class="block">The amount that moved.</div>
+</dd>
 <dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#amount()" class="member-name-link">amount()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
 <dd>
-<div class="block">The amount the worker receives, after tax.</div>
+<div class="block">The amount the worker receives, after tax and the treasury share.</div>
 </dd>
 <dt><a href="de/eldoria/companies/events/player/ItemsReturnedEvent.ReturnedStack.html#amount()" class="member-name-link">amount()</a> - Method in record class de.eldoria.companies.events.player.<a href="de/eldoria/companies/events/player/ItemsReturnedEvent.ReturnedStack.html" title="class in de.eldoria.companies.events.player">ItemsReturnedEvent.ReturnedStack</a></dt>
 <dd>
@@ -172,6 +188,14 @@ loadScripts(document, 'script');</script>
 </dl>
 <h2 class="title" id="I:B">B</h2>
 <dl class="index">
+<dt><a href="de/eldoria/companies/components/company/ITreasury.html#balance()" class="member-name-link">balance()</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ITreasury.html" title="interface in de.eldoria.companies.components.company">ITreasury</a></dt>
+<dd>
+<div class="block">The money in the treasury.</div>
+</dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html#balance()" class="member-name-link">balance()</a> - Method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a></dt>
+<dd>
+<div class="block">The balance after the transaction.</div>
+</dd>
 <dt><a href="de/eldoria/companies/api/write/OrderRequest.Builder.html#build()" class="member-name-link">build()</a> - Method in class de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/OrderRequest.Builder.html" title="class in de.eldoria.companies.api.write">OrderRequest.Builder</a></dt>
 <dd>
 <div class="block">Builds the request.</div>
@@ -203,6 +227,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/components/company/JoinMode.html#byId(int)" class="member-name-link">byId(int)</a> - Static method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/JoinMode.html" title="enum class in de.eldoria.companies.components.company">JoinMode</a></dt>
 <dd>
 <div class="block">The join mode with the given id.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#byId(int)" class="member-name-link">byId(int)</a> - Static method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">The kind with the given id.</div>
 </dd>
 <dt><a href="de/eldoria/companies/components/order/HistoryOutcome.html#byId(int)" class="member-name-link">byId(int)</a> - Static method in enum class de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/HistoryOutcome.html" title="enum class in de.eldoria.companies.components.order">HistoryOutcome</a></dt>
 <dd>
@@ -306,6 +334,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="de/eldoria/companies/components/company/ICompanyMember.html#company()" class="member-name-link">company()</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></dt>
 <dd>
 <div class="block">The company of the member.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/ITreasury.html#company()" class="member-name-link">company()</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ITreasury.html" title="interface in de.eldoria.companies.components.company">ITreasury</a></dt>
+<dd>
+<div class="block">The id of the company.</div>
 </dd>
 <dt><a href="de/eldoria/companies/components/order/ISimpleOrder.html#company()" class="member-name-link">company()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a></dt>
 <dd>
@@ -584,9 +616,17 @@ created.</div>
 <div class="block">Items of a delivery could not be handed over: the owner's inventory could not hold all received items, or
 the worker went offline before the surplus of a delivery was given back.</div>
 </dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#DEPOSIT" class="member-name-link">DEPOSIT</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">A member paid money in.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/company/ICompanyProfile.html#description()" class="member-name-link">description()</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ICompanyProfile.html" title="interface in de.eldoria.companies.components.company">ICompanyProfile</a></dt>
 <dd>
 <div class="block">The free text the company shows on its profile.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#DISBAND" class="member-name-link">DISBAND</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">The company was disbanded or deleted and its balance was paid to the owner.</div>
 </dd>
 <dt><a href="de/eldoria/companies/events/order/PreOrderCreateEvent.html#draft()" class="member-name-link">draft()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/PreOrderCreateEvent.html" title="class in de.eldoria.companies.events.order">PreOrderCreateEvent</a></dt>
 <dd>
@@ -733,6 +773,10 @@ the worker went offline before the surplus of a delivery was given back.</div>
 <dd>
 <div class="block">The handlers of this event.</div>
 </dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html#getHandlerList()" class="member-name-link">getHandlerList()</a> - Static method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a></dt>
+<dd>
+<div class="block">The handlers of this event.</div>
+</dd>
 <dt><a href="de/eldoria/companies/events/order/OrderAcceptEvent.html#getHandlerList()" class="member-name-link">getHandlerList()</a> - Static method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a></dt>
 <dd>
 <div class="block">The handlers of this event.</div>
@@ -802,6 +846,8 @@ the worker went offline before the surplus of a delivery was given back.</div>
 <dt><a href="de/eldoria/companies/events/company/CompanyRenameEvent.html#getHandlers()" class="member-name-link">getHandlers()</a> - Method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/CompanyRenameEvent.html" title="class in de.eldoria.companies.events.company">CompanyRenameEvent</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/events/company/PreCompanyCreateEvent.html#getHandlers()" class="member-name-link">getHandlers()</a> - Method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/PreCompanyCreateEvent.html" title="class in de.eldoria.companies.events.company">PreCompanyCreateEvent</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html#getHandlers()" class="member-name-link">getHandlers()</a> - Method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/events/order/OrderAcceptEvent.html#getHandlers()" class="member-name-link">getHandlers()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderAcceptEvent.html" title="class in de.eldoria.companies.events.order">OrderAcceptEvent</a></dt>
 <dd>&nbsp;</dd>
@@ -981,6 +1027,10 @@ the worker went offline before the surplus of a delivery was given back.</div>
 <dd>
 <div class="block">The stable id of this mode, as stored in the database.</div>
 </dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#id()" class="member-name-link">id()</a> - Method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">The stable id of this kind, as stored in the database.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/order/HistoryOutcome.html#id()" class="member-name-link">id()</a> - Method in enum class de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/HistoryOutcome.html" title="enum class in de.eldoria.companies.components.order">HistoryOutcome</a></dt>
 <dd>
 <div class="block">The stable id of this outcome, as stored in the database.</div>
@@ -1099,6 +1149,10 @@ the worker went offline before the surplus of a delivery was given back.</div>
 <dd>
 <div class="block">How many items wait for a player to pick them up with <code>/order collect</code>.</div>
 </dd>
+<dt><a href="de/eldoria/companies/components/company/ITreasury.html" class="type-name-link" title="interface in de.eldoria.companies.components.company">ITreasury</a> - Interface in <a href="de/eldoria/companies/components/company/package-summary.html">de.eldoria.companies.components.company</a></dt>
+<dd>
+<div class="block">The treasury of a company: money the company holds and the share of its workers' payouts it keeps.</div>
+</dd>
 </dl>
 <h2 class="title" id="I:J">J</h2>
 <dl class="index">
@@ -1124,6 +1178,10 @@ the worker went offline before the surplus of a delivery was given back.</div>
 <dt><a href="de/eldoria/companies/components/company/CompanyPermission.html#KICK" class="member-name-link">KICK</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></dt>
 <dd>
 <div class="block">Removes members from the company.</div>
+</dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html#kind()" class="member-name-link">kind()</a> - Method in class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a></dt>
+<dd>
+<div class="block">What moved the money.</div>
 </dd>
 </dl>
 <h2 class="title" id="I:L">L</h2>
@@ -1455,6 +1513,10 @@ the worker went offline before the surplus of a delivery was given back.</div>
 <dd>
 <div class="block">Creates a taxed payment.</div>
 </dd>
+<dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.components.company.ISimpleCompany,org.bukkit.OfflinePlayer,double,double,double,double)" class="member-name-link">OrderPaymentEvent(ISimpleOrder, ISimpleCompany, OfflinePlayer, double, double, double, double)</a> - Constructor for class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
+<dd>
+<div class="block">Creates a taxed payment of which the company keeps a share in its treasury.</div>
+</dd>
 <dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double)" class="member-name-link">OrderPaymentEvent(ISimpleOrder, OfflinePlayer, double)</a> - Constructor for class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
 <dd>
 <div class="block">Creates a payment without tax.</div>
@@ -1568,6 +1630,14 @@ by an admin.</div>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html#parts()" class="member-name-link">parts()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
 <dd>
 <div class="block">The delivered amount per worker.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#PAYOUT_SHARE" class="member-name-link">PAYOUT_SHARE</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">The company's share of a worker's payout for a completed order.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/ITreasury.html#payoutShare()" class="member-name-link">payoutShare()</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ITreasury.html" title="interface in de.eldoria.companies.components.company">ITreasury</a></dt>
+<dd>
+<div class="block">The share of each worker's payout after tax that goes to the treasury, as the company set it.</div>
 </dd>
 <dt><a href="de/eldoria/companies/components/order/IOrderContent.html#percent()" class="member-name-link">percent()</a> - Method in interface de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/IOrderContent.html" title="interface in de.eldoria.companies.components.order">IOrderContent</a></dt>
 <dd>
@@ -1760,6 +1830,10 @@ by an admin.</div>
 <dd>
 <div class="block">The order was received by the client</div>
 </dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#REFUND" class="member-name-link">REFUND</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">Money given back after a failed payment, such as a withdrawal the economy refused.</div>
+</dd>
 <dt><a href="de/eldoria/companies/api/write/CreateOrderResult.Rejected.html#%3Cinit%3E(de.eldoria.companies.api.write.RejectReason,net.kyori.adventure.text.Component)" class="member-name-link">Rejected(RejectReason, Component)</a> - Constructor for record class de.eldoria.companies.api.write.<a href="de/eldoria/companies/api/write/CreateOrderResult.Rejected.html" title="class in de.eldoria.companies.api.write">CreateOrderResult.Rejected</a></dt>
 <dd>
 <div class="block">Creates the result.</div>
@@ -1779,6 +1853,14 @@ by an admin.</div>
 <dt><a href="de/eldoria/companies/components/company/ICompanyMember.html#removePermission(de.eldoria.companies.components.company.CompanyPermission)" class="member-name-link">removePermission(CompanyPermission)</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/ICompanyMember.html" title="interface in de.eldoria.companies.components.company">ICompanyMember</a></dt>
 <dd>
 <div class="block">Revokes a permission on this object.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#RENAME" class="member-name-link">RENAME</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">The owner paid a rename of the company from the treasury.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/order/OrderSource.html#REPEATING" class="member-name-link">REPEATING</a> - Enum constant in enum class de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/OrderSource.html" title="enum class in de.eldoria.companies.components.order">OrderSource</a></dt>
+<dd>
+<div class="block">A repeating order of a player posted its next copy.</div>
 </dd>
 <dt><a href="de/eldoria/companies/components/level/ICompanyLevel.html#requirement()" class="member-name-link">requirement()</a> - Method in interface de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></dt>
 <dd>
@@ -1810,6 +1892,14 @@ by an admin.</div>
 <dt><a href="de/eldoria/companies/components/level/ICompanyLevel.html#settings()" class="member-name-link">settings()</a> - Method in interface de.eldoria.companies.components.level.<a href="de/eldoria/companies/components/level/ICompanyLevel.html" title="interface in de.eldoria.companies.components.level">ICompanyLevel</a></dt>
 <dd>
 <div class="block">What a company on this level may do.</div>
+</dd>
+<dt><a href="de/eldoria/companies/events/order/OrderPaymentEvent.html#share()" class="member-name-link">share()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderPaymentEvent.html" title="class in de.eldoria.companies.events.order">OrderPaymentEvent</a></dt>
+<dd>
+<div class="block">The amount of the worker's share the company keeps in its treasury.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#SHARE_CHANGED" class="member-name-link">SHARE_CHANGED</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">A member changed the payout share.</div>
 </dd>
 <dt><a href="de/eldoria/companies/events/order/OrderCreatedEvent.html#source()" class="member-name-link">source()</a> - Method in class de.eldoria.companies.events.order.<a href="de/eldoria/companies/events/order/OrderCreatedEvent.html" title="class in de.eldoria.companies.events.order">OrderCreatedEvent</a></dt>
 <dd>
@@ -1918,6 +2008,8 @@ by an admin.</div>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/company/JoinMode.html#translationKey()" class="member-name-link">translationKey()</a> - Method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/JoinMode.html" title="enum class in de.eldoria.companies.components.company">JoinMode</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#translationKey()" class="member-name-link">translationKey()</a> - Method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/HistoryOutcome.html#translationKey()" class="member-name-link">translationKey()</a> - Method in enum class de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/HistoryOutcome.html" title="enum class in de.eldoria.companies.components.order">HistoryOutcome</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/order/OrderState.html#translationKey()" class="member-name-link">translationKey()</a> - Method in enum class de.eldoria.companies.components.order.<a href="de/eldoria/companies/components/order/OrderState.html" title="enum class in de.eldoria.companies.components.order">OrderState</a></dt>
@@ -1926,6 +2018,26 @@ by an admin.</div>
 <dd>&nbsp;</dd>
 <dt><a href="de/eldoria/companies/components/ranking/TopOrder.html#translationKey()" class="member-name-link">translationKey()</a> - Method in enum class de.eldoria.companies.components.ranking.<a href="de/eldoria/companies/components/ranking/TopOrder.html" title="enum class in de.eldoria.companies.components.ranking">TopOrder</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="de/eldoria/companies/api/CompanyApi.html#treasury(int)" class="member-name-link">treasury(int)</a> - Method in interface de.eldoria.companies.api.<a href="de/eldoria/companies/api/CompanyApi.html" title="interface in de.eldoria.companies.api">CompanyApi</a></dt>
+<dd>
+<div class="block">The treasury of a company: its balance and the share of each payout it keeps.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/CompanyPermission.html#TREASURY" class="member-name-link">TREASURY</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/CompanyPermission.html" title="enum class in de.eldoria.companies.components.company">CompanyPermission</a></dt>
+<dd>
+<div class="block">Withdraws money from the company treasury and sets the share of payouts that goes to it.</div>
+</dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html" class="type-name-link" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a> - Enum Class in <a href="de/eldoria/companies/components/company/package-summary.html">de.eldoria.companies.components.company</a></dt>
+<dd>
+<div class="block">What moved money into or out of a company treasury.</div>
+</dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" class="type-name-link" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a> - Class in <a href="de/eldoria/companies/events/company/package-summary.html">de.eldoria.companies.events.company</a></dt>
+<dd>
+<div class="block">Money moved into or out of a company treasury.</div>
+</dd>
+<dt><a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html#%3Cinit%3E(de.eldoria.companies.components.company.ISimpleCompany,de.eldoria.companies.components.company.TreasuryKind,java.math.BigDecimal,java.math.BigDecimal,java.util.UUID)" class="member-name-link">TreasuryTransactionEvent(ISimpleCompany, TreasuryKind, BigDecimal, BigDecimal, UUID)</a> - Constructor for class de.eldoria.companies.events.company.<a href="de/eldoria/companies/events/company/TreasuryTransactionEvent.html" title="class in de.eldoria.companies.events.company">TreasuryTransactionEvent</a></dt>
+<dd>
+<div class="block">Creates a new event.</div>
+</dd>
 </dl>
 <h2 class="title" id="I:U">U</h2>
 <dl class="index">
@@ -1976,6 +2088,10 @@ by an admin.</div>
 <dd>
 <div class="block">Returns the enum constant of this class with the specified name.</div>
 </dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#valueOf(java.lang.String)" class="member-name-link">valueOf(String)</a> - Static method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">Returns the enum constant of this class with the specified name.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/join/JoinResult.html#valueOf(java.lang.String)" class="member-name-link">valueOf(String)</a> - Static method in enum class de.eldoria.companies.components.join.<a href="de/eldoria/companies/components/join/JoinResult.html" title="enum class in de.eldoria.companies.components.join">JoinResult</a></dt>
 <dd>
 <div class="block">Returns the enum constant of this class with the specified name.</div>
@@ -2023,6 +2139,11 @@ the order they are declared.</div>
 <div class="block">Returns an array containing the constants of this enum class, in
 the order they are declared.</div>
 </dd>
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#values()" class="member-name-link">values()</a> - Static method in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">Returns an array containing the constants of this enum class, in
+the order they are declared.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/join/JoinResult.html#values()" class="member-name-link">values()</a> - Static method in enum class de.eldoria.companies.components.join.<a href="de/eldoria/companies/components/join/JoinResult.html" title="enum class in de.eldoria.companies.components.join">JoinResult</a></dt>
 <dd>
 <div class="block">Returns an array containing the constants of this enum class, in
@@ -2066,6 +2187,10 @@ the order they are declared.</div>
 </dl>
 <h2 class="title" id="I:W">W</h2>
 <dl class="index">
+<dt><a href="de/eldoria/companies/components/company/TreasuryKind.html#WITHDRAW" class="member-name-link">WITHDRAW</a> - Enum constant in enum class de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/TreasuryKind.html" title="enum class in de.eldoria.companies.components.company">TreasuryKind</a></dt>
+<dd>
+<div class="block">A member took money out.</div>
+</dd>
 <dt><a href="de/eldoria/companies/components/company/IMemberStats.html#worker()" class="member-name-link">worker()</a> - Method in interface de.eldoria.companies.components.company.<a href="de/eldoria/companies/components/company/IMemberStats.html" title="interface in de.eldoria.companies.components.company">IMemberStats</a></dt>
 <dd>
 <div class="block">The worker.</div>

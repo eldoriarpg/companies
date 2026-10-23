@@ -68,6 +68,7 @@ loadScripts(document, 'script');</script>
 <li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double)" tabindex="0">OrderPaymentEvent(ISimpleOrder, OfflinePlayer, double)</a></li>
 <li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double,double,double)" tabindex="0">OrderPaymentEvent(ISimpleOrder, OfflinePlayer, double, double, double)</a></li>
 <li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.components.company.ISimpleCompany,org.bukkit.OfflinePlayer,double,double,double)" tabindex="0">OrderPaymentEvent(ISimpleOrder, ISimpleCompany, OfflinePlayer, double, double, double)</a></li>
+<li><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.components.company.ISimpleCompany,org.bukkit.OfflinePlayer,double,double,double,double)" tabindex="0">OrderPaymentEvent(ISimpleOrder, ISimpleCompany, OfflinePlayer, double, double, double, double)</a></li>
 </ol>
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
@@ -80,6 +81,7 @@ loadScripts(document, 'script');</script>
 <li><a href="#amount()" tabindex="0">amount()</a></li>
 <li><a href="#gross()" tabindex="0">gross()</a></li>
 <li><a href="#tax()" tabindex="0">tax()</a></li>
+<li><a href="#share()" tabindex="0">share()</a></li>
 <li><a href="#getHandlers()" tabindex="0">getHandlers()</a></li>
 </ol>
 </li>
@@ -110,8 +112,8 @@ implements org.bukkit.event.Cancellable, <a href="../components/PlayerProvider.h
 <div class="block">A worker is about to be paid their share of a completed order.
 <p>
 Fired once per worker of the order, off the main thread. The worker receives <a href="#amount()"><code>amount()</code></a>, which is the
-<a href="#gross()"><code>gross()</code></a> share of the order price minus the <a href="#tax()"><code>tax()</code></a> of the company. A cancelled payment is neither paid
-nor taxed. It fires only on the server where the order was completed.
+<a href="#gross()"><code>gross()</code></a> share of the order price minus the <a href="#tax()"><code>tax()</code></a> and minus the <a href="#share()"><code>share()</code></a> the company keeps
+in its treasury. A cancelled payment is neither paid, taxed nor shared. It fires only on the server where the order was completed.
 <p>
 Orders are anonymous: the worker must not learn who placed the order.</div>
 </div>
@@ -161,18 +163,28 @@ Orders are anonymous: the worker must not learn who placed the order.</div>
 <div class="col-last even-row-color">
 <div class="block">Creates a taxed payment.</div>
 </div>
-<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double)" class="member-name-link">OrderPaymentEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.components.company.ISimpleCompany,org.bukkit.OfflinePlayer,double,double,double,double)" class="member-name-link">OrderPaymentEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+ <a href="../../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&nbsp;company,
+ org.bukkit.OfflinePlayer&nbsp;player,
+ double&nbsp;amount,
+ double&nbsp;gross,
+ double&nbsp;tax,
+ double&nbsp;share)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Creates a taxed payment of which the company keeps a share in its treasury.</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double)" class="member-name-link">OrderPaymentEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
  org.bukkit.OfflinePlayer&nbsp;player,
  double&nbsp;amount)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Creates a payment without tax.</div>
 </div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double,double,double)" class="member-name-link">OrderPaymentEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(de.eldoria.companies.components.order.ISimpleOrder,org.bukkit.OfflinePlayer,double,double,double)" class="member-name-link">OrderPaymentEvent</a><wbr>(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
  org.bukkit.OfflinePlayer&nbsp;player,
  double&nbsp;amount,
  double&nbsp;gross,
  double&nbsp;tax)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Creates a taxed payment.</div>
 </div>
 </div>
@@ -192,7 +204,7 @@ Orders are anonymous: the worker must not learn who placed the order.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#amount()" class="member-name-link">amount</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">The amount the worker receives, after tax.</div>
+<div class="block">The amount the worker receives, after tax and the treasury share.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#company()" class="member-name-link">company</a>()</code></div>
@@ -224,8 +236,13 @@ Orders are anonymous: the worker must not learn who placed the order.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setCancelled(boolean)" class="member-name-link">setCancelled</a><wbr>(boolean&nbsp;cancel)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tax()" class="member-name-link">tax</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#share()" class="member-name-link">share</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">The amount of the worker's share the company keeps in its treasury.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>double</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#tax()" class="member-name-link">tax</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">The tax taken from the worker's share.</div>
 </div>
 </div>
@@ -329,6 +346,31 @@ Orders are anonymous: the worker must not learn who placed the order.</div>
 </div>
 </section>
 </li>
+<li>
+<section class="detail" id="&lt;init&gt;(de.eldoria.companies.components.order.ISimpleOrder,de.eldoria.companies.components.company.ISimpleCompany,org.bukkit.OfflinePlayer,double,double,double,double)">
+<h3>OrderPaymentEvent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">OrderPaymentEvent</span><wbr><span class="parameters">(<a href="../../components/order/ISimpleOrder.html" title="interface in de.eldoria.companies.components.order">ISimpleOrder</a>&nbsp;order,
+ <a href="../../components/company/ISimpleCompany.html" title="interface in de.eldoria.companies.components.company">ISimpleCompany</a>&nbsp;company,
+ org.bukkit.OfflinePlayer&nbsp;player,
+ double&nbsp;amount,
+ double&nbsp;gross,
+ double&nbsp;tax,
+ double&nbsp;share)</span></div>
+<div class="block">Creates a taxed payment of which the company keeps a share in its treasury.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>order</code> - order which is paid</dd>
+<dd><code>company</code> - company that completed the order</dd>
+<dd><code>player</code> - worker receiving the payment</dd>
+<dd><code>amount</code> - amount paid after tax and share</dd>
+<dd><code>gross</code> - share of the order price before tax</dd>
+<dd><code>tax</code> - tax taken from the share</dd>
+<dd><code>share</code> - amount the company keeps in its treasury</dd>
+</dl>
+</div>
+</section>
+</li>
 </ul>
 </section>
 </li>
@@ -410,7 +452,7 @@ Orders are anonymous: the worker must not learn who placed the order.</div>
 <h3>amount</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">double</span>&nbsp;<span class="element-name">amount</span>()</div>
-<div class="block">The amount the worker receives, after tax.</div>
+<div class="block">The amount the worker receives, after tax and the treasury share.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>net amount</dd>
@@ -440,6 +482,19 @@ Orders are anonymous: the worker must not learn who placed the order.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>tax amount</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="share()">
+<h3>share</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">double</span>&nbsp;<span class="element-name">share</span>()</div>
+<div class="block">The amount of the worker's share the company keeps in its treasury.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>treasury share, 0 when the company keeps none</dd>
 </dl>
 </div>
 </section>
