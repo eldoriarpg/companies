@@ -126,14 +126,6 @@ class OrderEventsTest {
         assertThrows(NullPointerException.class, () -> new OrderRemovedEvent(order, null));
     }
 
-    @SuppressWarnings("deprecation")
-    @Test
-    void removedEventWithoutReasonIsAPurge() {
-        var order = Stubs.of(ISimpleOrder.class, Map.of("owner", OWNER));
-
-        assertEquals(OrderRemovedEvent.Reason.PURGED, new OrderRemovedEvent(order).reason());
-    }
-
     @Test
     void paymentKnowsItsCompany() {
         var worker = server.addPlayer();

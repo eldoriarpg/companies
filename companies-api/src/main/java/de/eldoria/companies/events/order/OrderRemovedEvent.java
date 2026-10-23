@@ -41,17 +41,6 @@ public class OrderRemovedEvent extends OrderEvent<ISimpleOrder> {
     }
 
     /**
-     * Creates an event for an order removed because nobody accepted it.
-     *
-     * @param order the deleted order
-     * @deprecated name the reason with {@link #OrderRemovedEvent(ISimpleOrder, Reason)}
-     */
-    @Deprecated
-    public OrderRemovedEvent(ISimpleOrder order) {
-        this(order, Reason.PURGED);
-    }
-
-    /**
      * The handlers of this event.
      *
      * @return handler list
