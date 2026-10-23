@@ -14,6 +14,7 @@ import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
+import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
@@ -275,6 +276,16 @@ public class Companies extends EldoPlugin {
         registerListener(levelService);
         registerListener(itemReturnService);
         registerListener(notificationService);
+        if (commands != null && configuration.boardSettings().enabled()) {
+            new SignBoards(
+                            this,
+                            commands.boards(),
+                            configuration::boardSettings,
+                            ILocalizer.getPluginLocalizer(this)::localize,
+                            (sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)),
+                            Clock.systemUTC())
+                    .start();
+        }
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
                 && configuration.generalSettings().hooks().placeholderapi()) {
