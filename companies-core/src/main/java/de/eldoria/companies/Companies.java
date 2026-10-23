@@ -18,6 +18,7 @@ import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
+import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
@@ -76,6 +77,7 @@ import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.RefreshService;
+import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryLogRetention;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.InboxPoller;
@@ -188,6 +190,7 @@ public class Companies extends EldoPlugin {
                 Threading.VIRTUAL));
         MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
         TreasurySources.use(new TreasurySources(companyData, economy.treasury(), Threading.VIRTUAL));
+        SeriesSources.use(new SeriesSources(economy.series(), Threading.VIRTUAL));
         CompanyOrderSources.use(
                 new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
         getLifecycleManager()
@@ -253,6 +256,16 @@ public class Companies extends EldoPlugin {
                 Threading.mainThread(this),
                 getLogger());
 
+        var seriesService = SeriesService.create(
+                this,
+                this.economy.series(),
+                orderData,
+                orderCreation,
+                drafts.limits(),
+                economy::format,
+                notificationService,
+                () -> configuration.orderSetting().repeating());
+
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
                     economy,
@@ -270,7 +283,8 @@ public class Companies extends EldoPlugin {
                     membershipService,
                     orderCompletion,
                     orderCreation,
-                    treasuryService));
+                    treasuryService,
+                    seriesService));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
@@ -280,6 +294,7 @@ public class Companies extends EldoPlugin {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
             membershipService.start(workerPool);
+            seriesService.schedule(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
             new HistoryRetention(
                             information.history(),
@@ -300,6 +315,7 @@ public class Companies extends EldoPlugin {
         registerListener(levelService);
         registerListener(itemReturnService);
         registerListener(notificationService);
+        registerListener(seriesService);
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
                 && configuration.generalSettings().hooks().placeholderapi()) {
@@ -330,6 +346,7 @@ public class Companies extends EldoPlugin {
         CompanyOrderSources.clear();
         TreasurySources.clear();
         MembershipSources.clear();
+        SeriesSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         workerPool.shutdown();

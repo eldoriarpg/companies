@@ -28,6 +28,7 @@ import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
@@ -237,7 +238,8 @@ public final class CommandDependencies {
                 ready.economy(),
                 configuration,
                 ready.notificationService(),
-                ready.itemReturnService());
+                ready.itemReturnService(),
+                ready.series());
     }
 
     /**
@@ -277,6 +279,7 @@ public final class CommandDependencies {
      * @param orderCompletion     completes delivered orders
      * @param orderCreation       creates orders and charges their owners
      * @param treasury            moves money into and out of company treasuries
+     * @param series              starts, stops and resumes repeating orders
      */
     public record Services(
             Economy economy,
@@ -291,5 +294,6 @@ public final class CommandDependencies {
             MembershipService membershipService,
             OrderCompletionService orderCompletion,
             OrderCreationService orderCreation,
-            TreasuryService treasury) {}
+            TreasuryService treasury,
+            SeriesService series) {}
 }

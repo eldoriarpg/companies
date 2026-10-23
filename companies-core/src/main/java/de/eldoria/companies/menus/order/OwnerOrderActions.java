@@ -68,6 +68,14 @@ public interface OwnerOrderActions {
     void collect(Player player);
 
     /**
+     * Shows the repeating order a copy belongs to.
+     *
+     * @param player owner of the series
+     * @param id     id of the series
+     */
+    void series(Player player, int id);
+
+    /**
      * Starts a new order.
      *
      * @param player player creating the order

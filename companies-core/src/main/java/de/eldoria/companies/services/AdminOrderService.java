@@ -61,6 +61,7 @@ import java.util.logging.Logger;
  * Deposits are made on the main thread. Released and deleted orders fire {@link ItemsReturnedEvent} with
  * {@link ItemsReturnedEvent.Reason#ADMIN_RELEASE} for the workers' items, and a deletion fires {@link OrderRemovedEvent}
  * with {@link OrderRemovedEvent.Reason#ADMIN}. Marking an order delivered fires the events of a normal completion.
+ * Deleting a copy of a repeating order stops the repeating order.
  */
 public final class AdminOrderService {
     private final AOrderData orderData;
@@ -71,6 +72,7 @@ public final class AdminOrderService {
     private final Notices notices;
     private final ItemReturnService itemReturns;
     private final Consumer<Event> events;
+    private final Consumer<SimpleOrder> copyRemoved;
     private final Logger logger;
     private final Executor executor;
 
@@ -83,6 +85,7 @@ public final class AdminOrderService {
      * @param notices     tells the affected players
      * @param itemReturns reports the items returned to workers and tells them
      * @param events      fires the events of the actions
+     * @param copyRemoved stops the repeating order of a deleted copy
      * @param logger      logs history entries that could not be written
      * @param executor    runs the actions off the main thread
      */
@@ -95,6 +98,7 @@ public final class AdminOrderService {
             Notices notices,
             ItemReturnService itemReturns,
             Consumer<Event> events,
+            Consumer<SimpleOrder> copyRemoved,
             Logger logger,
             Executor executor) {
         this.orderData = orderData;
@@ -105,6 +109,7 @@ public final class AdminOrderService {
         this.notices = notices;
         this.itemReturns = itemReturns;
         this.events = events;
+        this.copyRemoved = copyRemoved;
         this.logger = logger;
         this.executor = executor;
     }
@@ -122,6 +127,7 @@ public final class AdminOrderService {
      * @param configuration configuration of the plugin
      * @param notifications sends the notifications
      * @param itemReturns   reports returned items and tells online workers about them
+     * @param series        stops the repeating order of a deleted copy
      * @return the service
      */
     public static AdminOrderService create(
@@ -133,7 +139,8 @@ public final class AdminOrderService {
             Economy economy,
             Configuration configuration,
             NotificationService notifications,
-            ItemReturnService itemReturns) {
+            ItemReturnService itemReturns,
+            SeriesService series) {
         var collector = new Collector(plugin, economy, configuration);
         var mainThread = Threading.mainThread(plugin);
         Funds funds = new Funds() {
@@ -163,6 +170,10 @@ public final class AdminOrderService {
                 new InboxNotices(notifications, economy::format),
                 itemReturns,
                 plugin.getServer().getPluginManager()::callEvent,
+                order -> series.onCopyRemovedByAdmin(order).exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Could not stop the repeating order of " + order.id(), err);
+                    return false;
+                }),
                 plugin.getLogger(),
                 Threading.VIRTUAL);
     }
@@ -278,6 +289,7 @@ public final class AdminOrderService {
         notices.ownerCancelled(order, money.refund());
         itemReturns.returned(order, returned.get(), ItemsReturnedEvent.Reason.ADMIN_RELEASE);
         events.accept(new OrderRemovedEvent(order, OrderRemovedEvent.Reason.ADMIN));
+        if (order.seriesId().isPresent()) copyRemoved.accept(order);
         return Result.done(new Cancelled(snapshot, claimed, returned.get().workers(), money));
     }
 
