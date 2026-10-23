@@ -22,7 +22,6 @@ import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SeriesSources;
-import de.eldoria.companies.commands.suggest.SuggestionCache;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
@@ -74,9 +73,7 @@ import de.eldoria.companies.nodes.NetworkPresence;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeBuses;
 import de.eldoria.companies.nodes.NodeCaches;
-import de.eldoria.companies.nodes.NodeMessage;
-import de.eldoria.companies.nodes.NodeMessaging;
-import de.eldoria.companies.nodes.NodeSignals;
+import de.eldoria.companies.nodes.NodeConnection;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
@@ -120,7 +117,6 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -155,7 +151,7 @@ public class Companies extends EldoPlugin {
     private NodeBus bus = new DatabaseBus();
     private final NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private NodeCaches caches;
-    private NodeMessaging nodeMessaging;
+    private NodeConnection nodeConnection;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -332,8 +328,9 @@ public class Companies extends EldoPlugin {
         var alertCompanies = AlertCompanies.of(companyData, orderData);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
-            RefreshService.start(
-                    orderData, workerPool, () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.PRICES, null)));
+            RefreshService.start(orderData, workerPool, () -> {
+                if (nodeConnection != null) nodeConnection.pricesRefreshed();
+            });
             membershipService.start(workerPool);
             seriesService.schedule(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
@@ -428,50 +425,29 @@ public class Companies extends EldoPlugin {
     }
 
     /**
-     * Connects this node to the others over the node bus: announces pending notifications and changed orders, lets
-     * other nodes drop the caches of this node, and acts on their messages. On the {@link DatabaseBus} nothing is
-     * sent or received and the polls and cache lifetimes stay in charge.
+     * Connects this node to the others over the node bus, see {@link NodeConnection}.
      *
      * @param notifications sends notifications
      * @param inboxPoller   shows notifications sent from other nodes
      */
     private void connectNodes(NotificationService notifications, InboxPoller inboxPoller) {
         if (commands == null) return;
-        notifications.announcePending((entry, recipient) -> bus.publish(new NodeMessage.InboxNew(entry, recipient)));
-        orderData.onFullOrderChanged(
-                id -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.ORDER, String.valueOf(id))));
-        caches.register(NodeCaches.ORDER, key -> key.map(Integer::parseInt)
-                .ifPresentOrElse(orderData::forgetFullOrder, orderData::forgetFullOrders));
-        caches.register(NodeCaches.PRICES, key -> orderData.invalidateMaterialPriceCache());
-        caches.register(NodeCaches.COMPANY, key -> SuggestionCache.dropAll());
-        caches.register(NodeCaches.ORDER, key -> SuggestionCache.dropAll());
-
-        var primary = configuration.nodeSettings().nodeType() == NodeType.PRIMARY;
-        nodeMessaging = new NodeMessaging(bus, caches, presence, getLogger());
-        nodeMessaging.start(
-                new NodeMessaging.Node(
-                        primary,
-                        player -> inboxPoller.deliver(player, LocalDateTime.now()),
-                        this::loadSyncedConfiguration,
-                        () -> {
-                            inboxPoller.reschedule();
-                            inboxPoller.pollNow();
-                        },
+        nodeConnection = NodeConnection.connect(
+                new NodeConnection.Parts(
+                        bus,
+                        caches,
+                        presence,
+                        getLogger(),
+                        configuration.nodeSettings().nodeType() == NodeType.PRIMARY,
+                        notifications,
+                        inboxPoller,
+                        orderData,
+                        NodeConnection.configSync(
+                                configuration, nodeData, Threading.mainThread(this), commands::reloaded, getLogger()),
                         this::onlineHere,
                         () -> nodeData.nodes().stream().map(Node::uid).toList()),
                 workerPool);
-        registerListener(new NodeSignals(bus));
-        if (primary) bus.publish(new NodeMessage.ConfigSynced());
-    }
-
-    /**
-     * Loads the configuration the primary synced to the database and applies it, as
-     * {@code /companyadmin syncconfiguration} does on a secondary.
-     */
-    private void loadSyncedConfiguration() {
-        configuration.syncConfigurations(nodeData).join();
-        getLogger().info("Loaded the configuration the primary node synced.");
-        Threading.mainThread(this).execute(commands::reloaded);
+        registerListener(nodeConnection.signals());
     }
 
     private List<UUID> onlineHere() {
@@ -505,8 +481,8 @@ public class Companies extends EldoPlugin {
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
-        if (nodeMessaging != null) {
-            nodeMessaging.stop();
+        if (nodeConnection != null) {
+            nodeConnection.stop();
         } else {
             bus.close();
         }
