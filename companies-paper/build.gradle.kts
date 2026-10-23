@@ -105,10 +105,15 @@ bukkit {
 
         register("companies.orders.*") {
             description = "Gives full access to orders. Does not raise the order limit, use companies.orders.limit.<n> for that"
-            children = listOf("companies.orders.create")
+            children = listOf("companies.orders.create", "companies.orders.repeat")
         }
         register("companies.orders.create") {
             description = "Allows creation of orders, up to maxOrders in user.yml or the highest companies.orders.limit.<n>"
+            default = Default.TRUE
+        }
+
+        register("companies.orders.repeat") {
+            description = "Allows making orders repeat daily or weekly"
             default = Default.TRUE
         }
 

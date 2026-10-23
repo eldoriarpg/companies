@@ -29,6 +29,7 @@ public final class Permission {
         private static final String ORDERS = BASE + ".orders";
         public static final String LIMIT = ORDERS + ".limit";
         public static final String CREATE = ORDERS + ".create";
+        public static final String REPEAT = ORDERS + ".repeat";
 
         private Orders() {
             throw new UnsupportedOperationException("This is a utility class.");
