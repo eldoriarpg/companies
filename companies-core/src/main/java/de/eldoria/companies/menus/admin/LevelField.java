@@ -19,8 +19,9 @@ import java.util.function.Consumer;
  * <p>
  * The {@link #key() key} is the field name of {@code /companyadmin level edit}, the key of the dialog input and the
  * placeholder key of the value. Input is parsed the same way wherever it is entered: counts are whole numbers, the
- * earned money a finite number, the order size limit and the delivery bonus are at least 0, and the tax is a
- * percentage from 0 to 100, cleared by {@code none} or an empty input.
+ * earned money a finite number, the order size limit, the delivery bonus and the alert limit are at least 0, and the
+ * tax is a percentage from 0 to 100. The tax and the alert limit are cleared by {@code none} or an empty input, so the
+ * global value applies again.
  */
 public enum LevelField {
     NAME(Group.NAME, "words.name"),
@@ -32,9 +33,10 @@ public enum LevelField {
     MAX_ORDERS(Group.LIMIT, "level.maxOrders"),
     MAX_ORDER_SIZE(Group.LIMIT, "level.maxOrderSize"),
     DELIVERY_HOURS_BONUS(Group.LIMIT, "level.deliveryHoursBonus"),
-    TAX_PERCENT(Group.LIMIT, "level.tax");
+    TAX_PERCENT(Group.LIMIT, "level.tax"),
+    MAX_ALERTS(Group.LIMIT, "level.maxAlerts");
 
-    private static final String NO_TAX = "none";
+    private static final String NONE = "none";
 
     private final Group group;
     private final String labelKey;
@@ -76,8 +78,8 @@ public enum LevelField {
     }
 
     /**
-     * The current value as it would be entered, so it can prefill an input. A level without a tax override gives an
-     * empty text.
+     * The current value as it would be entered, so it can prefill an input. A level without a tax or alert limit
+     * override gives an empty text.
      *
      * @param level the level
      * @return the value as input text
@@ -96,12 +98,13 @@ public enum LevelField {
             case MAX_ORDER_SIZE -> String.valueOf(settings.maxOrderSize());
             case DELIVERY_HOURS_BONUS -> String.valueOf(settings.deliveryHoursBonus());
             case TAX_PERCENT -> settings.taxPercent().map(Texts::percent).orElse("");
+            case MAX_ALERTS -> settings.maxAlerts().map(String::valueOf).orElse("");
         };
     }
 
     /**
      * The value as shown in a level description, or empty when the field is left out because it changes nothing:
-     * no order size limit, no delivery bonus or no tax override.
+     * no order size limit, no delivery bonus, no tax override or no alert limit override.
      *
      * @param level the level
      * @return the shown value
@@ -112,6 +115,7 @@ public enum LevelField {
             case MAX_ORDER_SIZE -> positive(settings.maxOrderSize()).map(String::valueOf);
             case DELIVERY_HOURS_BONUS -> positive(settings.deliveryHoursBonus()).map(hours -> "+" + hours + " h");
             case TAX_PERCENT -> settings.taxPercent().map(percent -> Texts.percent(percent) + " %");
+            case MAX_ALERTS -> settings.maxAlerts().map(String::valueOf);
             default -> Optional.of(input(level));
         };
     }
@@ -162,6 +166,10 @@ public enum LevelField {
                 var value = taxPercent(input);
                 yield level -> level.settings().taxPercent(value);
             }
+            case MAX_ALERTS -> {
+                var value = maxAlerts(input);
+                yield level -> level.settings().maxAlerts(value);
+            }
         };
     }
 
@@ -184,8 +192,25 @@ public enum LevelField {
      */
     static Double taxPercent(String input) {
         var trimmed = input.trim();
-        if (trimmed.isEmpty() || NO_TAX.equalsIgnoreCase(trimmed)) return null;
+        if (cleared(trimmed)) return null;
         return Math.clamp(Checks.finiteDouble(trimmed), 0.0, 100.0);
+    }
+
+    /**
+     * Parses an alert limit override: {@code none} or nothing clears it, a number below 0 becomes 0, which turns
+     * alerts off for the level.
+     *
+     * @param input entered text
+     * @return alerts per company, or null to use the global limit
+     */
+    static Integer maxAlerts(String input) {
+        var trimmed = input.trim();
+        if (cleared(trimmed)) return null;
+        return Math.max(0, Checks.integer(trimmed));
+    }
+
+    private static boolean cleared(String trimmed) {
+        return trimmed.isEmpty() || NONE.equalsIgnoreCase(trimmed);
     }
 
     private static Optional<Integer> positive(int value) {

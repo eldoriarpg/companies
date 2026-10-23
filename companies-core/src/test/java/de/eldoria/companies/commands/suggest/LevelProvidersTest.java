@@ -23,6 +23,7 @@ class LevelProvidersTest {
     @Test
     void onlyTheTaxHasExampleValues() {
         assertEquals(List.of("none", "0", "5", "10"), LevelProviders.exampleValues("tax_percent"));
+        assertEquals(List.of("none", "0", "5", "10"), LevelProviders.exampleValues("max_alerts"));
         assertTrue(LevelProviders.exampleValues("name").isEmpty());
         assertTrue(LevelProviders.exampleValues("").isEmpty());
     }

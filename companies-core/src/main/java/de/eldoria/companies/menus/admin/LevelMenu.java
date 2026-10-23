@@ -82,6 +82,7 @@ public final class LevelMenu implements Menu<LevelView> {
         List<DialogBody> body = new ArrayList<>();
         model.rejection().ifPresent(rejection -> body.add(DialogBody.plainMessage(LevelTexts.error(texts, rejection))));
         body.add(DialogBody.plainMessage(texts.locale("companyadmin.level.taxHint")));
+        body.add(DialogBody.plainMessage(texts.locale("companyadmin.level.alertsHint")));
         List<DialogInput> inputs = new ArrayList<>();
         for (var field : LevelField.values()) {
             inputs.add(DialogInput.text(field.key(), texts.locale(field.labelKey()))
@@ -129,6 +130,9 @@ public final class LevelMenu implements Menu<LevelView> {
     private static MenuText value(LevelField field, String key, String input) {
         if (field == LevelField.TAX_PERCENT && input.isEmpty()) {
             return MenuText.create().text("<i18n:companyadmin.level.globalTax>");
+        }
+        if (field == LevelField.MAX_ALERTS && input.isEmpty()) {
+            return MenuText.create().text("<i18n:companyadmin.level.globalAlerts>");
         }
         var shown = field == LevelField.TAX_PERCENT ? input + " %" : input;
         return MenuText.create().text("<" + key + ">", Values.text(key, shown));

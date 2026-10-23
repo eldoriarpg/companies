@@ -39,6 +39,19 @@ class LevelFieldTest {
     }
 
     @Test
+    void noneOrNothingClearsTheAlertLimit() {
+        assertNull(LevelField.maxAlerts("none"));
+        assertNull(LevelField.maxAlerts(""));
+    }
+
+    @Test
+    void alertLimitIsAWholeNumberOfAtLeastZero() {
+        assertEquals(3, LevelField.maxAlerts("3"));
+        assertEquals(0, LevelField.maxAlerts("-2"));
+        assertThrows(CommandFailure.class, () -> LevelField.maxAlerts("1.5"));
+    }
+
+    @Test
     void otherTaxInputIsRejected() {
         assertThrows(CommandFailure.class, () -> LevelField.taxPercent("lots"));
         assertThrows(CommandFailure.class, () -> LevelField.taxPercent("NaN"));
@@ -58,6 +71,7 @@ class LevelFieldTest {
         LevelField.MAX_ORDER_SIZE.apply(level, "-5");
         LevelField.DELIVERY_HOURS_BONUS.apply(level, "12");
         LevelField.TAX_PERCENT.apply(level, "2.5");
+        LevelField.MAX_ALERTS.apply(level, "4");
 
         assertEquals("<red>Guild", level.levelName());
         assertEquals(3, level.requirement().orderCount());
@@ -69,6 +83,7 @@ class LevelFieldTest {
         assertEquals(0, level.settings().maxOrderSize());
         assertEquals(12, level.settings().deliveryHoursBonus());
         assertEquals(Optional.of(2.5), level.settings().taxPercent());
+        assertEquals(Optional.of(4), level.settings().maxAlerts());
     }
 
     @Test
@@ -102,6 +117,7 @@ class LevelFieldTest {
         }
         assertEquals("1500", LevelField.EARNED_MONEY.input(level));
         assertEquals("", LevelField.TAX_PERCENT.input(level));
+        assertEquals("", LevelField.MAX_ALERTS.input(level));
     }
 
     @Test
@@ -111,13 +127,16 @@ class LevelFieldTest {
         assertTrue(LevelField.MAX_ORDER_SIZE.shown(level).isEmpty());
         assertTrue(LevelField.DELIVERY_HOURS_BONUS.shown(level).isEmpty());
         assertTrue(LevelField.TAX_PERCENT.shown(level).isEmpty());
+        assertTrue(LevelField.MAX_ALERTS.shown(level).isEmpty());
 
         LevelField.MAX_ORDER_SIZE.apply(level, "64");
         LevelField.DELIVERY_HOURS_BONUS.apply(level, "6");
         LevelField.TAX_PERCENT.apply(level, "5");
+        LevelField.MAX_ALERTS.apply(level, "0");
 
         assertEquals(Optional.of("64"), LevelField.MAX_ORDER_SIZE.shown(level));
         assertEquals(Optional.of("+6 h"), LevelField.DELIVERY_HOURS_BONUS.shown(level));
         assertEquals(Optional.of("5 %"), LevelField.TAX_PERCENT.shown(level));
+        assertEquals(Optional.of("0"), LevelField.MAX_ALERTS.shown(level));
     }
 }
