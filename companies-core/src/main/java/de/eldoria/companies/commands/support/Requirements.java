@@ -29,6 +29,7 @@ public final class Requirements {
             Permission.Admin.GRANT,
             Permission.Admin.BOARDS,
             Permission.Admin.TREASURY,
+            Permission.Admin.NODES,
             Permission.Admin.DEBUG);
 
     private Requirements() {

@@ -7,6 +7,7 @@ package de.eldoria.companies.commands;
 
 import de.eldoria.companies.commands.companyadmin.CalcLevel;
 import de.eldoria.companies.commands.companyadmin.Delete;
+import de.eldoria.companies.commands.companyadmin.NodeCommand;
 import de.eldoria.companies.commands.companyadmin.Reload;
 import de.eldoria.companies.commands.companyadmin.Rename;
 import de.eldoria.companies.commands.companyadmin.SyncConfiguration;
@@ -74,6 +75,9 @@ final class CompanyAdminCommand {
     @Subcommand
     final TreasuryCommand treasury;
 
+    @Subcommand
+    final NodeCommand node;
+
     CompanyAdminCommand(CommandDependencies deps) {
         this.deps = deps;
         level = new LevelCommand(deps);
@@ -88,6 +92,7 @@ final class CompanyAdminCommand {
         grant = new GrantCommand(deps);
         board = new BoardAdminCommand(deps);
         treasury = new TreasuryCommand(deps);
+        node = new NodeCommand(deps);
     }
 
     /**

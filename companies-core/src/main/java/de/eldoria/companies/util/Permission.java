@@ -86,6 +86,10 @@ public final class Permission {
          * The permission to create debug reports.
          */
         public static final String DEBUG = ADMIN + ".debug";
+        /**
+         * The permission to list and remove the nodes registered in the database.
+         */
+        public static final String NODES = ADMIN + ".nodes";
 
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");

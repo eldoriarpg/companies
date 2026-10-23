@@ -157,6 +157,7 @@ bukkit {
                 "companies.admin.delete",
                 "companies.admin.grant",
                 "companies.admin.level",
+                "companies.admin.nodes",
                 "companies.admin.orders",
                 "companies.admin.player",
                 "companies.admin.reload",
@@ -186,6 +187,9 @@ bukkit {
         }
         register("companies.admin.level") {
             description = "Allows managing of company level settings"
+        }
+        register("companies.admin.nodes") {
+            description = "Allows listing and removing the nodes registered in the database"
         }
         register("companies.admin.orders") {
             description = "Allows inspecting, releasing, cancelling, completing and extending any order"
