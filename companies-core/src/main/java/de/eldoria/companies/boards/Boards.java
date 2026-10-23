@@ -10,6 +10,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.query.OrderFilter;
 import de.eldoria.companies.util.Permission;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Material;
@@ -111,7 +112,8 @@ public final class Boards implements BoardOpener {
         }
         var materials = List.of(SPACES.split(text));
         if (!materials.stream().allMatch(this::isMaterial)) return Optional.empty();
-        return Optional.of(new BoardTarget(null, BoardFilter.ofMaterials(materials), String.join(" ", materials)));
+        return Optional.of(
+                new BoardTarget(null, OrderFilter.ALL.withMaterials(materials), String.join(" ", materials)));
     }
 
     private boolean isMaterial(String part) {
@@ -144,9 +146,9 @@ public final class Boards implements BoardOpener {
      * @param filter filter of the board
      * @return number of open orders matching the filter
      */
-    public CompletableFuture<Integer> openCount(BoardFilter filter) {
+    public CompletableFuture<Integer> openCount(OrderFilter filter) {
         return orderData
-                .retrieveOrdersByQuery(filter.toQuery(), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .retrieveOrdersByQuery(SearchQuery.of(filter), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
                 .asFuture()
                 .thenApply(List::size);
     }
@@ -157,7 +159,7 @@ public final class Boards implements BoardOpener {
         var results = view.get();
         if (results == null) throw CommandFailure.of("error.notReady");
         if (!startOpening(player.getUniqueId())) return;
-        results.show(player, target.filter().toQuery());
+        results.show(player, SearchQuery.of(target.filter()));
     }
 
     private boolean startOpening(UUID player) {

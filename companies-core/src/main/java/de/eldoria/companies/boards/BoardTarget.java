@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.boards;
 
+import de.eldoria.companies.orders.query.OrderFilter;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -14,11 +15,11 @@ import org.jetbrains.annotations.Nullable;
  * @param filter the orders shown
  * @param label  name of the board shown on signs, blank for every open order
  */
-public record BoardTarget(@Nullable String preset, BoardFilter filter, String label) {
+public record BoardTarget(@Nullable String preset, OrderFilter filter, String label) {
     /**
      * The board of every open order.
      */
-    public static final BoardTarget ALL = new BoardTarget(null, BoardFilter.ALL, "");
+    public static final BoardTarget ALL = new BoardTarget(null, OrderFilter.ALL, "");
 
     /**
      * The text a board is stored and resolved by again: the preset name, the materials separated by spaces, or an

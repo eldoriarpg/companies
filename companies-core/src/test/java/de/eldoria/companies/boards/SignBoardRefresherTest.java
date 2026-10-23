@@ -6,6 +6,7 @@
 package de.eldoria.companies.boards;
 
 import de.eldoria.companies.boards.SignBoardRefresher.WriteResult;
+import de.eldoria.companies.orders.query.OrderFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,7 @@ class SignBoardRefresherTest {
                 index,
                 spec -> spec.equals("unknown")
                         ? Optional.empty()
-                        : Optional.of(new BoardTarget(null, BoardFilter.ofMaterials(List.of(spec)), spec)),
+                        : Optional.of(new BoardTarget(null, OrderFilter.ALL.withMaterials(List.of(spec)), spec)),
                 filter -> {
                     counted.add(filter.materials());
                     return CompletableFuture.completedFuture(counts.getOrDefault(filter.materials(), 0));
@@ -133,7 +134,7 @@ class SignBoardRefresherTest {
     void failedCountLeavesTheSign() {
         var failing = new SignBoardRefresher(
                 index,
-                spec -> Optional.of(new BoardTarget(null, BoardFilter.ofMaterials(List.of(spec)), spec)),
+                spec -> Optional.of(new BoardTarget(null, OrderFilter.ALL.withMaterials(List.of(spec)), spec)),
                 filter -> CompletableFuture.failedFuture(new IllegalStateException("database down")),
                 (location, target, count) -> {
                     written.add(location);

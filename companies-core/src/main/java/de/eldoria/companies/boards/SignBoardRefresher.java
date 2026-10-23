@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.boards;
 
+import de.eldoria.companies.orders.query.OrderFilter;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -26,7 +28,7 @@ import java.util.logging.Logger;
 public final class SignBoardRefresher {
     private final SignBoardIndex index;
     private final Function<String, Optional<BoardTarget>> resolve;
-    private final Function<BoardFilter, CompletableFuture<Integer>> count;
+    private final Function<OrderFilter, CompletableFuture<Integer>> count;
     private final SignWriter writer;
     private final RefreshSchedule schedule;
     private final Executor mainThread;
@@ -46,7 +48,7 @@ public final class SignBoardRefresher {
     public SignBoardRefresher(
             SignBoardIndex index,
             Function<String, Optional<BoardTarget>> resolve,
-            Function<BoardFilter, CompletableFuture<Integer>> count,
+            Function<OrderFilter, CompletableFuture<Integer>> count,
             SignWriter writer,
             RefreshSchedule schedule,
             Executor mainThread,

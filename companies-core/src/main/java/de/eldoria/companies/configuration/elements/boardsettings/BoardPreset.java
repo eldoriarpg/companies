@@ -5,10 +5,11 @@
  */
 package de.eldoria.companies.configuration.elements.boardsettings;
 
-import de.eldoria.companies.boards.BoardFilter;
+import de.eldoria.companies.orders.query.OrderFilter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -52,20 +53,20 @@ public class BoardPreset {
     /**
      * @return the orders this preset shows
      */
-    public BoardFilter filter() {
+    public OrderFilter filter() {
         var orderName = name == null || name.isBlank() ? null : name.strip();
         var listed = materials == null
                 ? List.<String>of()
                 : materials.stream()
                         .filter(Objects::nonNull)
-                        .map(String::strip)
+                        .map(material -> material.strip().toLowerCase(Locale.ROOT))
                         .filter(material -> !material.isEmpty())
                         .toList();
         var lowestPrice = Math.max(0.0, minPrice);
         var highestPrice = maxPrice <= 0.0 ? Double.MAX_VALUE : Math.max(lowestPrice, maxPrice);
         var lowestSize = Math.max(0, minSize);
         var highestSize = maxSize <= 0 ? Integer.MAX_VALUE : Math.max(lowestSize, maxSize);
-        return new BoardFilter(
+        return new OrderFilter(
                 orderName, listed, anyMaterial, exactMatch, lowestPrice, highestPrice, lowestSize, highestSize);
     }
 }

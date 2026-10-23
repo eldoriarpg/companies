@@ -11,6 +11,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.orders.OrderTable;
+import de.eldoria.companies.orders.query.OrderFilter;
 import de.eldoria.companies.util.Permission;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.PermissionDefault;
@@ -162,10 +163,13 @@ class BoardsTest {
         orders.state(claimed, OrderState.CLAIMED, 1);
 
         assertEquals(
-                1, boards.openCount(BoardFilter.ofMaterials(List.of("stone"))).join());
-        assertEquals(1, boards.openCount(BoardFilter.ALL).join());
+                1,
+                boards.openCount(OrderFilter.ALL.withMaterials(List.of("stone")))
+                        .join());
+        assertEquals(1, boards.openCount(OrderFilter.ALL).join());
         assertEquals(
-                0, boards.openCount(BoardFilter.ofMaterials(List.of("iron"))).join());
+                0,
+                boards.openCount(OrderFilter.ALL.withMaterials(List.of("iron"))).join());
         assertEquals(OrderState.UNCLAIMED, orders.reload(open).state());
     }
 
