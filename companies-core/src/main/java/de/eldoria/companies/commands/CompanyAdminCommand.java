@@ -12,6 +12,8 @@ import de.eldoria.companies.commands.companyadmin.Rename;
 import de.eldoria.companies.commands.companyadmin.SyncConfiguration;
 import de.eldoria.companies.commands.companyadmin.TransferOwner;
 import de.eldoria.companies.commands.companyadmin.level.LevelCommand;
+import de.eldoria.companies.commands.companyadmin.order.AdminOrderCommand;
+import de.eldoria.companies.commands.companyadmin.player.AdminPlayerCommand;
 import de.eldoria.companies.commands.support.AdminAccess;
 import de.eldoria.companies.commands.support.DebugAccess;
 import de.eldoria.companies.commands.support.HandleFailures;
@@ -54,6 +56,12 @@ final class CompanyAdminCommand {
     @Subcommand
     final SyncConfiguration syncConfiguration;
 
+    @Subcommand
+    final AdminOrderCommand order;
+
+    @Subcommand
+    final AdminPlayerCommand player;
+
     CompanyAdminCommand(CommandDependencies deps) {
         this.deps = deps;
         level = new LevelCommand(deps);
@@ -63,6 +71,8 @@ final class CompanyAdminCommand {
         transferOwner = new TransferOwner(deps);
         rename = new Rename(deps);
         syncConfiguration = new SyncConfiguration(deps);
+        order = new AdminOrderCommand(deps);
+        player = new AdminPlayerCommand(deps, order);
     }
 
     /**
