@@ -8,8 +8,10 @@ package de.eldoria.companies.commands.company.order.search;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.Page;
+import de.eldoria.companies.menus.company.AlertNameMenu;
 import de.eldoria.companies.menus.company.SearchMenu;
 import de.eldoria.companies.menus.company.SearchResultsMenu;
+import de.eldoria.companies.orders.query.OrderFilter;
 import org.bukkit.entity.Player;
 
 import java.util.function.Consumer;
@@ -99,11 +101,40 @@ public final class OrderSearch {
      * @param form   the filled in form
      */
     public void submit(Player player, SearchForm form) {
+        useForm(player, form, valid -> showPage(player, 0));
+    }
+
+    /**
+     * Saves a filled in form as an alert. A valid form becomes the player's query and the name of the alert is asked
+     * for; otherwise the form is shown again, as filled in, with the invalid input named.
+     *
+     * @param player player searching
+     * @param form   the filled in form
+     */
+    public void saveAlert(Player player, SearchForm form) {
+        useForm(player, form, valid -> menus().show(
+                        player, new AlertNameMenu(deps.messages(), this::showForm), new AlertNameMenu.Model("")));
+    }
+
+    /**
+     * Shows the orders a saved filter finds: the filter replaces the player's query, sorted by age. Has to be called
+     * on the main thread, like {@link #showPage(Player, int)}.
+     *
+     * @param player player searching
+     * @param filter the saved filter
+     */
+    public void showFilter(Player player, OrderFilter filter) {
+        deps.requireReady();
+        sessions.replace(player.getUniqueId(), SearchQuery.of(filter));
+        showPage(player, 0);
+    }
+
+    private void useForm(Player player, SearchForm form, Consumer<SearchQuery> then) {
         deps.requireReady();
         switch (form.toQuery()) {
             case SearchForm.Valid valid -> {
                 sessions.replace(player.getUniqueId(), valid.query());
-                showPage(player, 0);
+                then.accept(valid.query());
             }
             case SearchForm.Invalid invalid ->
                 menus().show(player, searchMenu(), SearchMenu.Model.invalid(query(player), form, invalid.input()));

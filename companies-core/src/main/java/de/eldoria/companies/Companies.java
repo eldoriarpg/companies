@@ -16,6 +16,7 @@ import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
+import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SeriesSources;
@@ -80,6 +81,10 @@ import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryLogRetention;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.alerts.AlertCompanies;
+import de.eldoria.companies.services.alerts.AlertDigestJob;
+import de.eldoria.companies.services.alerts.AlertMatcher;
+import de.eldoria.companies.services.alerts.AlertNotices;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -193,6 +198,7 @@ public class Companies extends EldoPlugin {
         SeriesSources.use(new SeriesSources(economy.series(), Threading.VIRTUAL));
         CompanyOrderSources.use(
                 new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
+        AlertSuggestions.use(new AlertSuggestions(companyData, economy.alerts(), Threading.VIRTUAL));
         getLifecycleManager()
                 .registerEventHandler(LifecycleEvents.COMMANDS.newHandler(
                         event -> CommandRegistration.register(event.registrar(), dependencies)));
@@ -290,6 +296,8 @@ public class Companies extends EldoPlugin {
 
         var expiringService = new ExpiringService(
                 this, orderData, companyData, configuration, economy, notificationService, outcomes);
+        var alertNotices = new AlertNotices(notificationService::send, economy::format);
+        var alertCompanies = AlertCompanies.of(companyData, orderData);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
@@ -308,6 +316,14 @@ public class Companies extends EldoPlugin {
                             Clock.systemDefaultZone(),
                             getLogger())
                     .start(workerPool);
+            new AlertDigestJob(
+                            this.economy.alerts(),
+                            alertCompanies,
+                            configuration::companySettings,
+                            alertNotices,
+                            Clock.systemDefaultZone(),
+                            getLogger())
+                    .start(workerPool);
         }
         new InboxPoller(information.inbox(), notificationService, getLogger())
                 .start(workerPool, configuration.notificationSettings());
@@ -316,6 +332,14 @@ public class Companies extends EldoPlugin {
         registerListener(itemReturnService);
         registerListener(notificationService);
         registerListener(seriesService);
+        registerListener(new AlertMatcher(
+                this.economy.alerts(),
+                alertCompanies,
+                configuration::companySettings,
+                alertNotices,
+                Clock.systemDefaultZone(),
+                Threading.VIRTUAL,
+                getLogger()));
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
                 && configuration.generalSettings().hooks().placeholderapi()) {
@@ -345,6 +369,7 @@ public class Companies extends EldoPlugin {
         SuggestionSources.clear();
         CompanyOrderSources.clear();
         TreasurySources.clear();
+        AlertSuggestions.clear();
         MembershipSources.clear();
         SeriesSources.clear();
         CommandFailures.clear();

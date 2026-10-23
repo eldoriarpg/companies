@@ -7,6 +7,7 @@ package de.eldoria.companies.services.notifications;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -266,14 +267,16 @@ public enum NotificationType {
     SERIES_FINISHED(46, "notification.seriesFinished", NotificationCategory.MY_ORDERS, false, null),
     /**
      * A new order matches saved alerts of the company. Arguments: {@code alert_name} (names of the matching alerts),
-     * {@code order_name}, {@code contents}, {@code amount} (price), {@code net} (after the company's tax).
+     * {@code order_name}, {@code order_id}, {@code contents}, {@code amount} (price), {@code net} (after the company's
+     * tax).
      */
     ORDER_ALERT(
             47,
             "notification.orderAlert",
             NotificationCategory.ALERTS,
             false,
-            new Action("/company alerts show <alert_name>", "words.show")),
+            new Action("/company order info <order_id>", "words.view"),
+            new Action("/company order accept <order_id>", "words.accept")),
     /**
      * More orders matched an alert while it was rate limited. Arguments: {@code alert_name}, {@code count}.
      */
@@ -289,15 +292,23 @@ public enum NotificationType {
     private final NotificationCategory category;
     private final boolean important;
 
-    @Nullable
-    private final Action action;
+    private final List<Action> actions;
 
     NotificationType(int id, String key, NotificationCategory category, boolean important, @Nullable Action action) {
         this.id = id;
         this.key = key;
         this.category = category;
         this.important = important;
-        this.action = action;
+        this.actions = action == null ? List.of() : List.of(action);
+    }
+
+    NotificationType(
+            int id, String key, NotificationCategory category, boolean important, Action first, Action second) {
+        this.id = id;
+        this.key = key;
+        this.category = category;
+        this.important = important;
+        this.actions = List.of(first, second);
     }
 
     /**
@@ -348,12 +359,12 @@ public enum NotificationType {
     }
 
     /**
-     * The button next to the message.
+     * The buttons next to the message, in the order they are shown.
      *
-     * @return the button, or empty when the message has none
+     * @return the buttons, empty when the message has none
      */
-    public Optional<Action> action() {
-        return Optional.ofNullable(action);
+    public List<Action> actions() {
+        return actions;
     }
 
     /**
