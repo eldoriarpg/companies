@@ -142,11 +142,8 @@ The keys from `heading` to `neutral` are the colours of the tags `<heading>`, `<
 
 - New installations get `DIALOG`.
 - A `config.yml` from an older version has no `menus` key. It keeps showing chat menus until you add `menus: DIALOG`.
+- `menus:` with no value shows chat menus too.
 - Players with a client older than Minecraft 1.21.6 always get chat menus, for example when they join through ViaVersion.
-
-:::warning TODO
-Confirm what happens when `menus:` is written with no value. The code is meant to fall back to chat menus, but this was not tested.
-:::
 
 ## economy
 
@@ -160,7 +157,7 @@ See [Economy](../economy.md) for where money goes.
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `pollSeconds` | number (seconds) | `10` | How often each server looks for notifications sent to its players from another server. At least 1. | restart |
+| `pollSeconds` | number (seconds) | `10` | How often each server looks for notifications sent to its players from another server. At least 1. | reload |
 | `retentionDays` | number (days) | `30` | How long notifications stay in the inbox, read or not. At least 1. Cleaned up by the primary server. | reload |
 | `pageSize` | number | `10` | Notifications on one inbox page. From 1 to 50. | reload |
 | `actionBar` | true/false | `true` | Also show important notifications on the action bar. | reload |
@@ -170,14 +167,14 @@ See [Inbox](../../players/inbox.md) for what players see.
 
 ## placeholders
 
-The PlaceholderAPI values are kept in memory. These keys set how. All of them need a restart.
+The PlaceholderAPI values are kept in memory. These keys set how.
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `refreshSeconds` | number (seconds) | `300` | How often the values are loaded again. At least 10. | restart |
+| `refreshSeconds` | number (seconds) | `300` | How often the values are loaded again. At least 10. | reload |
 | `offlineCacheSize` | number | `500` | How many offline players and companies have their values kept. At least 1. | restart |
-| `leaderboardSize` | number | `10` | How many places of each ranking the `top_` placeholders can read. At least 1. | restart |
-| `loadingText` | text | `''` | Text shown while a value is loaded for the first time. | restart |
+| `leaderboardSize` | number | `10` | How many places of each ranking the `top_` placeholders can read. At least 1. | reload |
+| `loadingText` | text | `''` | Text shown while a value is loaded for the first time. | reload |
 
 See [Placeholders](../../reference/placeholders.md).
 
@@ -185,7 +182,7 @@ See [Placeholders](../../reference/placeholders.md).
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `cacheSeconds` | number (seconds) | `30` | How long a page of `/company top` and the place of a company are kept. `0` turns the cache off. | restart |
+| `cacheSeconds` | number (seconds) | `30` | How long a page of `/company top` and the place of a company are kept. `0` turns the cache off. A reload also empties the cache. | reload |
 
 ## boards
 
@@ -222,13 +219,13 @@ Posts new orders, completed orders and level ups to a Discord channel. See [Disc
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `enabled` | true/false | `false` | Post to the webhook. | restart |
-| `url` | text | `''` | The webhook URL, or `env:NAME` to read it from the environment variable `NAME`. It must start with `https://`. | restart |
+| `enabled` | true/false | `false` | Post to the webhook. | reload |
+| `url` | text | `''` | The webhook URL, or `env:NAME` to read it from the environment variable `NAME`. It must start with `https://`. | reload |
 | `events` | list | `[ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP]` | What is posted. `ORDER_CREATED`: a new order. `ORDER_COMPLETED`: an order was fully delivered. `LEVEL_UP`: a company reached a higher level. | reload |
-| `username` | text | `Companies` | Name of the posts. When empty, the webhook's own name is used. | restart |
-| `avatarUrl` | text | `''` | Picture of the posts. When empty, the webhook's own picture is used. | restart |
-| `maxPerMinute` | number | `20` | Requests per minute from each server. From 1 to 60. | restart |
-| `queueSize` | number | `100` | Messages that may wait to be sent. From 1 to 1000. When the queue is full, the oldest message is dropped. | restart |
+| `username` | text | `Companies` | Name of the posts. When empty, the webhook's own name is used. | reload |
+| `avatarUrl` | text | `''` | Picture of the posts. When empty, the webhook's own picture is used. | reload |
+| `maxPerMinute` | number | `20` | Requests per minute from each server. From 1 to 60. | reload |
+| `queueSize` | number | `100` | Messages that may wait to be sent. From 1 to 1000. When the queue is full, the oldest message is dropped. | reload |
 
 :::tip
 The webhook URL is a secret. In a network this file is copied to every server through the database. Use `env:NAME` there and set the variable on each server.

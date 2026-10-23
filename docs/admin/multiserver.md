@@ -36,7 +36,8 @@ Set `nodeType: SECONDARY` on every server except one. Changes to `node.yml` need
 At start, each server registers itself in the database and checks the setup. It refuses to start when:
 
 - no server is primary: "No primary node is present. Set one node to PRIMARY in node.yml",
-- more than one server is primary: "Multiple nodes are set as primary. ...",
+- more than one server is primary: "Multiple nodes are set as primary. ...". The message names the uid of this
+  server and of every primary, with its version and when it was last seen,
 - the primary runs another Companies version: "Primary node is on version ... Please update this node." or "...
   Please update primary first."
 
@@ -45,9 +46,23 @@ Keep `node.yml` when you move or rebuild a server. A new `nodeUid` registers a n
 the database. If the old entry was the primary, the network then has two primaries and refuses to start.
 :::
 
-:::warning TODO
-How to remove an old server entry from the database. Companies has no command for it yet.
-:::
+## Old server entries
+
+`/companyadmin node list` shows every server registered in the database: its uid, `PRIMARY` or `SECONDARY`, its
+version and when it was last seen. A server is seen when it starts and when you run `/companyadmin syncconfiguration`
+on it. Entries from before this was recorded show `-`.
+
+To remove an entry of a server that no longer runs:
+
+1. Run `/companyadmin node list` and find the old uid. The entry of the server you are on is marked as this server.
+2. Run `/companyadmin node remove <uid>`. Companies shows the entry and asks you to confirm.
+3. Run `/companyadmin node remove confirm` within 30 seconds.
+
+The configuration the server stored in the database is removed with it. The entry of the server you run the command
+on can not be removed.
+
+These commands need `companies.admin.nodes`. They work from the console, and also in the safe mode the plugin falls
+into after the error about two primaries.
 
 See [node.yml](./configuration/node-yml.md) for the file reference.
 
@@ -88,9 +103,8 @@ To change the configuration of a running network:
 3. Run `/companyadmin syncconfiguration` on the primary. It writes the files to the database.
 4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database.
 
-Some settings are only read when the server starts, for example `boards.enabled`, the Discord webhook and the
-PlaceholderAPI settings. For those, restart the servers instead. The
-[configuration pages](./configuration/index.md) say which settings need a restart.
+Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
+instead. The [configuration pages](./configuration/index.md) say which settings need a restart.
 
 :::tip
 Put secrets such as the Discord webhook URL in an environment variable with `env:`. Then only the variable name is

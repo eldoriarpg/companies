@@ -64,10 +64,6 @@ The defaults in this table are what a new level gets. The starter levels below s
 
 See [Economy](./economy.md) for how the tax works, and [Order alerts](../companies/order-alerts.md) for alerts.
 
-:::note
-`maxAlerts` can only be set in `company.yml`. The level editor does not show it.
-:::
-
 ## Starter levels
 
 A new `company.yml` comes with four levels:
@@ -105,10 +101,10 @@ level:
 
 Add `taxPercent: 5.0` or `maxAlerts: 2` under `settings` to override the global values for that level.
 
-:::warning
-The `level` number of each entry has to match its place in the list: 1, 2, 3 and so on. The editor keeps the numbers
-in order for you. If you edit the file by hand, renumber the entries after you move or remove one.
-:::
+The order of the list decides the levels. The first entry is level 1, the second level 2, and so on. When Companies
+loads the file, at start and on `/companyadmin reload`, it numbers the entries 1, 2, 3 in list order. If a `level`
+number was different, it logs a warning and saves the file with the new numbers. So you can move or remove entries by
+hand without fixing the numbers.
 
 After editing the file, run `/companyadmin reload`, then `/companyadmin calclevel`.
 
@@ -127,14 +123,16 @@ After editing the file, run `/companyadmin reload`, then `/companyadmin calcleve
 | `/companyadmin level remove <level>` | Removes a level |
 
 The fields for `edit` are `name`, `order_count`, `member_count`, `earned_money`, `delivered_items`, `max_members`,
-`max_orders`, `max_order_size`, `delivery_hours_bonus` and `tax_percent`. For `tax_percent`, enter a number from 0 to
-100, or `none` to use the global tax again.
+`max_orders`, `max_order_size`, `delivery_hours_bonus`, `tax_percent` and `max_alerts`. For `tax_percent`, enter a
+number from 0 to 100, or `none` to use the global tax again. For `max_alerts`, enter a whole number, or `none` to use
+the global `alerts.maxPerCompany` again. `0` turns alerts off for the level.
 
 ```bash
 /companyadmin level create 2
 /companyadmin level edit 2 name Workshop
 /companyadmin level edit 2 order_count 5
 /companyadmin level edit 2 tax_percent 2.5
+/companyadmin level edit 2 max_alerts 3
 ```
 
 In the dialog menu, a level opens as one form. Change what you like and press **Save**. If one value is wrong, the

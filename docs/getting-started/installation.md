@@ -41,14 +41,12 @@ restart.
 
 ## Install the plugin
 
+Download Companies from [Lyna](https://lyna.eldoria.de/products/2). That is the only place to get the plugin jar.
+
 1. Stop the server.
 2. Put the Companies jar into the `plugins` folder.
 3. Make sure Vault and an economy plugin are in the `plugins` folder too.
 4. Start the server.
-
-:::warning TODO
-Where the plugin jar can be downloaded (Modrinth, Hangar, SpigotMC or GitHub releases) is not stated in the code.
-:::
 
 On the first start, Paper downloads the database drivers Companies needs. The server needs internet access for this
 once.

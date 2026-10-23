@@ -143,6 +143,6 @@ These did not exist in 1.x. You do not need to change anything for them, but you
 The pre-events can be cancelled with a reason that the player sees. See [Events](./events.md).
 
 :::note Levels
-In 1.x and in 2.0, a listener of `CompanyLevelChangeEvent` receives nothing. Listen to `CompanyLevelUpEvent` and
-`CompanyLevelDownEvent`.
+In 1.x, a listener of `CompanyLevelChangeEvent` received nothing. In 2.0 it gets every level change, up and down.
+`CompanyLevelUpEvent` and `CompanyLevelDownEvent` still work for one direction.
 :::

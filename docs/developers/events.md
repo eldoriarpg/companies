@@ -122,8 +122,9 @@ Every company event also has `company()`.
 **Leaving and kicking.** `CompanyKickEvent` extends `CompanyLeaveEvent`. A listener of `CompanyLeaveEvent` gets kicks
 too. Check `event instanceof CompanyKickEvent` to tell them apart, or listen to `CompanyKickEvent` for kicks only.
 
-**Levels.** Listen to `CompanyLevelUpEvent` and `CompanyLevelDownEvent`. Their parent `CompanyLevelChangeEvent` is never
-fired, and a listener of it receives nothing. To react to both directions, listen to both events.
+**Levels.** `CompanyLevelUpEvent` and `CompanyLevelDownEvent` extend `CompanyLevelChangeEvent`. A listener of
+`CompanyLevelChangeEvent` gets both. Check `event instanceof CompanyLevelUpEvent` to tell them apart, or listen to
+`CompanyLevelUpEvent` or `CompanyLevelDownEvent` for one direction only.
 
 **Renames.** `actor()` is the player who renamed the company. It is empty when the console did it.
 

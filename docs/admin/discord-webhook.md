@@ -26,7 +26,7 @@ reaches a higher level. It uses a Discord webhook, so you need no bot.
    ```
 
 4. Put the URL where the `url` setting points (see below).
-5. Restart the server.
+5. Run `/companyadmin reload`.
 
 The webhook is off by default (`enabled: false`). When it starts, the console says "Posting to the Discord webhook."
 
@@ -96,19 +96,16 @@ When something goes wrong:
 - **Discord or the connection fails:** Companies tries again three times, after 2, 4 and 8 seconds. Then the messages
   are dropped.
 - **Discord rejects a message (400):** the console shows Discord's answer and the message is dropped.
-- **The webhook is gone (401, 403 or 404):** the webhook is switched off until the next restart. This happens when
-  someone deletes the webhook in Discord.
+- **The webhook is gone (401, 403 or 404):** the webhook is switched off until the next `/companyadmin reload` or
+  restart. This happens when someone deletes the webhook in Discord. Put in a new URL and reload.
 
 Dropped messages are reported in the console at most once a minute.
 
-## Reload or restart
+## Reload
 
-| Setting | Applies on |
-|---|---|
-| `events` | `/companyadmin reload` |
-| `enabled`, `url`, `username`, `avatarUrl`, `maxPerMinute`, `queueSize` | Restart |
-
-`/companyadmin reload` does not start, stop or repair the webhook. Restart the server for that.
+Every `discord` setting applies on `/companyadmin reload`. The reload starts the webhook again with the new settings.
+It also starts, stops or brings back the webhook when you changed `enabled` or `url`. Messages that were still waiting
+are sent to the old webhook first.
 
 ## Secrets in logs and debug reports
 

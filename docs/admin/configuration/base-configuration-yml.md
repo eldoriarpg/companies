@@ -29,6 +29,4 @@ logLevel: INFO
 
 Set `logLevel: DEBUG` when you report a problem, together with a `/companyadmin debug` report.
 
-:::warning TODO
-Confirm whether a new `logLevel` applies on `/companyadmin reload`, or only after a restart.
-:::
+A new `logLevel` applies after a restart. `/companyadmin reload` does not change it.
