@@ -225,7 +225,8 @@ public class Companies extends EldoPlugin {
                 this, information.inbox(), orderData, workerPool, configuration::notificationSettings);
         var treasuryService =
                 TreasuryService.create(this, this.economy.treasury(), economy, configuration, notificationService);
-        var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
+        var disbandService = new DisbandService(
+                this, companyData, orderData, itemReturnService, notificationService, treasuryService);
         var membershipService = MembershipService.create(
                 this,
                 companyData,

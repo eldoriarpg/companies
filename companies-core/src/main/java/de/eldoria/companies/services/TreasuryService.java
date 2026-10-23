@@ -328,27 +328,32 @@ public final class TreasuryService {
      */
     public CompletableFuture<Boolean> payOwner(CompanyProfile company, long cents) {
         if (cents <= 0) return CompletableFuture.completedFuture(false);
-        var owner = company.owner().player();
         var amount = Money.fromCents(cents);
-        return CompletableFuture.supplyAsync(
-                () -> {
-                    if (!wallet.deposit(owner, amount.doubleValue())) {
-                        logger.severe(
-                                "Could not pay the treasury of %s of company %s (%d) to its owner %s. The money is lost."
-                                        .formatted(amount, company.name(), company.id(), owner.getUniqueId()));
-                        return false;
-                    }
-                    logger.info("Paid the treasury of %s of company %s (%d) to its owner %s (%s)."
-                            .formatted(amount, company.name(), company.id(), owner.getName(), owner.getUniqueId()));
-                    notifier.send(
-                            owner.getUniqueId(),
-                            NotificationType.TREASURY_DISBAND_PAYOUT,
-                            NotificationArgs.create()
-                                    .money("amount", wallet.format(amount.doubleValue()))
-                                    .text("company_name", company.name()));
-                    return true;
-                },
-                mainThread);
+        var owner = company.members(CompanyPermission.OWNER).stream().findFirst();
+        if (owner.isEmpty()) {
+            logger.severe("Company %s (%d) has no owner to receive its treasury of %s. The money is lost."
+                    .formatted(company.name(), company.id(), amount));
+            return CompletableFuture.completedFuture(false);
+        }
+        var player = owner.get().player();
+        return CompletableFuture.supplyAsync(() -> payOwner(company, player, amount), mainThread);
+    }
+
+    private boolean payOwner(CompanyProfile company, OfflinePlayer owner, BigDecimal amount) {
+        if (!wallet.deposit(owner, amount.doubleValue())) {
+            logger.severe("Could not pay the treasury of %s of company %s (%d) to its owner %s. The money is lost."
+                    .formatted(amount, company.name(), company.id(), owner.getUniqueId()));
+            return false;
+        }
+        logger.info("Paid the treasury of %s of company %s (%d) to its owner %s (%s)."
+                .formatted(amount, company.name(), company.id(), owner.getName(), owner.getUniqueId()));
+        notifier.send(
+                owner.getUniqueId(),
+                NotificationType.TREASURY_DISBAND_PAYOUT,
+                NotificationArgs.create()
+                        .money("amount", wallet.format(amount.doubleValue()))
+                        .text("company_name", company.name()));
+        return true;
     }
 
     /**

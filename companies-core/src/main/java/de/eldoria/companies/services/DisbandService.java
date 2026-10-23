@@ -5,20 +5,26 @@
  */
 package de.eldoria.companies.services;
 
+import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Threading;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.UUID;
 
 /**
  * Dissolves companies.
  * <p>
  * Orders the company worked on are open again: workers get their delivered items back and owners are told, without
- * naming the company.
+ * naming the company. The treasury is emptied before the company is deleted and its balance is paid to the owner once
+ * the company is gone; when the company cannot be deleted, the balance goes back into the treasury.
  */
 public class DisbandService {
     private final Plugin plugin;
@@ -26,27 +32,55 @@ public class DisbandService {
     private final AOrderData orderData;
     private final ItemReturnService itemReturnService;
     private final NotificationService notificationService;
+    private final TreasuryService treasuryService;
 
+    /**
+     * @param plugin              the plugin
+     * @param companyData         company repository
+     * @param orderData           order repository
+     * @param itemReturnService   gives workers their delivered items back
+     * @param notificationService tells owners their orders are open again
+     * @param treasuryService     empties the treasury and pays it to the owner
+     */
     public DisbandService(
             Plugin plugin,
             ACompanyData companyData,
             AOrderData orderData,
             ItemReturnService itemReturnService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            TreasuryService treasuryService) {
         this.plugin = plugin;
         this.companyData = companyData;
         this.orderData = orderData;
         this.itemReturnService = itemReturnService;
         this.notificationService = notificationService;
+        this.treasuryService = treasuryService;
     }
 
     /**
-     * Releases the company's orders and deletes the company. Blocks, so it must not run on the main thread.
+     * Dissolves a company on behalf of its owner. Blocks, so it must not run on the main thread.
      *
      * @param company company to dissolve
      * @return true if the company was deleted
      */
     public boolean disband(CompanyProfile company) {
+        return disband(
+                company,
+                company.members(CompanyPermission.OWNER).stream()
+                        .findFirst()
+                        .map(CompanyMember::uuid)
+                        .orElse(null));
+    }
+
+    /**
+     * Releases the company's orders, empties its treasury and deletes the company. Blocks, so it must not run on the
+     * main thread.
+     *
+     * @param company company to dissolve
+     * @param actor   owner or admin dissolving it
+     * @return true if the company was deleted
+     */
+    public boolean disband(CompanyProfile company, @Nullable UUID actor) {
         var released = orderData.submitCompanyOrdersPurge(company).join();
         if (released != null) {
             for (var release : released.releases()) {
@@ -55,7 +89,12 @@ public class DisbandService {
                 notificationService.notifyOrderOpen(release.order());
             }
         }
-        if (!Boolean.TRUE.equals(companyData.submitCompanyPurge(company).join())) return false;
+        var drained = treasuryService.drain(company, actor).join();
+        if (!Boolean.TRUE.equals(companyData.submitCompanyPurge(company).join())) {
+            treasuryService.undoDrain(company, drained, actor).join();
+            return false;
+        }
+        treasuryService.payOwner(company, drained);
         Threading.mainThread(plugin)
                 .execute(() -> plugin.getServer().getPluginManager().callEvent(new CompanyDisbandEvent(company)));
         return true;

@@ -9,9 +9,11 @@ import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.configuration.elements.companysettings.TreasurySettings;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
@@ -21,6 +23,7 @@ import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
@@ -30,10 +33,12 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -135,7 +140,31 @@ class ItemReturnServiceTest {
                 NotificationSettings::new,
                 (player, type, args) -> {},
                 Runnable::run);
-        var disband = new DisbandService(plugin, companyData, orders.orderData(), service, notifications);
+        var treasury = new TreasuryService(
+                new SqLiteTreasuryData(executor),
+                new TreasuryService.Wallet() {
+                    @Override
+                    public boolean withdraw(OfflinePlayer player, double amount) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean deposit(OfflinePlayer player, double amount) {
+                        return false;
+                    }
+
+                    @Override
+                    public String format(double amount) {
+                        return String.valueOf(amount);
+                    }
+                },
+                TreasurySettings::new,
+                (recipient, type, args) -> {},
+                event -> {},
+                Runnable::run,
+                Clock.systemDefaultZone(),
+                Logger.getLogger("ItemReturnServiceTest"));
+        var disband = new DisbandService(plugin, companyData, orders.orderData(), service, notifications, treasury);
         var profile = companyData
                 .retrieveCompanyProfile(
                         companyData.retrieveCompanyById(company).join().orElseThrow())
