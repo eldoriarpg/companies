@@ -12,7 +12,9 @@ import de.eldoria.companies.components.order.IFullOrder;
 import de.eldoria.companies.components.order.IOrderDraft;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderSource;
+import de.eldoria.companies.events.components.PlayerProvider;
 import de.eldoria.companies.testing.Stubs;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -23,6 +25,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -157,6 +160,69 @@ class OrderEventsTest {
         assertEquals(81.0, event.amount());
         assertEquals(10.0, event.tax());
         assertEquals(9.0, event.share());
+    }
+
+    @Test
+    void soloEventsCarryTheWorkerAndNoCompany() {
+        var worker = server.addPlayer();
+        var order = order(OWNER, 0);
+
+        var accept = new SoloOrderAcceptEvent(order, worker);
+        var abort = new SoloOrderAbortEvent(order, worker);
+        var expired = new SoloOrderExpiredEvent(order, worker);
+        var done = new SoloOrderDoneEvent(order, worker);
+        var received = new SoloOrderReceivedEvent(order, worker);
+
+        for (var event : List.of(accept, abort, expired, done)) {
+            assertSame(worker, ((PlayerProvider<?>) event).player());
+            assertSame(order, event.order());
+            assertTrue(event.isAsynchronous());
+        }
+        assertSame(worker, received.player());
+        assertEquals(OWNER, received.owner().getUniqueId());
+        assertThrows(NullPointerException.class, () -> new SoloOrderAcceptEvent(order, null));
+    }
+
+    @Test
+    void preSoloOrderAcceptIsCancelledWithAReason() {
+        var worker = server.addPlayer();
+        var event = new PreSoloOrderAcceptEvent(order(OWNER, 0), worker);
+        var reason = Component.text("Not today");
+
+        event.cancel(reason);
+
+        assertSame(worker, event.player());
+        assertTrue(event.isCancelled());
+        assertEquals(Optional.of(reason), event.cancelReason());
+        event.setCancelled(false);
+        assertEquals(Optional.empty(), event.cancelReason());
+    }
+
+    @Test
+    void soloDeliveryKeepsACopyOfTheDeliveries() {
+        var worker = server.addPlayer();
+        var stack = Stubs.of(IDeliveredStack.class, Map.of("amount", 2));
+        var deliveries = new ArrayList<IDeliveredStack>(List.of(stack));
+
+        var event = new SoloOrderDeliveryEvent(order(OWNER, 0), worker, deliveries);
+        deliveries.clear();
+
+        assertEquals(List.of(stack), event.deliveries());
+        assertSame(worker, event.player());
+    }
+
+    @Test
+    void soloPaymentIsTaxedAndCancellable() {
+        var worker = server.addPlayer();
+
+        var event = new SoloOrderPaymentEvent(order(OWNER, 0), worker, 95.0, 100.0, 5.0);
+        event.setCancelled(true);
+
+        assertEquals(95.0, event.amount());
+        assertEquals(100.0, event.gross());
+        assertEquals(5.0, event.tax());
+        assertTrue(event.isCancelled());
+        assertTrue(event.isAsynchronous());
     }
 
     private static IFullOrder order(UUID owner, int company) {

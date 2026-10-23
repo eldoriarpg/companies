@@ -14,7 +14,8 @@ import org.jetbrains.annotations.NotNull;
 /**
  * A company did not deliver a claimed order in time; the order is open again for other companies.
  * <p>
- * Fired after the order was released, off the main thread, on the primary server of a network.
+ * Fired after the order was released, off the main thread, on the primary server of a network. A player running
+ * out of time on an order they work on alone fires {@link SoloOrderExpiredEvent} instead.
  * <p>
  * Orders are anonymous: never show the owner to the company's members or the company to the owner.
  */

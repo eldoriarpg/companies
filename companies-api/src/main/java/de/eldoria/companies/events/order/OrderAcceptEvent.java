@@ -15,7 +15,8 @@ import org.jetbrains.annotations.NotNull;
  * A company accepted an order and claimed it.
  * <p>
  * Fired after the order was claimed, off the main thread. It fires only on the server where the order was accepted.
- * {@link PreOrderAcceptEvent} is fired before and can prevent it.
+ * {@link PreOrderAcceptEvent} is fired before and can prevent it. A player claiming an order alone fires
+ * {@link SoloOrderAcceptEvent} instead.
  * <p>
  * Orders are anonymous: never show the owner to the company's members or the company to the owner.
  */

@@ -18,7 +18,8 @@ import java.util.Objects;
  * The owner received the items of a delivered order.
  * <p>
  * Fired after the order changed to {@link de.eldoria.companies.components.order.OrderState#RECEIVED}, usually off the
- * main thread; the event may be asynchronous. It fires only on the server where the owner received the order.
+ * main thread; the event may be asynchronous. It fires only on the server where the owner received the order. An
+ * order a player delivered alone fires {@link SoloOrderReceivedEvent} instead.
  * <p>
  * Orders are anonymous: never show the {@link #company() company} to the owner.
  */

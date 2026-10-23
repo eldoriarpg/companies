@@ -22,6 +22,7 @@ import java.util.Objects;
  * Fired once per worker of the order, off the main thread. The worker receives {@link #amount()}, which is the
  * {@link #gross()} share of the order price minus the {@link #tax()} and minus the {@link #share()} the company keeps
  * in its treasury. A cancelled payment is neither paid, taxed nor shared. It fires only on the server where the order was completed.
+ * A player paid for an order they completed alone fires {@link SoloOrderPaymentEvent} instead.
  * <p>
  * Orders are anonymous: the worker must not learn who placed the order.
  */

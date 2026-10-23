@@ -112,11 +112,13 @@ public class ItemsReturnedEvent extends Event implements PlayerProvider<OfflineP
      */
     public enum Reason {
         /**
-         * The company aborted the order; the worker gets back what they delivered.
+         * The company or the player working on the order alone aborted it; the worker gets back what they
+         * delivered.
          */
         ORDER_ABORTED,
         /**
-         * The company did not deliver the order in time; the worker gets back what they delivered.
+         * The company or the player working on the order alone did not deliver it in time; the worker gets back
+         * what they delivered.
          */
         ORDER_EXPIRED,
         /**
@@ -124,7 +126,8 @@ public class ItemsReturnedEvent extends Event implements PlayerProvider<OfflineP
          */
         COMPANY_DISBANDED,
         /**
-         * An admin cancelled the order or took it away from the company; the worker gets back what they delivered.
+         * An admin cancelled the order or took it away from the company or the solo worker; the worker gets back
+         * what they delivered.
          */
         ADMIN_RELEASE,
         /**
