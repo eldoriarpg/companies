@@ -39,6 +39,7 @@ public final class Reload {
         var updates = deps.services().updates();
         deps.configuration().reload();
         updates.apply();
+        deps.adminLog().entry(player, "reload").write();
         deps.messages().sendMessage(player, "companyadmin.reload.done");
     }
 }

@@ -177,7 +177,45 @@ public enum NotificationType {
     /**
      * A member changed the company profile. Arguments: {@code player_name} (member).
      */
-    PROFILE_CHANGED(30, "notification.profileChanged", NotificationCategory.COMPANY, false, null);
+    PROFILE_CHANGED(30, "notification.profileChanged", NotificationCategory.COMPANY, false, null),
+    /**
+     * An admin took an order away from the company; the delivered items went back to the workers. Arguments:
+     * {@code order_name}.
+     */
+    ORDER_UNCLAIMED_BY_ADMIN(31, "notification.orderUnclaimedByAdmin", NotificationCategory.ORDERS, true, null),
+    /**
+     * An admin deleted an order the company worked on; the delivered items went back to the workers. Arguments:
+     * {@code order_name}.
+     */
+    ORDER_CANCELLED_BY_ADMIN(32, "notification.orderCancelledByAdmin", NotificationCategory.ORDERS, true, null),
+    /**
+     * An admin deleted the player's order and refunded it. Arguments: {@code order_name}, {@code amount}.
+     */
+    MY_ORDER_CANCELLED_BY_ADMIN(
+            33, "notification.ownerOrderCancelledByAdmin", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * An admin deleted the player's order without a refund. Arguments: {@code order_name}.
+     */
+    MY_ORDER_CANCELLED_BY_ADMIN_KEPT(
+            34, "notification.ownerOrderCancelledByAdminKept", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * An admin marked the player's partly delivered order as delivered and refunded the missing items. Arguments:
+     * {@code order_name}, {@code amount}.
+     */
+    MY_ORDER_PARTLY_REFUNDED(35, "notification.ownerOrderPartlyRefunded", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * An admin gave the player items to collect. Arguments: {@code amount}.
+     */
+    ITEMS_GRANTED(
+            36,
+            "notification.itemsGranted",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order collect", "words.collect")),
+    /**
+     * An admin gave the player money. Arguments: {@code amount}.
+     */
+    MONEY_GRANTED(37, "notification.moneyGranted", NotificationCategory.PAYMENTS, false, null);
 
     private final int id;
     private final String key;

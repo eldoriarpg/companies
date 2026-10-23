@@ -44,6 +44,7 @@ public final class CalcLevel {
                 }
             }
         });
+        deps.adminLog().entry(sender, "calclevel").write();
         deps.messages().sendMessage(sender, "companyadmin.calcLevel.start");
     }
 }

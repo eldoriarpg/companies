@@ -44,6 +44,6 @@ public final class Create {
     @Executes
     public void create(CommandSender sender, @LevelNumbers int index) {
         var player = Senders.player(sender);
-        editor.info(player, editor.create(index));
+        editor.info(player, editor.createLevel(player, index));
     }
 }
