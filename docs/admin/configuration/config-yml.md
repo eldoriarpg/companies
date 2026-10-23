@@ -157,7 +157,7 @@ See [Economy](../economy.md) for where money goes.
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `pollSeconds` | number (seconds) | `10` | How often each server looks for notifications sent to its players from another server. At least 1. With [Redis](../multiserver.md#redis) they arrive at once, and the server looks only every 300 seconds, or every `pollSeconds` if that is longer. | reload |
+| `pollSeconds` | number (seconds) | `10` | How often each server looks for notifications sent to its players from another server. At least 1. With [Redis](../multiserver.md#redis) or [low latency mode](../multiserver.md#low-latency-mode) they arrive at once, and this is only a slow fallback: the server looks only every 300 seconds, or every `pollSeconds` if that is longer. | reload |
 | `retentionDays` | number (days) | `30` | How long notifications stay in the inbox, read or not. At least 1. Cleaned up by the primary server. | reload |
 | `pageSize` | number | `10` | Notifications on one inbox page. From 1 to 50. | reload |
 | `actionBar` | true/false | `true` | Also show important notifications on the action bar. | reload |
@@ -171,7 +171,7 @@ The PlaceholderAPI values are kept in memory. These keys set how.
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `refreshSeconds` | number (seconds) | `300` | How often the values are loaded again. At least 10. | reload |
+| `refreshSeconds` | number (seconds) | `300` | How often the values are loaded again. At least 10. With [Redis](../multiserver.md#redis) or [low latency mode](../multiserver.md#low-latency-mode), changes on any server reach the values at once, and this is only a fallback. | reload |
 | `offlineCacheSize` | number | `500` | How many offline players and companies have their values kept. At least 1. | restart |
 | `leaderboardSize` | number | `10` | How many places of each ranking the `top_` placeholders can read. At least 1. | reload |
 | `loadingText` | text | `''` | Text shown while a value is loaded for the first time. | reload |
@@ -182,7 +182,7 @@ See [Placeholders](../../reference/placeholders.md).
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `cacheSeconds` | number (seconds) | `30` | How long a page of `/company top` and the place of a company are kept. `0` turns the cache off. A reload also empties the cache. | reload |
+| `cacheSeconds` | number (seconds) | `30` | How long a page of `/company top` and the place of a company are kept. `0` turns the cache off. A reload also empties the cache. With [Redis](../multiserver.md#redis) or [low latency mode](../multiserver.md#low-latency-mode), a changed ranking on any server empties it at once, and this is only a fallback. | reload |
 
 ## boards
 

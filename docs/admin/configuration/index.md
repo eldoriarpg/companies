@@ -67,6 +67,6 @@ To change a shared setting in a network:
 
 1. Edit the file on the primary server.
 2. Run `/companyadmin reload` on the primary, then `/companyadmin syncconfiguration` on the primary.
-3. Run `/companyadmin syncconfiguration` on every secondary. It saves the new files and applies them at once, like a reload. With [Redis](../multiserver.md#redis), the secondaries do this on their own after step 2.
+3. Run `/companyadmin syncconfiguration` on every secondary. It saves the new files and applies them at once, like a reload. With [Redis](../multiserver.md#redis) or [low latency mode](../multiserver.md#low-latency-mode), the secondaries do this on their own after step 2.
 
 The reload in step 2 matters: `syncconfiguration` writes what the primary has loaded, not what is in its files. Settings marked **restart** need a restart of each server that should pick them up.

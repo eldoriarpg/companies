@@ -28,6 +28,8 @@ redis:
   ssl: false
   database: 0
   channelPrefix: companies
+messaging:
+  lowLatency: false
 ```
 
 ## Keys
@@ -78,5 +80,16 @@ All servers of a network need the same `host`, `port`, `database` and `channelPr
 
 With `env:`, the password never appears in the file or the logs. If the variable is not set, Companies logs a warning
 and runs without Redis. The debug report masks the password either way.
+
+## messaging
+
+How the servers of a network send each other messages without Redis. A single server does not need it.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `lowLatency` | true/false | `false` | Turn on [low latency mode](../multiserver.md#low-latency-mode): the servers send each other messages through a table in the database, and every server reads it every second. With Redis set up as well, it is used while Redis can not be reached. |
+
+Use the same value on all servers of a network. Each server reads the table once per second, so this costs one small
+query per second for each server.
 
 See [Installation](../../getting-started/installation.md) for choosing a database, and [Several servers](../multiserver.md) for networks.

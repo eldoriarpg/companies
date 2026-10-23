@@ -15,7 +15,7 @@ database, so players see the same orders and companies everywhere.
 - **The same Companies version** on every server.
 - **Exactly one primary server.** All other servers are secondary.
 - **Optional: a Redis server.** With Redis, the servers tell each other about changes at once. See
-  [Redis](#redis).
+  [Redis](#redis). Without Redis, [low latency mode](#low-latency-mode) does nearly the same through the database.
 
 Set up the database in `database.yml` on each server. See [database.yml](./configuration/database-yml.md).
 
@@ -96,8 +96,8 @@ The copy happens at two moments only:
 - when a server starts,
 - when you run `/companyadmin syncconfiguration` on that server.
 
-With [Redis](#redis), a secondary also copies the files whenever the primary writes them: when the primary starts and
-when you run `/companyadmin syncconfiguration` on the primary.
+With [Redis](#redis) or in [low latency mode](#low-latency-mode), a secondary also copies the files whenever the
+primary writes them: when the primary starts and when you run `/companyadmin syncconfiguration` on the primary.
 
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
@@ -106,8 +106,8 @@ To change the configuration of a running network:
 1. Edit the files on the primary server.
 2. Run `/companyadmin reload` on the primary, so it reads your changes.
 3. Run `/companyadmin syncconfiguration` on the primary. It writes the files to the database.
-4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database. With Redis, skip
-   this step: every connected secondary copies and applies the files on its own.
+4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database. With Redis or in
+   low latency mode, skip this step: every connected secondary copies and applies the files on its own.
 
 Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.
@@ -129,6 +129,7 @@ Some work runs on a timer. To do it once for the whole network, only the primary
 | Expire old invites and applications | Every 5 minutes |
 | Update market prices | Every 60 minutes |
 | Delete old inbox entries, history entries and treasury log entries | Every 60 minutes |
+| Delete messages older than a minute from the message table ([low latency mode](#low-latency-mode) only) | Every 30 seconds |
 
 If the primary server is down, these jobs wait until it is back. Orders do not expire and repeating orders do not
 post in the meantime. Everything else keeps working on the other servers.
@@ -138,7 +139,7 @@ post in the meantime. Everything else keeps working on the other servers.
 A notification for a player who is online on the same server is shown at once. For a player on another server, it is
 stored in the inbox. Every server checks the inbox every `notifications.pollSeconds` seconds (default `10`) and shows
 new entries to its players. So a message from another server can take a few seconds. With [Redis](#redis), it
-arrives at once.
+arrives at once, and in [low latency mode](#low-latency-mode) within about a second.
 
 When players join any server, they get a summary of their unread notifications.
 
@@ -159,7 +160,8 @@ Some things are updated on each server on their own:
 - **The company ranking** (`/company top`) is cached on each server for `top.cacheSeconds`.
 - **The Discord webhook limits** count for each server.
 
-With [Redis](#redis), the first three follow changes on every server at once.
+With [Redis](#redis) or in [low latency mode](#low-latency-mode), the first three follow changes on every server at
+once.
 
 ## Redis
 
@@ -193,9 +195,9 @@ The inbox is still checked with Redis, in case a message was missed, but only ev
 3. Put the password into an environment variable, by default `COMPANIES_REDIS_PASSWORD`, so it is not in the file.
 4. Restart the servers.
 
-Each server logs `Connected to Redis at <host>:<port>.` when it starts. `/companyadmin node list` shows `Redis
-connected` for this server, and for every other server it heard from in the last minute and a half. A server
-without Redis shows `-` there.
+Each server logs `Connected to Redis at <host>:<port>.` when it starts. `/companyadmin node list` shows `messages
+Redis` for this server, and the same for every other server it heard from in the last minute and a half. A server it
+did not hear from shows `-` there.
 
 Several networks can share one Redis server when each network uses its own `channelPrefix`. If a server receives a
 message from a server that is not in its database, it logs a warning naming that server once: two networks use the
@@ -204,14 +206,68 @@ same prefix.
 ### When Redis is away
 
 Nothing breaks without Redis. A server that cannot reach Redis logs it and works as without Redis: it checks the inbox
-every `notifications.pollSeconds` again and lets its caches run out as usual. It keeps trying to connect, first after
-a second and then less often, up to every 30 seconds. Once it is back, it drops its cached values once, since it may
-have missed changes, and switches back to the fast way.
+every `notifications.pollSeconds` again and lets its caches run out as usual. With `messaging.lowLatency: true` in
+`database.yml`, it uses [low latency mode](#low-latency-mode) instead until Redis is back, so messages still arrive
+within about a second. It keeps trying to connect, first after a second and then less often, up to every 30 seconds.
+Once it is back, it drops its cached values once, since it may have missed changes, and switches back to Redis. The
+switch to low latency mode drops them once as well.
 
 A server with `enabled: true` whose password variable is not set logs that and does not use Redis until it is
 restarted with the variable set.
 
 The [debug report](./admin-commands.md) shows the Redis state of the server and its address, never the password.
+
+## Low latency mode
+
+Low latency mode gives a network without Redis nearly the same: the servers send each other the same messages Redis
+would carry, through a table in the database. Every server reads new messages from that table every second. Turn it on
+with `messaging.lowLatency: true` in `database.yml` on **every** server and restart them. See
+[database.yml](./configuration/database-yml.md#messaging).
+
+### What it changes
+
+Everything in the table under [What gets faster](#what-gets-faster) behaves as with Redis, except that changes take up
+to a second instead of arriving at once. Notifications for a player on another server, placeholder values,
+`/company top`, order details, market prices, tab completions and the configuration from the primary all follow
+changes on any server within about a second.
+
+This mode takes over from the interval settings. While it is on, `notifications.pollSeconds`,
+`placeholders.refreshSeconds` and `top.cacheSeconds` no longer decide how fast changes show up. They stay as a slow
+safety fallback, in case a message was missed, exactly as with Redis. Each server says so in its log when it starts:
+`Low latency mode is on: ...`.
+
+The table only carries signals. The primary server deletes messages older than a minute every 30 seconds. All data
+stays in its own tables.
+
+### What it costs
+
+Each server runs one small query per second on the table, plus one short insert for each change it announces. For a
+network of five servers, that is five queries per second on the database. The query only reads the rows written
+since the last second, through the primary key, so it stays cheap even on a busy network.
+
+### Redis or low latency mode
+
+| | Redis | Low latency mode |
+|---|---|---|
+| Delay | at once | up to a second |
+| Extra service to run | a Redis server | none |
+| Load on the database | none | one query per second per server |
+| Works with | MariaDB, PostgreSQL | MariaDB, PostgreSQL |
+
+- **Choose Redis** if you already run one, for large networks, or when every query on the database counts.
+- **Choose low latency mode** for a small or medium network without Redis, when a second of delay is fine.
+- **Use both** to keep messages fast while Redis is away: with Redis set up and `lowLatency: true`, a server uses the
+  table only while it can not reach Redis, and goes back to Redis once it is back.
+
+Low latency mode also works with SQLite, but there is only one server then, which has nothing to tell.
+
+### Checking it
+
+`/companyadmin node list` shows `messages low latency` for this server, and for every other server it heard from in
+the last minute and a half. While Redis is away on a server that uses both, it shows `low latency until Redis is
+back`. When the table can not be read, for example while the database is down, the server falls back to polling and
+logs it once, and switches back by itself once it can read the table again. The [debug report](./admin-commands.md)
+shows which way the server sends its messages and whether that works.
 
 ## Admin tools on a network
 
