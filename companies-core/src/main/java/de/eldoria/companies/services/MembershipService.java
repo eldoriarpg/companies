@@ -209,6 +209,25 @@ public final class MembershipService {
     }
 
     /**
+     * Adds a player to a company regardless of its join mode, as plugins do through the API. The member limit applies;
+     * the player gets no permissions.
+     *
+     * @param company id of the company
+     * @param player  id of the player
+     * @return the result of the join
+     */
+    public CompletableFuture<JoinResult> addMember(int company, UUID player) {
+        return CompletableFuture.supplyAsync(
+                () -> companyData
+                        .retrieveCompanyById(company)
+                        .asFuture()
+                        .join()
+                        .map(found -> join(players.apply(player), found))
+                        .orElse(JoinResult.UNKNOWN_COMPANY),
+                executor);
+    }
+
+    /**
      * Applies to a company that accepts applications.
      *
      * @param player      applying player
@@ -608,16 +627,22 @@ public final class MembershipService {
         var optCompany = companyData.retrieveCompanyById(companyId).asFuture().join();
         if (optCompany.isEmpty()) return Outcome.failure("error.unknownCompany");
         var company = optCompany.get();
-        var result = membershipData
-                .submitJoin(companyId, player.getUniqueId(), maxMembers(company))
-                .join();
+        var result = join(player, company);
         if (result != JoinResult.JOINED) return refusedJoin(result, alreadyMemberKey);
+        return Outcome.success("company.join.joined", Values.text(COMPANY_NAME, company.name()));
+    }
+
+    private JoinResult join(OfflinePlayer player, ISimpleCompany company) {
+        var result = membershipData
+                .submitJoin(company.id(), player.getUniqueId(), maxMembers(company))
+                .join();
+        if (result != JoinResult.JOINED) return result;
         companyData
                 .retrieveCompanyProfile(company)
                 .asFuture()
                 .join()
                 .ifPresent(profile -> events.joined(profile, player));
-        return Outcome.success("company.join.joined", Values.text(COMPANY_NAME, company.name()));
+        return result;
     }
 
     private static Outcome refusedJoin(JoinResult result, String alreadyMemberKey) {

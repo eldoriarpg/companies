@@ -12,6 +12,7 @@ import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
@@ -219,6 +220,27 @@ class MembershipServiceTest {
         assertEquals(List.of("joined Miners Outsider 4"), events);
         assertEquals(List.of(NotificationType.INVITE_ACCEPTED), notificationsOf(recruiter));
         assertTrue(service.invites(outsider).join().received().isEmpty());
+    }
+
+    @Test
+    void addedMemberJoinsWithoutInviteAndFiresTheJoin() {
+        assertEquals(
+                JoinResult.JOINED,
+                service.addMember(miners, outsider.getUniqueId()).join());
+
+        assertTrue(isMemberOf(miners, outsider));
+        assertEquals(List.of("joined Miners Outsider 4"), events);
+    }
+
+    @Test
+    void addMemberReportsWhyThePlayerWasNotAdded() {
+        assertEquals(
+                JoinResult.ALREADY_MEMBER,
+                service.addMember(miners, worker.getUniqueId()).join());
+        assertEquals(
+                JoinResult.UNKNOWN_COMPANY,
+                service.addMember(999, outsider.getUniqueId()).join());
+        assertTrue(events.isEmpty());
     }
 
     @Test
