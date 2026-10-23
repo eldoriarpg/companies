@@ -17,6 +17,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -83,7 +84,20 @@ class NodeMessagingTest {
                             return List.of(SELF, OTHER);
                         }),
                 timer);
+        awaitFirstHeartbeat();
         return messaging;
+    }
+
+    /**
+     * Waits until the heartbeat sent at start put the players of this node into the presence, so it can not interleave
+     * with the messages a test sends.
+     */
+    private void awaitFirstHeartbeat() {
+        var deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (!presence.nodeOf(PLAYER).equals(Optional.of(SELF))) {
+            if (System.nanoTime() > deadline) throw new AssertionError("Timed out waiting for the first heartbeat");
+            Thread.onSpinWait();
+        }
     }
 
     @Test
