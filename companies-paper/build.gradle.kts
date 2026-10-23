@@ -137,7 +137,8 @@ bukkit {
                 "companies.admin.player",
                 "companies.admin.reload",
                 "companies.admin.rename",
-                "companies.admin.transferOwner"
+                "companies.admin.transferOwner",
+                "companies.admin.treasury"
             )
         }
         register("companies.admin") {
@@ -169,6 +170,9 @@ bukkit {
         }
         register("companies.admin.transferOwner") {
             description = "Allows transferring company ownership"
+        }
+        register("companies.admin.treasury") {
+            description = "Allows inspecting company treasuries and adding or removing money"
         }
     }
 }

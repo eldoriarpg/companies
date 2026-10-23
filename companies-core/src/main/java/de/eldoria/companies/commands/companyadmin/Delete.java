@@ -61,7 +61,7 @@ public final class Delete {
                         messages().sendError(player, "error.unknownCompany");
                         return;
                     }
-                    if (!disbandService.disband(profile.get())) {
+                    if (!disbandService.disband(profile.get(), player.getUniqueId())) {
                         messages().sendError(player, "company.disband.failed");
                         return;
                     }

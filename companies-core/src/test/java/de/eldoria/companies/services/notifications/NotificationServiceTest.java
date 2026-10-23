@@ -5,10 +5,13 @@
  */
 package de.eldoria.companies.services.notifications;
 
+import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
+import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.eldoutilities.localization.ILocalizer;
@@ -90,6 +93,37 @@ class NotificationServiceTest {
         var entry = data.only();
         assertEquals(owner, entry.recipient());
         assertEquals(NotificationType.MY_ORDER_REMOVED, entry.type());
+    }
+
+    @Test
+    void sharedPaymentShowsTheTreasuryShare() {
+        var order = new SimpleOrder(UUID.randomUUID(), "Wood", 0);
+        var event = new OrderPaymentEvent(order, ISimpleCompany.forId(1), online, 81.0, 100.0, 10.0, 9.0);
+
+        service.onOrderPayment(event);
+
+        var entry = awaitOnly();
+        assertEquals(NotificationType.PAYMENT_SHARED, entry.type());
+        assertEquals("9.0", entry.args().values().get("share").value());
+        assertEquals("81.0", entry.args().values().get("amount").value());
+    }
+
+    @Test
+    void paymentWithoutShareStaysTaxed() {
+        var order = new SimpleOrder(UUID.randomUUID(), "Wood", 0);
+        var event = new OrderPaymentEvent(order, ISimpleCompany.forId(1), online, 90.0, 100.0, 10.0, 0.0);
+
+        service.onOrderPayment(event);
+
+        assertEquals(NotificationType.PAYMENT_TAXED, awaitOnly().type());
+    }
+
+    private InboxEntry awaitOnly() {
+        var deadline = System.currentTimeMillis() + 5_000;
+        while (data.all().isEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.onSpinWait();
+        }
+        return data.only();
     }
 
     @Test

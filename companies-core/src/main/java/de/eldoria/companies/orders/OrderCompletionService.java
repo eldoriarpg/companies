@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
@@ -15,6 +16,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
+import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.util.Threading;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
@@ -39,9 +41,10 @@ import java.util.logging.Level;
  * <p>
  * Completing marks the order delivered, which succeeds once per order, so a completion that lost a race does nothing.
  * Settling a delivered order fires {@link OrderDoneEvent}, pays every worker their share minus the tax of the
- * company's level, hands the fee and the taxes to the collector, writes one payout record per worker to the ledger
- * and records the company's history entry. A payment whose {@link OrderPaymentEvent} was cancelled is not paid and
- * is written to the ledger as not paid. Events are fired off the main thread, as they are asynchronous.
+ * company's level and minus the company's treasury share, hands the fee and the taxes to the collector, credits the
+ * treasury shares to the company in one transaction, writes one payout record per worker to the ledger and records
+ * the company's history entry. A payment whose {@link OrderPaymentEvent} was cancelled is not paid and
+ * is written to the ledger as not paid; it is neither taxed nor shared. Events are fired off the main thread, as they are asynchronous.
  */
 public final class OrderCompletionService {
     private final Plugin plugin;
@@ -83,8 +86,8 @@ public final class OrderCompletionService {
     }
 
     /**
-     * The service of a running plugin: Vault pays the workers, the collector account gets fee and taxes, and the
-     * configuration gives the tax of a level.
+     * The service of a running plugin: Vault pays the workers, the collector account gets fee and taxes, the company
+     * treasury gets the payout shares, and the configuration gives the tax of a level.
      *
      * @param plugin        the plugin
      * @param orderData     order repository
@@ -92,6 +95,7 @@ public final class OrderCompletionService {
      * @param history       records the company's history entry
      * @param economy       economy paying the workers
      * @param configuration configuration of the plugin
+     * @param treasuries    the company treasuries
      * @return the service
      */
     public static OrderCompletionService create(
@@ -100,7 +104,8 @@ public final class OrderCompletionService {
             AStatsData statsData,
             HistoryRecorder history,
             Economy economy,
-            Configuration configuration) {
+            Configuration configuration,
+            TreasuryService treasuries) {
         var collector = new Collector(plugin, economy, configuration);
         Treasury treasury = new Treasury() {
             @Override
@@ -111,6 +116,16 @@ public final class OrderCompletionService {
             @Override
             public void collect(double amount) {
                 collector.collect(amount);
+            }
+
+            @Override
+            public int payoutShare(ISimpleCompany company) {
+                return treasuries.effectiveShare(company.id()).join();
+            }
+
+            @Override
+            public void keep(ISimpleCompany company, int order, long cents) {
+                treasuries.keepShare(company, order, cents);
             }
         };
         return new OrderCompletionService(
@@ -152,15 +167,18 @@ public final class OrderCompletionService {
     private Completion pay(FullOrder order, CompanyProfile company) {
         plugin.getServer().getPluginManager().callEvent(new OrderDoneEvent(order, company));
         var percent = taxPercent.applyAsDouble(company.level());
+        var sharePercent = treasury.payoutShare(company);
         var completed = LocalDateTime.now(clock);
         var items = itemsByWorker(order);
         List<PayoutRecord> ledger = new ArrayList<>();
         var collected = BigDecimal.valueOf(order.fee());
+        var kept = 0L;
         for (var entry : order.payments(PaymentType.STACK).entrySet()) {
             var worker = entry.getKey();
             var player = plugin.getServer().getOfflinePlayer(worker);
-            var payout = Payout.split(entry.getValue(), percent);
-            var event = new OrderPaymentEvent(order, company, player, payout.net(), payout.gross(), payout.tax());
+            var payout = Payout.split(entry.getValue(), percent, sharePercent);
+            var event = new OrderPaymentEvent(
+                    order, company, player, payout.net(), payout.gross(), payout.tax(), payout.share());
             plugin.getServer().getPluginManager().callEvent(event);
             var paid = !event.isCancelled();
             ledger.add(
@@ -168,8 +186,10 @@ public final class OrderCompletionService {
             if (!paid) continue;
             treasury.pay(player, payout.net());
             collected = collected.add(BigDecimal.valueOf(payout.tax()));
+            kept += payout.shareCents();
         }
         treasury.collect(collected.doubleValue());
+        if (kept > 0) treasury.keep(company, order.id(), kept);
         return new Completion(order, List.copyOf(ledger));
     }
 
@@ -209,7 +229,7 @@ public final class OrderCompletionService {
      * @param company   id of the company that completed it
      * @param worker    paid worker
      * @param items     items the worker delivered
-     * @param payout    the worker's share split into tax and net
+     * @param payout    the worker's share split into tax, treasury share and net
      * @param paid      false when the payment was cancelled
      * @param completed when the order was completed
      * @return record
@@ -223,7 +243,16 @@ public final class OrderCompletionService {
             boolean paid,
             LocalDateTime completed) {
         return new PayoutRecord(
-                order.id(), company, worker, items, payout.gross(), payout.tax(), payout.net(), paid, completed);
+                order.id(),
+                company,
+                worker,
+                items,
+                payout.gross(),
+                payout.tax(),
+                payout.share(),
+                payout.net(),
+                paid,
+                completed);
     }
 
     /**
@@ -244,6 +273,26 @@ public final class OrderCompletionService {
          * @param amount amount collected
          */
         void collect(double amount);
+
+        /**
+         * The share of each payout the company keeps in its treasury, limited by the current cap. Called once per
+         * completion, off the main thread.
+         *
+         * @param company company that completed the order
+         * @return share in percent of the amount after tax
+         */
+        default int payoutShare(ISimpleCompany company) {
+            return 0;
+        }
+
+        /**
+         * Credits the treasury shares of an order to the company.
+         *
+         * @param company company that completed the order
+         * @param order   id of the order
+         * @param cents   sum of the shares of the paid workers, in cents
+         */
+        default void keep(ISimpleCompany company, int order, long cents) {}
     }
 
     /**

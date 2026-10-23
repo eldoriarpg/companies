@@ -19,6 +19,7 @@ import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
+import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
@@ -75,6 +76,8 @@ import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.RefreshService;
+import de.eldoria.companies.services.TreasuryLogRetention;
+import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -161,7 +164,7 @@ public class Companies extends EldoPlugin {
         registerCommands();
         api = CompaniesApiImpl.create(
                 this,
-                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats()),
+                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats(), economy.treasury()),
                 Threading.VIRTUAL);
         api.register(this);
     }
@@ -184,6 +187,7 @@ public class Companies extends EldoPlugin {
                 ILocalizer.getPluginLocalizer(this),
                 Threading.VIRTUAL));
         MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
+        TreasurySources.use(new TreasurySources(companyData, economy.treasury(), Threading.VIRTUAL));
         CompanyOrderSources.use(
                 new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
         getLifecycleManager()
@@ -222,7 +226,10 @@ public class Companies extends EldoPlugin {
 
         var notificationService = NotificationService.create(
                 this, information.inbox(), orderData, workerPool, configuration::notificationSettings);
-        var disbandService = new DisbandService(this, companyData, orderData, itemReturnService, notificationService);
+        var treasuryService =
+                TreasuryService.create(this, this.economy.treasury(), economy, configuration, notificationService);
+        var disbandService = new DisbandService(
+                this, companyData, orderData, itemReturnService, notificationService, treasuryService);
         var membershipService = MembershipService.create(
                 this,
                 companyData,
@@ -234,7 +241,7 @@ public class Companies extends EldoPlugin {
         var historyRecorder = new HistoryRecorder(information.history(), Clock.systemDefaultZone());
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
-                this, orderData, information.stats(), historyRecorder, economy, configuration);
+                this, orderData, information.stats(), historyRecorder, economy, configuration, treasuryService);
 
         var orderCreation = new OrderCreationService(
                 orderData,
@@ -262,7 +269,8 @@ public class Companies extends EldoPlugin {
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
                     orderCompletion,
-                    orderCreation));
+                    orderCreation,
+                    treasuryService));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
@@ -276,6 +284,12 @@ public class Companies extends EldoPlugin {
             new HistoryRetention(
                             information.history(),
                             () -> configuration.generalSettings().historyDays(),
+                            Clock.systemDefaultZone(),
+                            getLogger())
+                    .start(workerPool);
+            new TreasuryLogRetention(
+                            this.economy.treasury(),
+                            () -> configuration.companySettings().treasury().logRetentionDays(),
                             Clock.systemDefaultZone(),
                             getLogger())
                     .start(workerPool);
@@ -295,6 +309,7 @@ public class Companies extends EldoPlugin {
                     companyData,
                     orderData,
                     information.stats(),
+                    this.economy.treasury(),
                     economy,
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();
@@ -313,6 +328,7 @@ public class Companies extends EldoPlugin {
         if (commands != null) commands.withdraw();
         SuggestionSources.clear();
         CompanyOrderSources.clear();
+        TreasurySources.clear();
         MembershipSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();

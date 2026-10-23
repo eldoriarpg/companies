@@ -22,6 +22,8 @@ import java.util.Optional;
  * @param orders       completed orders, failed ones subtracted
  * @param earned       money earned with completed orders, before tax
  * @param delivered    items delivered to completed orders
+ * @param treasury     balance of the treasury
+ * @param payoutShare  share of each payout kept in the treasury, limited by the current cap, in percent
  */
 public record CompanyView(
         int id,
@@ -35,4 +37,6 @@ public record CompanyView(
         Optional<String> color,
         int orders,
         double earned,
-        int delivered) {}
+        int delivered,
+        double treasury,
+        int payoutShare) {}
