@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -51,6 +52,7 @@ public final class CommandDependencies {
     private final ANodeData nodeData;
     private final AMembershipData membershipData;
     private final InformationData information;
+    private final EconomyData economy;
     private final OrderDraftService drafts;
     private final SearchSessions searches = new SearchSessions();
     private volatile Optional<Services> services = Optional.empty();
@@ -63,6 +65,7 @@ public final class CommandDependencies {
      * @param nodeData       node repository
      * @param membershipData invite and application repository
      * @param information    inbox, payout ledger and history repositories
+     * @param economy        treasury, repeating order and alert repositories
      */
     public CommandDependencies(
             Plugin plugin,
@@ -71,7 +74,8 @@ public final class CommandDependencies {
             AOrderData orderData,
             ANodeData nodeData,
             AMembershipData membershipData,
-            InformationData information) {
+            InformationData information,
+            EconomyData economy) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.companyData = companyData;
@@ -79,6 +83,7 @@ public final class CommandDependencies {
         this.nodeData = nodeData;
         this.membershipData = membershipData;
         this.information = information;
+        this.economy = economy;
         this.drafts = new OrderDraftService(plugin, orderData, configuration);
     }
 
@@ -162,6 +167,13 @@ public final class CommandDependencies {
      */
     public InformationData information() {
         return information;
+    }
+
+    /**
+     * @return treasury, repeating order and alert repositories
+     */
+    public EconomyData economy() {
+        return economy;
     }
 
     /**

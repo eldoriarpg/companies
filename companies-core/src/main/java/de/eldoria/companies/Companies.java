@@ -27,28 +27,38 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAlertData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSeriesData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbTreasuryData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresAlertData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresSeriesData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresTreasuryData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -106,6 +116,7 @@ public class Companies extends EldoPlugin {
     private ACompanyData companyData;
     private AOrderData orderData;
     private InformationData information;
+    private EconomyData economy;
     private ANodeData nodeData;
     private AMembershipData membershipData;
     private Updates updates;
@@ -161,7 +172,7 @@ public class Companies extends EldoPlugin {
      */
     private void registerCommands() {
         var dependencies = new CommandDependencies(
-                this, configuration, companyData, orderData, nodeData, membershipData, information);
+                this, configuration, companyData, orderData, nodeData, membershipData, information, economy);
         commands = dependencies;
         drafts = dependencies.drafts();
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
@@ -367,6 +378,10 @@ public class Companies extends EldoPlugin {
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
                         new SqLiteHistoryData(mapper, Threading.VIRTUAL));
+                economy = new EconomyData(
+                        new SqLiteTreasuryData(Threading.VIRTUAL),
+                        new SqLiteSeriesData(mapper, Threading.VIRTUAL),
+                        new SqLiteAlertData(mapper, Threading.VIRTUAL));
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
                 membershipData = new SqLiteMembershipData(workerPool);
             }
@@ -377,6 +392,10 @@ public class Companies extends EldoPlugin {
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
                         new MariaDbHistoryData(mapper, Threading.VIRTUAL));
+                economy = new EconomyData(
+                        new MariaDbTreasuryData(Threading.VIRTUAL),
+                        new MariaDbSeriesData(mapper, Threading.VIRTUAL),
+                        new MariaDbAlertData(mapper, Threading.VIRTUAL));
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 membershipData = new MariaDbMembershipData(workerPool);
             }
@@ -387,6 +406,10 @@ public class Companies extends EldoPlugin {
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),
                         new PostgresHistoryData(mapper, Threading.VIRTUAL));
+                economy = new EconomyData(
+                        new PostgresTreasuryData(Threading.VIRTUAL),
+                        new PostgresSeriesData(mapper, Threading.VIRTUAL),
+                        new PostgresAlertData(mapper, Threading.VIRTUAL));
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
                 membershipData = new PostgresMembershipData(workerPool);
             }

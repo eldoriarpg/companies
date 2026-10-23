@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class CommandDependenciesTest {
-    private final CommandDependencies deps = new CommandDependencies(null, null, null, null, null, null, null);
+    private final CommandDependencies deps = new CommandDependencies(null, null, null, null, null, null, null, null);
     private final CommandDependencies.Services services =
             new CommandDependencies.Services(null, null, null, null, null, null, null, null, null, null, null, null);
 
