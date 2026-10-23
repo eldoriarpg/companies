@@ -202,6 +202,9 @@ class OwnerOrderMenusTest {
         public void collect(Player player) {}
 
         @Override
+        public void series(Player player, int id) {}
+
+        @Override
         public void create(Player player, @Nullable String name) {}
     }
 }
