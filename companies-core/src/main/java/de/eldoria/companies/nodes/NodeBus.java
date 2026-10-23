@@ -37,9 +37,7 @@ public interface NodeBus extends AutoCloseable {
     <T extends NodeMessage> void subscribe(Class<T> type, Handler<T> handler);
 
     /**
-     * Calls the listener whenever the state or the {@link #transport()} changes, on the thread noticing the change. A
-     * change of the transport while connected is reported as {@link State#CONNECTED} again, since messages may have
-     * been missed during the switch.
+     * Calls the listener whenever the state changes, on the thread noticing the change.
      *
      * @param listener receives the new state
      */

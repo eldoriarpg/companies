@@ -11,7 +11,6 @@ import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.nodes.FailoverBus;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.util.Confirmations;
 import de.eldoria.companies.util.Permission.Admin;
@@ -180,10 +179,7 @@ public final class NodeCommand {
      */
     static String key(NodeBus bus) {
         if (bus.state() == NodeBus.State.OFF) return NodeBus.Transport.DATABASE.id();
-        var transport = bus instanceof FailoverBus failover && failover.fallingBack()
-                ? "fallback"
-                : bus.transport().id();
-        return transport + (bus.realtime() ? ".connected" : ".disconnected");
+        return bus.transport().id() + (bus.realtime() ? ".connected" : ".disconnected");
     }
 
     private String localize(String key) {

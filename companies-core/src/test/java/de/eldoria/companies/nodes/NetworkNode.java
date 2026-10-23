@@ -312,17 +312,6 @@ final class NetworkNode implements AutoCloseable {
             return (node, handlers, logger) ->
                     MessageTableBus.start(node.messages, node.uid, node.primary, handlers, logger, timings);
         }
-
-        /**
-         * @param server  the Redis server and channel prefix
-         * @param timings how the message table is read and cleaned up
-         * @return Redis with low latency mode as fallback
-         */
-        static Buses failover(RedisBus.Server server, MessageTableBus.Timings timings) {
-            return (node, handlers, logger) -> FailoverBus.start(
-                    RedisBus.start(server, node.uid, handlers, logger, Duration.ofSeconds(5), FAST),
-                    MessageTableBus.create(node.messages, node.uid, node.primary, handlers, logger, timings));
-        }
     }
 
     /**

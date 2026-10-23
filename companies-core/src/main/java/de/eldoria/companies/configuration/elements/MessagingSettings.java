@@ -17,7 +17,7 @@ public class MessagingSettings {
 
     /**
      * Whether the nodes exchange their messages through a table in the database, which every node reads every
-     * second. Used when Redis is off, and while Redis cannot be reached.
+     * second. Ignored while Redis is enabled.
      *
      * @return true when low latency mode is on
      */

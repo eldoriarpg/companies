@@ -76,7 +76,7 @@ class NodeBusesTest {
     }
 
     @Test
-    void lowLatencyIsUsedWhenTheRedisPasswordIsMissing() {
+    void lowLatencyIsIgnoredWhileRedisIsEnabled() {
         try (var bus = create("""
                 redis:
                   enabled: true
@@ -84,8 +84,10 @@ class NodeBusesTest {
                 messaging:
                   lowLatency: true
                 """)) {
-            assertInstanceOf(MessageTableBus.class, bus);
+            assertInstanceOf(DatabaseBus.class, bus);
+            assertTrue(logs.stream().anyMatch(log -> log.contains("Low latency mode is ignored")), logs.toString());
             assertTrue(logs.stream().anyMatch(log -> log.contains("COMPANIES_TEST_UNSET")), logs.toString());
+            assertTrue(logs.stream().noneMatch(log -> log.contains("Low latency mode is on")), logs.toString());
         }
     }
 }

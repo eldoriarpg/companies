@@ -7,7 +7,6 @@ package de.eldoria.companies.debug;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.nodes.DatabaseBus;
-import de.eldoria.companies.nodes.FailoverBus;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.RedisBus;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
@@ -80,22 +79,13 @@ public class CompaniesDebug implements DebugDataProvider {
      * Describes a bus for the report.
      *
      * @param bus the bus
-     * @return for example {@code lowLatency CONNECTED, Redis DISCONNECTED (redis.internal:6379)}
+     * @return for example {@code redis DISCONNECTED (redis.internal:6379)}
      */
     static String describe(NodeBus bus) {
         if (bus.state() == NodeBus.State.OFF) return NodeBus.Transport.DATABASE.id();
         var description = bus.transport().id() + " " + bus.state().name();
-        if (bus instanceof FailoverBus failover) {
-            if (!failover.fallingBack())
-                return description + " (" + address(failover.redis()) + "), lowLatency fallback";
-            return description + ", Redis " + failover.redis().state().name() + " (" + address(failover.redis()) + ")";
-        }
         if (bus instanceof RedisBus redis) return description + " (" + redis.address() + ")";
         return description;
-    }
-
-    private static String address(NodeBus bus) {
-        return bus instanceof RedisBus redis ? redis.address() : "-";
     }
 
     private String bus() {

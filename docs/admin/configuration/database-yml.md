@@ -87,9 +87,12 @@ How the servers of a network send each other messages without Redis. A single se
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `lowLatency` | true/false | `false` | Turn on [low latency mode](../multiserver.md#low-latency-mode): the servers send each other messages through a table in the database, and every server reads it every second. With Redis set up as well, it is used while Redis can not be reached. |
+| `lowLatency` | true/false | `false` | Turn on [low latency mode](../multiserver.md#low-latency-mode): the servers send each other messages through a table in the database, and every server reads it every second. Ignored when `redis.enabled` is `true`. |
 
 Use the same value on all servers of a network. Each server reads the table once per second, so this costs one small
 query per second for each server.
+
+Redis and low latency mode are one or the other. With both `redis.enabled` and `lowLatency` set to `true`, the server
+uses Redis, ignores `lowLatency` and logs a warning.
 
 See [Installation](../../getting-started/installation.md) for choosing a database, and [Several servers](../multiserver.md) for networks.

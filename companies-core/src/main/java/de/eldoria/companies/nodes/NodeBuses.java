@@ -11,18 +11,17 @@ import de.eldoria.companies.configuration.elements.RedisSettings;
 import de.eldoria.companies.data.repository.ANodeMessageData;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 
 /**
- * Picks the bus of this node when it starts, in this order:
+ * Picks the bus of this node when it starts, one of:
  * <ol>
- *     <li>Redis, when it is enabled and its password can be resolved. The {@link RedisBus} falls back to polling by
- *     itself while the server cannot be reached and keeps retrying. With low latency mode on as well, the
- *     {@link FailoverBus} uses the message table instead of polling meanwhile.</li>
+ *     <li>Redis, when it is enabled. The {@link RedisBus} falls back to polling by itself while the server cannot be
+ *     reached and keeps retrying. Low latency mode is ignored then. When the Redis password names an environment
+ *     variable that is not set, Redis is not used and the node polls.</li>
  *     <li>Low latency mode, the {@link MessageTableBus}, when {@code messaging.lowLatency} is on.</li>
  *     <li>The {@link DatabaseBus}: polling only.</li>
  * </ol>
@@ -53,33 +52,30 @@ public final class NodeBuses {
             UnaryOperator<String> environment,
             Logger logger) {
         var lowLatency = settings.messaging().lowLatency();
+        if (settings.redis().enabled()) {
+            if (lowLatency) {
+                logger.warning("Redis and low latency mode are both enabled in database.yml. Low latency mode is"
+                        + " ignored while Redis is enabled.");
+            }
+            return redis(settings.redis(), node, handlers, environment, logger);
+        }
         if (lowLatency) {
             logger.info("Low latency mode is on: the servers exchange messages through the database every second."
                     + " notifications.pollSeconds, placeholders.refreshSeconds and top.cacheSeconds are only a slow"
                     + " safety fallback now.");
-        }
-        var redis = redis(settings.redis(), node, handlers, environment, logger);
-        if (redis.isPresent()) {
-            if (!lowLatency) return redis.get();
-            var table =
-                    MessageTableBus.create(messages, node, primary, handlers, logger, MessageTableBus.Timings.DEFAULT);
-            return FailoverBus.start(redis.get(), table);
-        }
-        if (lowLatency) {
             return MessageTableBus.start(messages, node, primary, handlers, logger, MessageTableBus.Timings.DEFAULT);
         }
         return new DatabaseBus();
     }
 
-    private static Optional<NodeBus> redis(
+    private static NodeBus redis(
             RedisSettings settings, UUID node, Executor handlers, UnaryOperator<String> environment, Logger logger) {
-        if (!settings.enabled()) return Optional.empty();
         var password = EnvReference.resolve(
                 settings.password(),
                 environment,
                 name -> logger.warning(
                         "The environment variable " + name + " for the Redis password is not set. Redis is not used."));
-        if (password.isEmpty()) return Optional.empty();
+        if (password.isEmpty()) return new DatabaseBus();
         var server = new RedisBus.Server(
                 settings.host(),
                 settings.port(),
@@ -88,6 +84,6 @@ public final class NodeBuses {
                 settings.ssl(),
                 settings.database(),
                 settings.channelPrefix());
-        return Optional.of(RedisBus.start(server, node, handlers, logger, START_WAIT));
+        return RedisBus.start(server, node, handlers, logger, START_WAIT);
     }
 }

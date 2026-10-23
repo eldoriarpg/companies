@@ -227,14 +227,13 @@ class RedisBusTest {
     }
 
     @Test
-    void theFactoryKeepsLowLatencyModeAsFallbackForRedis() {
+    void theFactoryPrefersRedisOverLowLatencyMode() {
         var yaml = redisYaml() + "messaging:\n  lowLatency: true\n";
         var bus = create(settings(yaml), name -> name.equals("COMPANIES_REDIS_PASSWORD") ? PASSWORD : null);
         buses.add(bus);
 
-        var failover = assertInstanceOf(FailoverBus.class, bus);
+        assertInstanceOf(RedisBus.class, bus);
         assertTrue(bus.realtime());
-        assertFalse(failover.fallingBack());
         assertEquals(NodeBus.Transport.REDIS, bus.transport());
     }
 

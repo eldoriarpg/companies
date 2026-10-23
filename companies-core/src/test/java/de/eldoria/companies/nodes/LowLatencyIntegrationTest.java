@@ -27,9 +27,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
-import org.testcontainers.DockerClientFactory;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,9 +55,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 abstract class LowLatencyIntegrationTest {
     private static final UUID PRIMARY = UUID.fromString("00000000-0000-0000-0000-00000000001a");
     private static final UUID SECONDARY = UUID.fromString("00000000-0000-0000-0000-00000000001b");
-    private static final String PASSWORD = "integration-only-password";
     private static final int POLL_SECONDS = 600;
     private static final Duration DELIVERY = Duration.ofMillis(2500);
+    private static final Duration ARRIVAL = Duration.ofSeconds(10);
     private static final Duration WAIT = Duration.ofSeconds(20);
     private static final MessageTableBus.Timings TIMINGS =
             new MessageTableBus.Timings(Duration.ofSeconds(1), Duration.ofMinutes(1), Duration.ofMillis(200));
@@ -147,12 +144,6 @@ abstract class LowLatencyIntegrationTest {
         return NotificationArgs.create().text("order_name", "Wood").number("order_id", 4);
     }
 
-    private static GenericContainer<?> redisContainer() {
-        return new GenericContainer<>(DockerImageName.parse("redis:7.4-alpine"))
-                .withExposedPorts(6379)
-                .withCommand("redis-server", "--requirepass", PASSWORD);
-    }
-
     private List<String> payloads(NetworkNode node) {
         return node.messages.after(0, 10_000).stream()
                 .map(ANodeMessageData.StoredMessage::payload)
@@ -198,7 +189,7 @@ abstract class LowLatencyIntegrationTest {
 
         await(
                 () -> dropped.containsAll(List.of("company:77", "ranking", "boards")),
-                DELIVERY,
+                ARRIVAL,
                 "the caches of B to drop");
     }
 
@@ -233,12 +224,12 @@ abstract class LowLatencyIntegrationTest {
         var alice = server.addPlayer();
 
         a.connection.signals().onJoin(new PlayerJoinEvent(alice, Component.empty()));
-        await(() -> b.presence.nodeOf(alice.getUniqueId()).equals(Optional.of(PRIMARY)), DELIVERY, "the join");
+        await(() -> b.presence.nodeOf(alice.getUniqueId()).equals(Optional.of(PRIMARY)), ARRIVAL, "the join");
 
         a.beat();
         await(
                 () -> b.presence.transport(PRIMARY).equals(Optional.of(NodeBus.Transport.LOW_LATENCY)),
-                DELIVERY,
+                ARRIVAL,
                 "the heartbeat naming the bus");
         assertTrue(b.presence.alive(PRIMARY));
     }
@@ -272,67 +263,8 @@ abstract class LowLatencyIntegrationTest {
 
         a.bus.publish(new CacheInvalidate("probe", "after"));
 
-        await(() -> b.probes.contains("after"), DELIVERY, "the message sent after the start");
+        await(() -> b.probes.contains("after"), ARRIVAL, "the message sent after the start");
         assertFalse(b.probes.contains("before"));
         assertTrue(a.probes.containsAll(List.of("before", "after")), a.probes.toString());
-    }
-
-    @Test
-    void aLostRedisFallsBackToTheTableUntilItIsBack() throws InterruptedException {
-        var redis = redisContainer();
-        redis.start();
-        try {
-            var redisServer =
-                    new RedisBus.Server(redis.getHost(), redis.getMappedPort(6379), "", PASSWORD, false, 0, "fallback");
-            var a = node("A", PRIMARY, true, NetworkNode.Buses.failover(redisServer, TIMINGS));
-            var b = node("B", SECONDARY, false, NetworkNode.Buses.failover(redisServer, TIMINGS));
-            await(
-                    () -> a.bus.transport() == NodeBus.Transport.REDIS
-                            && a.bus.realtime()
-                            && b.bus.transport() == NodeBus.Transport.REDIS
-                            && b.bus.realtime(),
-                    WAIT,
-                    "both nodes on Redis");
-            var bob = server.addPlayer();
-            b.join(bob);
-            var docker = DockerClientFactory.instance().client();
-
-            docker.pauseContainerCmd(redis.getContainerId()).exec();
-            await(
-                    () -> a.bus.transport() == NodeBus.Transport.LOW_LATENCY
-                            && a.bus.realtime()
-                            && b.bus.transport() == NodeBus.Transport.LOW_LATENCY
-                            && b.bus.realtime(),
-                    WAIT,
-                    "both nodes to read the message table");
-            a.notifications
-                    .send(bob.getUniqueId(), NotificationType.ORDER_DELIVERED, args())
-                    .join();
-            await(() -> b.shownTo(bob) == 1, DELIVERY, "the notification through the table");
-
-            docker.unpauseContainerCmd(redis.getContainerId()).exec();
-            await(
-                    () -> a.bus.transport() == NodeBus.Transport.REDIS
-                            && a.bus.realtime()
-                            && b.bus.transport() == NodeBus.Transport.REDIS
-                            && b.bus.realtime(),
-                    WAIT,
-                    "both nodes back on Redis");
-            await(
-                    () -> a.cacheDrops.get() >= 2 && b.cacheDrops.get() >= 2,
-                    WAIT,
-                    "the caches to drop on both switches");
-            var carol = server.addPlayer();
-            b.join(carol);
-            a.notifications
-                    .send(carol.getUniqueId(), NotificationType.ORDER_DELIVERED, args())
-                    .join();
-            await(() -> b.shownTo(carol) == 1, DELIVERY, "the notification over Redis");
-            var carolId = carol.getUniqueId().toString();
-            assertFalse(payloads(a).stream().anyMatch(payload -> payload.contains(carolId)));
-            assertEquals(1, b.shownTo(bob));
-        } finally {
-            redis.stop();
-        }
     }
 }

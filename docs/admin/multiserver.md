@@ -206,11 +206,10 @@ same prefix.
 ### When Redis is away
 
 Nothing breaks without Redis. A server that cannot reach Redis logs it and works as without Redis: it checks the inbox
-every `notifications.pollSeconds` again and lets its caches run out as usual. With `messaging.lowLatency: true` in
-`database.yml`, it uses [low latency mode](#low-latency-mode) instead until Redis is back, so messages still arrive
-within about a second. It keeps trying to connect, first after a second and then less often, up to every 30 seconds.
-Once it is back, it drops its cached values once, since it may have missed changes, and switches back to Redis. The
-switch to low latency mode drops them once as well.
+every `notifications.pollSeconds` again and lets its caches run out as usual. It keeps trying to connect, first
+after a second and then less often, up to every 30 seconds. Once it is back, it drops its cached values once, since it
+may have missed changes, and switches back to the fast way. It does not switch to
+[low latency mode](#low-latency-mode) meanwhile.
 
 A server with `enabled: true` whose password variable is not set logs that and does not use Redis until it is
 restarted with the variable set.
@@ -256,16 +255,16 @@ since the last second, through the primary key, so it stays cheap even on a busy
 
 - **Choose Redis** if you already run one, for large networks, or when every query on the database counts.
 - **Choose low latency mode** for a small or medium network without Redis, when a second of delay is fine.
-- **Use both** to keep messages fast while Redis is away: with Redis set up and `lowLatency: true`, a server uses the
-  table only while it can not reach Redis, and goes back to Redis once it is back.
+
+It is one or the other. A server with `redis.enabled: true` uses Redis and ignores `messaging.lowLatency`; it logs a
+warning when both are on. While Redis is away, it polls as described in [When Redis is away](#when-redis-is-away).
 
 Low latency mode also works with SQLite, but there is only one server then, which has nothing to tell.
 
 ### Checking it
 
 `/companyadmin node list` shows `messages low latency` for this server, and for every other server it heard from in
-the last minute and a half. While Redis is away on a server that uses both, it shows `low latency until Redis is
-back`. When the table can not be read, for example while the database is down, the server falls back to polling and
+the last minute and a half. When the table can not be read, for example while the database is down, the server falls back to polling and
 logs it once, and switches back by itself once it can read the table again. The [debug report](./admin-commands.md)
 shows which way the server sends its messages and whether that works.
 

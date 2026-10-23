@@ -160,23 +160,6 @@ class MessageTableBusTest {
     }
 
     @Test
-    void aPausedBusResumesAtTheHighestIdPresent() throws InterruptedException {
-        var a = start(table, A, true);
-        var b = start(table, B, false);
-        var atB = received(b);
-        await(() -> a.realtime() && b.realtime(), "both buses to read");
-
-        b.pause();
-        a.publish(new CacheInvalidate("probe", "missed"));
-        await(() -> table.rows().size() == 1, "the missed message to be stored");
-        b.resume();
-        a.publish(new CacheInvalidate("probe", "after"));
-
-        await(() -> atB.contains(A + "/after"), "the message after resuming");
-        assertEquals(List.of(A + "/after"), atB);
-    }
-
-    @Test
     void aClosedBusPublishesNothing() {
         var a = start(table, A, true);
         a.close();

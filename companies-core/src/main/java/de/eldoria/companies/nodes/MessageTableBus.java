@@ -16,7 +16,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -54,7 +53,6 @@ public final class MessageTableBus implements NodeBus {
             Thread.ofVirtual().name("companies-message-publisher").factory());
     private volatile State state = State.DISCONNECTED;
     private volatile boolean running = true;
-    private ScheduledFuture<?> reading;
     private MessageCursor cursor;
     private boolean reported;
 
@@ -67,29 +65,7 @@ public final class MessageTableBus implements NodeBus {
     }
 
     /**
-     * Creates the bus without reading yet; {@link #resume()} starts reading. The primary starts deleting old rows at
-     * once.
-     *
-     * @param data     the message table
-     * @param node     uid of this node, sent with every message
-     * @param primary  true on the primary node, which deletes old rows
-     * @param handlers runs the handlers of received messages
-     * @param logger   reports failures
-     * @param timings  how often to read and delete, and how long rows are kept
-     * @return the bus, not reading
-     */
-    public static MessageTableBus create(
-            ANodeMessageData data, UUID node, boolean primary, Executor handlers, Logger logger, Timings timings) {
-        var bus = new MessageTableBus(data, node, handlers, logger, timings);
-        if (primary) {
-            var purge = timings.purgeInterval().toMillis();
-            bus.reader.scheduleWithFixedDelay(bus::purge, purge, purge, TimeUnit.MILLISECONDS);
-        }
-        return bus;
-    }
-
-    /**
-     * Creates the bus and starts reading.
+     * Creates the bus and starts reading. The primary starts deleting old rows as well.
      *
      * @param data     the message table
      * @param node     uid of this node, sent with every message
@@ -101,28 +77,14 @@ public final class MessageTableBus implements NodeBus {
      */
     public static MessageTableBus start(
             ANodeMessageData data, UUID node, boolean primary, Executor handlers, Logger logger, Timings timings) {
-        var bus = create(data, node, primary, handlers, logger, timings);
-        bus.resume();
+        var bus = new MessageTableBus(data, node, handlers, logger, timings);
+        if (primary) {
+            var purge = timings.purgeInterval().toMillis();
+            bus.reader.scheduleWithFixedDelay(bus::purge, purge, purge, TimeUnit.MILLISECONDS);
+        }
+        var read = timings.readInterval().toMillis();
+        bus.reader.scheduleWithFixedDelay(bus::read, 0, read, TimeUnit.MILLISECONDS);
         return bus;
-    }
-
-    /**
-     * Starts reading from the highest id present now. Does nothing while reading already.
-     */
-    public synchronized void resume() {
-        if (!running || reading != null) return;
-        var interval = timings.readInterval().toMillis();
-        reading = reader.scheduleWithFixedDelay(this::read, 0, interval, TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * Stops reading until {@link #resume()} is called. Publishing still works.
-     */
-    public synchronized void pause() {
-        if (reading == null) return;
-        reading.cancel(false);
-        reading = null;
-        execute(() -> cursor = null);
     }
 
     @Override
@@ -228,14 +190,6 @@ public final class MessageTableBus implements NodeBus {
         if (state == next) return;
         state = next;
         dispatch.stateChanged(next);
-    }
-
-    private void execute(Runnable task) {
-        try {
-            reader.execute(task);
-        } catch (RejectedExecutionException e) {
-            logger.log(Level.FINE, "The node message reader is stopped.", e);
-        }
     }
 
     /**
