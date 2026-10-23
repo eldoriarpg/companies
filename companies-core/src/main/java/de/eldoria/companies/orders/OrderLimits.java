@@ -9,6 +9,7 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.function.Supplier;
@@ -46,6 +47,19 @@ public class OrderLimits {
     }
 
     /**
+     * The maximum number of active orders of a player who may be offline. Permissions are only known while the player
+     * is online.
+     *
+     * @param player player to check
+     * @return the limit of the online player, otherwise the configured limit
+     */
+    public int limit(OfflinePlayer player) {
+        var online = player instanceof Player present ? present : player.getPlayer();
+        if (online != null) return limit(online);
+        return userSettings.get().maxOrders();
+    }
+
+    /**
      * Counts the active orders of a player and pairs them with the player's limit.
      * <p>
      * The limit is read on the calling thread, the count is retrieved asynchronously.
@@ -53,7 +67,7 @@ public class OrderLimits {
      * @param player player to check
      * @return a future providing the usage of the player
      */
-    public BukkitFutureResult<Usage> usage(Player player) {
+    public BukkitFutureResult<Usage> usage(OfflinePlayer player) {
         var limit = limit(player);
         return BukkitFutureResult.of(
                 orderData.retrievePlayerOrderCount(player).asFuture().thenApply(active -> new Usage(active, limit)));

@@ -13,23 +13,44 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A user joined a company.
+ * A player joined a company: by an open join, an accepted invite or application, or through the API.
+ * <p>
+ * Fired after the membership was saved. The event may be asynchronous.
  */
 public class CompanyJoinEvent extends CompanyEvent<ICompanyProfile> implements PlayerProvider<OfflinePlayer> {
+    /**
+     * The handlers of this event.
+     */
     public static final HandlerList HANDLERS = new HandlerList();
 
     private final OfflinePlayer player;
 
+    /**
+     * Creates a new event. It is asynchronous when created off the main thread.
+     *
+     * @param company the company with its new member
+     * @param player  player who joined
+     */
     public CompanyJoinEvent(ICompanyProfile company, OfflinePlayer player) {
         super(company, !Bukkit.isPrimaryThread());
         this.player = player;
     }
 
+    /**
+     * The handlers of this event.
+     *
+     * @return handler list
+     */
     @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 
+    /**
+     * The player who joined.
+     *
+     * @return new member
+     */
     @Override
     public OfflinePlayer player() {
         return player;

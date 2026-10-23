@@ -10,15 +10,43 @@ import org.bukkit.Material;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * An order with its lines.
+ */
 public interface IFullOrder extends ISimpleOrder {
+    /**
+     * The lines of the order in their order.
+     *
+     * @return lines
+     */
     List<? extends IOrderContent> contents();
 
+    /**
+     * The price of the order, the sum of the line prices, without the fee.
+     *
+     * @return price
+     */
     double price();
 
+    /**
+     * The number of requested items over all lines.
+     *
+     * @return amount
+     */
     int amount();
 
+    /**
+     * The number of lines.
+     *
+     * @return line count
+     */
     int materialsAmount();
 
+    /**
+     * The number of delivered items over all lines.
+     *
+     * @return delivered items
+     */
     int delivered();
 
     /**
@@ -46,5 +74,10 @@ public interface IFullOrder extends ISimpleOrder {
     @Deprecated
     Optional<? extends IOrderContent> content(Material material);
 
+    /**
+     * Whether every line is fully delivered.
+     *
+     * @return true when nothing is missing
+     */
     boolean isDone();
 }

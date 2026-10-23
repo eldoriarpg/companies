@@ -92,8 +92,7 @@ public final class Abort {
     }
 
     private void abortConfirmed(Player player, SimpleOrder remove) {
-        var itemReturnService = deps.services().itemReturnService();
-
+        var outcomes = deps.outcomes();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
@@ -107,13 +106,12 @@ public final class Abort {
                         return;
                     }
 
-                    var workers = deps.outcomes().abort(order.get()).join();
-                    if (workers == null || workers.isEmpty()) {
+                    var returned = outcomes.abort(order.get()).join();
+                    if (returned == null || returned.isEmpty()) {
                         messages().sendErrorActionBar(player, "error.orderNotActive");
                         return;
                     }
                     CompanyOrderSources.invalidate(player.getUniqueId());
-                    itemReturnService.notifyWorkers(workers.get());
 
                     views.showOrders(SimpleCompany.forId(remove.company()), player, () -> deps.plugin()
                             .getServer()

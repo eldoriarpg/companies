@@ -201,6 +201,7 @@ public final class Rename {
                                 messages().sendErrorActionBar(player, "error.companyNameUsed");
                                 return;
                             }
+                            deps.companyChanges().renamed(company.id(), company.name(), player.getUniqueId(), false);
                             messages().sendMessage(player, "company.rename.changed");
                         },
                         Threading.mainThread(deps.plugin()));

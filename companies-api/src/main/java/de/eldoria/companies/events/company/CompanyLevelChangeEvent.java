@@ -11,22 +11,37 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A company level changed.
+ * The level of a company changed.
  * <p>
- * Use {@link CompanyLevelDownEvent} or {@link CompanyLevelUpEvent}.
+ * Fired off the main thread. Listen to {@link CompanyLevelUpEvent} or {@link CompanyLevelDownEvent} for one direction.
  */
 public class CompanyLevelChangeEvent extends CompanyEvent<ICompanyProfile> {
+    /**
+     * The handlers of this event.
+     */
     public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyLevel oldLevel;
     private final ICompanyLevel newLevel;
 
+    /**
+     * Creates a new event.
+     *
+     * @param company  the company
+     * @param oldLevel level before the change
+     * @param newLevel level after the change
+     */
     public CompanyLevelChangeEvent(ICompanyProfile company, ICompanyLevel oldLevel, ICompanyLevel newLevel) {
         super(company, true);
         this.oldLevel = oldLevel;
         this.newLevel = newLevel;
     }
 
+    /**
+     * The handlers of this event.
+     *
+     * @return handler list
+     */
     @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;

@@ -5,9 +5,13 @@
  */
 package de.eldoria.companies.services;
 
+import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.data.wrapper.order.ReturnedItems;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
@@ -20,13 +24,17 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
 import static de.eldoria.companies.util.Threading.VIRTUAL;
@@ -37,16 +45,109 @@ import static de.eldoria.companies.util.Threading.VIRTUAL;
  * <p>
  * Workers receive their returns when they join or use {@code /company returns}; owners are told on join and collect
  * with {@code /order collect} or the button of the notice. Whatever does not fit stays stored until it is collected later.
+ * <p>
+ * This is the one place that fires {@link ItemsReturnedEvent}: items are stored with {@link #store}, and items the
+ * repository already moved inside its own transaction are reported with {@link #returned}. Items taken out and put back
+ * because their player went offline are not returned again and fire nothing.
  */
 public class ItemReturnService implements Listener {
     private final Plugin plugin;
     private final AOrderData orderData;
-    private final MessageSender messageSender;
 
+    /**
+     * @param plugin    the plugin, which fires the events
+     * @param orderData order repository
+     */
     public ItemReturnService(Plugin plugin, AOrderData orderData) {
         this.plugin = plugin;
         this.orderData = orderData;
-        messageSender = MessageSender.getPluginMessageSender(plugin);
+    }
+
+    /**
+     * Stores items for a player and fires {@link ItemsReturnedEvent} once they are stored.
+     *
+     * @param player player owning the items
+     * @param kind   kind of the items
+     * @param stack  item to store
+     * @param amount amount of items
+     * @param reason why the items are returned
+     * @param order  order the items came from, or null
+     * @return true when the items were stored
+     */
+    public CompletableFuture<Boolean> store(
+            UUID player,
+            ReturnKind kind,
+            ItemStack stack,
+            int amount,
+            ItemsReturnedEvent.Reason reason,
+            @Nullable ISimpleOrder order) {
+        return storeAll(player, kind, List.of(new ReturnedStack(stack, amount)), reason, order);
+    }
+
+    /**
+     * Stores several items for a player and fires one {@link ItemsReturnedEvent} for those that were stored.
+     *
+     * @param player player owning the items
+     * @param kind   kind of the items
+     * @param stacks items to store
+     * @param reason why the items are returned
+     * @param order  order the items came from, or null
+     * @return true when every item was stored
+     */
+    public CompletableFuture<Boolean> storeAll(
+            UUID player,
+            ReturnKind kind,
+            List<ReturnedStack> stacks,
+            ItemsReturnedEvent.Reason reason,
+            @Nullable ISimpleOrder order) {
+        if (stacks.isEmpty()) return CompletableFuture.completedFuture(true);
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    List<ReturnedStack> stored = new ArrayList<>();
+                    for (var stack : stacks) {
+                        var saved = orderData
+                                .submitItemReturn(player, kind, stack.stack(), stack.amount())
+                                .asFuture()
+                                .join();
+                        if (Boolean.TRUE.equals(saved)) stored.add(stack);
+                    }
+                    returned(player, stored, reason, order);
+                    return stored.size() == stacks.size();
+                },
+                VIRTUAL);
+    }
+
+    /**
+     * Reports items the repository already moved to the item returns of an order's workers, and tells the online
+     * workers. Fires one {@link ItemsReturnedEvent} per worker.
+     *
+     * @param order    order the items came from
+     * @param returned the returned items by worker
+     * @param reason   why the items were returned
+     */
+    public void returned(ISimpleOrder order, ReturnedItems returned, ItemsReturnedEvent.Reason reason) {
+        returned.byWorker().forEach((worker, stacks) -> returned(worker, stacks, reason, order));
+        notifyWorkers(returned.workers());
+    }
+
+    /**
+     * Reports items already stored for a player. Fires {@link ItemsReturnedEvent} unless there are no items.
+     *
+     * @param player player owning the items
+     * @param stacks the stored items
+     * @param reason why the items were returned
+     * @param order  order the items came from, or null
+     */
+    public void returned(
+            UUID player, List<ReturnedStack> stacks, ItemsReturnedEvent.Reason reason, @Nullable ISimpleOrder order) {
+        if (stacks.isEmpty()) return;
+        var server = plugin.getServer();
+        server.getPluginManager()
+                .callEvent(new ItemsReturnedEvent(server.getOfflinePlayer(player), stacks, reason, order));
+    }
+
+    private MessageSender messageSender() {
+        return MessageSender.getPluginMessageSender(plugin);
     }
 
     @EventHandler
@@ -68,7 +169,7 @@ public class ItemReturnService implements Listener {
                 .text(
                         "<act_collect><add>[<i18n:words.collect>]</act_collect>",
                         handOutButton("act_collect", player, ReturnKind.OWNER));
-        messageSender.sendMessage(player, text);
+        messageSender().sendMessage(player, text);
     }
 
     /**
@@ -100,7 +201,7 @@ public class ItemReturnService implements Listener {
                         .text(
                                 "<act_receive><add>[<i18n:words.receive>]</act_receive>",
                                 handOutButton("act_receive", player, ReturnKind.WORKER));
-                messageSender.sendMessage(player, text);
+                messageSender().sendMessage(player, text);
             }
         });
     }
@@ -119,7 +220,7 @@ public class ItemReturnService implements Listener {
                 .whenComplete(
                         returns -> {
                             if (returns.isEmpty()) {
-                                if (!silent) messageSender.sendMessage(player, messages.none());
+                                if (!silent) messageSender().sendMessage(player, messages.none());
                                 return;
                             }
                             if (!player.isOnline()) return;
@@ -133,8 +234,8 @@ public class ItemReturnService implements Listener {
                                     .mapToInt(ItemReturn::amount)
                                     .sum();
                             if (takes.isEmpty()) {
-                                messageSender.sendMessage(
-                                        player, messages.remaining(), Replacement.create("amount", total));
+                                messageSender()
+                                        .sendMessage(player, messages.remaining(), Replacement.create("amount", total));
                                 return;
                             }
                             take(player, kind, takes, total);
@@ -169,11 +270,11 @@ public class ItemReturnService implements Listener {
             received += entry.getValue();
         }
         if (received > 0) {
-            messageSender.sendMessage(player, messages.received(), Replacement.create("amount", received));
+            messageSender().sendMessage(player, messages.received(), Replacement.create("amount", received));
         }
         var remaining = total - received;
         if (remaining > 0) {
-            messageSender.sendMessage(player, messages.remaining(), Replacement.create("amount", remaining));
+            messageSender().sendMessage(player, messages.remaining(), Replacement.create("amount", remaining));
         }
     }
 

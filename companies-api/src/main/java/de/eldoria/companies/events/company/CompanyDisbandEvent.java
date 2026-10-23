@@ -10,15 +10,30 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A company gets disbanded by its owner.
+ * A company was disbanded.
+ * <p>
+ * Fired off the main thread.
  */
 public class CompanyDisbandEvent extends CompanyEvent<ICompanyProfile> {
+    /**
+     * The handlers of this event.
+     */
     public static final HandlerList HANDLERS = new HandlerList();
 
+    /**
+     * Creates a new event.
+     *
+     * @param company the company before it was deleted
+     */
     public CompanyDisbandEvent(ICompanyProfile company) {
         super(company, true);
     }
 
+    /**
+     * The handlers of this event.
+     *
+     * @return handler list
+     */
     @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;

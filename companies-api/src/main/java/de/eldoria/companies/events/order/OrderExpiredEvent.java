@@ -12,23 +12,46 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A order expired.
+ * A company did not deliver a claimed order in time; the order is open again for other companies.
+ * <p>
+ * Fired after the order was released, off the main thread, on the primary server of a network.
+ * <p>
+ * Orders are anonymous: never show the owner to the company's members or the company to the owner.
  */
 public class OrderExpiredEvent extends OrderEvent<ISimpleOrder> implements CompanyProvider<ICompanyProfile> {
+    /**
+     * The handlers of this event.
+     */
     public static final HandlerList HANDLERS = new HandlerList();
 
     private final ICompanyProfile company;
 
+    /**
+     * Creates a new event.
+     *
+     * @param order   the released order
+     * @param company company that failed to deliver the order
+     */
     public OrderExpiredEvent(ISimpleOrder order, ICompanyProfile company) {
         super(order, true);
         this.company = company;
     }
 
+    /**
+     * The handlers of this event.
+     *
+     * @return handler list
+     */
     @SuppressWarnings("SameReturnValue")
     public static HandlerList getHandlerList() {
         return HANDLERS;
     }
 
+    /**
+     * The company that failed to deliver the order.
+     *
+     * @return company
+     */
     @Override
     public ICompanyProfile company() {
         return company;

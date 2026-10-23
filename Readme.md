@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("de.eldoria", "companies-api", "version")
+    compileOnly("de.eldoria", "companies-api", "2.0.0")
 }
 ```
 
@@ -32,9 +32,139 @@ dependencies {
 <dependency>
     <groupId>de.eldoria</groupId>
     <artifactId>companies-api</artifactId>
-    <version>version</version>
+    <version>2.0.0</version>
 </dependency>
 ```
+
+# API
+
+## Getting the API
+Declare Companies as a dependency in your `plugin.yml`:
+
+```yaml
+depend: [Companies]
+# or, when your plugin also runs without it:
+softdepend: [Companies]
+```
+
+Companies registers the API with Bukkit's services manager while it enables, so it is available in your `onEnable`:
+
+```java
+CompaniesApi api = CompaniesApi.get();
+// or
+CompaniesApi api = getServer().getServicesManager().load(CompaniesApi.class);
+```
+
+`CompaniesApi.get()` throws an `IllegalStateException` when Companies is not enabled. With `softdepend`, check
+`getServer().getPluginManager().isPluginEnabled("Companies")` first. The API is split into `companies()`, `orders()`,
+`players()` and `ranking()`.
+
+## Futures and threads
+Every method returns a `CompletableFuture` that completes **off the main thread**. Never `join()` or `get()` it on the
+main thread. Hop back to the main thread for Bukkit calls:
+
+```java
+api.companies().of(player.getUniqueId())
+        .thenAcceptAsync(company -> company.ifPresent(c -> player.sendMessage("Member of " + c.name())),
+                task -> Bukkit.getScheduler().runTask(plugin, task));
+```
+
+Unknown ids and names give `Optional.empty()`. Reads work as soon as the API is registered. Write operations need the
+economy, which Companies sets up once the server has started; until then, and while Companies runs without an economy,
+their futures complete exceptionally with `ApiNotReadyException`.
+
+All data lives in the shared database, so on a network every server reads the same state. Events fire only on the
+server where the action happened; expiry and purges happen on the primary server.
+
+## Writing
+| Method                                         | What it does                                                                         |
+|------------------------------------------------|--------------------------------------------------------------------------------------|
+| `orders().create(OrderRequest)`                | Creates an order. Fires `PreOrderCreateEvent` and `OrderCreatedEvent`                 |
+| `companies().addMember(company, player)`       | Adds a player to a company, respecting its member limit. Fires `CompanyJoinEvent`     |
+| `players().grantItems(player, stack, amount)`  | Puts items into the player's returned items (`/order collect`). Fires `ItemsReturnedEvent` |
+
+```java
+OrderRequest request = OrderRequest.builder(owner, "Castle stone")
+        .line(OrderLineRequest.material(Material.STONE_BRICKS, 512, 2.5))
+        .line(OrderLineRequest.exact(enchantedPickaxe, 1, 500))
+        .charge(false)
+        .respectLimits(false)
+        .build();
+
+api.orders().create(request).thenAccept(result -> {
+    switch (result) {
+        case CreateOrderResult.Created created -> getLogger().info("Order " + created.order().id() + " created");
+        case CreateOrderResult.Rejected rejected -> getLogger().info("Rejected: " + rejected.reason());
+    }
+});
+```
+
+* **`charge(true)`** (default): the owner pays price and fee like with `/order create`. An owner who can not afford it
+  gets `RejectReason.INSUFFICIENT_FUNDS`; a failed save refunds the money; cancelling refunds as usual.
+* **`charge(false)`**: the server funds the order. Nothing is withdrawn and the fee is 0, but workers are still paid the
+  full price on completion. Cancelling or removing such an order refunds nothing. Meant for rewards and quests.
+* **`respectLimits(true)`** (default) applies the owner's order limit and the lines and items limits of `order.yml`.
+  With `false` only the name and the lines themselves are checked.
+
+A rejected order carries a `RejectReason` (`LIMIT_REACHED`, `TOO_MANY_LINES`, `TOO_MANY_ITEMS`, `INSUFFICIENT_FUNDS`,
+`CANCELLED`, `INVALID`) and a message you can show to a player.
+
+## Events
+Listen to them like any Bukkit event. Most are fired off the main thread; their javadoc names the thread.
+
+| Event                       | When                                                                                   |
+|-----------------------------|----------------------------------------------------------------------------------------|
+| `PreCompanyCreateEvent`     | A player is about to found a company, before the price is charged. Cancellable         |
+| `CompanyCreateEvent`        | A company was founded                                                                  |
+| `CompanyRenameEvent`        | A company was renamed by its owner or an admin                                         |
+| `CompanyOwnerTransferEvent` | The ownership passed to another member                                                 |
+| `CompanyProfileEditEvent`   | Description, tag, colour or join mode changed                                          |
+| `CompanyJoinEvent`          | A player joined a company                                                              |
+| `CompanyLeaveEvent`         | A member left; `CompanyKickEvent` when they were removed                               |
+| `CompanyLevelUpEvent`, `CompanyLevelDownEvent` | The level of a company changed                                      |
+| `CompanyDisbandEvent`       | A company was disbanded                                                                |
+| `PreOrderCreateEvent`       | An order is about to be created, before the owner is charged. Cancellable; the draft can be changed |
+| `OrderCreatedEvent`         | An order was saved                                                                     |
+| `PreOrderAcceptEvent`       | A member is about to accept an order for their company. Cancellable                    |
+| `OrderAcceptEvent`          | A company claimed an order                                                             |
+| `OrderDeliveryEvent`        | A worker delivered items to an order                                                   |
+| `OrderDoneEvent`            | All items of an order are delivered                                                    |
+| `OrderPaymentEvent`         | A worker is about to be paid their share. Cancellable                                  |
+| `OrderReceivedEvent`        | The owner received the items                                                           |
+| `OrderCanceledEvent`        | A company aborted a claimed order                                                      |
+| `OrderExpiredEvent`         | A company did not deliver in time                                                      |
+| `OrderRemovedEvent`         | An order was deleted before delivery; `reason()` is `PURGED`, `CANCELLED` or `ADMIN`   |
+| `ItemsReturnedEvent`        | Items were put into a player's returned items; `reason()` tells why                    |
+
+The pre-events implement `CancellableWithReason`. `cancel(Component)` stops the action and shows the reason to the
+player; `setCancelled(true)` shows a generic "Another plugin prevented this." Changes to the draft in
+`PreOrderCreateEvent` are checked against the limits again, and an order that breaks them is rejected with `INVALID`
+without charging anything.
+
+**Anonymity.** Companies keeps orders anonymous: workers never learn who placed an order, owners never learn which
+company works on theirs. Events and the API expose both sides. Use them for logic, logging or staff tools, and never
+show the owner of an order to the company's members or the company to the owner.
+
+## Migrating from 1.x
+The 1.x `CompaniesApi` had no reachable instance, so only event listeners can break.
+
+| 1.x                                                     | 2.0                                                                    |
+|---------------------------------------------------------|------------------------------------------------------------------------|
+| `CompaniesApi.getInstance()`                            | `CompaniesApi.get()` or `ServicesManager.load(CompaniesApi.class)`     |
+| `getPlayerCompanyProfile(OfflinePlayer)`, `getPlayerCompany` | `companies().of(uuid)`                                            |
+| `getCompanyStats(ISimpleCompany)`                       | `companies().stats(id)`                                                |
+| `getCompanyByName`, `getCompanyById`                    | `companies().byName`, `companies().byId`                               |
+| `retrieveOrderById`                                     | `orders().byId`, now an `IFullOrder`                                   |
+| `retrieveOrdersByCompany`, `retrieveOrdersByPlayer`     | `orders().byCompany`, `orders().byOwner`, now `IFullOrder`s            |
+| `retrieveMaterialPrice(Material)`                       | `orders().materialPrice`                                               |
+| Blocking return values                                  | `CompletableFuture`s, completed off the main thread                    |
+| Company and player objects as arguments                 | Company ids and player `UUID`s                                         |
+| `OrderRemovedEvent` on purge only                       | Also on owner and admin cancel; check `reason()`                       |
+| `OrderPaymentEvent`                                     | Also provides `company()`                                              |
+| Order events                                            | All provide the order's `owner()`                                      |
+| `CompanyPermission`, `TopOrder`                         | New constants `EDIT_PROFILE` and `LEVEL`; exhaustive switches need a branch |
+| `ICompanyRank`                                          | New `level()`, `tag()`, `color()`                                      |
+| `IOrderContent`                                         | Lines with `line()`, `exact()`, `unitPrice()`, `deliveries()`; `IFullOrder.content(Material)` is deprecated |
 
 # Setup
 

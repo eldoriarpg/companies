@@ -11,9 +11,7 @@ import de.eldoria.companies.commands.suggest.SearchResultIds;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
-import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.events.order.OrderAcceptEvent;
-import de.eldoria.eldoutilities.messages.Replacement;
+import de.eldoria.companies.orders.OrderAcceptService.Result;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.IntArg;
@@ -27,7 +25,8 @@ import java.util.logging.Level;
  * <p>
  * The member needs {@link CompanyPermission#MANAGE_ORDERS}. The company must be below the order limit of its level,
  * the order must fit the order size of the level and must not belong to a member unless member orders are allowed.
- * The claim itself only succeeds while the order is still unclaimed.
+ * The claim itself only succeeds while the order is still unclaimed. The checks, the events and the claim are made by
+ * {@link de.eldoria.companies.orders.OrderAcceptService}.
  */
 @Subcommand("accept")
 @PlayerOnly
@@ -55,8 +54,7 @@ public final class Accept {
         var player = Senders.player(sender);
         var menus = deps.services().menus();
         var messages = deps.messages();
-        var orderData = deps.orderData();
-        var configuration = deps.configuration();
+        var acceptance = deps.orderAccept();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
@@ -70,62 +68,15 @@ public final class Accept {
                         return;
                     }
                     var profile = optProfile.get();
-                    var companyMember = profile.member(player).get();
-                    if (!companyMember.hasPermission(CompanyPermission.MANAGE_ORDERS)) {
-                        messages.sendErrorActionBar(player, "error.permission.acceptOrder");
-                        return;
+                    switch (acceptance.accept(player, profile, id).join()) {
+                        case Result.Refused refused -> refused.failure().sendTo(player, messages);
+                        case Result.Accepted accepted -> {
+                            CompanyOrderSources.invalidate(player.getUniqueId());
+                            var member = profile.member(player).orElseThrow();
+                            menus.close(player)
+                                    .thenRun(() -> views.renderOrder(player, profile, member, accepted.order()));
+                        }
                     }
-
-                    var count = orderData.retrieveCompanyOrderCount(profile).join();
-                    if (count == null) {
-                        messages.sendErrorActionBar(player, "error.couldNotClaim");
-                        return;
-                    }
-                    var levelSettings = configuration.companySettings().levelSettings(profile.level());
-                    if (count >= levelSettings.maxOrders()) {
-                        messages.sendErrorActionBar(player, "error.orderLimit");
-                        return;
-                    }
-
-                    var optOrder = orderData.retrieveOrderById(id).join();
-                    if (optOrder == null || optOrder.isEmpty()) {
-                        messages.sendErrorActionBar(player, "error.unknownOrder");
-                        return;
-                    }
-
-                    var simpleOrder = optOrder.get();
-                    if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messages.sendErrorActionBar(player, "error.orderNotClaimable");
-                        return;
-                    }
-
-                    var size = orderData.retrieveFullOrder(simpleOrder).join();
-                    if (size != null && levelSettings.exceedsOrderSize(size.amount())) {
-                        messages.sendErrorActionBar(
-                                player, "error.orderTooLarge", Replacement.create("max", levelSettings.maxOrderSize()));
-                        return;
-                    }
-
-                    if (!profile.mayAcceptOrderOf(
-                            simpleOrder.owner(), configuration.companySettings().allowMemberOrders())) {
-                        messages.sendErrorActionBar(player, "error.ownMemberOrder");
-                        return;
-                    }
-
-                    if (Boolean.TRUE.equals(orderData
-                            .submitOrderClaim(profile, simpleOrder, levelSettings.deliveryHoursBonus())
-                            .join())) {
-                        CompanyOrderSources.invalidate(player.getUniqueId());
-                        var refreshed = orderData.retrieveOrderById(id).join();
-                        var claimedOrder = refreshed == null ? simpleOrder : refreshed.orElse(simpleOrder);
-                        var claimed = orderData.retrieveFullOrder(claimedOrder).join();
-                        menus.close(player).thenRun(() -> {
-                            player.getServer().getPluginManager().callEvent(new OrderAcceptEvent(simpleOrder, profile));
-                            views.renderOrder(player, profile, companyMember, claimed);
-                        });
-                        return;
-                    }
-                    messages.sendErrorActionBar(player, "error.couldNotClaim");
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);

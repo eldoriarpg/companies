@@ -10,19 +10,30 @@ import de.eldoria.companies.events.components.CompanyProvider;
 import org.bukkit.event.Event;
 
 /**
- * A company event.
+ * Base of the events about a company. Listen to its subclasses; this class has no handler list.
  * <p>
- * This event is for internal use and should not be subscribed directly
+ * Company events fire only on the server where the action happened.
  *
- * @param <Company> type of company implementation
+ * @param <Company> type of company
  */
 public abstract class CompanyEvent<Company extends ISimpleCompany> extends Event implements CompanyProvider<Company> {
     private final Company company;
 
+    /**
+     * Creates a synchronous event.
+     *
+     * @param company the company
+     */
     public CompanyEvent(Company company) {
         this.company = company;
     }
 
+    /**
+     * Creates an event.
+     *
+     * @param company the company
+     * @param async   whether the event is fired off the main thread
+     */
     public CompanyEvent(Company company, boolean async) {
         super(async);
         this.company = company;

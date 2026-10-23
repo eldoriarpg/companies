@@ -54,6 +54,8 @@ import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
+import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.DisbandService;
@@ -108,6 +110,8 @@ public class Companies extends EldoPlugin {
     private AMembershipData membershipData;
     private Updates updates;
     private CommandDependencies commands;
+    private OrderDraftService drafts;
+    private CompaniesApiImpl api;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -132,8 +136,6 @@ public class Companies extends EldoPlugin {
         }
 
         configuration.syncConfigurations(nodeData).join();
-
-        CompaniesApiImpl.create(companyData, orderData);
     }
 
     @Override
@@ -146,6 +148,11 @@ public class Companies extends EldoPlugin {
 
         StyledMessageSender.register(this, localizer, configuration::styleSettings);
         registerCommands();
+        api = CompaniesApiImpl.create(
+                this,
+                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats()),
+                Threading.VIRTUAL);
+        api.register(this);
     }
 
     /**
@@ -156,6 +163,7 @@ public class Companies extends EldoPlugin {
         var dependencies = new CommandDependencies(
                 this, configuration, companyData, orderData, nodeData, membershipData, information);
         commands = dependencies;
+        drafts = dependencies.drafts();
         CommandFailures.use((sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)));
         SuggestionSources.use(new SuggestionSources(
                 companyData,
@@ -213,9 +221,19 @@ public class Companies extends EldoPlugin {
                 Threading.VIRTUAL);
 
         var historyRecorder = new HistoryRecorder(information.history(), Clock.systemDefaultZone());
-        var outcomes = new OrderOutcomes(orderData, historyRecorder, getLogger(), Threading.VIRTUAL);
+        var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
                 this, orderData, information.stats(), historyRecorder, economy, configuration);
+
+        var orderCreation = new OrderCreationService(
+                orderData,
+                configuration::orderSetting,
+                drafts.limits(),
+                drafts::request,
+                OrderCreationService.Wallet.of(economy),
+                getServer().getPluginManager()::callEvent,
+                Threading.mainThread(this),
+                getLogger());
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -226,15 +244,19 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, orderCompletion, configuration),
+                    new DeliveryService(this, orderData, orderCompletion, itemReturnService, () -> configuration
+                            .orderSetting()
+                            .matching()),
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
-                    orderCompletion));
+                    orderCompletion,
+                    orderCreation));
         }
+        if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
         var expiringService = new ExpiringService(
-                this, orderData, companyData, configuration, itemReturnService, economy, notificationService, outcomes);
+                this, orderData, companyData, configuration, economy, notificationService, outcomes);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool);
@@ -276,6 +298,7 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
+        if (api != null) api.unregister(this);
         if (commands != null) commands.withdraw();
         SuggestionSources.clear();
         CompanyOrderSources.clear();

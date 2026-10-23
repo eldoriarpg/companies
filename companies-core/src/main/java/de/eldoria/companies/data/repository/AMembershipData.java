@@ -5,10 +5,10 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.data.wrapper.company.Application;
 import de.eldoria.companies.data.wrapper.company.ApplyResult;
 import de.eldoria.companies.data.wrapper.company.Invite;
-import de.eldoria.companies.data.wrapper.company.JoinResult;
 
 import java.time.LocalDateTime;
 import java.util.List;

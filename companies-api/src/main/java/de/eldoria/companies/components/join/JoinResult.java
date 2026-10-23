@@ -3,7 +3,7 @@
  *
  *     Copyright (C EldoriaRPG Team and Contributor
  */
-package de.eldoria.companies.data.wrapper.company;
+package de.eldoria.companies.components.join;
 
 /**
  * Outcome of adding a player to a company.
@@ -18,11 +18,11 @@ public enum JoinResult {
      */
     ALREADY_MEMBER,
     /**
-     * The company has reached its member limit.
+     * The company has reached the member limit of its level.
      */
     COMPANY_FULL,
     /**
-     * The company does not exist anymore.
+     * No company has the given id.
      */
     UNKNOWN_COMPANY,
     /**

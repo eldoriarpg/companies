@@ -5,110 +5,69 @@
  */
 package de.eldoria.companies.api;
 
-import de.eldoria.companies.components.company.ICompanyProfile;
-import de.eldoria.companies.components.company.ICompanyStats;
-import de.eldoria.companies.components.company.ISimpleCompany;
-import de.eldoria.companies.components.order.IMaterialPrice;
-import de.eldoria.companies.components.order.ISimpleOrder;
-import de.eldoria.companies.components.order.OrderState;
-import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
+import org.bukkit.Bukkit;
 
-import java.util.List;
-import java.util.Optional;
-
-public abstract class CompaniesApi {
-    private static CompaniesApi instance;
-
-    static CompaniesApi getInstance() {
-        if (instance == null) {
-            throw new IllegalStateException("Api was called before the api was loaded");
-        }
-        return instance;
+/**
+ * Entry point of the Companies API.
+ * <p>
+ * Companies registers its implementation with Bukkit's {@link org.bukkit.plugin.ServicesManager} while it enables. A
+ * plugin that declares Companies as {@code depend} (or {@code softdepend} and checks that it is enabled) can obtain it
+ * in its own {@code onEnable} with {@link #get()} or with {@code getServicesManager().load(CompaniesApi.class)}.
+ * <p>
+ * <b>Threading.</b> Every method of the API returns a {@link java.util.concurrent.CompletableFuture} that completes off
+ * the main thread. Do not block the main thread on it with {@code join()} or {@code get()}. Run Bukkit calls that need
+ * the main thread through the scheduler, for example with
+ * {@code future.thenAcceptAsync(result -> ..., runnable -> Bukkit.getScheduler().runTask(plugin, runnable))}.
+ * <p>
+ * <b>Reads and writes.</b> Reads work as soon as the API is registered. Write operations need the economy, which
+ * Companies sets up once the server has started; before that, and while Companies runs without an economy, they
+ * complete exceptionally with an {@link ApiNotReadyException}.
+ * <p>
+ * <b>Anonymity.</b> Companies keeps orders anonymous: players never learn who placed an order they work on, and owners
+ * never learn which company works on theirs. The API and its events expose both sides. Use them for logic, logging or
+ * staff tools, and never show the owner of an order to the members of a company or the company to the owner.
+ * <p>
+ * <b>Multiple servers.</b> All data lives in the shared database, so reads see the changes of every server. Events are
+ * fired only on the server where the action happened.
+ */
+public interface CompaniesApi {
+    /**
+     * The running API.
+     *
+     * @return the registered API
+     * @throws IllegalStateException when Companies is not enabled
+     */
+    static CompaniesApi get() {
+        var api = Bukkit.getServicesManager().load(CompaniesApi.class);
+        if (api == null) throw new IllegalStateException("Companies is not enabled");
+        return api;
     }
 
-    protected static void initInstance(CompaniesApi instance) {
-        if (CompaniesApi.instance != null) {
-            throw new IllegalStateException("Api is already initialized.");
-        }
-        CompaniesApi.instance = instance;
-    }
+    /**
+     * Access to companies and their members.
+     *
+     * @return company API
+     */
+    CompanyApi companies();
 
     /**
-     * Get the company profile of a player
+     * Access to orders, material prices and order creation.
      *
-     * @param player player
-     * @return optional holding the company profile if the player is part of a company
+     * @return order API
      */
-    public abstract Optional<? extends ICompanyProfile> getPlayerCompanyProfile(OfflinePlayer player);
+    OrderApi orders();
 
     /**
-     * Get the company profile of a player.
+     * Access to the per-player data of Companies, such as items waiting to be picked up.
      *
-     * @param player player
-     * @return optional holding the company profile if the player is part of a company
+     * @return player API
      */
-    public abstract Optional<? extends ISimpleCompany> getPlayerCompany(OfflinePlayer player);
+    PlayerApi players();
 
     /**
-     * Returns stats for the company.
+     * Access to the company ranking.
      *
-     * @param company company to check
-     * @return company stats
+     * @return ranking API
      */
-    public abstract ICompanyStats getCompanyStats(ISimpleCompany company);
-
-    /**
-     * Get the company by name.
-     *
-     * @param name name. Not case sensitive
-     * @return optional holding a company if available
-     */
-    public abstract Optional<? extends ISimpleCompany> getCompanyByName(String name);
-
-    /**
-     * Get the company by id.
-     *
-     * @param id positive id of the company
-     * @return optional holding a company if available
-     */
-    public abstract Optional<? extends ISimpleCompany> getCompanyById(int id);
-
-    /**
-     * Retrieve a order by the id
-     *
-     * @param id order id
-     * @return optional hodling the order id available
-     */
-    public abstract Optional<? extends ISimpleOrder> retrieveOrderById(int id);
-
-    /**
-     * Retrieve all orders assigned to a company
-     *
-     * @param company company to check. Can be a {@link ISimpleCompany#forId(int)}.
-     * @param min     min order state
-     * @param max     max order state
-     * @return List of orders. List may be empty
-     */
-    public abstract List<? extends ISimpleOrder> retrieveOrdersByCompany(
-            ISimpleCompany company, OrderState min, OrderState max);
-
-    /**
-     * Retrieve all orders assigned to a company
-     *
-     * @param player player to check.
-     * @param min    min order state
-     * @param max    max order state
-     * @return List of orders. List may be empty
-     */
-    public abstract List<? extends ISimpleOrder> retrieveOrdersByPlayer(
-            OfflinePlayer player, OrderState min, OrderState max);
-
-    /**
-     * Retrieve the material price for a material
-     *
-     * @param material material to check.
-     * @return optional which holds the material price. This result may be cached or be retrived from the database
-     */
-    public abstract IMaterialPrice retrieveMaterialPrice(Material material);
+    RankingApi ranking();
 }

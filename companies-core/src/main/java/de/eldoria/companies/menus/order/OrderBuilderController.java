@@ -13,6 +13,7 @@ import de.eldoria.companies.menus.MenuMode;
 import de.eldoria.companies.menus.order.OrderBuilderMenu.Screen;
 import de.eldoria.companies.menus.order.OrderBuilderMenu.View;
 import de.eldoria.companies.orders.OrderBuilder;
+import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
@@ -132,7 +133,7 @@ public final class OrderBuilderController {
      */
     public void done(Player player) {
         var economy = deps.services().economy();
-        drafts().done(player, economy)
+        drafts().done(player, deps.services().orderCreation())
                 .whenCompleteAsync(
                         (created, err) -> {
                             if (err != null) {
@@ -214,7 +215,7 @@ public final class OrderBuilderController {
         return deps.services().menus().mode(player, true) == MenuMode.DIALOG;
     }
 
-    private void sendCreated(Player player, OrderDraftService.Created created, Economy economy) {
+    private void sendCreated(Player player, OrderCreationService.Created created, Economy economy) {
         if (created.fee() > 0) {
             deps.messages()
                     .sendMessage(

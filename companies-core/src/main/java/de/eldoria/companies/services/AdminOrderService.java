@@ -13,6 +13,8 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
@@ -22,6 +24,7 @@ import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Threading;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 
 import java.math.BigDecimal;
@@ -32,6 +35,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
@@ -54,7 +58,9 @@ import java.util.logging.Logger;
  *     <li>marking a partly delivered order delivered pays the workers for what they delivered, as a normal completion
  *     does, and refunds the owner the price share of the missing items.</li>
  * </ul>
- * Deposits are made on the main thread.
+ * Deposits are made on the main thread. Released and deleted orders fire {@link ItemsReturnedEvent} with
+ * {@link ItemsReturnedEvent.Reason#ADMIN_RELEASE} for the workers' items, and a deletion fires {@link OrderRemovedEvent}
+ * with {@link OrderRemovedEvent.Reason#ADMIN}. Marking an order delivered fires the events of a normal completion.
  */
 public final class AdminOrderService {
     private final AOrderData orderData;
@@ -63,6 +69,8 @@ public final class AdminOrderService {
     private final HistoryRecorder history;
     private final Funds funds;
     private final Notices notices;
+    private final ItemReturnService itemReturns;
+    private final Consumer<Event> events;
     private final Logger logger;
     private final Executor executor;
 
@@ -72,9 +80,11 @@ public final class AdminOrderService {
      * @param completion settles orders marked delivered
      * @param history    writes the history entries
      * @param funds      refunds owners and pays the collector
-     * @param notices    tells the affected players
-     * @param logger     logs history entries that could not be written
-     * @param executor   runs the actions off the main thread
+     * @param notices     tells the affected players
+     * @param itemReturns reports the items returned to workers and tells them
+     * @param events      fires the events of the actions
+     * @param logger      logs history entries that could not be written
+     * @param executor    runs the actions off the main thread
      */
     public AdminOrderService(
             AOrderData orderData,
@@ -83,6 +93,8 @@ public final class AdminOrderService {
             HistoryRecorder history,
             Funds funds,
             Notices notices,
+            ItemReturnService itemReturns,
+            Consumer<Event> events,
             Logger logger,
             Executor executor) {
         this.orderData = orderData;
@@ -91,6 +103,8 @@ public final class AdminOrderService {
         this.history = history;
         this.funds = funds;
         this.notices = notices;
+        this.itemReturns = itemReturns;
+        this.events = events;
         this.logger = logger;
         this.executor = executor;
     }
@@ -107,7 +121,7 @@ public final class AdminOrderService {
      * @param economy       economy refunding the owners
      * @param configuration configuration of the plugin
      * @param notifications sends the notifications
-     * @param itemReturns   tells online workers about their returned items
+     * @param itemReturns   reports returned items and tells online workers about them
      * @return the service
      */
     public static AdminOrderService create(
@@ -146,7 +160,9 @@ public final class AdminOrderService {
                 completion,
                 history,
                 funds,
-                new InboxNotices(notifications, itemReturns, economy::format),
+                new InboxNotices(notifications, economy::format),
+                itemReturns,
+                plugin.getServer().getPluginManager()::callEvent,
                 plugin.getLogger(),
                 Threading.VIRTUAL);
     }
@@ -231,13 +247,13 @@ public final class AdminOrderService {
         var order = found.get();
         if (order.state() != OrderState.CLAIMED) return Result.refused(Refusal.NOT_CLAIMED);
         var snapshot = orderData.toFullOrder(order);
-        var workers = orderData.submitUnclaimOrder(order).join();
-        if (workers == null || workers.isEmpty()) return Result.refused(Refusal.NOT_CLAIMED);
+        var returned = orderData.submitUnclaimOrder(order).join();
+        if (returned == null || returned.isEmpty()) return Result.refused(Refusal.NOT_CLAIMED);
         record(() -> history.companyEntry(snapshot, order.company(), HistoryOutcome.UNCLAIMED_BY_ADMIN, List.of()), id);
         companies.apply(order.company()).ifPresent(company -> notices.companyUnclaimed(company, order));
         notices.ownerReopened(order);
-        notices.itemsReturned(workers.get());
-        return Result.done(new Unclaimed(snapshot, workers.get()));
+        itemReturns.returned(order, returned.get(), ItemsReturnedEvent.Reason.ADMIN_RELEASE);
+        return Result.done(new Unclaimed(snapshot, returned.get().workers()));
     }
 
     private Result<Cancelled> cancelNow(int id, boolean refund) {
@@ -246,8 +262,8 @@ public final class AdminOrderService {
         var order = found.get();
         if (!isOpen(order)) return Result.refused(Refusal.NOT_OPEN);
         var snapshot = orderData.toFullOrder(order);
-        var workers = orderData.submitAdminDeletion(order).join();
-        if (workers == null || workers.isEmpty()) return Result.refused(Refusal.NOT_OPEN);
+        var returned = orderData.submitAdminDeletion(order).join();
+        if (returned == null || returned.isEmpty()) return Result.refused(Refusal.NOT_OPEN);
         var money = cancelMoney(snapshot, refund);
         if (money.refund() > 0) funds.refund(order.owner(), money.refund());
         if (money.collected() > 0) funds.collect(money.collected());
@@ -260,8 +276,9 @@ public final class AdminOrderService {
             companies.apply(order.company()).ifPresent(company -> notices.companyCancelled(company, order));
         }
         notices.ownerCancelled(order, money.refund());
-        notices.itemsReturned(workers.get());
-        return Result.done(new Cancelled(snapshot, claimed, workers.get(), money));
+        itemReturns.returned(order, returned.get(), ItemsReturnedEvent.Reason.ADMIN_RELEASE);
+        events.accept(new OrderRemovedEvent(order, OrderRemovedEvent.Reason.ADMIN));
+        return Result.done(new Cancelled(snapshot, claimed, returned.get().workers(), money));
     }
 
     private Result<Delivered> deliverNow(int id) {
@@ -493,22 +510,15 @@ public final class AdminOrderService {
          * @param refund price share of the missing items
          */
         void ownerRefunded(SimpleOrder order, double refund);
-
-        /**
-         * @param workers workers who got items returned
-         */
-        void itemsReturned(Set<UUID> workers);
     }
 
     /**
-     * Notices through the inbox, and the item return notice for online workers.
+     * Notices through the inbox.
      *
      * @param notifications sends the notifications
-     * @param itemReturns   tells online workers about their returned items
      * @param money         formats amounts of money
      */
-    record InboxNotices(NotificationService notifications, ItemReturnService itemReturns, DoubleFunction<String> money)
-            implements Notices {
+    record InboxNotices(NotificationService notifications, DoubleFunction<String> money) implements Notices {
         @Override
         public void ownerReopened(SimpleOrder order) {
             notifications.notifyOrderOpen(order);
@@ -542,11 +552,6 @@ public final class AdminOrderService {
         @Override
         public void ownerRefunded(SimpleOrder order, double refund) {
             notifications.send(order.owner(), NotificationType.MY_ORDER_PARTLY_REFUNDED, withAmount(order, refund));
-        }
-
-        @Override
-        public void itemsReturned(Set<UUID> workers) {
-            itemReturns.notifyWorkers(workers);
         }
 
         private NotificationArgs withAmount(SimpleOrder order, double amount) {

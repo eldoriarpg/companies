@@ -10,6 +10,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
 
+/**
+ * The life cycle of an order.
+ */
 public enum OrderState implements Translatable {
     /**
      * The order is not claimed by any company
@@ -34,11 +37,22 @@ public enum OrderState implements Translatable {
         this.stateId = stateId;
     }
 
+    /**
+     * The state with the given id.
+     *
+     * @param stateId stored id
+     * @return the state, or null when no state has this id
+     */
     public static OrderState byId(int stateId) {
         for (var value : values()) if (value.stateId == stateId) return value;
         return null;
     }
 
+    /**
+     * The stable id of this state, as stored in the database. States are ordered by their id.
+     *
+     * @return id
+     */
     public int stateId() {
         return stateId;
     }

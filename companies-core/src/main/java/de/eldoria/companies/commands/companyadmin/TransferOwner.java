@@ -78,8 +78,13 @@ public final class TransferOwner {
             }
 
             newOwner.get().isOwner(true);
-            companyData.submitMemberUpdate(newOwner.get());
-            companyData.submitMemberUpdate(owner);
+            companyData.submitMemberUpdate(newOwner.get()).join();
+            companyData.submitMemberUpdate(owner).join();
+            if (!owner.uuid().equals(newOwner.get().uuid())) {
+                deps.companyChanges()
+                        .ownerTransferred(
+                                profile.id(), owner.uuid(), newOwner.get().uuid(), true);
+            }
             deps.adminLog()
                     .entry(admin, "transferowner")
                     .with("company", profile.name())

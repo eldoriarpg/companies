@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.data.wrapper.stats;
 
+import de.eldoria.companies.components.company.IMemberStats;
+
 import java.util.UUID;
 
 /**
@@ -15,4 +17,4 @@ import java.util.UUID;
  * @param earned money paid out, after tax
  * @param orders completed orders the worker delivered to
  */
-public record MemberStats(UUID worker, int items, double earned, int orders) {}
+public record MemberStats(UUID worker, int items, double earned, int orders) implements IMemberStats {}
