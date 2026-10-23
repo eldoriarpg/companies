@@ -70,6 +70,7 @@ public final class Rename {
                 messages().sendError(player, "error.companyNameUsed");
                 return;
             }
+            deps.companyChanges().renamed(company.get().id(), company.get().name(), player.getUniqueId(), true);
             deps.adminLog()
                     .entry(player, "rename")
                     .with("company_id", company.get().id())

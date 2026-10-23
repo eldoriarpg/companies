@@ -22,6 +22,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.services.AdminOrderService;
+import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
@@ -188,6 +189,13 @@ public final class CommandDependencies {
     public OrderOutcomes outcomes() {
         return OrderOutcomes.create(
                 plugin, orderData, companyData, history(), services().itemReturnService());
+    }
+
+    /**
+     * @return fires the events of founding, renaming and handing over companies
+     */
+    public CompanyChanges companyChanges() {
+        return CompanyChanges.create(plugin, companyData);
     }
 
     /**

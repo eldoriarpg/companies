@@ -105,6 +105,7 @@ public final class Transfer {
                         messages().sendError(player, "company.transfer.failed");
                         return;
                     }
+                    deps.companyChanges().ownerTransferred(company.id(), player.getUniqueId(), target.uuid(), false);
                     var name = Replacement.unparsed(
                             "name", String.valueOf(target.player().getName()));
                     messages().sendMessage(player, "company.transfer.done", name);
