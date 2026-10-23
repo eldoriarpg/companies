@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.integrations.discord;
 
+import de.eldoria.companies.configuration.EnvReference;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
@@ -21,7 +23,6 @@ import java.util.function.UnaryOperator;
  * about the url never contain it.
  */
 public final class WebhookUrl {
-    private static final String ENV_PREFIX = "env:";
     private static final Set<String> DISCORD_HOSTS =
             Set.of("discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com");
 
@@ -36,21 +37,16 @@ public final class WebhookUrl {
      * @return the url, empty when none is set or it is not usable
      */
     public static Optional<URI> resolve(String configured, UnaryOperator<String> environment, Consumer<String> notice) {
-        var value = configured.trim();
-        if (value.regionMatches(true, 0, ENV_PREFIX, 0, ENV_PREFIX.length())) {
-            var name = value.substring(ENV_PREFIX.length()).trim();
-            var resolved = name.isEmpty() ? null : environment.apply(name);
-            if (resolved == null || resolved.isBlank()) {
-                notice.accept("The environment variable " + name + " for the Discord webhook is not set.");
-                return Optional.empty();
-            }
-            value = resolved.trim();
-        }
-        if (value.isEmpty()) {
+        var value = EnvReference.resolve(
+                configured,
+                environment,
+                name -> notice.accept("The environment variable " + name + " for the Discord webhook is not set."));
+        if (value.isEmpty()) return Optional.empty();
+        if (value.get().isEmpty()) {
             notice.accept("No Discord webhook url is configured.");
             return Optional.empty();
         }
-        return parse(value, notice);
+        return parse(value.get(), notice);
     }
 
     private static Optional<URI> parse(String value, Consumer<String> notice) {
