@@ -24,6 +24,8 @@ ocular = "dev.chojo:ocular:2.3.1"
 
 papi = "me.clip:placeholderapi:2.12.3"
 vault = "com.github.MilkBowl:VaultAPI:1.7.1"
+citizens = "net.citizensnpcs:citizens-main:2.0.44-SNAPSHOT"
+fancynpcs = "de.oliver:FancyNpcs:2.11.0"
 
 hikari = "com.zaxxer:HikariCP:7.1.0"
 mariadb = "org.mariadb.jdbc:mariadb-java-client:3.5.11"

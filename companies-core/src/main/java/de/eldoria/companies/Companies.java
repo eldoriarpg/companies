@@ -14,6 +14,8 @@ import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
+import de.eldoria.companies.boards.SignBoards;
+import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.suggest.AlertSuggestions;
@@ -63,6 +65,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.debug.CompaniesDebug;
+import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -133,6 +136,7 @@ public class Companies extends EldoPlugin {
     private CommandDependencies commands;
     private OrderDraftService drafts;
     private CompaniesApiImpl api;
+    private DiscordWebhook discord;
 
     public Companies() {
         configuration = new Configuration(this);
@@ -192,6 +196,7 @@ public class Companies extends EldoPlugin {
                 dependencies.drafts(),
                 configuration,
                 ILocalizer.getPluginLocalizer(this),
+                dependencies.npcBoards(),
                 Threading.VIRTUAL));
         MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
         TreasurySources.use(new TreasurySources(companyData, economy.treasury(), Threading.VIRTUAL));
@@ -331,6 +336,27 @@ public class Companies extends EldoPlugin {
         registerListener(levelService);
         registerListener(itemReturnService);
         registerListener(notificationService);
+        if (commands != null && configuration.boardSettings().enabled()) {
+            new SignBoards(
+                            this,
+                            commands.boards(),
+                            configuration::boardSettings,
+                            ILocalizer.getPluginLocalizer(this)::localize,
+                            (sender, failure) -> failure.sendTo(sender, MessageSender.getPluginMessageSender(this)),
+                            Clock.systemUTC())
+                    .start();
+        }
+        if (commands != null) {
+            commands.npcBoards()
+                    .start(NpcHooks.create(
+                            this,
+                            name -> configuration.generalSettings().hooks().npc(name)));
+        }
+
+        discord = DiscordWebhook.start(
+                        this, configuration::discordSettings, economy, ILocalizer.getPluginLocalizer(this))
+                .orElse(null);
+        if (discord != null) registerListener(discord.listener());
         registerListener(seriesService);
         registerListener(new AlertMatcher(
                 this.economy.alerts(),
@@ -365,7 +391,10 @@ public class Companies extends EldoPlugin {
     @Override
     public void onPluginDisable() {
         if (api != null) api.unregister(this);
-        if (commands != null) commands.withdraw();
+        if (commands != null) {
+            commands.npcBoards().stop();
+            commands.withdraw();
+        }
         SuggestionSources.clear();
         CompanyOrderSources.clear();
         TreasurySources.clear();
@@ -374,6 +403,7 @@ public class Companies extends EldoPlugin {
         SeriesSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
+        if (discord != null) discord.stop();
         workerPool.shutdown();
         Threading.VIRTUAL.shutdown();
         awaitTermination(workerPool);

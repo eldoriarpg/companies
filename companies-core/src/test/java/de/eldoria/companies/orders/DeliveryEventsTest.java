@@ -20,6 +20,7 @@ import de.eldoria.companies.events.order.OrderDeliveryEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -92,7 +93,7 @@ class DeliveryEventsTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

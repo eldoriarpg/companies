@@ -12,6 +12,7 @@ import de.eldoria.companies.data.wrapper.company.Application;
 import de.eldoria.companies.data.wrapper.company.ApplyResult;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.Invite;
+import de.eldoria.companies.util.TestExecutors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,7 +60,7 @@ class SqLiteMembershipDataTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     private int createCompany(String name, UUID companyOwner) {

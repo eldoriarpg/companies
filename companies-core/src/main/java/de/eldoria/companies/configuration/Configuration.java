@@ -5,8 +5,11 @@
  */
 package de.eldoria.companies.configuration;
 
+import de.eldoria.companies.configuration.elements.BoardBindings;
+import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
+import de.eldoria.companies.configuration.elements.DiscordSettings;
 import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.MenuSettings;
@@ -48,6 +51,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     public static final Key<CompanySettings> COMPANY_SETTINGS = Key.builder(
                     Path.of("company.yml"), CompanySettings::new)
             .name("Company config")
+            .build();
+    public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
+            .name("Board bindings")
             .build();
 
     public Configuration(Plugin plugin) {
@@ -104,6 +110,34 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public TopSettings topSettings() {
         return main().top();
+    }
+
+    /**
+     * @return the order boards on signs and NPCs
+     */
+    public BoardSettings boardSettings() {
+        return main().boards();
+    }
+
+    /**
+     * @return the NPCs bound to boards on this node, never synced between nodes
+     */
+    public BoardBindings boardBindings() {
+        return secondary(BOARD_BINDINGS);
+    }
+
+    /**
+     * Writes the NPCs bound to boards to {@code boards.yml}.
+     */
+    public void saveBoardBindings() {
+        save(BOARD_BINDINGS);
+    }
+
+    /**
+     * @return the Discord webhook
+     */
+    public DiscordSettings discordSettings() {
+        return main().discord();
     }
 
     public DatabaseSettings databaseSettings() {

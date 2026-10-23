@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.configuration;
 
+import de.eldoria.companies.configuration.elements.BoardSettings;
+import de.eldoria.companies.configuration.elements.DiscordSettings;
 import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
 import de.eldoria.companies.configuration.elements.MenuSettings;
@@ -23,6 +25,8 @@ public class ConfigFile {
     private NotificationSettings notifications = new NotificationSettings();
     private PlaceholderSettings placeholders = new PlaceholderSettings();
     private TopSettings top = new TopSettings();
+    private BoardSettings boards = new BoardSettings();
+    private DiscordSettings discord = new DiscordSettings();
 
     /**
      * The configuration written for a new installation, which shows menus as dialogs.
@@ -76,5 +80,19 @@ public class ConfigFile {
      */
     public TopSettings top() {
         return top;
+    }
+
+    /**
+     * @return the order boards on signs and NPCs
+     */
+    public BoardSettings boards() {
+        return boards;
+    }
+
+    /**
+     * @return the Discord webhook
+     */
+    public DiscordSettings discord() {
+        return discord;
     }
 }

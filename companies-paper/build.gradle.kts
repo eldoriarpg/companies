@@ -15,6 +15,9 @@ dependencies {
         exclude("*")
     }
     implementation(project(":companies-api"))
+    implementation(project(":companies-hooks")) {
+        exclude("*")
+    }
     implementation(libs.messageblocker)
     implementation(libs.bundles.eldoria.utilities) {
         exclude("net.kyori")
@@ -45,6 +48,13 @@ pluginManifest {
     }
     optional("ProtocolLib") {
         link("https://github.com/dmulloy2/ProtocolLib")
+    }
+    optional("Citizens") {
+        link("https://citizensnpcs.co")
+    }
+    optional("FancyNpcs") {
+        modrinth("fancynpcs")
+        hangar("Oliver/FancyNpcs")
     }
 }
 
@@ -86,7 +96,7 @@ bukkit {
     version = project.version.toString()
     authors = listOf("RainbowDashLabs")
     depend = listOf("Vault")
-    softDepend = listOf("PlaceholderAPI", "ProtocolLib")
+    softDepend = listOf("PlaceholderAPI", "ProtocolLib", "Citizens", "FancyNpcs")
 
     permissions {
         register("companies.*") {
@@ -94,6 +104,7 @@ bukkit {
             children = listOf(
                 "companies.orders.*",
                 "companies.company.*",
+                "companies.boards.use",
                 "companies.admin.*",
                 "companies.updates"
             )
@@ -130,10 +141,16 @@ bukkit {
             default = Default.TRUE
         }
 
+        register("companies.boards.use") {
+            description = "Allows opening order boards through signs, NPCs and /company board"
+            default = Default.TRUE
+        }
+
         register("companies.admin.*") {
             description = "Gives access to all admin commands"
             children = listOf(
                 "companies.admin",
+                "companies.admin.boards",
                 "companies.admin.calcLevel",
                 "companies.admin.delete",
                 "companies.admin.grant",
@@ -148,6 +165,9 @@ bukkit {
         }
         register("companies.admin") {
             description = "Allows using the admin command and creating debug reports"
+        }
+        register("companies.admin.boards") {
+            description = "Allows creating and breaking board signs and managing boards"
         }
         register("companies.admin.calcLevel") {
             description = "Allows recalculating company levels"

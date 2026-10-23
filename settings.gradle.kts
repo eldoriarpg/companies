@@ -2,6 +2,7 @@ rootProject.name = "Companies"
 include(":companies-core")
 include(":companies-api")
 include(":companies-paper")
+include(":companies-hooks")
 
 pluginManagement {
     repositories {

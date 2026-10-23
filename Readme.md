@@ -185,6 +185,8 @@ The plugin is plug & play. However, you can do several configurations.
 ## Optional Dependencies
 * [PAPI](https://www.spigotmc.org/resources/6245/) for Placeholders
 * [ProtocolLib](https://www.spigotmc.org/resources/1997/) for the best experience with the text UIs. **This is highly recommended.**
+* [Citizens](https://citizensnpcs.co) or [FancyNpcs](https://modrinth.com/plugin/fancynpcs) for NPCs that open order
+  boards
 
 ## Commands
 
@@ -278,6 +280,7 @@ Companies see copies as normal orders; nothing shows them that an order repeats.
 | `/company inbox settings`                                 | Show and toggle the muted categories                |
 | `/company history [page]`                                 | List the ended orders of your company               |
 | `/company history info <entry>`                           | Show an ended order with its items, payouts and outcome |
+| `/company board [preset\|materials]`                      | Open an order board: the open orders of a preset or of materials |
 
 Confirmations are given with `confirm` after the command, e.g. `/company leave confirm`.
 
@@ -417,6 +420,11 @@ contributed orders for all time and the last 30 days, and sorts the list by one 
 | `/companyadmin player <player>`                          | `companies.admin.player`        |
 | `/companyadmin grant items <player> [amount]`            | `companies.admin.grant`         |
 | `/companyadmin grant money <player> <amount>`            | `companies.admin.grant`         |
+| `/companyadmin board presets`                            | `companies.admin.boards`        |
+| `/companyadmin board reload`                             | `companies.admin.boards`        |
+| `/companyadmin board npc link <hook> <npc> [board]`      | `companies.admin.boards`        |
+| `/companyadmin board npc unlink <hook> <npc>`            | `companies.admin.boards`        |
+| `/companyadmin board npc list`                           | `companies.admin.boards`        |
 | `/companyadmin treasury <company>`                       | `companies.admin.treasury`      |
 | `/companyadmin treasury give\|take <company> <amount>`   | `companies.admin.treasury`      |
 | `/companyadmin syncconfiguration`                        | `companies.admin`               |
@@ -445,6 +453,48 @@ Every admin command writes a line with the admin's name and the details to the s
 `[admin] Steve order cancel id=42 refund=true owner=Alex company="Iron Works"`.
 Update notifications link to `/companies:eldo-update`, which is available to `companies.updates`.
 
+### Order boards
+
+A board is the order search opened with a filter: a preset from `boards.presets` in `config.yml`, materials separated
+by spaces (each matches every material whose name contains it, e.g. `iron` or `oak_log birch_log`), or nothing for
+every open order. It shows the first page of results, with `[Change]` leading to the search form. Members of a company
+accept orders from it as usual; players without a company see the list read-only. Boards need
+`companies.boards.use` (everyone by default) and open at most once per second per player.
+
+`/company board [preset|materials]` opens a board directly. `/companyadmin board presets` lists the presets with their
+open order counts, and `/companyadmin board reload` writes the loaded board signs again after the presets were changed
+and `/companyadmin reload` was run.
+
+**Sign boards.** A player with `companies.admin.boards` writes a sign with `[Companies]` (`boards.signHeader`, any case)
+on the first line and a preset or materials on the second; an empty second line makes a board of every open order. The
+board is stored on the sign itself, the sign is waxed and both sides show the header, the label, the number of open
+orders and `Right-click`. A right-click opens the board. Players without the permission get the header cleared, and an
+unknown preset or material leaves the sign plain with an error.
+
+The counts are refreshed every `boards.refreshSeconds` and a few seconds after an order on that server was created,
+accepted, released or removed. Only signs in loaded chunks are counted, and each distinct board is counted once.
+
+Board signs are protected: they can not be edited, only players with `companies.admin.boards` can break them, and
+explosions and fire leave them alone. A sign still falls when the block it hangs on is removed, and pistons move it,
+so place board signs on blocks protected by a region plugin.
+
+### NPC boards
+
+A right-click on a bound NPC opens its order board, like `/company board [board]` and with the same permission
+(`companies.boards.use`) and limit of one board per second. `<board>` is a preset name, materials separated by spaces,
+or nothing for every open order.
+
+* **Citizens:** `/companyadmin board npc link Citizens <id|selected> [board]`, `selected` being the NPC selected with
+  `/npc select`.
+* **FancyNpcs:** `/companyadmin board npc link FancyNpcs <name> [board]`.
+
+The hooks load when the NPC plugin is enabled and `generalSettings.hooks.citizens` or `generalSettings.hooks.fancynpcs`
+is `true`. Bindings are stored per server in `boards.yml` and are not copied to other nodes.
+
+**Any other NPC or menu plugin** opens a board by running `company board [board]` as the clicking player, for example
+a Citizens command trait `/npc command add -p company board iron` or a FancyNpcs action
+`player_command company board iron`. No hook is needed for that.
+
 ## Permissions
 
 | Permission                       | Default | Description                                                                    |
@@ -455,7 +505,9 @@ Update notifications link to `/companies:eldo-update`, which is available to `co
 | `companies.company.create`       | all     | Found a company                                                                |
 | `companies.company.join`         | all     | Be invited to and join a company                                               |
 | `companies.updates`              | op      | Hear about new versions on join and download them                              |
+| `companies.boards.use`           | all     | Open order boards through signs, NPCs and `/company board`                     |
 | `companies.admin`                | op      | Use `/companyadmin` and create debug reports                                   |
+| `companies.admin.boards`         | op      | Create and break board signs, list presets and bind NPCs to boards             |
 | `companies.admin.calcLevel`      | op      | Recalculate company levels                                                     |
 | `companies.admin.delete`         | op      | Delete companies                                                               |
 | `companies.admin.grant`          | op      | Grant items and money to players                                               |
@@ -622,6 +674,63 @@ repeating:
 * `repeating.enabled: false` stops new and existing repeating orders from posting. `maxSeriesPerPlayer` limits the
   active repeating orders of a player, `maxCopies` the copies of one, `maxDays` how far ahead its last day may lie.
   The primary server posts due copies every `checkMinutes`.
+
+### Boards
+`config.yml` holds the `boards` section. A file from an older version uses these values until it is added.
+
+```yaml
+boards:
+  enabled: true
+  refreshSeconds: 60
+  signHeader: '[Companies]'
+  presets:
+    iron:
+      label: Iron
+      materials: [iron_ingot, iron_block, raw_iron]
+      exactMatch: true
+```
+
+* `enabled: false` turns sign boards off; `/company board` and NPC boards keep working. Changing it needs a restart.
+* `refreshSeconds` is the time between two count refreshes of the signs (at least 10).
+* `signHeader` is the first line that turns a sign into a board.
+* `presets` are named filters. The name is used on signs, NPCs and in `/company board`, ignoring case. Each preset
+  may set `label` (shown on signs, the name without it), `name` (part of the order name), `materials`, `anyMaterial`
+  (default `true`; `false` requires all materials), `exactMatch` (whole material names instead of parts),
+  `minPrice`, `maxPrice`, `minSize` and `maxSize` (a maximum of `0` means no limit).
+* `generalSettings.hooks.citizens` and `generalSettings.hooks.fancynpcs` switch the NPC hooks; NPC bindings are kept
+  in `boards.yml`, see [NPC boards](#npc-boards).
+
+### Discord webhook
+New orders, completed orders and company level ups can be posted to a Discord channel through a webhook. Create a
+webhook in the channel settings (Integrations, Webhooks), copy its URL and add the `discord` section to `config.yml`:
+
+```yaml
+discord:
+  enabled: true
+  url: env:COMPANIES_DISCORD_WEBHOOK
+  events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP]
+  username: Companies
+  avatarUrl: ''
+  maxPerMinute: 20
+  queueSize: 100
+```
+
+* `url` is the webhook URL, or `env:NAME` to read it from the environment variable `NAME` of the server process. The
+  URL contains the webhook's secret: in a network every node reads the configuration from the database, so prefer
+  `env:` there and set the variable on each server. The URL has to use `https://`; another host than Discord is
+  accepted with a notice, for relays.
+* `events` picks what is posted: `ORDER_CREATED`, `ORDER_COMPLETED` (fully delivered) and `LEVEL_UP`. Order messages
+  show the order name, the items and the price, never the owner, the company, fees or taxes. Every event is posted by
+  the one server it happens on, so nothing is posted twice.
+* `username` and `avatarUrl` override the name and picture of the webhook; leave them empty to keep the webhook's own.
+* `maxPerMinute` (1 to 60) limits the requests of each server, which send up to ten messages each and also follow
+  Discord's rate limits. `queueSize` (1 to 1000) is the number of waiting messages; when it is full the oldest is
+  dropped.
+* Changes to `events` apply on `/companyadmin reload`; `enabled`, `url` and the limits need a restart. A webhook that
+  Discord reports as gone (401, 403 or 404) is switched off until then.
+
+The URL is never written to the log, and `/companyadmin debug` masks it and every webhook token in the uploaded
+report. An `env:` reference is shown as it is, as it holds no secret.
 
 ### Notifications, placeholders and rankings
 `config.yml` holds these sections. A `config.yml` from an older version does not get them written, but uses the values

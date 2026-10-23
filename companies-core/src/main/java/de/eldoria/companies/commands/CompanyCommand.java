@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.company.AlertsCommand;
 import de.eldoria.companies.commands.company.ApplicationsCommand;
 import de.eldoria.companies.commands.company.ApplyCommand;
 import de.eldoria.companies.commands.company.BankCommand;
+import de.eldoria.companies.commands.company.BoardCommand;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.Disband;
 import de.eldoria.companies.commands.company.HistoryCommand;
@@ -106,6 +107,9 @@ final class CompanyCommand {
     final HistoryCommand history;
 
     @Subcommand
+    final BoardCommand board;
+
+    @Subcommand
     final BankCommand bank;
 
     @Subcommand
@@ -132,6 +136,7 @@ final class CompanyCommand {
         returns = new Returns(deps);
         inbox = new InboxCommand(deps);
         history = new HistoryCommand(deps);
+        board = new BoardCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
         bank = new BankCommand(deps);
         alerts = new AlertsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
     }

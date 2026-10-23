@@ -15,6 +15,7 @@ import de.eldoria.companies.events.company.CompanyCreateEvent;
 import de.eldoria.companies.events.company.CompanyOwnerTransferEvent;
 import de.eldoria.companies.events.company.CompanyRenameEvent;
 import de.eldoria.companies.events.company.PreCompanyCreateEvent;
+import de.eldoria.companies.util.TestExecutors;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -68,7 +69,7 @@ class CompanyChangesTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

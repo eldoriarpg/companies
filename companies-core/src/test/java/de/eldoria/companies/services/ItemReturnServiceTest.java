@@ -21,6 +21,7 @@ import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.StyledMessageSender;
+import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -66,7 +67,7 @@ class ItemReturnServiceTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

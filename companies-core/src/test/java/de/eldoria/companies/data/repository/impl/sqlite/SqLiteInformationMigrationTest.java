@@ -12,6 +12,7 @@ import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.stats.MemberStats;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.TestExecutors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,7 +87,7 @@ class SqLiteInformationMigrationTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     private static int insertCompany(String name) {

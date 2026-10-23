@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.commands.suggest;
 
+import de.eldoria.companies.boards.npc.NpcBoards;
+import de.eldoria.companies.boards.npc.NpcHook;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -44,6 +46,7 @@ public final class SuggestionSources {
     private final AOrderData orderData;
     private final OrderDraftService drafts;
     private final ILocalizer localizer;
+    private final NpcBoards npcBoards;
 
     /**
      * @param companyData company repository
@@ -51,6 +54,7 @@ public final class SuggestionSources {
      * @param drafts      order drafts of the players
      * @param config      configuration of the plugin
      * @param localizer   localizer of the plugin
+     * @param npcBoards   the hooks of the NPC plugins
      * @param executor    executor loading data from the database
      */
     public SuggestionSources(
@@ -59,8 +63,10 @@ public final class SuggestionSources {
             OrderDraftService drafts,
             Configuration config,
             ILocalizer localizer,
+            NpcBoards npcBoards,
             Executor executor) {
         this.configuration = config;
+        this.npcBoards = npcBoards;
         this.orderData = orderData;
         this.drafts = drafts;
         this.localizer = localizer;
@@ -166,6 +172,28 @@ public final class SuggestionSources {
      */
     public List<String> profileColors() {
         return configuration.companySettings().profile().colors();
+    }
+
+    /**
+     * @return the names of the configured board presets
+     */
+    public List<String> boardPresets() {
+        return List.copyOf(configuration.boardSettings().presets().keySet());
+    }
+
+    /**
+     * @return the names of the loaded NPC hooks
+     */
+    public List<String> npcHooks() {
+        return npcBoards.hookNames();
+    }
+
+    /**
+     * @param hook name of an NPC plugin, ignoring case
+     * @return the NPCs of that plugin to suggest, none when its hook is not loaded
+     */
+    public List<String> npcKeys(String hook) {
+        return npcBoards.hook(hook).map(NpcHook::suggestions).orElse(List.of());
     }
 
     private static List<String> memberNames(CompanyProfile profile) {

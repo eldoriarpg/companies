@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.companyadmin.Rename;
 import de.eldoria.companies.commands.companyadmin.SyncConfiguration;
 import de.eldoria.companies.commands.companyadmin.TransferOwner;
 import de.eldoria.companies.commands.companyadmin.TreasuryCommand;
+import de.eldoria.companies.commands.companyadmin.board.BoardAdminCommand;
 import de.eldoria.companies.commands.companyadmin.grant.GrantCommand;
 import de.eldoria.companies.commands.companyadmin.level.LevelCommand;
 import de.eldoria.companies.commands.companyadmin.order.AdminOrderCommand;
@@ -19,7 +20,7 @@ import de.eldoria.companies.commands.companyadmin.player.AdminPlayerCommand;
 import de.eldoria.companies.commands.support.AdminAccess;
 import de.eldoria.companies.commands.support.DebugAccess;
 import de.eldoria.companies.commands.support.HandleFailures;
-import de.eldoria.eldoutilities.debug.DebugSettings;
+import de.eldoria.companies.debug.CompaniesDebugSettings;
 import de.eldoria.eldoutilities.debug.DebugUtil;
 import net.strokkur.commands.Command;
 import net.strokkur.commands.Executes;
@@ -68,6 +69,9 @@ final class CompanyAdminCommand {
     final GrantCommand grant;
 
     @Subcommand
+    final BoardAdminCommand board;
+
+    @Subcommand
     final TreasuryCommand treasury;
 
     CompanyAdminCommand(CommandDependencies deps) {
@@ -82,6 +86,7 @@ final class CompanyAdminCommand {
         order = new AdminOrderCommand(deps);
         player = new AdminPlayerCommand(deps, order);
         grant = new GrantCommand(deps);
+        board = new BoardAdminCommand(deps);
         treasury = new TreasuryCommand(deps);
     }
 
@@ -93,6 +98,6 @@ final class CompanyAdminCommand {
     @Executes("debug")
     @DebugAccess
     void debug(CommandSender sender) {
-        DebugUtil.dispatchDebug(sender, deps.plugin(), DebugSettings.DEFAULT);
+        DebugUtil.dispatchDebug(sender, deps.plugin(), CompaniesDebugSettings.create());
     }
 }

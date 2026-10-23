@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.series.SeriesLine;
 import de.eldoria.companies.data.wrapper.series.SeriesState;
 import de.eldoria.companies.data.wrapper.series.SeriesStopReason;
 import de.eldoria.companies.data.wrapper.series.SeriesWait;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterAll;
@@ -71,7 +72,7 @@ class SqLiteSeriesDataTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     private static List<SeriesLine> lines() {

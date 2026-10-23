@@ -19,6 +19,7 @@ import de.eldoria.companies.events.company.TreasuryTransactionEvent;
 import de.eldoria.companies.services.TreasuryService.Outcome;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Event;
 import org.junit.jupiter.api.AfterEach;
@@ -116,7 +117,7 @@ class TreasuryServiceTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
         MockBukkit.unmock();
     }
 

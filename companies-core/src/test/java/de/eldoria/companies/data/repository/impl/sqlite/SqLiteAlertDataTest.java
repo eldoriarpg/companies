@@ -9,6 +9,7 @@ import de.eldoria.companies.data.wrapper.alert.AlertResult;
 import de.eldoria.companies.data.wrapper.alert.HitResult;
 import de.eldoria.companies.data.wrapper.alert.OrderAlert;
 import de.eldoria.companies.orders.query.OrderFilter;
+import de.eldoria.companies.util.TestExecutors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +58,7 @@ class SqLiteAlertDataTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     private static int insertCompany(String name) {

@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.boards.Boards;
+import de.eldoria.companies.boards.npc.NpcBoards;
 import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
@@ -61,6 +63,8 @@ public final class CommandDependencies {
     private final EconomyData economy;
     private final OrderDraftService drafts;
     private final SearchSessions searches = new SearchSessions();
+    private final Boards boards;
+    private final NpcBoards npcBoards;
     private volatile Optional<Services> services = Optional.empty();
 
     /**
@@ -91,6 +95,13 @@ public final class CommandDependencies {
         this.information = information;
         this.economy = economy;
         this.drafts = new OrderDraftService(plugin, orderData, configuration);
+        this.boards = Boards.create(() -> configuration.boardSettings(), orderData);
+        this.npcBoards = new NpcBoards(
+                plugin,
+                boards,
+                () -> configuration.boardBindings(),
+                () -> configuration.saveBoardBindings(),
+                (sender, failure) -> failure.sendTo(sender, messages()));
     }
 
     /**
@@ -254,6 +265,20 @@ public final class CommandDependencies {
      */
     public SearchSessions searches() {
         return searches;
+    }
+
+    /**
+     * @return the order boards, opened by signs, NPCs and {@code /company board}
+     */
+    public Boards boards() {
+        return boards;
+    }
+
+    /**
+     * @return the NPCs bound to boards and the hooks of the NPC plugins
+     */
+    public NpcBoards npcBoards() {
+        return npcBoards;
     }
 
     /**

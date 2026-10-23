@@ -11,6 +11,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.alert.AlertResult;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.orders.query.OrderFilter;
+import de.eldoria.companies.util.TestExecutors;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -84,7 +85,7 @@ class SqLiteEconomyMigrationTest {
 
     @AfterEach
     void tearDown() {
-        executor.shutdownNow();
+        TestExecutors.drain(executor);
     }
 
     @Test
