@@ -157,7 +157,7 @@ See [Economy](../economy.md) for where money goes.
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `pollSeconds` | number (seconds) | `10` | How often each server looks for notifications sent to its players from another server. At least 1. | reload |
+| `pollSeconds` | number (seconds) | `10` | How often each server looks for notifications sent to its players from another server. At least 1. With [Redis](../multiserver.md#redis) they arrive at once, and the server looks only every 300 seconds, or every `pollSeconds` if that is longer. | reload |
 | `retentionDays` | number (days) | `30` | How long notifications stay in the inbox, read or not. At least 1. Cleaned up by the primary server. | reload |
 | `pageSize` | number | `10` | Notifications on one inbox page. From 1 to 50. | reload |
 | `actionBar` | true/false | `true` | Also show important notifications on the action bar. | reload |

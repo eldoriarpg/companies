@@ -14,6 +14,8 @@ database, so players see the same orders and companies everywhere.
   server with SQLite refuses to start with "Secondary nodes can not be used with SqLite."
 - **The same Companies version** on every server.
 - **Exactly one primary server.** All other servers are secondary.
+- **Optional: a Redis server.** With Redis, the servers tell each other about changes at once. See
+  [Redis](#redis).
 
 Set up the database in `database.yml` on each server. See [database.yml](./configuration/database-yml.md).
 
@@ -94,6 +96,9 @@ The copy happens at two moments only:
 - when a server starts,
 - when you run `/companyadmin syncconfiguration` on that server.
 
+With [Redis](#redis), a secondary also copies the files whenever the primary writes them: when the primary starts and
+when you run `/companyadmin syncconfiguration` on the primary.
+
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
 To change the configuration of a running network:
@@ -101,7 +106,8 @@ To change the configuration of a running network:
 1. Edit the files on the primary server.
 2. Run `/companyadmin reload` on the primary, so it reads your changes.
 3. Run `/companyadmin syncconfiguration` on the primary. It writes the files to the database.
-4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database.
+4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database. With Redis, skip
+   this step: every connected secondary copies and applies the files on its own.
 
 Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.
@@ -131,7 +137,8 @@ post in the meantime. Everything else keeps working on the other servers.
 
 A notification for a player who is online on the same server is shown at once. For a player on another server, it is
 stored in the inbox. Every server checks the inbox every `notifications.pollSeconds` seconds (default `10`) and shows
-new entries to its players. So a message from another server can take a few seconds.
+new entries to its players. So a message from another server can take a few seconds. With [Redis](#redis), it
+arrives at once.
 
 When players join any server, they get a summary of their unread notifications.
 
@@ -151,6 +158,60 @@ Some things are updated on each server on their own:
 - **Board sign counts** are refreshed every `boards.refreshSeconds`, and soon after order changes on the same server.
 - **The company ranking** (`/company top`) is cached on each server for `top.cacheSeconds`.
 - **The Discord webhook limits** count for each server.
+
+With [Redis](#redis), the first three follow changes on every server at once.
+
+## Redis
+
+Without Redis, the servers only meet in the database. They find changes made on another server when they next look:
+the inbox every few seconds, cached values when they run out. With a Redis server, every server tells the others about
+a change the moment it happens. Valkey and KeyDB work as well.
+
+Redis only carries these signals. All data stays in the database, so Redis needs no backup and no persistence, and a
+lost message only costs a short delay.
+
+### What gets faster
+
+| What | Without Redis | With Redis |
+|---|---|---|
+| Notifications for a player on another server | after up to `notifications.pollSeconds` (default `10`) | at once |
+| Placeholder values of companies and rankings | after up to `placeholders.refreshSeconds` | at once |
+| `/company top` | after up to `top.cacheSeconds` | at once |
+| Open order counts on board signs | after up to `boards.refreshSeconds` | a few seconds after the change |
+| Order details, market prices and tab completions | when their cache runs out | at once |
+| Configuration from the primary | `/companyadmin syncconfiguration` on every server | `/companyadmin syncconfiguration` on the primary only |
+
+The inbox is still checked with Redis, in case a message was missed, but only every 5 minutes (or every
+`notifications.pollSeconds`, if that is longer). The other timers keep running as before.
+
+### Setup
+
+1. Run a Redis server that all servers of the network can reach. Protect it with a password, and keep it out of
+   reach of the internet.
+2. Set the `redis` section in `database.yml` on **every** server, with the same server, `database` and
+   `channelPrefix`. See [database.yml](./configuration/database-yml.md#redis).
+3. Put the password into an environment variable, by default `COMPANIES_REDIS_PASSWORD`, so it is not in the file.
+4. Restart the servers.
+
+Each server logs `Connected to Redis at <host>:<port>.` when it starts. `/companyadmin node list` shows `Redis
+connected` for this server, and for every other server it heard from in the last minute and a half. A server
+without Redis shows `-` there.
+
+Several networks can share one Redis server when each network uses its own `channelPrefix`. If a server receives a
+message from a server that is not in its database, it logs a warning naming that server once: two networks use the
+same prefix.
+
+### When Redis is away
+
+Nothing breaks without Redis. A server that cannot reach Redis logs it and works as without Redis: it checks the inbox
+every `notifications.pollSeconds` again and lets its caches run out as usual. It keeps trying to connect, first after
+a second and then less often, up to every 30 seconds. Once it is back, it drops its cached values once, since it may
+have missed changes, and switches back to the fast way.
+
+A server with `enabled: true` whose password variable is not set logs that and does not use Redis until it is
+restarted with the variable set.
+
+The [debug report](./admin-commands.md) shows the Redis state of the server and its address, never the password.
 
 ## Admin tools on a network
 
