@@ -486,7 +486,7 @@ public class Companies extends EldoPlugin {
 
     @Override
     public @NotNull List<DebugDataProvider> getDebugProviders() {
-        return List.of(configuration, new CompaniesDebug(this, configuration, dataSource));
+        return List.of(configuration, new CompaniesDebug(this, configuration, dataSource, bus));
     }
 
     @Override

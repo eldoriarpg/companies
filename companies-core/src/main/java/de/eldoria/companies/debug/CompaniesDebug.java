@@ -6,6 +6,9 @@
 package de.eldoria.companies.debug;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.nodes.DatabaseBus;
+import de.eldoria.companies.nodes.NodeBus;
+import de.eldoria.companies.nodes.RedisBus;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.debug.HealthCheck;
 import de.eldoria.eldoutilities.debug.data.EntryData;
@@ -20,23 +23,27 @@ import java.util.Map;
 import javax.sql.DataSource;
 
 /**
- * Adds the state of the storage, the economy and the node setup to debug reports.
+ * Adds the state of the storage, the economy, the node setup and the node bus to debug reports. The bus is described
+ * by its state and server address, never by its credentials.
  */
 public class CompaniesDebug implements DebugDataProvider {
     private static final int CONNECTION_TIMEOUT_SECONDS = 5;
     private final Plugin plugin;
     private final Configuration configuration;
     private final DataSource dataSource;
+    private final NodeBus bus;
 
     /**
      * @param plugin        the plugin whose economy and hooks are checked
      * @param configuration configuration with the storage and node settings
      * @param dataSource    data source of the storage
+     * @param bus           the node bus, the {@link DatabaseBus} before it was created
      */
-    public CompaniesDebug(Plugin plugin, Configuration configuration, DataSource dataSource) {
+    public CompaniesDebug(Plugin plugin, Configuration configuration, DataSource dataSource, NodeBus bus) {
         this.plugin = plugin;
         this.configuration = configuration;
         this.dataSource = dataSource;
+        this.bus = bus;
     }
 
     @Override
@@ -55,6 +62,7 @@ public class CompaniesDebug implements DebugDataProvider {
                             "Node type", nodeSettings.nodeType().name(),
                             "Node id", nodeSettings.nodeUid().toString(),
                             "Message blocking", String.valueOf(generalSettings.messageBlocking()),
+                            "Redis", redis(),
                             "PlaceholderAPI hook",
                                     String.valueOf(generalSettings.hooks().placeholderapi())))
         };
@@ -62,7 +70,18 @@ public class CompaniesDebug implements DebugDataProvider {
 
     @Override
     public @NotNull List<HealthCheck> getHealthChecks() {
-        return List.of(database(), economy());
+        if (bus.state() == NodeBus.State.OFF) return List.of(database(), economy());
+        return List.of(database(), economy(), redisHealth());
+    }
+
+    private String redis() {
+        if (!(bus instanceof RedisBus redisBus)) return bus.state().name();
+        return bus.state().name() + " (" + redisBus.address() + ")";
+    }
+
+    private HealthCheck redisHealth() {
+        if (bus.realtime()) return HealthCheck.ok("Redis", "Connected: " + redis());
+        return HealthCheck.error("Redis", "Not connected, polling until it is back: " + redis());
     }
 
     private HealthCheck database() {
