@@ -242,6 +242,14 @@ class RedisBusTest {
     }
 
     @Test
+    void reasonsFitIntoASentence() {
+        assertEquals(
+                "Unexpected end of stream", RedisBus.reason(new IllegalStateException("Unexpected end of stream.")));
+        assertEquals("WRONGPASS invalid", RedisBus.reason(new IllegalStateException("WRONGPASS invalid..")));
+        assertEquals("IllegalStateException", RedisBus.reason(new IllegalStateException()));
+    }
+
+    @Test
     void theServerNeverShowsThePassword() {
         assertFalse(server(PASSWORD, "companies").toString().contains(PASSWORD));
     }

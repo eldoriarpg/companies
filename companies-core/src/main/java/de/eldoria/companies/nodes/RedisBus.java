@@ -220,11 +220,11 @@ public final class RedisBus implements NodeBus {
             } catch (RuntimeException e) {
                 if (running) {
                     if (current.connected) {
-                        logger.warning("Lost the connection to Redis at " + server.address() + ": " + e.getMessage()
-                                + ". " + FALLBACK);
+                        logger.warning("Lost the connection to Redis at " + server.address() + ": " + reason(e) + ". "
+                                + FALLBACK);
                     } else if (!reported) {
-                        logger.warning("Could not connect to Redis at " + server.address() + ": " + e.getMessage()
-                                + ". " + FALLBACK);
+                        logger.warning("Could not connect to Redis at " + server.address() + ": " + reason(e) + ". "
+                                + FALLBACK);
                     } else {
                         logger.log(Level.FINE, "Could not connect to Redis at " + server.address() + ".", e);
                     }
@@ -245,6 +245,20 @@ public final class RedisBus implements NodeBus {
             var doubled = backoff.multipliedBy(2);
             backoff = doubled.compareTo(timings.maxBackoff()) > 0 ? timings.maxBackoff() : doubled;
         }
+    }
+
+    /**
+     * The message of an error without its closing period, so it fits into a sentence.
+     *
+     * @param error the error
+     * @return its message, or its type when it has none
+     */
+    static String reason(Throwable error) {
+        var message = error.getMessage();
+        if (message == null || message.isBlank()) return error.getClass().getSimpleName();
+        var reason = message.strip();
+        while (reason.endsWith(".")) reason = reason.substring(0, reason.length() - 1);
+        return reason;
     }
 
     private boolean pause(Duration duration) {
