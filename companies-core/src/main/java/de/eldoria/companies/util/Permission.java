@@ -61,6 +61,7 @@ public final class Permission {
         public static final String TRANSFER_OWNER = ADMIN + ".transferOwner";
         public static final String ORDERS = ADMIN + ".orders";
         public static final String PLAYER = ADMIN + ".player";
+        public static final String GRANT = ADMIN + ".grant";
         /**
          * The permission EldoUtil grants debug reports with, accepted next to {@link #ADMIN}.
          */

@@ -11,6 +11,7 @@ import de.eldoria.companies.commands.companyadmin.Reload;
 import de.eldoria.companies.commands.companyadmin.Rename;
 import de.eldoria.companies.commands.companyadmin.SyncConfiguration;
 import de.eldoria.companies.commands.companyadmin.TransferOwner;
+import de.eldoria.companies.commands.companyadmin.grant.GrantCommand;
 import de.eldoria.companies.commands.companyadmin.level.LevelCommand;
 import de.eldoria.companies.commands.companyadmin.order.AdminOrderCommand;
 import de.eldoria.companies.commands.companyadmin.player.AdminPlayerCommand;
@@ -62,6 +63,9 @@ final class CompanyAdminCommand {
     @Subcommand
     final AdminPlayerCommand player;
 
+    @Subcommand
+    final GrantCommand grant;
+
     CompanyAdminCommand(CommandDependencies deps) {
         this.deps = deps;
         level = new LevelCommand(deps);
@@ -73,6 +77,7 @@ final class CompanyAdminCommand {
         syncConfiguration = new SyncConfiguration(deps);
         order = new AdminOrderCommand(deps);
         player = new AdminPlayerCommand(deps, order);
+        grant = new GrantCommand(deps);
     }
 
     /**

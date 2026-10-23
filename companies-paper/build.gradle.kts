@@ -131,6 +131,7 @@ bukkit {
                 "companies.admin",
                 "companies.admin.calcLevel",
                 "companies.admin.delete",
+                "companies.admin.grant",
                 "companies.admin.level",
                 "companies.admin.orders",
                 "companies.admin.player",
@@ -147,6 +148,9 @@ bukkit {
         }
         register("companies.admin.delete") {
             description = "Allows deleting companies"
+        }
+        register("companies.admin.grant") {
+            description = "Allows granting items and money to players"
         }
         register("companies.admin.level") {
             description = "Allows managing of company level settings"
