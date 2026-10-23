@@ -6,12 +6,14 @@
 package de.eldoria.companies.nodes;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import redis.clients.jedis.Connection;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisClientConfig;
-import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.RedisClient;
+import redis.clients.jedis.SslOptions;
 
 import java.time.Duration;
 import java.util.List;
@@ -51,7 +53,7 @@ public final class RedisBus implements NodeBus {
     private static final int POOL_SIZE = 2;
     private static final String FALLBACK = "Notifications and caches fall back to polling until it is back.";
 
-    private final Connection connection;
+    private final Server server;
     private final UUID node;
     private final Executor handlers;
     private final Logger logger;
@@ -61,7 +63,7 @@ public final class RedisBus implements NodeBus {
     private final List<Consumer<State>> listeners = new CopyOnWriteArrayList<>();
     private final JedisClientConfig clientConfig;
     private final HostAndPort address;
-    private final JedisPool pool;
+    private final RedisClient client;
     private final ExecutorService publisher = Executors.newSingleThreadExecutor(
             Thread.ofVirtual().name("companies-redis-publisher").factory());
     private final ScheduledExecutorService watchdog = Executors.newSingleThreadScheduledExecutor(
@@ -74,19 +76,23 @@ public final class RedisBus implements NodeBus {
     private volatile Jedis subscriberClient;
     private volatile long lastHeard;
 
-    private RedisBus(Connection connection, UUID node, Executor handlers, Logger logger) {
-        this.connection = connection;
+    private RedisBus(Server server, UUID node, Executor handlers, Logger logger) {
+        this.server = server;
         this.node = node;
         this.handlers = handlers;
         this.logger = logger;
-        this.address = new HostAndPort(connection.host(), connection.port());
-        this.clientConfig = connection.clientConfig("companies-" + node);
-        var poolConfig = new GenericObjectPoolConfig<Jedis>();
+        this.address = new HostAndPort(server.host(), server.port());
+        this.clientConfig = server.clientConfig("companies-" + node);
+        var poolConfig = new GenericObjectPoolConfig<Connection>();
         poolConfig.setMaxTotal(POOL_SIZE);
         poolConfig.setMaxIdle(POOL_SIZE);
         poolConfig.setMinIdle(0);
         poolConfig.setJmxEnabled(false);
-        this.pool = new JedisPool(poolConfig, address, clientConfig);
+        this.client = RedisClient.builder()
+                .hostAndPort(address)
+                .clientConfig(clientConfig)
+                .poolConfig(poolConfig)
+                .build();
         this.subscriberThread =
                 Thread.ofVirtual().name("companies-redis-subscriber").unstarted(this::subscribeLoop);
     }
@@ -95,15 +101,15 @@ public final class RedisBus implements NodeBus {
      * Starts the bus and waits until the first connection attempt succeeded or failed, at most for the given time.
      * The bus keeps trying in the background either way.
      *
-     * @param connection the server to connect to
+     * @param server     the server to connect to
      * @param node       uid of this node, sent with every message
      * @param handlers   runs the handlers of received messages
      * @param logger     reports connects and losses
      * @param wait       longest wait for the first attempt
      * @return the started bus, connected or retrying
      */
-    public static RedisBus start(Connection connection, UUID node, Executor handlers, Logger logger, Duration wait) {
-        var bus = new RedisBus(connection, node, handlers, logger);
+    public static RedisBus start(Server server, UUID node, Executor handlers, Logger logger, Duration wait) {
+        var bus = new RedisBus(server, node, handlers, logger);
         bus.subscriberThread.start();
         bus.watchdog.scheduleWithFixedDelay(
                 bus::watch, PING_INTERVAL.toMillis(), PING_INTERVAL.toMillis(), TimeUnit.MILLISECONDS);
@@ -128,10 +134,10 @@ public final class RedisBus implements NodeBus {
     }
 
     private void send(String channel, String text) {
-        try (var jedis = pool.getResource()) {
-            jedis.publish(channel, text);
+        try {
+            client.publish(channel, text);
         } catch (RuntimeException e) {
-            logger.log(Level.FINE, "Could not publish to Redis at " + connection.address() + ".", e);
+            logger.log(Level.FINE, "Could not publish to Redis at " + server.address() + ".", e);
         }
     }
 
@@ -157,7 +163,7 @@ public final class RedisBus implements NodeBus {
      * @return the server this bus connects to, without credentials
      */
     public String address() {
-        return connection.address();
+        return server.address();
     }
 
     @Override
@@ -181,11 +187,11 @@ public final class RedisBus implements NodeBus {
             publisher.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        pool.close();
+        client.close();
     }
 
     private String channel(String type) {
-        return connection.channelPrefix() + ":" + type;
+        return server.channelPrefix() + ":" + type;
     }
 
     private void subscribeLoop() {
@@ -200,13 +206,13 @@ public final class RedisBus implements NodeBus {
             } catch (RuntimeException e) {
                 if (running) {
                     if (current.connected) {
-                        logger.warning("Lost the connection to Redis at " + connection.address() + ": " + e.getMessage()
+                        logger.warning("Lost the connection to Redis at " + server.address() + ": " + e.getMessage()
                                 + ". " + FALLBACK);
                     } else if (!reported) {
-                        logger.warning("Could not connect to Redis at " + connection.address() + ": " + e.getMessage()
+                        logger.warning("Could not connect to Redis at " + server.address() + ": " + e.getMessage()
                                 + ". " + FALLBACK);
                     } else {
-                        logger.log(Level.FINE, "Could not connect to Redis at " + connection.address() + ".", e);
+                        logger.log(Level.FINE, "Could not connect to Redis at " + server.address() + ".", e);
                     }
                 }
             } finally {
@@ -240,7 +246,7 @@ public final class RedisBus implements NodeBus {
         var current = subscriber;
         if (state != State.CONNECTED || current == null || !current.isSubscribed()) return;
         if (System.nanoTime() - lastHeard > SILENCE_LIMIT.toNanos()) {
-            logger.warning("Redis at " + connection.address() + " did not answer. Reconnecting.");
+            logger.warning("Redis at " + server.address() + " did not answer. Reconnecting.");
             disconnectSubscriber();
             return;
         }
@@ -306,7 +312,7 @@ public final class RedisBus implements NodeBus {
      * @param database      number of the Redis database
      * @param channelPrefix prefix of every channel
      */
-    public record Connection(
+    public record Server(
             String host, int port, String user, String password, boolean ssl, int database, String channelPrefix) {
         /**
          * @return host and port, for messages
@@ -316,14 +322,14 @@ public final class RedisBus implements NodeBus {
         }
 
         private JedisClientConfig clientConfig(String clientName) {
-            return DefaultJedisClientConfig.builder()
+            var builder = DefaultJedisClientConfig.builder()
                     .user(user.isEmpty() ? null : user)
                     .password(password.isEmpty() ? null : password)
-                    .ssl(ssl)
                     .database(database)
                     .clientName(clientName)
-                    .timeoutMillis(TIMEOUT_MILLIS)
-                    .build();
+                    .timeoutMillis(TIMEOUT_MILLIS);
+            if (ssl) builder.sslOptions(SslOptions.defaults());
+            return builder.build();
         }
 
         /**
@@ -333,7 +339,7 @@ public final class RedisBus implements NodeBus {
          */
         @Override
         public String toString() {
-            return "Connection[" + address() + ", user=" + user + ", ssl=" + ssl + ", database=" + database
+            return "Server[" + address() + ", user=" + user + ", ssl=" + ssl + ", database=" + database
                     + ", channelPrefix=" + channelPrefix + "]";
         }
     }
@@ -345,7 +351,7 @@ public final class RedisBus implements NodeBus {
         public void onPSubscribe(String pattern, int subscribedChannels) {
             lastHeard = System.nanoTime();
             connected = true;
-            logger.info("Connected to Redis at " + connection.address() + ".");
+            logger.info("Connected to Redis at " + server.address() + ".");
             firstAttempt.countDown();
             changeState(State.CONNECTED);
         }

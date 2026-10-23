@@ -66,18 +66,18 @@ class RedisBusTest {
         handlers.shutdownNow();
     }
 
-    private static RedisBus.Connection connection(String password, String prefix) {
-        return new RedisBus.Connection(redis.getHost(), redis.getMappedPort(6379), "", password, false, 0, prefix);
+    private static RedisBus.Server server(String password, String prefix) {
+        return new RedisBus.Server(redis.getHost(), redis.getMappedPort(6379), "", password, false, 0, prefix);
     }
 
-    private RedisBus bus(UUID node, RedisBus.Connection connection) {
-        var bus = RedisBus.start(connection, node, handlers, LOGGER, WAIT);
+    private RedisBus bus(UUID node, RedisBus.Server server) {
+        var bus = RedisBus.start(server, node, handlers, LOGGER, WAIT);
         buses.add(bus);
         return bus;
     }
 
     private RedisBus bus(UUID node) {
-        return bus(node, connection(PASSWORD, "companies"));
+        return bus(node, server(PASSWORD, "companies"));
     }
 
     private static void await(BooleanSupplier condition, String what) throws InterruptedException {
@@ -155,7 +155,7 @@ class RedisBusTest {
     void networksWithAnotherPrefixDoNotHearEachOther() throws InterruptedException {
         List<NodeMessage> other = new CopyOnWriteArrayList<>();
         List<NodeMessage> own = new CopyOnWriteArrayList<>();
-        var otherNetwork = bus(UUID.randomUUID(), connection(PASSWORD, "other"));
+        var otherNetwork = bus(UUID.randomUUID(), server(PASSWORD, "other"));
         otherNetwork.subscribe(RankingChanged.class, (node, message) -> other.add(message));
         var bus = bus(UUID.randomUUID());
         bus.subscribe(RankingChanged.class, (node, message) -> own.add(message));
@@ -169,7 +169,7 @@ class RedisBusTest {
 
     @Test
     void aWrongPasswordFallsBackWithoutFailing() {
-        var bus = bus(UUID.randomUUID(), connection("wrong", "companies"));
+        var bus = bus(UUID.randomUUID(), server("wrong", "companies"));
 
         assertEquals(NodeBus.State.DISCONNECTED, bus.state());
         assertFalse(bus.realtime());
@@ -182,7 +182,7 @@ class RedisBusTest {
         try (var socket = new ServerSocket(0)) {
             port = socket.getLocalPort();
         }
-        var bus = bus(UUID.randomUUID(), new RedisBus.Connection("127.0.0.1", port, "", "", false, 0, "companies"));
+        var bus = bus(UUID.randomUUID(), new RedisBus.Server("127.0.0.1", port, "", "", false, 0, "companies"));
 
         assertEquals(NodeBus.State.DISCONNECTED, bus.state());
         assertFalse(bus.realtime());
@@ -242,8 +242,8 @@ class RedisBusTest {
     }
 
     @Test
-    void theConnectionNeverShowsThePassword() {
-        assertFalse(connection(PASSWORD, "companies").toString().contains(PASSWORD));
+    void theServerNeverShowsThePassword() {
+        assertFalse(server(PASSWORD, "companies").toString().contains(PASSWORD));
     }
 
     private static RedisSettings settings(String yaml) {

@@ -46,7 +46,7 @@ public final class NodeBuses {
                         + " for the Redis password is not set. Redis is not used; notifications and caches use"
                         + " polling."));
         if (password.isEmpty()) return new DatabaseBus();
-        var connection = new RedisBus.Connection(
+        var server = new RedisBus.Server(
                 settings.host(),
                 settings.port(),
                 settings.user(),
@@ -54,6 +54,6 @@ public final class NodeBuses {
                 settings.ssl(),
                 settings.database(),
                 settings.channelPrefix());
-        return RedisBus.start(connection, node, handlers, logger, START_WAIT);
+        return RedisBus.start(server, node, handlers, logger, START_WAIT);
     }
 }
