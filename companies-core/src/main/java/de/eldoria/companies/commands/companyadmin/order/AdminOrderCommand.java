@@ -453,6 +453,7 @@ public final class AdminOrderCommand implements AdminOrderActions {
         for (var content : order.contents()) {
             for (var worker : content.workerAmount().keySet()) names.computeIfAbsent(worker, this::playerName);
         }
+        order.soloWorker().ifPresent(worker -> names.computeIfAbsent(worker, this::playerName));
         var history = deps.information().history().retrieveByOrder(id).join();
         return Optional.of(new AdminOrderMenu.Model(
                 order,
@@ -479,7 +480,7 @@ public final class AdminOrderCommand implements AdminOrderActions {
     }
 
     private Optional<String> companyName(SimpleOrder order) {
-        if (order.state() == OrderState.UNCLAIMED) return Optional.empty();
+        if (order.state() == OrderState.UNCLAIMED || order.isSolo()) return Optional.empty();
         var company = deps.companyData().retrieveCompanyById(order.company()).join();
         if (company == null) return Optional.empty();
         return Optional.of(company.map(SimpleCompany::name).orElse("#" + order.company()));
@@ -501,13 +502,16 @@ public final class AdminOrderCommand implements AdminOrderActions {
     private List<AdminOrderListMenu.Row> rows(List<SimpleOrder> orders) {
         Map<Integer, Optional<String>> companies = new HashMap<>();
         return orders.stream()
-                .map(order -> new AdminOrderListMenu.Row(
-                        order,
-                        playerName(order.owner()),
-                        order.state() == OrderState.UNCLAIMED
-                                ? Optional.empty()
-                                : companies.computeIfAbsent(order.company(), id -> companyName(order))))
+                .map(order ->
+                        new AdminOrderListMenu.Row(order, playerName(order.owner()), claimantName(order, companies)))
                 .toList();
+    }
+
+    private Optional<String> claimantName(SimpleOrder order, Map<Integer, Optional<String>> companies) {
+        if (order.state() == OrderState.UNCLAIMED) return Optional.empty();
+        var soloWorker = order.soloWorker();
+        if (soloWorker.isPresent()) return Optional.of(playerName(soloWorker.get()));
+        return companies.computeIfAbsent(order.company(), id -> companyName(order));
     }
 
     private String playerName(UUID player) {
@@ -521,7 +525,8 @@ public final class AdminOrderCommand implements AdminOrderActions {
                 .with("id", order.id())
                 .with("order", order.name())
                 .with("owner", playerName(order.owner()))
-                .with("company", order.state() == OrderState.UNCLAIMED ? null : order.company());
+                .with("company", order.state() == OrderState.UNCLAIMED || order.isSolo() ? null : order.company())
+                .with("solo_worker", order.soloWorker().map(this::playerName).orElse(null));
     }
 
     private boolean mayManage(Player viewer) {

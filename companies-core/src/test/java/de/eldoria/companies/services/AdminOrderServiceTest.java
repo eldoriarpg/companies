@@ -554,6 +554,53 @@ class AdminOrderServiceTest {
         refused(Refusal.NOT_OPEN, service.extend(order.id(), 12).join());
     }
 
+    private SimpleOrder soloClaimedByAlice() {
+        var order = orders.place(FEE);
+        assertTrue(orders.orderData().submitSoloClaim(alice, order, 1).join());
+        orders.deliver(order, 0, Material.STONE, alice, 4);
+        return orders.reload(order);
+    }
+
+    @Test
+    void unclaimingASoloOrderTellsTheWorkerInsteadOfACompany() {
+        var order = soloClaimedByAlice();
+
+        AdminOrderService.Unclaimed unclaimed = done(service.unclaim(order.id()).join());
+
+        assertEquals(Set.of(alice), unclaimed.workers());
+        assertEquals(4, returned(alice));
+        assertTrue(orders.reload(order).soloWorker().isEmpty());
+        assertEquals(List.of("solo released", "owner reopened"), notices);
+        assertEquals(0, SqLiteTestDatabase.count("order_history", "company_id IS NOT NULL"));
+    }
+
+    @Test
+    void cancellingASoloOrderTellsTheWorker() {
+        var order = soloClaimedByAlice();
+
+        AdminOrderService.Cancelled cancelled =
+                done(service.cancel(order.id(), true).join());
+
+        assertTrue(cancelled.wasClaimed());
+        assertEquals(4, returned(alice));
+        assertEquals(List.of("solo released", "owner cancelled 155.0"), notices);
+        assertEquals(List.of(HistoryOutcome.CANCELLED_BY_ADMIN), ownerOutcomes());
+        assertEquals(0, SqLiteTestDatabase.count("order_history", "company_id IS NOT NULL"));
+    }
+
+    @Test
+    void deliveringASoloOrderSettlesItWithTheSoloTax() {
+        var order = soloClaimedByAlice();
+
+        AdminOrderService.Delivered delivered = done(service.deliver(order.id()).join());
+
+        assertEquals(Map.of(alice, 38.0), paid);
+        assertEquals(110.0, delivered.refund());
+        assertTrue(delivered.completion().payouts().get(0).solo());
+        assertEquals(OrderState.DELIVERED, orders.reload(order).state());
+        assertEquals(0, SqLiteTestDatabase.count("order_history", "company_id IS NOT NULL"));
+    }
+
     private record RecordingNotices(List<String> log) implements AdminOrderService.Notices {
         @Override
         public void ownerReopened(SimpleOrder order) {
@@ -578,6 +625,11 @@ class AdminOrderServiceTest {
         @Override
         public void ownerRefunded(SimpleOrder order, double refund) {
             log.add("owner refunded " + refund);
+        }
+
+        @Override
+        public void soloReleased(UUID worker, SimpleOrder order) {
+            log.add("solo released");
         }
     }
 }

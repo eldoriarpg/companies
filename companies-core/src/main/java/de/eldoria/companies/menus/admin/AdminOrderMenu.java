@@ -199,10 +199,7 @@ public final class AdminOrderMenu implements Menu<AdminOrderMenu.Model> {
         var text = MenuText.create()
                 .append(field("companyadmin.order.owner", "owner_name", model.ownerName()))
                 .newLine()
-                .append(field(
-                        "companyadmin.order.company",
-                        "company_name",
-                        model.companyName().orElse("-")))
+                .append(claimant(model))
                 .newLine()
                 .text("<name><i18n:companyadmin.order.state>: <value><i18n:"
                         + order.state().translationKey() + ">")
@@ -235,6 +232,25 @@ public final class AdminOrderMenu implements Menu<AdminOrderMenu.Model> {
             text.newLine().append(historyLine(index, history.get(index)));
         }
         return text;
+    }
+
+    /**
+     * The company working on the order, or the player working on it alone.
+     *
+     * @param model the order with names
+     * @return the line naming the claimant
+     */
+    private static MenuText claimant(Model model) {
+        var soloWorker = model.order().soloWorker();
+        if (soloWorker.isPresent()) {
+            var name = model.names()
+                    .getOrDefault(soloWorker.get(), soloWorker.get().toString());
+            return field("companyadmin.order.soloWorker", "solo_worker_name", name);
+        }
+        return field(
+                "companyadmin.order.company",
+                "company_name",
+                model.companyName().orElse("-"));
     }
 
     private static MenuText field(String label, String key, String value) {
@@ -301,9 +317,9 @@ public final class AdminOrderMenu implements Menu<AdminOrderMenu.Model> {
      *
      * @param order       the order with its deliveries
      * @param ownerName   name of the owner
-     * @param companyName name of the company working on it, empty while nobody claimed it
+     * @param companyName name of the company working on it, empty while nobody or a single player claimed it
      * @param deadline    when the order runs out, empty once it is delivered
-     * @param names       names of the workers, by id
+     * @param names       names of the workers, including a solo worker who delivered nothing yet, by id
      * @param history     history entries of the order
      * @param notice      line shown on top, such as an error
      */
