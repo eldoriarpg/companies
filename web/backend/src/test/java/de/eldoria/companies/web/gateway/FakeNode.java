@@ -140,6 +140,16 @@ final class FakeNode implements AutoCloseable {
         assertNull(text, "The gateway sent " + text);
     }
 
+    /**
+     * Asserts the gateway sends nothing but messages of one type for a moment.
+     */
+    void assertQuietBut(Class<? extends Message> allowed) {
+        String text;
+        while ((text = poll(Duration.ofMillis(300))) != null) {
+            assertInstanceOf(allowed, MAPPER.readValue(text, Message.class), "The gateway sent " + text);
+        }
+    }
+
     int awaitClose() {
         return closed.orTimeout(10, TimeUnit.SECONDS).join();
     }

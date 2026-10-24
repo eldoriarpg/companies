@@ -55,7 +55,8 @@ import java.util.concurrent.CompletionException;
  *     player asked on (any ready node when it is gone), and only the plugin's {@code session.confirmed} binds the
  *     browser through a new cookie value, stored as its hash.</li>
  *     <li>The session ends on logout, when it is idle or too old, when its server has been gone longer than the grace
- *     period, or when the plugin closes or revokes it. The gateway tells a node when it ends a session itself.</li>
+ *     period, or when the plugin closes or revokes it. The gateway tells a node when it ends a session itself, and
+ *     sends {@code unsubscribe} to every ready node of the server in any case.</li>
  * </ol>
  * Sessions live in the database, so a restart of the gateway keeps players logged in.
  */
@@ -322,23 +323,24 @@ public final class Sessions {
     }
 
     private void end(StoredSession session, CloseReason reason, boolean tellPlugin) {
-        snapshots.drop(session.id());
         reads.drop(session.id());
         streams.end(
                 session.id(),
                 new SessionClosed(null, Protocol.VERSION, session.id(), session.player(), reason),
                 BrowserStreams.CLOSE_SESSION_ENDED);
-        if (!tellPlugin) return;
-        hub.server(session.serverId())
-                .flatMap(server -> server.routeTo(session.node()))
-                .ifPresent(link -> {
-                    try {
-                        link.send(new SessionClosed(
-                                link.nextId(), link.agreed().protocol(), session.id(), session.player(), reason));
-                    } catch (RuntimeException e) {
-                        log.debug("Telling the plugin about an ended session failed", e);
-                    }
-                });
+        if (tellPlugin) {
+            hub.server(session.serverId())
+                    .flatMap(server -> server.routeTo(session.node()))
+                    .ifPresent(link -> {
+                        try {
+                            link.send(new SessionClosed(
+                                    link.nextId(), link.agreed().protocol(), session.id(), session.player(), reason));
+                        } catch (RuntimeException e) {
+                            log.debug("Telling the plugin about an ended session failed", e);
+                        }
+                    });
+        }
+        snapshots.end(session.serverId(), session.id());
     }
 
     /**

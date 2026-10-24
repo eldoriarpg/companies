@@ -174,12 +174,15 @@ public final class SnapshotCache {
     }
 
     /**
-     * Drops a session's snapshot without telling the nodes, because the session ended.
+     * Drops the snapshot of a session that ended and sends {@code unsubscribe} to every ready node of its server, as
+     * each node pushes the patches of its own events.
      *
+     * @param serverId the session's server
      * @param sessionId the session
      */
-    public void drop(String sessionId) {
+    public void end(String serverId, String sessionId) {
         entries.remove(sessionId);
+        unsubscribe(serverId, sessionId);
     }
 
     /**
@@ -189,12 +192,16 @@ public final class SnapshotCache {
         Instant limit = clock.instant().minus(idle);
         for (Entry entry : List.copyOf(entries.values())) {
             if (!entry.lastAccess.isBefore(limit) || !entries.remove(entry.sessionId, entry)) continue;
-            hub.server(entry.serverId).ifPresent(server -> {
-                for (NodeLink link : server.ready()) {
-                    link.send(new Unsubscribe(link.nextId(), link.agreed().protocol(), entry.sessionId));
-                }
-            });
+            unsubscribe(entry.serverId, entry.sessionId);
         }
+    }
+
+    private void unsubscribe(String serverId, String sessionId) {
+        hub.server(serverId).ifPresent(server -> {
+            for (NodeLink link : server.ready()) {
+                link.send(new Unsubscribe(link.nextId(), link.agreed().protocol(), sessionId));
+            }
+        });
     }
 
     private CompletableFuture<JsonNode> load(Entry entry) {

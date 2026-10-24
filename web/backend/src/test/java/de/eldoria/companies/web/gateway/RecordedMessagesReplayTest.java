@@ -17,6 +17,7 @@ import de.eldoria.companies.web.api.link.ErrorMessage;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.link.UnknownMessage;
 import de.eldoria.companies.web.api.session.SessionCreated;
+import de.eldoria.companies.web.api.update.Unsubscribe;
 import de.eldoria.companies.web.gateway.node.NodeHub;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -116,7 +117,7 @@ class RecordedMessagesReplayTest {
                         }
                         node.sendRaw(text);
                         if (SILENT.contains(type)) {
-                            node.assertQuiet();
+                            node.assertQuietBut(Unsubscribe.class);
                         } else if (ANSWERED.containsKey(type)) {
                             assertInstanceOf(ANSWERED.get(type), node.next());
                         } else {

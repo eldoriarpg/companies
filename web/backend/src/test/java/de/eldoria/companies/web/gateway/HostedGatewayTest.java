@@ -31,6 +31,7 @@ import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
 import de.eldoria.companies.web.api.update.Patch;
 import de.eldoria.companies.web.api.update.PatchOp;
 import de.eldoria.companies.web.api.update.Subscribe;
+import de.eldoria.companies.web.api.update.Unsubscribe;
 import de.eldoria.companies.web.gateway.node.Icons;
 import de.eldoria.companies.web.gateway.node.NodeHub;
 import org.junit.jupiter.api.AfterAll;
@@ -490,6 +491,7 @@ class HostedGatewayTest {
                 SessionClosed closed = node.expect(SessionClosed.class);
                 assertEquals(created.session(), closed.session());
                 assertEquals(CloseReason.LOGOUT, closed.reason());
+                assertEquals(created.session(), node.expect(Unsubscribe.class).session());
                 JsonNode event = stream.next();
                 assertEquals("session.closed", event.path("type").asString());
                 assertEquals("LOGOUT", event.path("reason").asString());
@@ -655,6 +657,7 @@ class HostedGatewayTest {
                     .toList();
             assertEquals(4, statuses.stream().filter(status -> status == 401).count(), statuses.toString());
             assertEquals(CloseReason.EXPIRED, node.expect(SessionClosed.class).reason());
+            assertEquals(created.session(), node.expect(Unsubscribe.class).session());
             node.assertQuiet();
             assertEquals(
                     404,
