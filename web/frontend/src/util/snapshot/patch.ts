@@ -5,131 +5,114 @@
  */
 import type {Patch, Snapshot} from '~/api/generated/protocol'
 
-/** The field that tells the entries of a list apart, by the list's path; lists not named here try the usual ones. */
-const KEY_FIELDS: ReadonlyMap<string, string> = new Map([
-    ['company.members', 'uuid'],
-    ['company.orders', 'id'],
-    ['company.alerts', 'name'],
-    ['orders', 'id'],
-    ['player.invites', 'company'],
-    ['rankings.entries', 'company'],
-])
-
-/** The fields tried, in order, for a list whose key field is not known. */
-const USUAL_KEYS = ['id', 'uuid', 'key', 'name'] as const
-
-/** What a patch does to the snapshot it arrives for. */
-export type Arrival = 'apply' | 'gap' | 'old'
+/** The fields that tell the entries of a list apart, in the order they are tried, as the gateway tries them. */
+const KEY_FIELDS = ['id', 'uuid', 'key'] as const
 
 type Container = Record<string, unknown>
 
-/**
- * Whether a patch follows the last one seen from its node. A node first heard of after the snapshot starts its count
- * with this patch; a skipped number means patches were lost and the snapshot has to be loaded again.
- *
- * @param last the last sequence number seen per node, the snapshot's node included
- * @param patch the patch
- * @returns whether to apply it, reload, or drop it as already contained
- */
-export function arrivalOf(last: Readonly<Record<string, number>>, patch: Pick<Patch, 'node' | 'seq'>): Arrival {
-    const before = last[patch.node]
-    if (before === undefined || patch.seq === before + 1) return 'apply'
-    return patch.seq <= before ? 'old' : 'gap'
+/** A patch that does not fit the snapshot; the snapshot is then loaded again. */
+export class Unapplicable extends Error {
+    /**
+     * @param reason why it does not fit
+     */
+    constructor(reason: string) {
+        super(reason)
+        this.name = 'Unapplicable'
+    }
 }
 
 /**
- * A copy of the snapshot with the patch applied. The snapshot itself is left as it is.
+ * Whether a patch is newer than what the snapshot holds of its node. Each node numbers its patches across every
+ * session it serves, so a browser sees gaps in a node's numbers all the time; finding real gaps is the gateway's
+ * job, which then sends a `resync`. Only a patch at or below the last one seen of its node is already contained.
  *
- * <p>The path is dotted into the snapshot. `REPLACE` sets the value at the path. On a list, `UPSERT` replaces the
- * entry with the patch's key or appends it, and `REMOVE` drops it; on an object, they set or delete the field named by
- * the key, or the path itself without one. A path whose parent does not exist, such as `company.members` for a player
- * without a company, is created only by a `REPLACE`.
+ * @param last the last sequence number seen per node, the snapshot's node included
+ * @param patch the patch
+ * @returns true when it is to be applied
+ */
+export function isNewer(last: Readonly<Record<string, number>>, patch: Pick<Patch, 'node' | 'seq'>): boolean {
+    const before = last[patch.node]
+    return before === undefined || patch.seq > before
+}
+
+/**
+ * A copy of the snapshot with the patch applied, exactly as the gateway's patch applier does it. The snapshot itself
+ * is left as it is.
+ *
+ * <p>The path is dotted into the snapshot, and every object on the way has to exist. `REPLACE`, and `UPSERT` without a
+ * key, set the value at the path; `REMOVE` without a key drops it. With a key, `UPSERT` replaces or appends the list
+ * entry with that key and `REMOVE` drops it; on an object the key names a property. A list entry's key is its `id`,
+ * `uuid` or `key`, or the entry itself when it is a plain value.
  *
  * @param snapshot the snapshot
  * @param patch the patch
  * @returns the patched copy
+ * @throws Unapplicable when the patch does not fit the snapshot
  */
 export function applyPatch(snapshot: Snapshot, patch: Patch): Snapshot {
+    if (!patch.path || !['UPSERT', 'REMOVE', 'REPLACE'].includes(patch.op)) throw new Unapplicable('No path or operation')
     const copy = structuredClone(snapshot) as unknown as Container
     const segments = patch.path.split('.')
     const field = segments.pop() as string
-    const parent = walk(copy, segments, patch.op === 'REPLACE')
-    if (!parent) return copy as unknown as Snapshot
-    if (patch.op === 'REPLACE') parent[field] = patch.value
-    else if (Array.isArray(parent[field])) parent[field] = patchList(parent[field] as unknown[], patch)
-    else patchObject(parent, field, patch)
+    const parent = walk(copy, segments)
+    const value = patch.value === undefined ? null : patch.value
+    if (patch.op === 'REPLACE' || (patch.op === 'UPSERT' && patch.key === undefined)) parent[field] = value
+    else if (patch.op === 'REMOVE' && patch.key === undefined) Reflect.deleteProperty(parent, field)
+    else parent[field] = keyed(parent[field], patch.op, patch.key as string, value)
     return copy as unknown as Snapshot
 }
 
 /**
- * The object at a path, created on the way where asked to.
+ * The object at a path, which has to exist all the way.
  *
  * @param root where the path starts
  * @param segments the path
- * @param create whether missing objects are created
- * @returns the object, or nothing where the path does not exist
+ * @returns the object
+ * @throws Unapplicable when an object on the way is missing
  */
-function walk(root: Container, segments: string[], create: boolean): Container | null {
+function walk(root: Container, segments: readonly string[]): Container {
     let current = root
     for (const segment of segments) {
         const next = current[segment]
-        if (next === null || next === undefined) {
-            if (!create) return null
-            current[segment] = {}
-        } else if (typeof next !== 'object') {
-            return null
-        }
-        current = current[segment] as Container
+        if (next === null || typeof next !== 'object' || Array.isArray(next)) throw new Unapplicable(`No object at ${segment}`)
+        current = next as Container
     }
     return current
 }
 
 /**
- * A list with one entry upserted or removed.
+ * A list or object with the entry of a key upserted or removed.
  *
- * @param list the list
- * @param patch the patch
- * @returns the new list
+ * @param target the list or object at the path
+ * @param op `UPSERT` or `REMOVE`
+ * @param key the entry's key
+ * @param value the new entry
+ * @returns the new list or object
+ * @throws Unapplicable when there is no list or object at the path
  */
-function patchList(list: unknown[], patch: Patch): unknown[] {
-    const keyField = KEY_FIELDS.get(patch.path)
-    const matches = (entry: unknown) => patch.key !== undefined && keyOf(entry, keyField) === patch.key
-    const kept = list.filter(entry => !matches(entry))
-    if (patch.op === 'REMOVE') return kept
-    const index = list.findIndex(matches)
-    if (index === -1) return [...list, patch.value]
-    return list.map((entry, position) => (position === index ? patch.value : entry))
-}
-
-/**
- * Sets or deletes a field of an object.
- *
- * @param parent the object holding the path
- * @param field the path's last segment
- * @param patch the patch
- */
-function patchObject(parent: Container, field: string, patch: Patch): void {
-    const target = patch.key === undefined ? parent : parent[field] as Container | undefined
-    const name = patch.key ?? field
-    if (!target || typeof target !== 'object') {
-        if (patch.op === 'UPSERT' && patch.key === undefined) parent[field] = patch.value
-        return
+function keyed(target: unknown, op: Patch['op'], key: string, value: unknown): unknown {
+    if (Array.isArray(target)) {
+        const index = target.findIndex(entry => keyOf(entry) === key)
+        if (op === 'REMOVE') return index === -1 ? target : target.filter((_, position) => position !== index)
+        return index === -1 ? [...target, value] : target.map((entry, position) => (position === index ? value : entry))
     }
-    if (patch.op === 'REMOVE') Reflect.deleteProperty(target, name)
-    else target[name] = patch.value
+    if (target === null || typeof target !== 'object') throw new Unapplicable('No list or object at the path')
+    const object = {...target as Container}
+    if (op === 'REMOVE') Reflect.deleteProperty(object, key)
+    else object[key] = value
+    return object
 }
 
 /**
  * The key of a list entry, as text.
  *
  * @param entry the entry
- * @param field the key field, where the list's is known
  * @returns the key, or nothing for an entry without one
  */
-function keyOf(entry: unknown, field: string | undefined): string | undefined {
-    if (!entry || typeof entry !== 'object') return undefined
+function keyOf(entry: unknown): string | undefined {
+    if (entry === null || entry === undefined) return undefined
+    if (typeof entry !== 'object') return String(entry)
     const record = entry as Container
-    const name = field ?? USUAL_KEYS.find(candidate => record[candidate] !== undefined)
-    const value = name === undefined ? undefined : record[name]
-    return value === undefined || value === null ? undefined : String(value)
+    const field = KEY_FIELDS.find(name => record[name] !== undefined && record[name] !== null && typeof record[name] !== 'object')
+    return field === undefined ? undefined : String(record[field])
 }

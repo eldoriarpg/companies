@@ -6,9 +6,9 @@
 /** @vitest-environment happy-dom */
 import {describe, expect, it} from 'vitest'
 import {ALEX, claimed, member, NODE, patch, snapshot} from '~/test/snapshots'
-import {applyPatch, arrivalOf} from './patch'
+import {applyPatch, isNewer, Unapplicable} from './patch'
 
-/** How the patches of the plugin change the snapshot the dashboard shows. */
+/** How the patches of the plugin change the snapshot, the same way the gateway's patch applier does. */
 describe('applying a patch', () => {
     it('replaces a value', () => {
         const patched = applyPatch(snapshot(), patch(42, {path: 'player.unreadInbox', op: 'REPLACE', value: 4}))
@@ -25,28 +25,38 @@ describe('applying a patch', () => {
         expect(patched.company?.orders.map(order => order.id)).toEqual([101, 102])
     })
 
-    it('removes a list entry by its key', () => {
-        const patched = applyPatch(snapshot(), patch(42, {path: 'company.orders', op: 'REMOVE', key: '101'}))
-        expect(patched.company?.orders).toEqual([])
+    it('removes a list entry by its key and ignores an unknown key', () => {
+        expect(applyPatch(snapshot(), patch(42, {path: 'company.orders', op: 'REMOVE', key: '101'})).company?.orders).toEqual([])
+        expect(applyPatch(snapshot(), patch(42, {path: 'company.orders', op: 'REMOVE', key: '999'})).company?.orders).toHaveLength(1)
     })
 
-    it('replaces a whole object and creates its parents', () => {
-        const before = {...snapshot(), company: undefined}
-        const patched = applyPatch(before, patch(42, {path: 'company.treasury', op: 'REPLACE', value: {balance: 10}}))
-        expect(patched.company?.treasury?.balance).toBe(10)
+    it('matches list entries by id, uuid or key only', () => {
+        const before = {...snapshot(), rankings: {...snapshot().rankings, entries: [{place: 1, company: 7, name: 'Diamond Diggers', value: 1}]}}
+        const patched = applyPatch(before, patch(42, {path: 'rankings.entries', op: 'UPSERT', key: '7', value: {place: 2, company: 7, name: 'Diamond Diggers', value: 2}}))
+        expect(patched.rankings.entries).toHaveLength(2)
     })
 
-    it('leaves a path alone whose parent is gone', () => {
-        const before = {...snapshot(), company: undefined}
-        const patched = applyPatch(before, patch(42, {path: 'company.members', op: 'UPSERT', key: ALEX, value: member(ALEX, 'Alex', 1)}))
-        expect(patched.company).toBeUndefined()
-    })
-
-    it('sets and deletes a field named by the key', () => {
-        const set = applyPatch(snapshot(), patch(42, {path: 'company', op: 'UPSERT', key: 'description', value: 'We dig deeper.'}))
+    it('sets or deletes the value at the path without a key', () => {
+        const set = applyPatch(snapshot(), patch(42, {path: 'company.description', op: 'UPSERT', value: 'We dig deeper.'}))
         expect(set.company?.description).toBe('We dig deeper.')
-        const removed = applyPatch(set, patch(43, {path: 'company', op: 'REMOVE', key: 'description'}))
-        expect(removed.company?.description).toBeUndefined()
+        const removed = applyPatch(set, patch(43, {path: 'company.description', op: 'REMOVE'}))
+        expect(removed.company).not.toHaveProperty('description')
+    })
+
+    it('sets and deletes a property of an object named by the key', () => {
+        const set = applyPatch(snapshot(), patch(42, {path: 'company', op: 'UPSERT', key: 'tag', value: 'DIG'}))
+        expect(set.company?.tag).toBe('DIG')
+        expect(applyPatch(set, patch(43, {path: 'company', op: 'REMOVE', key: 'tag'})).company).not.toHaveProperty('tag')
+    })
+
+    it('refuses a patch whose parent is missing instead of creating it', () => {
+        const before = {...snapshot(), company: undefined}
+        expect(() => applyPatch(before, patch(42, {path: 'company.treasury', op: 'REPLACE', value: {balance: 10}}))).toThrow(Unapplicable)
+        expect(() => applyPatch(before, patch(42, {path: 'company.members', op: 'UPSERT', key: ALEX, value: {}}))).toThrow(Unapplicable)
+    })
+
+    it('refuses a keyed patch on a value that is no list or object', () => {
+        expect(() => applyPatch(snapshot(), patch(42, {path: 'player.unreadInbox', op: 'UPSERT', key: 'x', value: 1}))).toThrow(Unapplicable)
     })
 
     it('does not change the snapshot it was given', () => {
@@ -56,18 +66,16 @@ describe('applying a patch', () => {
     })
 })
 
-/** When a patch is applied, dropped or makes the dashboard load the snapshot again. */
+/** Which patches are already contained in the snapshot. */
 describe('the order of patches', () => {
-    it('applies the next patch of a node and the first of a new node', () => {
-        expect(arrivalOf({[NODE]: 41}, {node: NODE, seq: 42})).toBe('apply')
-        expect(arrivalOf({[NODE]: 41}, {node: 'other', seq: 7})).toBe('apply')
+    it('applies anything above the last of its node, gaps included, and the first of a new node', () => {
+        expect(isNewer({[NODE]: 41}, {node: NODE, seq: 42})).toBe(true)
+        expect(isNewer({[NODE]: 41}, {node: NODE, seq: 47})).toBe(true)
+        expect(isNewer({[NODE]: 41}, {node: 'other', seq: 7})).toBe(true)
     })
 
-    it('drops a patch the snapshot already holds', () => {
-        expect(arrivalOf({[NODE]: 41}, {node: NODE, seq: 41})).toBe('old')
-    })
-
-    it('reports a gap', () => {
-        expect(arrivalOf({[NODE]: 41}, {node: NODE, seq: 43})).toBe('gap')
+    it('drops a patch at or below the last of its node', () => {
+        expect(isNewer({[NODE]: 41}, {node: NODE, seq: 41})).toBe(false)
+        expect(isNewer({[NODE]: 41}, {node: NODE, seq: 12})).toBe(false)
     })
 })
