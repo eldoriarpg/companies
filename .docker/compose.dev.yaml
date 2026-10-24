@@ -41,6 +41,7 @@ services:
       dockerfile: .docker/frontend.Dockerfile
     environment:
       NUXT_BACKEND_URL: http://backend:8080
+      NUXT_TRUSTED_PROXIES: ${NUXT_TRUSTED_PROXIES:-}
     ports:
       - "${FRONTEND_PORT:-4000}:4000"
     depends_on:

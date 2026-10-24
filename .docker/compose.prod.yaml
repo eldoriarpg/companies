@@ -40,6 +40,7 @@ services:
     restart: unless-stopped
     environment:
       NUXT_BACKEND_URL: http://backend:8080
+      NUXT_TRUSTED_PROXIES: ${NUXT_TRUSTED_PROXIES:-}
     ports:
       - "127.0.0.1:${PORT:-4000}:4000"
     depends_on:

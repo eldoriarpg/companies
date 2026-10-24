@@ -107,6 +107,7 @@ All settings go into `.env`.
 | `PORT` | `4000` | The port the dashboard listens on, on this machine. It only listens on `127.0.0.1`, for a web server on the same machine. |
 | `COMPANIES_VERSION` | `latest` | Which gateway version to run: `latest` is the newest release, a version such as `2.2.0` or `2.2` pins it, `edge` follows the newest development build. |
 | `TRUSTED_PROXIES` | private addresses | Proxies whose `X-Forwarded-For` is believed, comma separated. See [Behind a web server](#behind-a-web-server). |
+| `NUXT_TRUSTED_PROXIES` | empty | The proxies in front of the web app, comma separated. Only from these does it pass `CF-Connecting-IP` on to the gateway. See [Cloudflare Tunnel](#cloudflare-tunnel). |
 | `CLOUDFLARE` | `false` | `true` behind Cloudflare: the client address is taken from `CF-Connecting-IP`. See [Cloudflare Tunnel](#cloudflare-tunnel). |
 | `TURNSTILE_SECRET` | empty | Switches on [Turnstile](#turnstile) for the login form. |
 | `TURNSTILE_SITEKEY` | empty | The Turnstile site key that belongs to the secret. |
@@ -175,13 +176,22 @@ A tunnel needs no open port at all. Add `cloudflared` to `compose.yaml`:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
 ```
 
-Put the tunnel's token into `.env` as `TUNNEL_TOKEN`, and set `CLOUDFLARE=true`. In the Cloudflare dashboard, give
-the tunnel a public hostname for your domain with the service `http://frontend:4000`. Then remove the `ports` of
-`frontend`.
+Put the tunnel's token into `.env` as `TUNNEL_TOKEN`, and tell the web app and the gateway that they sit behind
+Cloudflare:
+
+```bash
+TUNNEL_TOKEN=...
+CLOUDFLARE=true
+NUXT_TRUSTED_PROXIES=172.16.0.0/12
+```
+
+`172.16.0.0/12` is the network Docker gives `cloudflared`; the web app passes `CF-Connecting-IP` on only from there.
+In the Cloudflare dashboard, give the tunnel a public hostname for your domain with the service
+`http://frontend:4000`. Then remove the `ports` of `frontend`.
 
 With `CLOUDFLARE=true` the dashboard must be reachable only through Cloudflare: through the tunnel, or through a web
-server that accepts only [Cloudflare's addresses](https://www.cloudflare.com/ips/), which you then add to
-`TRUSTED_PROXIES`. The gateway believes `CF-Connecting-IP` only when the request passed the web app and a trusted
+server that accepts only [Cloudflare's addresses](https://www.cloudflare.com/ips/). In that case put the web server's
+address into `NUXT_TRUSTED_PROXIES` and Cloudflare's addresses into `TRUSTED_PROXIES`. The gateway believes `CF-Connecting-IP` only when the request passed the web app and a trusted
 proxy before it, but anything that can reach the dashboard directly could still slip past the login limits.
 
 If you use Bot Fight Mode or managed challenges, skip them for `/api/v1/servers/*`. Your Minecraft servers are not
