@@ -270,6 +270,7 @@ public final class SnapshotCache {
         ObjectNode tree = reply.raw().deepCopy();
         JsonNode copy;
         boolean stale = false;
+        boolean patched = false;
         synchronized (entry) {
             entry.snapshot = tree;
             entry.base = Map.of(snapshot.node(), snapshot.seq());
@@ -281,6 +282,7 @@ public final class SnapshotCache {
                 }
                 try {
                     PatchApplier.apply(tree, patch);
+                    patched = true;
                 } catch (PatchApplier.Unapplicable e) {
                     stale |= PatchApplier.knownRoot(patch);
                 }
@@ -289,10 +291,8 @@ public final class SnapshotCache {
             entry.loading = null;
             copy = tree.deepCopy();
         }
-        if (replacing) {
-            reads.drop(entry.sessionId);
-            streams.push(entry.sessionId, GatewayEvent.resync());
-        }
+        if (replacing || patched) reads.drop(entry.sessionId);
+        if (replacing) streams.push(entry.sessionId, GatewayEvent.resync());
         if (stale) CompletableFuture.runAsync(() -> reload(entry));
         return copy;
     }

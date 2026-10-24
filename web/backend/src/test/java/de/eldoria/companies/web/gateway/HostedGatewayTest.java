@@ -481,55 +481,183 @@ class HostedGatewayTest {
         }
     }
 
+    private static final String TREASURY_LOG = "{\"name\":\"company.treasury.log\",\"args\":{\"page\":1}}";
+    private static final String INBOX_PAGE = "{\"name\":\"inbox.page\",\"args\":{\"page\":1}}";
+    private static final String RANKINGS_PAGE = "{\"name\":\"rankings.page\",\"args\":{\"page\":1}}";
+
     @Test
     void aPatchDropsTheCachedReadsOfItsSessionOnly() {
         UUID uid = UUID.randomUUID();
-        List<String> features = new ArrayList<>(FakeNode.FEATURES);
-        features.add(Features.COMPANY_TREASURY);
-        try (FakeNode node = FakeNode.welcomed(
-                gateway, FakeNode.hello(KeyKind.DASHBOARD_KEY, key(), uid, NodeRole.PRIMARY, PLUGIN, features, null))) {
-            FakeBrowser patched = new FakeBrowser(gateway, "203.0.113.13");
+        try (FakeNode node = treasuryNode(uid)) {
+            FakeBrowser patched = new FakeBrowser(gateway, "203.0.113.63");
             SessionCreated created = create(node, uid);
             login(node, patched, created);
-            FakeBrowser other = new FakeBrowser(gateway, "203.0.113.14");
+            FakeBrowser other = new FakeBrowser(gateway, "203.0.113.64");
             login(node, other, create(node, uid));
-            String log = "{\"name\":\"company.treasury.log\",\"args\":{\"page\":1}}";
 
             try (FakeBrowser.Stream stream = patched.stream()) {
                 stream.next();
                 snapshot(node, patched, uid, 1);
-                readFromNode(node, patched, log);
-                readFromNode(node, other, log);
-                assertEquals(200, patched.post("/api/v1/me/actions", log).statusCode());
-                assertEquals(200, other.post("/api/v1/me/actions", log).statusCode());
+                assertEquals(1, readFromNode(node, patched, TREASURY_LOG, 1));
+                assertEquals(2, readFromNode(node, other, TREASURY_LOG, 2));
+                assertEquals(1, readCached(patched, TREASURY_LOG));
+                assertEquals(2, readCached(other, TREASURY_LOG));
                 node.assertQuiet();
 
-                node.send(new Patch(
-                        null,
-                        1,
-                        List.of(created.session()),
-                        uid,
-                        2,
-                        "company.treasury.balance",
-                        PatchOp.REPLACE,
-                        null,
-                        JsonNodeFactory.instance.numberNode(2600)));
+                patch(node, created, uid, 2, "company.treasury.balance", 2600);
                 assertEquals(
                         "company.treasury.balance", stream.next().path("path").asString());
 
-                assertEquals(200, other.post("/api/v1/me/actions", log).statusCode());
+                assertEquals(2, readCached(other, TREASURY_LOG));
                 node.assertQuiet();
-                readFromNode(node, patched, log);
+                assertEquals(3, readFromNode(node, patched, TREASURY_LOG, 3));
             }
         }
     }
 
-    private static void readFromNode(FakeNode node, FakeBrowser browser, String action) {
+    @Test
+    void anAnswerArrivingAfterAPatchIsNotServed() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = treasuryNode(uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.65");
+            SessionCreated created = create(node, uid);
+            login(node, browser, created);
+
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                stream.next();
+                snapshot(node, browser, uid, 1);
+                CompletableFuture<HttpResponse<String>> answer = browser.postAsync("/api/v1/me/actions", TREASURY_LOG);
+                ActionRequest held = node.expect(ActionRequest.class);
+
+                patch(node, created, uid, 2, "company.treasury.balance", 2600);
+                assertEquals(
+                        "company.treasury.balance", stream.next().path("path").asString());
+                answer(node, held, 1);
+                assertEquals(1, content(answer.join()));
+
+                assertEquals(2, readFromNode(node, browser, TREASURY_LOG, 2));
+            }
+        }
+    }
+
+    @Test
+    void aReloadedSnapshotDropsTheCachedReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.66");
+            SessionCreated created = create(node, uid);
+            login(node, browser, created);
+
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                stream.next();
+                snapshot(node, browser, uid, 1);
+                assertEquals(1, readFromNode(node, browser, INBOX_PAGE, 1));
+
+                patch(node, created, uid, 2, "market.top", 1);
+                assertEquals("market.top", stream.next().path("path").asString());
+                assertEquals(1, readCached(browser, INBOX_PAGE));
+                patch(node, created, uid, 5, "market.top", 2);
+                SnapshotRequest reload = node.expect(SnapshotRequest.class);
+                node.sendRaw(Recorded.snapshot(reload.id(), reload.session(), uid, 5));
+                assertEquals("resync", stream.next().path("type").asString());
+
+                assertEquals(2, readFromNode(node, browser, INBOX_PAGE, 2));
+            }
+        }
+    }
+
+    @Test
+    void aRankingsPatchDropsOnlyTheRankingReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.67");
+            SessionCreated created = create(node, uid);
+            login(node, browser, created);
+
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                stream.next();
+                snapshot(node, browser, uid, 1);
+                assertEquals(1, readFromNode(node, browser, RANKINGS_PAGE, 1));
+                assertEquals(2, readFromNode(node, browser, INBOX_PAGE, 2));
+
+                patch(node, created, uid, 2, "rankings.pages", 5);
+                assertEquals("rankings.pages", stream.next().path("path").asString());
+
+                assertEquals(2, readCached(browser, INBOX_PAGE));
+                node.assertQuiet();
+                assertEquals(3, readFromNode(node, browser, RANKINGS_PAGE, 3));
+            }
+        }
+    }
+
+    @Test
+    void aPatchOfAnUnknownPartKeepsTheCachedReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.68");
+            SessionCreated created = create(node, uid);
+            login(node, browser, created);
+
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                stream.next();
+                snapshot(node, browser, uid, 1);
+                assertEquals(1, readFromNode(node, browser, INBOX_PAGE, 1));
+
+                patch(node, created, uid, 2, "market.top", 1);
+                assertEquals("market.top", stream.next().path("path").asString());
+
+                assertEquals(1, readCached(browser, INBOX_PAGE));
+                node.assertQuiet();
+            }
+        }
+    }
+
+    private FakeNode treasuryNode(UUID uid) {
+        List<String> features = new ArrayList<>(FakeNode.FEATURES);
+        features.add(Features.COMPANY_TREASURY);
+        return FakeNode.welcomed(
+                gateway, FakeNode.hello(KeyKind.DASHBOARD_KEY, key(), uid, NodeRole.PRIMARY, PLUGIN, features, null));
+    }
+
+    private static void patch(FakeNode node, SessionCreated created, UUID uid, long seq, String path, int value) {
+        node.send(new Patch(
+                null,
+                1,
+                List.of(created.session()),
+                uid,
+                seq,
+                path,
+                PatchOp.REPLACE,
+                null,
+                JsonNodeFactory.instance.numberNode(value)));
+    }
+
+    /**
+     * Reads through the node, which answers with {@code content}, and returns the content the browser got.
+     */
+    private static int readFromNode(FakeNode node, FakeBrowser browser, String action, int content) {
         CompletableFuture<HttpResponse<String>> answer = browser.postAsync("/api/v1/me/actions", action);
-        ActionRequest request = node.expect(ActionRequest.class);
-        node.send(new ActionResult(request.id(), 1, true, null, null, JsonNodeFactory.instance.objectNode()));
-        HttpResponse<String> result = answer.join();
-        assertEquals(200, result.statusCode(), result.body());
+        answer(node, node.expect(ActionRequest.class), content);
+        return content(answer.join());
+    }
+
+    private static int readCached(FakeBrowser browser, String action) {
+        return content(browser.post("/api/v1/me/actions", action));
+    }
+
+    private static void answer(FakeNode node, ActionRequest request, int content) {
+        node.send(new ActionResult(
+                request.id(),
+                1,
+                true,
+                null,
+                null,
+                JsonNodeFactory.instance.objectNode().put("content", content)));
+    }
+
+    private static int content(HttpResponse<String> response) {
+        assertEquals(200, response.statusCode(), response.body());
+        return FakeBrowser.json(response).at("/data/content").asInt();
     }
 
     @Test
