@@ -44,6 +44,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -479,6 +480,31 @@ class HostedGatewayTest {
             assertEquals(
                     404,
                     browser.post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}")
+                            .statusCode());
+        }
+    }
+
+    @Test
+    void parallelWrongCodesCannotExceedTheAttempts() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            SessionCreated created = create(node, uid);
+            List<CompletableFuture<HttpResponse<String>>> tries = new ArrayList<>();
+            for (int i = 0; i < 20; i++) {
+                tries.add(new FakeBrowser(gateway, "198.18.0." + (i + 1))
+                        .postAsync("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"ZZZZZZ\"}"));
+            }
+            List<Integer> statuses = tries.stream()
+                    .map(CompletableFuture::join)
+                    .map(HttpResponse::statusCode)
+                    .toList();
+            assertEquals(4, statuses.stream().filter(status -> status == 401).count(), statuses.toString());
+            assertEquals(CloseReason.EXPIRED, node.expect(SessionClosed.class).reason());
+            node.assertQuiet();
+            assertEquals(
+                    404,
+                    new FakeBrowser(gateway, "198.18.1.1")
+                            .post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}")
                             .statusCode());
         }
     }

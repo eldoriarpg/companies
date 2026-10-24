@@ -48,8 +48,9 @@ import java.util.concurrent.CompletionException;
  *     a short id of six characters of an unambiguous alphabet and a six-letter code without look-alikes, valid for
  *     {@value #CODE_MINUTES} minutes and {@value #MAX_ATTEMPTS} attempts, and answers {@code session.created} with
  *     the link.</li>
- *     <li>The browser enters the code. It is compared in constant time against its stored hash; a wrong code counts
- *     an attempt, and the last attempt ends the session. The right code sends {@code session.opened} to the node the
+ *     <li>The browser enters the code. An attempt is taken in the database before the code is compared in
+ *     constant time against its stored hash, so parallel tries cannot exceed the limit; the last wrong attempt ends
+ *     the session. The right code sends {@code session.opened} to the node the
  *     player asked on (any ready node when it is gone), and only the plugin's {@code session.confirmed} binds the
  *     browser through a new cookie value, stored as its hash.</li>
  *     <li>The session ends on logout, when it is idle or too old, when its server has been gone longer than the grace
@@ -190,9 +191,12 @@ public final class Sessions {
                     .<LoginResult>map(LoginResult.Discontinued::new)
                     .orElseGet(LoginResult.Offline::new);
         }
+        Optional<Integer> attempts = repository.reserveAttempt(session.id(), MAX_ATTEMPTS);
+        if (attempts.isEmpty()) return noAttemptLeft(session);
         String hash = session.codeHash();
         if (hash == null || !Secrets.matches(session.id() + ":" + Secrets.normalise(code), hash)) {
-            return wrongCode(session);
+            if (attempts.get() < MAX_ATTEMPTS) return new LoginResult.WrongCode(MAX_ATTEMPTS - attempts.get());
+            return noAttemptLeft(session);
         }
         if (!repository.startOpening(session.id())) return new LoginResult.Busy();
         NodeLink node = link.get();
@@ -223,13 +227,11 @@ public final class Sessions {
         return new LoginResult.LoggedIn(cookie, repository.find(session.id()).orElse(session));
     }
 
-    private LoginResult wrongCode(StoredSession session) {
-        int attempts = repository.countAttempt(session.id()).orElse(MAX_ATTEMPTS);
-        if (attempts >= MAX_ATTEMPTS) {
-            repository.delete(session.id()).ifPresent(gone -> end(gone, CloseReason.EXPIRED, true));
-            return new LoginResult.WrongCode(0);
-        }
-        return new LoginResult.WrongCode(MAX_ATTEMPTS - attempts);
+    private LoginResult noAttemptLeft(StoredSession session) {
+        Optional<StoredSession> now = repository.find(session.id());
+        if (now.isPresent() && now.get().state() == SessionState.OPENING) return new LoginResult.Busy();
+        repository.delete(session.id()).ifPresent(gone -> end(gone, CloseReason.EXPIRED, true));
+        return new LoginResult.WrongCode(0);
     }
 
     /**

@@ -99,16 +99,21 @@ public final class SessionRepository {
     }
 
     /**
-     * Counts a wrong code.
+     * Takes one of a pending session's attempts before its code is compared, so concurrent tries cannot exceed
+     * the limit.
      *
      * @param id the session id
-     * @return the wrong codes entered so far, none when the session is no longer pending
+     * @param max the most attempts a session has
+     * @return the attempts used including this one; none when the session is not pending or has none left
      */
-    public Optional<Integer> countAttempt(String id) {
+    public Optional<Integer> reserveAttempt(String id, int max) {
         return query("""
-                UPDATE session SET attempts = attempts + 1 WHERE id = :id AND state = :pending
+                UPDATE session SET attempts = attempts + 1
+                WHERE id = :id AND state = :pending AND attempts < :max
                 RETURNING attempts;""")
-                .single(call().bind("id", id).bind("pending", SessionState.PENDING.name()))
+                .single(call().bind("id", id)
+                        .bind("pending", SessionState.PENDING.name())
+                        .bind("max", max))
                 .map(row -> row.getInt("attempts"))
                 .first();
     }
@@ -124,12 +129,19 @@ public final class SessionRepository {
     }
 
     /**
-     * Moves an opening session back to pending after the plugin did not answer.
+     * Moves an opening session back to pending after the plugin did not answer, and returns the attempt the right
+     * code took.
      *
      * @param id the session id
      */
     public void backToPending(String id) {
-        transition(id, SessionState.OPENING, SessionState.PENDING);
+        query("""
+                UPDATE session SET state = :pending, attempts = greatest(attempts - 1, 0)
+                WHERE id = :id AND state = :opening;""")
+                .single(call().bind("id", id)
+                        .bind("pending", SessionState.PENDING.name())
+                        .bind("opening", SessionState.OPENING.name()))
+                .update();
     }
 
     private boolean transition(String id, SessionState from, SessionState to) {
