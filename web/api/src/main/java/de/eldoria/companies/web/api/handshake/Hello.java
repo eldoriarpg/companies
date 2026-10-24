@@ -25,6 +25,7 @@ import java.util.List;
  * @param limits the node's limits
  * @param credentials the server's key or token
  * @param userAgent {@code Companies/<version>}, also sent as the connection's {@code User-Agent} header
+ * @param branding the server's name and icon for the dashboard; none for the default look
  */
 @JsonTypeName("hello")
 public record Hello(
@@ -36,5 +37,6 @@ public record Hello(
         List<String> features,
         Limits limits,
         Credentials credentials,
-        String userAgent)
+        String userAgent,
+        @Nullable Branding branding)
         implements Message {}

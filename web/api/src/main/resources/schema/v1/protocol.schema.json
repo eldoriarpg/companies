@@ -68,6 +68,40 @@
       },
       "required" : [ "name", "enabled" ]
     },
+    "Branding" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "icon" : {
+          "type" : "string"
+        },
+        "iconHash" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "name" ]
+    },
+    "BrandingUpdate" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "branding.update"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "branding" : {
+          "$ref" : "#/$defs/Branding"
+        }
+      },
+      "required" : [ "type", "v", "branding" ]
+    },
     "ClaimedOrderView" : {
       "type" : "object",
       "properties" : {
@@ -280,6 +314,9 @@
         },
         "userAgent" : {
           "type" : "string"
+        },
+        "branding" : {
+          "$ref" : "#/$defs/Branding"
         }
       },
       "required" : [ "type", "v", "plugin", "schema", "node", "features", "limits", "credentials", "userAgent" ]
@@ -392,6 +429,8 @@
         "$ref" : "#/$defs/Hello"
       }, {
         "$ref" : "#/$defs/Welcome"
+      }, {
+        "$ref" : "#/$defs/BrandingUpdate"
       }, {
         "$ref" : "#/$defs/CreateSession"
       }, {
@@ -974,9 +1013,12 @@
           "items" : {
             "$ref" : "#/$defs/DeprecatedPart"
           }
+        },
+        "iconCached" : {
+          "type" : "boolean"
         }
       },
-      "required" : [ "type", "v", "protocol", "gateway", "features", "version", "deprecated" ]
+      "required" : [ "type", "v", "protocol", "gateway", "features", "version", "deprecated", "iconCached" ]
     }
   },
   "x-protocol" : 1,

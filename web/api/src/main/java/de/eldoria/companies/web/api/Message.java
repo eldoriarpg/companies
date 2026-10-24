@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import de.eldoria.companies.web.api.handshake.BrandingUpdate;
 import de.eldoria.companies.web.api.handshake.Hello;
 import de.eldoria.companies.web.api.handshake.Welcome;
 import de.eldoria.companies.web.api.link.ErrorMessage;
@@ -38,6 +39,7 @@ import org.jspecify.annotations.Nullable;
 @JsonSubTypes({
     @JsonSubTypes.Type(Hello.class),
     @JsonSubTypes.Type(Welcome.class),
+    @JsonSubTypes.Type(BrandingUpdate.class),
     @JsonSubTypes.Type(CreateSession.class),
     @JsonSubTypes.Type(SessionCreated.class),
     @JsonSubTypes.Type(SessionOpened.class),

@@ -11,5 +11,6 @@
     "updateTo": "2.4.0",
     "message": "The trial version is no longer supported on the dashboard."
   },
-  "deprecated": []
+  "deprecated": [],
+  "iconCached": false
 }

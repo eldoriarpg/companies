@@ -22,5 +22,6 @@
       "replacement": "orders.create.v2",
       "message": "Update Companies before 2027-06-01, or placing orders stops working on the dashboard."
     }
-  ]
+  ],
+  "iconCached": false
 }

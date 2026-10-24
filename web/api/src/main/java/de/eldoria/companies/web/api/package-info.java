@@ -16,7 +16,8 @@
  * <h2>Messages</h2>
  * <ul>
  *     <li>{@link de.eldoria.companies.web.api.handshake}: {@code hello} from the node, {@code welcome} from the
- *     gateway with the protocol used, the gateway kind, the version status and the deprecated parts in use.</li>
+ *     gateway with the protocol used, the gateway kind, the version status and the deprecated parts in use, and
+ *     {@code branding.update} with the server's name and icon.</li>
  *     <li>{@link de.eldoria.companies.web.api.session}: create a session for a player, the short link and code, the
  *     login, and the end of sessions.</li>
  *     <li>{@link de.eldoria.companies.web.api.snapshot}: the snapshot request and answer with the views of player,

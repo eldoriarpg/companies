@@ -21,6 +21,8 @@ import java.util.List;
  * @param features the features the gateway supports
  * @param version the state of the plugin version
  * @param deprecated the deprecated parts this server still uses
+ * @param iconCached whether the gateway has the icon of the hello's {@link Branding#iconHash()}; when not, the node
+ * sends it with {@link BrandingUpdate}
  */
 @JsonTypeName("welcome")
 public record Welcome(
@@ -30,5 +32,6 @@ public record Welcome(
         GatewayKind gateway,
         List<String> features,
         VersionStatus version,
-        List<DeprecatedPart> deprecated)
+        List<DeprecatedPart> deprecated,
+        boolean iconCached)
         implements Message {}

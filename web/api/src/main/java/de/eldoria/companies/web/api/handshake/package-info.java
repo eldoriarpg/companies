@@ -4,7 +4,8 @@
  *     Copyright (C EldoriaRPG Team and Contributor
  */
 /**
- * The handshake: the node's {@code hello} and the gateway's {@code welcome}.
+ * The handshake: the node's {@code hello} and the gateway's {@code welcome}, and the node's {@code branding.update}
+ * when its name or icon changes.
  */
 @NullMarked
 @DefaultAnnotationForMethods(NonNull.class)
