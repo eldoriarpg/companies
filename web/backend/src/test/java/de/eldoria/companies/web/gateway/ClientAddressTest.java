@@ -32,7 +32,9 @@ class ClientAddressTest {
 
     @Test
     void believesCloudflareOnlyFromTrustedProxies() {
-        assertEquals("203.0.113.8", CLOUDFLARE.of("172.18.0.5", "198.51.100.1", "203.0.113.8"));
+        assertEquals("203.0.113.8", CLOUDFLARE.of("172.18.0.5", "203.0.113.8, 172.18.0.7", "203.0.113.8"));
+        assertEquals("198.51.100.1", CLOUDFLARE.of("172.18.0.5", "198.51.100.1", "203.0.113.8"));
+        assertEquals("198.51.100.1", CLOUDFLARE.of("172.18.0.5", "172.18.0.7, 198.51.100.1", "203.0.113.8"));
         assertEquals("198.51.100.2", CLOUDFLARE.of("198.51.100.2", null, "203.0.113.8"));
         assertEquals("198.51.100.1", CLOUDFLARE.of("172.18.0.5", "198.51.100.1", "not an address"));
         assertEquals("198.51.100.1", PRIVATE.of("172.18.0.5", "198.51.100.1", "203.0.113.8"));

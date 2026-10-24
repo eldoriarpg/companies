@@ -91,10 +91,10 @@ All settings go into `.env`.
 |---|---|---|
 | `PUBLIC_URL` | | The address players open. Login links are this plus a short id. No `/` at the end. |
 | `DB_PASSWORD` | | A password for the database. Only the gateway uses it. |
-| `PORT` | `4000` | The port the dashboard listens on, on this machine. |
+| `PORT` | `4000` | The port the dashboard listens on, on this machine. It only listens on `127.0.0.1`, for a web server on the same machine. |
 | `COMPANIES_VERSION` | `latest` | Which gateway version to run. |
 | `TRUSTED_PROXIES` | private addresses | Proxies whose `X-Forwarded-For` is believed, comma separated. See [Behind a web server](#behind-a-web-server). |
-| `CLOUDFLARE` | `false` | `true` behind Cloudflare: the client address is taken from `CF-Connecting-IP`, but only from trusted proxies. |
+| `CLOUDFLARE` | `false` | `true` behind Cloudflare: the client address is taken from `CF-Connecting-IP`. See [Cloudflare Tunnel](#cloudflare-tunnel). |
 | `TURNSTILE_SECRET` | empty | Switches on [Turnstile](#turnstile) for the login form. |
 | `TURNSTILE_SITEKEY` | empty | The Turnstile site key that belongs to the secret. |
 
@@ -121,6 +121,9 @@ dash.example.com {
 }
 ```
 
+The dashboard listens on `127.0.0.1` only. If your web server runs on another machine, change the `ports` of
+`frontend` in `compose.yaml` to `"${PORT:-4000}:4000"` and allow only the web server to reach it.
+
 The gateway limits login attempts per address. To know who is asking, it trusts the addresses a proxy passes on, but
 only from proxies in `TRUSTED_PROXIES`. The default covers private addresses, which includes the web app and a web
 server on the same machine. If your web server is somewhere else, add its address.
@@ -139,8 +142,13 @@ A tunnel needs no open port at all. Add `cloudflared` to `compose.yaml`:
 ```
 
 Put the tunnel's token into `.env` as `TUNNEL_TOKEN`, and set `CLOUDFLARE=true`. In the Cloudflare dashboard, give
-the tunnel a public hostname for your domain with the service `http://frontend:4000`. You can then remove the
-`ports` of `frontend`.
+the tunnel a public hostname for your domain with the service `http://frontend:4000`. Then remove the `ports` of
+`frontend`.
+
+With `CLOUDFLARE=true` the dashboard must be reachable only through Cloudflare: through the tunnel, or through a web
+server that accepts only [Cloudflare's addresses](https://www.cloudflare.com/ips/), which you then add to
+`TRUSTED_PROXIES`. The gateway believes `CF-Connecting-IP` only when the request passed the web app and a trusted
+proxy before it, but anything that can reach the dashboard directly could still slip past the login limits.
 
 If you use Bot Fight Mode or managed challenges, skip them for `/api/v1/servers/*`. Your Minecraft servers are not
 browsers and cannot solve a challenge; that path is protected by the server token.

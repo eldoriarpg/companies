@@ -23,8 +23,9 @@ import java.util.Optional;
  * writes into the header itself never count. Nothing is trusted unless configured.
  * <p>
  * Behind Cloudflare, {@code CF-Connecting-IP} names the client directly. It is believed only when that is switched on
- * and the request reaches the gateway from a trusted proxy, so a client talking to the gateway directly cannot set
- * it.
+ * and the request passed at least two trusted hops: the gateway's direct peer (the web app) and the hop that peer
+ * received it from (the tunnel or the edge proxy). A client that reaches the web app directly is the peer's peer and
+ * not trusted, so it cannot set the header. The origin must then be reachable only through Cloudflare.
  */
 public final class ClientAddress {
     private final List<Range> trusted;
@@ -52,12 +53,6 @@ public final class ClientAddress {
      * @return the address to count the request for
      */
     public String of(String remote, @Nullable String forwarded, @Nullable String connecting) {
-        if (cloudflare
-                && connecting != null
-                && trusts(remote)
-                && Range.address(connecting).isPresent()) {
-            return connecting.strip();
-        }
         List<String> chain = new ArrayList<>();
         if (forwarded != null) {
             Arrays.stream(forwarded.split(","))
@@ -66,6 +61,14 @@ public final class ClientAddress {
                     .forEach(chain::add);
         }
         chain.add(remote);
+        if (cloudflare
+                && connecting != null
+                && chain.size() >= 2
+                && trusts(remote)
+                && trusts(chain.get(chain.size() - 2))
+                && Range.address(connecting).isPresent()) {
+            return connecting.strip();
+        }
         for (int i = chain.size() - 1; i > 0; i--) {
             if (!trusts(chain.get(i))) return chain.get(i);
         }
