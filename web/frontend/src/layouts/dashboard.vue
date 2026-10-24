@@ -25,7 +25,7 @@ import VersionBanner from '@/components/layout/VersionBanner.vue'
  */
 const {t} = useI18n()
 const dashboard = useDashboard()
-const {status, server, snapshot, company, live} = dashboard
+const {status, server, snapshot, company, live, problem} = dashboard
 const shell = useShell()
 const market = useMarket()
 const menuOpen = ref(false)
@@ -61,9 +61,12 @@ async function logout(): Promise<void> {
       <TickerStrip v-if="market.top.value.length > 0" :items="market.top.value"/>
       <main class="px-safe flex grow flex-col gap-4 pt-4 pb-28 md:px-6 md:pt-6 md:pb-8">
         <VersionBanner v-if="server && status !== 'discontinued'" :version="server.version" :deprecated="server.deprecated"/>
-        <DiscontinuedNotice v-if="status === 'discontinued'" :server-name="server?.server.name" :version="server?.version ?? null"/>
+        <NoticeBanner v-if="server && !server.online && status === 'ready'" tone="problem">{{ t('dashboard.serverOffline') }}</NoticeBanner>
+        <DiscontinuedNotice v-if="status === 'discontinued'" :server-name="server?.server.name" :version="server?.version ?? null" :message="problem"/>
+        <NoticeBanner v-else-if="status === 'refused'" tone="problem">{{ problem ?? t('dashboard.refused') }}</NoticeBanner>
         <NoticeBanner v-else-if="status === 'offline'" tone="problem">{{ t('dashboard.offline') }}</NoticeBanner>
         <p v-else-if="!snapshot" class="m-0 text-sm text-ink-muted" role="status">{{ t('dashboard.loading') }}</p>
+        <NoticeBanner v-else-if="shell.unavailable.value">{{ t('dashboard.unavailable') }}</NoticeBanner>
         <slot v-else/>
         <AppFooter class="mt-auto"/>
       </main>

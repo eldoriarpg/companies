@@ -64,6 +64,8 @@ export interface ServerInfo {
     version: VersionStatus
     /** The deprecated parts this server still uses; the gateway lists them for players with admin rights only. */
     deprecated: DeprecatedPart[]
+    /** Whether a node of the server takes requests; while none does, the features are not to be trusted. */
+    online: boolean
 }
 
 /** Why a call failed, as the gateway names it in the body of every answer that is not 2xx. */
