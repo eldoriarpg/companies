@@ -27,6 +27,7 @@ import de.eldoria.companies.data.repository.AAlertData;
 import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
+import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.menus.Values;
@@ -106,6 +107,7 @@ public final class DashboardModule {
         var status = new GatewayStatus(logger);
         var views = new Views(new Views.Sources(
                 data.api(),
+                data.stats(),
                 data.memberships(),
                 data.alerts(),
                 data.inbox(),
@@ -242,6 +244,7 @@ public final class DashboardModule {
      * @param alerts      order alerts
      * @param inbox       inboxes
      * @param treasury    treasuries
+     * @param stats       statistics and rankings
      * @param search      the order search
      */
     public record Data(
@@ -251,5 +254,6 @@ public final class DashboardModule {
             AAlertData alerts,
             AInboxData inbox,
             ATreasuryData treasury,
+            AStatsData stats,
             SearchExecutor search) {}
 }

@@ -20,6 +20,7 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.data.repository.AAlertData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
+import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
 import de.eldoria.companies.web.api.snapshot.ClaimedOrderView;
@@ -507,8 +508,8 @@ public final class Views {
     }
 
     /**
-     * A page of a ranking with the place of the player's company. Only the page is read; {@code pages} is the page
-     * after it while more companies follow, so the dashboard pages on without counting every company.
+     * A page of a ranking with the place of the player's company. Only the page and the number of ranked companies are
+     * read. A page past the last one shows the last page.
      *
      * @param ranking what the ranking is sorted by
      * @param range   the time range
@@ -517,16 +518,14 @@ public final class Views {
      * @return the page
      */
     public RankingPage ranking(TopOrder ranking, TimeRange range, int page, Optional<Integer> company) {
-        var rankings = sources.api().ranking();
-        var entries = rankings.page(ranking, range, page, RANKING_PAGE_SIZE).join().stream()
+        var total = sources.stats().retrieveRankedCount(range, now()).join();
+        var pages = Payloads.pages(total, RANKING_PAGE_SIZE);
+        var shown = Math.clamp(page, 1, pages);
+        var entries = sources.api().ranking().page(ranking, range, shown, RANKING_PAGE_SIZE).join().stream()
                 .map(rank -> new RankingEntry(rank.rank(), rank.id(), rank.name(), value(ranking, rank)))
                 .toList();
-        var hasNext = entries.size() == RANKING_PAGE_SIZE
-                && !rankings.page(ranking, range, page * RANKING_PAGE_SIZE + 1, 1)
-                        .join()
-                        .isEmpty();
         var own = company.flatMap(id -> rank(ranking, range, id)).orElse(null);
-        return new RankingPage(key(ranking), range.id(), page, hasNext ? page + 1 : page, entries, own);
+        return new RankingPage(key(ranking), range.id(), shown, pages, entries, own);
     }
 
     /**
@@ -621,6 +620,7 @@ public final class Views {
      * Where the views are read from.
      *
      * @param api             the plugin's API
+     * @param stats           the statistics, which count the ranked companies
      * @param memberships     invites and applications
      * @param alerts          the companies' order alerts
      * @param inbox           the players' inboxes
@@ -632,6 +632,7 @@ public final class Views {
      */
     public record Sources(
             CompaniesApi api,
+            AStatsData stats,
             AMembershipData memberships,
             AAlertData alerts,
             AInboxData inbox,

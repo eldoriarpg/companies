@@ -89,6 +89,7 @@ public final class DashboardWorld implements AutoCloseable {
                 executor);
         views = new Views(new Views.Sources(
                 api,
+                stats,
                 memberships,
                 alerts,
                 inbox,

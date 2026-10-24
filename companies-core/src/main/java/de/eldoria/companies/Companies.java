@@ -491,6 +491,7 @@ public class Companies extends EldoPlugin {
                         this.economy.alerts(),
                         information.inbox(),
                         this.economy.treasury(),
+                        information.stats(),
                         search),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);

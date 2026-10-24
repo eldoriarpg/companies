@@ -112,6 +112,20 @@ class ReadPagesTest {
     }
 
     @Test
+    void theRankingCountsItsPagesAndShowsTheLastPageForOnePastIt() {
+        for (var i = 0; i < 11; i++) world.company("Company " + i, Map.of(world.player("Owner " + i), List.of()));
+
+        var first = read(kestrel, Actions.RANKINGS_PAGE, "{\"ranking\":\"orders\",\"range\":\"all\",\"page\":1}");
+        var far =
+                read(kestrel, Actions.RANKINGS_PAGE, "{\"ranking\":\"orders\",\"range\":\"all\",\"page\":2147483647}");
+
+        assertEquals(2, first.data().path("pages").asInt());
+        assertEquals(10, first.data().path("entries").size());
+        assertEquals(2, far.data().path("page").asInt());
+        assertEquals(2, far.data().path("entries").size());
+    }
+
+    @Test
     void theInboxIsPagedSearchedAndStaysUnread() {
         for (var i = 0; i < 3; i++) {
             world.inbox
