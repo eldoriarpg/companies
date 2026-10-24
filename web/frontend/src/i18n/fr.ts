@@ -390,8 +390,8 @@ export default {
     deliver: {
         all: 'Livrer ce que je porte',
         line: 'Livrer {name} ({missing} manquants)',
-        nothing: 'Tu ne portes rien dont cette commande a encore besoin.',
-        delivered: '{count} objets livrés.',
+        nothing: 'Tu ne portes rien dont {name} a encore besoin.',
+        delivered: '{count} objets livrés à {name}.',
         finished: '{count} objets livrés. {name} est complète.',
         joinFirst: 'Rejoins le serveur pour livrer d’ici ; les objets viennent de ton inventaire.',
     },

@@ -111,6 +111,9 @@ describe('the dashboard session', () => {
         await settle()
         expect(dashboard.playerOnline.value).toBe(true)
 
+        socket().receive(patch(42, {path: 'player', op: 'REPLACE', value: snapshot().player}))
+        expect(dashboard.playerOnline.value).toBe(true)
+
         socket().receive({type: 'presence', online: false})
 
         expect(dashboard.playerOnline.value).toBe(false)

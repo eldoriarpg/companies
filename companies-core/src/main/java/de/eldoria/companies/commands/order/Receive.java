@@ -15,6 +15,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.OrderReceiveService.Received;
 import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.util.Threading;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
@@ -47,13 +48,15 @@ public final class Receive {
         deps.services()
                 .receive()
                 .receive(player, id)
-                .thenAccept(result -> {
-                    switch (result) {
-                        case ActionResult.Refused<Received> refused ->
-                            refused.failure().sendTo(player, deps.messages());
-                        case ActionResult.Done<Received> done -> received(player, done.value());
-                    }
-                })
+                .thenAcceptAsync(
+                        result -> {
+                            switch (result) {
+                                case ActionResult.Refused<Received> refused ->
+                                    refused.failure().sendTo(player, deps.messages());
+                                case ActionResult.Done<Received> done -> received(player, done.value());
+                            }
+                        },
+                        Threading.mainThread(deps.plugin()))
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
                     return null;

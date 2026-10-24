@@ -165,6 +165,7 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         machinery.value.buffer = null
         forgetOtherCompany(data.value.snapshot, snapshot)
         data.value.snapshot = markRaw(snapshot)
+        data.value.playerOnline = snapshot.player.online === true
         data.value.seqs = {[snapshot.node]: snapshot.seq}
         data.value.status = 'ready'
         noteBalance(snapshot)
@@ -181,13 +182,13 @@ export function useDashboard(wiring: DashboardWiring = {}) {
     }
 
     /**
-     * Shows whether the session's player is online on the server, as the gateway reports it.
+     * Shows whether the session's player is online on the server, as the gateway reports it. It is kept beside the
+     * snapshot, since a patch replacing the player carries no such flag.
      *
      * @param online whether the player is online
      */
     function showPresence(online: boolean): void {
-        const current = data.value.snapshot
-        if (current) data.value.snapshot = {...current, player: {...current.player, online}}
+        data.value.playerOnline = online
     }
 
     /**
@@ -322,7 +323,7 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         company: computed(() => data.value.snapshot?.company ?? null),
         live: computed(() => data.value.live),
         online: computed(() => data.value.server?.online ?? true),
-        playerOnline: computed(() => data.value.snapshot?.player.online === true),
+        playerOnline: computed(() => data.value.playerOnline),
         problem: computed(() => data.value.problem),
         activity: computed(() => data.value.activity),
         balances: computed(() => data.value.balances),

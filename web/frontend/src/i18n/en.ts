@@ -390,8 +390,8 @@ export default {
     deliver: {
         all: 'Deliver what I carry',
         line: 'Deliver {name} ({missing} missing)',
-        nothing: 'You carry nothing this order still needs.',
-        delivered: 'Delivered {count} items.',
+        nothing: 'You carry nothing {name} still needs.',
+        delivered: 'Delivered {count} items to {name}.',
         finished: 'Delivered {count} items. {name} is complete.',
         joinFirst: 'Join the server to deliver from here; the items come from your inventory.',
     },

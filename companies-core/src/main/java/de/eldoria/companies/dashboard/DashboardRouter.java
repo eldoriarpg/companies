@@ -29,7 +29,6 @@ import de.eldoria.companies.web.api.link.ErrorMessage;
 import de.eldoria.companies.web.api.link.Ping;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.link.UnknownMessage;
-import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionOpened;
@@ -38,13 +37,11 @@ import de.eldoria.companies.web.api.update.Subscribe;
 import de.eldoria.companies.web.api.update.Unsubscribe;
 
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -124,26 +121,7 @@ public final class DashboardRouter {
             return;
         }
         parts.handshake().iconFor(welcome).ifPresent(parts.link()::send);
-        reportPresence();
-    }
-
-    /**
-     * Tells a gateway that just welcomed this node which players with a session are online here, so it routes their
-     * item actions here from the start.
-     */
-    private void reportPresence() {
-        parts.work().execute(() -> {
-            try {
-                var withSessions = parts.sessions().players();
-                for (var player : parts.online().get()) {
-                    if (withSessions.contains(player)) {
-                        parts.link().send(new PlayerPresence(null, Protocol.VERSION, player, true));
-                    }
-                }
-            } catch (RuntimeException e) {
-                parts.logger().log(Level.FINE, "Could not report the players online here to the gateway.", e);
-            }
-        });
+        parts.reportPresence().run();
     }
 
     private void opened(SessionOpened opened) {
@@ -262,7 +240,7 @@ public final class DashboardRouter {
      * @param opened    tells a player that a browser logged in, with the browser's name
      * @param disconnect  closes the connection without sending the key again
      * @param node      this node's uid
-     * @param online    the players online on this node
+     * @param reportPresence tells the gateway which players with a session are online here
      * @param work      builds snapshots and answers actions off the inbound thread
      * @param logger    logger of the plugin
      */
@@ -281,7 +259,7 @@ public final class DashboardRouter {
             BiConsumer<UUID, Optional<String>> opened,
             Runnable disconnect,
             UUID node,
-            Supplier<Set<UUID>> online,
+            Runnable reportPresence,
             Executor work,
             Logger logger) {}
 }

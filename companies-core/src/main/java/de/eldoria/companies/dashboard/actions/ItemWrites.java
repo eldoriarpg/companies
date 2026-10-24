@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -119,6 +120,7 @@ public final class ItemWrites {
                 .thenCompose(Function.identity())
                 .join();
         if (result == null) return answers.refused(request, NOT_ONLINE);
+        sources.moved().accept(player);
         return answers.data(request, Map.of("order", id, "delivered", result.delivered(), "done", result.orderDone()));
     }
 
@@ -127,8 +129,9 @@ public final class ItemWrites {
         return switch (sources.receive().receive(player, id).join()) {
             case de.eldoria.companies.services.ActionResult.Refused<OrderReceiveService.Received> refused ->
                 answers.refused(request, refused.failure());
-            case de.eldoria.companies.services.ActionResult.Done<OrderReceiveService.Received> done ->
-                answers.data(
+            case de.eldoria.companies.services.ActionResult.Done<OrderReceiveService.Received> done -> {
+                sources.moved().accept(player);
+                yield answers.data(
                         request,
                         Map.of(
                                 "order",
@@ -137,6 +140,7 @@ public final class ItemWrites {
                                 done.value().amount(),
                                 "waiting",
                                 done.value().waiting()));
+            }
         };
     }
 
@@ -205,6 +209,8 @@ public final class ItemWrites {
      * @param receive    receives delivered orders as {@code /order receive} does
      * @param returns    hands out waiting items as {@code /order collect} does
      * @param render     renders a refusal as plain text
+     * @param moved      what the commands do after a delivery or a receipt of a player: the order suggestions are
+     *                   loaded again and open menus close, since they show the order as it was
      */
     public record Sources(
             Function<UUID, Optional<Player>> online,
@@ -214,5 +220,6 @@ public final class ItemWrites {
             Deliveries delivery,
             OrderReceiveService receive,
             ItemReturnService returns,
-            Function<CommandFailure, String> render) {}
+            Function<CommandFailure, String> render,
+            Consumer<Player> moved) {}
 }

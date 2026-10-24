@@ -263,7 +263,7 @@ public final class BrowserApi {
      */
     public void snapshot(Context ctx) {
         StoredSession session = session(ctx);
-        JsonNode snapshot = await(session, snapshots.snapshot(session));
+        JsonNode snapshot = await(session, snapshots.snapshot(session)).deepCopy();
         if (snapshot.path("player") instanceof ObjectNode player) {
             player.put(
                     "online",

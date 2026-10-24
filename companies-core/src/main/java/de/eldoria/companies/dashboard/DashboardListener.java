@@ -16,35 +16,32 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.Set;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
  * Shows admins the dashboard's deprecation notices when they join, refreshes the remembered permissions of players
- * with dashboard sessions, and keeps the players online on this node, reporting their joins and quits to the gateway.
+ * with dashboard sessions, and hands the joins and quits to the {@link PresenceReporter}.
  */
 public final class DashboardListener implements Listener {
     private final Dashboard dashboard;
     private final Supplier<MessageSender> messages;
-    private final Set<UUID> online;
+    private final PresenceReporter presence;
 
     /**
      * @param dashboard the dashboard
      * @param messages  the plugin's message sender
-     * @param online    the players online on this node, kept up to date here
+     * @param presence  reports joins and quits to the gateway
      */
-    public DashboardListener(Dashboard dashboard, Supplier<MessageSender> messages, Set<UUID> online) {
+    public DashboardListener(Dashboard dashboard, Supplier<MessageSender> messages, PresenceReporter presence) {
         this.dashboard = dashboard;
         this.messages = messages;
-        this.online = online;
+        this.presence = presence;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         var player = event.getPlayer();
-        online.add(player.getUniqueId());
-        dashboard.presence(player.getUniqueId(), true);
+        presence.joined(player.getUniqueId());
         refresh(player);
         if (!player.hasPermission(Permission.Admin.ADMIN)) return;
         for (var notice : dashboard.notices()) {
@@ -54,9 +51,7 @@ public final class DashboardListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
-        var player = event.getPlayer().getUniqueId();
-        online.remove(player);
-        dashboard.presence(player, false);
+        presence.quit(event.getPlayer().getUniqueId());
     }
 
     /**

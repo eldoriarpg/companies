@@ -129,6 +129,7 @@ class ItemWritesTest {
         assertEquals(15, result.data().path("delivered").asInt());
         assertTrue(result.data().path("done").asBoolean());
         assertEquals(java.util.List.of("all " + order.id()), world.deliveries.calls);
+        assertEquals(java.util.List.of(worker.getUniqueId()), world.moved);
     }
 
     @Test
@@ -188,6 +189,7 @@ class ItemWritesTest {
         assertTrue(result.ok(), result.reason());
         assertEquals(0, result.data().path("waiting").asInt());
         assertTrue(buyer.getInventory().contains(Material.STONE, 10));
+        assertEquals(java.util.List.of(owner), world.moved);
     }
 
     @Test

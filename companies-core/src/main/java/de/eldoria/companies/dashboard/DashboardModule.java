@@ -65,6 +65,7 @@ import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
@@ -76,13 +77,12 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -237,7 +237,9 @@ public final class DashboardModule {
                         ItemWrites.Deliveries.of(data.items().delivery()),
                         data.items().receive(),
                         data.items().returns(),
-                        failure -> PlainText.of(failure.render(null, messages)))),
+                        failure -> PlainText.of(failure.render(null, messages)),
+                        player -> Threading.mainThread(plugin)
+                                .execute(() -> data.items().moved().accept(player)))),
                 new OrderCreateWrites(new OrderCreateWrites.Sources(
                         Bukkit::getOfflinePlayer,
                         data.orders().creation(),
@@ -246,8 +248,10 @@ public final class DashboardModule {
                         data.orders().requests(),
                         data.orders().defaultLimit(),
                         failure -> PlainText.of(failure.render(null, messages)))));
-        Set<UUID> onlineHere = ConcurrentHashMap.newKeySet();
-        plugin.getServer().getOnlinePlayers().forEach(player -> onlineHere.add(player.getUniqueId()));
+        var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
+        presence.online(plugin.getServer().getOnlinePlayers().stream()
+                .map(Player::getUniqueId)
+                .toList());
         var started = new AtomicReference<Dashboard>();
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
@@ -271,7 +275,7 @@ public final class DashboardModule {
                     if (current != null) current.disconnect();
                 },
                 node,
-                () -> Set.copyOf(onlineHere),
+                presence::reportAll,
                 Threading.VIRTUAL,
                 logger));
         var dashboard = new Dashboard(new Dashboard.Parts(
@@ -293,18 +297,21 @@ public final class DashboardModule {
                 logger));
         link.use(dashboard);
         started.set(dashboard);
-        var listener = new DashboardListener(dashboard, () -> messages, onlineHere);
+        var listener = new DashboardListener(dashboard, () -> messages, presence);
         plugin.getServer().getPluginManager().registerEvents(new FeedListener(feed), plugin);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         plugin.getServer()
                 .getScheduler()
                 .runTaskTimer(
                         plugin,
-                        () -> dashboard.playersWithSessions().thenAccept(players -> Threading.mainThread(plugin)
-                                .execute(() -> players.stream()
-                                        .map(plugin.getServer()::getPlayer)
-                                        .filter(Objects::nonNull)
-                                        .forEach(listener::refresh))),
+                        () -> {
+                            presence.reportAll();
+                            dashboard.playersWithSessions().thenAccept(players -> Threading.mainThread(plugin)
+                                    .execute(() -> players.stream()
+                                            .map(plugin.getServer()::getPlayer)
+                                            .filter(Objects::nonNull)
+                                            .forEach(listener::refresh)));
+                        },
                         PERMISSION_REFRESH_TICKS,
                         PERMISSION_REFRESH_TICKS);
         dashboard.start(timer);
@@ -378,9 +385,14 @@ public final class DashboardModule {
      * @param delivery delivers to company orders
      * @param receive  receives delivered own orders
      * @param returns  hands out waiting items
+     * @param moved    what the commands do after a delivery or a receipt, on the main thread
      */
     public record ItemServices(
-            AOrderData orders, DeliveryService delivery, OrderReceiveService receive, ItemReturnService returns) {}
+            AOrderData orders,
+            DeliveryService delivery,
+            OrderReceiveService receive,
+            ItemReturnService returns,
+            Consumer<Player> moved) {}
 
     /**
      * The services the dashboard places orders through.

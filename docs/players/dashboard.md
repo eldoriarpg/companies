@@ -90,8 +90,9 @@ A server owner can switch single parts of the dashboard off; their buttons then 
 ## Moving items
 
 Delivering, receiving and collecting take items out of your inventory or put them in, so they work only while you are
-online on the server, on whichever of its servers you are. While you are not, the dashboard says so instead of showing
-the buttons. Delivering picks the items exactly as the command does.
+online on the server, on whichever of its servers you are. While you are not, positions and delivered orders say so
+instead of showing their buttons, and the button to collect waiting items is hidden. Delivering picks the items exactly
+as the command does.
 
 ## Placing an order
 

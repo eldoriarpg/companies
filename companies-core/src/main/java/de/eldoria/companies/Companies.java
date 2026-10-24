@@ -546,7 +546,14 @@ public class Companies extends EldoPlugin {
                                 commands.orderData(),
                                 commands.services().deliveryService(),
                                 commands.services().receive(),
-                                commands.services().itemReturnService())),
+                                commands.services().itemReturnService(),
+                                player -> {
+                                    CompanyOrderSources.invalidate(player.getUniqueId());
+                                    SuggestionSources.current().ifPresent(sources -> sources.ownOrders()
+                                            .invalidate(player.getUniqueId()));
+                                    if (player.isOnline())
+                                        commands.services().menus().close(player);
+                                })),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

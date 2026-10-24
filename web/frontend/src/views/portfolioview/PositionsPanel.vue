@@ -81,7 +81,7 @@ const rows = computed(() => found.value.map(order => ({
         </div>
         <span class="tabular hidden text-right text-sm md:block">{{ money(row.totals.payout, locale) }}</span>
         <span class="tabular hidden text-right text-xs text-ink-muted md:block">{{ row.left }}</span>
-        <PositionDeliver v-if="delivers" :order="row.order"/>
+        <PositionDeliver v-if="delivers" :order="row.order" @delivered="text => done = text"/>
         <PositionAbort v-if="manages" :order="row.order.id" :name="row.order.name" @aborted="name => done = t('positions.aborted', {name})"/>
       </li>
     </ul>

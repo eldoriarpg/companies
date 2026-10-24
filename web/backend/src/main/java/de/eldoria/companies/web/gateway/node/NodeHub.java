@@ -447,7 +447,9 @@ public final class NodeHub {
             case SessionClosed closed -> events.sessionClosed(server, closed);
             case SessionsRevoked revoked -> events.sessionsRevoked(server, revoked);
             case PlayerPresence presence -> {
-                if (server.present(presence.player(), link.agreed().uid(), presence.online())) {
+                UUID named = presence.node();
+                UUID node = named == null ? link.agreed().uid() : named;
+                if (server.present(presence.player(), node, presence.online())) {
                     events.presence(server, presence.player(), presence.online());
                 }
             }

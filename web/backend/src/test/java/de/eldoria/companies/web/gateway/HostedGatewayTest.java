@@ -1146,7 +1146,7 @@ class HostedGatewayTest {
 
             try (FakeBrowser.Stream stream = browser.stream()) {
                 assertEquals("server", stream.next().path("type").asString());
-                secondary.send(new PlayerPresence(null, 1, PLAYER, false));
+                secondary.send(new PlayerPresence(null, 1, PLAYER, false, null));
                 JsonNode presence = stream.next();
                 assertEquals("presence", presence.path("type").asString());
                 assertFalse(presence.path("online").asBoolean());

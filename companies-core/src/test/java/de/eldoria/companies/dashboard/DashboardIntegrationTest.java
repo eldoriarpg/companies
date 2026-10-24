@@ -86,7 +86,7 @@ class DashboardIntegrationTest {
     private final List<String> opened = new CopyOnWriteArrayList<>();
     private final Set<String> disabled = ConcurrentHashMap.newKeySet();
     private final AtomicInteger disconnects = new AtomicInteger();
-    private final Set<UUID> onlineHere = ConcurrentHashMap.newKeySet();
+    private PresenceReporter presence;
     private DashboardWorld world;
     private FakeGateway gateway;
     private Dashboard dashboard;
@@ -125,6 +125,7 @@ class DashboardIntegrationTest {
                 () -> List.of("orders.browse"),
                 () -> Optional.of(new Branding("Test Server", "aWNvbg==", "abc123")));
         var link = new LinkProxy();
+        presence = new PresenceReporter(link::send, sessions, NODE, world.executor, logger);
         var feed = new PatchFeed(world.views, link, NODE, Runnable::run, logger);
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
@@ -141,7 +142,7 @@ class DashboardIntegrationTest {
                 (player, device) -> opened.add(player + " " + device.orElse("?")),
                 () -> disconnects.incrementAndGet(),
                 NODE,
-                () -> Set.copyOf(onlineHere),
+                () -> presence.reportAll(),
                 world.executor,
                 logger));
         dashboard = new Dashboard(new Dashboard.Parts(
@@ -340,12 +341,31 @@ class DashboardIntegrationTest {
         connect(supported());
         login();
 
-        dashboard.presence(UUID.randomUUID(), true);
-        dashboard.presence(wren, false);
+        presence.joined(UUID.randomUUID());
+        presence.joined(wren);
 
-        var presence = gateway.next(PlayerPresence.class, WAIT);
-        assertEquals(wren, presence.player());
-        assertFalse(presence.online());
+        var joined = gateway.next(PlayerPresence.class, WAIT);
+        assertEquals(wren, joined.player());
+        assertTrue(joined.online());
+        assertEquals(NODE, joined.node());
+        presence.quit(wren);
+        var quit = gateway.next(PlayerPresence.class, WAIT);
+        assertEquals(wren, quit.player());
+        assertFalse(quit.online());
+    }
+
+    @Test
+    void aQuitReachesTheGatewayAlsoAfterTheSessionEnded() throws Exception {
+        connect(supported());
+        login();
+        presence.joined(wren);
+        gateway.next(PlayerPresence.class, WAIT);
+
+        dashboard.endSessions(wren, CloseReason.LOGOUT).get(5, TimeUnit.SECONDS);
+        gateway.next(SessionsRevoked.class, WAIT);
+        presence.quit(wren);
+
+        assertFalse(gateway.next(PlayerPresence.class, WAIT).online());
     }
 
     @Test

@@ -19,7 +19,13 @@ import java.util.UUID;
  * @param id the message id; an answer carries the id of its request, see {@link Message#id()}
  * @param v the protocol version, see {@link Message#v()}
  * @param player the player
- * @param online whether the player is now online on the sending node
+ * @param online whether the player is now online on that node
+ * @param node the node the player joined or left; none means the sending node, a node relaying for others names it
  */
 @JsonTypeName("player.presence")
-public record PlayerPresence(@Nullable String id, int v, UUID player, boolean online) implements Message {}
+public record PlayerPresence(
+        @Nullable String id,
+        int v,
+        UUID player,
+        boolean online,
+        @Nullable UUID node) implements Message {}

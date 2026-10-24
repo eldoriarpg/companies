@@ -110,6 +110,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final Plugin plugin;
     public final ItemReturnService itemReturns;
     public final RecordedDeliveries deliveries = new RecordedDeliveries();
+    public final List<UUID> moved = new CopyOnWriteArrayList<>();
     public final ExecutorService executor = Executors.newFixedThreadPool(4);
     public final Map<UUID, String> names = new ConcurrentHashMap<>();
     public final SqLiteCompanyData companies;
@@ -332,7 +333,8 @@ public final class DashboardWorld implements AutoCloseable {
                                 Threading.mainThread(plugin),
                                 Logger.getAnonymousLogger()),
                         itemReturns,
-                        failure -> "text of " + failure.localeKey())),
+                        failure -> "text of " + failure.localeKey(),
+                        player -> moved.add(player.getUniqueId()))),
                 new OrderCreateWrites(new OrderCreateWrites.Sources(
                         this::offline,
                         creation,

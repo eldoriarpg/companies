@@ -645,6 +645,10 @@
         },
         "online" : {
           "type" : "boolean"
+        },
+        "node" : {
+          "type" : "string",
+          "format" : "uuid"
         }
       },
       "required" : [ "type", "v", "player", "online" ]

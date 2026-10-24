@@ -15,7 +15,7 @@ test.describe('item actions', () => {
 
         await position.getByRole('button', {name: 'Deliver what I carry'}).click()
 
-        await expect(position.getByText('Delivered 18 items.')).toBeVisible()
+        await expect(page.getByText('Delivered 18 items to Harbour lighthouse.')).toBeVisible()
     })
 
     test('says when the player carries nothing a line needs', async ({page}) => {
@@ -23,7 +23,7 @@ test.describe('item actions', () => {
 
         await position.getByRole('button', {name: /Deliver Prismarine/}).click()
 
-        await expect(position.getByText('You carry nothing this order still needs.')).toBeVisible()
+        await expect(page.getByText('You carry nothing Harbour lighthouse still needs.')).toBeVisible()
     })
 
     test('receives a delivered order and collects what waits', async ({page}) => {
