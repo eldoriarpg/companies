@@ -7,7 +7,8 @@ sidebar_position: 4.5
 
 :::info New in 2.1
 The web dashboard comes with Companies 2.1. This version shows orders, the company, the inbox, rankings and market
-prices. Placing, accepting and delivering orders from the browser follow in later versions.
+prices. Players accept orders, manage their own orders, their company and their inbox there. Placing and delivering
+orders from the browser follow in later versions.
 :::
 
 Players open a dashboard in their browser, on a phone or a PC, and see their orders, their company and its orders,
@@ -117,7 +118,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. In 2.1 the dashboard shows `orders.browse`, `orders.own`, `company.members`, `company.applications`, `company.treasury`, `inbox`, `rankings` and `market`; the other parts arrive with later versions. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. In 2.1 the dashboard shows `orders.browse`, `orders.accept`, `orders.own`, `company.members`, `company.applications`, `company.profile`, `company.treasury`, `inbox`, `rankings` and `market`; the other parts arrive with later versions. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is your `server-icon.png`. |
 

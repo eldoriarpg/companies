@@ -7,7 +7,7 @@ sidebar_position: 6
 
 :::info New in 2.1
 The web dashboard comes with Companies 2.1, on servers that switched it on. You can accept orders, manage your own
-orders and your inbox there; placing and delivering orders still happens in game.
+orders, your company and your inbox there; placing and delivering orders and inviting players still happen in game.
 :::
 
 The dashboard shows your orders, your company and its orders, your inbox, the rankings and market prices in a browser.
@@ -61,6 +61,13 @@ game. When the server refuses, the dashboard shows its reason.
 | Your orders | Raise what an open order pays; the dashboard shows the fee and the total before you pay | `/order raise <id> <amount>` |
 | Your orders | Cancel an open order; it asks again first and tells you when a repeating order stops with it | `/order cancel <id>` |
 | Inbox | Mark everything read, delete the read entries, mute or unmute a category | `/company inbox read`, `clear`, `mute`, `unmute` |
+| Company | Change a member's permissions, only those you hold yourself (needs *manage permissions*) | `/company permission <name>` |
+| Company | Remove a member (needs *kick*; nobody removes the owner) | `/company kick <name>` |
+| Company | Leave the company; the owner hands it over in game first | `/company leave` |
+| Company | Accept or deny an application, take back an invite, change how players join (needs *invite*) | `/company applications accept`, `deny`, `/company invite revoke`, `/company joinmode` |
+| Company | Edit description, tag and colour (needs *edit profile*) | `/company profile edit` |
+| Company | Rename the company, paid by you or from the treasury; the dashboard shows the price first (owner only) | `/company rename <name>` |
+| Company | Pay into the treasury, take money out, set the share of payouts it keeps (needs *treasury*) | `/company bank deposit`, `withdraw`, `share` |
 
 A server owner can switch single parts of the dashboard off; their buttons then do not appear.
 

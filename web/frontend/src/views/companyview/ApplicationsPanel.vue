@@ -1,0 +1,106 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C) EldoriaRPG Team and Contributor
+ */
+<script lang="ts" setup>
+import {useNow} from '@vueuse/core'
+import type {JoinMode} from '~/api/generated/protocol'
+import ButtonRow from '@/components/button/ButtonRow.vue'
+import PrimaryButton from '@/components/button/PrimaryButton.vue'
+import SecondaryButton from '@/components/button/SecondaryButton.vue'
+import PanelBox from '@/components/container/PanelBox.vue'
+import ActionNotice from '@/components/feedback/ActionNotice.vue'
+import EmptyState from '@/components/feedback/EmptyState.vue'
+import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import SelectInput from '@/components/input/SelectInput.vue'
+import CapsLabel from '@/components/typography/CapsLabel.vue'
+import MutedText from '@/components/typography/MutedText.vue'
+import SectionHeader from '@/components/typography/SectionHeader.vue'
+import {when} from '~/util/format'
+
+/**
+ * How players join the company and who wants in: the join mode, the open applications with their message to accept or
+ * deny, and the invites the company sent, which can be taken back. For members who may invite; the plugin checks
+ * every answer again. The lists are loaded again after each answer.
+ */
+const props = defineProps<{
+  joinMode: JoinMode
+}>()
+
+const MODES: readonly JoinMode[] = ['OPEN', 'APPLICATIONS', 'INVITE_ONLY']
+
+const {t, locale} = useI18n()
+const now = useNow({interval: 60_000})
+const applications = useApplications()
+const action = useAction()
+const done = ref('')
+const mode = ref<string>(props.joinMode)
+const modes = computed(() => MODES.map(value => ({value, label: t(`company.joinMode.${value}`)})))
+
+onMounted(() => void applications.load())
+watch(() => props.joinMode, value => {
+  mode.value = value
+})
+watch(mode, async value => {
+  if (value === props.joinMode) return
+  const result = await action.run('company.applications.join-mode', {mode: value as JoinMode})
+  if (result) done.value = t('company.joinModeSaved', {mode: t(`company.joinMode.${result.mode}`)})
+  else mode.value = props.joinMode
+})
+
+/**
+ * Answers an application or takes back an invite, then loads the lists again.
+ *
+ * @param name the action
+ * @param player the player it is about
+ * @param text what to say when it is done
+ */
+async function answer(name: 'company.applications.accept' | 'company.applications.deny' | 'company.members.revoke', player: string, text: string): Promise<void> {
+  done.value = ''
+  if (await action.run(name, {player})) done.value = text
+  await applications.load()
+}
+</script>
+
+<template>
+  <PanelBox :aria-label="t('company.applications')">
+    <template #head>
+      <SectionHeader :note="String(applications.result.value?.total ?? 0)">{{ t('company.applications') }}</SectionHeader>
+      <SelectInput v-model="mode" :label="t('company.joinModeLabel')" :options="modes"/>
+    </template>
+    <div class="flex flex-col gap-2 px-3 pt-3 md:px-4 empty:hidden">
+      <NoticeBanner v-if="done">{{ done }}</NoticeBanner>
+      <ActionNotice :problem="action.problem.value"/>
+    </div>
+    <NoticeBanner v-if="applications.status.value === 'failed'" tone="problem" class="m-3 md:mx-4">{{ t('company.applicationsFailed') }}</NoticeBanner>
+    <template v-else-if="applications.result.value">
+      <EmptyState v-if="applications.result.value.entries.length === 0">{{ t('company.noApplications') }}</EmptyState>
+      <ul v-else class="m-0 list-none p-0" data-testid="applications">
+        <li v-for="entry in applications.result.value.entries" :key="entry.player.uuid" class="flex flex-col gap-2 border-b border-line-soft px-3 py-3 last:border-b-0 md:px-4">
+          <div class="flex justify-between gap-2">
+            <span class="truncate text-sm font-semibold">{{ entry.player.name }}</span>
+            <span class="tabular shrink-0 text-xs text-ink-muted">{{ when(entry.created, now, locale) }}</span>
+          </div>
+          <MutedText v-if="entry.message" tag="p">{{ entry.message }}</MutedText>
+          <ButtonRow>
+            <PrimaryButton :disabled="action.busy.value" @click="answer('company.applications.accept', entry.player.uuid, t('company.accepted', {name: entry.player.name}))">{{ t('company.accept') }}</PrimaryButton>
+            <SecondaryButton :disabled="action.busy.value" @click="answer('company.applications.deny', entry.player.uuid, t('company.denied', {name: entry.player.name}))">{{ t('company.deny') }}</SecondaryButton>
+          </ButtonRow>
+        </li>
+      </ul>
+      <template v-if="(applications.result.value.invites ?? []).length > 0">
+        <CapsLabel class="border-t border-line-soft px-3 pb-1 pt-3 md:px-4">{{ t('company.sentInvites') }}</CapsLabel>
+        <ul class="m-0 list-none p-0" data-testid="invites">
+          <li v-for="invite in applications.result.value.invites" :key="invite.player.uuid" class="flex items-center justify-between gap-3 border-b border-line-soft px-3 py-2.5 last:border-b-0 md:px-4">
+            <span class="flex min-w-0 flex-col gap-0.5">
+              <span class="truncate text-sm font-semibold">{{ invite.player.name }}</span>
+              <span class="truncate text-xs text-ink-muted">{{ t('company.invitedBy', {name: invite.inviter.name}) }}</span>
+            </span>
+            <SecondaryButton :disabled="action.busy.value" @click="answer('company.members.revoke', invite.player.uuid, t('company.revoked', {name: invite.player.name}))">{{ t('company.revoke') }}</SecondaryButton>
+          </li>
+        </ul>
+      </template>
+    </template>
+  </PanelBox>
+</template>
