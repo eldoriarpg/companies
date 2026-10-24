@@ -11,7 +11,7 @@ import java.util.concurrent.BlockingQueue;
 /**
  * A {@link Socket} that sends from its own virtual thread, so the caller never waits for a slow peer. A peer that
  * lets more than {@value #CAPACITY} messages pile up is closed with {@value #CLOSE_TOO_SLOW}. A close waits behind
- * the messages queued before it.
+ * the messages queued before it; on a full queue those are dropped and the close goes out at once with its own code.
  * <p>
  * Browser streams use it: patches arrive on a node's connection thread, which must not stall for one slow browser.
  * Node connections keep blocking sends, which pace the gateway to the node.
@@ -39,7 +39,7 @@ public final class QueuedSocket implements Socket {
     @Override
     public void send(String text) {
         if (stopped) return;
-        if (!queue.offer(() -> socket.send(text))) overflow();
+        if (!queue.offer(() -> socket.send(text))) stop(CLOSE_TOO_SLOW, "Too slow");
     }
 
     @Override
@@ -49,7 +49,7 @@ public final class QueuedSocket implements Socket {
             stopped = true;
             socket.close(code, reason);
         })) {
-            overflow();
+            stop(code, reason);
         }
     }
 
@@ -63,11 +63,11 @@ public final class QueuedSocket implements Socket {
         return !stopped && socket.isOpen();
     }
 
-    private void overflow() {
+    private void stop(int code, String reason) {
         stopped = true;
         sender.interrupt();
         queue.clear();
-        socket.close(CLOSE_TOO_SLOW, "Too slow");
+        socket.close(code, reason);
     }
 
     private void drain() {

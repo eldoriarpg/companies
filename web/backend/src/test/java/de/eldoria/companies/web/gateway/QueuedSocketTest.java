@@ -42,9 +42,25 @@ class QueuedSocketTest {
         stuck.countDown();
     }
 
+    @Test
+    void aCloseOnAFullQueueKeepsItsCode() throws InterruptedException {
+        CountDownLatch stuck = new CountDownLatch(1);
+        Recording peer = new Recording(stuck);
+        QueuedSocket socket = new QueuedSocket(peer);
+        socket.send("first");
+        assertTrue(peer.sending.await(5, TimeUnit.SECONDS));
+        for (int i = 0; i < 256; i++) socket.send("patch " + i);
+        socket.close(4401, "Session ended");
+        assertTrue(peer.closedLatch.await(5, TimeUnit.SECONDS));
+        assertTrue(peer.events.contains("close 4401"));
+        assertFalse(peer.events.contains("close " + QueuedSocket.CLOSE_TOO_SLOW));
+        stuck.countDown();
+    }
+
     private static final class Recording implements Socket {
         private final List<String> events = new CopyOnWriteArrayList<>();
         private final CountDownLatch closedLatch = new CountDownLatch(1);
+        private final CountDownLatch sending = new CountDownLatch(1);
         private final CountDownLatch release;
 
         private Recording(CountDownLatch release) {
@@ -53,6 +69,7 @@ class QueuedSocketTest {
 
         @Override
         public void send(String text) {
+            sending.countDown();
             try {
                 release.await();
             } catch (InterruptedException e) {
