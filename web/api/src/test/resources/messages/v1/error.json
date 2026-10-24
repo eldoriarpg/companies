@@ -2,6 +2,6 @@
   "type": "error",
   "id": "g-9",
   "v": 1,
-  "code": "unknown-session",
+  "code": "UNKNOWN_SESSION",
   "message": "Session s-000000 is not open"
 }

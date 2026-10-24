@@ -3,19 +3,19 @@
   "id": "1",
   "v": 1,
   "protocol": 1,
-  "gateway": "self-hosted",
+  "gateway": "SELF_HOSTED",
   "features": [
     "orders.browse"
   ],
   "version": {
-    "status": "deprecated",
+    "status": "DEPRECATED",
     "discontinuedAt": "2027-06-01",
     "updateTo": "2.4.0",
     "message": "Companies 2.2 uses an old order format. Update to 2.4 or newer."
   },
   "deprecated": [
     {
-      "kind": "feature",
+      "kind": "FEATURE",
       "name": "orders.create",
       "since": "2026-12-01",
       "removedAt": "2027-06-01",

@@ -7,13 +7,13 @@
   "node": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10",
   "seq": 42,
   "path": "company.members",
-  "op": "upsert",
+  "op": "UPSERT",
   "key": "0b1c2d3e-4f5a-4b6c-9d7e-8f9a0b1c2d3e",
   "value": {
     "uuid": "0b1c2d3e-4f5a-4b6c-9d7e-8f9a0b1c2d3e",
     "name": "Alex",
     "permissions": [
-      "owner"
+      "OWNER"
     ],
     "stats": {
       "orders": 31,

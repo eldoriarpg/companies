@@ -3,13 +3,13 @@
   "id": "1",
   "v": 1,
   "protocol": 1,
-  "gateway": "hosted",
+  "gateway": "HOSTED",
   "features": [
     "orders.browse",
     "orders.accept"
   ],
   "version": {
-    "status": "supported"
+    "status": "SUPPORTED"
   },
   "deprecated": []
 }

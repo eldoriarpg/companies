@@ -6,7 +6,7 @@
   "schema": "1.9",
   "node": {
     "uid": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10",
-    "role": "primary"
+    "role": "PRIMARY"
   },
   "features": [
     "orders.browse",
@@ -19,7 +19,7 @@
     "maxPageSize": 50
   },
   "credentials": {
-    "kind": "dashboard-key",
+    "kind": "DASHBOARD_KEY",
     "key": "dk_example"
   },
   "userAgent": "Companies/2.2.0"

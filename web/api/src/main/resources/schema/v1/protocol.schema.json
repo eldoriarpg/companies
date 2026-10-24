@@ -99,7 +99,7 @@
     },
     "CloseReason" : {
       "type" : "string",
-      "enum" : [ "logout", "idle", "expired", "revoked", "connection-lost" ]
+      "enum" : [ "LOGOUT", "IDLE", "EXPIRED", "REVOKED", "CONNECTION_LOST" ]
     },
     "CompanyView" : {
       "type" : "object",
@@ -216,7 +216,7 @@
     },
     "ErrorCode" : {
       "type" : "string",
-      "enum" : [ "unknown-type", "invalid", "unsupported-protocol", "unauthorized", "discontinued", "unknown-session", "rate-limited", "internal" ]
+      "enum" : [ "UNKNOWN_TYPE", "INVALID", "UNSUPPORTED_PROTOCOL", "UNAUTHORIZED", "DISCONTINUED", "UNKNOWN_SESSION", "RATE_LIMITED", "INTERNAL" ]
     },
     "ErrorMessage" : {
       "type" : "object",
@@ -242,7 +242,7 @@
     },
     "GatewayKind" : {
       "type" : "string",
-      "enum" : [ "hosted", "self-hosted" ]
+      "enum" : [ "HOSTED", "SELF_HOSTED" ]
     },
     "Hello" : {
       "type" : "object",
@@ -316,11 +316,11 @@
     },
     "JoinMode" : {
       "type" : "string",
-      "enum" : [ "open", "applications", "invite-only" ]
+      "enum" : [ "OPEN", "APPLICATIONS", "INVITE_ONLY" ]
     },
     "KeyKind" : {
       "type" : "string",
-      "enum" : [ "dashboard-key", "server-token" ]
+      "enum" : [ "DASHBOARD_KEY", "SERVER_TOKEN" ]
     },
     "LevelView" : {
       "type" : "object",
@@ -348,7 +348,7 @@
     },
     "MemberPermission" : {
       "type" : "string",
-      "enum" : [ "owner", "invite", "kick", "manage-orders", "manage-permissions", "edit-profile", "treasury" ]
+      "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY" ]
     },
     "MemberStatsView" : {
       "type" : "object",
@@ -441,7 +441,7 @@
     },
     "NodeRole" : {
       "type" : "string",
-      "enum" : [ "primary", "secondary" ]
+      "enum" : [ "PRIMARY", "SECONDARY" ]
     },
     "OrderLineView" : {
       "type" : "object",
@@ -460,7 +460,7 @@
     },
     "OrderState" : {
       "type" : "string",
-      "enum" : [ "unclaimed", "claimed", "delivered", "received" ]
+      "enum" : [ "UNCLAIMED", "CLAIMED", "DELIVERED", "RECEIVED" ]
     },
     "OwnOrderView" : {
       "type" : "object",
@@ -499,7 +499,7 @@
     },
     "PartKind" : {
       "type" : "string",
-      "enum" : [ "field", "message", "feature", "protocol" ]
+      "enum" : [ "FIELD", "MESSAGE", "FEATURE", "PROTOCOL" ]
     },
     "Patch" : {
       "type" : "object",
@@ -542,7 +542,7 @@
     },
     "PatchOp" : {
       "type" : "string",
-      "enum" : [ "upsert", "remove", "replace" ]
+      "enum" : [ "UPSERT", "REMOVE", "REPLACE" ]
     },
     "Ping" : {
       "type" : "object",
@@ -916,7 +916,7 @@
     },
     "VersionState" : {
       "type" : "string",
-      "enum" : [ "supported", "deprecated", "discontinued" ]
+      "enum" : [ "SUPPORTED", "DEPRECATED", "DISCONTINUED" ]
     },
     "VersionStatus" : {
       "type" : "object",

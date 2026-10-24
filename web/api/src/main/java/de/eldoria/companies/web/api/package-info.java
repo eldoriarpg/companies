@@ -31,6 +31,8 @@
  * <ul>
  *     <li>Payloads only grow. A new field is always {@code @Nullable}, because older peers do not send it; readers
  *     ignore fields they do not know.</li>
+ *     <li>Enum values are written as the constant's name, such as {@code SELF_HOSTED}. Feature and action names,
+ *     ranking and range keys are strings, not enums.</li>
  *     <li>Enums are open: an unknown value reads as {@code UNKNOWN}. An unknown message type reads as
  *     {@link de.eldoria.companies.web.api.link.UnknownMessage}.</li>
  *     <li>What a node offers is told by {@link de.eldoria.companies.web.api.Features feature names}, not by versions.
@@ -40,7 +42,8 @@
  *     <li>The JSON Schema of each protocol version is committed under {@code schema/v<N>/} in the resources and
  *     generated with {@code ./gradlew :web-api:generateSchema}; a test fails while it is stale. Recorded messages of
  *     every protocol version under the test resources {@code messages/v<N>/} must validate against the schema and
- *     read with the current records. Recorded messages are never changed, only added.</li>
+ *     read with the current records. Once a protocol version is released, its recorded messages are never changed,
+ *     only added.</li>
  * </ul>
  * <p>
  * Every package is {@code @NullMarked}: a value is non-null unless marked {@code @Nullable}.

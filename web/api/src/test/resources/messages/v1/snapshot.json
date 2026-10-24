@@ -10,8 +10,8 @@
     "name": "Steve",
     "company": 7,
     "permissions": [
-      "manage-orders",
-      "treasury"
+      "MANAGE_ORDERS",
+      "TREASURY"
     ],
     "invites": [],
     "unreadInbox": 3
@@ -22,7 +22,7 @@
     "tag": "DD",
     "color": "#3fa7d6",
     "description": "We dig.",
-    "joinMode": "applications",
+    "joinMode": "APPLICATIONS",
     "founded": "2025-03-14T18:00:00Z",
     "level": {
       "level": 3,
@@ -34,8 +34,8 @@
         "uuid": "a3b1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
         "name": "Steve",
         "permissions": [
-          "manage-orders",
-          "treasury"
+          "MANAGE_ORDERS",
+          "TREASURY"
         ],
         "stats": {
           "orders": 12,
@@ -47,7 +47,7 @@
         "uuid": "0b1c2d3e-4f5a-4b6c-9d7e-8f9a0b1c2d3e",
         "name": "Alex",
         "permissions": [
-          "owner"
+          "OWNER"
         ],
         "stats": {
           "orders": 30,
@@ -63,7 +63,7 @@
       {
         "id": 101,
         "name": "Diamonds for a beacon",
-        "state": "claimed",
+        "state": "CLAIMED",
         "lines": [
           {
             "item": {
@@ -91,7 +91,7 @@
     {
       "id": 88,
       "name": "Oak logs",
-      "state": "delivered",
+      "state": "DELIVERED",
       "lines": [
         {
           "item": {

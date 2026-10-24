@@ -6,7 +6,7 @@
   "schema": "2.4",
   "node": {
     "uid": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10",
-    "role": "observer",
+    "role": "OBSERVER",
     "region": "eu"
   },
   "features": [
@@ -19,7 +19,7 @@
     "maxActionsPerMinute": 60
   },
   "credentials": {
-    "kind": "oauth",
+    "kind": "OAUTH",
     "key": "x"
   },
   "userAgent": "Companies/3.0.0",

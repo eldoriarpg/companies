@@ -6,13 +6,11 @@
 package de.eldoria.companies.web.api.link;
 
 import com.fasterxml.jackson.annotation.JsonEnumDefaultValue;
-import com.fasterxml.jackson.annotation.JsonValue;
-import de.eldoria.companies.web.api.Wire;
 
 /**
  * Why a message was refused.
  * <p>
- * Open: a value added by a newer peer reads as {@link #UNKNOWN}. Written in lower case with hyphens.
+ * Open: a value added by a newer peer reads as {@link #UNKNOWN}. Written as the constant's name.
  */
 public enum ErrorCode {
     /**
@@ -51,15 +49,5 @@ public enum ErrorCode {
      * A value this version does not know, sent by a newer peer.
      */
     @JsonEnumDefaultValue
-    UNKNOWN;
-
-    /**
-     * The value as written on the wire.
-     *
-     * @return the constant's wire name
-     */
-    @JsonValue
-    public String wire() {
-        return Wire.name(this);
-    }
+    UNKNOWN
 }

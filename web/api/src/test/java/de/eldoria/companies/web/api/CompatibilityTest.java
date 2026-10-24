@@ -77,9 +77,9 @@ class CompatibilityTest {
     }
 
     @Test
-    void enumsAreWrittenInLowerCaseWithHyphens() {
-        assertEquals("\"self-hosted\"", MAPPER.writeValueAsString(GatewayKind.SELF_HOSTED));
-        assertEquals("\"upsert\"", MAPPER.writeValueAsString(PatchOp.UPSERT));
+    void enumsAreWrittenAsTheirConstantName() {
+        assertEquals("\"SELF_HOSTED\"", MAPPER.writeValueAsString(GatewayKind.SELF_HOSTED));
+        assertEquals("\"UPSERT\"", MAPPER.writeValueAsString(PatchOp.UPSERT));
     }
 
     private static Message read(String name) {
