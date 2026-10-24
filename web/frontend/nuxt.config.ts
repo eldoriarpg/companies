@@ -94,6 +94,7 @@ export default defineNuxtConfig({
     routeRules: {
       '/sw.js': {headers: {'cache-control': 'no-cache'}},
       '/_nuxt/**': {headers: {'cache-control': 'public, max-age=31536000, immutable'}},
+      '/_nuxt/builds/**': {headers: {'cache-control': 'no-cache'}},
     },
   },
 
