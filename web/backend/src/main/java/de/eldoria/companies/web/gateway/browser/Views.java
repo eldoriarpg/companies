@@ -60,7 +60,7 @@ public final class Views {
      * @param features the features both the server and the gateway support; the web app shows only these
      * @param limits the server's limits
      * @param version the state of the server's plugin version
-     * @param deprecated the deprecated parts the server still uses
+     * @param deprecated the deprecated parts the server still uses; empty for players without admin rights
      * @param online whether a node of the server takes requests
      */
     public record ServerInfo(

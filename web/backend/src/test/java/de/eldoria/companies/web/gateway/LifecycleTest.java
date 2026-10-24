@@ -20,12 +20,16 @@ import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionCreated;
+import de.eldoria.companies.web.api.session.SessionOpened;
 import de.eldoria.companies.web.gateway.policy.VersionPolicy;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 
 import java.io.ByteArrayInputStream;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -33,6 +37,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -119,6 +124,32 @@ class LifecycleTest {
             assertFalse(welcome.features().contains(Features.ADMIN_CONFIG));
             assertTrue(welcome.features().contains(Features.MARKET));
         }
+    }
+
+    @Test
+    void onlyAdminsSeeTheDeprecatedParts() {
+        try (FakeNode node = connect("2.0.4", List.of(Features.MARKET, Features.ORDERS_BROWSE))) {
+            node.expect(Welcome.class);
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.42");
+            FakeBrowser player = new FakeBrowser(gateway, "203.0.113.43");
+            confirm(node, admin, create(node), "true");
+            confirm(node, player, create(node), null);
+            JsonNode forAdmin = FakeBrowser.json(admin.get("/api/v1/me/server"));
+            assertEquals("DEPRECATED", forAdmin.at("/version/status").asString());
+            assertEquals("market", forAdmin.at("/deprecated/0/name").asString());
+            JsonNode forPlayer = FakeBrowser.json(player.get("/api/v1/me/server"));
+            assertEquals("DEPRECATED", forPlayer.at("/version/status").asString());
+            assertEquals(0, forPlayer.path("deprecated").size());
+        }
+    }
+
+    private static void confirm(FakeNode node, FakeBrowser browser, SessionCreated created, @Nullable String admin) {
+        CompletableFuture<HttpResponse<String>> response =
+                browser.postAsync("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}");
+        SessionOpened opened = node.expect(SessionOpened.class);
+        node.sendRaw("{\"type\":\"session.confirmed\",\"id\":\"" + opened.id() + "\",\"v\":1,\"session\":\""
+                + opened.session() + "\"" + (admin == null ? "" : ",\"admin\":" + admin) + "}");
+        assertEquals(204, response.join().statusCode());
     }
 
     @Test

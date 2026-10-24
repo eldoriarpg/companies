@@ -230,7 +230,8 @@ public final class BrowserApi {
      * @param ctx the request
      */
     public void server(Context ctx) {
-        ctx.json(serverInfo(session(ctx).serverId()));
+        StoredSession session = session(ctx);
+        ctx.json(serverInfo(session.serverId(), session.admin()));
     }
 
     /**
@@ -313,12 +314,17 @@ public final class BrowserApi {
                 return;
             }
             StoredSession found = session.get();
-            Views.ServerInfo info = serverInfo(found.serverId());
+            Views.ServerInfo info = serverInfo(found.serverId(), found.admin());
             if (!info.online() && info.version().status() == VersionState.DISCONTINUED) {
                 ctx.closeSession(BrowserStreams.CLOSE_DISCONTINUED, "Discontinued");
                 return;
             }
-            streams.open(ctx.sessionId(), found.id(), found.serverId(), new QueuedSocket(new JettySocket(ctx.session)));
+            streams.open(
+                    ctx.sessionId(),
+                    found.id(),
+                    found.serverId(),
+                    found.admin(),
+                    new QueuedSocket(new JettySocket(ctx.session)));
             streams.reply(ctx.sessionId(), GatewayEvent.server(info));
         });
         ws.onMessage(ctx -> {
@@ -345,13 +351,15 @@ public final class BrowserApi {
 
     /**
      * The server as the browser sees it: branding, the features both the server and the gateway support, the limits
-     * and the version status of the node requests go to, and the deprecated parts it uses. While no node is connected,
-     * the features are empty and the version reads as supported, unless a node on a discontinued version is connected.
+     * and the version status of the node requests go to, and for players with admin rights the deprecated parts it
+     * uses. While no node is connected, the features are empty and the version reads as supported, unless a node on a
+     * discontinued version is connected.
      *
      * @param serverId the server
+     * @param admin whether the player has admin rights, as the plugin confirmed with the login
      * @return the server's info
      */
-    public Views.ServerInfo serverInfo(String serverId) {
+    public Views.ServerInfo serverInfo(String serverId, boolean admin) {
         Optional<LiveServer> live = hub.server(serverId);
         Optional<NodeLink> routed = live.flatMap(LiveServer::route);
         Optional<NodeLink.Handshake> agreed =
@@ -362,7 +370,7 @@ public final class BrowserApi {
                         .orElse(List.of()),
                 routed.map(link -> new Limits(link.maxPageSize())).orElse(DEFAULT_LIMITS),
                 agreed.map(NodeLink.Handshake::status).orElse(UNKNOWN_VERSION),
-                agreed.map(NodeLink.Handshake::deprecated).orElse(List.of()),
+                admin ? agreed.map(NodeLink.Handshake::deprecated).orElse(List.of()) : List.of(),
                 routed.isPresent());
     }
 

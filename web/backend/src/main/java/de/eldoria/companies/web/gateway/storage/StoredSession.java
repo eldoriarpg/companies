@@ -24,6 +24,7 @@ import java.util.UUID;
  * @param attempts wrong codes entered so far
  * @param codeExpires when the code stops working, while pending
  * @param device the browser it is bound to, once bound
+ * @param admin whether the plugin confirmed the login as one of a player with admin rights
  * @param created when it was created
  * @param boundAt when a browser logged in
  * @param lastAccess when a browser used it last
@@ -40,6 +41,7 @@ public record StoredSession(
         int attempts,
         @Nullable Instant codeExpires,
         @Nullable String device,
+        boolean admin,
         Instant created,
         @Nullable Instant boundAt,
         Instant lastAccess) {}

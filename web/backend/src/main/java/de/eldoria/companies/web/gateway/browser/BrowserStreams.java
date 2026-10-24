@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * The open browser streams, by session. A browser pings every 20 seconds; a stream silent for
@@ -41,12 +42,14 @@ public final class BrowserStreams {
     private static final class Stream {
         private final String sessionId;
         private final String serverId;
+        private final boolean admin;
         private final Socket socket;
         private volatile Instant lastHeard;
 
-        private Stream(String sessionId, String serverId, Socket socket, Instant now) {
+        private Stream(String sessionId, String serverId, boolean admin, Socket socket, Instant now) {
             this.sessionId = sessionId;
             this.serverId = serverId;
+            this.admin = admin;
             this.socket = socket;
             this.lastHeard = now;
         }
@@ -63,10 +66,11 @@ public final class BrowserStreams {
      * @param socketId the websocket's id
      * @param sessionId the session it belongs to
      * @param serverId the session's server
+     * @param admin whether the session's player has admin rights
      * @param socket the websocket
      */
-    public void open(String socketId, String sessionId, String serverId, Socket socket) {
-        streams.put(socketId, new Stream(sessionId, serverId, socket, clock.instant()));
+    public void open(String socketId, String sessionId, String serverId, boolean admin, Socket socket) {
+        streams.put(socketId, new Stream(sessionId, serverId, admin, socket, clock.instant()));
     }
 
     /**
@@ -110,12 +114,13 @@ public final class BrowserStreams {
 
     /**
      * @param serverId a server
-     * @param message the message for every stream of its sessions
+     * @param message the message for every stream of its sessions, by whether the session's player has admin rights
      */
-    public void pushServer(String serverId, Object message) {
-        String text = MAPPER.writeValueAsString(message);
+    public void pushServer(String serverId, Function<Boolean, Object> message) {
+        String forAdmins = MAPPER.writeValueAsString(message.apply(true));
+        String forPlayers = MAPPER.writeValueAsString(message.apply(false));
         for (Stream stream : List.copyOf(streams.values())) {
-            if (stream.serverId.equals(serverId)) stream.socket.send(text);
+            if (stream.serverId.equals(serverId)) stream.socket.send(stream.admin ? forAdmins : forPlayers);
         }
     }
 

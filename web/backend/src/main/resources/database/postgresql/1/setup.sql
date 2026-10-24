@@ -48,6 +48,7 @@ CREATE TABLE web_schema.session
     code_expires TIMESTAMPTZ,
     cookie_hash  TEXT UNIQUE,
     device       TEXT,
+    admin        BOOLEAN     NOT NULL DEFAULT FALSE,
     created      TIMESTAMPTZ NOT NULL,
     bound_at     TIMESTAMPTZ,
     last_access  TIMESTAMPTZ NOT NULL

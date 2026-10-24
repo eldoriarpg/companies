@@ -222,7 +222,8 @@ public final class Sessions {
             return new LoginResult.Refused("The server did not confirm the login");
         }
         String cookie = Secrets.token();
-        if (!repository.bind(session.id(), Secrets.hash(cookie), device, clock.instant())) {
+        boolean admin = answer.raw().path("admin").asBoolean(false);
+        if (!repository.bind(session.id(), Secrets.hash(cookie), device, admin, clock.instant())) {
             return new LoginResult.Unknown();
         }
         return new LoginResult.LoggedIn(cookie, repository.find(session.id()).orElse(session));

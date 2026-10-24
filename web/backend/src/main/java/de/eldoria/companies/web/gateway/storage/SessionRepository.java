@@ -25,7 +25,7 @@ import static de.chojo.sadu.queries.api.query.Query.query;
 public final class SessionRepository {
     private static final String COLUMNS = """
             id, server_id, player::TEXT AS player, player_name, node::TEXT AS node, state, short_id, code_hash,
-            attempts, code_expires, device, created, bound_at, last_access""";
+            attempts, code_expires, device, admin, created, bound_at, last_access""";
 
     /**
      * Creates a pending session unless its short id is taken.
@@ -157,20 +157,22 @@ public final class SessionRepository {
      * @param id the session id
      * @param cookieHash the hash of the cookie value
      * @param device the browser
+     * @param admin whether the player has admin rights, as the plugin said
      * @param now the time
      * @return whether the session was opening
      */
-    public boolean bind(String id, String cookieHash, @Nullable String device, Instant now) {
+    public boolean bind(String id, String cookieHash, @Nullable String device, boolean admin, Instant now) {
         return query("""
                 UPDATE session
                 SET state = :bound, short_id = NULL, code_hash = NULL, code_expires = NULL, cookie_hash = :cookie,
-                    device = :device, bound_at = :now, last_access = :now
+                    device = :device, admin = :admin, bound_at = :now, last_access = :now
                 WHERE id = :id AND state = :opening;""")
                 .single(call().bind("id", id)
                         .bind("bound", SessionState.BOUND.name())
                         .bind("opening", SessionState.OPENING.name())
                         .bind("cookie", cookieHash)
                         .bind("device", device)
+                        .bind("admin", admin)
                         .bind("now", Timestamp.from(now)))
                 .update()
                 .changed();
@@ -299,6 +301,7 @@ public final class SessionRepository {
                 row.getInt("attempts"),
                 instant(row.getTimestamp("code_expires")),
                 row.getString("device"),
+                row.getBoolean("admin"),
                 row.getTimestamp("created").toInstant(),
                 instant(row.getTimestamp("bound_at")),
                 row.getTimestamp("last_access").toInstant());

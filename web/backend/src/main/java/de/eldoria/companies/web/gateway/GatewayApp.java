@@ -228,7 +228,7 @@ public final class GatewayApp {
 
         @Override
         public void serverChanged(LiveServer server) {
-            streams.pushServer(server.id(), GatewayEvent.server(browser.serverInfo(server.id())));
+            streams.pushServer(server.id(), admin -> GatewayEvent.server(browser.serverInfo(server.id(), admin)));
         }
 
         @Override
