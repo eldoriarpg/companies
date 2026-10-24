@@ -15,6 +15,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
@@ -39,20 +40,30 @@ public final class DashboardKeys {
      */
     public static final Duration REFRESH_INTERVAL = Duration.ofDays(1);
 
+    /**
+     * How long the primary waits before asking Lyna again after a request failed.
+     */
+    public static final Duration FAILURE_BACKOFF = Duration.ofMinutes(10);
+
     private final ADashboardData data;
     private final LynaKeys lyna;
     private final Clock clock;
     private final Logger logger;
     private volatile Optional<String> problem = Optional.empty();
     private volatile Optional<StoredKey> unsaved = Optional.empty();
+    private volatile String rotatedFrom = "";
+    private volatile Instant failedAt = Instant.MIN;
+    private final boolean primary;
 
     /**
      * @param data   the dashboard tables
      * @param lyna   asks Lyna for the current key
      * @param clock  the current time
-     * @param logger logger of the plugin
+     * @param logger  logger of the plugin
+     * @param primary whether this node is the primary, the only one whose {@code node.yml} key counts
      */
-    public DashboardKeys(ADashboardData data, LynaKeys lyna, Clock clock, Logger logger) {
+    public DashboardKeys(ADashboardData data, LynaKeys lyna, Clock clock, Logger logger, boolean primary) {
+        this.primary = primary;
         this.data = data;
         this.lyna = lyna;
         this.clock = clock;
@@ -74,16 +85,19 @@ public final class DashboardKeys {
     /**
      * Stores a key entered by an admin. It replaces the stored one and is refreshed on the next check.
      * <p>
-     * The hash of the key configured in this node's {@code node.yml} is kept with it, or the hash stored before when
-     * none is configured, so a reload does not put the configured key back over the entered one. Only a changed
-     * configured key replaces it again.
+     * On the primary the hash of the key configured in its {@code node.yml} is kept with it, or the hash stored before
+     * when none is configured, so a reload does not put the configured key back over the entered one. On another node
+     * the stored hash is kept and the local configuration ignored, since only the primary reads it. Only a changed
+     * configured key on the primary replaces the entered key again.
      *
      * @param secret     the key or token
-     * @param configured the resolved key configured in this node's {@code node.yml}, empty when none is configured
+     * @param configured the resolved key configured in this node's {@code node.yml}, empty when none is configured;
+     *                   ignored on other nodes than the primary
      * @return the stored key
      */
     public StoredKey enter(String secret, Optional<String> configured) {
         var seedHash = configured
+                .filter(ignored -> primary)
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
                 .map(DashboardKeys::sha256)
@@ -118,8 +132,8 @@ public final class DashboardKeys {
 
     /**
      * Asks Lyna for the current dashboard key when the last check is a day ago or longer, and stores the answer. A
-     * server token, a missing key and a failed request change nothing; a failed request is tried again on the next
-     * call.
+     * server token, a missing key and a failed request change nothing; after a failed request Lyna is asked again
+     * after {@link #FAILURE_BACKOFF}.
      *
      * @return the key to use now, empty when none is stored
      */
@@ -131,9 +145,11 @@ public final class DashboardKeys {
         if (key.checked()
                 .filter(checked -> checked.plus(REFRESH_INTERVAL).isAfter(now))
                 .isPresent()) return stored;
+        if (failedAt.plus(FAILURE_BACKOFF).isAfter(clock.instant())) return stored;
         try {
             return Optional.of(apply(key, lyna.refresh(key.secret()), now));
         } catch (IOException e) {
+            failedAt = clock.instant();
             logger.log(Level.FINE, "Could not refresh the dashboard key: " + e.getMessage());
             return stored;
         } catch (InterruptedException e) {
@@ -155,6 +171,7 @@ public final class DashboardKeys {
         try {
             data.saveKey(next, now);
         } catch (RuntimeException e) {
+            rotatedFrom = key.secret();
             unsaved = Optional.of(next);
             logger.log(
                     Level.WARNING,
@@ -168,12 +185,19 @@ public final class DashboardKeys {
 
     /**
      * Stores a rotated key that could not be stored before. The other nodes keep the previous key, which Lyna accepts
-     * for ten more minutes, so this is tried on every check.
+     * for ten more minutes, so this is tried on every check. It is stored only while the database still holds the key
+     * it replaced; a key stored meanwhile, e.g. entered on another node, wins and the rotated key is dropped.
      */
     private void saveUnsaved() {
         var pending = unsaved;
         if (pending.isEmpty()) return;
         try {
+            var stored = data.key();
+            if (stored.isPresent() && !stored.get().secret().equals(rotatedFrom)) {
+                unsaved = Optional.empty();
+                logger.info("A newer dashboard key was stored meanwhile; the rotated one is dropped.");
+                return;
+            }
             data.saveKey(pending.get(), now());
             unsaved = Optional.empty();
             logger.info("The rotated dashboard key was stored.");

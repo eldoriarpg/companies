@@ -64,7 +64,7 @@ class DashboardKeysTest {
             @Override
             public void close() {}
         });
-        keys = new DashboardKeys(data, new HttpLynaKeys(lyna.address(), "Companies/test"), clock, logger);
+        keys = new DashboardKeys(data, new HttpLynaKeys(lyna.address(), "Companies/test"), clock, logger, true);
     }
 
     @AfterEach
@@ -141,7 +141,7 @@ class DashboardKeysTest {
             }
         };
         var rotating = new DashboardKeys(
-                flaky, new HttpLynaKeys(lyna.address(), "Companies/test"), clock, Logger.getAnonymousLogger());
+                flaky, new HttpLynaKeys(lyna.address(), "Companies/test"), clock, Logger.getAnonymousLogger(), true);
         rotating.enter(KEY, Optional.empty());
         lyna.answer(200, "{\"key\":\"" + NEXT + "\",\"refreshAt\":\"2026-10-31T10:00:00Z\"}");
         failing.set(true);
@@ -154,6 +154,55 @@ class DashboardKeysTest {
         assertEquals(NEXT, rotating.current().orElseThrow().secret());
         assertEquals(NEXT, flaky.key().orElseThrow().secret());
         assertEquals(1, lyna.requests().size());
+    }
+
+    @Test
+    void aKeyEnteredOnASecondaryIsNotUndoneByThePrimarysConfiguredKey() {
+        var secondary = new DashboardKeys(
+                data, new HttpLynaKeys(lyna.address(), "Companies/test"), clock, Logger.getAnonymousLogger(), false);
+        keys.seed(Optional.of(NEXT));
+
+        secondary.enter("lyd_test-key-three", Optional.of(KEY));
+
+        assertFalse(keys.seed(Optional.of(NEXT)));
+        assertEquals("lyd_test-key-three", data.key().orElseThrow().secret());
+    }
+
+    @Test
+    void aRotatedKeyThatCouldNotBeStoredDoesNotOverwriteANewerOne() {
+        var failing = new AtomicBoolean();
+        var flaky = new SqLiteDashboardData() {
+            @Override
+            public void saveKey(StoredKey key, LocalDateTime now) {
+                if (failing.get()) throw new IllegalStateException("database gone");
+                super.saveKey(key, now);
+            }
+        };
+        var rotating = new DashboardKeys(
+                flaky, new HttpLynaKeys(lyna.address(), "Companies/test"), clock, Logger.getAnonymousLogger(), true);
+        rotating.enter(KEY, Optional.empty());
+        lyna.answer(200, "{\"key\":\"" + NEXT + "\",\"refreshAt\":\"2026-10-31T10:00:00Z\"}");
+        failing.set(true);
+        rotating.refreshIfDue();
+        failing.set(false);
+        data.saveKey(StoredKey.entered("lyd_test-key-three", null), LocalDateTime.now());
+
+        assertEquals("lyd_test-key-three", rotating.current().orElseThrow().secret());
+        assertEquals("lyd_test-key-three", data.key().orElseThrow().secret());
+    }
+
+    @Test
+    void afterAFailedRequestLynaIsAskedAgainAfterTenMinutes() {
+        keys.enter(KEY, Optional.empty());
+        lyna.answer(502, "bad gateway");
+        keys.refreshIfDue();
+        clock.advance(Duration.ofMinutes(9));
+        keys.refreshIfDue();
+        assertEquals(1, lyna.requests().size());
+
+        clock.advance(Duration.ofMinutes(1));
+        keys.refreshIfDue();
+        assertEquals(2, lyna.requests().size());
     }
 
     @Test
@@ -208,6 +257,7 @@ class DashboardKeysTest {
         assertTrue(data.key().orElseThrow().checked().isEmpty());
 
         lyna.answer(200, "{\"key\":\"" + NEXT + "\",\"refreshAt\":1793440800}");
+        clock.advance(DashboardKeys.FAILURE_BACKOFF);
         keys.refreshIfDue();
         assertEquals(2, lyna.requests().size());
         assertEquals(NEXT, data.key().orElseThrow().secret());

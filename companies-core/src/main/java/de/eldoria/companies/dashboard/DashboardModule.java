@@ -100,7 +100,8 @@ public final class DashboardModule {
         Function<String, String> refusal =
                 key -> PlainText.of(CommandFailure.of(key).render(null, messages));
 
-        var keys = new DashboardKeys(data.dashboard(), new HttpLynaKeys(HttpLynaKeys.LYNA, userAgent), clock, logger);
+        var keys = new DashboardKeys(
+                data.dashboard(), new HttpLynaKeys(HttpLynaKeys.LYNA, userAgent), clock, logger, primary);
         var sessions = new DashboardSessions(data.dashboard(), configuration::dashboardSettings, node, clock);
         var status = new GatewayStatus(logger);
         var views = new Views(new Views.Sources(

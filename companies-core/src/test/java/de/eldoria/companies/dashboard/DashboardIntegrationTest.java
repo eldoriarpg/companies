@@ -109,7 +109,8 @@ class DashboardIntegrationTest {
                     throw new IOException("Lyna is not asked in this test");
                 },
                 clock,
-                logger);
+                logger,
+                true);
         var sessions = new DashboardSessions(world.dashboard, () -> settings, NODE, clock);
         status = new GatewayStatus(logger);
         handshake = new Handshake(
