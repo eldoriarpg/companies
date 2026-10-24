@@ -92,6 +92,7 @@ import de.eldoria.companies.services.HistoryRetention;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryLogRetention;
@@ -309,6 +310,13 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 () -> configuration.orderSetting().repeating());
 
+        var profileService = new ProfileService(
+                ProfileService.Store.of(companyData),
+                () -> configuration.companySettings().profile(),
+                getServer().getPluginManager()::callEvent,
+                notificationService::send,
+                Threading.mainThread(this));
+
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
                     economy,
@@ -328,7 +336,8 @@ public class Companies extends EldoPlugin {
                     orderCreation,
                     treasuryService,
                     seriesService,
-                    soloOrders));
+                    soloOrders,
+                    profileService));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 

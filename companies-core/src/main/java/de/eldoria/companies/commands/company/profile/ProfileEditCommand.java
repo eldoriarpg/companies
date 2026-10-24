@@ -37,19 +37,12 @@ import java.util.logging.Level;
 @PlayerOnly
 public final class ProfileEditCommand {
     private final CommandDependencies deps;
-    private final ProfileService profiles;
 
     /**
      * @param deps what the commands need
      */
     public ProfileEditCommand(CommandDependencies deps) {
         this.deps = deps;
-        this.profiles = new ProfileService(
-                ProfileService.Store.of(deps.companyData()),
-                this::settings,
-                event -> deps.plugin().getServer().getPluginManager().callEvent(event),
-                (recipient, type, args) -> deps.services().notificationService().send(recipient, type, args),
-                Threading.mainThread(deps.plugin()));
     }
 
     /**
@@ -165,7 +158,9 @@ public final class ProfileEditCommand {
     }
 
     private void apply(Player player, ProfileChange change, Consumer<Outcome> then) {
-        profiles.edit(player, change)
+        deps.services()
+                .profiles()
+                .edit(player, change)
                 .thenAcceptAsync(then, Threading.mainThread(deps.plugin()))
                 .exceptionally(this::logFailure);
     }
