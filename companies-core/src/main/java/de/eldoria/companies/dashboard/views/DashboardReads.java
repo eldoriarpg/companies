@@ -54,9 +54,9 @@ import java.util.function.Supplier;
  * <p>
  * Pages are asked for with {@code page} (from 1) and {@code pageSize} (at most {@value #MAX_PAGE_SIZE}) and answered
  * with {@code page}, {@code pages} and {@code total}. Actions that change something are performed by
- * {@code DashboardWrites}; one this version does not perform yet is refused here with {@code dashboard.readOnly}, one of a switched off feature with {@code dashboard.featureDisabled}, an
- * unknown or unsupported one with {@code dashboard.unsupported}. The methods block on the database and are called off
- * the main thread.
+ * {@code DashboardWrites}; one this version does not perform yet is refused here with {@code dashboard.readOnly}, one
+ * of a switched off feature with {@code dashboard.featureDisabled}, an unknown or unsupported one with
+ * {@code dashboard.unsupported}. The methods block on the database and are called off the main thread.
  */
 public final class DashboardReads {
     /**

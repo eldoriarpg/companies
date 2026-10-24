@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import {useNow} from '@vueuse/core'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
@@ -52,6 +53,7 @@ async function clearRead(): Promise<void> {
  * @param mute whether to mute it
  */
 async function setMuted(category: string, mute: boolean): Promise<void> {
+  done.value = ''
   if (await action.run('inbox.mute', {category, mute})) await inbox.load()
 }
 
@@ -82,7 +84,7 @@ onMounted(() => void inbox.load())
           />
         </div>
         <NoticeBanner v-if="done && action.problem.value === null">{{ done }}</NoticeBanner>
-        <NoticeBanner v-if="action.problem.value !== null" tone="problem">{{ action.problem.value || t('common.actionFailed') }}</NoticeBanner>
+        <ActionNotice :problem="action.problem.value"/>
       </div>
       <NoticeBanner v-if="inbox.status.value === 'failed'" tone="problem">{{ t('inbox.failed') }}</NoticeBanner>
       <EmptyState v-else-if="!inbox.result.value?.entries.length">{{ inbox.status.value === 'loading' ? t('common.loading') : t('inbox.empty') }}</EmptyState>

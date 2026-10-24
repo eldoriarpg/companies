@@ -10,6 +10,7 @@ export default {
     },
     common: {
         actionFailed: 'Das hat nicht geklappt. Versuch es gleich noch einmal.',
+        actionUncertain: 'Der Server hat nicht rechtzeitig geantwortet. Sieh nach, ob es geklappt hat, bevor du es noch einmal versuchst.',
         back: 'Zurück',
         close: 'Schließen',
         loading: 'Wird geladen…',
@@ -239,7 +240,7 @@ export default {
         cancel: 'Stornieren',
         extended: 'Der Auftrag bleibt länger offen. Noch {left} Verlängerungen.',
         raised: 'Erhöht. Du hast {total} bezahlt.',
-        cancelled: 'Der Auftrag ist storniert und sein Preis ist zurück auf deinem Konto.',
+        cancelled: '{name} ist storniert und sein Preis ist zurück auf deinem Konto.',
         raiseBy: 'Erhöhen um',
         quote: 'Kosten anzeigen',
         raiseQuote: 'Die Gebühr auf die Erhöhung ist {fee}; du zahlst insgesamt {total}.',

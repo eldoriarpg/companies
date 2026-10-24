@@ -10,6 +10,7 @@ export default {
     },
     common: {
         actionFailed: 'That did not work. Try again in a moment.',
+        actionUncertain: 'The server did not answer in time. Check whether it happened before you try again.',
         back: 'Back',
         close: 'Close',
         loading: 'Loading…',
@@ -239,7 +240,7 @@ export default {
         cancel: 'Cancel',
         extended: 'The order stays open longer. {left} extensions left.',
         raised: 'Raised. You paid {total}.',
-        cancelled: 'The order is cancelled and its price is back on your account.',
+        cancelled: '{name} is cancelled and its price is back on your account.',
         raiseBy: 'Raise by',
         quote: 'Show the cost',
         raiseQuote: 'The fee on the raise is {fee}; you pay {total} in total.',

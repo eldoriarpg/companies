@@ -6,7 +6,7 @@
 import {expect, test, type Page, type TestInfo} from '@playwright/test'
 import {onPhone, openDashboard, openSection} from './session'
 
-test.beforeEach(async ({page}) => openDashboard(page))
+test.beforeEach(async ({page}) => openDashboard(page, 'CALM01'))
 
 /**
  * The details of the open order, beside the list or in the phone's sheet.

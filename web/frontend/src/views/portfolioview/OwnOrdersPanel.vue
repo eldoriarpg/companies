@@ -9,6 +9,7 @@ import {Feature, OrderState, type OwnOrderView} from '~/api/generated/protocol'
 import PanelBox from '@/components/container/PanelBox.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
+import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import OwnOrderActions from './OwnOrderActions.vue'
@@ -28,6 +29,7 @@ const props = defineProps<{
 const {t, te, locale} = useI18n()
 const {supports} = useDashboard()
 const manageable = computed(() => supports(Feature['orders.own']))
+const done = ref('')
 const now = useNow({interval: 60_000})
 const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => line.item.name)])
 
@@ -48,6 +50,7 @@ const rows = computed(() => found.value.map(order => ({
         <SearchInput v-model="query" :label="t('portfolio.searchOwn')"/>
       </div>
     </template>
+    <NoticeBanner v-if="done" class="m-3 md:mx-4">{{ done }}</NoticeBanner>
     <EmptyState v-if="rows.length === 0">{{ orders.length === 0 ? t('portfolio.noOwn') : t('common.noMatch') }}</EmptyState>
     <ul v-else class="m-0 list-none p-0">
       <li v-for="row in rows" :key="row.order.id" class="flex flex-col gap-2 border-b border-line-soft px-3 py-3 last:border-b-0 md:px-4">
@@ -61,7 +64,7 @@ const rows = computed(() => found.value.map(order => ({
         </div>
         <ProgressBar :value="row.totals.progress" :label="t('portfolio.filled', {name: row.order.name})"/>
         <span v-if="row.waiting > 0" class="text-xs font-semibold text-accent">{{ t('portfolio.toCollect', {count: count(row.waiting, locale)}) }}</span>
-        <OwnOrderActions v-if="manageable && row.order.state === OrderState.UNCLAIMED" :order="row.order"/>
+        <OwnOrderActions v-if="manageable && row.order.state === OrderState.UNCLAIMED" :order="row.order" @cancelled="name => done = t('own.cancelled', {name})"/>
       </li>
     </ul>
   </PanelBox>

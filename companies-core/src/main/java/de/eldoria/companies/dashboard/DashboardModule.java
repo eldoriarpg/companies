@@ -256,13 +256,13 @@ public final class DashboardModule {
     /**
      * The plugin's repositories and services the dashboard reads and acts through.
      *
-     * @param dashboard   the dashboard tables
-     * @param api         the plugin's API
-     * @param memberships invites and applications
-     * @param alerts      order alerts
-     * @param inbox       inboxes
-     * @param treasury    treasuries
-     * @param stats       statistics and rankings
+     * @param dashboard     the dashboard tables
+     * @param api           the plugin's API
+     * @param memberships   invites and applications
+     * @param alerts        order alerts
+     * @param inbox         inboxes
+     * @param treasury      treasuries
+     * @param stats         statistics and rankings
      * @param search        the order search
      * @param companyOf     the company a player is a member of
      * @param orderAccept   accepts orders for a company

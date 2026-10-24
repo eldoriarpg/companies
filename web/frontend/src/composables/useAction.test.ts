@@ -3,6 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
+import {AxiosError, AxiosHeaders} from 'axios'
 import {describe, expect, it, vi} from 'vitest'
 import {ActionRefused, type GatewayApi} from '~/api/gateway'
 import {fakeApi} from '~/test/fakes'
@@ -26,16 +27,30 @@ describe('an action', () => {
         const action = useAction(api)
 
         expect(await action.run('orders.accept', {order: 4})).toBeNull()
-        expect(action.problem.value).toBe('You are not part of a company.')
+        expect(action.problem.value).toEqual({kind: 'refused', text: 'You are not part of a company.'})
     })
 
-    it('leaves an empty problem for a failure without a sentence', async () => {
+    it('reports a failure without a sentence as failed, until it is reset', async () => {
         const api = fakeApi()
         api.act = vi.fn().mockRejectedValue(new Error('network')) as unknown as GatewayApi['act']
         const action = useAction(api)
 
         expect(await action.run('inbox.clear', {})).toBeNull()
-        expect(action.problem.value).toBe('')
+        expect(action.problem.value).toEqual({kind: 'failed'})
+        action.reset()
+        expect(action.problem.value).toBeNull()
+    })
+
+    it('reports a server that did not answer in time as uncertain', async () => {
+        const api = fakeApi()
+        const timeout = new AxiosError('timeout', 'ERR_BAD_RESPONSE', undefined, undefined, {
+            status: 504, statusText: 'Gateway Timeout', data: {error: 'SERVER_OFFLINE'}, headers: {}, config: {headers: new AxiosHeaders()},
+        })
+        api.act = vi.fn().mockRejectedValue(timeout) as unknown as GatewayApi['act']
+        const action = useAction(api)
+
+        expect(await action.run('orders.own.cancel', {order: 4})).toBeNull()
+        expect(action.problem.value).toEqual({kind: 'uncertain'})
     })
 
     it('sends nothing twice while one runs', async () => {

@@ -43,7 +43,8 @@ import java.util.function.Function;
  * {@code "quote": true}: cancelling says whether the order belongs to a repeating order, raising names the fee and the
  * total, and nothing is changed. An order is named by a whole positive number; anything else is refused as unknown.
  * Extending and raising fire no event, so their changed order is handed to the patch feed here, as is the unread count
- * after reading or clearing the inbox. The methods block on the database and the economy and are called off the main thread.
+ * after reading or clearing the inbox. The methods block on the database and the economy and are called off the main
+ * thread.
  */
 public final class DashboardWrites {
     /**

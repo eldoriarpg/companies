@@ -10,6 +10,7 @@ export default {
     },
     common: {
         actionFailed: 'Cela n’a pas fonctionné. Réessaie dans un instant.',
+        actionUncertain: 'Le serveur n’a pas répondu à temps. Vérifie si c’est fait avant de réessayer.',
         back: 'Retour',
         close: 'Fermer',
         loading: 'Chargement…',
@@ -239,7 +240,7 @@ export default {
         cancel: 'Annuler',
         extended: 'La commande reste ouverte plus longtemps. Encore {left} prolongations.',
         raised: 'Augmenté. Tu as payé {total}.',
-        cancelled: 'La commande est annulée et son prix est revenu sur ton compte.',
+        cancelled: '{name} est annulée et son prix est revenu sur ton compte.',
         raiseBy: 'Augmenter de',
         quote: 'Voir le coût',
         raiseQuote: 'Les frais sur l’augmentation sont de {fee} ; tu paies {total} au total.',

@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import {useNow} from '@vueuse/core'
 import type {OrderListing} from '~/api/gateway'
 import {Feature} from '~/api/generated/protocol'
@@ -45,6 +46,7 @@ const offered = computed(() => supports(Feature['orders.accept']))
 
 watch(() => props.order.id, () => {
   accepted.value = false
+  action.reset()
 })
 
 /** Accepts the order for the player's company. */
@@ -83,7 +85,7 @@ async function accept(): Promise<void> {
     <MutedText v-if="order.expires" tag="p">{{ t('orders.expires', {hours: hoursLeft(order.expires, now)}) }}</MutedText>
     <MutedText v-else-if="order.deadline" tag="p">{{ t('orders.due', {hours: hoursLeft(order.deadline, now)}) }}</MutedText>
     <NoticeBanner v-if="accepted">{{ t('orders.accepted') }}</NoticeBanner>
-    <NoticeBanner v-else-if="action.problem.value !== null" tone="problem">{{ action.problem.value || t('common.actionFailed') }}</NoticeBanner>
+    <ActionNotice v-else :problem="action.problem.value"/>
     <PrimaryButton v-if="offered && canAccept && !accepted" :disabled="action.busy.value" full-width @click="accept">{{ t('orders.accept') }}</PrimaryButton>
     <MutedText v-else-if="!offered" tag="p">{{ t('orders.acceptInGame') }}</MutedText>
   </aside>

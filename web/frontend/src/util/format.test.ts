@@ -5,7 +5,7 @@
  */
 /** @vitest-environment happy-dom */
 import {describe, expect, it} from 'vitest'
-import {arrow, compact, count, hoursLeft, money, moneyChange, percentChange, signedMoney, trendOf, when} from './format'
+import {arrow, compact, count, hoursLeft, money, moneyChange, parseAmount, percentChange, signedMoney, trendOf, when} from './format'
 
 /** How numbers, changes and times read on the dashboard. */
 describe('format', () => {
@@ -51,5 +51,18 @@ describe('format', () => {
         expect(when(new Date(2026, 9, 24, 12, 41).toISOString(), now, 'en')).toBe('12:41')
         expect(when(new Date(2026, 9, 22, 12, 41).toISOString(), now, 'en')).toBe('Thu')
         expect(when(new Date(2026, 8, 2, 12, 41).toISOString(), now, 'en')).toBe('Sep 2')
+    })
+
+    it('reads typed amounts in both decimal styles', () => {
+        expect(parseAmount('20')).toBe(20)
+        expect(parseAmount('20.5')).toBe(20.5)
+        expect(parseAmount('20,5')).toBe(20.5)
+        expect(parseAmount('1,000.50')).toBe(1000.5)
+        expect(parseAmount('1.000,50')).toBe(1000.5)
+        expect(parseAmount(' 1 000,5 ')).toBe(1000.5)
+        expect(parseAmount('1.000.000')).toBe(1000000)
+        expect(parseAmount('abc')).toBeNaN()
+        expect(parseAmount('-5')).toBeNaN()
+        expect(parseAmount('')).toBeNaN()
     })
 })
