@@ -28,6 +28,7 @@ import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.orders.DeliveryPart;
+import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.intellij.lang.annotations.Language;
@@ -68,9 +69,9 @@ public class MariaDbOrderData extends AOrderData {
         var query = """
                 INSERT
                 INTO
-                	orders(owner_uuid, name, fee)
+                	orders(owner_uuid, name, fee, created)
                 VALUES
-                	(?, ?, ?)
+                	(?, ?, ?, ?)
                 RETURNING id""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         Optional<Integer> optOrderId;
@@ -78,7 +79,8 @@ public class MariaDbOrderData extends AOrderData {
             optOrderId = conf.query(query)
                     .single(call().bind(player.getUniqueId(), UUID_BYTES)
                             .bind(order.name())
-                            .bind(order.fee()))
+                            .bind(order.fee())
+                            .bind(Times.now(), time()))
                     .map(rs -> rs.getInt(1))
                     .first();
             if (optOrderId.isEmpty()) return Optional.empty();
@@ -101,9 +103,11 @@ public class MariaDbOrderData extends AOrderData {
             conf.query(query).batch(calls).insert();
 
             query = """
-                    INSERT INTO order_states(id, state) VALUES(?, ?)""";
+                    INSERT INTO order_states(id, state, last_update) VALUES(?, ?, ?)""";
             conf.query(query)
-                    .single(call().bind(orderId).bind(OrderState.UNCLAIMED.stateId()))
+                    .single(call().bind(orderId)
+                            .bind(OrderState.UNCLAIMED.stateId())
+                            .bind(Times.now(), time()))
                     .update();
         }
         if (!conf.context().exceptions().isEmpty()) return Optional.empty();
@@ -161,12 +165,12 @@ public class MariaDbOrderData extends AOrderData {
                     order_states s
                         LEFT JOIN orders o
                         ON o.id = s.id
-                WHERE last_update < NOW() - INTERVAL (? + delivery_bonus) HOUR
+                WHERE last_update < ? - INTERVAL (? + delivery_bonus) HOUR
                   AND %s IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
         return query(query, claimant)
-                .single(call().bind(hours).bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(Times.now(), time()).bind(hours).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -192,11 +196,11 @@ public class MariaDbOrderData extends AOrderData {
                     order_states s
                         JOIN orders o
                         ON o.id = s.id
-                WHERE last_update < NOW() - INTERVAL ? HOUR
+                WHERE last_update < ? - INTERVAL ? HOUR
                   AND state = ?
                 ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
+                .single(call().bind(Times.now(), time()).bind(hours).bind(OrderState.UNCLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -209,13 +213,14 @@ public class MariaDbOrderData extends AOrderData {
                 SET state          = ?,
                     company        = ?,
                     delivery_bonus = ?,
-                    last_update    = CURRENT_TIMESTAMP
+                    last_update    = ?
                 WHERE id = ?
                   AND state = ?""";
         return query(query)
                 .single(call().bind(OrderState.CLAIMED.stateId())
                         .bind(company.id())
                         .bind(deliveryBonus)
+                        .bind(Times.now(), time())
                         .bind(order.id())
                         .bind(OrderState.UNCLAIMED.stateId()))
                 .update()
@@ -231,7 +236,7 @@ public class MariaDbOrderData extends AOrderData {
                     company        = NULL,
                     solo_worker    = ?,
                     delivery_bonus = 0,
-                    last_update    = CURRENT_TIMESTAMP
+                    last_update    = ?
                 WHERE id = ?
                   AND state = ?
                   AND (SELECT COUNT(1)
@@ -246,6 +251,7 @@ public class MariaDbOrderData extends AOrderData {
             claimed = conf.query(query)
                     .single(call().bind(OrderState.CLAIMED.stateId())
                             .bind(player, UUID_BYTES)
+                            .bind(Times.now(), time())
                             .bind(order.id())
                             .bind(OrderState.UNCLAIMED.stateId())
                             .bind(player, UUID_BYTES)
@@ -413,7 +419,7 @@ public class MariaDbOrderData extends AOrderData {
         var update = """
                 UPDATE order_states
                 SET state       = ?,
-                    last_update = CURRENT_TIMESTAMP
+                    last_update = ?
                 WHERE id = ?
                   AND state = ?
                   AND NOT EXISTS(SELECT 1
@@ -425,6 +431,7 @@ public class MariaDbOrderData extends AOrderData {
                                                               AND d.line = c.line), 0))""";
         return query(update)
                 .single(call().bind(OrderState.DELIVERED.stateId())
+                        .bind(Times.now(), time())
                         .bind(order.id())
                         .bind(OrderState.CLAIMED.stateId()))
                 .update()
@@ -440,7 +447,7 @@ public class MariaDbOrderData extends AOrderData {
                     company        = NULL,
                     solo_worker    = NULL,
                     delivery_bonus = 0,
-                    last_update    = CURRENT_TIMESTAMP
+                    last_update    = ?
                 WHERE id = ?
                   AND state = ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
@@ -448,6 +455,7 @@ public class MariaDbOrderData extends AOrderData {
         try (conf) {
             var unclaimed = conf.query(query)
                     .single(call().bind(OrderState.UNCLAIMED.stateId())
+                            .bind(Times.now(), time())
                             .bind(order.id())
                             .bind(OrderState.CLAIMED.stateId()))
                     .update();
@@ -476,11 +484,12 @@ public class MariaDbOrderData extends AOrderData {
                 ORDER BY id""";
         @Language("mariadb")
         var returnItems = """
-                INSERT INTO item_returns(worker_uuid, material, stack, amount)
+                INSERT INTO item_returns(worker_uuid, material, stack, amount, created)
                 SELECT d.worker_uuid,
                        c.material,
                        d.stack,
-                       d.amount
+                       d.amount,
+                       ?
                 FROM order_deliveries d
                          JOIN order_content c
                               ON c.id = d.order_id
@@ -497,7 +506,9 @@ public class MariaDbOrderData extends AOrderData {
                         row.get("worker_uuid", UUID_BYTES),
                         new ReturnedStack(toItemStack(row.getString("stack")), row.getInt("amount"))))
                 .all();
-        conf.query(returnItems).single(call().bind(order.id())).insert();
+        conf.query(returnItems)
+                .single(call().bind(Times.now(), time()).bind(order.id()))
+                .insert();
         conf.query(delete).single(call().bind(order.id())).delete();
         return ReturnedItems.of(stacks);
     }
@@ -508,11 +519,12 @@ public class MariaDbOrderData extends AOrderData {
         var query = """
                 UPDATE order_states
                 SET state       = ?,
-                    last_update = CURRENT_TIMESTAMP
+                    last_update = ?
                 WHERE id = ?
                   AND state = ?""";
         return query(query)
                 .single(call().bind(OrderState.DELIVERED.stateId())
+                        .bind(Times.now(), time())
                         .bind(order.id())
                         .bind(OrderState.CLAIMED.stateId()))
                 .update()
@@ -632,13 +644,14 @@ public class MariaDbOrderData extends AOrderData {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
-                SET last_update = CURRENT_TIMESTAMP,
+                SET last_update = ?,
                     extensions  = extensions + 1
                 WHERE id = ?
                   AND state = ?
                   AND extensions < ?""";
         return query(query)
-                .single(call().bind(order.id())
+                .single(call().bind(Times.now(), time())
+                        .bind(order.id())
                         .bind(OrderState.UNCLAIMED.stateId())
                         .bind(maxExtensions))
                 .update()
@@ -666,12 +679,12 @@ public class MariaDbOrderData extends AOrderData {
                     order_states s
                         JOIN orders o
                         ON o.id = s.id
-                WHERE last_update < NOW() - INTERVAL ? HOUR
+                WHERE last_update < ? - INTERVAL ? HOUR
                   AND state = ?
                   AND (purge_warning IS NULL OR purge_warning <= last_update)
                 ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
+                .single(call().bind(Times.now(), time()).bind(hours).bind(OrderState.UNCLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -681,12 +694,12 @@ public class MariaDbOrderData extends AOrderData {
         @Language("mariadb")
         var query = """
                 UPDATE order_states
-                SET purge_warning = CURRENT_TIMESTAMP
+                SET purge_warning = ?
                 WHERE id = ?
                   AND state = ?
                   AND (purge_warning IS NULL OR purge_warning <= last_update)""";
         return query(query)
-                .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
+                .single(call().bind(Times.now(), time()).bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
                 .update()
                 .changed();
     }
@@ -805,8 +818,8 @@ public class MariaDbOrderData extends AOrderData {
 
     private static String itemReturnInsert() {
         return """
-                INSERT INTO item_returns(worker_uuid, kind, material, stack, amount)
-                VALUES (?, ?, ?, ?, ?)""";
+                INSERT INTO item_returns(worker_uuid, kind, material, stack, amount, created)
+                VALUES (?, ?, ?, ?, ?, ?)""";
     }
 
     private Call itemReturnCall(UUID player, ReturnKind kind, ItemStack stack, int amount) {
@@ -814,7 +827,8 @@ public class MariaDbOrderData extends AOrderData {
                 .bind(kind.id())
                 .bind(stack.getType().name())
                 .bind(toJson(stack))
-                .bind(amount);
+                .bind(amount)
+                .bind(Times.now(), time());
     }
 
     @Override
@@ -830,8 +844,8 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE c.id = ?""";
         @Language("mariadb")
         var insert = """
-                INSERT INTO order_deliveries(order_id, line, worker_uuid, stack, amount)
-                VALUES (?, ?, ?, ?, ?)""";
+                INSERT INTO order_deliveries(order_id, line, worker_uuid, stack, amount, created)
+                VALUES (?, ?, ?, ?, ?, ?)""";
         List<Integer> recorded = new ArrayList<>();
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         try (conf) {
@@ -853,7 +867,8 @@ public class MariaDbOrderData extends AOrderData {
                                 .bind(part.line())
                                 .bind(player.getUniqueId(), UUID_BYTES)
                                 .bind(toJson(single(part.stack())))
-                                .bind(amount))
+                                .bind(amount)
+                                .bind(Times.now(), time()))
                         .insert();
             }
         }

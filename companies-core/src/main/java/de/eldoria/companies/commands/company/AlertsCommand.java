@@ -21,13 +21,12 @@ import de.eldoria.companies.services.alerts.AlertService.Done;
 import de.eldoria.companies.services.alerts.AlertService.Outcome;
 import de.eldoria.companies.services.alerts.AlertService.Refused;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -145,11 +144,7 @@ public final class AlertsCommand {
                         player,
                         menu,
                         new AlertsMenu.Model(
-                                overview.alerts(),
-                                overview.limit(),
-                                overview.mayManage(),
-                                LocalDateTime.now(),
-                                notice)));
+                                overview.alerts(), overview.limit(), overview.mayManage(), Times.now(), notice)));
     }
 
     private void showOrders(Player player, OrderAlert alert) {
@@ -169,7 +164,7 @@ public final class AlertsCommand {
                 deps.economy().alerts(),
                 AlertCompanies.of(deps.companyData(), deps.orderData()),
                 deps.configuration()::companySettings,
-                Clock.systemDefaultZone());
+                Times.UTC);
     }
 
     private <T> void reply(Player player, CompletableFuture<Outcome<T>> outcome, Consumer<T> done) {

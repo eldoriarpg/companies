@@ -16,6 +16,7 @@ import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 
 import java.time.LocalDateTime;
@@ -95,7 +96,7 @@ final class CompanyApiImpl implements CompanyApi {
     public CompletableFuture<List<? extends IMemberStats>> memberStats(int company, TimeRange range) {
         return CompletableFuture.<List<? extends IMemberStats>>supplyAsync(
                 () -> stats.retrieveMemberStats(
-                                company, range.start(clock.get()).orElse(null))
+                                company, Times.start(range, clock.get()).orElse(null))
                         .join(),
                 executor);
     }

@@ -6,6 +6,7 @@
 package de.eldoria.companies;
 
 import com.zaxxer.hikari.HikariDataSource;
+import de.chojo.sadu.core.updater.SqlVersion;
 import de.chojo.sadu.mariadb.databases.MariaDb;
 import de.chojo.sadu.postgresql.databases.PostgreSql;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
@@ -32,6 +33,7 @@ import de.eldoria.companies.dashboard.Dashboard;
 import de.eldoria.companies.dashboard.DashboardModule;
 import de.eldoria.companies.dashboard.KeyCommandFilter;
 import de.eldoria.companies.data.DataSourceFactory;
+import de.eldoria.companies.data.migration.UtcMigration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AMembershipData;
@@ -122,6 +124,7 @@ import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
 import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.ILocalizer;
@@ -138,6 +141,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -303,7 +307,7 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 Threading.VIRTUAL);
 
-        var historyRecorder = new HistoryRecorder(information.history(), Clock.systemDefaultZone());
+        var historyRecorder = new HistoryRecorder(information.history(), Times.UTC);
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
                 this, orderData, information.stats(), historyRecorder, economy, configuration, treasuryService);
@@ -397,13 +401,13 @@ public class Companies extends EldoPlugin {
             new HistoryRetention(
                             information.history(),
                             () -> configuration.generalSettings().historyDays(),
-                            Clock.systemDefaultZone(),
+                            Times.UTC,
                             getLogger())
                     .start(workerPool);
             new TreasuryLogRetention(
                             this.economy.treasury(),
                             () -> configuration.companySettings().treasury().logRetentionDays(),
-                            Clock.systemDefaultZone(),
+                            Times.UTC,
                             getLogger())
                     .start(workerPool);
             new AlertDigestJob(
@@ -411,10 +415,13 @@ public class Companies extends EldoPlugin {
                             alertCompanies,
                             configuration::companySettings,
                             alertNotices,
-                            Clock.systemDefaultZone(),
+                            Times.UTC,
                             getLogger())
                     .start(workerPool);
         }
+        Times.useZone(() -> configuration.generalSettings().timezone().orElseGet(ZoneId::systemDefault));
+        warnAboutTimezone();
+        if (commands != null) commands.onReload(this::warnAboutTimezone);
         var inboxPoller = new InboxPoller(information.inbox(), notificationService, getLogger());
         inboxPoller.start(workerPool, configuration::notificationSettings, bus::realtime);
         if (commands != null) commands.onReload(inboxPoller::reschedule);
@@ -450,7 +457,7 @@ public class Companies extends EldoPlugin {
                 alertCompanies,
                 configuration::companySettings,
                 alertNotices,
-                Clock.systemDefaultZone(),
+                Times.UTC,
                 Threading.VIRTUAL,
                 getLogger()));
 
@@ -472,6 +479,15 @@ public class Companies extends EldoPlugin {
         }
         connectNodes(notificationService, inboxPoller);
         startDashboard(search);
+    }
+
+    /**
+     * Warns when {@code timezone} of {@code config.yml} names no zone; the machine's zone is used then.
+     */
+    private void warnAboutTimezone() {
+        configuration.generalSettings().invalidTimezone().ifPresent(name -> getLogger()
+                .warning("The timezone \"" + name + "\" in config.yml is no time zone; using " + ZoneId.systemDefault()
+                        + " instead."));
     }
 
     /**
@@ -640,10 +656,23 @@ public class Companies extends EldoPlugin {
             }
         }
 
+        var settings = configuration.databaseSettings();
+        var utc = new UtcMigration(
+                UtcMigration.Dialect.of(settings.storageType().name()), ZoneId.systemDefault(), settings.schema());
         builder.setVersionTable("companies_db_version")
                 .withClassLoader(this.getClass().getClassLoader())
-                .setReplacements(new QueryReplacement(
-                        "companies_schema", configuration.databaseSettings().schema()))
+                .setReplacements(new QueryReplacement("companies_schema", settings.schema()))
+                .preUpdateHook(new SqlVersion(1, 13), connection -> getLogger()
+                        .info("Converted " + utc.run(connection) + " rows of stored times from "
+                                + ZoneId.systemDefault() + " to UTC."))
+                .postUpdateHook(new SqlVersion(1, 13), connection -> {
+                    try (var insert = connection.prepareStatement("INSERT INTO "
+                            + (settings.storageType().name().equals("POSTGRES") ? settings.schema() + "." : "")
+                            + "companies_utc(id, converted_from) VALUES (1, ?)")) {
+                        insert.setString(1, ZoneId.systemDefault().getId());
+                        insert.executeUpdate();
+                    }
+                })
                 .execute();
 
         initDataRepositories();

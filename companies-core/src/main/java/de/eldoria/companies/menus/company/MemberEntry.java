@@ -7,11 +7,11 @@ package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -64,7 +64,7 @@ public record MemberEntry(UUID uuid, String name, Optional<String> lastSeen, Lis
 
     private static Optional<String> lastSeen(OfflinePlayer player) {
         if (player.isOnline()) return Optional.empty();
-        var time = LocalDateTime.ofInstant(Instant.ofEpochMilli(player.getLastSeen()), ZoneId.systemDefault());
+        var time = LocalDateTime.ofInstant(Instant.ofEpochMilli(player.getLastSeen()), Times.zone());
         return Optional.of(LAST_SEEN.format(time));
     }
 }

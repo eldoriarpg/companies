@@ -6,7 +6,9 @@
 package de.eldoria.companies.data.repository.impl.sqlite;
 
 import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
@@ -14,6 +16,7 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import org.intellij.lang.annotations.Language;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -21,6 +24,10 @@ import static de.chojo.sadu.queries.api.query.Query.query;
 import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 public class SqLiteCompanyData extends MariaDbCompanyData {
+    @Override
+    protected Adapter<LocalDateTime> time() {
+        return TimeColumns.SQLITE_TEXT;
+    }
 
     public SqLiteCompanyData(ExecutorService executorService) {
         super(executorService);

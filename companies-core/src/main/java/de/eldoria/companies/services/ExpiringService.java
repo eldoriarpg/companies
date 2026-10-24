@@ -20,6 +20,7 @@ import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -128,7 +129,7 @@ public class ExpiringService implements Runnable, Listener {
 
     private List<SimpleOrder> expiringOrders(List<SimpleOrder> orders) {
         var settings = configuration.companySettings();
-        var now = LocalDateTime.now();
+        var now = Times.now();
         return orders.stream()
                 .filter(order -> expiresSoon(
                         order.claimed(), now, order.deliveryHours(configuration), settings.expiryWarningHours()))
@@ -206,7 +207,7 @@ public class ExpiringService implements Runnable, Listener {
                 .join();
         for (var order : orders) {
             if (!Boolean.TRUE.equals(orderData.submitPurgeWarning(order).join())) continue;
-            var left = Duration.between(LocalDateTime.now(), order.claimed().plusHours(settings.maxUnclaimedHours()));
+            var left = Duration.between(Times.now(), order.claimed().plusHours(settings.maxUnclaimedHours()));
             var args = NotificationService.orderArgs(order)
                     .text("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left));
             notificationService.send(order.owner(), NotificationType.MY_ORDER_PURGE_WARNING, args);

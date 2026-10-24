@@ -58,6 +58,7 @@ tasks {
 
     test {
         useJUnitPlatform()
+        systemProperty("user.timezone", "UTC")
         testLogging {
             events("passed", "skipped", "failed")
         }

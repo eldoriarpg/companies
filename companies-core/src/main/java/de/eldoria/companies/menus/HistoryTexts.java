@@ -7,6 +7,7 @@ package de.eldoria.companies.menus;
 
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
+import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
 
 import java.time.LocalDateTime;
@@ -32,7 +33,7 @@ public final class HistoryTexts {
      * @return the time as the history shows it
      */
     public static String date(LocalDateTime time) {
-        return DATE.format(time);
+        return DATE.format(Times.local(time));
     }
 
     /**

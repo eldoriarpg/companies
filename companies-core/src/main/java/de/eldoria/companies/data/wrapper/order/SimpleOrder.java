@@ -9,6 +9,7 @@ import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.util.Texts;
+import de.eldoria.companies.util.Times;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
@@ -306,8 +307,7 @@ public class SimpleOrder implements ISimpleOrder {
     }
 
     public String runningOutTime(Configuration configuration) {
-        var duration =
-                Duration.between(LocalDateTime.now(), claimed().plus(deliveryHours(configuration), ChronoUnit.HOURS));
+        var duration = Duration.between(Times.now(), claimed().plus(deliveryHours(configuration), ChronoUnit.HOURS));
         return Texts.prettyDuration(duration);
     }
 }

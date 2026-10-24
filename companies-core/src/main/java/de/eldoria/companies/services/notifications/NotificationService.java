@@ -35,6 +35,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -191,7 +192,7 @@ public class NotificationService implements Listener {
      * @return completes once the notification is stored
      */
     public CompletableFuture<Void> send(UUID recipient, NotificationType type, NotificationArgs args) {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         return inboxData
                 .retrieveMuted(recipient)
                 .thenCompose(mask -> type.category().mutedBy(mask)

@@ -14,6 +14,7 @@ import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.util.Times;
 import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
@@ -62,12 +63,12 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 FROM order_states s
                          LEFT JOIN orders o
                                    ON o.id = s.id
-                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || (? + delivery_bonus) || ' HOUR')
+                WHERE last_update < datetime(?, '-' || (? + delivery_bonus) || ' HOUR')
                   AND %s IS NOT NULL
                   AND state = ?
                 ORDER BY last_update""";
         return query(query, claimant)
-                .single(call().bind(hours).bind(OrderState.CLAIMED.stateId()))
+                .single(call().bind(Times.now(), time()).bind(hours).bind(OrderState.CLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -91,11 +92,11 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
-                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                WHERE last_update < datetime(?, '-' || ? || ' HOUR')
                   AND state = ?
                 ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
+                .single(call().bind(Times.now(), time()).bind(hours).bind(OrderState.UNCLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }
@@ -119,12 +120,12 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 FROM order_states s
                          JOIN orders o
                               ON o.id = s.id
-                WHERE last_update < datetime(CURRENT_TIMESTAMP, '-' || ? || ' HOUR')
+                WHERE last_update < datetime(?, '-' || ? || ' HOUR')
                   AND state = ?
                   AND (purge_warning IS NULL OR purge_warning <= last_update)
                 ORDER BY last_update""";
         return query(query)
-                .single(call().bind(hours).bind(OrderState.UNCLAIMED.stateId()))
+                .single(call().bind(Times.now(), time()).bind(hours).bind(OrderState.UNCLAIMED.stateId()))
                 .map(this::buildSimpleOrder)
                 .all();
     }

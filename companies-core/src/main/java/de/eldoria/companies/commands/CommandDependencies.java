@@ -47,6 +47,7 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
@@ -299,7 +300,7 @@ public final class CommandDependencies {
      * @return writes the history entries of ended orders
      */
     public HistoryRecorder history() {
-        return new HistoryRecorder(information.history(), Clock.systemDefaultZone());
+        return new HistoryRecorder(information.history(), Times.UTC);
     }
 
     /**

@@ -6,9 +6,9 @@
 package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.data.repository.ANodeMessageData;
+import de.eldoria.companies.util.Times;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -120,7 +120,7 @@ public final class MessageTableBus implements NodeBus {
 
     private void insert(String type, String text) {
         try {
-            data.insert(node, type, text, LocalDateTime.now());
+            data.insert(node, type, text, Times.now());
         } catch (RuntimeException e) {
             logger.log(Level.FINE, "Could not write a node message to the database.", e);
         }
@@ -199,7 +199,7 @@ public final class MessageTableBus implements NodeBus {
 
     private void purge() {
         try {
-            data.purgeBefore(LocalDateTime.now().minus(timings.retention()));
+            data.purgeBefore(Times.now().minus(timings.retention()));
         } catch (RuntimeException e) {
             logger.log(Level.FINE, "Could not delete old node messages.", e);
         }

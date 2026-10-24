@@ -23,6 +23,7 @@ import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
@@ -113,7 +114,7 @@ public final class TreasuryService {
                 notifications::send,
                 plugin.getServer().getPluginManager()::callEvent,
                 Threading.mainThread(plugin),
-                Clock.systemDefaultZone(),
+                Times.UTC,
                 plugin.getLogger());
     }
 

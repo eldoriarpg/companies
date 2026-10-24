@@ -54,6 +54,7 @@ import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -66,7 +67,7 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -135,7 +136,7 @@ public final class DashboardWorld implements AutoCloseable {
                 () -> companySettings,
                 () -> orderSettings,
                 this::name,
-                ZoneId.systemDefault(),
+                ZoneOffset.UTC,
                 Clock.systemUTC()));
         var configuration = new Configuration(MockBukkit.createMockPlugin()) {
             @Override
@@ -149,7 +150,7 @@ public final class DashboardWorld implements AutoCloseable {
                 history,
                 orderSettings::market,
                 () -> orderHistoryDays,
-                ZoneId.systemDefault(),
+                Times::zone,
                 Clock.systemUTC(),
                 Logger.getAnonymousLogger()));
         var search = new SearchExecutor(

@@ -13,6 +13,7 @@ import de.eldoria.companies.dashboard.sessions.SessionPermissions;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionCreated;
@@ -25,7 +26,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -150,7 +150,7 @@ public final class DashboardCommand {
     }
 
     private static String time(LocalDateTime utc) {
-        return TIME.format(utc.atOffset(ZoneOffset.UTC).atZoneSameInstant(ZoneId.systemDefault()));
+        return TIME.format(utc.atOffset(ZoneOffset.UTC).atZoneSameInstant(Times.zone()));
     }
 
     /**

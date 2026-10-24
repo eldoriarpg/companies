@@ -139,6 +139,19 @@ held back. With ProtocolLib, system messages are held back too. Dialog menus nev
 
 There are many new commands. See [Commands](../reference/commands.md).
 
+## From 2.0 to 2.1: times in UTC
+
+Companies 2.1 stores every time in UTC, so servers of a network in different time zones agree. On the first start of
+2.1 the stored times are converted once, from the time zone of the machine the server runs on. The zone they were
+converted from is kept in the table `companies_utc`.
+
+- Update **all servers of a network together**, and start the primary first. A server still on 2.0 would keep writing
+  local times.
+- Start the first server **on the machine whose time zone the old times were written in**, usually the primary.
+- Times are shown in game in the zone of `timezone` in [config.yml](configuration/config-yml.md), which is the
+  machine's zone until you set one.
+- Back up the database before you update, as for every update.
+
 ## For developers
 
 The API changed a lot. See [Migrating from 1.x](../developers/migrating-from-1x.md).

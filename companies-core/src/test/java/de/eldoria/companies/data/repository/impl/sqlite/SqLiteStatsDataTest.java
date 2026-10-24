@@ -134,14 +134,18 @@ class SqLiteStatsDataTest {
     }
 
     @Test
-    void theWindowEndsAtTheGivenTime() {
-        var later = NOW.plusDays(6);
+    void theWindowCoversTheGivenDayAndTheSixDaysBefore() {
+        var later = NOW.plusDays(5);
 
         var ranks = stats.retrieveRanking(TopOrder.EARNED, TimeRange.LAST_7_DAYS, later, 1, 10)
                 .join();
 
         Assertions.assertEquals(
                 List.of(farmers), ranks.stream().map(CompanyRank::id).toList());
+        Assertions.assertEquals(
+                List.of(),
+                stats.retrieveRanking(TopOrder.EARNED, TimeRange.LAST_7_DAYS, later.plusDays(1), 1, 10)
+                        .join());
     }
 
     @Test

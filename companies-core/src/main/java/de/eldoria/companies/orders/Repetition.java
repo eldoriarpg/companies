@@ -8,6 +8,7 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.elements.ordersettings.RepeatingSettings;
 import de.eldoria.companies.data.wrapper.series.RepeatInterval;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.Replacement;
 import org.jetbrains.annotations.Nullable;
 
@@ -127,11 +128,11 @@ public record Repetition(RepeatInterval interval, OptionalInt count, Optional<Lo
     }
 
     /**
-     * The point in time after which no copy is posted: the end of the end date.
+     * The point in time after which no copy is posted: the end of the end date in the server's zone, as a stored time.
      *
      * @return the end, or empty without end date
      */
     public Optional<LocalDateTime> ends() {
-        return until.map(date -> date.plusDays(1).atStartOfDay().minusSeconds(1));
+        return until.map(date -> Times.startOfDay(date.plusDays(1)).minusSeconds(1));
     }
 }

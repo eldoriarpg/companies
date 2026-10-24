@@ -8,6 +8,7 @@ package de.eldoria.companies.data.repository;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
 import de.eldoria.eldoutilities.utils.Version;
 import dev.chojo.ocular.components.Format;
@@ -41,7 +42,7 @@ public abstract class ANodeData {
                 nodeSettings.nodeUid(),
                 nodeSettings.nodeType(),
                 plugin.getPluginMeta().getVersion(),
-                LocalDateTime.now());
+                Times.now());
     }
 
     protected abstract void updateNode(UUID nodeId, NodeType type, String version, LocalDateTime seen);

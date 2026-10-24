@@ -14,6 +14,7 @@ import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.PriceLines;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -218,7 +219,7 @@ public final class OwnerOrderMenu implements Menu<OwnerOrderMenu.Model> {
                     settings.maxUnclaimedHours(),
                     order.deliveryHours(configuration),
                     settings.maxExtensions(),
-                    LocalDateTime.now());
+                    Times.now());
         }
 
         /**

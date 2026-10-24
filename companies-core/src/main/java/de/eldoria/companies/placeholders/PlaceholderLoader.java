@@ -21,10 +21,10 @@ import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.treasury.Treasury;
 import de.eldoria.companies.orders.OrderLimits;
+import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -158,7 +158,7 @@ public final class PlaceholderLoader {
      * @return the ranking, best first
      */
     public CompletableFuture<List<CompanyRank>> ranking(TopOrder order, TimeRange range) {
-        return stats.retrieveRanking(order, range, LocalDateTime.now(), 1, Integer.MAX_VALUE);
+        return stats.retrieveRanking(order, range, Times.now(), 1, Integer.MAX_VALUE);
     }
 
     private static Optional<Role> role(CompanyProfile profile, OfflinePlayer player) {
