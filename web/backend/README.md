@@ -42,6 +42,7 @@ Base `/api/v1`. Every answer carries `Cache-Control: no-store` except icons. Err
 | `POST /me/actions` | `{name, args}` for a read action (`ReadRelay.READ_ACTIONS`) → the `action.result` message |
 | `POST /me/logout` | 204 |
 | `GET /icons/{hash}` | the PNG, cached for good |
+| `GET /health` | `{status: up}`, or 503 while the database does not answer |
 | `WS /me/stream` | `patch` (for this session only), `pong`, `session.closed`, `{type: resync}`, `{type: server, server}`; the browser sends `ping` every 20 s; closes with 4401 (session gone) or 4403 (discontinued) |
 
 ## Layout
