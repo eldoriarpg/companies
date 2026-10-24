@@ -20,6 +20,7 @@ import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.handshake.GatewayKind;
+import de.eldoria.companies.web.api.handshake.Hello;
 import de.eldoria.companies.web.api.handshake.KeyKind;
 import de.eldoria.companies.web.api.handshake.VersionState;
 import de.eldoria.companies.web.api.handshake.Welcome;
@@ -61,7 +62,9 @@ import java.util.logging.Logger;
 public final class Dashboard implements GatewayLink {
     private static final Duration CREATE_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration SWEEP_INTERVAL = Duration.ofMinutes(1);
-    private static final Duration KEY_CHECK_INTERVAL = Duration.ofHours(1);
+    private static final Duration KEY_CHECK_INTERVAL = Duration.ofMinutes(1);
+    private static final Duration RANKING_INTERVAL = Duration.ofMinutes(1);
+    private static final URI HOSTED = URI.create(DashboardSettings.DEFAULT_GATEWAY);
 
     private final Parts parts;
     private final List<ScheduledFuture<?>> tasks = new ArrayList<>();
@@ -83,16 +86,36 @@ public final class Dashboard implements GatewayLink {
     public synchronized void start(ScheduledExecutorService timer) {
         tasks.add(timer.scheduleAtFixedRate(
                 this::sweep, SWEEP_INTERVAL.toSeconds(), SWEEP_INTERVAL.toSeconds(), TimeUnit.SECONDS));
+        tasks.add(timer.scheduleAtFixedRate(
+                parts.feed()::pushRankings,
+                RANKING_INTERVAL.toSeconds(),
+                RANKING_INTERVAL.toSeconds(),
+                TimeUnit.SECONDS));
         if (parts.primary()) {
             tasks.add(timer.scheduleAtFixedRate(
-                    this::checkKey, KEY_CHECK_INTERVAL.toMinutes(), KEY_CHECK_INTERVAL.toMinutes(), TimeUnit.MINUTES));
+                    this::checkKey, KEY_CHECK_INTERVAL.toSeconds(), KEY_CHECK_INTERVAL.toSeconds(), TimeUnit.SECONDS));
         }
-        restart();
+        restartLater();
+    }
+
+    /**
+     * Replaces the connection off the calling thread, so a reload on the main thread waits neither for the old
+     * connection to close nor for the database.
+     */
+    public void restartLater() {
+        parts.work().execute(() -> {
+            try {
+                restart();
+            } catch (RuntimeException e) {
+                parts.logger().log(Level.WARNING, "Could not restart the dashboard connection.", e);
+            }
+        });
     }
 
     /**
      * Replaces the connection with one built from the current settings, or stops it while the dashboard is disabled.
-     * The key configured in {@code node.yml} is stored when it changed.
+     * The old connection is closed before the new one opens, so the gateway never sees both. On the primary the key
+     * configured in {@code node.yml} is stored when it changed. Blocks while the old connection closes.
      */
     public synchronized void restart() {
         var previous = connection;
@@ -110,11 +133,13 @@ public final class Dashboard implements GatewayLink {
         }
         gateway = uri.get();
         // TODO: with a realtime bus (Redis) only the primary connects and relays the other nodes' patches and actions
-        seedKey();
+        parts.status().allowLynaKey();
+        if (parts.primary()) seedKey();
+        var address = uri.get();
         var next = new GatewayConnection(
-                new GatewayConnection.Endpoint(uri.get(), parts.userAgent()),
+                new GatewayConnection.Endpoint(address, parts.userAgent()),
                 GatewayConnection.Timing.standard(new Backoff(Math::random)),
-                parts.handshake()::hello,
+                () -> hello(address),
                 parts.inbound(),
                 parts.status()::discontinued,
                 this::disconnected,
@@ -126,12 +151,56 @@ public final class Dashboard implements GatewayLink {
 
     private void seedKey() {
         try {
-            var configured = EnvReference.resolve(parts.configuredKey().get(), System::getenv, missing -> parts.logger()
-                    .fine("The environment variable " + missing + " named in node.yml dashboard.serverKey is unset."));
-            parts.keys().seed(configured);
+            parts.keys().seed(configuredKey());
         } catch (RuntimeException e) {
             parts.logger().log(Level.WARNING, "Could not store the dashboard key from node.yml.", e);
         }
+    }
+
+    private Optional<String> configuredKey() {
+        return EnvReference.resolve(parts.configuredKey().get(), System::getenv, missing -> parts.logger()
+                .fine("The environment variable " + missing + " named in node.yml dashboard.serverKey is unset."));
+    }
+
+    /**
+     * The hello of a new connection. A Lyna dashboard key is sent only over {@code wss://} to the gateway hosted by
+     * Eldoria, and not again to a gateway that called itself self-hosted; without a hello the connection waits.
+     *
+     * @param address the gateway's address
+     * @return the hello, empty when there is no key or the key must not go to this gateway
+     */
+    private Optional<Hello> hello(URI address) {
+        var hello = parts.handshake().hello();
+        if (hello.isEmpty() || hello.get().credentials().kind() != KeyKind.DASHBOARD_KEY) return hello;
+        if (parts.status().lynaKeyWithheld()) return Optional.empty();
+        if (!hosted(address)) {
+            parts.status()
+                    .withholdLynaKey(
+                            "a Lyna dashboard key is only sent to " + HOSTED.getHost()
+                                    + " over wss://; a self-hosted gateway needs its own server token",
+                            false);
+            return Optional.empty();
+        }
+        return hello;
+    }
+
+    /**
+     * Whether an address is the gateway hosted by Eldoria, reached over TLS.
+     *
+     * @param address the gateway's address
+     * @return true for {@code wss://} to the host of {@link DashboardSettings#DEFAULT_GATEWAY}
+     */
+    public static boolean hosted(URI address) {
+        return "wss".equalsIgnoreCase(address.getScheme()) && HOSTED.getHost().equalsIgnoreCase(address.getHost());
+    }
+
+    /**
+     * Closes the current connection without sending the key again, after a gateway that called itself self-hosted
+     * received a Lyna dashboard key. A new key or a reload connects again.
+     */
+    public void disconnect() {
+        var current = connection;
+        if (current != null) current.reconnect();
     }
 
     /**
@@ -238,7 +307,8 @@ public final class Dashboard implements GatewayLink {
     public CompletableFuture<StoredKey> enterKey(String secret) {
         return CompletableFuture.supplyAsync(
                 () -> {
-                    var key = parts.keys().enter(secret);
+                    var key = parts.keys().enter(secret, configuredKey());
+                    parts.status().allowLynaKey();
                     var current = connection;
                     if (current != null) current.reconnect();
                     parts.keyChanged().run();
@@ -251,6 +321,7 @@ public final class Dashboard implements GatewayLink {
      * Connects again after another node stored a new key.
      */
     public void keyChangedElsewhere() {
+        parts.status().allowLynaKey();
         var current = connection;
         if (current != null) current.reconnect();
     }
@@ -289,6 +360,9 @@ public final class Dashboard implements GatewayLink {
 
     private void sweep() {
         try {
+            for (var session : parts.feed().subscribed()) {
+                if (!parts.sessions().exists(session)) parts.feed().unsubscribe(session);
+            }
             for (var ended : parts.sessions().sweep()) {
                 parts.feed().unsubscribe(ended.session().id());
                 send(new SessionClosed(

@@ -51,6 +51,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -61,6 +62,7 @@ public final class DashboardModule {
     private static final long PERMISSION_REFRESH_TICKS = 20L * 60 * 5;
     private static final int ACTIONS_PER_WINDOW = 20;
     private static final Duration ACTION_WINDOW = Duration.ofSeconds(10);
+    private static final Duration MARKET_LIFETIME = Duration.ofMinutes(1);
 
     private DashboardModule() {
         throw new UnsupportedOperationException("This is a utility class.");
@@ -119,7 +121,7 @@ public final class DashboardModule {
                         data.inbox(),
                         data.memberships(),
                         data.treasury(),
-                        data.dashboard()::market,
+                        new Expiring<>(data.dashboard()::market, MARKET_LIFETIME, clock),
                         () -> configuration.orderSetting().market(),
                         entry -> inboxText(renderer, messages, entry),
                         refusal,
@@ -150,6 +152,7 @@ public final class DashboardModule {
                 Executors.newSingleThreadExecutor(
                         Thread.ofVirtual().name("Companies dashboard patches").factory()),
                 logger);
+        var started = new AtomicReference<Dashboard>();
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
                 status,
@@ -166,6 +169,10 @@ public final class DashboardModule {
                                 online,
                                 "dashboard.opened",
                                 Values.text("device", device.orElse(localizer.localize("dashboard.unknownDevice"))))),
+                () -> {
+                    var current = started.get();
+                    if (current != null) current.disconnect();
+                },
                 node,
                 Threading.VIRTUAL,
                 logger));
@@ -186,6 +193,7 @@ public final class DashboardModule {
                 clock,
                 logger));
         link.use(dashboard);
+        started.set(dashboard);
         var listener = new DashboardListener(dashboard, () -> messages);
         plugin.getServer().getPluginManager().registerEvents(new FeedListener(feed), plugin);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);

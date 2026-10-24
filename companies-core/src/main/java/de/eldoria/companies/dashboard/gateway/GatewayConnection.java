@@ -144,7 +144,8 @@ public final class GatewayConnection implements GatewayLink {
     }
 
     /**
-     * Closes the connection and ends its thread, waiting up to three seconds.
+     * Closes the connection and ends its thread, waiting up to three seconds, then closes the HTTP client. A
+     * connection still opening is closed without sending the hello.
      */
     public void stop() {
         Thread running;
@@ -156,6 +157,7 @@ public final class GatewayConnection implements GatewayLink {
         var socket = current;
         if (socket != null) socket.close();
         if (running != null) {
+            running.interrupt();
             try {
                 running.join(Duration.ofSeconds(3));
             } catch (InterruptedException e) {
@@ -164,6 +166,7 @@ public final class GatewayConnection implements GatewayLink {
         }
         dispatch.shutdown();
         failPending();
+        client.shutdownNow();
         state = State.STOPPED;
     }
 
@@ -276,6 +279,7 @@ public final class GatewayConnection implements GatewayLink {
                     .buildAsync(endpoint.uri(), socket)
                     .get(CONNECT_TIMEOUT.toSeconds() * 2, TimeUnit.SECONDS);
             socket.open(webSocket);
+            if (!running) return new Ended(false, new Closed(NO_CLOSE, ""));
             current = socket;
             state = State.CONNECTED;
             send(greeting);

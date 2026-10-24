@@ -19,6 +19,8 @@ import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import de.eldoria.companies.web.api.handshake.GatewayKind;
+import de.eldoria.companies.web.api.handshake.KeyKind;
 import de.eldoria.companies.web.api.handshake.Welcome;
 import de.eldoria.companies.web.api.link.ErrorCode;
 import de.eldoria.companies.web.api.link.ErrorMessage;
@@ -96,7 +98,24 @@ public final class DashboardRouter {
     }
 
     private void welcome(Welcome welcome) {
+        if (welcome.gateway() == GatewayKind.SELF_HOSTED
+                && parts.handshake()
+                        .sentKind()
+                        .filter(KeyKind.DASHBOARD_KEY::equals)
+                        .isPresent()) {
+            parts.status()
+                    .withholdLynaKey(
+                            "the gateway calls itself self-hosted and must not receive a Lyna dashboard key; enter "
+                                    + "the gateway's server token or point dashboard.gateway at the hosted gateway",
+                            true);
+            parts.disconnect().run();
+            return;
+        }
         parts.status().welcome(welcome);
+        if (parts.status().discontinued()) {
+            parts.feed().clear();
+            return;
+        }
         parts.handshake().iconFor(welcome).ifPresent(parts.link()::send);
     }
 
@@ -197,6 +216,7 @@ public final class DashboardRouter {
      * @param features  whether a feature is switched on
      * @param refusal   renders a refusal key as plain text
      * @param opened    tells a player that a browser logged in, with the browser's name
+     * @param disconnect  closes the connection without sending the key again
      * @param node      this node's uid
      * @param work      builds snapshots and answers actions off the inbound thread
      * @param logger    logger of the plugin
@@ -213,6 +233,7 @@ public final class DashboardRouter {
             Predicate<String> features,
             Function<String, String> refusal,
             BiConsumer<UUID, Optional<String>> opened,
+            Runnable disconnect,
             UUID node,
             Executor work,
             Logger logger) {}

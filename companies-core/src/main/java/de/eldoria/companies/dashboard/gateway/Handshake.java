@@ -11,6 +11,7 @@ import de.eldoria.companies.web.api.handshake.Branding;
 import de.eldoria.companies.web.api.handshake.BrandingUpdate;
 import de.eldoria.companies.web.api.handshake.Credentials;
 import de.eldoria.companies.web.api.handshake.Hello;
+import de.eldoria.companies.web.api.handshake.KeyKind;
 import de.eldoria.companies.web.api.handshake.Limits;
 import de.eldoria.companies.web.api.handshake.NodeInfo;
 import de.eldoria.companies.web.api.handshake.Welcome;
@@ -33,6 +34,7 @@ public final class Handshake {
     private final Supplier<List<String>> features;
     private final Supplier<Optional<Branding>> branding;
     private volatile @Nullable Branding sent;
+    private volatile @Nullable KeyKind sentKind;
 
     /**
      * @param identity who the node is
@@ -61,6 +63,7 @@ public final class Handshake {
         if (current.isEmpty()) return Optional.empty();
         var full = branding.get().orElse(null);
         sent = full;
+        sentKind = current.get().kind();
         var announced = full == null ? null : new Branding(full.name(), null, full.iconHash());
         return Optional.of(new Hello(
                 UUID.randomUUID().toString(),
@@ -73,6 +76,15 @@ public final class Handshake {
                 new Credentials(current.get().kind(), current.get().secret()),
                 identity.userAgent(),
                 announced));
+    }
+
+    /**
+     * The kind of key the last hello carried.
+     *
+     * @return the kind, empty before the first hello
+     */
+    public Optional<KeyKind> sentKind() {
+        return Optional.ofNullable(sentKind);
     }
 
     /**

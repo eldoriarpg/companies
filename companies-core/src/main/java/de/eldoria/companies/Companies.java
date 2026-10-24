@@ -499,7 +499,7 @@ public class Companies extends EldoPlugin {
             if (key.filter(NodeCaches.DASHBOARD_KEY::equals).isPresent()) started.keyChangedElsewhere();
         });
         commands.useDashboard(started);
-        commands.onReload(started::restart);
+        commands.onReload(started::restartLater);
     }
 
     /**

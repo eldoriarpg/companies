@@ -34,6 +34,7 @@ public final class GatewayStatus {
     private volatile @Nullable Welcome welcome;
     private volatile boolean connected;
     private volatile @Nullable String refusal;
+    private volatile boolean lynaKeyWithheld;
 
     /**
      * @param logger logger of the plugin
@@ -117,6 +118,33 @@ public final class GatewayStatus {
                 logger.fine("The dashboard gateway limited the rate of this server.");
             default -> {}
         }
+    }
+
+    /**
+     * Keeps the Lyna dashboard key from the gateway and says why, once per reason.
+     *
+     * @param reason why the key is not sent
+     * @param sticky true to keep it back until {@link #allowLynaKey()}, false when the reason is checked again on
+     *               every attempt
+     */
+    public void withholdLynaKey(String reason, boolean sticky) {
+        if (sticky) lynaKeyWithheld = true;
+        refusal = reason;
+        once("withheld:" + reason, () -> logger.warning("The dashboard key is not sent: " + reason + "."));
+    }
+
+    /**
+     * @return true while the Lyna dashboard key is kept from the gateway until a new key or a reload
+     */
+    public boolean lynaKeyWithheld() {
+        return lynaKeyWithheld;
+    }
+
+    /**
+     * Allows sending the Lyna dashboard key again, after a new key was stored or the configuration was reloaded.
+     */
+    public void allowLynaKey() {
+        lynaKeyWithheld = false;
     }
 
     /**

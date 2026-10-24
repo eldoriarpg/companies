@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
@@ -57,6 +58,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,17 +73,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DashboardIntegrationTest {
     private static final Duration WAIT = Duration.ofSeconds(5);
     private static final UUID NODE = UUID.fromString("00000000-0000-0000-0000-00000000000b");
+    private static final String TOKEN = "cst_test-token";
     private static final Instant EXPIRES = Instant.now().plus(Duration.ofMinutes(5));
 
     @TempDir
     Path directory;
 
     private final List<String> opened = new CopyOnWriteArrayList<>();
+    private final AtomicInteger disconnects = new AtomicInteger();
     private DashboardWorld world;
     private FakeGateway gateway;
     private Dashboard dashboard;
     private ScheduledExecutorService timer;
     private UUID wren;
+    private Handshake handshake;
+    private DashboardKeys keys;
+    private GatewayStatus status;
     private int miners;
 
     @BeforeEach
@@ -95,7 +102,7 @@ class DashboardIntegrationTest {
         var logger = Logger.getAnonymousLogger();
         var clock = Clock.systemUTC();
         var settings = new DashboardSettings(true, gateway.uri().toString());
-        var keys = new DashboardKeys(
+        keys = new DashboardKeys(
                 world.dashboard,
                 key -> {
                     throw new IOException("Lyna is not asked in this test");
@@ -103,8 +110,8 @@ class DashboardIntegrationTest {
                 clock,
                 logger);
         var sessions = new DashboardSessions(world.dashboard, () -> settings, NODE, clock);
-        var status = new GatewayStatus(logger);
-        var handshake = new Handshake(
+        status = new GatewayStatus(logger);
+        handshake = new Handshake(
                 new Handshake.Identity(
                         "2.1.0-test", "1.11", new NodeInfo(NODE, NodeRole.SECONDARY), "Companies/2.1.0-test", 50),
                 keys::current,
@@ -124,12 +131,13 @@ class DashboardIntegrationTest {
                 feature -> true,
                 key -> "text of " + key,
                 (player, device) -> opened.add(player + " " + device.orElse("?")),
+                () -> disconnects.incrementAndGet(),
                 NODE,
                 world.executor,
                 logger));
         dashboard = new Dashboard(new Dashboard.Parts(
                 () -> settings,
-                () -> "lyd_test-key",
+                () -> TOKEN,
                 keys,
                 sessions,
                 status,
@@ -138,7 +146,7 @@ class DashboardIntegrationTest {
                 router::accept,
                 () -> {},
                 NODE,
-                false,
+                true,
                 "Companies/2.1.0-test",
                 world.executor,
                 clock,
@@ -170,7 +178,7 @@ class DashboardIntegrationTest {
     private void connect(VersionStatus version) throws Exception {
         gateway.nextConnection(WAIT);
         var hello = gateway.next(Hello.class, WAIT);
-        assertEquals("lyd_test-key", hello.credentials().key());
+        assertEquals(TOKEN, hello.credentials().key());
         gateway.send(welcome(version, false));
         var end = System.nanoTime() + WAIT.toNanos();
         while (dashboard.status().get().welcome().isEmpty() && System.nanoTime() < end) {
@@ -290,6 +298,63 @@ class DashboardIntegrationTest {
         assertEquals(
                 ErrorCode.UNKNOWN_SESSION,
                 gateway.next(ErrorMessage.class, WAIT).code());
+    }
+
+    @Test
+    void aLynaKeyIsNeverSentToAGatewayOtherThanTheHostedOne() throws Exception {
+        connect(supported());
+
+        dashboard.enterKey("lyd_test-key").get(5, TimeUnit.SECONDS);
+        TimeUnit.SECONDS.sleep(2);
+
+        assertEquals(1, gateway.connections().size());
+        assertTrue(dashboard.status().get().problem().orElseThrow().contains("Lyna dashboard key"));
+        assertTrue(Dashboard.hosted(URI.create("wss://companies.eldoria.de/api/v1/servers/connect")));
+        assertFalse(Dashboard.hosted(URI.create("ws://companies.eldoria.de/api/v1/servers/connect")));
+        assertFalse(Dashboard.hosted(URI.create("wss://dashboard.example.org/api/v1/servers/connect")));
+    }
+
+    @Test
+    void aSelfHostedGatewayThatGotALynaKeyIsLeft() throws Exception {
+        connect(supported());
+        keys.enter("lyd_test-key", Optional.empty());
+        handshake.hello();
+
+        gateway.send(new Welcome(
+                null,
+                Protocol.VERSION,
+                Protocol.VERSION,
+                GatewayKind.SELF_HOSTED,
+                List.of(),
+                supported(),
+                List.of(),
+                true));
+
+        var end = System.nanoTime() + WAIT.toNanos();
+        while (disconnects.get() == 0 && System.nanoTime() < end) TimeUnit.MILLISECONDS.sleep(20);
+        assertEquals(1, disconnects.get());
+        assertTrue(status.lynaKeyWithheld());
+        assertTrue(status.refusal().orElseThrow().contains("self-hosted"));
+    }
+
+    @Test
+    void aDiscontinuedWelcomeOnAnOpenConnectionStopsThePatches() throws Exception {
+        connect(supported());
+        var session = login();
+        gateway.send(new SessionOpened("open", Protocol.VERSION, session, wren, null));
+        gateway.next(SessionConfirmed.class, WAIT);
+        gateway.send(new SnapshotRequest("snap", Protocol.VERSION, session, wren));
+        gateway.next(Snapshot.class, WAIT);
+        assertEquals(1, dashboard.status().get().subscriptions());
+
+        gateway.send(welcome(
+                new VersionStatus(VersionState.DISCONTINUED, LocalDate.of(2026, 10, 1), null, "2.4.0", null), true));
+
+        var end = System.nanoTime() + WAIT.toNanos();
+        while (dashboard.status().get().subscriptions() > 0 && System.nanoTime() < end) {
+            TimeUnit.MILLISECONDS.sleep(20);
+        }
+        assertEquals(0, dashboard.status().get().subscriptions());
     }
 
     @Test
