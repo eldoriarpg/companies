@@ -10,17 +10,21 @@ import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.views.DashboardReads;
+import de.eldoria.companies.dashboard.views.OrderCatalogue;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
@@ -30,6 +34,8 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
@@ -37,20 +43,25 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.data.wrapper.series.OrderSeries;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
+import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.util.TestExecutors;
@@ -76,6 +87,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -101,6 +113,10 @@ public final class DashboardWorld implements AutoCloseable {
     public final DashboardWrites writes;
     public final TreasuryService treasuryService;
     public final SqLiteHistoryData history;
+    public final SavedItemService savedItems;
+    public final OrderCatalogue catalogue;
+    public final OrderCreationService creation;
+    public final UserSettings userSettings = new UserSettings();
     public volatile int orderHistoryDays = 90;
     public final MarketHistory market;
     public final EventRecorder events = new EventRecorder();
@@ -152,6 +168,31 @@ public final class DashboardWorld implements AutoCloseable {
                 Times::zone,
                 Clock.systemUTC(),
                 Logger.getAnonymousLogger()));
+        Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests =
+                item -> item.getType() == Material.BEDROCK
+                        ? Optional.empty()
+                        : Optional.of(new OrderDraftService.RequestedItem(item.asOne(), item.hasItemMeta()));
+        savedItems = new SavedItemService(
+                new SqLiteSavedItemData(SqLiteTestDatabase.mapper(), executor), requests, orderSettings::savedItems);
+        catalogue = new OrderCatalogue(requests, savedItems, history);
+        creation = new OrderCreationService(
+                orders,
+                () -> orderSettings,
+                new OrderLimits(orders, () -> userSettings),
+                requests,
+                new Wallet(),
+                events,
+                Runnable::run,
+                Logger.getAnonymousLogger());
+        var series = new SeriesService(
+                new SqLiteSeriesData(SqLiteTestDatabase.mapper(), executor),
+                (owner, draft) -> creation.create(offline(owner), draft, OrderSource.REPEATING, true, false),
+                id -> orders.retrievePlayerOrderCount(offline(id)).asFuture(),
+                player -> 5,
+                new SilentNotices(),
+                orderSettings::repeating,
+                Clock.systemUTC(),
+                Logger.getAnonymousLogger());
         var search = new SearchExecutor(
                 orders,
                 companies,
@@ -171,6 +212,8 @@ public final class DashboardWorld implements AutoCloseable {
                         (material, days) -> market.points(
                                 material, days, orderSettings.market().minOrders()),
                         market::today,
+                        catalogue::catalogue,
+                        catalogue::known,
                         entry -> entry.type().name(),
                         key -> "text of " + key,
                         this::name,
@@ -258,7 +301,15 @@ public final class DashboardWorld implements AutoCloseable {
                         order -> changedOrders.add(order.id()),
                         changedInboxes::add,
                         Clock.systemUTC()),
-                company);
+                company,
+                new OrderCreateWrites(new OrderCreateWrites.Sources(
+                        this::offline,
+                        creation,
+                        series,
+                        catalogue,
+                        requests,
+                        () -> userSettings.maxOrders(),
+                        failure -> "text of " + failure.localeKey())));
     }
 
     /**
@@ -432,6 +483,23 @@ public final class DashboardWorld implements AutoCloseable {
         public String currencyName() {
             return "coins";
         }
+    }
+
+    /**
+     * Repeating orders tell no one in these tests.
+     */
+    private static final class SilentNotices implements SeriesService.Notices {
+        @Override
+        public void posted(OrderSeries series, OrderCreationService.Created copy, int number) {}
+
+        @Override
+        public void waitingLimit(OrderSeries series) {}
+
+        @Override
+        public void stopped(OrderSeries series) {}
+
+        @Override
+        public void finished(OrderSeries series) {}
     }
 
     /**

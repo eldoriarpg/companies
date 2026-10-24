@@ -60,7 +60,9 @@ public final class ReadRelay {
             Actions.MARKET_ITEM,
             Actions.MARKET_SEARCH,
             Actions.MARKET_TOP,
-            Actions.MARKET_MOVERS);
+            Actions.MARKET_MOVERS,
+            Actions.ORDERS_CATALOGUE,
+            Actions.ORDERS_ITEMS);
 
     /**
      * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
@@ -69,6 +71,7 @@ public final class ReadRelay {
     public static final Set<String> WRITE_ACTIONS = Set.of(
             Actions.ORDERS_ACCEPT,
             Actions.ORDERS_ABORT,
+            Actions.ORDERS_CREATE,
             Actions.ORDERS_OWN_CANCEL,
             Actions.ORDERS_OWN_EXTEND,
             Actions.ORDERS_OWN_RAISE,

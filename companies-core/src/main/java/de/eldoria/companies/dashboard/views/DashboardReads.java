@@ -80,7 +80,9 @@ public final class DashboardReads {
             Actions.MARKET_TOP,
             Actions.MARKET_MOVERS,
             Actions.APPLICATIONS_LIST,
-            Actions.TREASURY_LOG);
+            Actions.TREASURY_LOG,
+            Actions.ORDERS_CATALOGUE,
+            Actions.ORDERS_ITEMS);
 
     /**
      * The features whose pages this version can show.
@@ -88,6 +90,7 @@ public final class DashboardReads {
     public static final List<String> FEATURES = List.of(
             Features.ORDERS_BROWSE,
             Features.ORDERS_ACCEPT,
+            Features.ORDERS_CREATE,
             Features.ORDERS_OWN,
             Features.COMPANY_MEMBERS,
             Features.COMPANY_APPLICATIONS,
@@ -151,6 +154,9 @@ public final class DashboardReads {
             case Actions.MARKET_ITEM -> marketItem(request, args);
             case Actions.APPLICATIONS_LIST -> applications(request, player);
             case Actions.TREASURY_LOG -> treasuryLog(request, player, args);
+            case Actions.ORDERS_CATALOGUE -> data(request, sources.catalogue().get());
+            case Actions.ORDERS_ITEMS ->
+                data(request, sources.knownItems().apply(player).join());
             default -> refused(request, "dashboard.unsupported");
         };
     }
@@ -470,6 +476,8 @@ public final class DashboardReads {
      * @param marketChanges  the change of each material's price in percent, by material name
      * @param marketHistory  the price history of a material over a number of days
      * @param marketToday    today as the market history counts days
+     * @param catalogue      what orders can be made of on this server
+     * @param knownItems     the items a player can order again exactly
      * @param inboxText      renders an inbox entry as plain text
      * @param refusal        renders the message of a refusal key as plain text
      * @param names          a player's name by id
@@ -485,6 +493,8 @@ public final class DashboardReads {
             Supplier<Map<String, Double>> marketChanges,
             BiFunction<String, Integer, List<MarketHistory.Point>> marketHistory,
             Supplier<LocalDate> marketToday,
+            Supplier<Payloads.Catalogue> catalogue,
+            Function<UUID, CompletableFuture<Payloads.KnownItems>> knownItems,
             Function<InboxEntry, String> inboxText,
             Function<String, String> refusal,
             Function<UUID, String> names,

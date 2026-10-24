@@ -48,9 +48,12 @@ public final class ItemDefinitions {
         var material = material(definition.material());
         var stack = new ItemStack(material);
         enchant(stack, definition);
-        if (definition.potion() != null) potion(stack, definition.potion());
-        if (definition.dye() != null) dye(stack, definition.dye());
-        if (definition.trim() != null) trim(stack, definition.trim());
+        var potion = definition.potion();
+        if (potion != null) potion(stack, potion);
+        var dye = definition.dye();
+        if (dye != null) dye(stack, dye);
+        var trim = definition.trim();
+        if (trim != null) trim(stack, trim);
         return stack;
     }
 

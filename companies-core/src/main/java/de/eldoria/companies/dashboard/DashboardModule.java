@@ -14,6 +14,7 @@ import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.feed.FeedListener;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
 import de.eldoria.companies.dashboard.gateway.BrandingSource;
@@ -24,6 +25,7 @@ import de.eldoria.companies.dashboard.keys.HttpLynaKeys;
 import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.sessions.DashboardSessions;
 import de.eldoria.companies.dashboard.views.DashboardReads;
+import de.eldoria.companies.dashboard.views.OrderCatalogue;
 import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.AAlertData;
@@ -38,11 +40,15 @@ import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.OrderAcceptService;
+import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
+import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
@@ -54,6 +60,7 @@ import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.io.IOException;
@@ -70,6 +77,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -80,6 +88,7 @@ public final class DashboardModule {
     private static final int ACTIONS_PER_WINDOW = 20;
     private static final Duration ACTION_WINDOW = Duration.ofSeconds(10);
     private static final Duration MARKET_LIFETIME = Duration.ofMinutes(1);
+    private static final Duration CATALOGUE_LIFETIME = Duration.ofMinutes(10);
 
     private DashboardModule() {
         throw new UnsupportedOperationException("This is a utility class.");
@@ -140,6 +149,8 @@ public final class DashboardModule {
                 Times::zone,
                 clock,
                 logger));
+        var catalogue =
+                new OrderCatalogue(data.orders().requests(), data.orders().savedItems(), data.history());
         var renderer = new NotificationRenderer(localizer::localize);
         var reads = new DashboardReads(
                 views,
@@ -156,6 +167,8 @@ public final class DashboardModule {
                                 days,
                                 configuration.orderSetting().market().minOrders()),
                         market::today,
+                        new Expiring<>(catalogue::catalogue, CATALOGUE_LIFETIME, clock),
+                        catalogue::known,
                         entry -> inboxText(renderer, messages, entry),
                         refusal,
                         names,
@@ -208,7 +221,15 @@ public final class DashboardModule {
                         order -> feed.orderChanged(order, null),
                         player -> feed.inboxChanged(player),
                         clock),
-                company);
+                company,
+                new OrderCreateWrites(new OrderCreateWrites.Sources(
+                        Bukkit::getOfflinePlayer,
+                        data.orders().creation(),
+                        data.orders().series(),
+                        catalogue,
+                        data.orders().requests(),
+                        data.orders().defaultLimit(),
+                        failure -> PlainText.of(failure.render(null, messages)))));
         var started = new AtomicReference<Dashboard>();
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
@@ -309,6 +330,7 @@ public final class DashboardModule {
      * @param ownerOrders   cancels, extends and raises own orders
      * @param inboxService  reads, clears and mutes inboxes
      * @param company       the services acting on a company
+     * @param orders        the services placing orders
      */
     public record Data(
             ADashboardData dashboard,
@@ -325,7 +347,24 @@ public final class DashboardModule {
             CompanyOrderService companyOrders,
             OwnerOrderService ownerOrders,
             Inbox inboxService,
-            CompanyServices company) {}
+            CompanyServices company,
+            OrderServices orders) {}
+
+    /**
+     * The services the dashboard places orders through.
+     *
+     * @param creation     creates and prices orders
+     * @param series       starts repeating orders
+     * @param savedItems   the players' saved items
+     * @param requests     turns an item into what an order line requests, empty when it cannot be ordered
+     * @param defaultLimit the order limit of players without a limit permission
+     */
+    public record OrderServices(
+            OrderCreationService creation,
+            SeriesService series,
+            SavedItemService savedItems,
+            Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests,
+            IntSupplier defaultLimit) {}
 
     /**
      * The services the dashboard acts on a company through.

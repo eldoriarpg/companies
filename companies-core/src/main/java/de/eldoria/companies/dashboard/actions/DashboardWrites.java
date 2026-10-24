@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 /**
  * Performs the actions of the dashboard that change something: accepting and aborting orders for the company,
  * cancelling, extending and raising own orders, and reading, clearing and muting the inbox. The actions on the player's
- * company are handed to {@link CompanyWrites}.
+ * company are handed to {@link CompanyWrites}, placing orders to {@link OrderCreateWrites}.
  * <p>
  * Every action goes through the same service the command uses, with the session's player as actor, so the company
  * permissions, order states and limits are checked exactly as in game. A refusal carries the service's locale key as
@@ -69,15 +69,18 @@ public final class DashboardWrites {
 
     private final Sources sources;
     private final CompanyWrites company;
+    private final OrderCreateWrites create;
     private final Answers answers;
 
     /**
      * @param sources what the actions on orders and the inbox are performed with
      * @param company performs the actions on the player's company
+     * @param create  places orders
      */
-    public DashboardWrites(Sources sources, CompanyWrites company) {
+    public DashboardWrites(Sources sources, CompanyWrites company, OrderCreateWrites create) {
         this.sources = sources;
         this.company = company;
+        this.create = create;
         answers = new Answers(sources.render());
     }
 
@@ -102,6 +105,7 @@ public final class DashboardWrites {
         var args = request.args() == null ? answers.empty() : request.args();
         var player = session.player();
         if (CompanyWrites.ACTIONS.contains(request.name())) return company.perform(request, player, args);
+        if (request.name().equals(Actions.ORDERS_CREATE)) return create.perform(request, session, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));
