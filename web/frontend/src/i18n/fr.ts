@@ -14,6 +14,7 @@ export default {
         close: 'Fermer',
         loading: 'Chargement…',
         noMatch: 'Rien ne correspond à la recherche.',
+        narrowSearch: 'Les {shown} premiers sur {total}. Tape pour affiner la liste.',
     },
     failure: {
         offline: {

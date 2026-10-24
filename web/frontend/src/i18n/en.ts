@@ -14,6 +14,7 @@ export default {
         close: 'Close',
         loading: 'Loading…',
         noMatch: 'Nothing matches the search.',
+        narrowSearch: 'Showing the first {shown} of {total}. Type to narrow the list.',
     },
     failure: {
         offline: {
