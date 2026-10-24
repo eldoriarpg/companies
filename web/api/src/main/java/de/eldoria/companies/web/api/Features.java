@@ -91,12 +91,53 @@ public final class Features {
     public static final String MARKET = "market";
 
     /**
-     * The prefix of the admin features, one per admin permission, e.g. {@code admin.orders}.
+     * The prefix of the admin features and actions. An admin action is checked against the admin permission of its
+     * command, named on each feature.
      */
     public static final String ADMIN_PREFIX = "admin.";
 
     /**
-     * Every feature name of this version except the admin features.
+     * Look up, search, unclaim, cancel, deliver and extend any order. Needs {@code companies.admin.orders}.
+     */
+    public static final String ADMIN_ORDERS = "admin.orders";
+
+    /**
+     * Look up a player, grant items and money. Needs {@code companies.admin.player} for the lookup and
+     * {@code companies.admin.grant} for grants.
+     */
+    public static final String ADMIN_PLAYERS = "admin.players";
+
+    /**
+     * See and adjust a company's treasury, rename it, transfer its ownership and delete it. Needs
+     * {@code companies.admin.treasury}, {@code companies.admin.rename}, {@code companies.admin.transferOwner} and
+     * {@code companies.admin.delete} in that order.
+     */
+    public static final String ADMIN_COMPANIES = "admin.companies";
+
+    /**
+     * Edit the company levels and recalculate every company's level. Needs {@code companies.admin.level}, and
+     * {@code companies.admin.calcLevel} for the recalculation.
+     */
+    public static final String ADMIN_LEVELS = "admin.levels";
+
+    /**
+     * List the board presets, write the board signs again and link NPCs to boards. Needs
+     * {@code companies.admin.boards}.
+     */
+    public static final String ADMIN_BOARDS = "admin.boards";
+
+    /**
+     * List and remove the nodes registered in the database. Needs {@code companies.admin.nodes}.
+     */
+    public static final String ADMIN_NODES = "admin.nodes";
+
+    /**
+     * Load the configuration stored in the database on every node. Needs {@code companies.admin}.
+     */
+    public static final String ADMIN_CONFIG = "admin.config";
+
+    /**
+     * Every feature name of this version.
      */
     public static final List<String> ALL = List.of(
             ORDERS_BROWSE,
@@ -113,7 +154,14 @@ public final class Features {
             COMPANY_DISBAND,
             INBOX,
             RANKINGS,
-            MARKET);
+            MARKET,
+            ADMIN_ORDERS,
+            ADMIN_PLAYERS,
+            ADMIN_COMPANIES,
+            ADMIN_LEVELS,
+            ADMIN_BOARDS,
+            ADMIN_NODES,
+            ADMIN_CONFIG);
 
     private Features() {}
 }

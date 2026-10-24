@@ -35,8 +35,19 @@ class ActionsTest {
         assertEquals(Features.ORDERS_ACCEPT, Actions.feature(Actions.ORDERS_ABORT));
         assertEquals(Features.COMPANY_MEMBERS, Actions.feature(Actions.MEMBERS_KICK));
         assertEquals(Features.COMPANY_CREATE, Actions.feature(Actions.COMPANY_CREATE));
-        assertEquals("admin.orders", Actions.feature("admin.orders.cancel"));
+        assertEquals(Features.ADMIN_ORDERS, Actions.feature(Actions.ADMIN_ORDERS_CANCEL));
+        assertEquals(Features.ADMIN_COMPANIES, Actions.feature(Actions.ADMIN_COMPANIES_TREASURY_GIVE));
         assertNull(Actions.feature("orders.browsing"));
         assertNull(Actions.feature("guilds.join"));
+        assertNull(Actions.feature("admin.guilds.delete"));
+    }
+
+    @Test
+    void adminActionsBelongToAdminFeatures() {
+        List<String> misplaced = Actions.ALL.stream()
+                .filter(action -> action.startsWith(Features.ADMIN_PREFIX)
+                        != Actions.feature(action).startsWith(Features.ADMIN_PREFIX))
+                .toList();
+        assertTrue(misplaced.isEmpty(), "Admin and player actions mixed up: " + misplaced);
     }
 }

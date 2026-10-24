@@ -995,7 +995,14 @@
     "company.disband" : { },
     "inbox" : { },
     "rankings" : { },
-    "market" : { }
+    "market" : { },
+    "admin.orders" : { },
+    "admin.players" : { },
+    "admin.companies" : { },
+    "admin.levels" : { },
+    "admin.boards" : { },
+    "admin.nodes" : { },
+    "admin.config" : { }
   },
   "x-actions" : {
     "orders.browse.search" : {
@@ -1129,6 +1136,96 @@
     },
     "market.movers" : {
       "feature" : "market"
+    },
+    "admin.orders.info" : {
+      "feature" : "admin.orders"
+    },
+    "admin.orders.search" : {
+      "feature" : "admin.orders"
+    },
+    "admin.orders.unclaim" : {
+      "feature" : "admin.orders"
+    },
+    "admin.orders.cancel" : {
+      "feature" : "admin.orders"
+    },
+    "admin.orders.deliver" : {
+      "feature" : "admin.orders"
+    },
+    "admin.orders.extend" : {
+      "feature" : "admin.orders"
+    },
+    "admin.players.lookup" : {
+      "feature" : "admin.players"
+    },
+    "admin.players.grant-items" : {
+      "feature" : "admin.players"
+    },
+    "admin.players.grant-money" : {
+      "feature" : "admin.players"
+    },
+    "admin.companies.treasury" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.treasury.give" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.treasury.take" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.rename" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.transfer-owner" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.delete" : {
+      "feature" : "admin.companies"
+    },
+    "admin.levels.list" : {
+      "feature" : "admin.levels"
+    },
+    "admin.levels.info" : {
+      "feature" : "admin.levels"
+    },
+    "admin.levels.create" : {
+      "feature" : "admin.levels"
+    },
+    "admin.levels.edit" : {
+      "feature" : "admin.levels"
+    },
+    "admin.levels.move" : {
+      "feature" : "admin.levels"
+    },
+    "admin.levels.remove" : {
+      "feature" : "admin.levels"
+    },
+    "admin.levels.recalculate" : {
+      "feature" : "admin.levels"
+    },
+    "admin.boards.presets" : {
+      "feature" : "admin.boards"
+    },
+    "admin.boards.reload" : {
+      "feature" : "admin.boards"
+    },
+    "admin.boards.npc.list" : {
+      "feature" : "admin.boards"
+    },
+    "admin.boards.npc.link" : {
+      "feature" : "admin.boards"
+    },
+    "admin.boards.npc.unlink" : {
+      "feature" : "admin.boards"
+    },
+    "admin.nodes.list" : {
+      "feature" : "admin.nodes"
+    },
+    "admin.nodes.remove" : {
+      "feature" : "admin.nodes"
+    },
+    "admin.config.sync" : {
+      "feature" : "admin.config"
     }
   }
 }

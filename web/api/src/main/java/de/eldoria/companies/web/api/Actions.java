@@ -238,9 +238,158 @@ public final class Actions {
      */
     public static final String MARKET_MOVERS = "market.movers";
 
-    // TODO: admin action names, one per admin tool
     /**
-     * Every action name of this version except the admin actions.
+     * Shows any order's details by its id.
+     */
+    public static final String ADMIN_ORDERS_INFO = "admin.orders.info";
+
+    /**
+     * Lists the orders of a player or a company.
+     */
+    public static final String ADMIN_ORDERS_SEARCH = "admin.orders.search";
+
+    /**
+     * Takes a claimed order away from its company.
+     */
+    public static final String ADMIN_ORDERS_UNCLAIM = "admin.orders.unclaim";
+
+    /**
+     * Deletes any order, returning price and fee to its owner or nothing.
+     */
+    public static final String ADMIN_ORDERS_CANCEL = "admin.orders.cancel";
+
+    /**
+     * Marks a claimed order delivered.
+     */
+    public static final String ADMIN_ORDERS_DELIVER = "admin.orders.deliver";
+
+    /**
+     * Extends the time of any order by hours.
+     */
+    public static final String ADMIN_ORDERS_EXTEND = "admin.orders.extend";
+
+    /**
+     * Shows a player's company and role, orders, waiting items and latest notifications.
+     */
+    public static final String ADMIN_PLAYERS_LOOKUP = "admin.players.lookup";
+
+    /**
+     * Grants a player an amount of a material, collected with {@code /order collect}.
+     */
+    public static final String ADMIN_PLAYERS_GRANT_ITEMS = "admin.players.grant-items";
+
+    /**
+     * Deposits money to a player.
+     */
+    public static final String ADMIN_PLAYERS_GRANT_MONEY = "admin.players.grant-money";
+
+    /**
+     * Shows a company's treasury and its log.
+     */
+    public static final String ADMIN_COMPANIES_TREASURY = "admin.companies.treasury";
+
+    /**
+     * Adds money to a company's treasury.
+     */
+    public static final String ADMIN_COMPANIES_TREASURY_GIVE = "admin.companies.treasury.give";
+
+    /**
+     * Removes money from a company's treasury.
+     */
+    public static final String ADMIN_COMPANIES_TREASURY_TAKE = "admin.companies.treasury.take";
+
+    /**
+     * Renames a company free of charge.
+     */
+    public static final String ADMIN_COMPANIES_RENAME = "admin.companies.rename";
+
+    /**
+     * Makes another member the owner of a company.
+     */
+    public static final String ADMIN_COMPANIES_TRANSFER_OWNER = "admin.companies.transfer-owner";
+
+    /**
+     * Deletes a company.
+     */
+    public static final String ADMIN_COMPANIES_DELETE = "admin.companies.delete";
+
+    /**
+     * Lists the company levels.
+     */
+    public static final String ADMIN_LEVELS_LIST = "admin.levels.list";
+
+    /**
+     * Shows one level's settings.
+     */
+    public static final String ADMIN_LEVELS_INFO = "admin.levels.info";
+
+    /**
+     * Adds a level, at the end or at a position.
+     */
+    public static final String ADMIN_LEVELS_CREATE = "admin.levels.create";
+
+    /**
+     * Changes one field of a level.
+     */
+    public static final String ADMIN_LEVELS_EDIT = "admin.levels.edit";
+
+    /**
+     * Moves a level to another position.
+     */
+    public static final String ADMIN_LEVELS_MOVE = "admin.levels.move";
+
+    /**
+     * Removes a level.
+     */
+    public static final String ADMIN_LEVELS_REMOVE = "admin.levels.remove";
+
+    /**
+     * Recalculates the level of every company.
+     */
+    public static final String ADMIN_LEVELS_RECALCULATE = "admin.levels.recalculate";
+
+    /**
+     * Lists the board presets with their open orders.
+     */
+    public static final String ADMIN_BOARDS_PRESETS = "admin.boards.presets";
+
+    /**
+     * Writes every loaded board sign again.
+     */
+    public static final String ADMIN_BOARDS_RELOAD = "admin.boards.reload";
+
+    /**
+     * Lists the NPCs linked to boards.
+     */
+    public static final String ADMIN_BOARDS_NPC_LIST = "admin.boards.npc.list";
+
+    /**
+     * Links an NPC to a board.
+     */
+    public static final String ADMIN_BOARDS_NPC_LINK = "admin.boards.npc.link";
+
+    /**
+     * Removes an NPC's link to a board.
+     */
+    public static final String ADMIN_BOARDS_NPC_UNLINK = "admin.boards.npc.unlink";
+
+    /**
+     * Lists the nodes registered in the database.
+     */
+    public static final String ADMIN_NODES_LIST = "admin.nodes.list";
+
+    /**
+     * Removes a node from the database.
+     */
+    public static final String ADMIN_NODES_REMOVE = "admin.nodes.remove";
+
+    /**
+     * Loads the configuration stored in the database on every node.
+     */
+    public static final String ADMIN_CONFIG_SYNC = "admin.config.sync";
+
+    /**
+     * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
             ORDERS_SEARCH,
@@ -286,22 +435,47 @@ public final class Actions {
             MARKET_ITEM,
             MARKET_SEARCH,
             MARKET_TOP,
-            MARKET_MOVERS);
+            MARKET_MOVERS,
+            ADMIN_ORDERS_INFO,
+            ADMIN_ORDERS_SEARCH,
+            ADMIN_ORDERS_UNCLAIM,
+            ADMIN_ORDERS_CANCEL,
+            ADMIN_ORDERS_DELIVER,
+            ADMIN_ORDERS_EXTEND,
+            ADMIN_PLAYERS_LOOKUP,
+            ADMIN_PLAYERS_GRANT_ITEMS,
+            ADMIN_PLAYERS_GRANT_MONEY,
+            ADMIN_COMPANIES_TREASURY,
+            ADMIN_COMPANIES_TREASURY_GIVE,
+            ADMIN_COMPANIES_TREASURY_TAKE,
+            ADMIN_COMPANIES_RENAME,
+            ADMIN_COMPANIES_TRANSFER_OWNER,
+            ADMIN_COMPANIES_DELETE,
+            ADMIN_LEVELS_LIST,
+            ADMIN_LEVELS_INFO,
+            ADMIN_LEVELS_CREATE,
+            ADMIN_LEVELS_EDIT,
+            ADMIN_LEVELS_MOVE,
+            ADMIN_LEVELS_REMOVE,
+            ADMIN_LEVELS_RECALCULATE,
+            ADMIN_BOARDS_PRESETS,
+            ADMIN_BOARDS_RELOAD,
+            ADMIN_BOARDS_NPC_LIST,
+            ADMIN_BOARDS_NPC_LINK,
+            ADMIN_BOARDS_NPC_UNLINK,
+            ADMIN_NODES_LIST,
+            ADMIN_NODES_REMOVE,
+            ADMIN_CONFIG_SYNC);
 
     private Actions() {}
 
     /**
-     * Finds the feature an action belongs to: the longest feature name the action name starts with, or for an admin
-     * action its first two segments.
+     * Finds the feature an action belongs to: the longest feature name the action name starts with.
      *
      * @param action the action name
      * @return the feature, none for an action of no known feature
      */
     public static @Nullable String feature(String action) {
-        if (action.startsWith(Features.ADMIN_PREFIX)) {
-            int end = action.indexOf('.', Features.ADMIN_PREFIX.length());
-            return end < 0 ? action : action.substring(0, end);
-        }
         return Features.ALL.stream()
                 .filter(feature -> action.equals(feature) || action.startsWith(feature + "."))
                 .max(Comparator.comparingInt(String::length))
