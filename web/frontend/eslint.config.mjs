@@ -52,9 +52,11 @@ const LAYERS = [
  * view, component, layout or page goes through the composable, which hands out read-only views and
  * the setters that belong to them. A test may still arrange the state it starts from.
  *
+ * <p>`browserState` is the exception: it holds no state, it is the helper state is built with.
  */
 const SHARED_STATE = {
     from: './src/util/*State.ts',
+    except: [`${import.meta.dirname}/src/util/+(browserState).ts`],
 }
 
 /**
