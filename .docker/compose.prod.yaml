@@ -24,6 +24,11 @@ services:
       TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
       TURNSTILE_SITEKEY: ${TURNSTILE_SITEKEY:-}
       DASHBOARD_GATEWAYSECRET: ${DASHBOARD_GATEWAYSECRET:-}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,7 +41,8 @@ services:
     ports:
       - "127.0.0.1:${PORT:-4000}:4000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres:

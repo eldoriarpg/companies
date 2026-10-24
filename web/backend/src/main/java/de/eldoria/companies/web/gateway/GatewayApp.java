@@ -25,10 +25,12 @@ import de.eldoria.companies.web.gateway.session.Sessions;
 import de.eldoria.companies.web.gateway.session.Turnstile;
 import de.eldoria.companies.web.gateway.snapshot.ReadRelay;
 import de.eldoria.companies.web.gateway.snapshot.SnapshotCache;
+import de.eldoria.companies.web.gateway.storage.Database;
 import de.eldoria.companies.web.gateway.storage.IconRepository;
 import de.eldoria.companies.web.gateway.storage.ServerRepository;
 import de.eldoria.companies.web.gateway.storage.SessionRepository;
 import io.javalin.Javalin;
+import io.javalin.http.Context;
 import io.javalin.json.JavalinJackson3;
 import io.javalin.websocket.WsConfig;
 import org.slf4j.Logger;
@@ -37,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Map;
 
 /**
  * The gateway: the nodes' websocket ({@link NodeHub}), the sessions ({@link Sessions}), the snapshot cache
@@ -133,6 +136,7 @@ public final class GatewayApp {
             javalin.routes.before("/api/*", ctx -> ctx.header("Cache-Control", "no-store"));
             javalin.routes.exception(
                     ApiError.class, (error, ctx) -> ctx.status(error.status()).json(error.view()));
+            javalin.routes.get(Routes.HEALTH, GatewayApp::health);
             javalin.routes.ws(Routes.CONNECT, this::nodes);
             javalin.routes.get(Routes.PENDING, browser::pending);
             javalin.routes.post(Routes.LOGIN, browser::login);
@@ -186,6 +190,11 @@ public final class GatewayApp {
         ws.onMessage(ctx -> hub.message(ctx.sessionId(), ctx.message()));
         ws.onClose(ctx -> hub.disconnect(ctx.sessionId()));
         ws.onError(ctx -> log.debug("Node connection failed", ctx.error()));
+    }
+
+    private static void health(Context ctx) {
+        boolean up = Database.ping();
+        ctx.status(up ? 200 : 503).json(Map.of("status", up ? "up" : "down"));
     }
 
     private static void run(String what, Runnable sweep) {

@@ -21,6 +21,8 @@ import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
+import static de.chojo.sadu.queries.api.query.Query.query;
+
 /**
  * Connects to PostgreSQL through a HikariCP pool, migrates the schema and installs the default query configuration.
  */
@@ -28,6 +30,21 @@ public final class Database {
     private static final Logger log = LoggerFactory.getLogger(Database.class);
 
     private Database() {}
+
+    /**
+     * @return whether the database answers a query
+     */
+    public static boolean ping() {
+        try {
+            return query("SELECT 1 AS one;")
+                    .single()
+                    .map(row -> row.getInt("one"))
+                    .first()
+                    .isPresent();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
 
     /**
      * @param config the connection

@@ -54,5 +54,10 @@ public final class Routes {
      */
     public static final String ICON = "/api/v1/icons/{hash}";
 
+    /**
+     * {@code GET}: 200 while the database answers, 503 otherwise; for container health checks.
+     */
+    public static final String HEALTH = "/api/v1/health";
+
     private Routes() {}
 }

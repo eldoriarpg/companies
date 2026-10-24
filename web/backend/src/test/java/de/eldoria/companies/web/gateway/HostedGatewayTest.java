@@ -150,6 +150,13 @@ class HostedGatewayTest {
     }
 
     @Test
+    void reportsItsHealth() {
+        HttpResponse<String> health = new FakeBrowser(gateway, "203.0.113.31").get("/api/v1/health");
+        assertEquals(200, health.statusCode());
+        assertEquals("up", FakeBrowser.json(health).path("status").asString());
+    }
+
+    @Test
     void refusesAnUnknownKey() {
         try (FakeNode node = FakeNode.connect(gateway)) {
             node.send(FakeNode.hello(KeyKind.DASHBOARD_KEY, "lyd_unknown", UUID.randomUUID(), PLUGIN));
