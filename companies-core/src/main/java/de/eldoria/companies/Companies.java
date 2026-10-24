@@ -91,6 +91,7 @@ import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.HistoryRetention;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
+import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.RefreshService;
@@ -337,7 +338,8 @@ public class Companies extends EldoPlugin {
                     treasuryService,
                     seriesService,
                     soloOrders,
-                    profileService));
+                    profileService,
+                    MemberService.create(this, companyData, notificationService)));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 

@@ -9,29 +9,29 @@ import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.CompanyMembers;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.services.notifications.NotificationArgs;
-import de.eldoria.companies.services.notifications.NotificationService;
-import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.services.MemberService;
+import de.eldoria.companies.services.MemberService.Affected;
+import de.eldoria.companies.services.MemberService.MemberRef;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
+import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
 
 /**
  * {@code /company transfer <member>}: hands the company to another member after the owner confirmed it. The new
  * owner is notified.
+ * <p>
+ * The checks and the transfer are made by {@link MemberService}.
  */
 @Subcommand("transfer")
 @PlayerOnly
@@ -57,9 +57,15 @@ public final class Transfer {
     public void transfer(CommandSender sender, @CompanyMembers String member) {
         var player = Senders.player(sender);
         var menus = deps.services().menus();
-        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> check(
-                        player, optProfile, profile -> profile.memberByName(member))
-                .ifPresent(target -> request(menus, player, optProfile.get(), target)));
+        var members = deps.services().members();
+        BukkitFutureResult.of(members.transferable(player.getUniqueId(), MemberRef.byName(member)))
+                .whenComplete(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<Affected> refused ->
+                            refused.failure().sendTo(player, messages());
+                        case ActionResult.Done<Affected> done -> request(menus, player, done.value());
+                    }
+                });
     }
 
     /**
@@ -75,67 +81,31 @@ public final class Transfer {
     }
 
     private void transferConfirmed(Player player, Pending pending) {
-        var notificationService = deps.services().notificationService();
-        var targetPlayer = deps.plugin().getServer().getOfflinePlayer(pending.target());
-        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
-            if (optProfile.isPresent() && optProfile.get().id() != pending.company()) {
-                messages().sendErrorActionBar(player, "error.noMember");
-                return;
-            }
-            check(player, optProfile, profile -> profile.member(targetPlayer))
-                    .ifPresent(target -> transfer(player, optProfile.get(), target, notificationService));
-        });
+        var members = deps.services().members();
+        BukkitFutureResult.of(members.transfer(player.getUniqueId(), pending.company(), pending.target()))
+                .whenComplete(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<Affected> refused ->
+                            refused.failure().sendTo(player, messages());
+                        case ActionResult.Done<Affected> done -> {
+                            var name = Replacement.unparsed(
+                                    "name",
+                                    String.valueOf(
+                                            done.value().member().player().getName()));
+                            messages().sendMessage(player, "company.transfer.done", name);
+                        }
+                    }
+                });
     }
 
-    private void request(MenuService menus, Player player, CompanyProfile company, CompanyMember target) {
+    private void request(MenuService menus, Player player, Affected transfer) {
+        var target = transfer.member();
         var question = MenuText.create()
                 .locale(
                         "company.transfer.confirm",
                         Values.text(
                                 "member_name", String.valueOf(target.player().getName())));
-        transfers.ask(menus, player, new Pending(company.id(), target.uuid()), question);
-    }
-
-    private void transfer(
-            Player player, CompanyProfile company, CompanyMember target, NotificationService notificationService) {
-        deps.companyData()
-                .submitOwnerTransfer(company, player.getUniqueId(), target.uuid())
-                .whenComplete(transferred -> {
-                    if (!Boolean.TRUE.equals(transferred)) {
-                        messages().sendError(player, "company.transfer.failed");
-                        return;
-                    }
-                    deps.companyChanges().ownerTransferred(company.id(), player.getUniqueId(), target.uuid(), false);
-                    var name = Replacement.unparsed(
-                            "name", String.valueOf(target.player().getName()));
-                    messages().sendMessage(player, "company.transfer.done", name);
-                    notificationService.send(
-                            target.uuid(),
-                            NotificationType.OWNERSHIP_TRANSFERRED,
-                            NotificationArgs.create().text("company", company.name()));
-                });
-    }
-
-    private Optional<CompanyMember> check(
-            Player player,
-            Optional<CompanyProfile> optProfile,
-            Function<CompanyProfile, Optional<CompanyMember>> lookup) {
-        if (optProfile.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.noMember");
-            return Optional.empty();
-        }
-        var profile = optProfile.get();
-        var member = profile.member(player).orElseThrow();
-        var target = lookup.apply(profile);
-        switch (Ownership.transferCheck(member, target)) {
-            case NOT_OWNER -> messages().sendErrorActionBar(player, "error.noOwner");
-            case NOT_MEMBER -> messages().sendErrorActionBar(player, "error.noCompanyMember");
-            case SELF -> messages().sendErrorActionBar(player, "company.transfer.self");
-            case ALLOWED -> {
-                return target;
-            }
-        }
-        return Optional.empty();
+        transfers.ask(menus, player, new Pending(transfer.company().id(), target.uuid()), question);
     }
 
     private MessageSender messages() {

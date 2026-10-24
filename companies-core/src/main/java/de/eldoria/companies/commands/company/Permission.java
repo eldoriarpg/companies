@@ -13,25 +13,27 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
-import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.menus.company.PermissionEdit;
 import de.eldoria.companies.menus.company.PermissionMenu;
+import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.services.MemberService;
+import de.eldoria.companies.services.MemberService.MemberRef;
 import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Literal;
 import net.strokkur.commands.Subcommand;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
  * {@code /company permission <member> [give|remove <permission>]}: shows and changes the permissions of a member.
+ * <p>
+ * The checks and the changes are made by {@link MemberService}.
  */
 @Subcommand("permission")
 @PlayerOnly
@@ -55,16 +57,21 @@ public final class Permission {
     public void show(CommandSender sender, @CompanyMembers String member) {
         var player = Senders.player(sender);
         var menu = menu();
-        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
-            var editor = editor(player, optProfile, "error.permission.managePermissions");
-            if (editor.isEmpty()) return;
-            var target = optProfile.get().memberByName(member);
-            if (target.isEmpty()) {
-                messages().sendMessage(player, "error.invalidMember");
-                return;
-            }
-            deps.services().menus().show(player, menu, new PermissionEdit(editor.get(), target.get()));
-        });
+        BukkitFutureResult.of(deps.services().members().permissions(player.getUniqueId(), MemberRef.byName(member)))
+                .whenComplete(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<PermissionEdit> refused -> {
+                            if (MemberService.INVALID_MEMBER.equals(
+                                    refused.failure().localeKey())) {
+                                messages().sendMessage(player, MemberService.INVALID_MEMBER);
+                                return;
+                            }
+                            refused.failure().sendTo(player, messages());
+                        }
+                        case ActionResult.Done<PermissionEdit> done ->
+                            deps.services().menus().show(player, menu, done.value());
+                    }
+                });
     }
 
     /**
@@ -88,19 +95,9 @@ public final class Permission {
             throw CommandFailure.actionBar("error.ownerPermission");
         }
         var wanted = Map.of(companyPermission, "give".equals(action));
-
-        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
-            var editor = editor(player, optProfile, "error.permission.givePermissions");
-            if (editor.isEmpty()) return;
-            var target = optProfile.get().memberByName(member);
-            if (target.isEmpty()) {
-                messages().sendErrorActionBar(player, "error.invalidMember");
-                return;
-            }
-            apply(player, editor.get(), target.get(), wanted, edit -> deps.services()
-                    .menus()
-                    .show(player, menu, edit));
-        });
+        apply(player, MemberRef.byName(member), wanted, edit -> deps.services()
+                .menus()
+                .show(player, menu, edit));
     }
 
     private PermissionMenu menu() {
@@ -109,54 +106,22 @@ public final class Permission {
 
     private void change(
             Player player, UUID target, Map<CompanyPermission, Boolean> wanted, Consumer<PermissionEdit> onApplied) {
-        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> {
-            var editor = editor(player, optProfile, "error.permission.givePermissions");
-            if (editor.isEmpty()) return;
-            var member = optProfile.get().member(Bukkit.getOfflinePlayer(target));
-            if (member.isEmpty()) {
-                messages().sendErrorActionBar(player, "error.invalidMember");
-                return;
-            }
-            apply(player, editor.get(), member.get(), wanted, onApplied);
-        });
+        apply(player, MemberRef.byId(target), wanted, onApplied);
     }
 
     private void apply(
             Player player,
-            CompanyMember editor,
-            CompanyMember target,
+            MemberRef target,
             Map<CompanyPermission, Boolean> wanted,
             Consumer<PermissionEdit> onApplied) {
-        var edit = new PermissionEdit(editor, target);
-        if (!wanted.keySet().stream().allMatch(edit::editable)) {
-            messages().sendErrorActionBar(player, "error.permission.givePermissions");
-            return;
-        }
-        if (!edit.apply(wanted).isEmpty()) {
-            deps.companyData().submitMemberUpdate(target);
-        }
-        onApplied.accept(edit);
-    }
-
-    /**
-     * The member editing permissions, after checking that the player is in a company and may manage permissions.
-     *
-     * @param player       editing player
-     * @param profile      company of the player
-     * @param deniedLocale error shown when the player may not manage permissions
-     * @return the editing member, or empty after the error was shown
-     */
-    private Optional<CompanyMember> editor(Player player, Optional<CompanyProfile> profile, String deniedLocale) {
-        if (profile.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.noMember");
-            return Optional.empty();
-        }
-        var editor = profile.get().member(player);
-        if (editor.isEmpty() || !editor.get().hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
-            messages().sendErrorActionBar(player, deniedLocale);
-            return Optional.empty();
-        }
-        return editor;
+        BukkitFutureResult.of(deps.services().members().setPermissions(player.getUniqueId(), target, wanted))
+                .whenComplete(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<PermissionEdit> refused ->
+                            refused.failure().sendTo(player, messages());
+                        case ActionResult.Done<PermissionEdit> done -> onApplied.accept(done.value());
+                    }
+                });
     }
 
     private MessageSender messages() {

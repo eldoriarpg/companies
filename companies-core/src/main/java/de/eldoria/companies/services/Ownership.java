@@ -3,7 +3,7 @@
  *
  *     Copyright (C EldoriaRPG Team and Contributor
  */
-package de.eldoria.companies.commands.company;
+package de.eldoria.companies.services;
 
 import de.eldoria.companies.components.company.ICompanyMember;
 
