@@ -44,6 +44,8 @@ solo:
   taxPercent: 0.0
   forCompanyMembers: false
   abortCooldownMinutes: 60
+market:
+  minOrders: 3
 ```
 
 ## General
@@ -123,3 +125,14 @@ Working alone also needs the permission `companies.orders.solo`, which every pla
 - Orders delivered alone count for nobody's company. They do not change any level or ranking.
 - On a network, the claims and cooldowns are stored in the database, so they hold on every server. Expired orders are
   released by the primary server, like those of companies.
+
+## market
+
+:::info New in 2.1
+:::
+
+The market prices on the [web dashboard](../dashboard.md).
+
+| Key | Type | Default | Meaning | Applies |
+|---|---|---|---|---|
+| `market.minOrders` | number | `3` | How many delivered orders a material needs before the dashboard shows its prices. Below that, only the amount ordered is shown, so a single order cannot be traced back. At least 1. | reload |

@@ -200,6 +200,18 @@ See [Inbox](../players/inbox.md) and [Rankings and history](../companies/ranking
 
 See [Order boards](../players/order-boards.md) for a guide.
 
+### Web dashboard
+
+New in 2.1. Works while the server owner enabled the [web dashboard](../admin/dashboard.md).
+
+| Command | Permission | Company permission | What it does |
+|---|---|---|---|
+| `/company dashboard` | `companies.dashboard.use` | none | Shows a short link and a six-letter code to log in to the dashboard on any device. |
+| `/company dashboard sessions` | `companies.dashboard.use` | none | Lists the browsers you are logged in on. |
+| `/company dashboard logout` | `companies.dashboard.use` | none | Logs you out on every browser. |
+
+See [Dashboard](../players/dashboard.md) for a guide.
+
 ## Company orders
 
 Commands to find, claim and deliver orders. Read [Claiming and delivering](../companies/claiming-and-delivering.md) for a guide.
@@ -316,3 +328,15 @@ Put the company name in quotes if it has spaces.
 | `/companyadmin node remove confirm` | `companies.admin.nodes` | yes | Confirms the remove. |
 
 These commands also work in the safe mode after the error about two primary servers. See [Several servers](../admin/multiserver.md#old-server-entries).
+
+### Web dashboard
+
+New in 2.1.
+
+| Command | Permission | Console | What it does |
+|---|---|---|---|
+| `/companyadmin dashboard status` | `companies.admin.dashboard` | yes | Shows whether the dashboard is enabled, the connection, the gateway, the kind of key and when it rotates, notices about old versions and the number of logins. Never shows the key. |
+| `/companyadmin dashboard key <key>` | `companies.admin.dashboard` | yes | Stores the Lyna dashboard key, or the token of a self-hosted gateway, for every server of the network. The command line is kept out of the server log. |
+| `/companyadmin dashboard revoke <player>` | `companies.admin.dashboard` | yes | Logs a player out of the dashboard on every browser. |
+
+See [Web dashboard](../admin/dashboard.md) for a guide.
