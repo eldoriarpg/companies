@@ -100,7 +100,7 @@ export function useOrderBuilder(api: GatewayApi = gatewayApi()) {
     watch(args, order => {
         latest.next()
         quote.value = order === null ? {status: 'incomplete'} : {status: 'quoting'}
-    }, {deep: true})
+    }, {deep: true, flush: 'sync'})
     watchDebounced(args, () => void requote(), {debounce: QUOTE_DELAY_MILLIS, deep: true})
 
     /**

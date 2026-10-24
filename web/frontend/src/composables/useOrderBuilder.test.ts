@@ -111,7 +111,6 @@ describe('the order builder', () => {
         expect(builder.quote.value.status).toBe('quoted')
 
         builder.lines.value = builder.lines.value.map(line => ({...line, amount: 640}))
-        await vi.advanceTimersByTimeAsync(100)
 
         expect(builder.quote.value).toEqual({status: 'quoting'})
         expect(await builder.submit()).toBeNull()

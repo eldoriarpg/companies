@@ -50,8 +50,8 @@ test.describe('order builder', () => {
         await expect(page.getByText('80.64').first()).toBeVisible()
         await page.getByRole('button', {name: /Place order for/}).click()
 
-        await expect(page).toHaveURL(/\/app\?placed=/)
         await expect(page.getByText('Your order Fence posts is placed.')).toBeVisible()
+        await expect(page).toHaveURL(/\/app$/)
     })
 
     test('gives an item what survival can and nothing that excludes it', async ({page}, info) => {

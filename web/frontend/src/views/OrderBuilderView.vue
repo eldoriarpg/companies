@@ -41,11 +41,11 @@ const adding = ref(false)
 const editing = ref<number | null>(null)
 const editedSource = computed(() => builder.lines.value.find(line => line.id === editing.value)?.source ?? null)
 
-onMounted(() => {
-  if (!offered.value) return
+watch(offered, isOffered => {
+  if (!isOffered) return
   void builder.load()
   void market.loadTop()
-})
+}, {immediate: true})
 
 /**
  * Opens the dialog for a new line, or for changing a line's item.
@@ -113,20 +113,20 @@ async function place(): Promise<void> {
       <PanelBox padded :aria-label="t('builder.cost')">
         <SectionHeader>{{ t('builder.cost') }}</SectionHeader>
         <div aria-live="polite">
-        <MutedText v-if="builder.quote.value.status === 'incomplete'" tag="p">{{ t('builder.incomplete') }}</MutedText>
-        <span v-else-if="builder.quote.value.status === 'quoting'" class="flex items-center gap-2 text-sm text-ink-muted">
-          <Spinner size="sm"/>{{ t('builder.quoting') }}
-        </span>
-        <Alert v-else-if="builder.quote.value.status === 'refused'" variant="problem">{{ builder.quote.value.text }}</Alert>
-        <Alert v-else-if="builder.quote.value.status === 'failed'" variant="problem">{{ t('builder.quoteFailed') }}</Alert>
-        <dl v-else class="m-0 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
-          <dt class="text-ink-muted">{{ t('builder.price') }}</dt>
-          <dd class="tabular m-0 text-right">{{ money(builder.quote.value.quote.price, locale) }}</dd>
-          <dt class="text-ink-muted">{{ t('builder.fee') }}</dt>
-          <dd class="tabular m-0 text-right">{{ money(builder.quote.value.quote.fee, locale) }}</dd>
-          <dt class="font-semibold">{{ t('builder.total') }}</dt>
-          <dd class="tabular m-0 text-right font-semibold">{{ money(builder.quote.value.quote.total, locale) }}</dd>
-        </dl>
+          <MutedText v-if="builder.quote.value.status === 'incomplete'" tag="p">{{ t('builder.incomplete') }}</MutedText>
+          <span v-else-if="builder.quote.value.status === 'quoting'" class="flex items-center gap-2 text-sm text-ink-muted">
+            <Spinner size="sm"/>{{ t('builder.quoting') }}
+          </span>
+          <Alert v-else-if="builder.quote.value.status === 'refused'" variant="problem">{{ builder.quote.value.text }}</Alert>
+          <Alert v-else-if="builder.quote.value.status === 'failed'" variant="problem">{{ t('builder.quoteFailed') }}</Alert>
+          <dl v-else class="m-0 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+            <dt class="text-ink-muted">{{ t('builder.price') }}</dt>
+            <dd class="tabular m-0 text-right">{{ money(builder.quote.value.quote.price, locale) }}</dd>
+            <dt class="text-ink-muted">{{ t('builder.fee') }}</dt>
+            <dd class="tabular m-0 text-right">{{ money(builder.quote.value.quote.fee, locale) }}</dd>
+            <dt class="font-semibold">{{ t('builder.total') }}</dt>
+            <dd class="tabular m-0 text-right font-semibold">{{ money(builder.quote.value.quote.total, locale) }}</dd>
+          </dl>
         </div>
         <ActionNotice :problem="builder.problem.value"/>
         <ButtonRow>
