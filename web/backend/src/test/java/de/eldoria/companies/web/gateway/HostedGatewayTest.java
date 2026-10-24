@@ -18,6 +18,7 @@ import de.eldoria.companies.web.api.handshake.Welcome;
 import de.eldoria.companies.web.api.link.ErrorCode;
 import de.eldoria.companies.web.api.link.ErrorMessage;
 import de.eldoria.companies.web.api.link.Ping;
+import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.PlayerRef;
@@ -520,6 +521,75 @@ class HostedGatewayTest {
             node.assertQuiet();
             browser.origin("https://dash.test");
             assertEquals(200, browser.get("/api/v1/me/server").statusCode());
+        }
+    }
+
+    @Test
+    void aServerCannotTouchAnotherServersSessions() {
+        UUID uidA = UUID.randomUUID();
+        UUID uidB = UUID.randomUUID();
+        try (FakeNode serverA = node(key(), uidA);
+                FakeNode serverB = node(key(), uidB)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.23");
+            SessionCreated created = create(serverB, uidB);
+            login(serverB, browser, created);
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                stream.next();
+                snapshot(serverB, browser, uidB, 5);
+                serverA.send(new Patch(
+                        null,
+                        1,
+                        List.of(created.session()),
+                        uidA,
+                        1,
+                        "player.unreadInbox",
+                        PatchOp.REPLACE,
+                        null,
+                        JsonNodeFactory.instance.numberNode(666)));
+                serverA.send(new SessionClosed(null, 1, created.session(), PLAYER, CloseReason.REVOKED));
+                serverA.send(new SessionsRevoked(null, 1, PLAYER, CloseReason.REVOKED));
+                serverA.send(new Ping("after", 1, Instant.now()));
+                serverA.expect(Pong.class);
+                assertEquals(200, browser.get("/api/v1/me/server").statusCode());
+                assertEquals(3, cachedInbox(browser));
+                stream.ping();
+                assertEquals("pong", stream.next().path("type").asString());
+            }
+        }
+    }
+
+    @Test
+    void aNodeThatConnectsAgainReplacesItsConnectionAndRestartsItsSequence() {
+        String key = key();
+        UUID uid = UUID.randomUUID();
+        FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.24");
+        try (FakeNode first = node(key, uid)) {
+            SessionCreated created = create(first, uid);
+            login(first, browser, created);
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                stream.next();
+                snapshot(first, browser, uid, 40);
+                try (FakeNode second = node(key, uid)) {
+                    assertEquals(NodeHub.CLOSE_REPLACED, first.awaitClose());
+                    second.expect(Subscribe.class);
+                    SnapshotRequest reload = second.expect(SnapshotRequest.class);
+                    second.sendRaw(Recorded.snapshot(reload.id(), reload.session(), uid, 0));
+                    assertEquals("server", stream.next().path("type").asString());
+                    assertEquals("resync", stream.next().path("type").asString());
+                    second.send(new Patch(
+                            null,
+                            1,
+                            List.of(created.session()),
+                            uid,
+                            1,
+                            "player.unreadInbox",
+                            PatchOp.REPLACE,
+                            null,
+                            JsonNodeFactory.instance.numberNode(9)));
+                    assertEquals(9, stream.next().path("value").asInt());
+                    assertEquals(9, cachedInbox(browser));
+                }
+            }
         }
     }
 
