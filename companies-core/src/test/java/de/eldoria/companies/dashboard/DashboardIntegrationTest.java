@@ -355,6 +355,18 @@ class DashboardIntegrationTest {
     }
 
     @Test
+    void aQuitReachesTheGatewayForASessionCreatedInGame() throws Exception {
+        connect(supported());
+        login();
+
+        presence.quit(wren);
+
+        var quit = gateway.next(PlayerPresence.class, WAIT);
+        assertEquals(wren, quit.player());
+        assertFalse(quit.online());
+    }
+
+    @Test
     void aQuitReachesTheGatewayAlsoAfterTheSessionEnded() throws Exception {
         connect(supported());
         login();

@@ -16,7 +16,7 @@ import {count} from '~/util/format'
  * everything the player carries for it, or one line with what that line still misses. It needs the player online on
  * the server, since it takes the items from the inventory there; while the player is not, it says so instead. The
  * order's progress follows through its patch, and a completed order leaves the positions with it, so what was
- * delivered is told to the panel, which outlives the row.
+ * delivered is told to the panel, which outlives the row; a new delivery clears what the panel said before.
  */
 const props = defineProps<{
   order: ClaimedOrderView
@@ -48,6 +48,7 @@ function report(delivered: number, finished: boolean): void {
 
 /** Delivers everything the player carries for the order. */
 async function deliverAll(): Promise<void> {
+  emit('delivered', '')
   const result = await action.run('orders.deliver.all', {order: props.order.id})
   if (result) report(result.delivered, result.done)
 }
@@ -58,6 +59,7 @@ async function deliverAll(): Promise<void> {
  * @param line the line, from one
  */
 async function deliverLine(line: number): Promise<void> {
+  emit('delivered', '')
   const result = await action.run('orders.deliver.line', {order: props.order.id, line})
   if (result) report(result.delivered, result.done)
 }

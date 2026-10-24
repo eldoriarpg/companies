@@ -26,8 +26,9 @@ import java.util.logging.Logger;
  * <p>
  * Every report goes through one ordered queue: a join and a quit of the same player, or a quit and the report of every
  * online player after a welcome, reach the gateway in the order they happened here, whatever the database lookups in
- * between take. Players without a session are never reported. A quit is reported for every player this node announced,
- * also when the player's session ended meanwhile, so the gateway never keeps a player it was told about. The players
+ * between take. Players without a session are never reported. A quit is reported for every player with a session,
+ * which the gateway learned of when the session was created in game, and for every player this node announced, also
+ * when the player's session ended meanwhile, so the gateway never keeps a player it was told about. The players
  * online on this node are kept here from the joins and quits.
  */
 public final class PresenceReporter {
@@ -83,7 +84,7 @@ public final class PresenceReporter {
     public void quit(UUID player) {
         online.remove(player);
         enqueue(() -> {
-            if (announced.remove(player)) send(player, false);
+            if (announced.remove(player) || !sessions.of(player).isEmpty()) send(player, false);
         });
     }
 

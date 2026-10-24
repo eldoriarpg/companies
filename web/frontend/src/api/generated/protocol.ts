@@ -167,6 +167,7 @@ export interface PlayerPresence {
   v: number;
   player: string;
   online: boolean;
+  node?: string;
 }
 export interface SnapshotRequest {
   type: 'snapshot.request';
