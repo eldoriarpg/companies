@@ -7,6 +7,7 @@
 import PanelBox from '@/components/container/PanelBox.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import SearchInput from '@/components/input/SearchInput.vue'
 import SelectInput from '@/components/input/SelectInput.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import PageSwitcher from '@/components/navigation/PageSwitcher.vue'
@@ -16,7 +17,8 @@ import {openLabel} from '~/util/labels'
 
 /**
  * The rankings of the companies: which ranking over which time, a page at a time, with the player's company marked
- * and its own place below the page when it is elsewhere.
+ * and its own place below the page when it is elsewhere. The plugin's ranking pages take no search, so the search bar
+ * narrows the page shown by the companies' names; a ranking entry carries no tag.
  */
 const {t, te, locale} = useI18n()
 const rankings = useRankings()
@@ -28,20 +30,25 @@ const own = computed(() => {
   const page = rankings.shown.value
   return page?.own && !page.entries.some(entry => entry.company === page.own?.company) ? page.own : null
 })
+const rows = computed(() => [...rankings.shown.value?.entries ?? [], ...(own.value ? [own.value] : [])])
+const {query, found} = useListSearch(rows, entry => [entry.name])
 </script>
 
 <template>
   <ViewContent :title="t('nav.rankings')">
     <div class="flex flex-wrap gap-3">
+      <div class="w-full md:w-72">
+        <SearchInput v-model="query" :label="t('rankings.search')"/>
+      </div>
       <SelectInput v-model="rankings.ranking.value" :label="t('rankings.ranking')" :options="rankingChoices"/>
       <SelectInput v-model="rankings.range.value" :label="t('rankings.range.label')" :options="rangeChoices"/>
     </div>
     <NoticeBanner v-if="rankings.status.value === 'failed'" tone="problem">{{ t('rankings.failed') }}</NoticeBanner>
     <PanelBox>
-      <EmptyState v-if="!rankings.shown.value?.entries.length">{{ t('rankings.empty') }}</EmptyState>
+      <EmptyState v-if="found.length === 0">{{ rows.length === 0 ? t('rankings.empty') : t('common.noMatch') }}</EmptyState>
       <ol v-else class="m-0 list-none p-0" data-testid="rankings">
         <li
-            v-for="entry in [...rankings.shown.value.entries, ...(own ? [own] : [])]"
+            v-for="entry in found"
             :key="entry.company"
             :aria-current="entry.company === company?.id ? 'true' : undefined"
             :class="entry.company === company?.id ? 'bg-selected' : ''"
