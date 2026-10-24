@@ -38,12 +38,15 @@ public class MariaDbDashboardData extends ADashboardData {
      */
     protected static final int KEY_ROW = 1;
 
+    private static final int MARKET_STATE_ROW = 1;
+
     @Language("mariadb")
     private static final String MARKET_DAYS = """
             SELECT day, material, orders, items, avg_price, min_price, max_price
             FROM market_history
             """;
 
+    @Language("mariadb")
     private static final String SESSIONS = """
             SELECT id, player_uuid, player_name, node_uuid, created, code_expires, last_active, opened, device,
                    permissions
@@ -348,14 +351,29 @@ public class MariaDbDashboardData extends ADashboardData {
     }
 
     @Override
-    public Optional<LocalDate> lastMarketDay() {
+    public Optional<LocalDate> marketRecordedThrough() {
         @Language("mariadb")
-        var query = "SELECT day FROM market_history ORDER BY day DESC LIMIT 1";
+        var query = "SELECT recorded_through FROM market_history_state WHERE id = ?";
         return queries()
                 .query(query)
-                .single()
-                .map(row -> LocalDate.ofEpochDay(row.getLong("day")))
+                .single(call().bind(MARKET_STATE_ROW))
+                .map(row -> LocalDate.ofEpochDay(row.getLong("recorded_through")))
                 .first();
+    }
+
+    @Override
+    public void saveMarketRecordedThrough(LocalDate day) {
+        @Language("mariadb")
+        var clear = "DELETE FROM market_history_state WHERE id = ?";
+        @Language("mariadb")
+        var insert = "INSERT INTO market_history_state(id, recorded_through) VALUES (?, ?)";
+        var conf = queries().withSingleTransaction();
+        try (conf) {
+            conf.query(clear).single(call().bind(MARKET_STATE_ROW)).delete();
+            conf.query(insert)
+                    .single(call().bind(MARKET_STATE_ROW).bind(day.toEpochDay()))
+                    .insert();
+        }
     }
 
     private static MarketDay parseMarketDay(Row row) throws SQLException {

@@ -50,12 +50,15 @@ member delivered what.
 
 ## Market prices
 
-The market page lists the average, lowest and highest price per item of the orders companies delivered, the most
-ordered items first. **Biggest movers** sorts them by how much the average price changed in the last week against
-the week before. Opening an item shows its average price per day over a week, a month or three months.
+The market page lists the average, lowest and highest price per item of the delivered orders, the most ordered items
+first. **Biggest movers** shows the items whose average price changed in the last week against the week before, the
+biggest change first. Opening an item shows its average price per day over a week, a month or three months.
 
-An item, a day or a week with fewer delivered orders than the server's minimum shows no price, so no single order can
-be traced back to the player who placed it.
+The price history and its changes come from orders companies delivered; orders worked on alone and lines that ask for
+an exact item are not part of them.
+
+An item or a day with fewer delivered orders than the server's minimum shows no price, and such days do not count
+towards a change, so no single order can be traced back to the player who placed it.
 
 ## What you can do
 

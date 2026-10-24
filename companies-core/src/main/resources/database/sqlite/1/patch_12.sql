@@ -13,3 +13,11 @@ CREATE TABLE market_history
 
 CREATE INDEX market_history_material_index
     ON market_history (material, day);
+
+CREATE TABLE market_history_state
+(
+    id               INTEGER NOT NULL
+        CONSTRAINT market_history_state_pk
+            PRIMARY KEY,
+    recorded_through INTEGER NOT NULL
+);

@@ -350,8 +350,8 @@ public final class DashboardReads {
                 1,
                 sources.marketSettings().get().historyDays());
         var history = sources.marketHistory().apply(key, days).stream()
-                .map(point -> new Payloads.HistoryPoint(
-                        point.day().toString(), point.orders(), point.items(), point.avg(), point.min(), point.max()))
+                .map(point ->
+                        new Payloads.HistoryPoint(point.day().toString(), point.orders(), point.items(), point.avg()))
                 .toList();
         return data(request, new Payloads.MarketDetail(item.get(), days, history));
     }

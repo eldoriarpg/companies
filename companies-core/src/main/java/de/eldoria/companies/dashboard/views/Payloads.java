@@ -252,23 +252,16 @@ public final class Payloads {
     }
 
     /**
-     * One day of a material's price history. The prices are left out on days with fewer orders than the server's
+     * One day of a material's price history. The price is left out on days with fewer orders than the server's
      * minimum.
      *
      * @param day    the day, as {@code yyyy-MM-dd}
      * @param orders the orders delivered that day
      * @param items  the items of the material in them
      * @param avg    the average unit price
-     * @param min    the lowest unit price
-     * @param max    the highest unit price
      */
     public record HistoryPoint(
-            String day,
-            int orders,
-            long items,
-            @Nullable Double avg,
-            @Nullable Double min,
-            @Nullable Double max) {}
+            String day, int orders, long items, @Nullable Double avg) {}
 
     /**
      * A page of market items.

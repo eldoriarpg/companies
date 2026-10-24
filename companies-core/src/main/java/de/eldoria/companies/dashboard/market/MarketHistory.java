@@ -21,20 +21,26 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * The market's price history: one row per material and day, from the orders companies delivered that day, kept for
- * {@code market.historyDays} of {@code order.yml}. Exact lines count under their material. No owner or company is
- * stored.
+ * {@code market.historyDays} of {@code order.yml}. Exact lines are left out, as in the market list; solo orders write
+ * no company entry and are not part of it. No owner or company is stored.
  * <p>
- * The primary node records it: each run computes every day from the latest one stored, which may have been partial,
- * up to today, and on the first run as far back as the order history and the retention reach. Days are replaced as a
- * whole, so a run can be repeated. Reading compares periods: the change of a material is that of its average unit
- * price over the last seven days against the seven days before, both weighted by orders, and is left out unless both
- * periods stand on at least {@code market.minOrders} orders.
+ * The primary node records it and notes the day it recorded through. Each run computes the days from the one before
+ * that note, so a late write near midnight is still counted, up to today; the first run reaches back as far as the
+ * retention. A day is never computed again once the order history may have purged part of it ({@code historyDays} of
+ * {@code config.yml}), so purging the order history never erases stored days. Days are replaced as a whole, and runs
+ * never overlap.
+ * <p>
+ * Reading compares periods: the change of a material is that of its average unit price over the last seven days
+ * against the seven days before, weighted by orders. Only days that stand on at least {@code market.minOrders} orders
+ * themselves count, the same days whose prices the history shows, so the change reveals nothing a shown day does not.
+ * A period without such a day has no change.
  */
 public final class MarketHistory {
     /**
@@ -43,6 +49,7 @@ public final class MarketHistory {
     public static final int CHANGE_DAYS = 7;
 
     private final Sources sources;
+    private final AtomicBoolean running = new AtomicBoolean();
 
     /**
      * @param sources where the history is read from and stored
@@ -52,17 +59,24 @@ public final class MarketHistory {
     }
 
     /**
-     * Records the days not recorded yet, then removes the days beyond the retention. Failures are logged and the next
-     * run tries again.
+     * Records the days not recorded yet, then removes the days beyond the retention. A run that finds another one still
+     * busy does nothing. Failures are logged and the next run tries again.
      */
     public void record() {
+        if (!running.compareAndSet(false, true)) return;
         try {
             var today = today();
             var oldest = today.minusDays(sources.settings().get().historyDays() - 1L);
-            var from = sources.data()
-                    .lastMarketDay()
-                    .filter(day -> day.isAfter(oldest))
-                    .orElse(oldest);
+            var complete = LocalDate.now(sources.clock().withZone(sources.zone()))
+                    .minusDays(sources.orderHistoryDays().get())
+                    .plusDays(1);
+            var from = latest(
+                    sources.data()
+                            .marketRecordedThrough()
+                            .map(day -> day.minusDays(1))
+                            .orElse(oldest),
+                    oldest,
+                    complete);
             for (var day = from; !day.isAfter(today); day = day.plusDays(1)) {
                 var entries = sources.history()
                         .retrieveCompanyEntries(
@@ -72,10 +86,19 @@ public final class MarketHistory {
                         .join();
                 sources.data().saveMarketDay(day, aggregate(day, entries));
             }
+            sources.data().saveMarketRecordedThrough(today);
             sources.data().purgeMarketHistory(oldest);
         } catch (RuntimeException e) {
             sources.logger().log(Level.WARNING, "Could not record the market history.", e);
+        } finally {
+            running.set(false);
         }
+    }
+
+    private static LocalDate latest(LocalDate first, LocalDate... others) {
+        var latest = first;
+        for (var other : others) if (other.isAfter(latest)) latest = other;
+        return latest;
     }
 
     /**
@@ -86,7 +109,7 @@ public final class MarketHistory {
     }
 
     /**
-     * Adds up the orders delivered on one day per material.
+     * Adds up the orders delivered on one day per material, without exact lines.
      *
      * @param day     the day
      * @param entries the company entries of the orders delivered that day
@@ -96,7 +119,7 @@ public final class MarketHistory {
         Map<String, Totals> totals = new HashMap<>();
         for (var entry : entries) {
             for (var line : entry.snapshot().lines()) {
-                if (line.amount() <= 0) continue;
+                if (line.amount() <= 0 || line.exact()) continue;
                 totals.computeIfAbsent(line.template().getType().name(), material -> new Totals())
                         .add(entry.order(), line.amount(), line.price() / line.amount());
             }
@@ -113,21 +136,23 @@ public final class MarketHistory {
      *
      * @param days      the rows of at least the last {@code 2 * CHANGE_DAYS} days
      * @param today     the last day of the recent period
-     * @param minOrders the orders each period needs
-     * @return the change in percent per material, for materials both periods stand on enough orders for
+     * @param minOrders the orders a day needs to count
+     * @return the change in percent per material, for materials both periods have a day with enough orders for
      */
     public static Map<String, Double> changes(List<MarketDay> days, LocalDate today, int minOrders) {
         var recentStart = today.minusDays(CHANGE_DAYS - 1L);
         var previousStart = recentStart.minusDays(CHANGE_DAYS);
         Map<String, Period[]> periods = new HashMap<>();
         for (var day : days) {
-            if (day.day().isBefore(previousStart) || day.day().isAfter(today)) continue;
+            if (day.orders() < minOrders
+                    || day.day().isBefore(previousStart)
+                    || day.day().isAfter(today)) continue;
             var both = periods.computeIfAbsent(day.material(), material -> new Period[] {new Period(), new Period()});
             both[day.day().isBefore(recentStart) ? 0 : 1].add(day);
         }
         Map<String, Double> changes = new HashMap<>();
         periods.forEach((material, both) -> {
-            if (both[0].orders < minOrders || both[1].orders < minOrders) return;
+            if (both[0].orders == 0 || both[1].orders == 0) return;
             var previous = both[0].average();
             if (previous <= 0) return;
             changes.put(material, (both[1].average() - previous) / previous * 100);
@@ -136,8 +161,9 @@ public final class MarketHistory {
     }
 
     /**
-     * The history of one material for a chart, a point per day with completed orders. Prices of a day that stands on
-     * fewer than {@code minOrders} orders are left out, so a single order cannot be traced back.
+     * The history of one material for a chart, a point per day with completed orders. The price of a day that stands
+     * on fewer than {@code minOrders} orders is left out, so a single order cannot be traced back; the lowest and
+     * highest price of a day are never shown, since with few orders they would name single orders.
      *
      * @param material  the material name
      * @param days      how many days back, today included
@@ -148,9 +174,8 @@ public final class MarketHistory {
         var from = today().minusDays(Math.max(1, days) - 1L);
         return sources.data().marketHistory(material, from).stream()
                 .sorted(Comparator.comparing(MarketDay::day))
-                .map(day -> day.orders() >= minOrders
-                        ? new Point(day.day(), day.orders(), day.items(), day.avg(), day.min(), day.max())
-                        : new Point(day.day(), day.orders(), day.items(), null, null, null))
+                .map(day ->
+                        new Point(day.day(), day.orders(), day.items(), day.orders() >= minOrders ? day.avg() : null))
                 .toList();
     }
 
@@ -172,23 +197,17 @@ public final class MarketHistory {
      * @param orders the orders completed that day
      * @param items  the items in them
      * @param avg    the average unit price, absent with too few orders
-     * @param min    the lowest unit price, absent with too few orders
-     * @param max    the highest unit price, absent with too few orders
      */
     public record Point(
-            LocalDate day,
-            int orders,
-            long items,
-            @Nullable Double avg,
-            @Nullable Double min,
-            @Nullable Double max) {}
+            LocalDate day, int orders, long items, @Nullable Double avg) {}
 
     /**
      * What the history is recorded from and stored in.
      *
      * @param data     the market history table
      * @param history  the order history the days are computed from
-     * @param settings the retention and the orders a price needs
+     * @param settings         the retention and the orders a price needs
+     * @param orderHistoryDays how many days the order history is kept, after which its entries are purged
      * @param zone     the server's time zone, which decides where a day ends
      * @param clock    the clock
      * @param logger   logs failed runs
@@ -197,6 +216,7 @@ public final class MarketHistory {
             ADashboardData data,
             AHistoryData history,
             Supplier<MarketSettings> settings,
+            Supplier<Integer> orderHistoryDays,
             ZoneId zone,
             Clock clock,
             Logger logger) {}

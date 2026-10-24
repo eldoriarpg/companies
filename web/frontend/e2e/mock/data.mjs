@@ -227,7 +227,7 @@ export function history(entry, days) {
         const day = new Date(Date.UTC(2026, 9, 24 - days + 1 + index)).toISOString().slice(0, 10)
         if (entry.avg === undefined || index % 5 === 4) return {day, orders: 1, items: 64}
         const avg = Math.round(entry.avg * (0.9 + (index % 7) / 30) * 100) / 100
-        return {day, orders: 4, items: 256, avg, min: avg * 0.8, max: avg * 1.2}
+        return {day, orders: 4, items: 256, avg}
     })
 }
 

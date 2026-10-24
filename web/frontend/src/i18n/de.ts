@@ -212,7 +212,10 @@ export default {
         historyFailed: 'Der Preisverlauf konnte nicht geladen werden.',
         view: 'Anzeigen',
         top: 'Meistbestellt',
-        movers: 'Größte Bewegung',
+        movers: 'Größte Bewegungen',
+        daysLong: '{days} Tage',
+        moversEmpty: 'Preisänderungen erscheinen, sobald zwei Wochen nacheinander genug Aufträge haben.',
+        moversFailed: 'Die größten Bewegungen konnten nicht geladen werden. Versuch es gleich noch einmal.',
     },
     company: {
         level: 'Stufe',

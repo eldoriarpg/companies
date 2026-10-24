@@ -191,9 +191,16 @@ public abstract class ADashboardData {
     public abstract int purgeMarketHistory(LocalDate before);
 
     /**
-     * The latest day the market history has rows for.
+     * The last day the market history was recorded through, rows or not.
      *
-     * @return the day, empty while it is empty
+     * @return the day, empty before the first recording
      */
-    public abstract Optional<LocalDate> lastMarketDay();
+    public abstract Optional<LocalDate> marketRecordedThrough();
+
+    /**
+     * Notes the last day the market history was recorded through.
+     *
+     * @param day the day
+     */
+    public abstract void saveMarketRecordedThrough(LocalDate day);
 }

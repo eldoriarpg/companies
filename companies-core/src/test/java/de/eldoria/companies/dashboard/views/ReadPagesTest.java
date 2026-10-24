@@ -32,6 +32,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -231,14 +232,14 @@ class ReadPagesTest {
     }
 
     @Test
-    void theMarketHistoryIsRecordedPerDayAndShowsItsChange() {
+    void theMarketHistoryIsRecordedPerDayWithoutExactLinesAndShowsItsChange() {
         var today = world.market.today().atTime(12, 0);
         for (var i = 0; i < 3; i++) {
             world.state(world.order(owner, "Order " + i), OrderState.RECEIVED, miners);
             delivered(100 + i, today.minusDays(8), Material.STONE, 10, 100.0, false);
-            delivered(200 + i, today, Material.STONE, 10, 120.0, i == 0);
+            delivered(200 + i, today, Material.STONE, 10, 120.0, false);
         }
-        delivered(300, today, Material.STONE, 10, 500.0, false);
+        delivered(300, today, Material.STONE, 10, 500.0, true);
 
         world.market.record();
         world.market.record();
@@ -252,13 +253,32 @@ class ReadPagesTest {
                 history.get(0).path("day").asString());
         assertEquals(3, history.get(0).path("orders").asInt());
         assertEquals(10.0, history.get(0).path("avg").asDouble());
-        assertEquals(4, history.get(1).path("orders").asInt());
-        assertEquals(50.0, history.get(1).path("max").asDouble());
+        assertEquals(3, history.get(1).path("orders").asInt());
+        assertEquals(12.0, history.get(1).path("avg").asDouble());
+        assertFalse(history.get(1).has("max"));
         assertEquals(30, stone.path("days").asInt());
 
         var movers = read(kestrel, Actions.MARKET_MOVERS, "{\"page\":1}").data().path("items");
         assertEquals(1, movers.size());
-        assertEquals(115.0, movers.get(0).path("change").asDouble(), 0.0001);
+        assertEquals(20.0, movers.get(0).path("change").asDouble(), 0.0001);
+    }
+
+    @Test
+    void purgingTheOrderHistoryKeepsTheRecordedDays() {
+        var today = world.market.today().atTime(12, 0);
+        for (var i = 0; i < 3; i++) delivered(500 + i, today.minusDays(5), Material.STONE, 10, 100.0, false);
+        world.market.record();
+        assertEquals(
+                1, world.dashboard.marketDays(today.toLocalDate().minusDays(30)).size());
+
+        world.history.submitPurge(today.plusDays(1)).join();
+        world.orderHistoryDays = 1;
+        world.market.record();
+        world.market.record();
+
+        assertEquals(
+                1, world.dashboard.marketDays(today.toLocalDate().minusDays(30)).size());
+        assertEquals(Optional.of(today.toLocalDate()), world.dashboard.marketRecordedThrough());
     }
 
     @Test

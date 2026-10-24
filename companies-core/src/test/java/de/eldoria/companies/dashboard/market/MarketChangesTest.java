@@ -27,11 +27,20 @@ class MarketChangesTest {
     @Test
     void comparesTheLastWeekWithTheWeekBeforeWeightedByOrders() {
         var days = List.of(
-                day(13, "STONE", 2, 10.0), day(7, "STONE", 2, 10.0), day(6, "STONE", 1, 9.0), day(0, "STONE", 3, 13.0));
+                day(13, "STONE", 3, 10.0), day(7, "STONE", 3, 10.0), day(6, "STONE", 3, 9.0), day(0, "STONE", 6, 13.5));
 
         var changes = MarketHistory.changes(days, TODAY, 3);
 
         assertEquals(20.0, changes.get("STONE"), 0.0001);
+    }
+
+    @Test
+    void leavesOutDaysWhosePriceIsHiddenSoTheyCannotBeWorkedOut() {
+        var days = List.of(day(10, "STONE", 3, 10.0), day(3, "STONE", 3, 10.0), day(2, "STONE", 1, 500.0));
+
+        var changes = MarketHistory.changes(days, TODAY, 3);
+
+        assertEquals(0.0, changes.get("STONE"), 0.0001);
     }
 
     @Test

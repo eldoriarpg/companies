@@ -213,6 +213,9 @@ export default {
         view: 'Afficher',
         top: 'Les plus commandés',
         movers: 'Plus fortes variations',
+        daysLong: '{days} jours',
+        moversEmpty: 'Les variations de prix apparaissent dès que deux semaines de suite ont assez de commandes.',
+        moversFailed: 'Les plus fortes variations n’ont pas pu être chargées. Réessaie dans un instant.',
     },
     company: {
         level: 'Niveau',

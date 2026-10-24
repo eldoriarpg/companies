@@ -12,3 +12,10 @@ CREATE TABLE IF NOT EXISTS market_history
 
 CREATE INDEX IF NOT EXISTS market_history_material_index
     ON market_history (material, day);
+
+CREATE TABLE IF NOT EXISTS market_history_state
+(
+    id               INT NOT NULL
+        PRIMARY KEY,
+    recorded_through INT NOT NULL
+);

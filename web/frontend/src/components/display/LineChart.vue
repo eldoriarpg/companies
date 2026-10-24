@@ -4,15 +4,16 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import {linePoints} from '~/util/chart'
+import {lineSegments} from '~/util/chart'
 import type {Trend} from '~/util/format'
 
 /**
  * A line of values, green when it rose, red when it fell, grey when flat; as a sparkline in a row or as the chart of a
- * panel stretched to its width. With a label it is an image a screen reader names; without one it is decoration.
+ * panel stretched to its width. Missing values, given as null, leave a gap. With a label it is an image a screen reader
+ * names; without one it is decoration.
  */
 const props = withDefaults(defineProps<{
-  values: readonly number[]
+  values: readonly (number | null)[]
   trend: Trend
   width?: number
   height?: number
@@ -20,7 +21,7 @@ const props = withDefaults(defineProps<{
   label?: string
 }>(), {width: 80, height: 22, label: undefined})
 
-const points = computed(() => linePoints(props.values, props.width, props.height))
+const segments = computed(() => lineSegments(props.values, props.width, props.height))
 const colour = computed(() => ({up: 'text-gain', down: 'text-loss', flat: 'text-ink-muted'})[props.trend])
 </script>
 
@@ -36,6 +37,6 @@ const colour = computed(() => ({up: 'text-gain', down: 'text-loss', flat: 'text-
       :class="colour"
       class="block shrink-0"
   >
-    <polyline :points="points" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    <polyline v-for="(points, index) in segments" :key="index" :points="points" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/>
   </svg>
 </template>

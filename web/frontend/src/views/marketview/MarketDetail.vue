@@ -17,7 +17,7 @@ import {compact, money, percentChange, trendOf} from '~/util/format'
 /**
  * The figures of one material: the average price per item large with its change against the week before, the lowest
  * and highest price and the volume, then the chart of its average price per day over a week, a month or a quarter.
- * Days with too few orders carry no price and are left out of the line.
+ * The days sit on a time axis; days without orders or with too few for a price leave a gap in the line.
  */
 const props = defineProps<{
   entry: MarketItemView
@@ -27,7 +27,7 @@ const props = defineProps<{
 const {t, locale} = useI18n()
 const history = useMarketHistory(computed(() => props.entry.item.material))
 const trend = computed(() => {
-  const prices = history.prices.value
+  const prices = history.series.value.filter(value => value !== null)
   return prices.length < 2 ? 'flat' : trendOf((prices.at(-1) ?? 0) - (prices[0] ?? 0))
 })
 </script>
@@ -49,17 +49,23 @@ const trend = computed(() => {
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span class="text-xs font-semibold">{{ t('market.history') }}</span>
         <div class="flex gap-1" role="group" :aria-label="t('market.historyRange')">
-          <ChipButton v-for="days in HISTORY_RANGES" :key="days" :pressed="history.range.value === days" @click="history.range.value = days">{{ t('market.days', {days}) }}</ChipButton>
+          <ChipButton
+              v-for="days in HISTORY_RANGES"
+              :key="days"
+              :pressed="history.range.value === days"
+              :aria-label="t('market.daysLong', {days})"
+              @click="history.range.value = days"
+          >{{ t('market.days', {days}) }}</ChipButton>
         </div>
       </div>
       <LineChart
-          v-if="history.prices.value.length > 1"
-          :values="history.prices.value"
+          v-if="history.priced.value > 0"
+          :values="history.series.value"
           :trend="trend"
           :width="300"
           :height="80"
           stretch
-          :label="t('market.historyChart', {item: entry.item.name, days: history.range.value})"
+          :label="t('market.historyChart', {item: entry.item.name, days: history.detail.value?.days ?? history.range.value})"
       />
       <MutedText v-else-if="history.status.value === 'failed'" tag="p">{{ t('market.historyFailed') }}</MutedText>
       <MutedText v-else-if="history.status.value === 'ready'" tag="p">{{ t('market.historyEmpty') }}</MutedText>

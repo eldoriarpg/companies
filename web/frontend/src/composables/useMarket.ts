@@ -30,6 +30,7 @@ export function useMarket(api: GatewayApi = gatewayApi()) {
     const latest = useLatest()
     const view = ref<'top' | 'movers'>('top')
     const movers = shallowRef<MarketItemView[] | null>(null)
+    const moversStatus = ref<'idle' | 'loading' | 'ready' | 'failed'>('idle')
 
     /** Loads the most ordered items once, where the server has the market. */
     async function loadTop(): Promise<void> {
@@ -64,16 +65,15 @@ export function useMarket(api: GatewayApi = gatewayApi()) {
         searching.value = false
     }
 
-    /** Loads the biggest movers once. */
+    /** Loads the biggest movers once; a failed load is tried again the next time they are shown. */
     async function loadMovers(): Promise<void> {
-        if (movers.value !== null) return
-        searching.value = true
+        if (moversStatus.value === 'loading' || moversStatus.value === 'ready') return
+        moversStatus.value = 'loading'
         try {
             movers.value = (await api.read('market.movers', {page: 1})).items
+            moversStatus.value = 'ready'
         } catch {
-            movers.value = []
-        } finally {
-            searching.value = false
+            moversStatus.value = 'failed'
         }
     }
 
@@ -85,6 +85,7 @@ export function useMarket(api: GatewayApi = gatewayApi()) {
     return {
         query,
         status: computed(() => state.value.status),
+        moversStatus: readonly(moversStatus),
         searching: readonly(searching),
         top: computed(() => state.value.top),
         view,
@@ -93,5 +94,6 @@ export function useMarket(api: GatewayApi = gatewayApi()) {
             .filter(entry => entry.avg !== undefined)
             .map(entry => [entry.item.material, entry.avg as number]))),
         loadTop,
+        loadMovers,
     }
 }

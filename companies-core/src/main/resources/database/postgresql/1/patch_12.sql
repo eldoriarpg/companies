@@ -13,3 +13,11 @@ CREATE TABLE IF NOT EXISTS companies_schema.market_history
 
 CREATE INDEX IF NOT EXISTS market_history_material_index
     ON companies_schema.market_history (material, day);
+
+CREATE TABLE IF NOT EXISTS companies_schema.market_history_state
+(
+    id               INTEGER NOT NULL
+        CONSTRAINT market_history_state_pk
+            PRIMARY KEY,
+    recorded_through INTEGER NOT NULL
+);

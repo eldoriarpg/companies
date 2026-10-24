@@ -69,6 +69,7 @@ public abstract class DashboardDataContract {
         query("DELETE FROM dashboard_sessions").single().delete();
         query("DELETE FROM dashboard_key").single().delete();
         query("DELETE FROM market_history").single().delete();
+        query("DELETE FROM market_history_state").single().delete();
         data = data();
     }
 
@@ -172,13 +173,15 @@ public abstract class DashboardDataContract {
         assertTrue(data.marketHistory("DIRT", day).isEmpty());
         assertEquals(1, data.marketHistory("STONE", day.plusDays(1)).size());
         assertEquals(2, data.marketDays(day).size());
-        assertEquals(Optional.of(day.plusDays(1)), data.lastMarketDay());
+        assertEquals(Optional.empty(), data.marketRecordedThrough());
+        data.saveMarketRecordedThrough(day.plusDays(1));
+        data.saveMarketRecordedThrough(day.plusDays(2));
+        assertEquals(Optional.of(day.plusDays(2)), data.marketRecordedThrough());
     }
 
     @Test
     void theMarketHistoryIsPurgedBeforeADay() {
         var day = LocalDate.of(2026, 10, 20);
-        assertEquals(Optional.empty(), data.lastMarketDay());
         data.saveMarketDay(day, List.of(new MarketDay(day, "STONE", 3, 30, 10.0, 8.0, 12.0)));
         data.saveMarketDay(day.plusDays(2), List.of(new MarketDay(day.plusDays(2), "STONE", 3, 30, 10.0, 8.0, 12.0)));
         data.saveMarketDay(day.plusDays(3), List.of());

@@ -203,15 +203,13 @@ export interface MarketItemView {
     change?: number
 }
 
-/** One day of a material's price history. Prices are absent on days with too few orders. */
+/** One day of a material's price history. The price is absent on days with too few orders. */
 export interface MarketHistoryPoint {
     /** The day, as `yyyy-MM-dd`. */
     day: string
     orders: number
     items: number
     avg?: number
-    min?: number
-    max?: number
 }
 
 /** The price statistics of one material with its history, oldest day first. */

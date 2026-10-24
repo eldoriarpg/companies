@@ -135,6 +135,7 @@ public final class DashboardModule {
                 data.dashboard(),
                 data.history(),
                 () -> configuration.orderSetting().market(),
+                () -> configuration.generalSettings().historyDays(),
                 ZoneId.systemDefault(),
                 clock,
                 logger));

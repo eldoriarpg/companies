@@ -213,6 +213,9 @@ export default {
         view: 'Show',
         top: 'Most ordered',
         movers: 'Biggest movers',
+        daysLong: '{days} days',
+        moversEmpty: 'Price changes appear once two weeks in a row have enough orders.',
+        moversFailed: 'The biggest movers could not be loaded. Try again in a moment.',
     },
     company: {
         level: 'Level',

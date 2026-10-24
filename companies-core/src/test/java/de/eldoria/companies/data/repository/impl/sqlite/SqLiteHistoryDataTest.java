@@ -240,4 +240,27 @@ class SqLiteHistoryDataTest {
                         .toList());
         Assertions.assertTrue(history.retrieveEntry(kept + 1).join().isEmpty());
     }
+
+    @Test
+    void companyEntriesAreReadPerOutcomeAndSpanWithTheEndLeftOut() {
+        var day = NOW.toLocalDate().atStartOfDay();
+        var delivered = recorder.companyEntry(order(1), COMPANY, HistoryOutcome.DELIVERED, List.of())
+                .join()
+                .orElseThrow();
+        recorder.companyEntry(order(2), COMPANY, HistoryOutcome.ABORTED, List.of())
+                .join();
+        recorder.ownerEntry(order(3), HistoryOutcome.RECEIVED).join();
+
+        var inDay = history.retrieveCompanyEntries(HistoryOutcome.DELIVERED, day, day.plusDays(1))
+                .join();
+        var endingAtNoon = history.retrieveCompanyEntries(HistoryOutcome.DELIVERED, day, NOW)
+                .join();
+        var startingAtNoon = history.retrieveCompanyEntries(HistoryOutcome.DELIVERED, NOW, day.plusDays(1))
+                .join();
+
+        Assertions.assertEquals(
+                List.of(delivered), inDay.stream().map(HistoryEntry::id).toList());
+        Assertions.assertTrue(endingAtNoon.isEmpty());
+        Assertions.assertEquals(1, startingAtNoon.size());
+    }
 }

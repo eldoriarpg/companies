@@ -12,8 +12,10 @@ export const HISTORY_RANGES = [7, 30, 90] as const
 export type HistoryRange = typeof HISTORY_RANGES[number]
 
 /**
- * The price history of one material over a period, loaded again when the material or the period changes. Days with
- * too few orders carry no price and leave a gap the chart skips.
+ * The price history of one material over a period, loaded again when the material or the period changes; switching the
+ * material drops the old history at once. The series has one slot per calendar day of the period the plugin answered
+ * for, ending with the later of today and the last day it sent, so the chart spaces days by time; days without orders
+ * or with too few for a price stay empty and leave a gap.
  *
  * @param material the material, null while none is open
  * @param api the gateway's calls, for tests
@@ -44,12 +46,36 @@ export function useMarketHistory(material: Ref<string | null>, api: GatewayApi =
         }
     }
 
+    watch(material, () => {
+        detail.value = null
+    })
     watch([material, range], () => void load(), {immediate: true})
+
+    const series = computed(() => daily(detail.value))
 
     return {
         range,
         detail,
         status: readonly(status),
-        prices: computed(() => (detail.value?.history ?? []).flatMap(point => (point.avg === undefined ? [] : [point.avg]))),
+        series,
+        priced: computed(() => series.value.filter(value => value !== null).length),
     }
+}
+
+/**
+ * The average price of each calendar day of a history's period, null on days without one.
+ *
+ * @param detail the history, null while none is loaded
+ * @param today today as `yyyy-MM-dd`, for tests
+ * @returns one slot per day, oldest first
+ */
+export function daily(detail: MarketDetailView | null, today = new Date().toISOString().slice(0, 10)): (number | null)[] {
+    if (detail === null) return []
+    const prices = new Map(detail.history.map(point => [point.day, point.avg ?? null]))
+    const last = detail.history.reduce((latest, point) => (point.day > latest ? point.day : latest), today)
+    const end = Date.parse(`${last}T00:00:00Z`)
+    return Array.from({length: detail.days}, (_, index) => {
+        const day = new Date(end - (detail.days - 1 - index) * 86_400_000).toISOString().slice(0, 10)
+        return prices.get(day) ?? null
+    })
 }

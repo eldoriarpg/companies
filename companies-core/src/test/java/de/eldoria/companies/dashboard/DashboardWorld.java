@@ -101,6 +101,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final DashboardWrites writes;
     public final TreasuryService treasuryService;
     public final SqLiteHistoryData history;
+    public volatile int orderHistoryDays = 90;
     public final MarketHistory market;
     public final EventRecorder events = new EventRecorder();
     public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
@@ -147,6 +148,7 @@ public final class DashboardWorld implements AutoCloseable {
                 dashboard,
                 history,
                 orderSettings::market,
+                () -> orderHistoryDays,
                 ZoneId.systemDefault(),
                 Clock.systemUTC(),
                 Logger.getAnonymousLogger()));

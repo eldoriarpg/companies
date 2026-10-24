@@ -26,6 +26,7 @@ const wide = useMediaQuery('(min-width: 1024px)')
 
 onMounted(() => void market.loadTop())
 
+const moversShown = computed(() => market.view.value === 'movers' && market.query.value.trim() === '')
 const selected = computed(() => market.items.value.find(entry => entry.item.material === selection.id.value)
     ?? market.top.value.find(entry => entry.item.material === selection.id.value)
     ?? null)
@@ -45,12 +46,14 @@ const sheetOpen = computed({
       </div>
       <div class="flex gap-1" role="group" :aria-label="t('market.view')">
         <ChipButton :pressed="market.view.value === 'top'" @click="market.view.value = 'top'">{{ t('market.top') }}</ChipButton>
-        <ChipButton :pressed="market.view.value === 'movers'" @click="market.view.value = 'movers'">{{ t('market.movers') }}</ChipButton>
+        <ChipButton :pressed="market.view.value === 'movers'" @click="market.view.value = 'movers'; market.loadMovers()">{{ t('market.movers') }}</ChipButton>
       </div>
     </div>
     <NoticeBanner v-if="market.status.value === 'failed'" tone="problem">{{ t('market.failed') }}</NoticeBanner>
+    <NoticeBanner v-if="moversShown && market.moversStatus.value === 'failed'" tone="problem">{{ t('market.moversFailed') }}</NoticeBanner>
+    <MutedText v-else-if="moversShown && market.moversStatus.value === 'ready' && market.items.value.length === 0" tag="p">{{ t('market.moversEmpty') }}</MutedText>
     <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-      <MarketList :items="market.items.value" :loading="market.status.value === 'loading' || market.searching.value" :selected="selection.id.value" @open="selection.open"/>
+      <MarketList :items="market.items.value" :loading="market.status.value === 'loading' || market.searching.value || (moversShown && market.moversStatus.value === 'loading')" :selected="selection.id.value" @open="selection.open"/>
       <MarketDetail v-if="wide && selected" :entry="selected" class="sticky top-4"/>
     </div>
     <MutedText tag="p">{{ t('market.privacy') }}</MutedText>
