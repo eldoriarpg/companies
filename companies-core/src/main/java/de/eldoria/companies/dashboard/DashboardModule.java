@@ -21,12 +21,14 @@ import de.eldoria.companies.dashboard.gateway.GatewayStatus;
 import de.eldoria.companies.dashboard.gateway.Handshake;
 import de.eldoria.companies.dashboard.keys.DashboardKeys;
 import de.eldoria.companies.dashboard.keys.HttpLynaKeys;
+import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.sessions.DashboardSessions;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.AAlertData;
 import de.eldoria.companies.data.repository.ADashboardData;
+import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.AStatsData;
@@ -129,6 +131,14 @@ public final class DashboardModule {
                 names,
                 ZoneId.systemDefault(),
                 clock));
+        var market = new MarketHistory(new MarketHistory.Sources(
+                data.dashboard(),
+                data.history(),
+                () -> configuration.orderSetting().market(),
+                () -> configuration.generalSettings().historyDays(),
+                ZoneId.systemDefault(),
+                clock,
+                logger));
         var renderer = new NotificationRenderer(localizer::localize);
         var reads = new DashboardReads(
                 views,
@@ -139,6 +149,12 @@ public final class DashboardModule {
                         data.treasury(),
                         new Expiring<>(data.dashboard()::market, MARKET_LIFETIME, clock),
                         () -> configuration.orderSetting().market(),
+                        new Expiring<>(market::changes, MARKET_LIFETIME, clock),
+                        (material, days) -> market.points(
+                                material,
+                                days,
+                                configuration.orderSetting().market().minOrders()),
+                        market::today,
                         entry -> inboxText(renderer, messages, entry),
                         refusal,
                         names,
@@ -225,6 +241,7 @@ public final class DashboardModule {
                 status,
                 handshake,
                 feed,
+                market::record,
                 router::accept,
                 keyChanged,
                 node,
@@ -283,6 +300,7 @@ public final class DashboardModule {
      * @param inbox         inboxes
      * @param treasury      treasuries
      * @param stats         statistics and rankings
+     * @param history       the order history the market history is computed from
      * @param search        the order search
      * @param companyOf     the company a player is a member of
      * @param orderAccept   accepts orders for a company
@@ -299,6 +317,7 @@ public final class DashboardModule {
             AInboxData inbox,
             ATreasuryData treasury,
             AStatsData stats,
+            AHistoryData history,
             SearchExecutor search,
             Function<UUID, CompletableFuture<Optional<CompanyProfile>>> companyOf,
             OrderAcceptService orderAccept,

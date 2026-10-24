@@ -199,8 +199,26 @@ export interface MarketItemView {
     volume?: number
     /** How many orders the statistics stand on. */
     orders?: number
-    /** The change of the average over the period in percent, once price history exists. */
+    /** The change of the average in percent over the last week against the week before, where both weeks have enough orders. */
     change?: number
+}
+
+/** One day of a material's price history. The price is absent on days with too few orders. */
+export interface MarketHistoryPoint {
+    /** The day, as `yyyy-MM-dd`. */
+    day: string
+    orders: number
+    items: number
+    avg?: number
+}
+
+/** The price statistics of one material with its history, oldest day first. */
+export interface MarketDetailView extends MarketItemView {
+    /** How many days the history reaches back, today included. */
+    days: number
+    /** The server's today, the last day of the history, as `yyyy-MM-dd`. */
+    to: string
+    history: MarketHistoryPoint[]
 }
 
 /** A page of market statistics. */
@@ -270,6 +288,8 @@ export interface ReadActions {
     'rankings.page': {args: {ranking: string, range: string, page: number}, result: RankingPage}
     'market.search': {args: {query: string, page: number}, result: MarketPage}
     'market.top': {args: {page: number}, result: MarketPage}
+    'market.movers': {args: {page: number}, result: MarketPage}
+    'market.item': {args: {material: string, days: number}, result: MarketDetailView}
     'company.treasury.log': {args: {page: number}, result: TreasuryLogPage}
     'company.applications.list': {args: Record<string, never>, result: ApplicationsPage}
 }

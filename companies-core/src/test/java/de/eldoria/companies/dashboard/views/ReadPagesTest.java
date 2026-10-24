@@ -7,9 +7,13 @@ package de.eldoria.companies.dashboard.views;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.TreasuryKind;
+import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.dashboard.DashboardWorld;
+import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.history.HistoryEntry;
+import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.services.notifications.NotificationArgs;
@@ -18,6 +22,8 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +33,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -206,5 +213,104 @@ class ReadPagesTest {
         assertEquals(20, treasury.maxShare());
         assertEquals(1.0, treasury.minTransaction());
         assertTrue(world.views.treasury(profile, owner).isEmpty());
+    }
+
+    private void delivered(
+            int order, LocalDateTime finished, Material material, int amount, double price, boolean exact) {
+        var line = new HistorySnapshot.Line(new ItemStack(material), exact, amount, amount, price);
+        world.history
+                .submitEntry(new HistoryEntry(
+                        0,
+                        order,
+                        null,
+                        miners,
+                        HistoryOutcome.DELIVERED,
+                        "Order " + order,
+                        finished.minusDays(1),
+                        finished,
+                        new HistorySnapshot(List.of(line), price, 0, price, 0, price, List.of())))
+                .join();
+    }
+
+    @Test
+    void theMarketHistoryIsRecordedPerDayWithoutExactLinesAndShowsItsChange() {
+        var today = world.market.today().atTime(12, 0);
+        for (var i = 0; i < 3; i++) {
+            world.state(world.order(owner, "Order " + i), OrderState.RECEIVED, miners);
+            delivered(100 + i, today.minusDays(8), Material.STONE, 10, 100.0, false);
+            delivered(200 + i, today, Material.STONE, 10, 120.0, false);
+        }
+        delivered(300, today, Material.STONE, 10, 500.0, true);
+
+        world.market.record();
+        world.market.record();
+
+        var stone = read(kestrel, Actions.MARKET_ITEM, "{\"material\":\"minecraft:stone\",\"days\":30}")
+                .data();
+        var history = stone.path("history");
+        assertEquals(2, history.size());
+        assertEquals(
+                today.minusDays(8).toLocalDate().toString(),
+                history.get(0).path("day").asString());
+        assertEquals(3, history.get(0).path("orders").asInt());
+        assertEquals(10.0, history.get(0).path("avg").asDouble());
+        assertEquals(3, history.get(1).path("orders").asInt());
+        assertEquals(12.0, history.get(1).path("avg").asDouble());
+        assertFalse(history.get(1).has("max"));
+        assertEquals(30, stone.path("days").asInt());
+
+        var movers = read(kestrel, Actions.MARKET_MOVERS, "{\"page\":1}").data().path("items");
+        assertEquals(1, movers.size());
+        assertEquals(20.0, movers.get(0).path("change").asDouble(), 0.0001);
+    }
+
+    @Test
+    void purgingTheOrderHistoryKeepsTheRecordedDays() {
+        var today = world.market.today().atTime(12, 0);
+        for (var i = 0; i < 3; i++) delivered(500 + i, today.minusDays(5), Material.STONE, 10, 100.0, false);
+        world.market.record();
+        assertEquals(
+                1, world.dashboard.marketDays(today.toLocalDate().minusDays(30)).size());
+
+        world.history.submitPurge(today.plusDays(1)).join();
+        world.orderHistoryDays = 1;
+        world.market.record();
+        world.market.record();
+
+        assertEquals(
+                1, world.dashboard.marketDays(today.toLocalDate().minusDays(30)).size());
+        assertEquals(Optional.of(today.toLocalDate()), world.dashboard.marketRecordedThrough());
+    }
+
+    @Test
+    void aDayWithTooFewOrdersShowsNoPrices() {
+        var today = world.market.today().atTime(12, 0);
+        world.state(world.order(owner, "Only"), OrderState.RECEIVED, miners);
+        delivered(400, today, Material.STONE, 10, 100.0, false);
+
+        world.market.record();
+
+        var point = read(kestrel, Actions.MARKET_ITEM, "{\"material\":\"STONE\"}")
+                .data()
+                .path("history")
+                .get(0);
+        assertEquals(1, point.path("orders").asInt());
+        assertTrue(point.path("avg").isMissingNode() || point.path("avg").isNull());
+    }
+
+    @Test
+    void daysRecordedBeforeAPurgedStretchStayAfterALongPause() {
+        var today = world.market.today();
+        var stored = today.minusDays(15);
+        world.dashboard.saveMarketDay(stored, List.of(new MarketDay(stored, "STONE", 3, 30, 10.0, 9.0, 11.0)));
+        world.dashboard.saveMarketRecordedThrough(today.minusDays(20));
+        world.history.submitPurge(today.plusDays(1).atStartOfDay()).join();
+        world.orderHistoryDays = 7;
+
+        world.market.record();
+
+        assertEquals(
+                1, world.dashboard.marketHistory("STONE", today.minusDays(30)).size());
+        assertEquals(Optional.of(today), world.dashboard.marketRecordedThrough());
     }
 }

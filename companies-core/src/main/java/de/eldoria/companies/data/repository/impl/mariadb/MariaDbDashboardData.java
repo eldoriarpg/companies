@@ -9,6 +9,7 @@ import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
+import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
 import de.eldoria.companies.data.wrapper.dashboard.MarketRow;
 import de.eldoria.companies.data.wrapper.dashboard.StoredKey;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
@@ -17,6 +18,7 @@ import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +37,14 @@ public class MariaDbDashboardData extends ADashboardData {
      * The id of the only row of the key table.
      */
     protected static final int KEY_ROW = 1;
+
+    private static final int MARKET_STATE_ROW = 1;
+
+    @Language("mariadb")
+    private static final String MARKET_DAYS = """
+            SELECT day, material, orders, items, avg_price, min_price, max_price
+            FROM market_history
+            """;
 
     @Language("mariadb")
     private static final String SESSIONS = """
@@ -280,6 +290,102 @@ public class MariaDbDashboardData extends ADashboardData {
                         row.getDouble("min_price"),
                         row.getDouble("max_price")))
                 .all();
+    }
+
+    @Override
+    public boolean saveMarketDay(LocalDate day, List<MarketDay> rows) {
+        @Language("mariadb")
+        var clear = "DELETE FROM market_history WHERE day = ?";
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO market_history(day, material, orders, items, avg_price, min_price, max_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""";
+        var conf = queries().withSingleTransaction();
+        try (conf) {
+            conf.query(clear).single(call().bind(day.toEpochDay())).delete();
+            if (!rows.isEmpty()) {
+                conf.query(insert)
+                        .batch(rows.stream().map(row -> call().bind(day.toEpochDay())
+                                .bind(row.material())
+                                .bind(row.orders())
+                                .bind(row.items())
+                                .bind(row.avg())
+                                .bind(row.min())
+                                .bind(row.max())))
+                        .insert();
+            }
+        }
+        return conf.context().exceptions().isEmpty();
+    }
+
+    @Override
+    public List<MarketDay> marketHistory(String material, LocalDate from) {
+        @Language("mariadb")
+        var query = MARKET_DAYS + "WHERE material = ? AND day >= ? ORDER BY day";
+        return queries()
+                .query(query)
+                .single(call().bind(material).bind(from.toEpochDay()))
+                .map(MariaDbDashboardData::parseMarketDay)
+                .all();
+    }
+
+    @Override
+    public List<MarketDay> marketDays(LocalDate from) {
+        @Language("mariadb")
+        var query = MARKET_DAYS + "WHERE day >= ? ORDER BY material, day";
+        return queries()
+                .query(query)
+                .single(call().bind(from.toEpochDay()))
+                .map(MariaDbDashboardData::parseMarketDay)
+                .all();
+    }
+
+    @Override
+    public int purgeMarketHistory(LocalDate before) {
+        @Language("mariadb")
+        var query = "DELETE FROM market_history WHERE day < ?";
+        return queries()
+                .query(query)
+                .single(call().bind(before.toEpochDay()))
+                .delete()
+                .rows();
+    }
+
+    @Override
+    public Optional<LocalDate> marketRecordedThrough() {
+        @Language("mariadb")
+        var query = "SELECT recorded_through FROM market_history_state WHERE id = ?";
+        return queries()
+                .query(query)
+                .single(call().bind(MARKET_STATE_ROW))
+                .map(row -> LocalDate.ofEpochDay(row.getLong("recorded_through")))
+                .first();
+    }
+
+    @Override
+    public void saveMarketRecordedThrough(LocalDate day) {
+        @Language("mariadb")
+        var clear = "DELETE FROM market_history_state WHERE id = ?";
+        @Language("mariadb")
+        var insert = "INSERT INTO market_history_state(id, recorded_through) VALUES (?, ?)";
+        var conf = queries().withSingleTransaction();
+        try (conf) {
+            conf.query(clear).single(call().bind(MARKET_STATE_ROW)).delete();
+            conf.query(insert)
+                    .single(call().bind(MARKET_STATE_ROW).bind(day.toEpochDay()))
+                    .insert();
+        }
+    }
+
+    private static MarketDay parseMarketDay(Row row) throws SQLException {
+        return new MarketDay(
+                LocalDate.ofEpochDay(row.getLong("day")),
+                row.getString("material"),
+                row.getInt("orders"),
+                row.getLong("items"),
+                row.getDouble("avg_price"),
+                row.getDouble("min_price"),
+                row.getDouble("max_price"));
     }
 
     private StoredSession parseSession(Row row) throws SQLException {

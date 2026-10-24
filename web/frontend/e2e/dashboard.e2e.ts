@@ -67,6 +67,20 @@ test.describe('dashboard', () => {
         await expect(market.getByText('Diamond')).toHaveCount(0)
     })
 
+    test('shows the biggest movers and the price history of an item', async ({page}, info) => {
+        await openSection(page, info, 'Market')
+        await page.getByRole('button', {name: 'Biggest movers'}).click()
+        const market = page.getByTestId('market')
+        await expect(market.getByRole('button')).toHaveCount(4)
+        await expect(market.getByRole('button').first()).toContainText('Diamond')
+
+        await market.getByText('Diamond').click()
+        const details = onPhone(info) ? page.getByRole('dialog') : page.getByRole('complementary', {name: 'Item prices'})
+        await expect(details.getByRole('img', {name: 'Average price of Diamond per day over 30 days'})).toBeVisible()
+        await details.getByRole('button', {name: '90 d'}).click()
+        await expect(details.getByRole('img', {name: 'Average price of Diamond per day over 90 days'})).toBeVisible()
+    })
+
     test('shows the company and finds a member', async ({page}, info) => {
         await openSection(page, info, 'Company')
         await expect(page.getByTestId('company-treasury')).toHaveText(/^(18,450|19,600)\.00$/)

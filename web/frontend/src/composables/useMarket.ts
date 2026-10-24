@@ -14,8 +14,9 @@ const SEARCH_DELAY_MILLIS = 300
 
 /**
  * The market: price statistics per material from the plugin. The most ordered items are loaded once and shared;
- * a search asks the plugin for the materials matching its text. Prices stay out where too few orders back them, and
- * the change over a period shows once the plugin keeps price history.
+ * the biggest movers, the items whose price changed most against the week before, are loaded when first shown; a
+ * search asks the plugin for the materials matching its text and wins over both. Prices stay out where too few orders
+ * back them.
  *
  * @param api the gateway's calls, for tests
  * @returns the market's items, the averages by material and the search
@@ -27,6 +28,9 @@ export function useMarket(api: GatewayApi = gatewayApi()) {
     const found = ref<MarketItemView[] | null>(null)
     const searching = ref(false)
     const latest = useLatest()
+    const view = ref<'top' | 'movers'>('top')
+    const movers = shallowRef<MarketItemView[] | null>(null)
+    const moversStatus = ref<'idle' | 'loading' | 'ready' | 'failed'>('idle')
 
     /** Loads the most ordered items once, where the server has the market. */
     async function loadTop(): Promise<void> {
@@ -61,17 +65,35 @@ export function useMarket(api: GatewayApi = gatewayApi()) {
         searching.value = false
     }
 
+    /** Loads the biggest movers once; a failed load is tried again the next time they are shown. */
+    async function loadMovers(): Promise<void> {
+        if (moversStatus.value === 'loading' || moversStatus.value === 'ready') return
+        moversStatus.value = 'loading'
+        try {
+            movers.value = (await api.read('market.movers', {page: 1})).items
+            moversStatus.value = 'ready'
+        } catch {
+            moversStatus.value = 'failed'
+        }
+    }
+
     watchDebounced(query, () => void search(), {debounce: SEARCH_DELAY_MILLIS})
+    watch(view, value => {
+        if (value === 'movers') void loadMovers()
+    })
 
     return {
         query,
         status: computed(() => state.value.status),
+        moversStatus: readonly(moversStatus),
         searching: readonly(searching),
         top: computed(() => state.value.top),
-        items: computed(() => found.value ?? state.value.top),
+        view,
+        items: computed(() => found.value ?? (view.value === 'movers' ? movers.value ?? [] : state.value.top)),
         averages: computed<ReadonlyMap<string, number>>(() => new Map(state.value.top
             .filter(entry => entry.avg !== undefined)
             .map(entry => [entry.item.material, entry.avg as number]))),
         loadTop,
+        loadMovers,
     }
 }

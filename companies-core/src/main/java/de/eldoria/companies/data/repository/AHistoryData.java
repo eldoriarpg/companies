@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
 import tools.jackson.core.JacksonException;
@@ -101,6 +102,22 @@ public abstract class AHistoryData {
     }
 
     protected abstract List<HistoryEntry> getByOrder(int order);
+
+    /**
+     * The company entries of one outcome that ended in a span of time, such as the orders delivered on one day.
+     *
+     * @param outcome the outcome
+     * @param from    the start of the span, included
+     * @param to      the end of the span, excluded
+     * @return the entries, oldest first
+     */
+    public CompletableFuture<List<HistoryEntry>> retrieveCompanyEntries(
+            HistoryOutcome outcome, LocalDateTime from, LocalDateTime to) {
+        return CompletableFuture.supplyAsync(() -> getCompanyEntries(outcome, from, to), executor);
+    }
+
+    protected abstract List<HistoryEntry> getCompanyEntries(
+            HistoryOutcome outcome, LocalDateTime from, LocalDateTime to);
 
     /**
      * Deletes every entry of orders that ended before a point in time.

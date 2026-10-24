@@ -11,6 +11,7 @@ package de.eldoria.companies.configuration.elements.ordersettings;
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class MarketSettings {
     private int minOrders = 3;
+    private int historyDays = 365;
 
     public MarketSettings() {}
 
@@ -22,6 +23,15 @@ public class MarketSettings {
     }
 
     /**
+     * @param minOrders   orders a material needs before its prices are shown
+     * @param historyDays days the price history is kept
+     */
+    public MarketSettings(int minOrders, int historyDays) {
+        this.minOrders = minOrders;
+        this.historyDays = historyDays;
+    }
+
+    /**
      * How many completed orders a material needs before its prices are shown, so a single order cannot be traced
      * back. At least 1.
      *
@@ -29,5 +39,14 @@ public class MarketSettings {
      */
     public int minOrders() {
         return Math.max(1, minOrders);
+    }
+
+    /**
+     * How many days the price history is kept, today included. At least 14, so a change can always be computed.
+     *
+     * @return the days kept
+     */
+    public int historyDays() {
+        return Math.max(14, historyDays);
     }
 }

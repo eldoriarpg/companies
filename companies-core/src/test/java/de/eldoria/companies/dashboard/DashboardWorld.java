@@ -19,6 +19,7 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
@@ -99,6 +100,9 @@ public final class DashboardWorld implements AutoCloseable {
     public final DashboardReads reads;
     public final DashboardWrites writes;
     public final TreasuryService treasuryService;
+    public final SqLiteHistoryData history;
+    public volatile int orderHistoryDays = 90;
+    public final MarketHistory market;
     public final EventRecorder events = new EventRecorder();
     public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
     public final List<Integer> changedOrders = new CopyOnWriteArrayList<>();
@@ -139,6 +143,15 @@ public final class DashboardWorld implements AutoCloseable {
                 return companySettings;
             }
         };
+        history = new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor);
+        market = new MarketHistory(new MarketHistory.Sources(
+                dashboard,
+                history,
+                orderSettings::market,
+                () -> orderHistoryDays,
+                ZoneId.systemDefault(),
+                Clock.systemUTC(),
+                Logger.getAnonymousLogger()));
         var search = new SearchExecutor(
                 orders,
                 companies,
@@ -154,6 +167,10 @@ public final class DashboardWorld implements AutoCloseable {
                         treasury,
                         dashboard::market,
                         orderSettings::market,
+                        market::changes,
+                        (material, days) -> market.points(
+                                material, days, orderSettings.market().minOrders()),
+                        market::today,
                         entry -> entry.type().name(),
                         key -> "text of " + key,
                         this::name,
@@ -161,7 +178,7 @@ public final class DashboardWorld implements AutoCloseable {
         var plugin = MockBukkit.createMockPlugin();
         var outcomes = new OrderOutcomes(
                 orders,
-                new HistoryRecorder(new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor), Clock.systemUTC()),
+                new HistoryRecorder(history, Clock.systemUTC()),
                 new ItemReturnService(plugin, orders),
                 events,
                 ISimpleCompany::forId,

@@ -126,6 +126,16 @@ public class MariaDbHistoryData extends AHistoryData {
     }
 
     @Override
+    protected List<HistoryEntry> getCompanyEntries(HistoryOutcome outcome, LocalDateTime from, LocalDateTime to) {
+        return query(ENTRIES
+                        + "WHERE company_id IS NOT NULL AND outcome = ? AND finished >= ? AND finished < ? "
+                        + "ORDER BY finished, id")
+                .single(call().bind(outcome.id()).bind(from, time()).bind(to, time()))
+                .map(this::parseEntry)
+                .all();
+    }
+
+    @Override
     protected int purgeBefore(LocalDateTime before) {
         @Language("mariadb")
         var query = """

@@ -48,6 +48,18 @@ You see what you see in game, nothing more. Your own orders show their progress,
 delivers them. Your company's orders show their progress, but not who placed them. Inside your company, you see which
 member delivered what.
 
+## Market prices
+
+The market page lists the average, lowest and highest price per item of the delivered orders, the most ordered items
+first. **Biggest movers** shows the items whose average price changed in the last week against the week before, the
+biggest change first. Opening an item shows its average price per day over a week, a month or three months.
+
+The price history and its changes come from orders companies delivered; orders worked on alone and lines that ask for
+an exact item are not part of them.
+
+An item or a day with fewer delivered orders than the server's minimum shows no price, and such days do not count
+towards a change, so no single order can be traced back to the player who placed it.
+
 ## What you can do
 
 Everything is checked by the server as if you typed the command, so the dashboard allows exactly what you may do in

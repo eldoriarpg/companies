@@ -6,11 +6,13 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
+import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
 import de.eldoria.companies.data.wrapper.dashboard.MarketRow;
 import de.eldoria.companies.data.wrapper.dashboard.StoredKey;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -154,4 +156,52 @@ public abstract class ADashboardData {
      * @return one row per material
      */
     public abstract List<MarketRow> market();
+
+    /**
+     * Replaces what is stored for one day of the market history.
+     *
+     * @param day  the day
+     * @param rows one row per material completed on that day
+     * @return true when the day was stored
+     */
+    public abstract boolean saveMarketDay(LocalDate day, List<MarketDay> rows);
+
+    /**
+     * The market history of one material, oldest day first.
+     *
+     * @param material the material name
+     * @param from     the first day
+     * @return one row per day with completed orders
+     */
+    public abstract List<MarketDay> marketHistory(String material, LocalDate from);
+
+    /**
+     * The market history of every material, for comparing periods.
+     *
+     * @param from the first day
+     * @return one row per material and day with completed orders
+     */
+    public abstract List<MarketDay> marketDays(LocalDate from);
+
+    /**
+     * Removes the market history before a day.
+     *
+     * @param before the first day kept
+     * @return the number of rows removed
+     */
+    public abstract int purgeMarketHistory(LocalDate before);
+
+    /**
+     * The last day the market history was recorded through, rows or not.
+     *
+     * @return the day, empty before the first recording
+     */
+    public abstract Optional<LocalDate> marketRecordedThrough();
+
+    /**
+     * Notes the last day the market history was recorded through.
+     *
+     * @param day the day
+     */
+    public abstract void saveMarketRecordedThrough(LocalDate day);
 }
