@@ -9,6 +9,18 @@ import {expect, type Page, type TestInfo} from '@playwright/test'
 export const CODE = 'KXT4PR'
 
 /**
+ * Logs the page's browser in to a waiting session of the mock gateway, as the code form would, without opening
+ * anything.
+ *
+ * @param page the page
+ * @param shortId the session
+ */
+export async function logIn(page: Page, shortId: string): Promise<void> {
+    const answer = await page.request.post(`/api/v1/s/${shortId}/login`, {data: {code: CODE}})
+    expect(answer.status()).toBe(204)
+}
+
+/**
  * Logs the page's browser in to a waiting session of the mock gateway, as the code form would, and opens the
  * dashboard.
  *
@@ -16,8 +28,7 @@ export const CODE = 'KXT4PR'
  * @param shortId the session, `MOSS01` for a supported server
  */
 export async function openDashboard(page: Page, shortId = 'MOSS01'): Promise<void> {
-    const answer = await page.request.post(`/api/v1/s/${shortId}/login`, {data: {code: CODE}})
-    expect(answer.status()).toBe(204)
+    await logIn(page, shortId)
     await page.goto('/app')
     await expect(page.getByTestId('treasury-balance')).toBeVisible()
 }

@@ -4,27 +4,49 @@
  *     Copyright (C EldoriaRPG Team and Contributor
  */
 
-/** The node the mock server's snapshot and patches come from. */
+/** The node the mock server's snapshot and most patches come from. */
 export const NODE = '4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10'
+
+/** A second node of the mock server, whose numbers run apart from the first's. */
+export const OTHER_NODE = '7d1e2f3a-4b5c-4d6e-8f70-819203a4b5c6'
 
 /** The code every waiting session of the mock takes. */
 export const CODE = 'KXT4PR'
 
-/** The waiting sessions of the mock by short id, each a different state of the server. */
+const SUPPORTED = {status: 'SUPPORTED'}
+
+/** The version state of a discontinued server. */
+export const DISCONTINUED = {
+    status: 'DISCONTINUED',
+    since: '2026-09-01',
+    updateTo: '2.4.0',
+    message: 'Companies 2.0 uses an order format the dashboard no longer reads.',
+}
+
+/**
+ * The waiting sessions of the mock by short id, each a story of its own: the version state of the server, and what
+ * the login, the server, the snapshot and the stream do.
+ */
 export const SESSIONS = {
-    MOSS01: {status: 'SUPPORTED'},
+    MOSS01: {version: SUPPORTED, stream: 'deliver'},
+    CALM01: {version: SUPPORTED},
+    NOMK01: {version: SUPPORTED, features: ['orders.browse', 'inbox', 'rankings']},
     DEPR01: {
-        status: 'DEPRECATED',
-        discontinuedAt: '2027-04-30',
-        updateTo: '2.4.0',
-        message: 'Companies 2.1 uses an old order format the dashboard stops reading.',
+        version: {
+            status: 'DEPRECATED',
+            discontinuedAt: '2027-04-30',
+            updateTo: '2.4.0',
+            message: 'Companies 2.1 uses an old order format the dashboard stops reading.',
+        },
     },
-    GONE01: {
-        status: 'DISCONTINUED',
-        since: '2026-09-01',
-        updateTo: '2.4.0',
-        message: 'Companies 2.0 uses an order format the dashboard no longer reads.',
-    },
+    GONE01: {version: DISCONTINUED},
+    DISC01: {version: SUPPORTED, login: 'discontinued'},
+    LOCK01: {version: SUPPORTED, login: 'locked'},
+    TURN01: {version: SUPPORTED, turnstile: 'mock-site-key'},
+    OFFL01: {version: SUPPORTED, offline: true},
+    DOWN01: {version: SUPPORTED, snapshot: 503},
+    KICK01: {version: SUPPORTED, stream: 'kick'},
+    DCON01: {version: SUPPORTED, stream: 'discontinue'},
 }
 
 /** The features of the mock server. */
@@ -97,19 +119,26 @@ export function positions() {
 }
 
 /**
- * The snapshot of Wren, owner of Stonebridge Builders.
+ * The snapshot of Wren, owner of Stonebridge Builders, before or after the stream's delivery and deposit.
  *
  * @param session the session id
+ * @param delivered whether the delivery and the deposit of the stream are in it
  * @returns the snapshot
  */
-export function snapshot(session) {
+export function snapshot(session, delivered = false) {
+    const members = MEMBERS.map((_, index) => member(index))
+    const orders = positions()
+    if (delivered) {
+        members[1] = member(1, 3240 + 64)
+        orders[2].lines[0].delivered += 64
+    }
     return {
         type: 'snapshot',
         v: 1,
         session,
         node: NODE,
         seq: 41,
-        player: {uuid: member(0).uuid, name: 'Wren', company: 7, permissions: ['OWNER'], invites: [], unreadInbox: 2},
+        player: {uuid: member(0).uuid, name: 'Wren', company: 7, permissions: ['OWNER'], invites: [], unreadInbox: delivered ? 3 : 2},
         company: {
             id: 7,
             name: 'Stonebridge Builders',
@@ -119,9 +148,9 @@ export function snapshot(session) {
             joinMode: 'APPLICATIONS',
             founded: '2025-03-14T18:00:00Z',
             level: {level: 3, name: 'Business', progress: 0.68},
-            members: MEMBERS.map((_, index) => member(index)),
-            treasury: {balance: 18450},
-            orders: positions(),
+            members,
+            treasury: {balance: delivered ? 19600 : 18450},
+            orders,
             alerts: [],
         },
         orders: [

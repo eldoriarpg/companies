@@ -11,10 +11,10 @@ test.describe('login', () => {
     test('asks for the short id, then for the code, and opens the dashboard', async ({page}) => {
         await page.goto('/')
         await expect(page.getByRole('heading', {name: 'Open your dashboard'})).toBeVisible()
-        await page.getByLabel('Short id').fill('moss01')
+        await page.getByLabel('Short id').fill('calm01')
         await page.getByRole('button', {name: 'Continue'}).click()
 
-        await expect(page).toHaveURL(/\/MOSS01$/)
+        await expect(page).toHaveURL(/\/CALM01$/)
         await expect(page.getByRole('heading', {name: 'Session for Mossvale SMP is waiting'})).toBeVisible()
         await expect(page).toHaveTitle(/Mossvale SMP/)
 

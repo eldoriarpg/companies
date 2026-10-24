@@ -3,20 +3,28 @@
  *
  *     Copyright (C EldoriaRPG Team and Contributor
  */
+import {randomUUID} from 'node:crypto'
 import {createServer} from 'node:http'
 import {WebSocketServer} from 'ws'
-import {BOOK, CODE, FEATURES, INBOX, MARKET, member, NODE, positions, SESSIONS, snapshot, TREASURY_LOG} from './data.mjs'
+import {
+    BOOK, CODE, DISCONTINUED, FEATURES, INBOX, MARKET, member, NODE, OTHER_NODE, positions, SESSIONS, snapshot, TREASURY_LOG,
+} from './data.mjs'
 
 /** Where the mock listens, unless `MOCK_PORT` says otherwise. */
 const PORT = Number(process.env.MOCK_PORT ?? 8787)
 
 const COOKIE = 'companies_session'
 
+/** The turnstile token the mock's challenge hands out, see `e2e/session.ts`. */
+const TURNSTILE_TOKEN = 'turnstile-ok'
+
+/** What happened to each logged in session: whether its stream delivered, whether its server was discontinued. */
+const STATES = new Map()
+
 /**
- * A stand-in for the gateway's browser API, for the end-to-end stories: the contract of `src/api/gateway.ts` with fixed
- * data. Every waiting session of `SESSIONS` takes the code `CODE`; the cookie it sets names the short id, so each
- * story's session keeps the server state it logged in to. A stream sends two patches shortly after it opens, the two
- * halves of one delivery, so the live feed has something to show.
+ * A stand-in for the gateway, for the end-to-end stories: the browser API of `src/api/gateway.ts` and the node
+ * connection, with fixed data. Every waiting session of `SESSIONS` takes the code `CODE` and plays a story of its own,
+ * see there. The cookie names the short id and a random part, so stories running at once never share a session.
  */
 const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://mock')
@@ -43,25 +51,30 @@ async function readBody(request) {
 }
 
 /**
- * The short id the session cookie names.
+ * The session the cookie names, with its story.
  *
  * @param request the request
- * @returns the short id, or nothing without a session
+ * @returns the cookie's value, the short id and the story, or nothing without a session
  */
 function sessionOf(request) {
     const cookie = request.headers.cookie ?? ''
     const value = cookie.split(';').map(part => part.trim().split('=')).find(([name]) => name === COOKIE)?.[1]
-    return value && SESSIONS[value] ? value : null
+    const shortId = value?.split('.')[0]
+    if (!value || !SESSIONS[shortId]) return null
+    if (!STATES.has(value)) STATES.set(value, {delivered: false, discontinued: false})
+    return {id: value, shortId, story: SESSIONS[shortId], state: STATES.get(value)}
 }
 
 /**
- * The version state of a mock server.
+ * An error answer.
  *
- * @param shortId the short id of its session
- * @returns the state
+ * @param status the HTTP status
+ * @param error the error code
+ * @param extra more fields
+ * @returns the answer
  */
-function version(shortId) {
-    return SESSIONS[shortId]
+function error(status, error, extra = {}) {
+    return {status, body: {error, ...extra}}
 }
 
 /**
@@ -70,27 +83,41 @@ function version(shortId) {
  * @param method the method
  * @param path the path
  * @param body the JSON body
- * @param session the short id of the cookie's session
+ * @param session the cookie's session
  * @returns status, headers and body
  */
 function route(method, path, body, session) {
     const pending = path.match(/^\/api\/v1\/s\/([^/]+)(\/login)?$/)
     if (pending) return login(method, decodeURIComponent(pending[1]), Boolean(pending[2]), body)
-    if (!path.startsWith('/api/v1/me/')) return {status: 404, body: {error: 'UNKNOWN_SESSION'}}
-    if (!session) return {status: 401, body: {error: 'UNAUTHORIZED'}}
-    const branding = {name: 'Mossvale SMP'}
+    if (!path.startsWith('/api/v1/me/')) return error(404, 'UNKNOWN_SESSION')
+    if (!session) return error(401, 'UNAUTHORIZED', {message: 'Log in with the code from the game'})
+    const {story, state} = session
     switch (`${method} ${path}`) {
         case 'GET /api/v1/me/server':
-            return {status: 200, body: {server: branding, features: FEATURES, limits: {maxPageSize: 50}, version: version(session), deprecated: []}}
+            return {status: 200, body: serverInfo(session)}
         case 'GET /api/v1/me/snapshot':
-            return {status: 200, body: snapshot(session)}
+            if (story.snapshot) return error(story.snapshot, 'SERVER_OFFLINE', {message: 'The server is not connected right now'})
+            if (state.discontinued) return error(410, 'DISCONTINUED', {message: DISCONTINUED.message, version: DISCONTINUED})
+            return {status: 200, body: snapshot(session.id, state.delivered)}
         case 'POST /api/v1/me/actions':
+            if (story.offline) return error(504, 'SERVER_OFFLINE', {message: 'The server did not answer in time'})
             return {status: 200, body: action(body.name, body.args ?? {})}
         case 'POST /api/v1/me/logout':
             return {status: 204, headers: {'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`}}
         default:
-            return {status: 404, body: {error: 'UNKNOWN_SESSION'}}
+            return error(404, 'UNKNOWN_SESSION')
     }
+}
+
+/**
+ * The server of a session as `GET /api/v1/me/server` and the `server` stream event send it.
+ *
+ * @param session the session
+ * @returns the server
+ */
+function serverInfo(session) {
+    const version = session.state.discontinued ? DISCONTINUED : session.story.version
+    return {server: {name: 'Mossvale SMP'}, features: session.story.features ?? FEATURES, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline}
 }
 
 /**
@@ -103,13 +130,19 @@ function route(method, path, body, session) {
  * @returns status, headers and body
  */
 function login(method, shortId, submit, body) {
-    if (!SESSIONS[shortId]) return {status: 404, body: {error: 'UNKNOWN_SESSION'}}
+    const story = SESSIONS[shortId]
+    if (!story) return error(404, 'UNKNOWN_SESSION', {message: 'No session is waiting for this link'})
     if (!submit && method === 'GET') {
         const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString()
-        return {status: 200, body: {server: {name: 'Mossvale SMP'}, expiresAt, attemptsLeft: 5, version: version(shortId)}}
+        return {status: 200, body: {server: {name: 'Mossvale SMP'}, expiresAt, attemptsLeft: 5, turnstileSiteKey: story.turnstile, version: story.version}}
     }
-    if (body.code !== CODE) return {status: 401, body: {error: 'WRONG_CODE', attemptsLeft: 4}}
-    return {status: 204, headers: {'set-cookie': `${COOKIE}=${shortId}; Path=/; HttpOnly; SameSite=Strict`}}
+    if (story.login === 'discontinued') return error(410, 'DISCONTINUED', {message: DISCONTINUED.message, version: DISCONTINUED})
+    if (story.turnstile && body.turnstileToken !== TURNSTILE_TOKEN) return error(403, 'TURNSTILE_FAILED')
+    if (body.code !== CODE) {
+        if (story.login === 'locked') return error(410, 'TOO_MANY_ATTEMPTS', {message: 'Too many wrong codes'})
+        return error(401, 'WRONG_CODE', {attemptsLeft: 4})
+    }
+    return {status: 204, headers: {'set-cookie': `${COOKIE}=${shortId}.${randomUUID()}; Path=/; HttpOnly; SameSite=Strict`}}
 }
 
 /**
@@ -147,40 +180,98 @@ function action(name, args) {
 }
 
 /**
- * The two halves of one delivery as the plugin pushes them: Kestrel_'s statistics, then the order's progress.
+ * What the plugin's two nodes push for one delivery and a deposit, with their numbers running apart as they do when
+ * a node serves many sessions: Kestrel_'s statistics and the order's progress from the first node, the deposit from
+ * the second.
  *
  * @param session the session id
- * @returns the patches
+ * @returns the patches, in the order they are sent
  */
 function delivery(session) {
     const stalls = positions()[2]
     stalls.lines[0].delivered += 64
     const kestrel = member(1, 3240 + 64)
-    const base = {type: 'patch', v: 1, sessions: [session], node: NODE}
+    const base = {type: 'patch', v: 1, sessions: [session]}
     return [
-        {...base, seq: 42, path: 'company.members', op: 'UPSERT', key: kestrel.uuid, value: kestrel},
-        {...base, seq: 43, path: 'company.orders', op: 'UPSERT', key: String(stalls.id), value: stalls},
+        {...base, node: NODE, seq: 44, path: 'company.members', op: 'UPSERT', key: kestrel.uuid, value: kestrel},
+        {...base, node: OTHER_NODE, seq: 7, path: 'company.treasury', op: 'REPLACE', value: {balance: 19600}},
+        {...base, node: NODE, seq: 41, path: 'player.unreadInbox', op: 'REPLACE', value: 40},
+        {...base, node: NODE, seq: 48, path: 'company.orders', op: 'UPSERT', key: String(stalls.id), value: stalls},
     ]
 }
 
-const sockets = new WebSocketServer({noServer: true})
+/**
+ * Plays a session's story on its stream.
+ *
+ * @param client the browser's socket
+ * @param session the session
+ */
+function play(client, session) {
+    const send = message => client.readyState === client.OPEN && client.send(JSON.stringify(message))
+    send({type: 'server', server: serverInfo(session)})
+    const later = (millis, step) => setTimeout(step, millis)
+    const timers = []
+    if (session.story.stream === 'deliver') {
+        timers.push(later(800, () => {
+            for (const patch of delivery(session.id)) send(patch)
+            session.state.delivered = true
+        }))
+        timers.push(later(1600, () => send({type: 'resync'})))
+    } else if (session.story.stream === 'kick') {
+        timers.push(later(800, () => {
+            send({type: 'session.closed', v: 1, session: session.id, player: member(0).uuid, reason: 'REVOKED'})
+            client.close(4401, 'Session ended')
+        }))
+    } else if (session.story.stream === 'discontinue') {
+        timers.push(later(800, () => {
+            session.state.discontinued = true
+            client.close(4403, 'Discontinued')
+        }))
+    }
+    client.on('close', () => timers.forEach(clearTimeout))
+}
+
+const sockets = new WebSocketServer({noServer: true, maxPayload: 8 * 1024 * 1024})
 
 server.on('upgrade', (request, socket, head) => {
+    if (request.url?.startsWith('/api/v1/servers/connect')) {
+        sockets.handleUpgrade(request, socket, head, client => node(client, request))
+        return
+    }
     const session = sessionOf(request)
-    if (!session || !request.url?.startsWith('/api/v1/me/stream')) {
+    if (!request.url?.startsWith('/api/v1/me/stream')) {
         socket.destroy()
         return
     }
     sockets.handleUpgrade(request, socket, head, client => {
-        const timer = setTimeout(() => {
-            for (const patch of delivery(session)) client.send(JSON.stringify(patch))
-        }, 800)
+        if (!session) {
+            client.close(4401, 'Not logged in')
+            return
+        }
+        play(client, session)
         client.on('message', text => {
             const message = JSON.parse(String(text))
             if (message.type === 'ping') client.send(JSON.stringify({type: 'pong', v: 1, time: message.time}))
         })
-        client.on('close', () => clearTimeout(timer))
     })
 })
+
+/**
+ * A node's connection: every message is answered with its size and the address the relay named, and `bye` is
+ * answered by closing with 4409, as the gateway closes a replaced node.
+ *
+ * @param client the node's socket
+ * @param request its upgrade request
+ */
+function node(client, request) {
+    client.on('message', text => {
+        const message = String(text)
+        if (message === 'bye') {
+            client.close(4409, 'Replaced by a newer connection')
+            return
+        }
+        client.send(JSON.stringify({type: 'echo', size: message.length, forwardedFor: request.headers['x-forwarded-for'] ?? null, cookie: request.headers.cookie ?? null}))
+    })
+}
 
 server.listen(PORT, () => console.info(`Mock gateway on http://localhost:${PORT}`))
