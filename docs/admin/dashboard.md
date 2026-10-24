@@ -19,8 +19,8 @@ opens no port and needs no domain or certificate. You can also [run the gateway 
 
 ## Setup
 
-1. Get a dashboard key in the account area of [Lyna](https://lyna.eldoria.de), where you got the plugin. Keys start
-   with `lyd_`.
+1. Get a dashboard key on the Companies page of [Lyna](https://lyna.eldoria.de), where you got the plugin. Keys start
+   with `lyd_`. Creating one shows the command to paste on the server.
 2. Give the key to the primary server as the environment variable `COMPANIES_DASHBOARD_KEY`, see
    [the key from the environment](#the-key-from-the-environment). Or enter it on any server of your network, from the
    console or in game:

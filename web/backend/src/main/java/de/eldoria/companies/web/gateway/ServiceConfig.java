@@ -70,14 +70,16 @@ public record ServiceConfig(
      * How dashboard keys are verified with Lyna.
      *
      * @param url Lyna's address ({@code LYNA_URL}, {@code https://lyna.eldoria.de})
-     * @param secret the gateway secret Lyna expects ({@code DASHBOARD_GATEWAYSECRET}); required in hosted mode
+     * @param secret the gateway secret of the key type at Lyna, starting with {@code lyg_}
+     * ({@code LYNA_GATEWAY_SECRET}); required in hosted mode
      * @param product Companies' product id at Lyna ({@code LYNA_PRODUCT}, 2)
+     * @param keyType the slug of the key type servers connect with ({@code LYNA_KEY_TYPE}, {@code dashboard})
      * @param cache how long an answer is used when Lyna cannot be reached ({@code LYNA_CACHE_MINUTES}, 5)
      */
-    public record LynaConfig(URI url, String secret, int product, Duration cache) {
+    public record LynaConfig(URI url, String secret, int product, String keyType, Duration cache) {
         @Override
         public String toString() {
-            return "LynaConfig[url=%s, product=%d, cache=%s]".formatted(url, product, cache);
+            return "LynaConfig[url=%s, product=%d, keyType=%s, cache=%s]".formatted(url, product, keyType, cache);
         }
     }
 
@@ -131,8 +133,9 @@ public record ServiceConfig(
                 stripSlash(text(env, "PUBLIC_URL", "http://localhost:4000")),
                 new LynaConfig(
                         URI.create(stripSlash(text(env, "LYNA_URL", "https://lyna.eldoria.de"))),
-                        text(env, "DASHBOARD_GATEWAYSECRET", ""),
+                        text(env, "LYNA_GATEWAY_SECRET", ""),
                         integer(env, "LYNA_PRODUCT", 2),
+                        text(env, "LYNA_KEY_TYPE", "dashboard"),
                         Duration.ofMinutes(integer(env, "LYNA_CACHE_MINUTES", 5))),
                 list(env, "TRUSTED_PROXIES"),
                 bool(env, "CLOUDFLARE", false),

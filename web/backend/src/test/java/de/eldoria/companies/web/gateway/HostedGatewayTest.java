@@ -80,7 +80,7 @@ class HostedGatewayTest {
         env = TestDatabase.env("hosted");
         env.put("GATEWAY_MODE", "hosted");
         env.put("LYNA_URL", lyna.url());
-        env.put("DASHBOARD_GATEWAYSECRET", FakeLyna.SECRET);
+        env.put("LYNA_GATEWAY_SECRET", FakeLyna.SECRET);
         env.put("LOGINS_PER_ADDRESS", "10");
         gateway = TestGateway.start(env);
     }
