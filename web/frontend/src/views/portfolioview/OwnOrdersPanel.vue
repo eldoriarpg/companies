@@ -6,6 +6,7 @@
 <script lang="ts" setup>
 import {useNow} from '@vueuse/core'
 import {Feature, OrderState, type OwnOrderView} from '~/api/generated/protocol'
+import ButtonLink from '@/components/button/ButtonLink.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
@@ -29,6 +30,7 @@ const props = defineProps<{
 const {t, te, locale} = useI18n()
 const {supports} = useDashboard()
 const manageable = computed(() => supports(Feature['orders.own']))
+const creatable = computed(() => supports(Feature['orders.create']))
 const done = ref('')
 const now = useNow({interval: 60_000})
 const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => line.item.name)])
@@ -46,8 +48,11 @@ const rows = computed(() => found.value.map(order => ({
   <PanelBox :aria-label="t('portfolio.own')">
     <template #head>
       <SectionHeader :note="t('portfolio.ownNote')">{{ t('portfolio.own') }}</SectionHeader>
-      <div class="w-full md:w-56">
-        <SearchInput v-model="query" :label="t('portfolio.searchOwn')"/>
+      <div class="flex w-full flex-wrap gap-2 md:w-auto">
+        <ButtonLink v-if="creatable" :to="{name: 'order-new'}" icon="plus">{{ t('builder.newOrder') }}</ButtonLink>
+        <div class="min-w-0 grow md:w-56">
+          <SearchInput v-model="query" :label="t('portfolio.searchOwn')"/>
+        </div>
       </div>
     </template>
     <Alert v-if="done" variant="success" class="m-3 md:mx-4">{{ done }}</Alert>

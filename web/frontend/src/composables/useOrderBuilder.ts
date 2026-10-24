@@ -109,8 +109,8 @@ export function useOrderBuilder(api: GatewayApi = gatewayApi()) {
     }
 
     return {
-        catalogue: readonly(catalogue),
-        known: readonly(known),
+        catalogue: computed(() => catalogue.value),
+        known: computed(() => known.value),
         status: readonly(status),
         name,
         lines,

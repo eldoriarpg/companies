@@ -38,12 +38,15 @@ export function sectionsFor(features: readonly string[]): Section[] {
 }
 
 /**
- * The section a path belongs to.
+ * The section a path belongs to: the one whose path it is or lies under, the deepest where several match, so a page
+ * such as placing an order belongs to the order book.
  *
  * @param path the route's path
  * @returns the section, or nothing outside the dashboard
  */
 export function sectionOf(path: string): Section | undefined {
     const normalised = path.replace(/\/+$/, '') || '/'
-    return SECTIONS.find(section => section.path === normalised)
+    return SECTIONS
+        .filter(section => normalised === section.path || normalised.startsWith(`${section.path}/`))
+        .reduce<Section | undefined>((deepest, section) => (deepest && deepest.path.length >= section.path.length ? deepest : section), undefined)
 }

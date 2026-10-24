@@ -25,6 +25,8 @@ export const ICONS = {
     check: 'M4 12l5 5L20 6',
     info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7h.01',
     chevronDown: 'M6 9l6 6 6-6',
+    plus: 'M12 5v14M5 12h14',
+    trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
 } as const
 
 /** The name of an icon. */

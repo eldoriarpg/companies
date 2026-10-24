@@ -52,7 +52,7 @@ export const SESSIONS = {
 /** The features of the mock server. */
 export const FEATURES = [
     'orders.browse', 'orders.accept', 'orders.own', 'company.members', 'company.applications', 'company.profile',
-    'company.treasury', 'inbox', 'rankings', 'market',
+    'company.treasury', 'inbox', 'rankings', 'market', 'orders.create',
 ]
 
 const MEMBERS = [
@@ -301,4 +301,28 @@ export function applications() {
             {player: outsider(3, 'Corvid'), inviter: {uuid: member(4).uuid, name: member(4).name}, created: '2026-10-22T18:00:00Z', expires: '2026-10-25T18:00:00Z'},
         ],
     }
+}
+
+/** What orders can be made of on the mock server: a few materials, a sword with two enchantments that exclude each other. */
+export const CATALOGUE = {
+    materials: [
+        {item: item('Iron Ingot', 1), enchantments: [], potion: false, dye: false, trim: false},
+        {item: item('Oak Log', 1), enchantments: [], potion: false, dye: false, trim: false},
+        {item: item('Diamond Sword', 1), enchantments: ['minecraft:sharpness', 'minecraft:smite'], potion: false, dye: false, trim: false},
+        {item: item('Leather Tunic', 1), enchantments: [], potion: false, dye: true, trim: true},
+    ],
+    enchantments: [
+        {key: 'minecraft:sharpness', name: 'Sharpness', max: 5, conflicts: ['minecraft:smite']},
+        {key: 'minecraft:smite', name: 'Smite', max: 5, conflicts: ['minecraft:sharpness']},
+    ],
+    potions: [{key: 'minecraft:swiftness', name: 'Swiftness'}],
+    dyes: [{key: 'red', name: 'Red', color: '#b02e26'}],
+    trimPatterns: [{key: 'minecraft:coast', name: 'Coast'}],
+    trimMaterials: [{key: 'minecraft:gold', name: 'Gold'}],
+}
+
+/** The mock player's saved items and earlier exact items. */
+export const KNOWN_ITEMS = {
+    saved: [{ref: 'saved:1', label: 'blade', item: item('Diamond Sword', 1), details: ['Sharpness 3']}],
+    earlier: [],
 }
