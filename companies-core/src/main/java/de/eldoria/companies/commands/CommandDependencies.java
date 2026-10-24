@@ -29,6 +29,7 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
@@ -373,6 +374,7 @@ public final class CommandDependencies {
      * @param companies           founds and renames companies
      * @param orderAccept         accepts orders for companies
      * @param companyOrders       gives back orders companies work on
+     * @param ownerOrders         cancels, extends and raises orders of their owners
      */
     public record Services(
             Economy economy,
@@ -394,5 +396,6 @@ public final class CommandDependencies {
             MemberService members,
             CompanyService companies,
             OrderAcceptService orderAccept,
-            CompanyOrderService companyOrders) {}
+            CompanyOrderService companyOrders,
+            OwnerOrderService ownerOrders) {}
 }

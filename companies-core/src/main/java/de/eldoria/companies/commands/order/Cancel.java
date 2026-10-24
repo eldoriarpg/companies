@@ -7,19 +7,15 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.OwnOpenOrderIds;
-import de.eldoria.companies.commands.suggest.SeriesSources;
-import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.companies.data.wrapper.series.SeriesState;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.orders.Collector;
-import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.orders.OwnerOrderService.Cancellable;
+import de.eldoria.companies.services.ActionResult;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
 import net.strokkur.commands.Executes;
@@ -27,8 +23,6 @@ import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
 /**
@@ -36,7 +30,8 @@ import java.util.logging.Level;
  * collector.
  * <p>
  * Cancelling a copy of an active repeating order stops the repeating order as well. The sender confirms that first,
- * with {@code /order cancel confirm} or the buttons of the confirmation.
+ * with {@code /order cancel confirm} or the buttons of the confirmation. The checks and the cancel are made by
+ * {@link OwnerOrderService}.
  */
 @Subcommand("cancel")
 @PlayerOnly
@@ -52,7 +47,7 @@ public final class Cancel {
     public Cancel(CommandDependencies deps, OwnerOrderViews views) {
         this.deps = deps;
         this.views = views;
-        this.copies = ConfirmFlow.create(deps.plugin(), this::copyConfirmed);
+        this.copies = ConfirmFlow.create(deps.plugin(), this::cancelNow);
     }
 
     /**
@@ -62,9 +57,15 @@ public final class Cancel {
     @Executes
     public void cancel(CommandSender sender, @OwnOpenOrderIds int id) {
         var player = Senders.player(sender);
-        deps.requireReady();
-        load(player, id)
-                .thenAccept(order -> order.ifPresent(open -> confirmOrCancel(player, open)))
+        var orders = deps.services().ownerOrders();
+        orders.cancellable(player.getUniqueId(), id)
+                .thenAccept(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<Cancellable> refused ->
+                            refused.failure().sendTo(player, deps.messages());
+                        case ActionResult.Done<Cancellable> done -> confirmOrCancel(player, done.value());
+                    }
+                })
                 .exceptionally(this::log);
     }
 
@@ -80,101 +81,35 @@ public final class Cancel {
         copies.confirm(player);
     }
 
-    private void confirmOrCancel(Player player, SimpleOrder order) {
-        var series = order.seriesId();
-        if (series.isEmpty()) {
-            cancelNow(player, order);
+    private void confirmOrCancel(Player player, Cancellable cancellable) {
+        var order = cancellable.order();
+        if (cancellable.activeSeries().isEmpty()) {
+            cancelNow(player, order.id());
             return;
         }
-        deps.economy()
-                .series()
-                .retrieveSeries(series.getAsInt())
-                .thenAccept(found -> {
-                    var active = found.filter(candidate -> candidate.state() == SeriesState.ACTIVE);
-                    if (active.isEmpty()) {
-                        cancelNow(player, order);
-                        return;
-                    }
-                    var question = MenuText.create()
-                            .locale(
-                                    "order.cancel.stopsSeries",
-                                    Values.text("order_name", order.fullName()),
-                                    Values.text("series_name", active.get().name()));
-                    copies.ask(deps.services().menus(), player, order.id(), question);
-                })
-                .exceptionally(this::log);
+        var question = MenuText.create()
+                .locale(
+                        "order.cancel.stopsSeries",
+                        Values.text("order_name", order.fullName()),
+                        Values.text(
+                                "series_name", cancellable.activeSeries().get().name()));
+        copies.ask(deps.services().menus(), player, order.id(), question);
     }
 
-    private void copyConfirmed(Player player, int id) {
-        load(player, id)
-                .thenAccept(order -> order.ifPresent(open -> cancelNow(player, open)))
-                .exceptionally(this::log);
-    }
-
-    /**
-     * Loads an unaccepted order of the player and reports why it can not be cancelled otherwise.
-     */
-    private CompletableFuture<Optional<SimpleOrder>> load(Player player, int id) {
-        var messages = deps.messages();
-        return deps.orderData()
-                .retrieveOrderById(id)
-                .asFuture()
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenApply(optOrder -> {
-                    if (optOrder.isEmpty()) {
-                        messages.sendErrorActionBar(player, "error.unknownOrder");
-                        return Optional.empty();
-                    }
-                    var simpleOrder = optOrder.get();
-                    if (!simpleOrder.owner().equals(player.getUniqueId())) {
-                        messages.sendError(player, "error.notYourOrder");
-                        return Optional.empty();
-                    }
-                    if (simpleOrder.state() != OrderState.UNCLAIMED) {
-                        messages.sendError(player, "error.orderAlreadyClaimed");
-                        return Optional.empty();
-                    }
-                    return Optional.of(simpleOrder);
-                });
-    }
-
-    private void cancelNow(Player player, SimpleOrder simpleOrder) {
+    private void cancelNow(Player player, int id) {
         var economy = deps.services().economy();
-        var collector = new Collector(deps.plugin(), economy, deps.configuration());
-        var orderData = deps.orderData();
-        var messages = deps.messages();
-        CompletableFuture.runAsync(
-                        () -> {
-                            var fullOrder =
-                                    orderData.retrieveFullOrder(simpleOrder).join();
-                            if (fullOrder == null) {
-                                messages.sendErrorActionBar(player, "error.unknownOrder");
-                                return;
-                            }
-                            if (!Boolean.TRUE.equals(
-                                    deps.outcomes().cancel(fullOrder).join())) {
-                                messages.sendError(player, "error.orderAlreadyClaimed");
-                                return;
-                            }
-                            SuggestionSources.current()
-                                    .ifPresent(sources -> sources.ownOrders().invalidate(player.getUniqueId()));
-                            Threading.mainThread(deps.plugin())
-                                    .execute(() -> economy.depositPlayer(player, fullOrder.price()));
-                            collector.collect(fullOrder.fee());
-                            stopSeries(player, fullOrder);
-                            views.showOrders(player, () -> sendCanceled(player, fullOrder, economy));
-                        },
-                        Threading.VIRTUAL)
+        deps.services()
+                .ownerOrders()
+                .cancel(player.getUniqueId(), id)
+                .thenAccept(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<FullOrder> refused ->
+                            refused.failure().sendTo(player, deps.messages());
+                        case ActionResult.Done<FullOrder> done ->
+                            views.showOrders(player, () -> sendCanceled(player, done.value(), economy));
+                    }
+                })
                 .exceptionally(this::log);
-    }
-
-    private void stopSeries(Player player, FullOrder order) {
-        if (order.seriesId().isEmpty()) return;
-        deps.services().series().onCopyCancelled(order).join();
-        SeriesSources.invalidate(player.getUniqueId());
     }
 
     private Void log(Throwable err) {

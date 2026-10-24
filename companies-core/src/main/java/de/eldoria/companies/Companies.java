@@ -86,6 +86,7 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.CompanyService;
@@ -327,6 +328,8 @@ public class Companies extends EldoPlugin {
                 getServer().getPluginManager()::callEvent,
                 uuid -> Optional.ofNullable(getServer().getPlayer(uuid)),
                 Threading.VIRTUAL);
+        var ownerOrders = OwnerOrderService.create(
+                this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -357,7 +360,8 @@ public class Companies extends EldoPlugin {
                             OrderCreationService.Wallet.of(economy),
                             configuration::companySettings),
                     orderAccept,
-                    CompanyOrderService.create(this, companyData, orderData, outcomes)));
+                    CompanyOrderService.create(this, companyData, orderData, outcomes),
+                    ownerOrders));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
