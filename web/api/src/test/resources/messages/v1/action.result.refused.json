@@ -1,0 +1,8 @@
+{
+  "type": "action.result",
+  "id": "g-8",
+  "v": 1,
+  "ok": false,
+  "reason": "error.order.alreadyClaimed",
+  "message": "This order was already claimed."
+}

@@ -1,0 +1,13 @@
+{
+  "type": "patch",
+  "v": 1,
+  "sessions": [
+    "s-7f3a9c",
+    "s-1b2c3d"
+  ],
+  "node": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10",
+  "seq": 43,
+  "path": "company.orders",
+  "op": "REMOVE",
+  "key": "101"
+}

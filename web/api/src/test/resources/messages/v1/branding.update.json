@@ -1,0 +1,9 @@
+{
+  "type": "branding.update",
+  "v": 1,
+  "branding": {
+    "name": "Stonecutter Isles",
+    "icon": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGO4skDrPwAGiAKey4qxPAAAAABJRU5ErkJggg==",
+    "iconHash": "dcc7b9d3dd443e0bdd12cb75a5e4a509456b44657e523d0cb61849ac99b3a3fb"
+  }
+}

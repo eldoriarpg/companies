@@ -1,0 +1,27 @@
+{
+  "type": "welcome",
+  "id": "1",
+  "v": 1,
+  "protocol": 1,
+  "gateway": "SELF_HOSTED",
+  "features": [
+    "orders.browse"
+  ],
+  "version": {
+    "status": "DEPRECATED",
+    "discontinuedAt": "2027-06-01",
+    "updateTo": "2.4.0",
+    "message": "Companies 2.2 uses an old order format. Update to 2.4 or newer."
+  },
+  "deprecated": [
+    {
+      "kind": "FEATURE",
+      "name": "orders.create",
+      "since": "2026-12-01",
+      "removedAt": "2027-06-01",
+      "replacement": "orders.create.v2",
+      "message": "Update Companies before 2027-06-01, or placing orders stops working on the dashboard."
+    }
+  ],
+  "iconCached": false
+}

@@ -1,0 +1,26 @@
+{
+  "type": "hello",
+  "id": "1",
+  "v": 1,
+  "plugin": "2.2.0",
+  "schema": "1.9",
+  "node": {
+    "uid": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10",
+    "role": "PRIMARY"
+  },
+  "features": [
+    "orders.browse",
+    "orders.accept",
+    "company.members",
+    "inbox",
+    "rankings"
+  ],
+  "limits": {
+    "maxPageSize": 50
+  },
+  "credentials": {
+    "kind": "DASHBOARD_KEY",
+    "key": "dk_example"
+  },
+  "userAgent": "Companies/2.2.0"
+}

@@ -1,0 +1,16 @@
+{
+  "type": "welcome",
+  "id": "1",
+  "v": 1,
+  "protocol": 1,
+  "gateway": "HOSTED",
+  "features": [],
+  "version": {
+    "status": "DISCONTINUED",
+    "since": "2027-06-01",
+    "updateTo": "2.4.0",
+    "message": "The trial version is no longer supported on the dashboard."
+  },
+  "deprecated": [],
+  "iconCached": false
+}

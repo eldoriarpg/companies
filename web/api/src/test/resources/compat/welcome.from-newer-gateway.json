@@ -1,0 +1,21 @@
+{
+  "type": "welcome",
+  "id": "1",
+  "v": 1,
+  "protocol": 1,
+  "gateway": "FEDERATED",
+  "features": [],
+  "version": {
+    "status": "SUNSET",
+    "message": "?"
+  },
+  "deprecated": [
+    {
+      "kind": "THEME",
+      "name": "dark",
+      "since": "2027-01-01",
+      "removedAt": "2027-07-01"
+    }
+  ],
+  "motd": "hi"
+}

@@ -1,0 +1,16 @@
+{
+  "type": "welcome",
+  "id": "1",
+  "v": 1,
+  "protocol": 1,
+  "gateway": "HOSTED",
+  "features": [
+    "orders.browse",
+    "orders.accept"
+  ],
+  "version": {
+    "status": "SUPPORTED"
+  },
+  "deprecated": [],
+  "iconCached": true
+}

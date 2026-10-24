@@ -1,0 +1,28 @@
+{
+  "type": "hello",
+  "id": "1",
+  "v": 2,
+  "plugin": "3.0.0",
+  "schema": "2.4",
+  "node": {
+    "uid": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10",
+    "role": "OBSERVER",
+    "region": "eu"
+  },
+  "features": [
+    "orders.browse",
+    "orders.create.v2",
+    "guilds"
+  ],
+  "limits": {
+    "maxPageSize": 100,
+    "maxActionsPerMinute": 60
+  },
+  "credentials": {
+    "kind": "OAUTH",
+    "key": "x"
+  },
+  "userAgent": "Companies/3.0.0",
+  "serverName": "Eldoria",
+  "locale": "de"
+}
