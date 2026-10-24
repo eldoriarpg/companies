@@ -143,6 +143,7 @@ export interface SessionConfirmed {
   id?: string;
   v: number;
   session: string;
+  admin?: boolean;
 }
 export interface SessionClosed {
   type: 'session.closed';
