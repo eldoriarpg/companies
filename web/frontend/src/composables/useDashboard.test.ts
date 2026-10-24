@@ -107,9 +107,20 @@ describe('the dashboard session', () => {
         const {api, dashboard, socket} = wired()
         dashboard.start()
         await settle()
-        socket().receive(patch(42, {path: 'nothing.here', op: 'REPLACE', value: 1}))
+        socket().receive(patch(42, {path: 'company.nothing.here', op: 'REPLACE', value: 1}))
         await settle()
         expect(api.snapshot).toHaveBeenCalledTimes(2)
+    })
+
+    it('drops a patch into a part this version does not know', async () => {
+        const {api, dashboard, socket} = wired()
+        dashboard.start()
+        await settle()
+        socket().receive(patch(42, {path: 'market.top', op: 'UPSERT', key: 'x', value: 1}))
+        socket().receive(patch(43, {path: 'player.unreadInbox', op: 'REPLACE', value: 5}))
+        await settle()
+        expect(api.snapshot).toHaveBeenCalledTimes(1)
+        expect(dashboard.snapshot.value?.player.unreadInbox).toBe(5)
     })
 
     it('ignores a stream it replaced and reconnects once after a lost stream', async () => {
@@ -134,13 +145,31 @@ describe('the dashboard session', () => {
         const {dashboard, sockets, socket} = wired()
         dashboard.start()
         await settle()
+        socket().emit('open')
         socket().emit('close', {code: 1001, reason: 'Idle'})
         await vi.advanceTimersByTimeAsync(1000)
+        socket().emit('open')
         socket().emit('close', {code: 1011, reason: ''})
         await vi.advanceTimersByTimeAsync(999)
         expect(sockets).toHaveLength(2)
         await vi.advanceTimersByTimeAsync(1)
         expect(sockets).toHaveLength(3)
+    })
+
+    it('backs off further while the stream fails though every request works', async () => {
+        const {api, dashboard, sockets, socket} = wired()
+        dashboard.start()
+        await settle()
+        for (const wait of [1000, 2000, 4000, 8000]) {
+            socket().emit('close', {code: 1011, reason: ''})
+            const before = sockets.length
+            await vi.advanceTimersByTimeAsync(wait - 1)
+            expect(sockets).toHaveLength(before)
+            await vi.advanceTimersByTimeAsync(1)
+            expect(sockets).toHaveLength(before + 1)
+        }
+        expect(api.snapshot).toHaveBeenCalledTimes(5)
+        expect(dashboard.status.value).toBe('ready')
     })
 
     it('ends the session on 4401 and on session.closed', async () => {

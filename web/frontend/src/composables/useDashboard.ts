@@ -8,7 +8,7 @@ import type {Patch, Snapshot} from '~/api/generated/protocol'
 import {openStream, type SocketFactory} from '~/api/stream'
 import {dashboardState} from '~/util/dashboardState'
 import {activityOf, addActivity} from '~/util/snapshot/activity'
-import {applyPatch, isNewer, Unapplicable} from '~/util/snapshot/patch'
+import {applyPatch, isNewer, knownRoot, Unapplicable} from '~/util/snapshot/patch'
 
 export type {DashboardStatus} from '~/util/dashboardState'
 
@@ -52,11 +52,12 @@ export function serverToShow(before: ServerInfo | null, next: ServerInfo): Serve
  * snapshot's sequence once it is there, so none is lost. Each node numbers its patches across all its sessions, so
  * gaps are normal here: a patch at or below the last of its node is dropped and every other one applied. Finding real
  * gaps is the gateway's job; its `resync` loads the snapshot again without touching the stream. A patch that does
- * not fit the snapshot loads it again too.
+ * not fit the snapshot loads it again too, unless it changes a part this version does not know, which is dropped as
+ * the gateway drops it.
  *
  * <p>A stream that is replaced is detached first, so its end is never taken for a lost stream. A lost stream is
  * opened again with a backoff from one second doubling to thirty, and the snapshot reloaded, since patches may have
- * been missed; waking the page does it at once. The gateway's close codes end the session (4401), show the server as
+ * been missed; the backoff starts over only once a stream opens, and waking the page tries at once. The gateway's close codes end the session (4401), show the server as
  * discontinued (4403), or refuse the dashboard for good (1008).
  *
  * <p>The snapshot is replaced as a whole on every patch and never changed in place, so it is kept out of Vue's deep
@@ -76,7 +77,9 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         const current = () => machinery.value.generation === generation
         machinery.value.stream = markRaw(openStream({
             opened: () => {
-                if (current()) data.value.live = true
+                if (!current()) return
+                data.value.live = true
+                data.value.retries = 0
             },
             message: message => {
                 if (current()) receive(message)
@@ -163,7 +166,6 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         data.value.snapshot = markRaw(snapshot)
         data.value.seqs = {[snapshot.node]: snapshot.seq}
         data.value.status = 'ready'
-        data.value.retries = 0
         noteBalance(snapshot)
         for (const patch of waiting) receivePatch(patch)
     }
@@ -267,7 +269,7 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         try {
             after = applyPatch(before, patch)
         } catch (error) {
-            if (error instanceof Unapplicable) void loadSnapshot()
+            if (error instanceof Unapplicable && knownRoot(patch)) void loadSnapshot()
             return
         }
         data.value.seqs = {...data.value.seqs, [patch.node]: patch.seq}
