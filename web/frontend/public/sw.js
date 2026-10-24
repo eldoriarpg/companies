@@ -10,8 +10,8 @@
  * their hashed names, the fonts and the icons. Nothing below `/api` is ever stored, no data, no server icon, no
  * session; those always go to the network.
  *
- * The cache is named after the build (`/_nuxt/builds/latest.json`, which itself is never cached). Whenever a page
- * loads from the network the worker looks at the build that is current; a new one gets a cache of its own and the
+ * The cache is named after the build (`/_nuxt/builds/latest.json`, which itself is never cached). Whenever a page is
+ * requested the worker looks at the build that is current, kept alive until it is done; a new one gets a cache of its own and the
  * caches of older builds are deleted, so assets of old builds do not pile up.
  */
 const PREFIX = 'companies-shell-'
@@ -67,9 +67,7 @@ async function followBuild() {
  */
 async function page(request) {
     try {
-        const response = await fetch(request)
-        void followBuild()
-        return response
+        return await fetch(request)
     } catch {
         return (await caches.match('/')) ?? Response.error()
     }
@@ -101,6 +99,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url)
     if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) return
-    if (event.request.mode === 'navigate') event.respondWith(page(event.request))
-    else if (isShell(url)) event.respondWith(shell(event.request))
+    if (event.request.mode === 'navigate') {
+        event.respondWith(page(event.request))
+        event.waitUntil(followBuild())
+    } else if (isShell(url)) event.respondWith(shell(event.request))
 })
