@@ -24,4 +24,15 @@ public record SessionConfirmed(
         @Nullable String id,
         int v,
         String session,
-        @Nullable Boolean admin) implements Message {}
+        @Nullable Boolean admin) implements Message {
+    /**
+     * A confirmation without the admin flag, as plugins before it was added send it.
+     *
+     * @param id the message id; an answer carries the id of its request, see {@link Message#id()}
+     * @param v the protocol version, see {@link Message#v()}
+     * @param session the session id
+     */
+    public SessionConfirmed(@Nullable String id, int v, String session) {
+        this(id, v, session, null);
+    }
+}
