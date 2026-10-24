@@ -18,7 +18,6 @@ import javax.sql.DataSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * The move to schema 1.13 converts the stored times of a server in Berlin to UTC, as each dialect needs it.
@@ -116,7 +115,7 @@ public abstract class UtcMigrationContract {
                 time(dataSource, "SELECT placed FROM order_history"));
 
         try (var connection = dataSource.getConnection()) {
-            assertThrows(SQLException.class, () -> migration.run(connection));
+            assertEquals(0, migration.run(connection));
         }
         assertEquals(
                 LocalDateTime.of(2026, 7, 1, 12, 0),

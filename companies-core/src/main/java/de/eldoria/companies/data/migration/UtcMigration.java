@@ -29,8 +29,10 @@ import java.util.Locale;
  * the database: left alone on SQLite, from the machine's zone on PostgreSQL, and on MariaDB from the zone of the old
  * session, the database's own, which MariaDB applies itself. The dashboard tables were always UTC.
  * <p>
- * The run first notes the machine's zone in {@code companies_utc}; a second run fails on that row before it changes
- * anything, so the times are converted exactly once. Rows are converted one by one by their key, aware of summer
+ * The run first notes the machine's zone in {@code companies_utc}, in the same transaction as the conversion. A run
+ * that finds the note does nothing, as when the schema version was not written after the conversion committed; two
+ * runs at once wait on the note's key, and the second fails before it changes anything. So the times are converted
+ * exactly once. Rows are converted one by one by their key, aware of summer
  * time; a wall time in the hour summer time skips is moved forward, one that occurs twice takes the earlier instant.
  */
 public final class UtcMigration {
@@ -72,10 +74,14 @@ public final class UtcMigration {
      * Converts every column that needs it.
      *
      * @param connection the connection of the schema update
-     * @return how many rows were converted
+     * @return how many rows were converted, 0 when they were converted before
      * @throws SQLException when a table cannot be read or written
      */
     public int run(Connection connection) throws SQLException {
+        try (var done = connection.prepareStatement("SELECT 1 FROM %scompanies_utc WHERE id = 1".formatted(prefix));
+                var rows = done.executeQuery()) {
+            if (rows.next()) return 0;
+        }
         try (var marker = connection.prepareStatement(
                 "INSERT INTO %scompanies_utc(id, converted_from) VALUES (1, ?)".formatted(prefix))) {
             marker.setString(1, machine.getId());

@@ -153,9 +153,9 @@ converted from is kept in the table `companies_utc`.
 - Back up the database before you update, as for every update.
 - The rankings of the last 7 and 30 days now count whole days from midnight in the server's zone, instead of a window
   ending at this very moment.
-- Payout records written by 1.x before 2.0 kept the order's last change as their time; they are converted like the
-  rest and may be off by the difference between the database's and the machine's zone. They only show in the `all`
-  range.
+- Payout records that the update to 2.0 filled in from 1.x kept the order's last change as their time; they are
+  converted like the rest and may be off by the difference between the database's and the machine's zone. They are
+  mostly older than the 7 and 30 day ranges.
 
 ## For developers
 
