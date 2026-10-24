@@ -16,13 +16,15 @@ import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {roleOf} from '~/composables/useShell'
 import {count, money} from '~/util/format'
 import {editable, mayKick} from '~/util/permissions'
+import DisbandCompany from './DisbandCompany.vue'
 import LeaveCompany from './LeaveCompany.vue'
 import MemberActions from './MemberActions.vue'
 
 /**
  * The company's members, most items delivered first: name, role and permissions, items delivered, orders and money
  * earned. Where the server offers it, a member's name opens what the player may do to them: change the permissions
- * the player holds, or remove them; and every member but the owner can leave. Inviting a player stays in game.
+ * the player holds, or remove them; the owner can also hand the company to a member, and dissolve it where the server
+ * offers that. Every member but the owner can leave. Inviting a player stays in game.
  */
 const props = defineProps<{
   members: readonly MemberView[]
@@ -31,6 +33,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   left: []
+  disbanded: []
 }>()
 
 const {t, te, locale} = useI18n()
@@ -38,6 +41,8 @@ const {supports, snapshot} = useDashboard()
 const own = computed(() => snapshot.value?.player.permissions ?? [])
 const manages = computed(() => supports(Feature['company.members']))
 const mayEdit = computed(() => (manages.value ? editable(own.value) : []))
+const owns = computed(() => own.value.includes(MemberPermission.OWNER))
+const dissolves = computed(() => owns.value && supports(Feature['company.disband']))
 const open = ref<string | null>(null)
 const done = ref('')
 
@@ -49,7 +54,7 @@ const done = ref('')
  */
 function actionable(member: MemberView): boolean {
   if (!manages.value || member.uuid === snapshot.value?.player.uuid || member.permissions.includes(MemberPermission.OWNER)) return false
-  return mayEdit.value.length > 0 || mayKick(own.value, member.permissions)
+  return mayEdit.value.length > 0 || mayKick(own.value, member.permissions) || owns.value
 }
 
 /**
@@ -106,12 +111,15 @@ const {query, found} = useListSearch(sorted, row => [row.member.name, row.role])
             :member="row.member"
             :editable="mayEdit"
             :kickable="mayKick(own, row.member.permissions)"
+            :transferable="owns"
             @saved="name => finish(t('company.permissionsSaved', {name}))"
             @kicked="name => finish(t('company.kicked', {name}))"
+            @transferred="name => finish(t('company.transferred', {name}))"
         />
       </li>
     </ul>
     <MutedText tag="p" class="border-t border-line-soft px-3 py-2.5 md:px-4">{{ t('company.inviteInGame') }}</MutedText>
-    <LeaveCompany v-if="manages && !own.includes(MemberPermission.OWNER)" :company="company" @left="emit('left')"/>
+    <LeaveCompany v-if="manages && !owns" :company="company" @left="emit('left')"/>
+    <DisbandCompany v-if="dissolves" :company="company" @disbanded="emit('disbanded')"/>
   </PanelBox>
 </template>

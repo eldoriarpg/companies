@@ -534,6 +534,7 @@ public class Companies extends EldoPlugin {
                                 commands.services().membershipService(),
                                 commands.services().profiles(),
                                 commands.services().companies(),
+                                commands.services().disbandService(),
                                 commands.services().treasury(),
                                 () -> Money.currencyName(commands.services().economy())),
                         new DashboardModule.OrderServices(

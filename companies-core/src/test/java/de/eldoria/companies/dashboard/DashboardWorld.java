@@ -17,6 +17,7 @@ import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
@@ -61,6 +62,7 @@ import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
@@ -68,9 +70,12 @@ import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
+import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
+import de.eldoria.eldoutilities.localization.ILocalizer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -234,6 +239,7 @@ public final class DashboardWorld implements AutoCloseable {
                         Clock.systemUTC()));
         var plugin = MockBukkit.createMockPlugin();
         this.plugin = plugin;
+        StyledMessageSender.register(plugin, ILocalizer.DEFAULT, StyleSettings::new);
         itemReturns = new ItemReturnService(plugin, orders);
         var outcomes = new OrderOutcomes(
                 orders,
@@ -286,6 +292,20 @@ public final class DashboardWorld implements AutoCloseable {
                         Runnable::run,
                         executor,
                         Logger.getAnonymousLogger()),
+                new DisbandService(
+                        plugin,
+                        companies,
+                        orders,
+                        itemReturns,
+                        new NotificationService(
+                                plugin,
+                                inbox,
+                                orders,
+                                null,
+                                NotificationSettings::new,
+                                (player, type, args) -> {},
+                                Runnable::run),
+                        treasuryService),
                 treasuryService,
                 () -> "coins",
                 failure -> "text of " + failure.localeKey(),

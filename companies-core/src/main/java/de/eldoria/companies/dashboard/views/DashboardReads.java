@@ -97,6 +97,8 @@ public final class DashboardReads {
             Features.COMPANY_APPLICATIONS,
             Features.COMPANY_PROFILE,
             Features.COMPANY_TREASURY,
+            Features.COMPANY_CREATE,
+            Features.COMPANY_DISBAND,
             Features.INBOX,
             Features.RANKINGS,
             Features.MARKET);

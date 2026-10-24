@@ -73,6 +73,28 @@ public class DisbandService {
     }
 
     /**
+     * Dissolves the company of its owner, as {@code /company disband} does once confirmed: only the owner dissolves,
+     * and only the company the owner was asked about. Blocks, so it must not run on the main thread.
+     *
+     * @param actor   the owner
+     * @param company id of the company the owner confirmed
+     * @return the dissolved company, or why it was not dissolved
+     */
+    public ActionResult<CompanyProfile> disbandOwned(UUID actor, int company) {
+        var found = companyData
+                .retrievePlayerCompanyProfile(plugin.getServer().getOfflinePlayer(actor))
+                .asFuture()
+                .join();
+        if (found.isEmpty() || found.get().id() != company) return ActionResult.refusedActionBar("error.noMember");
+        var profile = found.get();
+        if (!profile.member(actor).map(CompanyMember::isOwner).orElse(false)) {
+            return ActionResult.refusedActionBar("error.noOwner");
+        }
+        if (!disband(profile, actor)) return ActionResult.refusedChat("company.disband.failed");
+        return ActionResult.done(profile);
+    }
+
+    /**
      * Releases the company's orders, empties its treasury and deletes the company. Blocks, so it must not run on the
      * main thread.
      *

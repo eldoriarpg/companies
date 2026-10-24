@@ -122,7 +122,7 @@ function route(method, path, body, session) {
         case 'GET /api/v1/me/snapshot':
             if (story.snapshot) return error(story.snapshot, 'SERVER_OFFLINE', {message: 'The server is not connected right now'})
             if (state.discontinued) return error(410, 'DISCONTINUED', {message: DISCONTINUED.message, version: DISCONTINUED})
-            return {status: 200, body: snapshot(session.id, state.delivered)}
+            return {status: 200, body: story.company === false ? companyless(session.id) : snapshot(session.id, state.delivered)}
         case 'POST /api/v1/me/actions':
             if (story.offline) return error(504, 'SERVER_OFFLINE', {message: 'The server did not answer in time'})
             return {status: 200, body: action(body.name, body.args ?? {}, state)}
@@ -169,6 +169,18 @@ function login(method, shortId, submit, body) {
     return {status: 204, headers: {'set-cookie': `${COOKIE}=${shortId}.${randomUUID()}; Path=/; HttpOnly; SameSite=Strict`}}
 }
 
+/**
+ * The snapshot of a player without a company.
+ *
+ * @param session the session id
+ * @returns the snapshot
+ */
+function companyless(session) {
+    const body = snapshot(session)
+    delete body.company
+    return {...body, player: {...body.player, company: null, permissions: []}}
+}
+
 /** The most items an order may hold on the mock server. */
 const MAX_ITEMS = 512
 
@@ -210,6 +222,14 @@ function action(name, args, state) {
                 return {type: 'action.result', v: 1, ok: false, reason: 'error.orderLimit', message: 'Your company works on as many orders as its level allows.'}
             }
             return done({order: args.order})
+        case 'company.create':
+            if (args.name === 'Taken') return refused('A company with this name already exists.')
+            return done(args.quote ? {name: args.name, price: 5000} : {company: 8, price: 5000})
+        case 'company.disband':
+            if (String(args.name).toLowerCase() !== 'stonebridge builders') return refused('The name does not match your company.')
+            return done({company: 7})
+        case 'company.members.transfer':
+            return done({player: args.player})
         case 'orders.deliver.all':
             return done({order: args.order, delivered: 18, done: false})
         case 'orders.deliver.line':

@@ -8,14 +8,18 @@ package de.eldoria.companies.commands.company;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
 /**
@@ -72,24 +76,15 @@ public final class Disband {
 
     private void disband(Player player, int companyId) {
         var disbandService = deps.services().disbandService();
-        deps.companyData()
-                .retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .thenAccept(optProfile -> {
-                    if (optProfile.isEmpty() || optProfile.get().id() != companyId) {
-                        messages().sendErrorActionBar(player, "error.noMember");
-                        return;
+        CompletableFuture.supplyAsync(
+                        () -> disbandService.disbandOwned(player.getUniqueId(), companyId), Threading.VIRTUAL)
+                .thenAccept(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<CompanyProfile> refused ->
+                            refused.failure().sendTo(player, messages());
+                        case ActionResult.Done<CompanyProfile> done ->
+                            messages().sendMessage(player, "company.disband.disbanded");
                     }
-                    var profile = optProfile.get();
-                    if (!profile.member(player).orElseThrow().isOwner()) {
-                        messages().sendErrorActionBar(player, "error.noOwner");
-                        return;
-                    }
-                    if (!disbandService.disband(profile)) {
-                        messages().sendError(player, "company.disband.failed");
-                        return;
-                    }
-                    messages().sendMessage(player, "company.disband.disbanded");
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Could not disband a company", err);

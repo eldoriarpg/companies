@@ -111,6 +111,9 @@ public final class DashboardWrites {
     public ActionResult perform(ActionRequest request, StoredSession session) {
         var args = request.args() == null ? answers.empty() : request.args();
         var player = session.player();
+        if (request.name().equals(Actions.COMPANY_CREATE)) {
+            return company.create(request, player, session.permissions(), args);
+        }
         if (CompanyWrites.ACTIONS.contains(request.name())) return company.perform(request, player, args);
         if (OrderCreateWrites.ACTIONS.contains(request.name())) return create.perform(request, session, args);
         if (ItemWrites.ACTIONS.contains(request.name())) return items.perform(request, player, args);
