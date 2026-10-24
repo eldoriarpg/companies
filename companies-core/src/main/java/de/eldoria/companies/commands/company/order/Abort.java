@@ -7,37 +7,33 @@ package de.eldoria.companies.commands.company.order;
 
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.CompanyOrderIds;
-import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.components.company.CompanyPermission;
-import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
-import de.eldoria.companies.data.wrapper.order.SimpleOrder;
-import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuText;
-import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.companies.orders.CompanyOrderService;
+import de.eldoria.companies.orders.CompanyOrderService.Aborted;
+import de.eldoria.companies.services.ActionResult;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Optional;
 import java.util.logging.Level;
 
 /**
  * {@code /company order abort <id>}: gives an order the company works on back after the member confirmed it.
  * <p>
- * The delivered items go back to their workers as item returns, and the order is open for other companies again.
+ * The delivered items go back to their workers as item returns, and the order is open for other companies again. The
+ * checks and the abort are made by {@link CompanyOrderService}.
  */
 @Subcommand("abort")
 @PlayerOnly
 public final class Abort {
     private final CommandDependencies deps;
     private final CompanyOrderViews views;
-    private final ConfirmFlow<SimpleOrder> aborts;
+    private final ConfirmFlow<Integer> aborts;
 
     /**
      * @param deps  what the commands need
@@ -59,24 +55,22 @@ public final class Abort {
     public void abort(CommandSender sender, @CompanyOrderIds int id) {
         var player = Senders.player(sender);
         var menus = deps.services().menus();
-        deps.companyData()
-                .retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optCompany -> {
-                    var order = checkOrder(optCompany, player, id);
-                    if (order.isEmpty()) {
-                        return;
+        deps.services()
+                .companyOrders()
+                .abortable(player.getUniqueId(), id)
+                .thenAccept(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<Aborted> refused ->
+                            refused.failure().sendTo(player, deps.messages());
+                        case ActionResult.Done<Aborted> done ->
+                            aborts.ask(
+                                    menus,
+                                    player,
+                                    done.value().order().id(),
+                                    MenuText.create().locale("company.order.abort.confirm"));
                     }
-                    aborts.ask(menus, player, order.get(), MenuText.create().locale("company.order.abort.confirm"));
                 })
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
+                .exceptionally(this::log);
     }
 
     /**
@@ -91,72 +85,24 @@ public final class Abort {
         aborts.confirm(player);
     }
 
-    private void abortConfirmed(Player player, SimpleOrder remove) {
-        var outcomes = deps.outcomes();
-        deps.companyData()
-                .retrievePlayerCompanyProfile(player)
-                .asFuture()
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                })
-                .thenAccept(optCompany -> {
-                    var order = checkOrder(optCompany, player, remove.id());
-                    if (order.isEmpty()) {
-                        return;
+    private void abortConfirmed(Player player, int id) {
+        deps.services()
+                .companyOrders()
+                .abort(player.getUniqueId(), id)
+                .thenAccept(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<Aborted> refused ->
+                            refused.failure().sendTo(player, deps.messages());
+                        case ActionResult.Done<Aborted> done ->
+                            views.showOrders(
+                                    SimpleCompany.forId(done.value().order().company()), player, () -> {});
                     }
-
-                    var returned = outcomes.abort(order.get()).join();
-                    if (returned == null || returned.isEmpty()) {
-                        messages().sendErrorActionBar(player, "error.orderNotActive");
-                        return;
-                    }
-                    CompanyOrderSources.invalidate(player.getUniqueId());
-
-                    views.showOrders(SimpleCompany.forId(remove.company()), player, () -> deps.plugin()
-                            .getServer()
-                            .getPluginManager()
-                            .callEvent(new OrderCanceledEvent(remove, optCompany.get())));
                 })
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return null;
-                });
+                .exceptionally(this::log);
     }
 
-    private Optional<SimpleOrder> checkOrder(Optional<CompanyProfile> optCompany, Player player, int id) {
-        if (optCompany.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.noMember");
-            return Optional.empty();
-        }
-
-        var company = optCompany.get();
-
-        var optOrder = deps.orderData().retrieveOrderById(id).join();
-        if (optOrder == null || optOrder.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.unknownOrder");
-            return Optional.empty();
-        }
-
-        var order = optOrder.get();
-        if (order.company() != company.id()) {
-            messages().sendErrorActionBar(player, "error.orderNotOwned");
-            return Optional.empty();
-        }
-
-        if (order.state() != OrderState.CLAIMED) {
-            messages().sendErrorActionBar(player, "error.orderNotActive");
-            return Optional.empty();
-        }
-
-        if (!company.member(player).get().hasPermissions(CompanyPermission.MANAGE_ORDERS)) {
-            messages().sendErrorActionBar(player, "error.permission.cancelOrder");
-            return Optional.empty();
-        }
-        return optOrder;
-    }
-
-    private MessageSender messages() {
-        return deps.messages();
+    private Void log(Throwable err) {
+        deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+        return null;
     }
 }

@@ -78,6 +78,7 @@ import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeBuses;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.nodes.NodeConnection;
+import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
@@ -355,7 +356,8 @@ public class Companies extends EldoPlugin {
                             treasuryService,
                             OrderCreationService.Wallet.of(economy),
                             configuration::companySettings),
-                    orderAccept));
+                    orderAccept,
+                    CompanyOrderService.create(this, companyData, orderData, outcomes)));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 

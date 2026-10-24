@@ -21,6 +21,7 @@ import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeCaches;
+import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
@@ -371,6 +372,7 @@ public final class CommandDependencies {
      * @param members             kicks, leaves, member permissions and transfers
      * @param companies           founds and renames companies
      * @param orderAccept         accepts orders for companies
+     * @param companyOrders       gives back orders companies work on
      */
     public record Services(
             Economy economy,
@@ -391,5 +393,6 @@ public final class CommandDependencies {
             ProfileService profiles,
             MemberService members,
             CompanyService companies,
-            OrderAcceptService orderAccept) {}
+            OrderAcceptService orderAccept,
+            CompanyOrderService companyOrders) {}
 }
