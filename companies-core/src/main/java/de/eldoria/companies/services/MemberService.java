@@ -12,6 +12,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyKickEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
+import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
 import de.eldoria.companies.menus.company.PermissionEdit;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -25,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -39,8 +41,9 @@ import java.util.function.Supplier;
  * confirmation older than the company's state can not bypass the checks, and runs on the executor, off the main
  * thread. The answer is an {@link ActionResult}; the error of a refusal names its reason by its locale key.
  * <p>
- * Kicks and leaves fire {@link CompanyKickEvent} and {@link CompanyLeaveEvent} once the member was removed. A transfer
- * fires its event through {@link CompanyChanges} and notifies the new owner.
+ * Kicks and leaves fire {@link CompanyKickEvent} and {@link CompanyLeaveEvent} once the member was removed, a permission
+ * edit that changed something fires {@link CompanyMemberPermissionEvent} once it was saved. A transfer fires its event
+ * through {@link CompanyChanges} and notifies the new owner.
  */
 public final class MemberService {
     /**
@@ -71,7 +74,7 @@ public final class MemberService {
      * @param companyData company repository
      * @param changes     fires the event of a transfer
      * @param notifier    notifies the new owner of a transfer
-     * @param events      fires the events of kicks and leaves, off the main thread
+     * @param events      fires the events of kicks, leaves and permission edits, off the main thread
      * @param players     looks up a player by id
      * @param executor    runs the actions
      */
@@ -223,13 +226,15 @@ public final class MemberService {
      * @return the permissions and which of them the actor may change, or why they are not shown
      */
     public CompletableFuture<ActionResult<PermissionEdit>> permissions(UUID actor, MemberRef target) {
-        return run(() -> permissionEdit(actor, target, "error.permission.managePermissions"));
+        return run(() -> profileOf(actor)
+                .map(profile -> permissionEdit(profile, actor, target, "error.permission.managePermissions"))
+                .orElseGet(MemberService::noMember));
     }
 
     /**
      * Grants and revokes permissions of a member. The actor needs {@link CompanyPermission#MANAGE_PERMISSIONS} and may
      * only change permissions they hold themselves; {@link CompanyPermission#OWNER} is never changed here. Nothing is
-     * changed when one of the wanted changes is not allowed.
+     * changed when one of the wanted changes is not allowed. A saved change fires {@link CompanyMemberPermissionEvent}.
      *
      * @param actor  member who changes the permissions
      * @param target member whose permissions change
@@ -242,22 +247,25 @@ public final class MemberService {
             return CompletableFuture.completedFuture(ActionResult.refusedActionBar("error.ownerPermission"));
         }
         return run(() -> {
-            var checked = permissionEdit(actor, target, "error.permission.givePermissions");
+            var optProfile = profileOf(actor);
+            if (optProfile.isEmpty()) return noMember();
+            var profile = optProfile.get();
+            var checked = permissionEdit(profile, actor, target, "error.permission.givePermissions");
             if (!(checked instanceof ActionResult.Done<PermissionEdit>(var edit))) return checked;
             if (!wanted.keySet().stream().allMatch(edit::editable)) {
                 return ActionResult.refusedActionBar("error.permission.givePermissions");
             }
+            var previous = Set.copyOf(edit.target().permissions());
             if (!edit.apply(wanted).isEmpty()) {
                 companyData.submitMemberUpdate(edit.target()).join();
+                events.accept(new CompanyMemberPermissionEvent(profile, edit.target(), actor, previous));
             }
             return checked;
         });
     }
 
-    private ActionResult<PermissionEdit> permissionEdit(UUID actor, MemberRef target, String deniedKey) {
-        var optProfile = profileOf(actor);
-        if (optProfile.isEmpty()) return noMember();
-        var profile = optProfile.get();
+    private ActionResult<PermissionEdit> permissionEdit(
+            CompanyProfile profile, UUID actor, MemberRef target, String deniedKey) {
         var editor = profile.member(actor);
         if (editor.isEmpty() || !editor.get().hasPermission(CompanyPermission.MANAGE_PERMISSIONS)) {
             return ActionResult.refusedActionBar(deniedKey);

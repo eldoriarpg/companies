@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.company.CompanyKickEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
+import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
 import de.eldoria.companies.services.MemberService.MemberRef;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.TestExecutors;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -259,6 +261,26 @@ class MemberServiceTest {
                 MemberService.INVALID_MEMBER,
                 service.permissions(id(kicker), MemberRef.byName("Nobody")).join());
         assertFalse(profile().member(id(worker)).orElseThrow().hasPermission(CompanyPermission.MANAGE_ORDERS));
+    }
+
+    @Test
+    void savedPermissionEditFiresThePermissionEventOnce() {
+        service.setPermissions(id(worker), MemberRef.byId(id(kicker)), Map.of(CompanyPermission.KICK, false))
+                .join();
+        assertTrue(events.of(CompanyMemberPermissionEvent.class).isEmpty());
+
+        service.setPermissions(id(kicker), MemberRef.byId(id(worker)), Map.of(CompanyPermission.INVITE, true))
+                .join();
+        service.setPermissions(id(kicker), MemberRef.byId(id(worker)), Map.of(CompanyPermission.INVITE, true))
+                .join();
+
+        var event = events.single(CompanyMemberPermissionEvent.class);
+        assertEquals(miners, event.company().id());
+        assertEquals(id(worker), event.member().uuid());
+        assertEquals(id(kicker), event.actor());
+        assertEquals(Set.of(), event.previous());
+        assertEquals(Set.of(CompanyPermission.INVITE), event.current());
+        assertTrue(event.isAsynchronous());
     }
 
     @Test
