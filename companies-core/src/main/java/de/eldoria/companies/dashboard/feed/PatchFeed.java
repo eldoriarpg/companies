@@ -11,6 +11,8 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.dashboard.gateway.GatewayLink;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.web.api.Protocol;
+import de.eldoria.companies.web.api.snapshot.RankingEntry;
+import de.eldoria.companies.web.api.snapshot.RankingPage;
 import de.eldoria.companies.web.api.update.Patch;
 import de.eldoria.companies.web.api.update.PatchOp;
 import org.jetbrains.annotations.Nullable;
@@ -18,13 +20,16 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -37,13 +42,17 @@ import java.util.logging.Logger;
  * company or worker, the members of the company working on it get its {@code company.orders} entry without the owner.
  * A delivery also updates the delivering member in {@code company.members}, whose items grow with the order's line;
  * inside the company the member is named, so the dashboard can show who delivered what. A value is built per viewer,
- * so the treasury stays with members holding the treasury permission. Patches are numbered by this node's sequence;
+ * so the treasury stays with members holding the treasury permission. Who gets a company's patches is decided by the
+ * company's current members, read with each change, so a membership that changed on another node never leaks a
+ * company's data to a former member. Patches are numbered by this node's sequence;
  * the gateway asks for a fresh snapshot when it sees a gap.
  * <p>
  * Paths and keys: {@code orders} and {@code company.orders} by order id, and {@code company.members} by member uuid are
  * lists whose entries are upserted and removed. {@code player}, {@code company}, {@code player.invites} and
  * {@code rankings} are replaced as a whole per viewer ({@code company} is removed when the player
  * has none); {@code player.unreadInbox} and {@code company.treasury} are replaced.
+ * <p>
+ * A session is only sent patches below {@code company} once it was sent the whole {@code company} of the same id.
  * <p>
  * Patches are built one after another on the given executor, so a later change never overtakes an earlier one.
  */
@@ -56,6 +65,7 @@ public final class PatchFeed {
     private final JsonMapper mapper = Protocol.mapper();
     private final AtomicLong sequence = new AtomicLong();
     private final Map<String, Subscriber> subscribers = new ConcurrentHashMap<>();
+    private final AtomicBoolean rankingsDirty = new AtomicBoolean();
 
     /**
      * @param views    builds the views
@@ -116,6 +126,15 @@ public final class PatchFeed {
     }
 
     /**
+     * The subscribed sessions.
+     *
+     * @return the session ids
+     */
+    public Set<String> subscribed() {
+        return Set.copyOf(subscribers.keySet());
+    }
+
+    /**
      * An order changed: its owner and the company working on it see the new state.
      *
      * @param order    the order as the event carried it
@@ -133,7 +152,7 @@ public final class PatchFeed {
             }
             var company = current.map(ISimpleOrder::company).orElse(0);
             if (company > 0) {
-                var members = sessions(subscriber -> subscriber.company == company);
+                var members = ids(members(company));
                 if (current.get().state() == OrderState.CLAIMED) {
                     emit(members, "company.orders", PatchOp.UPSERT, key, views.claimed(current.get()));
                 } else {
@@ -141,12 +160,7 @@ public final class PatchFeed {
                 }
             }
             if (previous != null && previous > 0 && previous != company) {
-                emit(
-                        sessions(subscriber -> subscriber.company == previous),
-                        "company.orders",
-                        PatchOp.REMOVE,
-                        key,
-                        null);
+                emit(ids(members(previous)), "company.orders", PatchOp.REMOVE, key, null);
             }
         });
     }
@@ -161,14 +175,9 @@ public final class PatchFeed {
     public void memberChanged(int company, UUID member) {
         run(() -> {
             var profile = views.company(company);
-            if (profile.isEmpty()) return;
-            views.member(profile.get(), member)
-                    .ifPresent(view -> emit(
-                            sessions(subscriber -> subscriber.company == company),
-                            "company.members",
-                            PatchOp.UPSERT,
-                            member.toString(),
-                            view));
+            var members = ids(members(profile, company));
+            profile.flatMap(found -> views.member(found, member))
+                    .ifPresent(view -> emit(members, "company.members", PatchOp.UPSERT, member.toString(), view));
         });
     }
 
@@ -182,14 +191,11 @@ public final class PatchFeed {
         run(() -> {
             refreshPlayer(member);
             var profile = views.company(company);
-            if (profile.isEmpty()) return;
-            views.member(profile.get(), member)
-                    .ifPresent(view -> emit(
-                            sessions(subscriber -> subscriber.company == company && !subscriber.player.equals(member)),
-                            "company.members",
-                            PatchOp.UPSERT,
-                            member.toString(),
-                            view));
+            var others = ids(members(profile, company).stream()
+                    .filter(subscriber -> !subscriber.player.equals(member))
+                    .toList());
+            profile.flatMap(found -> views.member(found, member))
+                    .ifPresent(view -> emit(others, "company.members", PatchOp.UPSERT, member.toString(), view));
         });
     }
 
@@ -202,37 +208,31 @@ public final class PatchFeed {
     public void memberLeft(int company, UUID member) {
         run(() -> {
             refreshPlayer(member);
-            emit(
-                    sessions(subscriber -> subscriber.company == company && !subscriber.player.equals(member)),
-                    "company.members",
-                    PatchOp.REMOVE,
-                    member.toString(),
-                    null);
+            emit(ids(members(company)), "company.members", PatchOp.REMOVE, member.toString(), null);
         });
     }
 
     /**
      * A company changed as a whole, e.g. its profile, level or owner: its members see the new company and their own
-     * permissions in it.
+     * permissions in it, and sessions that still counted a former member to it see the player without it.
      *
      * @param company the company id
      */
     public void companyChanged(int company) {
         run(() -> {
             var profile = views.company(company);
-            for (var subscriber : List.copyOf(subscribers.values())) {
-                if (subscriber.company != company) continue;
-                if (profile.isEmpty()
-                        || Views.memberOf(profile.get(), subscriber.player).isEmpty()) {
-                    refreshPlayer(subscriber.player);
-                    continue;
-                }
+            var stale = sessionsOf(subscriber -> subscriber.company == company);
+            var members = members(profile, company);
+            for (var subscriber : stale) {
+                if (!members.contains(subscriber)) refreshPlayer(subscriber.player);
+            }
+            for (var subscriber : members) {
                 emit(
                         List.of(subscriber.session),
                         "company",
                         PatchOp.REPLACE,
                         null,
-                        views.company(profile.get(), subscriber.player));
+                        views.company(profile.orElseThrow(), subscriber.player));
                 emit(
                         List.of(subscriber.session),
                         "player",
@@ -284,18 +284,43 @@ public final class PatchFeed {
     }
 
     /**
-     * The ranking may have changed: every session sees the first page again with its company's place.
+     * The ranking may have changed. The sessions see it on the next {@link #pushRankings()}, so a burst of completed
+     * orders sends the ranking once.
      */
     public void rankingsChanged() {
+        rankingsDirty.set(true);
+    }
+
+    /**
+     * Sends the first ranking page to every session when it may have changed since the last push. The page is built
+     * once; each session gets it with the place of the company its player is a member of now.
+     */
+    public void pushRankings() {
+        if (subscribers.isEmpty() || !rankingsDirty.getAndSet(false)) return;
         run(() -> {
+            var page = views.ranking(Views.DEFAULT_RANKING, Views.DEFAULT_RANGE, 1, Optional.empty());
+            Map<Integer, Optional<RankingEntry>> own = new HashMap<>();
+            Map<UUID, Integer> companies = new HashMap<>();
             for (var subscriber : List.copyOf(subscribers.values())) {
-                var company = subscriber.company > 0 ? Optional.of(subscriber.company) : Optional.<Integer>empty();
+                subscriber.company = companies.computeIfAbsent(subscriber.player, player -> views.companyOf(player)
+                        .map(ICompanyProfile::id)
+                        .orElse(0));
+                var place = subscriber.company > 0
+                        ? own.computeIfAbsent(
+                                subscriber.company, id -> views.rank(Views.DEFAULT_RANKING, Views.DEFAULT_RANGE, id))
+                        : Optional.<RankingEntry>empty();
                 emit(
                         List.of(subscriber.session),
                         "rankings",
                         PatchOp.REPLACE,
                         null,
-                        views.ranking(Views.DEFAULT_RANKING, Views.DEFAULT_RANGE, 1, company));
+                        new RankingPage(
+                                page.ranking(),
+                                page.range(),
+                                page.page(),
+                                page.pages(),
+                                page.entries(),
+                                place.orElse(null)));
             }
         });
     }
@@ -322,13 +347,65 @@ public final class PatchFeed {
         run(() -> {
             var profile = views.company(company);
             if (profile.isEmpty()) return;
-            for (var subscriber : List.copyOf(subscribers.values())) {
-                if (subscriber.company != company) continue;
+            for (var subscriber : members(profile, company)) {
                 views.treasury(profile.get(), subscriber.player)
                         .ifPresent(treasury ->
                                 emit(List.of(subscriber.session), "company.treasury", PatchOp.REPLACE, null, treasury));
             }
         });
+    }
+
+    /**
+     * The subscribed members of a company by the company's current members, not by what the subscription remembered:
+     * a membership that changed on another node is noticed here. The remembered company is corrected on the way.
+     *
+     * @param company the company id
+     * @return the subscribers who are members
+     */
+    private List<Subscriber> members(int company) {
+        return members(views.company(company), company);
+    }
+
+    private List<Subscriber> members(Optional<ICompanyProfile> profile, int company) {
+        List<Subscriber> members = new ArrayList<>();
+        for (var subscriber : subscribers.values()) {
+            var member = profile.flatMap(found -> Views.memberOf(found, subscriber.player))
+                    .isPresent();
+            if (member) {
+                if (subscriber.company != company) introduce(subscriber, profile.orElseThrow());
+                subscriber.company = company;
+                members.add(subscriber);
+            } else if (subscriber.company == company) {
+                subscriber.company = 0;
+            }
+        }
+        return members;
+    }
+
+    /**
+     * Sends a session the whole company and player before any patch below {@code company}, when it joined a company
+     * this node did not know it was in. The gateway applies {@code company.*} patches only to a snapshot of the same
+     * company.
+     *
+     * @param subscriber the session
+     * @param company    its company now
+     */
+    private void introduce(Subscriber subscriber, ICompanyProfile company) {
+        emit(
+                List.of(subscriber.session),
+                "player",
+                PatchOp.REPLACE,
+                null,
+                views.player(subscriber.player, Optional.of(company)));
+        emit(List.of(subscriber.session), "company", PatchOp.REPLACE, null, views.company(company, subscriber.player));
+    }
+
+    private List<Subscriber> sessionsOf(Predicate<Subscriber> filter) {
+        return subscribers.values().stream().filter(filter).toList();
+    }
+
+    private static List<String> ids(List<Subscriber> subscribers) {
+        return subscribers.stream().map(subscriber -> subscriber.session).toList();
     }
 
     private List<String> sessions(Predicate<Subscriber> filter) {

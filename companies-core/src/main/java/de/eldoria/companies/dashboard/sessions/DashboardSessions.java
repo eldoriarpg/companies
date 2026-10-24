@@ -125,6 +125,16 @@ public final class DashboardSessions {
     }
 
     /**
+     * Whether a session still exists, pending or open.
+     *
+     * @param id the session id
+     * @return true while it exists
+     */
+    public boolean exists(String id) {
+        return data.session(id).isPresent();
+    }
+
+    /**
      * The sessions of a player.
      *
      * @param player the player

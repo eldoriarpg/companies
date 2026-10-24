@@ -157,13 +157,68 @@ class PatchFeedTest {
     }
 
     @Test
-    void theRankingIsSentAgainWithEachViewersPlace() {
+    void theRankingIsSentOncePerPushWithEachViewersPlace() {
         feed.rankingsChanged();
+        feed.rankingsChanged();
+        assertTrue(patches("rankings").isEmpty());
+
+        feed.pushRankings();
+        feed.pushRankings();
 
         var rankings = patches("rankings");
         assertEquals(4, rankings.size());
         assertTrue(rankings.stream().allMatch(patch -> patch.op() == PatchOp.REPLACE));
         assertTrue(rankings.stream().allMatch(patch -> patch.sessions().size() == 1));
+    }
+
+    @Test
+    void aMembershipChangedOnAnotherNodeDecidesWhoGetsTheCompanysPatches() {
+        world.companies
+                .submitMemberUpdate(CompanyMember.of(miners, wren, 0).kick())
+                .join();
+        world.companies
+                .submitMemberUpdate(CompanyMember.of(miners, outsider, CompanyPermission.TREASURY.mask()))
+                .join();
+
+        feed.orderChanged(order, null);
+        feed.treasuryChanged(miners);
+
+        assertEquals(
+                List.of("kestrel", "outsider"),
+                patches("company.orders").getFirst().sessions().stream()
+                        .sorted()
+                        .toList());
+        assertTrue(patches("company.treasury").stream()
+                .noneMatch(patch -> patch.sessions().contains("wren")));
+        assertTrue(patches("company.treasury").stream()
+                .anyMatch(patch -> patch.sessions().contains("outsider")));
+        var forOutsider = link.of(Patch.class).stream()
+                .filter(patch -> patch.sessions().contains("outsider"))
+                .map(Patch::path)
+                .toList();
+        assertTrue(forOutsider.indexOf("company") >= 0);
+        assertTrue(forOutsider.indexOf("company") < forOutsider.indexOf("company.orders"));
+        assertEquals(1, forOutsider.stream().filter("company"::equals).count());
+        link.clear();
+        feed.rankingsChanged();
+        feed.pushRankings();
+        var rankings = patches("rankings");
+        assertTrue(rankings.stream()
+                .filter(patch -> patch.sessions().equals(List.of("wren")))
+                .allMatch(patch -> !patch.value().has("own")));
+        assertTrue(rankings.stream()
+                .filter(patch -> patch.sessions().equals(List.of("outsider")))
+                .allMatch(patch -> patch.value().path("own").path("company").asInt() == miners
+                        || !patch.value().has("own")));
+        link.clear();
+        feed.companyChanged(miners);
+        var company = patches("company");
+        assertTrue(company.stream()
+                .filter(patch -> patch.sessions().equals(List.of("wren")))
+                .allMatch(patch -> patch.op() == PatchOp.REMOVE));
+        assertTrue(company.stream()
+                .filter(patch -> patch.sessions().equals(List.of("outsider")))
+                .allMatch(patch -> patch.value().path("id").asInt() == miners));
     }
 
     @Test
