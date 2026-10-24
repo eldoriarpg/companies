@@ -6,6 +6,7 @@
 package de.eldoria.companies.web.gateway.browser;
 
 import de.eldoria.companies.web.api.Actions;
+import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.handshake.Limits;
@@ -390,12 +391,16 @@ public final class BrowserApi {
                 live.flatMap(LiveServer::representative).map(NodeLink::agreed);
         return new Views.ServerInfo(
                 brand(serverId),
-                routed.map(link -> link.agreed().features().stream().sorted().toList())
+                routed.map(link -> link.agreed().features().stream()
+                                .filter(feature -> admin || !feature.startsWith(Features.ADMIN_PREFIX))
+                                .sorted()
+                                .toList())
                         .orElse(List.of()),
                 routed.map(link -> new Limits(link.maxPageSize())).orElse(DEFAULT_LIMITS),
                 agreed.map(NodeLink.Handshake::status).orElse(UNKNOWN_VERSION),
                 admin ? agreed.map(NodeLink.Handshake::deprecated).orElse(List.of()) : List.of(),
-                routed.isPresent());
+                routed.isPresent(),
+                admin);
     }
 
     /**

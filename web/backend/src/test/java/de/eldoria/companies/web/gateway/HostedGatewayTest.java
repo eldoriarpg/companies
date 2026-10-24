@@ -109,10 +109,14 @@ class HostedGatewayTest {
     }
 
     static HttpResponse<String> login(FakeNode node, FakeBrowser browser, SessionCreated created) {
+        return login(node, browser, created, false);
+    }
+
+    static HttpResponse<String> login(FakeNode node, FakeBrowser browser, SessionCreated created, boolean admin) {
         CompletableFuture<HttpResponse<String>> response =
                 browser.postAsync("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}");
         SessionOpened opened = node.expect(SessionOpened.class);
-        node.send(new SessionConfirmed(opened.id(), 1, opened.session()));
+        node.send(new SessionConfirmed(opened.id(), 1, opened.session(), admin));
         HttpResponse<String> answer = response.join();
         assertEquals(204, answer.statusCode(), answer.body());
         return answer;
@@ -1155,6 +1159,34 @@ class HostedGatewayTest {
             CompletableFuture<HttpResponse<String>> onPrimary = browser.postAsync("/api/v1/me/actions", deliver);
             answer(primary, primary.expect(ActionRequest.class), 2);
             assertEquals(2, content(onPrimary.join()));
+        }
+    }
+
+    @Test
+    void listsTheAdminFeaturesToAdminsOnly() {
+        String key = key();
+        UUID uid = UUID.randomUUID();
+        List<String> features = List.of(Features.ORDERS_BROWSE, Features.ADMIN_ORDERS);
+        try (FakeNode node = FakeNode.welcomed(
+                gateway, FakeNode.hello(KeyKind.DASHBOARD_KEY, key, uid, NodeRole.PRIMARY, PLUGIN, features, null))) {
+            FakeBrowser player = new FakeBrowser(gateway, "203.0.113.23");
+            login(node, player, create(node, uid));
+            JsonNode playerView = FakeBrowser.json(player.get("/api/v1/me/server"));
+            assertFalse(playerView.path("admin").asBoolean());
+            assertEquals(
+                    List.of(Features.ORDERS_BROWSE),
+                    playerView
+                            .path("features")
+                            .valueStream()
+                            .map(JsonNode::asString)
+                            .toList());
+
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.24");
+            login(node, admin, create(node, uid), true);
+            JsonNode adminView = FakeBrowser.json(admin.get("/api/v1/me/server"));
+            assertTrue(adminView.path("admin").asBoolean());
+            assertTrue(adminView.path("features").valueStream().anyMatch(feature -> feature.asString()
+                    .equals(Features.ADMIN_ORDERS)));
         }
     }
 

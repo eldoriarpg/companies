@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
@@ -38,6 +39,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
@@ -48,6 +50,8 @@ import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.services.AdminOrderLookup;
+import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
@@ -58,10 +62,12 @@ import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
+import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.handshake.NodeInfo;
 import de.eldoria.companies.web.api.handshake.NodeRole;
+import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -249,6 +255,24 @@ public final class DashboardModule {
                         catalogue,
                         data.orders().requests(),
                         data.orders().defaultLimit(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminOrderWrites(new AdminOrderWrites.Sources(
+                        data.admin().lookup(),
+                        data.admin().orders(),
+                        name -> CompletableFuture.supplyAsync(
+                                        () -> Optional.ofNullable(
+                                                        plugin.getServer().getOfflinePlayerIfCached(name))
+                                                .map(found -> new PlayerRef(
+                                                        found.getUniqueId(), String.valueOf(found.getName()))),
+                                        Threading.mainThread(plugin))
+                                .join(),
+                        data.admin().companyByName(),
+                        uuid -> Optional.ofNullable(plugin.getServer()
+                                        .getOfflinePlayer(uuid)
+                                        .getName())
+                                .orElse(uuid.toString()),
+                        views,
+                        data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()
@@ -360,6 +384,7 @@ public final class DashboardModule {
      * @param company       the services acting on a company
      * @param orders        the services placing orders
      * @param items         the services moving items with the player's inventory
+     * @param admin         the admin tools
      */
     public record Data(
             ADashboardData dashboard,
@@ -378,7 +403,22 @@ public final class DashboardModule {
             Inbox inboxService,
             CompanyServices company,
             OrderServices orders,
-            ItemServices items) {}
+            ItemServices items,
+            AdminServices admin) {}
+
+    /**
+     * The services behind the dashboard's admin tools.
+     *
+     * @param orders changes any order as an admin
+     * @param lookup looks orders up for admins
+     * @param log    the admin log
+     * @param companyByName a company by its name
+     */
+    public record AdminServices(
+            AdminOrderService orders,
+            AdminOrderLookup lookup,
+            AdminLog log,
+            Function<String, CompletableFuture<Optional<SimpleCompany>>> companyByName) {}
 
     /**
      * The services the dashboard moves items through, with the inventory of a player online on this node.

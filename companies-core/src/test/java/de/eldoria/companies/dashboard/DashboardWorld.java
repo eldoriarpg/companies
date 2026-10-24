@@ -20,6 +20,7 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
+import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
@@ -53,6 +54,7 @@ import de.eldoria.companies.orders.DeliveryResult;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.OrderAcceptService;
+import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderLimits;
@@ -60,6 +62,8 @@ import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.services.AdminOrderLookup;
+import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
@@ -71,10 +75,12 @@ import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
+import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -101,6 +107,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -116,6 +124,8 @@ public final class DashboardWorld implements AutoCloseable {
     public final ItemReturnService itemReturns;
     public final RecordedDeliveries deliveries = new RecordedDeliveries();
     public final List<UUID> moved = new CopyOnWriteArrayList<>();
+    public final List<String> adminActions = new CopyOnWriteArrayList<>();
+    public AdminLog adminLog;
     public final ExecutorService executor = Executors.newFixedThreadPool(4);
     public final Map<UUID, String> names = new ConcurrentHashMap<>();
     public final SqLiteCompanyData companies;
@@ -310,6 +320,90 @@ public final class DashboardWorld implements AutoCloseable {
                 () -> "coins",
                 failure -> "text of " + failure.localeKey(),
                 text -> "text of " + text.build()));
+        var adminConfiguration = new Configuration(plugin) {
+            @Override
+            public CompanySettings companySettings() {
+                return companySettings;
+            }
+
+            @Override
+            public OrderSettings orderSetting() {
+                return orderSettings;
+            }
+        };
+        var adminOrderService = new AdminOrderService(
+                orders,
+                id -> companies.retrieveCompanyById(id).asFuture().join().flatMap(found -> companies
+                        .retrieveCompanyProfile(found)
+                        .asFuture()
+                        .join()),
+                new OrderCompletionService(
+                        plugin,
+                        orders,
+                        stats,
+                        new HistoryRecorder(history, Clock.systemUTC()),
+                        new OrderCompletionService.Treasury() {
+                            @Override
+                            public void pay(OfflinePlayer worker, double amount) {
+                                wallets.merge(worker.getUniqueId(), amount, Double::sum);
+                            }
+
+                            @Override
+                            public void collect(double amount) {}
+                        },
+                        level -> 0.0,
+                        () -> 5.0,
+                        Clock.systemUTC(),
+                        executor),
+                new HistoryRecorder(history, Clock.systemUTC()),
+                new AdminOrderService.Funds() {
+                    @Override
+                    public void refund(UUID owner, double amount) {
+                        wallets.merge(owner, amount, Double::sum);
+                    }
+
+                    @Override
+                    public void collect(double amount) {}
+                },
+                new AdminOrderService.Notices() {
+                    @Override
+                    public void ownerReopened(SimpleOrder order) {}
+
+                    @Override
+                    public void companyUnclaimed(CompanyProfile company, SimpleOrder order) {}
+
+                    @Override
+                    public void ownerCancelled(SimpleOrder order, double refund) {}
+
+                    @Override
+                    public void companyCancelled(CompanyProfile company, SimpleOrder order) {}
+
+                    @Override
+                    public void ownerRefunded(SimpleOrder order, double refund) {}
+
+                    @Override
+                    public void soloReleased(UUID worker, SimpleOrder order) {}
+                },
+                itemReturns,
+                events,
+                order -> {},
+                Logger.getAnonymousLogger(),
+                executor);
+        var adminLogger = Logger.getAnonymousLogger();
+        adminLogger.setUseParentHandlers(false);
+        adminLogger.addHandler(new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                adminActions.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        });
+        adminLog = new AdminLog(adminLogger);
         writes = new DashboardWrites(
                 new DashboardWrites.Sources(
                         player -> companies
@@ -362,6 +456,18 @@ public final class DashboardWorld implements AutoCloseable {
                         catalogue,
                         requests,
                         () -> userSettings.maxOrders(),
+                        failure -> "text of " + failure.localeKey())),
+                new AdminOrderWrites(new AdminOrderWrites.Sources(
+                        new AdminOrderLookup(orders, companies, history, adminConfiguration, this::name),
+                        adminOrderService,
+                        name -> names.entrySet().stream()
+                                .filter(entry -> entry.getValue().equalsIgnoreCase(name))
+                                .findFirst()
+                                .map(entry -> new PlayerRef(entry.getKey(), entry.getValue())),
+                        name -> companies.retrieveCompanyByName(name).asFuture(),
+                        this::name,
+                        views,
+                        adminLog,
                         failure -> "text of " + failure.localeKey())));
     }
 

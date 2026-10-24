@@ -57,11 +57,14 @@ public final class Views {
      * {@code GET /api/v1/me/server}, and the {@code server} stream event.
      *
      * @param server the server's branding
-     * @param features the features both the server and the gateway support; the web app shows only these
+     * @param features the features both the server and the gateway support; the web app shows only these. The admin
+     *                 features are listed for players with admin rights only
      * @param limits the server's limits
      * @param version the state of the server's plugin version
      * @param deprecated the deprecated parts the server still uses; empty for players without admin rights
      * @param online whether a node of the server takes requests
+     * @param admin whether the player has admin rights, as the plugin confirmed with the login; the plugin still
+     *              checks each admin action against its own permission
      */
     public record ServerInfo(
             Brand server,
@@ -69,7 +72,8 @@ public final class Views {
             Limits limits,
             VersionStatus version,
             List<DeprecatedPart> deprecated,
-            boolean online) {}
+            boolean online,
+            boolean admin) {}
 
     /**
      * {@code POST /api/v1/me/actions}.

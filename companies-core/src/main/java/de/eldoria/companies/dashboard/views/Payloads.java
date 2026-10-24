@@ -14,6 +14,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The data of the read actions, which the protocol module does not model as records. It is written as JSON into
@@ -375,4 +376,78 @@ public final class Payloads {
     public static <T> List<T> slice(List<T> all, int page, int size) {
         return all.stream().skip((long) (page - 1) * size).limit(size).toList();
     }
+
+    /**
+     * An order as an admin sees it, whoever owns or works on it.
+     *
+     * @param id              the order id
+     * @param name            the order's name
+     * @param state           its state
+     * @param owner           its owner
+     * @param company         the company working on it, none while open or worked on alone
+     * @param soloWorker      the player working on it alone, none otherwise
+     * @param created         when it was placed
+     * @param deadline        when it runs out, none once delivered
+     * @param removal         whether the open order is removed at the deadline rather than being due
+     * @param price           the price of all lines
+     * @param fee             the fee paid with it
+     * @param lines           its lines with what each worker delivered
+     * @param refundOnCancel  what cancelling with a refund gives the owner back
+     * @param keptOnCancel    what cancelling without a refund hands to the collector
+     * @param refundOnDeliver what marking it delivered refunds the owner for the missing items
+     */
+    public record AdminOrder(
+            int id,
+            String name,
+            String state,
+            PlayerRef owner,
+            @Nullable String company,
+            @Nullable String soloWorker,
+            Instant created,
+            @Nullable Instant deadline,
+            boolean removal,
+            double price,
+            double fee,
+            List<AdminOrderLine> lines,
+            double refundOnCancel,
+            double keptOnCancel,
+            double refundOnDeliver) {}
+
+    /**
+     * One line of an order as an admin sees it.
+     *
+     * @param item      the ordered item
+     * @param delivered how many were delivered
+     * @param price     the price of the line
+     * @param workers   who delivered how many, by name
+     */
+    public record AdminOrderLine(ItemView item, int delivered, double price, Map<String, Integer> workers) {}
+
+    /**
+     * An order of a page of an admin search.
+     *
+     * @param id       the order id
+     * @param name     the order's name
+     * @param state    its state
+     * @param owner    name of the owner
+     * @param claimant name of the company or the player working on it, none while open
+     * @param created  when it was placed
+     */
+    public record AdminOrderRow(
+            int id,
+            String name,
+            String state,
+            String owner,
+            @Nullable String claimant,
+            Instant created) {}
+
+    /**
+     * A page of an admin search.
+     *
+     * @param target  the player or company searched for
+     * @param page    the page, from one
+     * @param hasNext whether another page may follow
+     * @param orders  the orders of the page
+     */
+    public record AdminOrderPage(String target, int page, boolean hasNext, List<AdminOrderRow> orders) {}
 }
