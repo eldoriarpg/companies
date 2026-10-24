@@ -367,6 +367,59 @@ class HostedGatewayTest {
     }
 
     @Test
+    void passesOnWhatThisVersionDoesNotKnow() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.21");
+            SessionCreated created = create(node, uid);
+            login(node, browser, created);
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                stream.next();
+                CompletableFuture<HttpResponse<String>> response = browser.getAsync("/api/v1/me/snapshot");
+                SnapshotRequest request = node.expect(SnapshotRequest.class);
+                ObjectNode snapshot =
+                        (ObjectNode) FakeBrowser.json(Recorded.snapshot(request.id(), request.session(), uid, 1));
+                snapshot.putObject("market").put("trend", "up");
+                ((ObjectNode) snapshot.path("player")).put("title", "Baron");
+                node.sendRaw(snapshot.toString());
+                JsonNode served = FakeBrowser.json(response.join());
+                assertEquals("up", served.at("/market/trend").asString());
+                assertEquals("Baron", served.at("/player/title").asString());
+
+                node.send(new Patch(
+                        null,
+                        1,
+                        List.of(created.session()),
+                        uid,
+                        2,
+                        "auction.house.open",
+                        PatchOp.REPLACE,
+                        null,
+                        JsonNodeFactory.instance.booleanNode(true)));
+                JsonNode patch = stream.next();
+                assertEquals("auction.house.open", patch.path("path").asString());
+                node.assertQuiet();
+                node.send(new Patch(
+                        null,
+                        1,
+                        List.of(created.session()),
+                        uid,
+                        3,
+                        "market.trend",
+                        PatchOp.REPLACE,
+                        null,
+                        JsonNodeFactory.instance.stringNode("down")));
+                stream.next();
+                assertEquals(
+                        "down",
+                        FakeBrowser.json(browser.get("/api/v1/me/snapshot"))
+                                .at("/market/trend")
+                                .asString());
+            }
+        }
+    }
+
+    @Test
     void forwardsReadActionsWithinTheNodesLimits() {
         UUID uid = UUID.randomUUID();
         try (FakeNode node = node(key(), uid)) {

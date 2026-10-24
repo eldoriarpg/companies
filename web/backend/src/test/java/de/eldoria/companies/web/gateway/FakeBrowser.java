@@ -68,6 +68,10 @@ final class FakeBrowser {
         return MAPPER.readTree(response.body());
     }
 
+    static JsonNode json(String text) {
+        return MAPPER.readTree(text);
+    }
+
     Stream stream() {
         return new Stream();
     }

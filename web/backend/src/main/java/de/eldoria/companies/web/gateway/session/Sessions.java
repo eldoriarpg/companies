@@ -24,6 +24,7 @@ import de.eldoria.companies.web.gateway.node.LiveServer;
 import de.eldoria.companies.web.gateway.node.NodeHub;
 import de.eldoria.companies.web.gateway.node.NodeLink;
 import de.eldoria.companies.web.gateway.node.NodeRequestException;
+import de.eldoria.companies.web.gateway.node.Reply;
 import de.eldoria.companies.web.gateway.snapshot.ReadRelay;
 import de.eldoria.companies.web.gateway.snapshot.SnapshotCache;
 import de.eldoria.companies.web.gateway.storage.SessionRepository;
@@ -200,7 +201,7 @@ public final class Sessions {
         }
         if (!repository.startOpening(session.id())) return new LoginResult.Busy();
         NodeLink node = link.get();
-        Message answer;
+        Reply answer;
         try {
             answer = node.request(
                             id -> new SessionOpened(
@@ -216,7 +217,7 @@ public final class Sessions {
             repository.delete(session.id());
             return new LoginResult.Refused(failure.getMessage() == null ? "Refused" : failure.getMessage());
         }
-        if (!(answer instanceof SessionConfirmed)) {
+        if (!(answer.message() instanceof SessionConfirmed)) {
             repository.delete(session.id());
             return new LoginResult.Refused("The server did not confirm the login");
         }

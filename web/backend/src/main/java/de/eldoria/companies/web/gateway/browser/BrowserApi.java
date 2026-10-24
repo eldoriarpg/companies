@@ -8,7 +8,6 @@ package de.eldoria.companies.web.gateway.browser;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
-import de.eldoria.companies.web.api.action.ActionResult;
 import de.eldoria.companies.web.api.handshake.Limits;
 import de.eldoria.companies.web.api.handshake.VersionState;
 import de.eldoria.companies.web.api.handshake.VersionStatus;
@@ -275,8 +274,7 @@ public final class BrowserApi {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "The server does not offer this");
         }
         ObjectNode args = Optional.ofNullable(call.args()).orElseGet(MAPPER::createObjectNode);
-        ActionResult result = await(session, reads.read(session, link, name, args));
-        ctx.json(result);
+        ctx.json(await(session, reads.read(session, link, name, args)));
     }
 
     /**

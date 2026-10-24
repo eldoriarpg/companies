@@ -56,7 +56,7 @@ public final class ReadRelay {
     private final Clock clock;
     private final Duration timeout;
 
-    private record Cached(String sessionId, ActionResult result, Instant at) {}
+    private record Cached(String sessionId, ObjectNode result, Instant at) {}
 
     /**
      * @param clock the time
@@ -72,26 +72,27 @@ public final class ReadRelay {
      * @param link the node to ask
      * @param name a read action of {@link #READ_ACTIONS}
      * @param args the action's arguments, changed in place to fit the node's limits
-     * @return the node's answer; fails with {@link NodeRequestException} when the node refuses or does not answer
+     * @return the node's {@code action.result} as it sent it; fails with {@link NodeRequestException} when the node
+     * refuses or does not answer
      */
-    public CompletableFuture<ActionResult> read(StoredSession session, NodeLink link, String name, ObjectNode args) {
+    public CompletableFuture<ObjectNode> read(StoredSession session, NodeLink link, String name, ObjectNode args) {
         limitPaging(args, link.maxPageSize());
         String key = session.id() + '\n' + name + '\n' + args;
         Instant now = clock.instant();
         Cached cached = answers.get(key);
         if (cached != null && cached.at().isAfter(now.minusSeconds(CACHE_SECONDS))) {
-            return CompletableFuture.completedFuture(cached.result());
+            return CompletableFuture.completedFuture(cached.result().deepCopy());
         }
         return link.request(
                         id -> new ActionRequest(
                                 id, link.agreed().protocol(), session.id(), session.player(), name, args),
                         timeout)
-                .thenApply(answer -> {
-                    if (!(answer instanceof ActionResult result)) {
+                .thenApply(reply -> {
+                    if (!(reply.message() instanceof ActionResult result)) {
                         throw new NodeRequestException(null, "The server answered with something else");
                     }
-                    if (result.ok()) answers.put(key, new Cached(session.id(), result, clock.instant()));
-                    return result;
+                    if (result.ok()) answers.put(key, new Cached(session.id(), reply.raw(), clock.instant()));
+                    return reply.raw().deepCopy();
                 });
     }
 

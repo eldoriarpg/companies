@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.web.gateway.snapshot;
 
+import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.update.Patch;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
@@ -12,7 +13,11 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.lang.reflect.RecordComponent;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Applies a {@link Patch} to a snapshot held as a JSON tree.
@@ -27,8 +32,22 @@ import java.util.List;
  */
 public final class PatchApplier {
     private static final List<String> KEY_FIELDS = List.of("id", "uuid", "key");
+    private static final Set<String> ENVELOPE = Set.of("type", "id", "v", "session", "node", "seq");
+    private static final Set<String> ROOTS = Arrays.stream(Snapshot.class.getRecordComponents())
+            .map(RecordComponent::getName)
+            .filter(name -> !ENVELOPE.contains(name))
+            .collect(Collectors.toUnmodifiableSet());
 
     private PatchApplier() {}
+
+    /**
+     * @param patch a patch
+     * @return whether it changes a part of the snapshot this version knows, such as {@code company}
+     */
+    public static boolean knownRoot(Patch patch) {
+        String path = patch.path();
+        return path != null && ROOTS.contains(path.split("\\.", 2)[0]);
+    }
 
     /**
      * @param snapshot the snapshot, changed in place

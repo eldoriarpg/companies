@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -200,18 +201,22 @@ public final class NodeHub {
         NodeLink link = links.get(socketId);
         if (link == null) return;
         link.heard(clock.instant());
+        ObjectNode raw;
         Message message;
         try {
-            message = read(text);
-        } catch (JacksonException e) {
+            if (!(MAPPER.readTree(text) instanceof ObjectNode object)) throw new UnreadableMessage();
+            raw = object;
+            message = MAPPER.treeToValue(raw, Message.class);
+        } catch (JacksonException | UnreadableMessage e) {
             link.send(new ErrorMessage(null, Protocol.VERSION, ErrorCode.INVALID, "Unreadable message"));
+            if (link.state() == NodeLink.State.AWAITING_HELLO) link.close(CLOSE_INVALID, "Unreadable message");
             return;
         }
         try {
             switch (link.state()) {
                 case AWAITING_HELLO -> awaitingHello(link, message);
                 case DISCONTINUED -> discontinued(link, message);
-                case READY -> ready(link, message);
+                case READY -> ready(link, message, raw);
                 case CLOSED -> {}
             }
         } catch (RuntimeException e) {
@@ -363,7 +368,7 @@ public final class NodeHub {
         }
     }
 
-    private void ready(NodeLink link, Message message) {
+    private void ready(NodeLink link, Message message, ObjectNode raw) {
         LiveServer server = servers.get(link.agreed().serverId());
         if (server == null) return;
         int v = link.agreed().protocol();
@@ -378,11 +383,11 @@ public final class NodeHub {
             case SessionClosed closed -> events.sessionClosed(server, closed);
             case SessionsRevoked revoked -> events.sessionsRevoked(server, revoked);
             case Patch patch -> events.patch(server, link, patch);
-            case SessionConfirmed confirmed -> answer(link, confirmed);
-            case Snapshot snapshot -> answer(link, snapshot);
-            case ActionResult result -> answer(link, result);
+            case SessionConfirmed confirmed -> answer(link, confirmed, raw);
+            case Snapshot snapshot -> answer(link, snapshot, raw);
+            case ActionResult result -> answer(link, result, raw);
             case ErrorMessage error -> {
-                if (!link.answer(error))
+                if (!link.answer(error, raw))
                     log.debug("Node {} reported {}", link.agreed().uid(), error.code());
             }
             case UnknownMessage unknown -> link.send(error(unknown, ErrorCode.UNKNOWN_TYPE, "Unknown message type"));
@@ -390,8 +395,8 @@ public final class NodeHub {
         }
     }
 
-    private void answer(NodeLink link, Message answer) {
-        if (!link.answer(answer)) link.send(error(answer, ErrorCode.INVALID, "No request with this id"));
+    private void answer(NodeLink link, Message answer, ObjectNode raw) {
+        if (!link.answer(answer, raw)) link.send(error(answer, ErrorCode.INVALID, "No request with this id"));
     }
 
     private boolean branding(String serverId, @Nullable Branding branding) {
@@ -425,6 +430,13 @@ public final class NodeHub {
 
     private LocalDate today() {
         return LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
+    }
+
+    /**
+     * A node sent JSON that is no object.
+     */
+    private static final class UnreadableMessage extends Exception {
+        private static final long serialVersionUID = 1L;
     }
 
     /**

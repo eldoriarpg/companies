@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.web.gateway.snapshot;
 
-import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
@@ -18,6 +17,7 @@ import de.eldoria.companies.web.gateway.node.LiveServer;
 import de.eldoria.companies.web.gateway.node.NodeHub;
 import de.eldoria.companies.web.gateway.node.NodeLink;
 import de.eldoria.companies.web.gateway.node.NodeRequestException;
+import de.eldoria.companies.web.gateway.node.Reply;
 import de.eldoria.companies.web.gateway.storage.StoredSession;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -45,6 +45,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * its own events. Patches are applied in the order of their node's sequence; one at or below the sequence the
  * snapshot was built at is already in it. A gap in a node's sequence, a patch that does not fit, or a node that
  * connects again loads the snapshots of that server again; patches arriving meanwhile are kept and applied on top.
+ * <p>
+ * The snapshot is kept as the JSON the node sent, so fields of a newer plugin reach the browser. A patch into a part
+ * of the snapshot this version does not know is passed on even when it cannot be applied here, rather than loading the
+ * snapshot again.
  * <p>
  * Browsers get each applied patch over their stream, addressed to their session only, and a {@code resync} when the
  * snapshot was replaced. Patches only upsert, replace or remove by key, so a browser that applies a patch its fetched
@@ -208,7 +212,7 @@ public final class SnapshotCache {
             CompletableFuture<JsonNode> request = link.request(
                             id -> new SnapshotRequest(id, link.agreed().protocol(), entry.sessionId, entry.player),
                             timeout)
-                    .thenApply(answer -> loaded(entry, answer, replacing));
+                    .thenApply(reply -> loaded(entry, reply, replacing));
             entry.loading = request;
             request.whenComplete((snapshot, error) -> {
                 if (error == null) return;
@@ -226,12 +230,13 @@ public final class SnapshotCache {
         }
     }
 
-    private JsonNode loaded(Entry entry, Message answer, boolean replacing) {
-        if (!(answer instanceof Snapshot snapshot)) {
+    private JsonNode loaded(Entry entry, Reply reply, boolean replacing) {
+        if (!(reply.message() instanceof Snapshot snapshot)) {
             throw new NodeRequestException(
-                    null, "The server answered with a " + answer.getClass().getSimpleName());
+                    null,
+                    "The server answered with a " + reply.message().getClass().getSimpleName());
         }
-        ObjectNode tree = MAPPER.valueToTree(snapshot);
+        ObjectNode tree = reply.raw().deepCopy();
         JsonNode copy;
         boolean stale = false;
         synchronized (entry) {
@@ -242,7 +247,7 @@ public final class SnapshotCache {
                 try {
                     PatchApplier.apply(tree, patch);
                 } catch (PatchApplier.Unapplicable e) {
-                    stale = true;
+                    stale |= PatchApplier.knownRoot(patch);
                 }
             }
             entry.buffered.clear();
@@ -265,9 +270,12 @@ public final class SnapshotCache {
             try {
                 PatchApplier.apply(snapshot, patch);
             } catch (PatchApplier.Unapplicable e) {
-                log.debug("A patch of {} does not fit, reloading: {}", patch.path(), e.getMessage());
-                reload(entry);
-                return;
+                if (PatchApplier.knownRoot(patch)) {
+                    log.debug("A patch of {} does not fit, reloading: {}", patch.path(), e.getMessage());
+                    reload(entry);
+                    return;
+                }
+                log.debug("Passing on a patch of {}, which this version does not know", patch.path());
             }
         }
         streams.push(

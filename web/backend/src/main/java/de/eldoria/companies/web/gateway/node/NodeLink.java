@@ -16,6 +16,7 @@ import de.eldoria.companies.web.api.link.ErrorMessage;
 import de.eldoria.companies.web.gateway.Socket;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,7 +41,7 @@ public final class NodeLink {
     private final String address;
     private final Instant connected;
     private final AtomicLong ids = new AtomicLong();
-    private final Map<String, CompletableFuture<Message>> pending = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<Reply>> pending = new ConcurrentHashMap<>();
     private volatile State state = State.AWAITING_HELLO;
     private volatile Instant lastHeard;
     private volatile @Nullable Handshake handshake;
@@ -237,9 +238,9 @@ public final class NodeLink {
      * @param timeout how long to wait for the answer
      * @return the answer; fails with {@link NodeRequestException} on an error, a timeout or a closed connection
      */
-    public CompletableFuture<Message> request(Function<String, Message> build, Duration timeout) {
+    public CompletableFuture<Reply> request(Function<String, Message> build, Duration timeout) {
         String id = "g-" + ids.incrementAndGet();
-        CompletableFuture<Message> answer = new CompletableFuture<>();
+        CompletableFuture<Reply> answer = new CompletableFuture<>();
         if (state == State.CLOSED) {
             answer.completeExceptionally(new NodeRequestException(null, "The server is not connected"));
             return answer;
@@ -266,19 +267,20 @@ public final class NodeLink {
      * Completes the request an answer belongs to.
      *
      * @param answer a message from the node
+     * @param raw the message as the node sent it
      * @return whether it answered a request of the gateway
      */
-    boolean answer(Message answer) {
+    boolean answer(Message answer, ObjectNode raw) {
         String id = answer.id();
         if (id == null) return false;
-        CompletableFuture<Message> request = pending.remove(id);
+        CompletableFuture<Reply> request = pending.remove(id);
         if (request == null) return false;
         if (answer instanceof ErrorMessage error) {
             String message = error.message();
             request.completeExceptionally(new NodeRequestException(
                     error.code(), message == null ? error.code().name() : message));
         } else {
-            request.complete(answer);
+            request.complete(new Reply(answer, raw));
         }
         return true;
     }
@@ -312,7 +314,7 @@ public final class NodeLink {
      */
     synchronized void closed() {
         state = State.CLOSED;
-        for (CompletableFuture<Message> request : List.copyOf(pending.values())) {
+        for (CompletableFuture<Reply> request : List.copyOf(pending.values())) {
             request.completeExceptionally(new NodeRequestException(null, "The server disconnected"));
         }
         pending.clear();
