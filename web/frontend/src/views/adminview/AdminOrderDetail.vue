@@ -20,7 +20,8 @@ import {openLabel} from '~/util/labels'
 /**
  * One order as an admin sees it: both sides, every line with who delivered what, when it runs out, and what the admin
  * may do to it as `/companyadmin order` does: take a claimed order from its company, delete it with or without a
- * refund, mark a claimed order delivered, or give it more time. Every change asks once more and names what it moves.
+ * refund, mark a claimed order delivered, or give it more time. Every change but more time asks once more and names
+ * what it moves.
  */
 const props = defineProps<{
   order: AdminOrder

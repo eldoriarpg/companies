@@ -24,12 +24,6 @@ import {openLabel} from '~/util/labels'
  * Any order of the server for an admin: opened by its id, or found among the orders of a player or a company, a page
  * at a time. An opened order shows everything about it and what the admin may do to it.
  */
-/** The search the shown page belongs to. */
-interface OrderSearch {
-  by: 'player' | 'company'
-  name: string
-}
-
 const {t, te, locale} = useI18n()
 const finding = useAction()
 const opening = useAction()
@@ -54,8 +48,7 @@ const choices = computed(() => [
 async function find(number = 1): Promise<void> {
   const name = query.value.trim()
   if (name === '') return
-  searched.value = {by: by.value, name}
-  await turn(number)
+  await show({by: by.value, name}, number)
 }
 
 /**
@@ -64,20 +57,37 @@ async function find(number = 1): Promise<void> {
  * @param number the page, from one
  */
 async function turn(number: number): Promise<void> {
-  const search = searched.value
-  if (!search) return
+  if (searched.value) await show(searched.value, number)
+}
+
+/**
+ * Runs a search and keeps it as the shown one once it answered; a page left empty by a deletion falls back to the one
+ * before.
+ *
+ * @param search the search
+ * @param number the page, from one
+ */
+async function show(search: OrderSearch, number: number): Promise<void> {
   const result = await finding.run('admin.orders.search', search.by === 'player' ? {player: search.name, page: number} : {company: search.name, page: number})
-  if (result) page.value = result
+  if (!result) return
+  searched.value = search
+  if (result.orders.length === 0 && number > 1) {
+    await show(search, number - 1)
+    return
+  }
+  page.value = result
 }
 
 /**
  * Loads an order again after it was changed, and the page of the search with it, so both show the order as it is now.
+ * An order the plugin no longer knows is closed; one that could not be loaded right now stays as it was shown.
  *
  * @param id the order's id
  */
 async function refresh(id: number): Promise<void> {
   const result = await reloading.run('admin.orders.info', {order: id})
-  setOrder(result ?? null)
+  if (result) setOrder(result)
+  else if (reloading.problem.value?.kind === 'refused') setOrder(null)
   if (page.value) await turn(page.value.page)
 }
 
@@ -110,6 +120,12 @@ async function open(order: number): Promise<void> {
  */
 function setOrder(next: AdminOrder | null): void {
   order.value = next
+}
+
+/** The search the shown page belongs to. */
+interface OrderSearch {
+  by: 'player' | 'company'
+  name: string
 }
 </script>
 
