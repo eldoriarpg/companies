@@ -46,6 +46,7 @@ solo:
   abortCooldownMinutes: 60
 market:
   minOrders: 3
+  historyDays: 365
 ```
 
 ## General
@@ -135,4 +136,5 @@ The market prices on the [web dashboard](../dashboard.md).
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `market.minOrders` | number | `3` | How many delivered orders a material needs before the dashboard shows its prices. Below that, only the amount ordered is shown, so a single order cannot be traced back. At least 1. | reload |
+| `market.minOrders` | number | `3` | How many delivered orders a material needs before the dashboard shows its prices. Below that, only the amount ordered is shown, so a single order cannot be traced back. The same applies to each day of the price history and to each week a price change compares. At least 1. | reload |
+| `market.historyDays` | number | `365` | How many days of price history are kept. The primary server records it every half hour from the delivered orders in the order history, so it reaches back no further than that history is kept. At least 14. | reload |
