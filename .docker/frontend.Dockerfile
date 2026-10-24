@@ -15,4 +15,5 @@ ENV NITRO_HOST=0.0.0.0
 LABEL org.opencontainers.image.title="Companies Dashboard Frontend" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.source="https://github.com/eldoriarpg/companies"
+USER node
 CMD ["node", "server/index.mjs"]
