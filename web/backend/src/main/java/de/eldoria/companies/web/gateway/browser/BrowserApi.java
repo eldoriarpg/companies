@@ -106,8 +106,9 @@ public final class BrowserApi {
      * @param logins login attempts per client address
      * @param lookups short id lookups per client address
      * @param reads read actions per session
+     * @param writes actions that change something, per session
      */
-    public record Limiters(RateLimiter logins, RateLimiter lookups, RateLimiter reads) {}
+    public record Limiters(RateLimiter logins, RateLimiter lookups, RateLimiter reads, RateLimiter writes) {}
 
     /**
      * What the browser API needs from the configuration.
@@ -273,10 +274,11 @@ public final class BrowserApi {
         StoredSession session = session(ctx);
         Views.ActionCall call = body(ctx, Views.ActionCall.class);
         String name = call.name();
-        if (name == null || !ReadRelay.READ_ACTIONS.contains(name)) {
+        boolean write = name != null && ReadRelay.WRITE_ACTIONS.contains(name);
+        if (name == null || !(write || ReadRelay.READ_ACTIONS.contains(name))) {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is not available on the dashboard");
         }
-        if (!limits.reads().tryAcquire(session.id())) throw tooMany();
+        if (!(write ? limits.writes() : limits.reads()).tryAcquire(session.id())) throw tooMany();
         LiveServer server = online(session);
         NodeLink link = server.route().orElseThrow(BrowserApi::offline);
         String feature = Actions.feature(name);
@@ -284,7 +286,8 @@ public final class BrowserApi {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "The server does not offer this");
         }
         ObjectNode args = Optional.ofNullable(call.args()).orElseGet(MAPPER::createObjectNode);
-        ctx.json(await(session, reads.read(session, link, name, args)));
+        ctx.json(
+                await(session, write ? reads.write(session, link, name, args) : reads.read(session, link, name, args)));
     }
 
     /**

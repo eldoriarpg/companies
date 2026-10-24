@@ -478,6 +478,30 @@ class HostedGatewayTest {
         }
     }
 
+    @Test
+    void forwardsWritesUncachedAndDropsTheCachedReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.71");
+            login(node, browser, create(node, uid));
+            assertEquals(1, readFromNode(node, browser, INBOX_PAGE, 1));
+            assertEquals(1, readCached(browser, INBOX_PAGE));
+
+            String readAll = "{\"name\":\"inbox.read-all\",\"args\":{}}";
+            CompletableFuture<HttpResponse<String>> first = browser.postAsync("/api/v1/me/actions", readAll);
+            ActionRequest request = node.expect(ActionRequest.class);
+            assertEquals("inbox.read-all", request.name());
+            answer(node, request, 2);
+            assertEquals(2, content(first.join()));
+
+            CompletableFuture<HttpResponse<String>> second = browser.postAsync("/api/v1/me/actions", readAll);
+            answer(node, node.expect(ActionRequest.class), 3);
+            assertEquals(3, content(second.join()));
+
+            assertEquals(4, readFromNode(node, browser, INBOX_PAGE, 4));
+        }
+    }
+
     private static final String TREASURY_LOG = "{\"name\":\"company.treasury.log\",\"args\":{\"page\":1}}";
     private static final String INBOX_PAGE = "{\"name\":\"inbox.page\",\"args\":{\"page\":1}}";
     private static final String RANKINGS_PAGE = "{\"name\":\"rankings.page\",\"args\":{\"page\":1}}";

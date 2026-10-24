@@ -37,6 +37,8 @@ import java.util.function.Function;
  * @param cacheIdle how long a snapshot stays in memory without a browser using it ({@code CACHE_IDLE_MINUTES}, 15)
  * @param loginsPerAddress login attempts one address may make per ten minutes ({@code LOGINS_PER_ADDRESS}, 10)
  * @param readsPerSession read requests one session may make per ten seconds ({@code READS_PER_SESSION}, 10)
+ * @param writesPerSession actions that change something one session may make per ten seconds
+ * ({@code WRITES_PER_SESSION}, 5)
  * @param connectsPerAddress server connections one address may open per minute ({@code CONNECTS_PER_ADDRESS}, 30)
  * @param requestTimeout how long the gateway waits for a node's answer ({@code REQUEST_TIMEOUT_SECONDS}, 10)
  * @param secureCookie whether the session cookie is marked {@code Secure} ({@code COOKIE_SECURE}, true)
@@ -57,6 +59,7 @@ public record ServiceConfig(
         Duration cacheIdle,
         int loginsPerAddress,
         int readsPerSession,
+        int writesPerSession,
         int connectsPerAddress,
         Duration requestTimeout,
         boolean secureCookie,
@@ -144,6 +147,7 @@ public record ServiceConfig(
                 Duration.ofMinutes(integer(env, "CACHE_IDLE_MINUTES", 15)),
                 integer(env, "LOGINS_PER_ADDRESS", 10),
                 integer(env, "READS_PER_SESSION", 10),
+                integer(env, "WRITES_PER_SESSION", 5),
                 integer(env, "CONNECTS_PER_ADDRESS", 30),
                 Duration.ofSeconds(integer(env, "REQUEST_TIMEOUT_SECONDS", 10)),
                 bool(env, "COOKIE_SECURE", true),
