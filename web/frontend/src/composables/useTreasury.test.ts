@@ -55,4 +55,32 @@ describe('the treasury', () => {
         expect(treasury.recent.value.map(entry => entry.balance)).toEqual([90])
         expect(treasury.series.value).not.toContain(2500)
     })
+
+    it('loads the log once the treasury becomes visible after a switch', async () => {
+        const api = fakeApi()
+        api.server.mockResolvedValue(serverInfo({features: ['company.treasury']}))
+        const read = vi.fn().mockResolvedValueOnce(page(2500)).mockResolvedValueOnce(page(90))
+        api.read = read as unknown as GatewayApi['read']
+        let socket: FakeSocket | null = null
+        const dashboard = useDashboard({api, connect: url => {
+            socket = new FakeSocket(url)
+            return socket
+        }})
+        dashboard.start()
+        await vi.advanceTimersByTimeAsync(0)
+        const treasury = useTreasury(api)
+        await treasury.loadLog()
+
+        const hidden = {...snapshot().company, id: 9, name: 'Copperworks', treasury: null}
+        ;(socket as unknown as FakeSocket).receive(patch(42, {path: 'company', op: 'REPLACE', value: hidden}))
+        await vi.advanceTimersByTimeAsync(0)
+        expect(read).toHaveBeenCalledTimes(1)
+        expect(treasury.recent.value).toEqual([])
+
+        const shown = {...hidden, treasury: {balance: 90}}
+        ;(socket as unknown as FakeSocket).receive(patch(43, {path: 'company', op: 'REPLACE', value: shown}))
+        await vi.advanceTimersByTimeAsync(0)
+        expect(read).toHaveBeenCalledTimes(2)
+        expect(treasury.recent.value.map(entry => entry.balance)).toEqual([90])
+    })
 })

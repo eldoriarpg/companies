@@ -18,7 +18,8 @@ const RELOAD_DELAY_MILLIS = 1500
  * The company's treasury over time: the balances of the treasury log's first page, where the server has the treasury
  * feature and the player may see it, followed by the balances the patches brought while the page was open. Once the
  * log was loaded, a changed balance loads it again shortly after, so the latest movements stay live; a switch to
- * another company drops the old company's log and loads the new one's.
+ * another company drops the old company's log and loads the new one's, and a treasury that becomes visible later
+ * (the player gained the permission) is loaded then.
  *
  * @param api the gateway's calls, for tests
  * @returns the balance now, the series, the change over it and the latest movements
@@ -28,9 +29,11 @@ export function useTreasury(api: GatewayApi = gatewayApi()) {
     const log = shallowRef<TreasuryLogEntry[]>([])
     const latest = useLatest()
     const loaded = ref(false)
+    const wanted = ref(false)
 
     /** Loads the log once, where it is available. */
     async function loadLog(): Promise<void> {
+        wanted.value = true
         if (!supports(Feature['company.treasury']) || !company.value?.treasury) return
         const ticket = latest.next()
         try {
@@ -43,12 +46,14 @@ export function useTreasury(api: GatewayApi = gatewayApi()) {
         }
     }
 
-    watch(() => company.value?.id, (id, before) => {
-        if (id === before || !loaded.value) return
-        latest.next()
-        log.value = []
-        loaded.value = false
-        void loadLog()
+    watch(() => [company.value?.id, Boolean(company.value?.treasury)] as const, ([id, visible], [before]) => {
+        if (!wanted.value) return
+        if (id !== before) {
+            latest.next()
+            log.value = []
+            loaded.value = false
+        }
+        if (visible && !loaded.value) void loadLog()
     })
 
     watchDebounced(() => company.value?.treasury?.balance, () => {
