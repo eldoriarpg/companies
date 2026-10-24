@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 import {gatewayApi, gatewayFailure, type GatewayApi, type PendingSession} from '~/api/gateway'
 import type {VersionStatus} from '~/api/generated/protocol'

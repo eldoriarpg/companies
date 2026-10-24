@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
 /** Whether the dashboard is live: a green square and LIVE while the stream stands, a grey one while it reconnects. */

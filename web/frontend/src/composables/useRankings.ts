@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 import {gatewayApi, type GatewayApi} from '~/api/gateway'
 import type {RankingPage} from '~/api/generated/protocol'

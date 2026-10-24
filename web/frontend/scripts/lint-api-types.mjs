@@ -2,7 +2,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 /**
  * API types linter: the committed protocol types must be what `scripts/generate-api-types.mjs` writes from the

@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 import {defineEventHandler, getRequestHeader, getRequestIP, proxyRequest} from 'h3'
 import {useRuntimeConfig} from '#imports'
