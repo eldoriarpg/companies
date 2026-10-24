@@ -933,6 +933,15 @@
       "properties" : {
         "balance" : {
           "type" : "number"
+        },
+        "share" : {
+          "type" : "integer"
+        },
+        "maxShare" : {
+          "type" : "integer"
+        },
+        "minTransaction" : {
+          "type" : "number"
         }
       },
       "required" : [ "balance" ]

@@ -49,7 +49,7 @@ import java.util.function.Supplier;
 
 /**
  * Answers the reading actions of the dashboard: search results, order details, own orders, inbox, rankings, market
- * statistics, applications and the treasury log, a page at a time. Every answer is checked as the command would check
+ * statistics, applications with the company's open invites and the treasury log, a page at a time. Every answer is checked as the command would check
  * it and keeps orders anonymous between owner and company. Reading the inbox does not mark it read.
  * <p>
  * Pages are asked for with {@code page} (from 1) and {@code pageSize} (at most {@value #MAX_PAGE_SIZE}) and answered
@@ -84,6 +84,7 @@ public final class DashboardReads {
             Features.ORDERS_OWN,
             Features.COMPANY_MEMBERS,
             Features.COMPANY_APPLICATIONS,
+            Features.COMPANY_PROFILE,
             Features.COMPANY_TREASURY,
             Features.INBOX,
             Features.RANKINGS,
@@ -353,7 +354,14 @@ public final class DashboardReads {
                         views.instant(application.created()),
                         views.instant(application.expires())))
                 .toList();
-        return data(request, new Payloads.Page<>(1, 1, applications.size(), applications));
+        var invites = sources.memberships().retrieveInvitesBy(company.get().id(), now).join().stream()
+                .map(invite -> new Payloads.SentInvite(
+                        new PlayerRef(invite.target(), sources.names().apply(invite.target())),
+                        new PlayerRef(invite.inviter(), sources.names().apply(invite.inviter())),
+                        views.instant(invite.created()),
+                        views.instant(invite.expires())))
+                .toList();
+        return data(request, new Payloads.Applications(1, 1, applications.size(), applications, invites));
     }
 
     private ActionResult treasuryLog(ActionRequest request, UUID player, JsonNode args) {

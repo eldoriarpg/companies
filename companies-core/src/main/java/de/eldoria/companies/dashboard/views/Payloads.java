@@ -152,6 +152,27 @@ public final class Payloads {
     public record Application(PlayerRef player, String message, Instant created, Instant expires) {}
 
     /**
+     * The open applications to a company and the invites it sent, for members who may invite.
+     *
+     * @param page    always 1, all are listed
+     * @param pages   always 1
+     * @param total   the number of applications
+     * @param entries the applications, oldest first
+     * @param invites the invites the company sent that are still open
+     */
+    public record Applications(int page, int pages, int total, List<Application> entries, List<SentInvite> invites) {}
+
+    /**
+     * An invite a company sent that is still open.
+     *
+     * @param player  the invited player
+     * @param inviter the member who sent it
+     * @param created when it was sent or last renewed
+     * @param expires when it expires
+     */
+    public record SentInvite(PlayerRef player, PlayerRef inviter, Instant created, Instant expires) {}
+
+    /**
      * The player's place in a ranking.
      *
      * @param ranking the ranking's key

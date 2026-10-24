@@ -223,6 +223,9 @@ export interface MemberStatsView {
 }
 export interface TreasuryView {
   balance: number;
+  share?: number;
+  maxShare?: number;
+  minTransaction?: number;
 }
 export interface ClaimedOrderView {
   id: number;

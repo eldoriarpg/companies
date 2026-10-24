@@ -17,11 +17,9 @@ import de.eldoria.companies.services.ActionResult.Refused;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationCategory;
 import de.eldoria.companies.web.api.Actions;
-import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -32,10 +30,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Performs the actions of the dashboard that change something: accepting and aborting orders for the company,
- * cancelling, extending and raising own orders, and reading, clearing and muting the inbox.
+ * cancelling, extending and raising own orders, and reading, clearing and muting the inbox. The actions on the player's
+ * company are handed to {@link CompanyWrites}.
  * <p>
  * Every action goes through the same service the command uses, with the session's player as actor, so the company
  * permissions, order states and limits are checked exactly as in game. A refusal carries the service's locale key as
@@ -48,9 +49,9 @@ import java.util.function.Function;
  */
 public final class DashboardWrites {
     /**
-     * The actions this version performs.
+     * The actions on orders and the inbox this version performs.
      */
-    public static final Set<String> ACTIONS = Set.of(
+    public static final Set<String> OWN_ACTIONS = Set.of(
             Actions.ORDERS_ACCEPT,
             Actions.ORDERS_ABORT,
             Actions.ORDERS_OWN_CANCEL,
@@ -60,14 +61,24 @@ public final class DashboardWrites {
             Actions.INBOX_CLEAR,
             Actions.INBOX_MUTE);
 
+    /**
+     * Every action this version performs, including those of {@link CompanyWrites}.
+     */
+    public static final Set<String> ACTIONS =
+            Stream.concat(OWN_ACTIONS.stream(), CompanyWrites.ACTIONS.stream()).collect(Collectors.toUnmodifiableSet());
+
     private final Sources sources;
-    private final JsonMapper mapper = Protocol.mapper();
+    private final CompanyWrites company;
+    private final Answers answers;
 
     /**
-     * @param sources what the actions are performed with
+     * @param sources what the actions on orders and the inbox are performed with
+     * @param company performs the actions on the player's company
      */
-    public DashboardWrites(Sources sources) {
+    public DashboardWrites(Sources sources, CompanyWrites company) {
         this.sources = sources;
+        this.company = company;
+        answers = new Answers(sources.render());
     }
 
     /**
@@ -88,8 +99,9 @@ public final class DashboardWrites {
      * @return the result
      */
     public ActionResult perform(ActionRequest request, StoredSession session) {
-        var args = request.args() == null ? mapper.createObjectNode() : request.args();
+        var args = request.args() == null ? answers.empty() : request.args();
         var player = session.player();
+        if (CompanyWrites.ACTIONS.contains(request.name())) return company.perform(request, player, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));
@@ -136,7 +148,7 @@ public final class DashboardWrites {
 
     private ActionResult cancel(ActionRequest request, UUID player, JsonNode args) {
         var order = order(args);
-        if (quote(args)) {
+        if (Answers.quote(args)) {
             return switch (sources.ownerOrders().cancellable(player, order).join()) {
                 case Done<OwnerOrderService.Cancellable>(var cancellable) ->
                     data(
@@ -172,7 +184,7 @@ public final class DashboardWrites {
         var order = order(args);
         var increase = args.path("increase").isNumber() ? args.path("increase").asDouble() : Double.NaN;
         if (!(increase > 0) || !Double.isFinite(increase)) return refused(request, "error.invalidNumber");
-        var quote = quote(args);
+        var quote = Answers.quote(args);
         var result = quote
                 ? sources.ownerOrders().raiseQuote(player, order, increase).join()
                 : sources.ownerOrders().raise(player, order, increase).join();
@@ -218,26 +230,16 @@ public final class DashboardWrites {
         return order.isIntegralNumber() && order.canConvertToInt() ? order.asInt() : 0;
     }
 
-    private static boolean quote(JsonNode args) {
-        return args.path("quote").asBoolean(false);
-    }
-
     private ActionResult data(ActionRequest request, Object value) {
-        return new ActionResult(request.id(), Protocol.VERSION, true, null, null, mapper.valueToTree(value));
+        return answers.data(request, value);
     }
 
     private ActionResult refused(ActionRequest request, CommandFailure failure) {
-        return new ActionResult(
-                request.id(),
-                Protocol.VERSION,
-                false,
-                failure.localeKey(),
-                sources.render().apply(failure),
-                null);
+        return answers.refused(request, failure);
     }
 
     private ActionResult refused(ActionRequest request, String reason) {
-        return refused(request, CommandFailure.of(reason));
+        return answers.refused(request, reason);
     }
 
     /**

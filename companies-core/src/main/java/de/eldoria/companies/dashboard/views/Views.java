@@ -302,11 +302,14 @@ public final class Views {
                 .map(member -> member.hasPermission(CompanyPermission.TREASURY))
                 .orElse(false);
         if (!allowed) return Optional.empty();
-        return sources.api()
-                .companies()
-                .treasury(company.id())
-                .join()
-                .map(treasury -> new TreasuryView(treasury.balance().doubleValue()));
+        return sources.api().companies().treasury(company.id()).join().map(treasury -> {
+            var settings = sources.companySettings().get().treasury();
+            return new TreasuryView(
+                    treasury.balance().doubleValue(),
+                    settings.effectiveShare(treasury.payoutShare()),
+                    settings.maxPayoutShare(),
+                    settings.minTransaction());
+        });
     }
 
     private LevelView level(ICompanyProfile company) {

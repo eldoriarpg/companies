@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.services;
 
+import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.TreasuryKind;
@@ -16,11 +17,13 @@ import de.eldoria.companies.data.wrapper.treasury.Treasury;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryLogEntry;
 import de.eldoria.companies.events.company.TreasuryTransactionEvent;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Threading;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Event;
@@ -559,6 +562,56 @@ public final class TreasuryService {
          * Saving or paying failed; nothing was charged.
          */
         FAILED
+    }
+
+    /**
+     * What a player is told about a treasury action that was not done.
+     *
+     * @param result   the result of the action
+     * @param currency the name of the currency
+     * @return the locale key of the error and its values
+     */
+    public Refusal explain(Result result, String currency) {
+        return switch (result.outcome()) {
+            case DISABLED -> new Refusal("company.bank.error.disabled");
+            case NO_MEMBER -> new Refusal("error.noMember");
+            case NO_PERMISSION -> new Refusal("error.permission.treasury");
+            case INVALID_AMOUNT ->
+                new Refusal(
+                        "company.bank.error.amount",
+                        Values.text(
+                                "min", format(BigDecimal.valueOf(settings.get().minTransaction()))));
+            case PLAYER_FUNDS -> new Refusal("company.bank.error.playerFunds", Values.text("currency", currency));
+            case TREASURY_FUNDS -> new Refusal("company.bank.error.insufficient");
+            case SHARE_CAP ->
+                new Refusal(
+                        "company.bank.error.shareCap",
+                        Values.number("max", settings.get().maxPayoutShare()));
+            case FAILED, PURCHASE_FAILED, DONE -> new Refusal("error.saveFailed");
+        };
+    }
+
+    /**
+     * Why a treasury action was not done, as the player is told.
+     *
+     * @param key    locale key of the error
+     * @param values values of the placeholders in the error
+     */
+    public record Refusal(String key, List<TagResolver.Single> values) {
+        /**
+         * @param key    locale key of the error
+         * @param values values of the placeholders in the error
+         */
+        public Refusal(String key, TagResolver.Single... values) {
+            this(key, List.of(values));
+        }
+
+        /**
+         * @return the refusal as a command failure
+         */
+        public CommandFailure failure() {
+            return CommandFailure.of(key, values.toArray(TagResolver[]::new));
+        }
     }
 
     /**
