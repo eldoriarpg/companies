@@ -9,6 +9,7 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
 import de.eldoria.companies.dashboard.gateway.FakeGateway;
+import de.eldoria.companies.dashboard.gateway.GatewayConnection;
 import de.eldoria.companies.dashboard.gateway.GatewayStatus;
 import de.eldoria.companies.dashboard.gateway.Handshake;
 import de.eldoria.companies.dashboard.keys.DashboardKeys;
@@ -363,6 +364,18 @@ class DashboardIntegrationTest {
         var refused = gateway.next(ErrorMessage.class, WAIT);
         assertEquals("late", refused.id());
         assertEquals(ErrorCode.DISCONTINUED, refused.code());
+    }
+
+    @Test
+    void aRestartAfterStoppingOpensNoConnection() throws Exception {
+        connect(supported());
+
+        dashboard.stop();
+        dashboard.restart();
+        TimeUnit.SECONDS.sleep(1);
+
+        assertEquals(1, gateway.connections().size());
+        assertEquals(GatewayConnection.State.STOPPED, dashboard.status().get().state());
     }
 
     @Test

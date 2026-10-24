@@ -70,6 +70,7 @@ public final class Dashboard implements GatewayLink {
     private final List<ScheduledFuture<?>> tasks = new ArrayList<>();
     private volatile @Nullable GatewayConnection connection;
     private volatile @Nullable URI gateway;
+    private boolean stopped;
 
     /**
      * @param parts what the dashboard is made of
@@ -115,9 +116,11 @@ public final class Dashboard implements GatewayLink {
     /**
      * Replaces the connection with one built from the current settings, or stops it while the dashboard is disabled.
      * The old connection is closed before the new one opens, so the gateway never sees both. On the primary the key
-     * configured in {@code node.yml} is stored when it changed. Blocks while the old connection closes.
+     * configured in {@code node.yml} is stored when it changed. Blocks while the old connection closes. Does nothing
+     * once the dashboard was stopped, so a restart still queued then opens no connection.
      */
     public synchronized void restart() {
+        if (stopped) return;
         var previous = connection;
         connection = null;
         if (previous != null) previous.stop();
@@ -207,6 +210,7 @@ public final class Dashboard implements GatewayLink {
      * Closes the connection and stops the scheduled work.
      */
     public synchronized void stop() {
+        stopped = true;
         tasks.forEach(task -> task.cancel(false));
         tasks.clear();
         var current = connection;
