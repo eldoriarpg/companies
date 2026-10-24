@@ -59,8 +59,14 @@ async function submit(): Promise<void> {
 <template>
   <ViewContent :title="title" standalone>
     <ServerHeading v-if="login.pending.value" :server="login.pending.value.server"/>
-    <DiscontinuedNotice v-if="login.status.value === 'discontinued'" :server-name="login.pending.value?.server.name" :version="login.version.value"/>
+    <DiscontinuedNotice
+        v-if="login.status.value === 'discontinued'"
+        :server-name="login.pending.value?.server.name"
+        :version="login.version.value"
+        :message="login.message.value"
+    />
     <NoticeBanner v-else-if="!known || login.status.value === 'unknown'" tone="problem">{{ t('login.unknown') }}</NoticeBanner>
+    <NoticeBanner v-else-if="login.status.value === 'locked'" tone="problem">{{ t('login.locked') }}</NoticeBanner>
     <NoticeBanner v-else-if="login.status.value === 'offline'" tone="problem">{{ t('login.offline') }}</NoticeBanner>
     <p v-else-if="login.status.value === 'loading'" class="m-0 text-sm text-ink-muted" role="status">{{ t('login.loading') }}</p>
     <form v-else class="flex flex-col gap-6" @submit.prevent="submit">
@@ -75,7 +81,9 @@ async function submit(): Promise<void> {
           :hint="t('login.codeHint', {minutes: minutesLeft, attempts: login.attemptsLeft.value})"
       />
       <div v-if="turnstile.needed.value" ref="challenge" class="min-h-16"/>
-      <NoticeBanner v-if="login.problem.value" tone="problem">{{ t(`login.problem.${login.problem.value}`) }}</NoticeBanner>
+      <NoticeBanner v-if="login.problem.value" tone="problem">
+        {{ login.problem.value === 'refused' && login.message.value ? login.message.value : t(`login.problem.${login.problem.value}`) }}
+      </NoticeBanner>
       <NoticeBanner v-if="turnstile.failed.value" tone="problem">{{ t('login.challengeFailed') }}</NoticeBanner>
       <PrimaryButton type="submit" :disabled="!ready || login.sending.value" full-width>{{ t('login.open') }}</PrimaryButton>
     </form>

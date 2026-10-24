@@ -14,6 +14,7 @@ import NoticeBanner from './NoticeBanner.vue'
 defineProps<{
   serverName?: string
   version: VersionStatus | null
+  message?: string | null
 }>()
 
 const {t, d} = useI18n()
@@ -22,7 +23,7 @@ const {t, d} = useI18n()
 <template>
   <NoticeBanner tone="problem">
     <strong class="font-semibold">{{ serverName ? t('version.discontinuedFor', {server: serverName}) : t('version.discontinued') }}</strong>
-    <span v-if="version?.message">{{ version.message }}</span>
+    <span v-if="version?.message ?? message">{{ version?.message ?? message }}</span>
     <span v-if="version?.since">{{ t('version.since', {date: d(new Date(`${version.since}T00:00:00`), {year: 'numeric', month: 'long', day: 'numeric'})}) }}</span>
     <span>{{ version?.updateTo ? t('version.askOwnerTo', {version: version.updateTo}) : t('version.askOwner') }}</span>
   </NoticeBanner>

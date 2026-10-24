@@ -7,13 +7,32 @@ import {gatewayApi, gatewayFailure, type GatewayApi, type PendingSession} from '
 import type {VersionStatus} from '~/api/generated/protocol'
 
 /** Where the login stands with its waiting session. */
-export type LoginStatus = 'loading' | 'waiting' | 'unknown' | 'discontinued' | 'offline'
+export type LoginStatus = 'loading' | 'waiting' | 'unknown' | 'locked' | 'discontinued' | 'offline'
 
 /** Why the last code was not taken. */
-export type LoginProblem = 'wrong' | 'locked' | 'challenge' | 'busy' | 'offline'
+export type LoginProblem = 'wrong' | 'challenge' | 'busy' | 'elsewhere' | 'refused' | 'serverOffline' | 'offline'
 
 /** The letters a code is made of: no I, L, O, 0 or 1, which read alike. */
 export const CODE_LETTERS = /^[A-HJKMNP-Z2-9]{6}$/
+
+/**
+ * What the reader is told about a code the gateway did not take, by the answer's status and error code: another
+ * browser opening the same session meanwhile (409), the plugin refusing the login (403), or the server not
+ * answering (503, 504).
+ *
+ * @param status the HTTP status
+ * @param error the gateway's error code
+ * @returns the problem
+ */
+export function problemOf(status: number, error: string | undefined): LoginProblem {
+    if (error === 'WRONG_CODE') return 'wrong'
+    if (error === 'TURNSTILE_FAILED') return 'challenge'
+    if (error === 'RATE_LIMITED' || status === 429) return 'busy'
+    if (error === 'SERVER_OFFLINE') return 'serverOffline'
+    if (status === 409) return 'elsewhere'
+    if (error === 'UNAUTHORIZED') return 'refused'
+    return 'offline'
+}
 
 /** A short id: six letters and digits. */
 export const SHORT_ID = /^[A-Za-z0-9]{6}$/
@@ -33,6 +52,7 @@ export function useLogin(shortId: string, api: GatewayApi = gatewayApi()) {
     const attemptsLeft = ref(0)
     const sending = ref(false)
     const version = ref<VersionStatus | null>(null)
+    const message = ref<string | null>(null)
 
     /** Asks the gateway for the waiting session. */
     async function load(): Promise<void> {
@@ -45,8 +65,8 @@ export function useLogin(shortId: string, api: GatewayApi = gatewayApi()) {
             status.value = session.version.status === 'DISCONTINUED' ? 'discontinued' : 'waiting'
         } catch (error) {
             const {status: code, body} = gatewayFailure(error)
-            version.value = body?.version ?? null
-            if (body?.error === 'DISCONTINUED') status.value = 'discontinued'
+            message.value = body?.message ?? null
+            if (body?.error === 'DISCONTINUED') discontinued(body.version)
             else status.value = code === 404 || code === 410 || body?.error === 'UNKNOWN_SESSION' ? 'unknown' : 'offline'
         }
     }
@@ -73,22 +93,29 @@ export function useLogin(shortId: string, api: GatewayApi = gatewayApi()) {
     }
 
     /**
-     * Tells why a code was not taken.
+     * Shows the server as discontinued, with the version state the gateway sent along.
+     *
+     * @param state the version state, where the answer carried one
+     */
+    function discontinued(state: VersionStatus | undefined): void {
+        version.value = state ?? version.value
+        status.value = 'discontinued'
+    }
+
+    /**
+     * Tells why a code was not taken. The error code decides before the status, since the gateway answers 410 both
+     * for a discontinued server and for the last wrong attempt.
      *
      * @param error what the call threw
      */
     function refused(error: unknown): void {
         const {status: code, body} = gatewayFailure(error)
+        message.value = body?.message ?? null
         if (body?.attemptsLeft !== undefined) attemptsLeft.value = body.attemptsLeft
-        if (body?.error === 'WRONG_CODE') problem.value = 'wrong'
-        else if (body?.error === 'TURNSTILE_FAILED') problem.value = 'challenge'
-        else if (body?.error === 'RATE_LIMITED' || code === 429) problem.value = 'busy'
-        else if (body?.error === 'TOO_MANY_ATTEMPTS' || body?.error === 'UNKNOWN_SESSION' || code === 410) {
-            problem.value = 'locked'
-            status.value = 'unknown'
-        } else {
-            problem.value = 'offline'
-        }
+        if (body?.error === 'DISCONTINUED') discontinued(body.version)
+        else if (body?.error === 'TOO_MANY_ATTEMPTS') status.value = 'locked'
+        else if (body?.error === 'UNKNOWN_SESSION') status.value = 'unknown'
+        else problem.value = problemOf(code, body?.error)
     }
 
     return {
@@ -98,6 +125,7 @@ export function useLogin(shortId: string, api: GatewayApi = gatewayApi()) {
         attemptsLeft: readonly(attemptsLeft),
         sending: readonly(sending),
         version: readonly(version),
+        message: readonly(message),
         load,
         submit,
     }
