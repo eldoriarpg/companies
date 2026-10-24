@@ -25,8 +25,9 @@ import java.util.logging.Logger;
 /**
  * The key the network authenticates with at the gateway, kept in the database so every node sees a rotation.
  * <p>
- * A key is entered with {@code /companyadmin dashboard key} or configured in {@code node.yml}; a configured key is
- * stored only when it differs from the one stored from the configuration before, so it does not undo a rotation. A key
+ * A key is entered with {@code /companyadmin dashboard key} or configured in {@code node.yml} of the primary; a
+ * configured key is stored only when it differs from the one stored from the configuration before, so it undoes
+ * neither a rotation nor an entered key. A key
  * starting with {@code lyd_} is a Lyna dashboard key, anything else a self-hosted gateway's server token.
  * <p>
  * The primary asks Lyna for the current dashboard key at most once a day, see {@link #refreshIfDue()}, and stores the
@@ -43,6 +44,7 @@ public final class DashboardKeys {
     private final Clock clock;
     private final Logger logger;
     private volatile Optional<String> problem = Optional.empty();
+    private volatile Optional<StoredKey> unsaved = Optional.empty();
 
     /**
      * @param data   the dashboard tables
@@ -58,23 +60,37 @@ public final class DashboardKeys {
     }
 
     /**
-     * The key the network uses now, read from the database.
+     * The key the network uses now: a rotated key that could not be stored yet, otherwise the one in the database.
+     * Storing a rotated key is tried again first.
      *
      * @return the key, empty when none was entered
      */
     public Optional<StoredKey> current() {
-        return data.key();
+        saveUnsaved();
+        var pending = unsaved;
+        return pending.isPresent() ? pending : data.key();
     }
 
     /**
      * Stores a key entered by an admin. It replaces the stored one and is refreshed on the next check.
+     * <p>
+     * The hash of the key configured in this node's {@code node.yml} is kept with it, or the hash stored before when
+     * none is configured, so a reload does not put the configured key back over the entered one. Only a changed
+     * configured key replaces it again.
      *
-     * @param secret the key or token
+     * @param secret     the key or token
+     * @param configured the resolved key configured in this node's {@code node.yml}, empty when none is configured
      * @return the stored key
      */
-    public StoredKey enter(String secret) {
-        var key = StoredKey.entered(secret.trim(), null);
+    public StoredKey enter(String secret, Optional<String> configured) {
+        var seedHash = configured
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .map(DashboardKeys::sha256)
+                .orElseGet(() -> data.key().map(StoredKey::seedHash).orElse(null));
+        var key = StoredKey.entered(secret.trim(), seedHash);
         data.saveKey(key, now());
+        unsaved = Optional.empty();
         problem = Optional.empty();
         logger.info("A new dashboard " + describe(key.kind()) + " was stored.");
         return key;
@@ -94,6 +110,7 @@ public final class DashboardKeys {
         if (stored.isPresent() && hash.equals(stored.get().seedHash())) return false;
         var key = StoredKey.entered(secret.get(), hash);
         data.saveKey(key, now());
+        unsaved = Optional.empty();
         problem = Optional.empty();
         logger.info("The dashboard " + describe(key.kind()) + " from node.yml was stored.");
         return true;
@@ -107,7 +124,7 @@ public final class DashboardKeys {
      * @return the key to use now, empty when none is stored
      */
     public Optional<StoredKey> refreshIfDue() {
-        var stored = data.key();
+        var stored = current();
         if (stored.isEmpty() || stored.get().kind() != KeyKind.DASHBOARD_KEY) return stored;
         var key = stored.get();
         var now = now();
@@ -135,10 +152,34 @@ public final class DashboardKeys {
     private StoredKey issued(StoredKey key, LynaKeys.Issued issued, LocalDateTime now) {
         var refreshAt = LocalDateTime.ofInstant(issued.refreshAt(), ZoneOffset.UTC);
         var next = new StoredKey(issued.key(), KeyKind.DASHBOARD_KEY, refreshAt, now, key.seedHash());
-        data.saveKey(next, now);
+        try {
+            data.saveKey(next, now);
+        } catch (RuntimeException e) {
+            unsaved = Optional.of(next);
+            logger.log(
+                    Level.WARNING,
+                    "Could not store the rotated dashboard key. It is used and stored again on the next check.",
+                    e);
+        }
         problem = Optional.empty();
         if (!issued.key().equals(key.secret())) logger.info("The dashboard key was rotated.");
         return next;
+    }
+
+    /**
+     * Stores a rotated key that could not be stored before. The other nodes keep the previous key, which Lyna accepts
+     * for ten more minutes, so this is tried on every check.
+     */
+    private void saveUnsaved() {
+        var pending = unsaved;
+        if (pending.isEmpty()) return;
+        try {
+            data.saveKey(pending.get(), now());
+            unsaved = Optional.empty();
+            logger.info("The rotated dashboard key was stored.");
+        } catch (RuntimeException e) {
+            logger.log(Level.FINE, "The rotated dashboard key still could not be stored.", e);
+        }
     }
 
     private StoredKey refused(StoredKey key, LynaKeys.Refused refused, LocalDateTime now) {

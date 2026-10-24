@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -73,11 +74,11 @@ class DashboardKeysTest {
 
     @Test
     void anEnteredKeyIsStoredForTheNetworkAndTellsItsKind() {
-        keys.enter(" " + KEY + " ");
+        keys.enter(" " + KEY + " ", Optional.empty());
         assertEquals(KEY, data.key().orElseThrow().secret());
         assertEquals(KeyKind.DASHBOARD_KEY, data.key().orElseThrow().kind());
 
-        keys.enter("self-hosted-token");
+        keys.enter("self-hosted-token", Optional.empty());
         assertEquals(KeyKind.SERVER_TOKEN, data.key().orElseThrow().kind());
         assertFalse(log.toString().contains("self-hosted-token"));
         assertFalse(log.toString().contains(KEY));
@@ -100,7 +101,7 @@ class DashboardKeysTest {
 
     @Test
     void theRefreshAsksLynaWithTheKeyAndStoresTheNextKeyBeforeItIsUsed() {
-        keys.enter(KEY);
+        keys.enter(KEY, Optional.empty());
         lyna.answer(200, "{\"key\":\"" + NEXT + "\",\"refreshAt\":\"2026-10-31T10:00:00Z\"}");
 
         var used = keys.refreshIfDue().orElseThrow();
@@ -116,8 +117,48 @@ class DashboardKeysTest {
     }
 
     @Test
+    void anEnteredKeyIsNotUndoneByTheConfiguredKeyItReplaced() {
+        keys.seed(Optional.of(KEY));
+        keys.enter(NEXT, Optional.empty());
+
+        assertFalse(keys.seed(Optional.of(KEY)));
+        assertEquals(NEXT, data.key().orElseThrow().secret());
+
+        keys.enter("lyd_test-key-three", Optional.of(KEY));
+        assertFalse(keys.seed(Optional.of(KEY)));
+        assertEquals("lyd_test-key-three", data.key().orElseThrow().secret());
+        assertTrue(keys.seed(Optional.of("lyd_test-key-four")));
+    }
+
+    @Test
+    void aRotatedKeyIsUsedAndStoredLaterWhenStoringFails() {
+        var failing = new AtomicBoolean();
+        var flaky = new SqLiteDashboardData() {
+            @Override
+            public void saveKey(StoredKey key, LocalDateTime now) {
+                if (failing.get()) throw new IllegalStateException("database gone");
+                super.saveKey(key, now);
+            }
+        };
+        var rotating = new DashboardKeys(
+                flaky, new HttpLynaKeys(lyna.address(), "Companies/test"), clock, Logger.getAnonymousLogger());
+        rotating.enter(KEY, Optional.empty());
+        lyna.answer(200, "{\"key\":\"" + NEXT + "\",\"refreshAt\":\"2026-10-31T10:00:00Z\"}");
+        failing.set(true);
+
+        assertEquals(NEXT, rotating.refreshIfDue().orElseThrow().secret());
+        assertEquals(NEXT, rotating.current().orElseThrow().secret());
+        assertEquals(KEY, flaky.key().orElseThrow().secret());
+
+        failing.set(false);
+        assertEquals(NEXT, rotating.current().orElseThrow().secret());
+        assertEquals(NEXT, flaky.key().orElseThrow().secret());
+        assertEquals(1, lyna.requests().size());
+    }
+
+    @Test
     void lynaIsAskedOnceADay() {
-        keys.enter(KEY);
+        keys.enter(KEY, Optional.empty());
         lyna.answer(200, "{\"key\":\"" + KEY + "\",\"refreshAt\":\"2026-10-31T10:00:00Z\"}");
         keys.refreshIfDue();
         clock.advance(Duration.ofHours(23));
@@ -132,7 +173,7 @@ class DashboardKeysTest {
 
     @Test
     void aRefusedKeyIsKeptAndReportedOnce() {
-        keys.enter(KEY);
+        keys.enter(KEY, Optional.empty());
         lyna.answer(401, "{\"reason\":\"EXPIRED\"}");
 
         var used = keys.refreshIfDue().orElseThrow();
@@ -147,7 +188,7 @@ class DashboardKeysTest {
 
     @Test
     void noAccessIsReportedAndTooSoonIsNot() {
-        keys.enter(KEY);
+        keys.enter(KEY, Optional.empty());
         lyna.answer(429, "{\"reason\":\"TOO_SOON\"}");
         keys.refreshIfDue();
         assertEquals(Optional.empty(), keys.problem());
@@ -161,7 +202,7 @@ class DashboardKeysTest {
 
     @Test
     void aFailedRequestIsTriedAgainOnTheNextCheck() {
-        keys.enter(KEY);
+        keys.enter(KEY, Optional.empty());
         lyna.answer(502, "bad gateway");
         keys.refreshIfDue();
         assertTrue(data.key().orElseThrow().checked().isEmpty());
@@ -174,7 +215,7 @@ class DashboardKeysTest {
 
     @Test
     void aServerTokenIsNeverRefreshed() {
-        keys.enter("self-hosted-token");
+        keys.enter("self-hosted-token", Optional.empty());
         clock.advance(Duration.ofDays(3));
 
         assertEquals(
