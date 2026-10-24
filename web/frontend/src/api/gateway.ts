@@ -280,6 +280,104 @@ export interface ApplicationsPage {
     invites?: SentInvite[]
 }
 
+/** An orderable material and what survival can give it. */
+export interface CatalogueMaterial {
+    item: ItemView
+    /** The keys of the enchantments it can take; every enchantment for an enchanted book. */
+    enchantments: string[]
+    /** Whether it takes a potion type. */
+    potion: boolean
+    /** Whether it can be dyed. */
+    dye: boolean
+    /** Whether it takes an armour trim. */
+    trim: boolean
+}
+
+/** An enchantment with its highest survival level and the enchantments it excludes. */
+export interface CatalogueEnchantment {
+    key: string
+    name: string
+    max: number
+    conflicts: string[]
+}
+
+/** An entry of a registry, such as a potion type or a trim pattern. */
+export interface CatalogueEntry {
+    key: string
+    name: string
+}
+
+/** A dye colour and the colour leather takes from it, as `#rrggbb`. */
+export interface CatalogueDye extends CatalogueEntry {
+    color: string
+}
+
+/** What orders can be made of on this server. */
+export interface OrderCatalogue {
+    materials: CatalogueMaterial[]
+    enchantments: CatalogueEnchantment[]
+    potions: CatalogueEntry[]
+    dyes: CatalogueDye[]
+    trimPatterns: CatalogueEntry[]
+    trimMaterials: CatalogueEntry[]
+}
+
+/** An exact item the player can order again: a saved item or one of an earlier order. */
+export interface KnownItem {
+    /** How an order line names it: `saved:<id>` or `earlier:<entry>:<line>`. */
+    ref: string
+    /** The saved item's name, or the earlier order's name. */
+    label: string
+    item: ItemView
+    /** What it carries, such as enchantments, as short lines. */
+    details: string[]
+}
+
+/** The player's saved items and the exact items of their earlier orders. */
+export interface KnownItems {
+    saved: KnownItem[]
+    earlier: KnownItem[]
+}
+
+/** An item defined in the browser: a material and what survival can give it. */
+export interface ItemDefinition {
+    material: string
+    /** Enchantment keys with their levels. */
+    enchantments?: Record<string, number>
+    potion?: string
+    dye?: string
+    trim?: {pattern: string, material: string}
+}
+
+/** One line of an order to place: a material key, a known item's ref, or a defined item. */
+export interface OrderLineArgs {
+    item?: string
+    define?: ItemDefinition
+    amount: number
+    unitPrice: number
+}
+
+/** How an order repeats: every day or week, a number of times or until a day (`yyyy-MM-dd`). */
+export interface RepetitionArgs {
+    interval: 'daily' | 'weekly'
+    times?: number
+    until?: string
+}
+
+/** An order to place. */
+export interface OrderCreateArgs {
+    name: string
+    lines: OrderLineArgs[]
+    repetition?: RepetitionArgs
+}
+
+/** What an order costs. */
+export interface OrderQuote {
+    price: number
+    fee: number
+    total: number
+}
+
 /** The read actions of the dashboard with their arguments and the `data` of their answer. */
 export interface ReadActions {
     'orders.browse.search': {args: OrderSearchArgs, result: OrderSearchPage}
@@ -292,6 +390,9 @@ export interface ReadActions {
     'market.item': {args: {material: string, days: number}, result: MarketDetailView}
     'company.treasury.log': {args: {page: number}, result: TreasuryLogPage}
     'company.applications.list': {args: Record<string, never>, result: ApplicationsPage}
+    'orders.create.catalogue': {args: Record<string, never>, result: OrderCatalogue}
+    'orders.create.items': {args: Record<string, never>, result: KnownItems}
+    'orders.create.quote': {args: OrderCreateArgs, result: OrderQuote}
 }
 
 /** The name of a read action. */
@@ -307,6 +408,7 @@ export interface OrderRef {
  * answer a quote and change nothing when `quote` is true.
  */
 export interface WriteActions {
+    'orders.create': {args: OrderCreateArgs, result: OrderRef & OrderQuote}
     'orders.accept': {args: OrderRef, result: OrderRef}
     'orders.accept.abort': {args: OrderRef, result: OrderRef}
     'orders.own.cancel': {args: OrderRef & {quote?: boolean}, result: OrderRef & {repeating?: boolean}}

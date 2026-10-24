@@ -69,6 +69,7 @@ game. When the server refuses, the dashboard shows its reason.
 |---|---|---|
 | Order book | Accept an order for your company (needs the *manage orders* permission) | `/company order accept <id>` |
 | Positions | Give an order your company works on back to the order book (needs the *manage orders* permission) | `/company order abort <id>` |
+| Order book, Your orders | Place a new order, see below | `/order create` |
 | Your orders | Give an open order more time | `/order extend <id>` |
 | Your orders | Raise what an open order pays; the dashboard shows the fee and the total before you pay | `/order raise <id> <amount>` |
 | Your orders | Cancel an open order; it asks again first and tells you when a repeating order stops with it | `/order cancel <id>` |
@@ -82,6 +83,25 @@ game. When the server refuses, the dashboard shows its reason.
 | Company | Pay into the treasury, take money out, set the share of payouts it keeps (needs *treasury*) | `/company bank deposit`, `withdraw`, `share` |
 
 A server owner can switch single parts of the dashboard off; their buttons then do not appear.
+
+## Placing an order
+
+**New order** in the order book or under *Your orders* opens the order builder:
+
+1. Name the order.
+2. Add lines. The item picker finds the server's materials, your [saved items](orders.md#saved-items) and the exact
+   items of your earlier orders by typing.
+3. For a material that can carry something, set what survival can give it: enchantments up to their highest
+   survival level (never two that exclude each other), a potion type, a leather dye colour or an armour trim. Leave
+   it empty to order the plain item.
+4. Give each line an amount and a price per item. Where the market knows the material, its average is filled in and
+   shown beside the price.
+5. Switch on *Repeat this order* for a [repeating order](repeating-orders.md): every day or week, for a number of
+   copies or until a day.
+
+While you build, the server says what the order costs: the items, the fee and the total, or why it would refuse the
+order. **Place order** takes the total from your balance, even while you are not online, and opens your portfolio,
+where the new order shows up.
 
 Some servers run add-ons that can stop an order from being accepted, for example because of where you stand. Those
 checks only run while you are online on that server. While you are not, the dashboard accepts without them.

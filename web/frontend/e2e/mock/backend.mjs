@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto'
 import {createServer} from 'node:http'
 import {WebSocketServer} from 'ws'
 import {
-    applications, BOOK, CODE, DISCONTINUED, FEATURES, history, INBOX, MARKET, member, NODE, OTHER_NODE, positions, SESSIONS,
+    applications, BOOK, CATALOGUE, CODE, DISCONTINUED, FEATURES, history, INBOX, KNOWN_ITEMS, MARKET, member, NODE, OTHER_NODE, positions, SESSIONS,
     snapshot, TREASURY_LOG,
 } from './data.mjs'
 
@@ -169,6 +169,24 @@ function login(method, shortId, submit, body) {
     return {status: 204, headers: {'set-cookie': `${COOKIE}=${shortId}.${randomUUID()}; Path=/; HttpOnly; SameSite=Strict`}}
 }
 
+/** The most items an order may hold on the mock server. */
+const MAX_ITEMS = 512
+
+/**
+ * What an order costs on the mock server: its lines at their prices and a fee of five percent. More than
+ * {@link MAX_ITEMS} items are refused as the plugin words it.
+ *
+ * @param args the order
+ * @returns the price, fee and total, or the refusal
+ */
+function quoteOf(args) {
+    const items = args.lines.reduce((sum, line) => sum + line.amount, 0)
+    if (items > MAX_ITEMS) return {refusal: `An order may hold at most ${MAX_ITEMS} items.`}
+    const price = args.lines.reduce((sum, line) => sum + line.amount * line.unitPrice, 0)
+    const fee = Math.round(price * 5) / 100
+    return {price, fee, total: price + fee}
+}
+
 /** The order the mock refuses to accept, as a company at its limit would hear it. */
 const LIMITED_ORDER = 3
 
@@ -192,6 +210,16 @@ function action(name, args, state) {
                 return {type: 'action.result', v: 1, ok: false, reason: 'error.orderLimit', message: 'Your company works on as many orders as its level allows.'}
             }
             return done({order: args.order})
+        case 'orders.create.catalogue':
+            return done(CATALOGUE)
+        case 'orders.create.items':
+            return done(KNOWN_ITEMS)
+        case 'orders.create.quote':
+        case 'orders.create': {
+            const quote = quoteOf(args)
+            if (quote.refusal) return refused(quote.refusal)
+            return done(name === 'orders.create' ? {order: 99, ...quote} : quote)
+        }
         case 'orders.accept.abort':
             return done({order: args.order})
         case 'orders.own.cancel':

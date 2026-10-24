@@ -10,7 +10,8 @@ import {useDashboard} from './useDashboard'
 
 /**
  * What the dashboard's frame shows around a page: the sections the server supports, the one open, whether the server
- * offers it at all (a page of a feature the server does not list is not shown, also when its address is typed), its
+ * offers it at all (a section's page of a feature the server does not list is not shown, also when its address is
+ * typed; a page under a section, such as placing an order, checks its own feature), its
  * title, the counts beside them and the player's role in their company.
  *
  * @returns the frame's state
@@ -26,8 +27,10 @@ export function useShell() {
         sections: computed(() => sectionsFor(server.value?.features ?? [])),
         current,
         unavailable: computed(() => {
-            const feature = current.value?.feature
-            return Boolean(feature && server.value && !server.value.features.includes(feature))
+            const section = current.value
+            const feature = section?.feature
+            const own = section !== undefined && route.path.replace(/\/+$/, '') === section.path
+            return Boolean(own && feature && server.value && !server.value.features.includes(feature))
         }),
         title: computed(() => (current.value ? t(`nav.${current.value.id}`) : '')),
         badges: computed<Partial<Record<Section['id'], number>>>(() => ({inbox: snapshot.value?.player.unreadInbox ?? 0})),
