@@ -13,7 +13,8 @@ import SelectInput from '@/components/input/SelectInput.vue'
 import TextInput from '@/components/input/TextInput.vue'
 
 /**
- * Edits the company's description, tag, colour and how players join. The colour is one of the server's palette.
+ * Edits the company's description, tag, colour and how players join. The colour is one of the server's palette, whose
+ * entries the plugin stores lower case.
  * Only the fields the player changed since opening the editor are sent, one after the other, so a change another
  * member made meanwhile is kept; the plugin checks each against the server's limits, and the first refusal stops the
  * rest. An empty field removes the value.
@@ -35,7 +36,7 @@ const action = useAction()
 const opened = {
   description: props.company.description ?? '',
   tag: props.company.tag ?? '',
-  color: props.company.colorName ?? '',
+  color: (props.company.colorName ?? '').toLowerCase(),
   mode: props.company.joinMode as string,
 }
 const description = ref(opened.description)

@@ -43,9 +43,8 @@ import java.util.function.Supplier;
  * permissions are checked exactly as in game. A player is named by id in {@code player}. Renaming answers a quote
  * with {@code "quote": true}: the price, and the treasury's balance when the server lets the treasury pay; the rename
  * itself takes {@code payment}, {@code PLAYER} or {@code TREASURY}; the name is stripped, and a blank one refused by the
- * service. Amounts of money are numbers, shares whole
- * percents. Arguments of the wrong shape are refused with {@code dashboard.invalid}. The methods block on the database
- * and the economy and are called off the main thread.
+ * service. Amounts of money are numbers, shares whole percents. Arguments of the wrong shape are refused with
+ * {@code dashboard.invalid}. The methods block on the database and the economy and are called off the main thread.
  */
 public final class CompanyWrites {
     /**

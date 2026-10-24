@@ -248,6 +248,7 @@ public final class Views {
 
     private List<PaletteColor> palette() {
         return sources.companySettings().get().profile().colors().stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
                 .flatMap(name ->
                         Optional.ofNullable(PlainText.hexColor(name)).map(hex -> new PaletteColor(name, hex)).stream())
                 .toList();
