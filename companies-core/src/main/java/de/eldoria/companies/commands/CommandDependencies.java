@@ -32,6 +32,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
@@ -398,6 +399,7 @@ public final class CommandDependencies {
      * @param companyOrders       gives back orders companies work on
      * @param ownerOrders         cancels, extends and raises orders of their owners
      * @param search              searches the orders a company could accept
+     * @param savedItems          the items players saved to order again
      */
     public record Services(
             Economy economy,
@@ -421,5 +423,6 @@ public final class CommandDependencies {
             OrderAcceptService orderAccept,
             CompanyOrderService companyOrders,
             OwnerOrderService ownerOrders,
-            SearchExecutor search) {}
+            SearchExecutor search,
+            SavedItemService savedItems) {}
 }

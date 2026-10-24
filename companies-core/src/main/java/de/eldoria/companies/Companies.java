@@ -23,6 +23,7 @@ import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
+import de.eldoria.companies.commands.suggest.SavedItemSources;
 import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
@@ -51,6 +52,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeMessageData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSavedItemData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSeriesData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbTreasuryData;
@@ -63,6 +65,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeMessageData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresSavedItemData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSeriesData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresTreasuryData;
@@ -75,6 +78,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeMessageData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
@@ -98,6 +102,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.CompanyService;
@@ -256,6 +261,7 @@ public class Companies extends EldoPlugin {
         MembershipSources.use(new MembershipSources(companyData, membershipData, Threading.VIRTUAL));
         TreasurySources.use(new TreasurySources(companyData, economy.treasury(), Threading.VIRTUAL));
         SeriesSources.use(new SeriesSources(economy.series(), Threading.VIRTUAL));
+        SavedItemSources.use(new SavedItemSources(economy.savedItems(), Threading.VIRTUAL));
         CompanyOrderSources.use(
                 new CompanyOrderSources(companyData, orderData, dependencies.searches(), Threading.VIRTUAL));
         AlertSuggestions.use(new AlertSuggestions(companyData, economy.alerts(), Threading.VIRTUAL));
@@ -382,7 +388,10 @@ public class Companies extends EldoPlugin {
                     orderAccept,
                     CompanyOrderService.create(this, companyData, orderData, outcomes),
                     ownerOrders,
-                    search));
+                    search,
+                    new SavedItemService(this.economy.savedItems(), commands.drafts()::request, () -> configuration
+                            .orderSetting()
+                            .savedItems())));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
@@ -602,6 +611,7 @@ public class Companies extends EldoPlugin {
         AlertSuggestions.clear();
         MembershipSources.clear();
         SeriesSources.clear();
+        SavedItemSources.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
@@ -682,7 +692,8 @@ public class Companies extends EldoPlugin {
                 economy = new EconomyData(
                         new SqLiteTreasuryData(Threading.VIRTUAL),
                         new SqLiteSeriesData(mapper, Threading.VIRTUAL),
-                        new SqLiteAlertData(mapper, Threading.VIRTUAL));
+                        new SqLiteAlertData(mapper, Threading.VIRTUAL),
+                        new SqLiteSavedItemData(mapper, Threading.VIRTUAL));
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
                 membershipData = new SqLiteMembershipData(workerPool);
                 nodeMessages = new SqLiteNodeMessageData();
@@ -698,7 +709,8 @@ public class Companies extends EldoPlugin {
                 economy = new EconomyData(
                         new MariaDbTreasuryData(Threading.VIRTUAL),
                         new MariaDbSeriesData(mapper, Threading.VIRTUAL),
-                        new MariaDbAlertData(mapper, Threading.VIRTUAL));
+                        new MariaDbAlertData(mapper, Threading.VIRTUAL),
+                        new MariaDbSavedItemData(mapper, Threading.VIRTUAL));
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 membershipData = new MariaDbMembershipData(workerPool);
                 nodeMessages = new MariaDbNodeMessageData();
@@ -714,7 +726,8 @@ public class Companies extends EldoPlugin {
                 economy = new EconomyData(
                         new PostgresTreasuryData(Threading.VIRTUAL),
                         new PostgresSeriesData(mapper, Threading.VIRTUAL),
-                        new PostgresAlertData(mapper, Threading.VIRTUAL));
+                        new PostgresAlertData(mapper, Threading.VIRTUAL),
+                        new PostgresSavedItemData(mapper, Threading.VIRTUAL));
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
                 membershipData = new PostgresMembershipData(workerPool);
                 nodeMessages = new PostgresNodeMessageData();

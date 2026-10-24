@@ -56,6 +56,7 @@ You can do everything with commands too. Line numbers start at 1.
 |---|---|
 | `/order draft add <item> <amount> <unit price>` | Add a line |
 | `/order draft add hand <amount> <unit price>` | Add the item in your main hand |
+| `/order draft add saved <name> <amount> <unit price>` | Add one of your [saved items](#saved-items) |
 | `/order draft amount <line> <amount>` | Change the amount. `0` removes the line. |
 | `/order draft price <line> <unit price>` | Change the price for one item |
 | `/order draft price <line> market` | Use the market average as the price |
@@ -88,6 +89,22 @@ Some things to know:
 - You get exactly the items that were delivered, with all their data.
 
 Your server decides which item data counts. See `matching` in [order.yml](../admin/configuration/order-yml.md).
+
+## Saved items
+
+Save an item you order often, for example a sword with your favourite enchantments, and order it again without holding
+it. Saving copies the item in your main hand; you keep it.
+
+| Command | What it does |
+|---|---|
+| `/order items` | List your saved items |
+| `/order items save [name]` | Save the item in your main hand. Without a name it is saved under its material's name. |
+| `/order items remove <name>` | Forget a saved item |
+| `/order draft add saved <name> <amount> <unit price>` | Add a saved item to your draft |
+
+Names are one word of letters, digits, `_` and `-`. You can save up to 27 items, unless your server set another
+number. Items that cannot be ordered cannot be saved. The [dashboard](dashboard.md) offers your saved items when you
+create an order there.
 
 Adding the same item twice merges it into the existing line. An order has a limit of lines and of items in total. The
 builder shows both, for example `Lines: 2/5` and `Items: 192/512`. If you ask for more items than fit, the amount is

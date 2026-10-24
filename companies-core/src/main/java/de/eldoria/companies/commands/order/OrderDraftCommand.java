@@ -7,16 +7,20 @@ package de.eldoria.companies.commands.order;
 
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.DraftLines;
+import de.eldoria.companies.commands.suggest.SavedItemNames;
 import de.eldoria.companies.commands.suggest.UnitPrices;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.data.wrapper.saved.SavedItem;
 import de.eldoria.companies.data.wrapper.series.RepeatInterval;
 import de.eldoria.companies.menus.order.OrderBuilderController;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.Repetition;
+import de.eldoria.companies.services.ActionResult;
 import de.eldoria.companies.util.Permission.Orders;
+import de.eldoria.companies.util.Threading;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Literal;
 import net.strokkur.commands.Subcommand;
@@ -93,6 +97,37 @@ public final class OrderDraftCommand {
             @IntArg(min = 1) int amount,
             @UnitPrices @DoubleArg(min = 0, max = Double.MAX_VALUE) double unitPrice) {
         edit(sender, (player, draft) -> drafts().addHand(draft, player, amount, unitPrice));
+    }
+
+    /**
+     * Adds a saved item as an exact line.
+     *
+     * @param sender    sender of the command
+     * @param name      name of the saved item
+     * @param amount    number of items
+     * @param unitPrice price of one item
+     */
+    @Executes("add saved")
+    public void addSaved(
+            CommandSender sender,
+            @SavedItemNames @StringArg(StringArgType.WORD) String name,
+            @IntArg(min = 1) int amount,
+            @DoubleArg(min = 0, max = Double.MAX_VALUE) double unitPrice) {
+        var player = Senders.player(sender);
+        deps.services()
+                .savedItems()
+                .item(player.getUniqueId(), name)
+                .thenAcceptAsync(
+                        result -> {
+                            switch (result) {
+                                case ActionResult.Refused<SavedItem> refused ->
+                                    refused.failure().sendTo(player, deps.messages());
+                                case ActionResult.Done<SavedItem>(var saved) ->
+                                    edit(player, (owner, draft) -> drafts().add(
+                                                    draft, saved.stack(), amount, unitPrice));
+                            }
+                        },
+                        Threading.mainThread(deps.plugin()));
     }
 
     /**

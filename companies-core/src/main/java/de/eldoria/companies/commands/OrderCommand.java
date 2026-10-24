@@ -16,6 +16,7 @@ import de.eldoria.companies.commands.order.OrderDraftCommand;
 import de.eldoria.companies.commands.order.OwnerOrderViews;
 import de.eldoria.companies.commands.order.Raise;
 import de.eldoria.companies.commands.order.Receive;
+import de.eldoria.companies.commands.order.SavedItemsCommand;
 import de.eldoria.companies.commands.order.SeriesCommand;
 import de.eldoria.companies.commands.order.WorkCommand;
 import de.eldoria.companies.commands.support.HandleFailures;
@@ -69,6 +70,9 @@ final class OrderCommand {
     @Subcommand
     final WorkCommand work;
 
+    @Subcommand
+    final SavedItemsCommand items;
+
     OrderCommand(CommandDependencies deps) {
         var views = new OwnerOrderViews(deps);
         list = new List(deps, views);
@@ -83,6 +87,7 @@ final class OrderCommand {
         history = new HistoryCommand(deps);
         series = new SeriesCommand(deps, views);
         work = new WorkCommand(deps);
+        items = new SavedItemsCommand(deps);
         views.bind(new OwnerOrderViews.Commands(cancel, extend, raise, receive, create, series));
     }
 
