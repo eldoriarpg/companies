@@ -70,6 +70,20 @@ public final class Permission {
         }
     }
 
+    /**
+     * Permissions of the web dashboard.
+     */
+    public static final class Dashboard {
+        /**
+         * The permission to open the dashboard with {@code /company dashboard}.
+         */
+        public static final String USE = BASE + ".dashboard.use";
+
+        private Dashboard() {
+            throw new UnsupportedOperationException("This is a utility class.");
+        }
+    }
+
     public static final class Admin {
         public static final String ADMIN = BASE + ".admin";
         public static final String CALC_LEVEL = ADMIN + ".calcLevel";
@@ -94,6 +108,10 @@ public final class Permission {
          * The permission to list and remove the nodes registered in the database.
          */
         public static final String NODES = ADMIN + ".nodes";
+        /**
+         * The permission to show the dashboard connection, end a player's dashboard sessions and enter the key.
+         */
+        public static final String DASHBOARD = ADMIN + ".dashboard";
 
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");

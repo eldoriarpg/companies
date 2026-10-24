@@ -46,6 +46,15 @@ public final class NodeCaches {
      * Open order counts on board signs. No key.
      */
     public static final String BOARDS = "boards";
+    /**
+     * The dashboard key of the network. Key: {@value #DASHBOARD_KEY}, sent after a new key was stored; the other nodes
+     * connect again with it.
+     */
+    public static final String DASHBOARD = "dashboard";
+    /**
+     * The key of {@link #DASHBOARD} that says a new dashboard key was stored.
+     */
+    public static final String DASHBOARD_KEY = "key";
 
     private final Map<String, List<Consumer<Optional<String>>>> invalidators = new ConcurrentHashMap<>();
     private final Logger logger;

@@ -11,6 +11,7 @@ import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.dashboard.Dashboard;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -84,6 +85,7 @@ public final class CommandDependencies {
     private volatile NodeBus bus = new DatabaseBus();
     private volatile NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private volatile Optional<Services> services = Optional.empty();
+    private volatile Optional<Dashboard> dashboard = Optional.empty();
 
     /**
      * @param plugin        the plugin
@@ -136,6 +138,24 @@ public final class CommandDependencies {
      */
     public void withdraw() {
         services = Optional.empty();
+        dashboard = Optional.empty();
+    }
+
+    /**
+     * Hands in the web dashboard of this node.
+     *
+     * @param ready the dashboard
+     */
+    public void useDashboard(Dashboard ready) {
+        dashboard = Optional.of(ready);
+    }
+
+    /**
+     * @return the web dashboard of this node
+     * @throws CommandFailure {@code error.notReady} while it does not exist
+     */
+    public Dashboard dashboard() {
+        return dashboard.orElseThrow(() -> CommandFailure.of("error.notReady"));
     }
 
     /**
