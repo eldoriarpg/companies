@@ -8,7 +8,7 @@ import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import ConfirmStep from '@/components/feedback/ConfirmStep.vue'
 
 /**
- * Leaves the company after asking once more. The owner cannot leave; they hand the company over in game first. The
+ * Leaves the company after asking once more. The owner cannot leave; they hand the company over first. The
  * company leaves the dashboard through its patch, so leaving is told to the page.
  */
 defineProps<{

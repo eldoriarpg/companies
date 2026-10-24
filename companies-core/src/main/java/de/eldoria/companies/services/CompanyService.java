@@ -22,10 +22,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -61,6 +64,7 @@ public final class CompanyService {
     private final Executor mainThread;
     private final Executor executor;
     private final Logger logger;
+    private final Map<UUID, ReentrantLock> founding = new ConcurrentHashMap<>();
 
     /**
      * @param companyData company repository
@@ -155,7 +159,10 @@ public final class CompanyService {
     /**
      * Founds a company with the actor as owner and charges the founding price. Integrations may refuse it through
      * {@link PreCompanyCreateEvent} before the founder is charged, which only fires while the founder is online on
-     * this server. A company that could not be saved refunds the price.
+     * this server. A company that could not be saved refunds the price. Foundings of one player on this server run one
+     * after the other, so two founded at once, from the dashboard and in game, cannot both pass the membership check;
+     * the lock of a player who founded once is kept, since dropping it lets a later founding take a new lock while
+     * another still waits on the old one.
      *
      * @param actor player who founds the company
      * @param name  name of the company
@@ -178,6 +185,16 @@ public final class CompanyService {
     }
 
     private ActionResult<Integer> foundNow(UUID actor, String name) {
+        var lock = founding.computeIfAbsent(actor, id -> new ReentrantLock());
+        lock.lock();
+        try {
+            return foundLocked(actor, name);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private ActionResult<Integer> foundLocked(UUID actor, String name) {
         var checked = checkFoundable(actor, name);
         if (checked instanceof ActionResult.Refused<String>(var failure)) return ActionResult.refused(failure);
         var founder = players.apply(actor);

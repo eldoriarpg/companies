@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
@@ -75,6 +76,10 @@ class CompanyWritesTest {
     }
 
     private ActionResult perform(UUID player, String action, String args) {
+        return perform(player, action, args, Set.of());
+    }
+
+    private ActionResult perform(UUID player, String action, String args, Set<String> permissions) {
         var session = new StoredSession(
                 "session",
                 player,
@@ -85,7 +90,7 @@ class CompanyWritesTest {
                 Times.now(),
                 Times.now(),
                 null,
-                Set.of());
+                permissions);
         return world.writes.perform(
                 new ActionRequest("act", Protocol.VERSION, session.id(), player, action, json(args)), session);
     }
@@ -398,5 +403,69 @@ class CompanyWritesTest {
                 perform(manager, Actions.APPLICATIONS_ACCEPT, player(applicant)).ok());
         assertEquals(
                 1, world.memberships.retrieveApplicationsTo(other, now).join().size());
+    }
+
+    @Test
+    void foundingNeedsThePermissionQuotesThePriceAndFounds() {
+        var mayFound = Set.of(Permission.Company.CREATE);
+        world.wallets.put(outsider, 100_000.0);
+
+        assertEquals(
+                "error.permission.createCompany",
+                perform(outsider, Actions.COMPANY_CREATE, "{\"name\":\"Diggers\"}")
+                        .reason());
+        var quote = perform(outsider, Actions.COMPANY_CREATE, "{\"name\":\"Diggers\",\"quote\":true}", mayFound);
+        assertTrue(quote.ok(), quote.reason());
+        assertEquals(100_000.0, world.wallets.get(outsider));
+
+        var founded = perform(outsider, Actions.COMPANY_CREATE, "{\"name\":\" Diggers \"}", mayFound);
+
+        assertTrue(founded.ok(), founded.reason());
+        assertEquals(100_000.0 - quote.data().path("price").asDouble(), world.wallets.get(outsider), 0.001);
+        var profile = world.companies
+                .retrievePlayerCompanyProfile(world.offline(outsider))
+                .asFuture()
+                .join()
+                .orElseThrow();
+        assertEquals("Diggers", profile.name());
+        assertTrue(profile.member(outsider).orElseThrow().isOwner());
+        assertEquals(
+                "error.alreadyMember",
+                perform(owner, Actions.COMPANY_CREATE, "{\"name\":\"Other\"}", mayFound)
+                        .reason());
+    }
+
+    @Test
+    void onlyTheOwnerDissolvesAndOnlyWithTheCompanysName() {
+        assertEquals(
+                "error.noOwner",
+                perform(worker, Actions.COMPANY_DISBAND, "{\"name\":\"Miners\"}")
+                        .reason());
+        assertEquals(
+                "dashboard.disband.nameMismatch",
+                perform(owner, Actions.COMPANY_DISBAND, "{\"name\":\"Diggers\"}")
+                        .reason());
+
+        var dissolved = perform(owner, Actions.COMPANY_DISBAND, "{\"name\":\" miners \"}");
+
+        assertTrue(dissolved.ok(), dissolved.reason());
+        assertTrue(
+                world.companies.retrieveCompanyById(company).asFuture().join().isEmpty());
+    }
+
+    @Test
+    void theOwnerHandsTheCompanyToAMember() {
+        assertEquals(
+                "company.transfer.self",
+                perform(owner, Actions.MEMBERS_TRANSFER, player(owner)).reason());
+        assertEquals(
+                "error.noOwner",
+                perform(worker, Actions.MEMBERS_TRANSFER, player(manager)).reason());
+
+        var transferred = perform(owner, Actions.MEMBERS_TRANSFER, player(worker));
+
+        assertTrue(transferred.ok(), transferred.reason());
+        assertTrue(profile().member(worker).orElseThrow().isOwner());
+        assertFalse(profile().member(owner).orElseThrow().isOwner());
     }
 }

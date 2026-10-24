@@ -30,6 +30,7 @@ export const DISCONTINUED = {
 export const SESSIONS = {
     MOSS01: {version: SUPPORTED, stream: 'deliver'},
     CALM01: {version: SUPPORTED},
+    LONE01: {version: SUPPORTED, company: false},
     NOMK01: {version: SUPPORTED, features: ['orders.browse', 'inbox', 'rankings']},
     DEPR01: {
         version: {
@@ -52,7 +53,8 @@ export const SESSIONS = {
 /** The features of the mock server. */
 export const FEATURES = [
     'orders.browse', 'orders.accept', 'orders.own', 'company.members', 'company.applications', 'company.profile',
-    'company.treasury', 'inbox', 'rankings', 'market', 'orders.create', 'orders.deliver',
+    'company.treasury', 'inbox', 'rankings', 'market', 'orders.create', 'orders.deliver', 'company.create',
+    'company.disband',
 ]
 
 const MEMBERS = [

@@ -49,6 +49,7 @@ import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.services.CompanyService;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
@@ -212,6 +213,7 @@ public final class DashboardModule {
                 data.company().memberships(),
                 data.company().profiles(),
                 data.company().companies(),
+                data.company().disband(),
                 data.company().treasury(),
                 data.company().currency(),
                 failure -> PlainText.of(failure.render(null, messages)),
@@ -416,7 +418,8 @@ public final class DashboardModule {
      * @param members     kicks, lets leave and edits permissions
      * @param memberships invites, applications and the join mode
      * @param profiles    edits the profile
-     * @param companies   renames
+     * @param companies   founds and renames
+     * @param disband     dissolves companies
      * @param treasury    the treasuries
      * @param currency    the name of the currency
      */
@@ -425,6 +428,7 @@ public final class DashboardModule {
             MembershipService memberships,
             ProfileService profiles,
             CompanyService companies,
+            DisbandService disband,
             TreasuryService treasury,
             Supplier<String> currency) {}
 }

@@ -8,14 +8,17 @@ package de.eldoria.companies.dashboard.actions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.services.CompanyService;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileChange;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
@@ -35,9 +38,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Performs the dashboard's actions on the player's company: taking back invites, kicking, leaving and editing
- * permissions; accepting and denying applications and setting the join mode; editing the profile and renaming; paying
- * into and out of the treasury and setting its share.
+ * Performs the dashboard's actions on the player's company: taking back invites, kicking, leaving, editing
+ * permissions and handing the company to another member; accepting and denying applications and setting the join
+ * mode; editing the profile and renaming; paying into and out of the treasury and setting its share; founding a
+ * company and dissolving it. Founding needs the permission remembered with the session and is handed in through
+ * {@link #create}; dissolving is done by the owner only and takes the company's name in {@code name}, as typed to
+ * confirm it.
  * <p>
  * Every action goes through the service the command uses, with the session's player as actor, so the company
  * permissions are checked exactly as in game. A player is named by id in {@code player}. Renaming answers a quote
@@ -64,7 +70,10 @@ public final class CompanyWrites {
             Actions.PROFILE_RENAME,
             Actions.TREASURY_DEPOSIT,
             Actions.TREASURY_WITHDRAW,
-            Actions.TREASURY_SHARE);
+            Actions.TREASURY_SHARE,
+            Actions.MEMBERS_TRANSFER,
+            Actions.COMPANY_CREATE,
+            Actions.COMPANY_DISBAND);
 
     private static final String INVALID = "dashboard.invalid";
 
@@ -130,8 +139,69 @@ public final class CompanyWrites {
                 money(request, player, args, (company, amount) -> sources.treasury()
                         .withdraw(company, offline(player), amount));
             case Actions.TREASURY_SHARE -> share(request, player, args);
+            case Actions.MEMBERS_TRANSFER ->
+                onPlayer(
+                        request,
+                        args,
+                        target -> withCompany(
+                                request,
+                                player,
+                                company -> answers.answer(
+                                        request,
+                                        sources.members()
+                                                .transfer(player, company.id(), target)
+                                                .join(),
+                                        transferred -> Map.of("player", target))));
+            case Actions.COMPANY_DISBAND -> disband(request, player, args);
             default -> answers.refused(request, "dashboard.unsupported");
         };
+    }
+
+    /**
+     * Founds a company with the player as owner, or with {@code "quote": true} names its price. The player needs the
+     * permission to found companies, checked against the permissions remembered with the session, as every dashboard
+     * action is; the copy is refreshed when the player joins and every few minutes while online.
+     *
+     * @param request     the action
+     * @param player      the session's player
+     * @param permissions the permissions remembered with the session
+     * @param args        the arguments: {@code name} and {@code quote}
+     * @return the result
+     */
+    ActionResult create(ActionRequest request, UUID player, Set<String> permissions, JsonNode args) {
+        if (!permissions.contains(Permission.Company.CREATE)) {
+            return answers.refused(request, "error.permission.createCompany");
+        }
+        if (!args.path("name").isString()) return answers.refused(request, INVALID);
+        var name = args.path("name").asString().strip();
+        var price = sources.companies().foundingPrice();
+        if (Answers.quote(args)) {
+            return answers.answer(
+                    request,
+                    sources.companies().foundable(player, name).join(),
+                    foundable -> Map.of("name", foundable, "price", price));
+        }
+        return answers.answer(
+                request,
+                sources.companies().found(player, name).join(),
+                company -> Map.of("company", company, "price", price));
+    }
+
+    private ActionResult disband(ActionRequest request, UUID player, JsonNode args) {
+        return withCompany(request, player, company -> {
+            if (!company.member(player).map(CompanyMember::isOwner).orElse(false)) {
+                return answers.refused(request, "error.noOwner");
+            }
+            if (!company.name()
+                    .strip()
+                    .equalsIgnoreCase(args.path("name").asString("").strip())) {
+                return answers.refused(request, "dashboard.disband.nameMismatch");
+            }
+            return answers.answer(
+                    request,
+                    sources.disband().disbandOwned(player, company.id()),
+                    disbanded -> Map.of("company", disbanded.id()));
+        });
     }
 
     private ActionResult leave(ActionRequest request, UUID player) {
@@ -313,7 +383,8 @@ public final class CompanyWrites {
      * @param members     kicks, lets leave and edits permissions
      * @param memberships invites, applications and the join mode
      * @param profiles    edits the profile
-     * @param companies   renames
+     * @param companies   founds and renames
+     * @param disband     dissolves companies
      * @param treasury    the treasuries
      * @param currency    the name of the currency
      * @param render      renders a refusal as plain text, with its values
@@ -326,6 +397,7 @@ public final class CompanyWrites {
             MembershipService memberships,
             ProfileService profiles,
             CompanyService companies,
+            DisbandService disband,
             TreasuryService treasury,
             Supplier<String> currency,
             Function<CommandFailure, String> render,

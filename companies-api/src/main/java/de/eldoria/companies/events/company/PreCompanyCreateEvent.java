@@ -23,7 +23,8 @@ import java.util.Optional;
  * <p>
  * Fired after the player confirmed and before the founding price is charged. The event may be asynchronous. Cancelling
  * it stops the founding, nothing is charged, and the player sees the {@link #cancelReason() reason}. It fires only on
- * the server where the player founds the company. {@link CompanyCreateEvent} follows once the company exists.
+ * the server where the player founds the company, and only while the player is online there: a company founded on the
+ * web dashboard by a player who is not online skips it. {@link CompanyCreateEvent} follows once the company exists.
  */
 public class PreCompanyCreateEvent extends Event implements PlayerProvider<Player>, CancellableWithReason {
     private static final HandlerList HANDLERS = new HandlerList();

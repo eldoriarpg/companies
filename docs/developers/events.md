@@ -47,7 +47,8 @@ The base classes `CompanyEvent` and `OrderEvent` have no handler list. Listen to
 
 Four events fire **before** an action and can stop it:
 
-- `PreCompanyCreateEvent`: a player is about to found a company.
+- `PreCompanyCreateEvent`: a player is about to found a company. It fires only while the founder is online on that
+  server; a company founded on the dashboard by a player who is not online skips it.
 - `PreOrderCreateEvent`: an order is about to be created.
 - `PreOrderAcceptEvent`: a member is about to claim an order for their company.
 - `PreSoloOrderAcceptEvent`: a player is about to take an order to work on it alone.
@@ -106,7 +107,7 @@ reason `INVALID`.
 
 | Event                             | When                                                                                              | Thread                   | Cancellable | Key methods                                                        |
 |-----------------------------------|---------------------------------------------------------------------------------------------------|--------------------------|-------------|--------------------------------------------------------------------|
-| `PreCompanyCreateEvent`           | A player confirmed founding a company. Before the founding price is charged                       | Either, usually main     | With reason | `player()`, `name()`, `price()`                                    |
+| `PreCompanyCreateEvent`           | A player confirmed founding a company, before it is charged; only while the founder is online     | Either, usually main     | With reason | `player()`, `name()`, `price()`                                    |
 | `CompanyCreateEvent`              | A company was founded and saved                                                                   | Either, usually off main | No          | `company()`, `player()` (the founder)                              |
 | `CompanyRenameEvent`              | A company was renamed, by its owner or an admin                                                   | Either, usually off main | No          | `oldName()`, `newName()`, `actor()`, `byAdmin()`                   |
 | `CompanyOwnerTransferEvent`       | The ownership passed to another member, by the owner or an admin                                  | Either, usually off main | No          | `previousOwner()`, `newOwner()`, `byAdmin()`                       |

@@ -441,6 +441,9 @@ export interface WriteActions {
     'company.members.revoke': {args: PlayerArg, result: PlayerArg}
     'company.members.kick': {args: PlayerArg, result: PlayerArg}
     'company.members.leave': {args: Record<string, never>, result: {company: number}}
+    'company.members.transfer': {args: PlayerArg, result: PlayerArg}
+    'company.create': {args: {name: string, quote?: boolean}, result: {name?: string, company?: number, price: number}}
+    'company.disband': {args: {name: string}, result: {company: number}}
     'company.members.permissions': {
         args: PlayerArg & {permissions: Partial<Record<MemberPermission, boolean>>}
         result: PlayerArg & {permissions: MemberPermission[]}

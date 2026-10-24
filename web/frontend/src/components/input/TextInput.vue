@@ -16,6 +16,8 @@ defineProps<{
   maxlength?: number
   placeholder?: string
   disabled?: boolean
+  /** Marks the field a dialog puts the focus on when it opens, through `data-autofocus`. */
+  focusFirst?: boolean
 }>()
 </script>
 
@@ -28,6 +30,7 @@ defineProps<{
         :placeholder="placeholder"
         :disabled="disabled"
         :aria-describedby="hintId"
+        :data-autofocus="focusFirst ? '' : undefined"
         autocomplete="off"
         :class="FIELD_CLASSES"
         class="w-full"

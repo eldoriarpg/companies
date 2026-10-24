@@ -12,8 +12,9 @@ import ConfirmStep from '@/components/feedback/ConfirmStep.vue'
 import ToggleSwitch from '@/components/input/ToggleSwitch.vue'
 
 /**
- * What a member may do to another: switch the permissions they hold themselves on or off for them, and remove them
- * from the company after asking once more. The plugin checks both again. Only the switches the player flipped are
+ * What a member may do to another: switch the permissions they hold themselves on or off for them, remove them from
+ * the company after asking once more, and for the owner, hand the company to them, also after asking. The plugin
+ * checks all of it again. Only the switches the player flipped are
  * sent, so a change another member made meanwhile is kept. A removed member leaves the list through its patch, so the
  * confirmation is told to the panel, which outlives the row.
  */
@@ -21,11 +22,13 @@ const props = defineProps<{
   member: MemberView
   editable: readonly MemberPermission[]
   kickable: boolean
+  transferable: boolean
 }>()
 
 const emit = defineEmits<{
   saved: [name: string]
   kicked: [name: string]
+  transferred: [name: string]
 }>()
 
 const {t} = useI18n()
@@ -64,6 +67,11 @@ async function save(): Promise<void> {
   }
 }
 
+/** Hands the company to the member. */
+async function transfer(): Promise<void> {
+  if (await action.run('company.members.transfer', {player: props.member.uuid})) emit('transferred', props.member.name)
+}
+
 /** Removes the member. */
 async function kick(): Promise<void> {
   if (await action.run('company.members.kick', {player: props.member.uuid})) emit('kicked', props.member.name)
@@ -95,6 +103,14 @@ async function kick(): Promise<void> {
         :confirm="t('company.kickConfirm')"
         :busy="action.busy.value"
         @confirmed="kick"
+    />
+    <ConfirmStep
+        v-if="transferable"
+        :trigger="t('company.transfer')"
+        :question="t('company.transferQuestion', {name: member.name})"
+        :confirm="t('company.transferConfirm')"
+        :busy="action.busy.value"
+        @confirmed="transfer"
     />
   </div>
 </template>
