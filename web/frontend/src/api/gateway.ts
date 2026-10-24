@@ -13,6 +13,7 @@ import type {
     OrderLineView,
     OrderState,
     Patch,
+    PlayerRef,
     Pong,
     RankingPage,
     SessionClosed,
@@ -181,19 +182,25 @@ export interface MarketPage {
 
 /** One movement of the treasury. */
 export interface TreasuryLogEntry {
+    id: number
     time: string
-    /** Positive for money in, negative for money out. */
+    /** What moved the money, an open set such as `DEPOSIT`, `WITHDRAWAL` or `PAYOUT_SHARE`. */
+    kind: string
+    /** How much moved. */
     amount: number
     /** The balance after the movement. */
     balance: number
-    /** The member who moved the money, where one did. */
-    actor?: string
+    /** The member who moved the money, where one did; inside the company members are named. */
+    actor?: PlayerRef
+    /** The order a payout share came from. */
+    order?: number
 }
 
 /** A page of the treasury log, newest first. */
 export interface TreasuryLogPage {
     page: number
     pages: number
+    total?: number
     entries: TreasuryLogEntry[]
 }
 

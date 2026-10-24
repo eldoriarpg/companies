@@ -7,12 +7,15 @@ import {gatewayApi, type GatewayApi, type TreasuryLogEntry} from '~/api/gateway'
 import {Feature} from '~/api/generated/protocol'
 import {useDashboard} from './useDashboard'
 
+/** How many of the latest movements the treasury shows. */
+const RECENT = 5
+
 /**
  * The company's treasury over time: the balances of the treasury log's first page, where the server has the treasury
  * feature and the player may see it, followed by the balances the patches brought while the page was open.
  *
  * @param api the gateway's calls, for tests
- * @returns the balance now, the series and the change over it
+ * @returns the balance now, the series, the change over it and the latest movements
  */
 export function useTreasury(api: GatewayApi = gatewayApi()) {
     const {company, balances, supports} = useDashboard({api})
@@ -44,6 +47,7 @@ export function useTreasury(api: GatewayApi = gatewayApi()) {
             return first === undefined || last === undefined ? 0 : last - first
         }),
         start: computed(() => series.value[0] ?? 0),
+        recent: computed(() => log.value.slice(0, RECENT)),
         loadLog,
     }
 }

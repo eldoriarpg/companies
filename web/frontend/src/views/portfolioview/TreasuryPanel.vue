@@ -4,22 +4,26 @@
  *     Copyright (C EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import {useNow} from '@vueuse/core'
 import PanelBox from '@/components/container/PanelBox.vue'
 import LineChart from '@/components/display/LineChart.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import MutedText from '@/components/typography/MutedText.vue'
-import {money, moneyChange, trendOf} from '~/util/format'
+import {money, moneyChange, trendOf, when} from '~/util/format'
+import {openLabel} from '~/util/labels'
 
 /**
  * The company's treasury as a trading app shows a balance: the figure large, its change since the first value known,
- * and the line it took. Until the log or a change brings a second value, the line is flat.
+ * and the line it took, then its latest movements with the member who made them. Until the log or a change brings a
+ * second value, the line is flat.
  */
 defineProps<{
   company: string
 }>()
 
-const {t, locale} = useI18n()
+const {t, te, locale} = useI18n()
 const treasury = useTreasury()
+const now = useNow({interval: 60_000})
 onMounted(() => void treasury.loadLog())
 </script>
 
@@ -38,5 +42,15 @@ onMounted(() => void treasury.loadLog())
         stretch
         :label="t('portfolio.treasuryChart')"
     />
+    <ol v-if="treasury.recent.value.length > 0" class="m-0 list-none border-t border-line-soft p-0 pt-1" :aria-label="t('portfolio.movements')">
+      <li v-for="entry in treasury.recent.value" :key="entry.id" class="flex items-baseline gap-2.5 py-1.5 text-xs">
+        <span class="tabular w-12 shrink-0 text-ink-muted">{{ when(entry.time, now, locale) }}</span>
+        <span class="min-w-0 grow truncate">
+          <span v-if="entry.actor" class="font-semibold text-accent">{{ entry.actor.name }}</span>
+          {{ openLabel({t, te}, `treasury.kind.${entry.kind}`, entry.kind) }}
+        </span>
+        <span class="tabular shrink-0">{{ money(entry.amount, locale) }}</span>
+      </li>
+    </ol>
   </PanelBox>
 </template>
