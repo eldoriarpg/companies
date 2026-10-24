@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -58,6 +59,7 @@ public final class GatewayApp {
     private final Sessions sessions;
     private final BrowserApi browser;
     private final ClientAddress clientAddress;
+    private final List<RateLimiter> limiters;
 
     /**
      * @param config the settings
@@ -75,15 +77,13 @@ public final class GatewayApp {
         this.config = config;
         ServerRepository servers = new ServerRepository();
         IconRepository icons = new IconRepository();
+        RateLimiter connects = new RateLimiter(config.connectsPerAddress(), Duration.ofMinutes(1), clock);
+        RateLimiter logins = new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock);
+        RateLimiter lookups = new RateLimiter(60, Duration.ofMinutes(1), clock);
+        RateLimiter readLimit = new RateLimiter(config.readsPerSession(), Duration.ofSeconds(10), clock);
+        this.limiters = List.of(connects, logins, lookups, readLimit);
         this.clientAddress = ClientAddress.trusting(config.trustedProxies(), config.cloudflare());
-        this.hub = new NodeHub(
-                authenticator,
-                policy,
-                config.mode().kind(),
-                servers,
-                icons,
-                new RateLimiter(config.connectsPerAddress(), Duration.ofMinutes(1), clock),
-                clock);
+        this.hub = new NodeHub(authenticator, policy, config.mode().kind(), servers, icons, connects, clock);
         this.streams = new BrowserStreams(clock);
         this.snapshots = new SnapshotCache(hub, streams, clock, config.cacheIdle(), config.requestTimeout());
         this.reads = new ReadRelay(clock, config.requestTimeout());
@@ -111,10 +111,7 @@ public final class GatewayApp {
                         icons,
                         new Turnstile(config.turnstile(), http),
                         clientAddress),
-                new BrowserApi.Limiters(
-                        new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock),
-                        new RateLimiter(60, Duration.ofMinutes(1), clock),
-                        new RateLimiter(config.readsPerSession(), Duration.ofSeconds(10), clock)),
+                new BrowserApi.Limiters(logins, lookups, readLimit),
                 new BrowserApi.Settings(
                         config.publicUrl(),
                         config.turnstile().siteKey(),
@@ -158,6 +155,7 @@ public final class GatewayApp {
         run("snapshot", snapshots::sweep);
         run("read", reads::sweep);
         run("stream", streams::sweep);
+        run("rate limit", () -> limiters.forEach(RateLimiter::sweep));
     }
 
     /**

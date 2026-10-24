@@ -10,17 +10,20 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Allows each key, such as a client address or a session, a number of actions per sliding window.
+ * Allows each key, such as a client address or a session, a number of actions per sliding window. Each key has its
+ * own bucket, so a check touches only that key; {@link #sweep()} drops the buckets of keys that went quiet.
  */
 public final class RateLimiter {
     private final int limit;
     private final Duration window;
     private final Clock clock;
-    private final Map<String, Deque<Instant>> actions = new HashMap<>();
+    private final Map<String, Deque<Instant>> actions = new ConcurrentHashMap<>();
 
     /**
      * @param limit actions per window
@@ -39,15 +42,43 @@ public final class RateLimiter {
      * @param key the address or session
      * @return whether the action is allowed
      */
-    public synchronized boolean tryAcquire(String key) {
+    public boolean tryAcquire(String key) {
         Instant now = clock.instant();
+        AtomicBoolean allowed = new AtomicBoolean();
+        actions.compute(key, (ignored, recent) -> {
+            Deque<Instant> bucket = recent == null ? new ArrayDeque<>() : recent;
+            prune(bucket, now);
+            if (bucket.size() < limit) {
+                bucket.addLast(now);
+                allowed.set(true);
+            }
+            return bucket;
+        });
+        return allowed.get();
+    }
+
+    /**
+     * Drops the buckets of keys without an action in the window. Called every few seconds.
+     */
+    public void sweep() {
+        Instant now = clock.instant();
+        for (String key : List.copyOf(actions.keySet())) {
+            actions.computeIfPresent(key, (ignored, bucket) -> {
+                prune(bucket, now);
+                return bucket.isEmpty() ? null : bucket;
+            });
+        }
+    }
+
+    /**
+     * @return how many keys have a bucket
+     */
+    int keys() {
+        return actions.size();
+    }
+
+    private void prune(Deque<Instant> bucket, Instant now) {
         Instant start = now.minus(window);
-        Deque<Instant> recent = actions.computeIfAbsent(key, ignored -> new ArrayDeque<>());
-        while (!recent.isEmpty() && !recent.peekFirst().isAfter(start)) recent.pollFirst();
-        actions.values().removeIf(Deque::isEmpty);
-        if (recent.size() >= limit) return false;
-        recent.addLast(now);
-        actions.put(key, recent);
-        return true;
+        while (!bucket.isEmpty() && !bucket.peekFirst().isAfter(start)) bucket.pollFirst();
     }
 }
