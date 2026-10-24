@@ -41,13 +41,13 @@ const open = computed(() => claimed.value || props.order.state === OrderState.UN
 watch(() => props.order.id, () => {
   done.value = ''
   hours.value = undefined
+  action.reset()
 })
 
 /** Takes the order from its company. */
 async function unclaim(): Promise<void> {
   const result = await action.run('admin.orders.unclaim', {order: props.order.id})
-  if (!result) return
-  done.value = t('admin.orders.unclaimed', {count: result.workers})
+  if (result) done.value = t(result.workers === 1 ? 'admin.orders.unclaimedOne' : 'admin.orders.unclaimed', {count: result.workers})
   emit('changed', props.order.id)
 }
 
@@ -58,7 +58,10 @@ async function unclaim(): Promise<void> {
  */
 async function cancel(refund: boolean): Promise<void> {
   const result = await action.run('admin.orders.cancel', {order: props.order.id, refund})
-  if (!result) return
+  if (!result) {
+    emit('changed', props.order.id)
+    return
+  }
   emit('removed', refund
     ? t('admin.orders.cancelledRefund', {name: props.order.name, amount: money(result.refunded, locale.value)})
     : t('admin.orders.cancelledKept', {name: props.order.name, amount: money(result.collected, locale.value)}))
@@ -67,8 +70,7 @@ async function cancel(refund: boolean): Promise<void> {
 /** Marks the order delivered. */
 async function deliver(): Promise<void> {
   const result = await action.run('admin.orders.deliver', {order: props.order.id})
-  if (!result) return
-  done.value = t('admin.orders.delivered', {amount: money(result.refund, locale.value)})
+  if (result) done.value = t('admin.orders.delivered', {amount: money(result.refund, locale.value)})
   emit('changed', props.order.id)
 }
 
@@ -76,9 +78,10 @@ async function deliver(): Promise<void> {
 async function extend(): Promise<void> {
   if (hours.value === undefined) return
   const result = await action.run('admin.orders.extend', {order: props.order.id, hours: hours.value})
-  if (!result) return
-  done.value = t('admin.orders.extended', {hours: result.hours})
-  hours.value = undefined
+  if (result) {
+    done.value = t(result.hours === 1 ? 'admin.orders.extendedOne' : 'admin.orders.extended', {hours: result.hours})
+    hours.value = undefined
+  }
   emit('changed', props.order.id)
 }
 </script>

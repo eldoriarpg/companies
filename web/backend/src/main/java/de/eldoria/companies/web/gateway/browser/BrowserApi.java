@@ -289,6 +289,9 @@ public final class BrowserApi {
         if (name == null || !(write || ReadRelay.READ_ACTIONS.contains(name))) {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is not available on the dashboard");
         }
+        if (name.startsWith(Features.ADMIN_PREFIX) && !session.admin()) {
+            throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is for admins only");
+        }
         if (!(write ? limits.writes() : limits.reads()).tryAcquire(session.id())) throw tooMany();
         LiveServer server = online(session);
         NodeLink link = (ReadRelay.PLAYER_ACTIONS.contains(name) ? server.routeFor(session.player()) : server.route())

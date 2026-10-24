@@ -39,7 +39,7 @@ test.describe('admin', () => {
         await expect(order.getByText('Kestrel_ 120, mossycobble 80')).toBeVisible()
 
         await order.getByRole('button', {name: 'Delete with refund'}).click()
-        await expect(order.getByText('Delete Harbour wall and give the owner 1,155.00 back?')).toBeVisible()
+        await expect(order.getByText('Delete Harbour wall and give the owner price and fee of 1,155.00 back? Delivered items go back to the workers.')).toBeVisible()
         await order.getByRole('button', {name: 'Delete', exact: true}).click()
 
         await expect(page.getByText('Harbour wall is deleted; the owner got 1,155.00 back.')).toBeVisible()

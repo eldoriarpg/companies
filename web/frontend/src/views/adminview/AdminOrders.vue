@@ -24,6 +24,12 @@ import {openLabel} from '~/util/labels'
  * Any order of the server for an admin: opened by its id, or found among the orders of a player or a company, a page
  * at a time. An opened order shows everything about it and what the admin may do to it.
  */
+/** The search the shown page belongs to. */
+interface OrderSearch {
+  by: 'player' | 'company'
+  name: string
+}
+
 const {t, te, locale} = useI18n()
 const finding = useAction()
 const opening = useAction()
@@ -31,8 +37,10 @@ const by = ref<'player' | 'company'>('player')
 const query = ref('')
 const id = ref<number>()
 const page = ref<AdminOrderPage | null>(null)
+const searched = ref<OrderSearch | null>(null)
 const order = ref<AdminOrder | null>(null)
 const removed = ref('')
+const reloading = useAction()
 const choices = computed(() => [
   {value: 'player', label: t('admin.orders.byPlayer')},
   {value: 'company', label: t('admin.orders.byCompany')},
@@ -46,8 +54,42 @@ const choices = computed(() => [
 async function find(number = 1): Promise<void> {
   const name = query.value.trim()
   if (name === '') return
-  const result = await finding.run('admin.orders.search', by.value === 'player' ? {player: name, page: number} : {company: name, page: number})
+  searched.value = {by: by.value, name}
+  await turn(number)
+}
+
+/**
+ * Shows a page of the last search, whatever is typed meanwhile.
+ *
+ * @param number the page, from one
+ */
+async function turn(number: number): Promise<void> {
+  const search = searched.value
+  if (!search) return
+  const result = await finding.run('admin.orders.search', search.by === 'player' ? {player: search.name, page: number} : {company: search.name, page: number})
   if (result) page.value = result
+}
+
+/**
+ * Loads an order again after it was changed, and the page of the search with it, so both show the order as it is now.
+ *
+ * @param id the order's id
+ */
+async function refresh(id: number): Promise<void> {
+  const result = await reloading.run('admin.orders.info', {order: id})
+  setOrder(result ?? null)
+  if (page.value) await turn(page.value.page)
+}
+
+/**
+ * Closes a deleted order and says what happened to it.
+ *
+ * @param text what happened
+ */
+async function deleted(text: string): Promise<void> {
+  setOrder(null)
+  removed.value = text
+  if (page.value) await turn(page.value.page)
 }
 
 /**
@@ -103,15 +145,16 @@ function setOrder(next: AdminOrder | null): void {
             </li>
           </ul>
           <ButtonRow v-if="page.page > 1 || page.hasNext" pair class="border-t border-line-soft px-3 py-2.5 md:px-4">
-            <SecondaryButton :disabled="page.page <= 1 || finding.busy.value" @click="find(page.page - 1)">{{ t('paging.previous') }}</SecondaryButton>
-            <SecondaryButton :disabled="!page.hasNext || finding.busy.value" @click="find(page.page + 1)">{{ t('paging.next') }}</SecondaryButton>
+            <SecondaryButton :disabled="page.page <= 1 || finding.busy.value" @click="turn(page.page - 1)">{{ t('paging.previous') }}</SecondaryButton>
+            <SecondaryButton :disabled="!page.hasNext || finding.busy.value" @click="turn(page.page + 1)">{{ t('paging.next') }}</SecondaryButton>
           </ButtonRow>
         </template>
       </PanelBox>
     </div>
     <div class="flex min-w-0 flex-col gap-4">
       <Alert v-if="removed" variant="success">{{ removed }}</Alert>
-      <AdminOrderDetail v-if="order" :order="order" @changed="open" @removed="text => { setOrder(null); removed = text }"/>
+      <ActionNotice :problem="reloading.problem.value"/>
+      <AdminOrderDetail v-if="order" :order="order" @changed="refresh" @removed="deleted"/>
     </div>
   </div>
 </template>

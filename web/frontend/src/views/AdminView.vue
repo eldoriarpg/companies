@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import Alert from '@/components/feedback/Alert.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import TabBar from '@/components/navigation/TabBar.vue'
 import {Feature} from '~/api/generated/protocol'
@@ -23,9 +24,12 @@ const tab = ref('orders')
 
 <template>
   <ViewContent :title="t('nav.admin')">
-    <TabBar v-model="tab" :tabs="tabs" :label="t('nav.admin')" panel-id="admin-panel"/>
-    <div id="admin-panel" role="tabpanel">
-      <AdminOrders v-if="tab === 'orders'"/>
-    </div>
+    <Alert v-if="tabs.length === 0" variant="notice">{{ t('admin.noTools') }}</Alert>
+    <template v-else>
+      <TabBar v-model="tab" :tabs="tabs" :label="t('nav.admin')" panel-id="admin-panel"/>
+      <div id="admin-panel" role="tabpanel">
+        <AdminOrders v-if="tab === 'orders'"/>
+      </div>
+    </template>
   </ViewContent>
 </template>

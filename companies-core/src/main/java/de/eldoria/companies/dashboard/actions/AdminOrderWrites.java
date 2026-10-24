@@ -36,7 +36,8 @@ import java.util.function.Function;
  * orders of a player or a company page by page, and taking a claimed order from its company, deleting an order with or
  * without a refund, marking a claimed order delivered and giving an order more time. The admin needs
  * {@code companies.admin.orders}, checked against the permissions remembered with the session as every dashboard
- * action is. Every action is written to the admin log under the admin's name, marked as coming from the dashboard.
+ * action is. Every action is written to the admin log under the admin's name with {@code @dashboard}, one word, so
+ * the line splits on spaces as the command's lines do.
  * <p>
  * An order is named by {@code order}; a search by {@code player} or {@code company}, by name, and {@code page}.
  * Cancelling takes {@code refund}, extending {@code hours} (1 to 8760). The details carry what cancelling and
@@ -60,6 +61,7 @@ public final class AdminOrderWrites {
     public static final int PAGE_SIZE = 10;
 
     private static final int MAX_HOURS = 8760;
+    private static final int MAX_PAGE = 100_000;
     private static final String INVALID = "dashboard.invalid";
     private static final String UNKNOWN_ORDER = "error.unknownOrder";
 
@@ -86,7 +88,7 @@ public final class AdminOrderWrites {
         if (!session.permissions().contains(Permission.Admin.ORDERS)) {
             return answers.refused(request, "companyadmin.error.permission");
         }
-        var admin = session.playerName() + " (dashboard)";
+        var admin = session.playerName() + "@dashboard";
         if (request.name().equals(Actions.ADMIN_ORDERS_SEARCH)) return search(request, admin, args);
         var id = args.path("order").asInt(0);
         if (id <= 0) return answers.refused(request, UNKNOWN_ORDER);
@@ -129,7 +131,7 @@ public final class AdminOrderWrites {
     }
 
     private ActionResult search(ActionRequest request, String admin, JsonNode args) {
-        var page = Math.max(1, args.path("page").asInt(1));
+        var page = Math.clamp(args.path("page").asInt(1), 1, MAX_PAGE);
         var player = args.path("player").asString("").strip();
         var company = args.path("company").asString("").strip();
         if (!player.isEmpty()) {

@@ -146,12 +146,12 @@ online. Company permissions are always current.
 
 Players with admin rights get an *Admin* section on the dashboard; other players never see it, and the gateway does not
 even list the admin parts to them. Each tool works only with the permission of its `/companyadmin` command, checked by
-the plugin, and every change is written to the server log as `[admin] <name> (dashboard) …`, like the commands write
+the plugin, and every change is written to the server log as `[admin] <name>@dashboard …`, like the commands write
 it.
 
 | Tab | What it does | Permission | Same as |
 |---|---|---|---|
-| Orders | Open any order by id or find the orders of a player or company; take a claimed order from its company, mark it delivered, delete it with or without refund, give it more time. Every change asks once more and names the money it moves. | `companies.admin.orders` | `/companyadmin order …` |
+| Orders | Open any order by id or find the orders of a player or company; take a claimed order from its company, mark it delivered, delete it with or without refund, give it more time. Every change but more time asks once more and names the money it moves. | `companies.admin.orders` | `/companyadmin order …` |
 
 Switch a tool off with `dashboard.features` like any other part, for example `admin.orders: false`.
 

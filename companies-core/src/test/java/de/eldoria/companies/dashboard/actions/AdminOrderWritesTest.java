@@ -125,7 +125,7 @@ class AdminOrderWritesTest {
         assertEquals(4, data.path("lines").get(0).path("workers").path("Moss").asInt());
         assertFalse(data.path("removal").asBoolean());
         assertTrue(data.path("refundOnDeliver").asDouble() > 0);
-        assertTrue(world.adminActions.getLast().contains("Ada (dashboard) order info id=" + order.id()));
+        assertTrue(world.adminActions.getLast().contains("Ada@dashboard order info id=" + order.id()));
     }
 
     @Test
