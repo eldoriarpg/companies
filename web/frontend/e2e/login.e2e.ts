@@ -31,6 +31,11 @@ test.describe('login', () => {
         await expect(page).toHaveTitle('Portfolio - Mossvale SMP')
     })
 
+    test('refuses a login sent from another site', async ({page}) => {
+        const answer = await page.request.post('/api/v1/s/CALM01/login', {data: {code: CODE}, headers: {origin: 'https://evil.example'}})
+        expect(answer.status()).toBe(403)
+    })
+
     test('says when a link has expired', async ({page}) => {
         await page.goto('/NOPE00')
         await expect(page.getByText(/This link has expired or does not exist/)).toBeVisible()

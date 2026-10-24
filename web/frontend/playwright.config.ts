@@ -50,7 +50,7 @@ export default defineConfig({
         {
             command: 'node e2e/mock/backend.mjs',
             url: `http://localhost:${MOCK_PORT}/api/v1/s/MOSS01`,
-            env: {MOCK_PORT: String(MOCK_PORT)},
+            env: {MOCK_PORT: String(MOCK_PORT), MOCK_PUBLIC_URL: `http://localhost:${APP_PORT}`},
             reuseExistingServer: !process.env.CI,
             timeout: 30_000,
         },

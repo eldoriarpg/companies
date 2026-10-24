@@ -13,7 +13,14 @@ import {
 /** Where the mock listens, unless `MOCK_PORT` says otherwise. */
 const PORT = Number(process.env.MOCK_PORT ?? 8787)
 
+/**
+ * The session cookie's name. The gateway names it `__Host-companies_session`, a name only a `Secure` cookie may carry;
+ * over plain HTTP, as here, it runs with `COOKIE_SECURE=false` and names it `companies_session`.
+ */
 const COOKIE = 'companies_session'
+
+/** The dashboard's public address, whose origin alone may send requests the cookie authorises, as at the gateway. */
+const PUBLIC_ORIGIN = new URL(process.env.MOCK_PUBLIC_URL ?? 'http://localhost:4000').origin
 
 /** The turnstile token the mock's challenge hands out, see `e2e/session.ts`. */
 const TURNSTILE_TOKEN = 'turnstile-ok'
@@ -29,10 +36,26 @@ const STATES = new Map()
 const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://mock')
     const body = request.method === 'POST' ? await readBody(request) : {}
-    const answer = route(request.method ?? 'GET', url.pathname, body, sessionOf(request))
+    const answer = foreign(request) && request.method === 'POST'
+        ? error(403, 'UNAUTHORIZED', {message: 'Requests from other sites are refused'})
+        : route(request.method ?? 'GET', url.pathname, body, sessionOf(request))
     response.writeHead(answer.status, {'content-type': 'application/json', 'cache-control': 'no-store', ...answer.headers})
     response.end(answer.body === undefined ? '' : JSON.stringify(answer.body))
 })
+
+/**
+ * Whether a request comes from another site, judged as the gateway judges it: by its `Origin`, or without one by
+ * `Sec-Fetch-Site`.
+ *
+ * @param request the request
+ * @returns true for a foreign request
+ */
+function foreign(request) {
+    const origin = request.headers.origin
+    if (origin) return origin.toLowerCase() !== PUBLIC_ORIGIN
+    const site = request.headers['sec-fetch-site']
+    return site !== undefined && site !== 'same-origin' && site !== 'none'
+}
 
 /**
  * The JSON body of a request.
@@ -244,6 +267,10 @@ server.on('upgrade', (request, socket, head) => {
         return
     }
     sockets.handleUpgrade(request, socket, head, client => {
+        if (request.headers.origin && foreign(request)) {
+            client.close(1008, 'Foreign origin')
+            return
+        }
         if (!session) {
             client.close(4401, 'Not logged in')
             return

@@ -32,6 +32,11 @@ describe('the socket relay', () => {
         expect(upstreamHeaders(request, '10.0.0.2', {cookie: false, trustedPeer: false})).not.toHaveProperty('cookie')
     })
 
+    it('hands on the cookie header as it is, the gateway\'s __Host- name included', () => {
+        const cookie = '__Host-companies_session=s3cr3t; other=1'
+        expect(upstreamHeaders(new Headers({cookie}), undefined, {cookie: true, trustedPeer: false}).cookie).toBe(cookie)
+    })
+
     it('believes Cloudflare\'s client address only from a trusted proxy', () => {
         const request = new Headers({'cf-connecting-ip': '198.51.100.1'})
         expect(upstreamHeaders(request, '203.0.113.9', {cookie: false, trustedPeer: false})).not.toHaveProperty('cf-connecting-ip')
