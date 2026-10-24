@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: companies
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${DB_PORT:-5463}:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    image: companies-backend:dev
+    build:
+      context: ..
+      dockerfile: .docker/backend.Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PASSWORD: companies
+      GATEWAY_MODE: self-hosted
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:4000}
+      TRUSTED_PROXIES: 172.16.0.0/12,10.0.0.0/8,192.168.0.0/16,127.0.0.1,::1
+    ports:
+      - "${PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: companies-frontend:dev
+    build:
+      context: ..
+      dockerfile: .docker/frontend.Dockerfile
+    environment:
+      NUXT_BACKEND_URL: http://backend:8080
+    ports:
+      - "${FRONTEND_PORT:-4000}:4000"
+    depends_on:
+      - backend

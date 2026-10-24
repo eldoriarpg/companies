@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    image: ghcr.io/eldoriarpg/companies-backend:${COMPANIES_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      GATEWAY_MODE: ${GATEWAY_MODE:-self-hosted}
+      PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16,127.0.0.1,::1}
+      CLOUDFLARE: ${CLOUDFLARE:-false}
+      TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
+      TURNSTILE_SITEKEY: ${TURNSTILE_SITEKEY:-}
+      DASHBOARD_GATEWAYSECRET: ${DASHBOARD_GATEWAYSECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/eldoriarpg/companies-frontend:${COMPANIES_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      NUXT_BACKEND_URL: http://backend:8080
+    ports:
+      - "${PORT:-4000}:4000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres:
