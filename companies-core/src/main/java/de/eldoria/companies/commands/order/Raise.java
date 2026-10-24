@@ -10,13 +10,11 @@ import de.eldoria.companies.commands.suggest.OwnOpenOrderIds;
 import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.wrapper.order.FullOrder;
-import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.orders.PriceRaise;
+import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.services.ActionResult;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.Replacement;
@@ -27,10 +25,6 @@ import net.strokkur.commands.arguments.DoubleArg;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
 /**
@@ -38,7 +32,7 @@ import java.util.logging.Level;
  * <p>
  * The owner pays the increase plus the percentage fee on it; the fixed fee is not charged again and the fee bounds
  * apply to the order's total fee. The owner confirms the amount first, and the money is only kept when the order
- * could still be changed.
+ * could still be changed. The checks and the raise are made by {@link OwnerOrderService}.
  */
 @Subcommand("raise")
 @PlayerOnly
@@ -70,11 +64,18 @@ public final class Raise {
         var increase = Money.floor(amount);
         Checks.isTrue(increase > 0, "error.invalidNumber");
 
-        loadOrder(player, id)
-                .thenAccept(optOrder -> optOrder.ifPresent(order -> {
-                    var fee = extraFee(order, increase);
-                    requests.ask(menus, player, new Request(id, increase), confirmation(order, increase, fee, economy));
-                }));
+        deps.services()
+                .ownerOrders()
+                .raiseQuote(player.getUniqueId(), id, increase)
+                .thenAccept(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<OwnerOrderService.Raise> refused ->
+                            refused.failure().sendTo(player, deps.messages());
+                        case ActionResult.Done<OwnerOrderService.Raise>(var quote) ->
+                            requests.ask(menus, player, new Request(id, increase), confirmation(quote, economy));
+                    }
+                })
+                .exceptionally(this::log);
     }
 
     /**
@@ -91,105 +92,45 @@ public final class Raise {
 
     private void raiseConfirmed(Player player, Request request) {
         var economy = deps.services().economy();
-        loadOrder(player, request.order())
+        deps.services()
+                .ownerOrders()
+                .raise(player.getUniqueId(), request.order(), request.increase())
                 .thenAcceptAsync(
-                        optOrder -> optOrder.ifPresent(order -> charge(player, order, request.increase(), economy)),
-                        Threading.mainThread(deps.plugin()));
+                        result -> {
+                            switch (result) {
+                                case ActionResult.Refused<OwnerOrderService.Raise> refused ->
+                                    refused.failure().sendTo(player, deps.messages());
+                                case ActionResult.Done<OwnerOrderService.Raise>(var raised) ->
+                                    deps.messages()
+                                            .sendMessage(
+                                                    player,
+                                                    "order.raise.raised",
+                                                    Replacement.unparsed(
+                                                            "order_name",
+                                                            raised.order().fullName()),
+                                                    Replacement.create("price", economy.format(raised.newPrice())));
+                            }
+                        },
+                        Threading.mainThread(deps.plugin()))
+                .exceptionally(this::log);
     }
 
-    private static MenuText confirmation(FullOrder order, double increase, double fee, Economy economy) {
+    private static MenuText confirmation(OwnerOrderService.Raise quote, Economy economy) {
         var question = MenuText.create()
                 .locale(
                         "order.raise.confirm",
-                        Values.text("order_name", order.fullName()),
-                        Values.money("amount", economy, increase),
-                        Values.money("total", economy, increase + fee));
-        if (fee > 0) {
-            question.space().locale("order.raise.fee", Values.money("fee", economy, fee));
+                        Values.text("order_name", quote.order().fullName()),
+                        Values.money("amount", economy, quote.increase()),
+                        Values.money("total", economy, quote.total()));
+        if (quote.fee() > 0) {
+            question.space().locale("order.raise.fee", Values.money("fee", economy, quote.fee()));
         }
         return question;
     }
 
-    private void charge(Player player, FullOrder order, double increase, Economy economy) {
-        if (!player.isOnline()) return;
-        var fee = extraFee(order, increase);
-        var total = increase + fee;
-        if (!economy.has(player, total)
-                || !economy.withdrawPlayer(player, total).transactionSuccess()) {
-            deps.messages()
-                    .sendError(
-                            player,
-                            "error.insufficientCurrency",
-                            Replacement.create("currency", Money.currencyName(economy)),
-                            Replacement.create("amount", economy.format(total)));
-            return;
-        }
-        deps.orderData()
-                .submitPriceRaise(order, increases(order, increase), fee)
-                .asFuture()
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Could not raise the price of an order", err);
-                    return false;
-                })
-                .thenAcceptAsync(
-                        raised -> {
-                            if (!raised) {
-                                economy.depositPlayer(player, total);
-                                deps.messages().sendError(player, "error.orderAlreadyClaimed");
-                                return;
-                            }
-                            deps.messages()
-                                    .sendMessage(
-                                            player,
-                                            "order.raise.raised",
-                                            Replacement.unparsed("order_name", order.fullName()),
-                                            Replacement.create("price", economy.format(order.price() + increase)));
-                        },
-                        Threading.mainThread(deps.plugin()));
-    }
-
-    private double extraFee(FullOrder order, double increase) {
-        return deps.configuration().orderSetting().fee().raise(order.fee(), increase);
-    }
-
-    private static Map<Integer, Double> increases(FullOrder order, double increase) {
-        var contents = order.contents();
-        var shares = PriceRaise.split(contents.stream().map(OrderContent::price).toList(), increase);
-        Map<Integer, Double> increases = new HashMap<>();
-        for (var i = 0; i < contents.size(); i++) {
-            increases.merge(contents.get(i).line(), shares.get(i), Double::sum);
-        }
-        return increases;
-    }
-
-    /**
-     * Loads an unclaimed order of the player with its contents and reports why it can not be raised otherwise.
-     *
-     * @param player owner of the order
-     * @param id     id of the order
-     * @return the order, or empty when the player can not raise its price
-     */
-    private CompletableFuture<Optional<FullOrder>> loadOrder(Player player, int id) {
-        var orderData = deps.orderData();
-        return orderData
-                .retrieveOrderById(id)
-                .asFuture()
-                .thenApply(optOrder -> {
-                    if (optOrder.isEmpty() || !optOrder.get().owner().equals(player.getUniqueId())) {
-                        deps.messages().sendErrorActionBar(player, "error.unknownOrder");
-                        return Optional.<FullOrder>empty();
-                    }
-                    if (optOrder.get().state() != OrderState.UNCLAIMED) {
-                        deps.messages().sendError(player, "error.orderAlreadyClaimed");
-                        return Optional.<FullOrder>empty();
-                    }
-                    return Optional.ofNullable(
-                            orderData.retrieveFullOrder(optOrder.get()).join());
-                })
-                .exceptionally(err -> {
-                    deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
-                    return Optional.empty();
-                });
+    private Void log(Throwable err) {
+        deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong", err);
+        return null;
     }
 
     private record Request(int order, double increase) {}

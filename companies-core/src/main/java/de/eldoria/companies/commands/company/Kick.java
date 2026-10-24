@@ -10,31 +10,29 @@ import de.eldoria.companies.commands.suggest.CompanyMembers;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
-import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
-import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.events.company.CompanyKickEvent;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.util.AsyncEvents;
+import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.services.MemberService;
+import de.eldoria.companies.services.MemberService.MemberRef;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
+import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
 
 /**
  * {@code /company kick <member>}: removes a member from the company after the kicker confirmed it.
  * <p>
  * The owner kicks anyone, a member with {@link CompanyPermission#KICK} kicks members without it, and nobody kicks
- * the owner.
+ * the owner. The checks and the kick are made by {@link MemberService}.
  */
 @Subcommand("kick")
 @PlayerOnly
@@ -51,19 +49,6 @@ public final class Kick {
     }
 
     /**
-     * Decides whether one member may kick another.
-     *
-     * @param kicker member who wants to kick
-     * @param target member who would be kicked
-     * @return true when the kick is allowed
-     */
-    public static boolean mayKick(ICompanyMember kicker, ICompanyMember target) {
-        if (target.isOwner()) return false;
-        if (kicker.isOwner()) return true;
-        return kicker.hasPermission(CompanyPermission.KICK) && !target.hasPermission(CompanyPermission.KICK);
-    }
-
-    /**
      * Asks the sender to confirm kicking a member.
      *
      * @param sender sender of the command
@@ -73,9 +58,15 @@ public final class Kick {
     public void kick(CommandSender sender, @CompanyMembers String member) {
         var player = Senders.player(sender);
         var menus = deps.services().menus();
-        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> checkKick(
-                        player, optProfile, profile -> profile.memberByName(member))
-                .ifPresent(target -> requestConfirmation(menus, player, target)));
+        var members = deps.services().members();
+        BukkitFutureResult.of(members.kickable(player.getUniqueId(), MemberRef.byName(member)))
+                .whenComplete(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<CompanyMember> refused ->
+                            refused.failure().sendTo(player, messages());
+                        case ActionResult.Done<CompanyMember> done -> requestConfirmation(menus, player, done.value());
+                    }
+                });
     }
 
     /**
@@ -91,36 +82,21 @@ public final class Kick {
     }
 
     private void kickConfirmed(Player player, UUID targetId) {
-        var targetPlayer = deps.plugin().getServer().getOfflinePlayer(targetId);
-        deps.companyData().retrievePlayerCompanyProfile(player).whenComplete(optProfile -> checkKick(
-                        player, optProfile, profile -> profile.member(targetPlayer))
-                .ifPresent(target -> kick(player, optProfile.get(), target)));
-    }
-
-    private Optional<CompanyMember> checkKick(
-            Player player,
-            Optional<CompanyProfile> optProfile,
-            Function<CompanyProfile, Optional<CompanyMember>> lookup) {
-        if (optProfile.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.noMember");
-            return Optional.empty();
-        }
-        var profile = optProfile.get();
-        var kicker = profile.member(player).orElseThrow();
-        if (!kicker.hasPermission(CompanyPermission.KICK)) {
-            messages().sendErrorActionBar(player, "error.permission.kick");
-            return Optional.empty();
-        }
-        var optTarget = lookup.apply(profile);
-        if (optTarget.isEmpty()) {
-            messages().sendErrorActionBar(player, "error.noCompanyMember");
-            return Optional.empty();
-        }
-        if (!mayKick(kicker, optTarget.get())) {
-            messages().sendErrorActionBar(player, "error.cantKick");
-            return Optional.empty();
-        }
-        return optTarget;
+        var members = deps.services().members();
+        BukkitFutureResult.of(members.kick(player.getUniqueId(), targetId)).whenComplete(result -> {
+            switch (result) {
+                case ActionResult.Refused<MemberService.Affected> refused ->
+                    refused.failure().sendTo(player, messages());
+                case ActionResult.Done<MemberService.Affected> done ->
+                    messages()
+                            .sendMessage(
+                                    player,
+                                    "company.kick.kicked",
+                                    Replacement.unparsed(
+                                            "name",
+                                            done.value().member().player().getName()));
+            }
+        });
     }
 
     private void requestConfirmation(MenuService menus, Player player, CompanyMember target) {
@@ -130,17 +106,6 @@ public final class Kick {
                         Values.text(
                                 "member_name", String.valueOf(target.player().getName())));
         kicks.ask(menus, player, target.uuid(), question);
-    }
-
-    private void kick(Player player, CompanyProfile profile, CompanyMember target) {
-        deps.companyData().submitMemberUpdate(target.kick()).whenComplete(ignored -> {
-            messages()
-                    .sendMessage(
-                            player,
-                            "company.kick.kicked",
-                            Replacement.unparsed("name", target.player().getName()));
-            AsyncEvents.fire(deps.plugin(), new CompanyKickEvent(profile, target.player()));
-        });
     }
 
     private MessageSender messages() {

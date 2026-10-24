@@ -54,7 +54,7 @@ public final class Accept {
         var player = Senders.player(sender);
         var menus = deps.services().menus();
         var messages = deps.messages();
-        var acceptance = deps.orderAccept();
+        var acceptance = deps.services().orderAccept();
         deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()

@@ -28,6 +28,7 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -136,6 +137,34 @@ class OrderAcceptServiceTest {
 
         assertEquals("error.permission.acceptOrder", refused.failure().localeKey());
         assertTrue(events.of(PreOrderAcceptEvent.class).isEmpty());
+    }
+
+    @Test
+    void anOnlineMemberGivenByIdFiresThePreEvent() {
+        var order = orders.place(0.0);
+
+        assertInstanceOf(
+                Result.Accepted.class,
+                service.accept(player.getUniqueId(), company, order.id()).join());
+
+        assertSame(player, events.single(PreOrderAcceptEvent.class).player());
+    }
+
+    @Test
+    void anOfflineMemberAcceptsWithoutThePlayerTypedPreEvent() {
+        var offline = UUID.randomUUID();
+        var member = CompanyMember.of(COMPANY, offline, CompanyPermission.MANAGE_ORDERS.mask());
+        company = new CompanyProfile(COMPANY, "Acme", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of(member));
+        listener = event -> event.setCancelled(true);
+        var order = orders.place(0.0);
+
+        assertInstanceOf(
+                Result.Accepted.class,
+                service.accept(offline, company, order.id()).join());
+
+        assertTrue(events.of(PreOrderAcceptEvent.class).isEmpty());
+        assertEquals(COMPANY, orders.reload(order).company());
+        assertEquals(order.id(), events.single(OrderAcceptEvent.class).order().id());
     }
 
     @Test

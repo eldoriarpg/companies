@@ -18,6 +18,7 @@ import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
+import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
@@ -78,20 +79,26 @@ import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeBuses;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.nodes.NodeConnection;
+import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
+import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
+import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.HistoryRetention;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
+import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryLogRetention;
@@ -123,6 +130,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -309,6 +317,25 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 () -> configuration.orderSetting().repeating());
 
+        var deliveryService =
+                new DeliveryService(this, orderData, orderCompletion, itemReturnService, () -> configuration
+                        .orderSetting()
+                        .matching());
+        var profileService = new ProfileService(
+                ProfileService.Store.of(companyData),
+                () -> configuration.companySettings().profile(),
+                getServer().getPluginManager()::callEvent,
+                notificationService::send,
+                Threading.mainThread(this));
+        var orderAccept = new OrderAcceptService(
+                orderData,
+                configuration::companySettings,
+                getServer().getPluginManager()::callEvent,
+                uuid -> Optional.ofNullable(getServer().getPlayer(uuid)),
+                Threading.VIRTUAL);
+        var ownerOrders = OwnerOrderService.create(
+                this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
+
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
                     economy,
@@ -318,9 +345,7 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, orderCompletion, itemReturnService, () -> configuration
-                            .orderSetting()
-                            .matching()),
+                    deliveryService,
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
@@ -328,7 +353,19 @@ public class Companies extends EldoPlugin {
                     orderCreation,
                     treasuryService,
                     seriesService,
-                    soloOrders));
+                    soloOrders,
+                    profileService,
+                    MemberService.create(this, companyData, notificationService),
+                    CompanyService.create(
+                            this,
+                            companyData,
+                            treasuryService,
+                            OrderCreationService.Wallet.of(economy),
+                            configuration::companySettings),
+                    orderAccept,
+                    CompanyOrderService.create(this, companyData, orderData, outcomes),
+                    ownerOrders,
+                    new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher)));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 

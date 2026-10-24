@@ -16,13 +16,16 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.events.order.PreOrderAcceptEvent;
 import de.eldoria.eldoutilities.messages.Replacement;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -33,11 +36,16 @@ import java.util.function.Supplier;
  * allowed. Then {@link PreOrderAcceptEvent} lets integrations refuse the order with a reason; the claim itself only
  * succeeds while the order is still unclaimed and is followed by {@link OrderAcceptEvent}. Everything runs on the
  * executor, off the main thread.
+ * <p>
+ * The member may be given by id and does not need to be online. {@link PreOrderAcceptEvent} carries an online
+ * {@link Player}, so it fires only while the member is online on this server; a member who is offline here accepts
+ * without it.
  */
 public final class OrderAcceptService {
     private final AOrderData orderData;
     private final Supplier<CompanySettings> settings;
     private final Consumer<Event> events;
+    private final Function<UUID, Optional<Player>> online;
     private final Executor executor;
 
     /**
@@ -48,9 +56,26 @@ public final class OrderAcceptService {
      */
     public OrderAcceptService(
             AOrderData orderData, Supplier<CompanySettings> settings, Consumer<Event> events, Executor executor) {
+        this(orderData, settings, events, uuid -> Optional.ofNullable(Bukkit.getPlayer(uuid)), executor);
+    }
+
+    /**
+     * @param orderData order repository
+     * @param settings  the current company settings
+     * @param events    fires the events of the acceptance
+     * @param online    looks up a player online on this server by id
+     * @param executor  runs the acceptance off the main thread
+     */
+    public OrderAcceptService(
+            AOrderData orderData,
+            Supplier<CompanySettings> settings,
+            Consumer<Event> events,
+            Function<UUID, Optional<Player>> online,
+            Executor executor) {
         this.orderData = orderData;
         this.settings = settings;
         this.events = events;
+        this.online = online;
         this.executor = executor;
     }
 
@@ -63,11 +88,24 @@ public final class OrderAcceptService {
      * @return the claimed order, or why it was not accepted
      */
     public CompletableFuture<Result> accept(Player player, CompanyProfile company, int id) {
-        return CompletableFuture.supplyAsync(() -> acceptNow(player, company, id), executor);
+        return CompletableFuture.supplyAsync(
+                () -> acceptNow(player.getUniqueId(), Optional.of(player), company, id), executor);
     }
 
-    private Result acceptNow(Player player, CompanyProfile company, int id) {
-        var member = company.member(player);
+    /**
+     * Accepts an order for the company of a member, who does not need to be online.
+     *
+     * @param actor   id of the accepting member
+     * @param company company of the member, with its members
+     * @param id      id of the order
+     * @return the claimed order, or why it was not accepted
+     */
+    public CompletableFuture<Result> accept(UUID actor, CompanyProfile company, int id) {
+        return CompletableFuture.supplyAsync(() -> acceptNow(actor, online.apply(actor), company, id), executor);
+    }
+
+    private Result acceptNow(UUID actor, Optional<Player> player, CompanyProfile company, int id) {
+        var member = company.member(actor);
         if (member.isEmpty() || !member.get().hasPermission(CompanyPermission.MANAGE_ORDERS)) {
             return refused("error.permission.acceptOrder");
         }
@@ -92,9 +130,10 @@ public final class OrderAcceptService {
             return refused("error.ownMemberOrder");
         }
 
-        var event = new PreOrderAcceptEvent(fullOrder, company, player);
-        events.accept(event);
-        if (event.isCancelled()) return new Result.Refused(cancelled(event));
+        var refusal = player.map(acting -> new PreOrderAcceptEvent(fullOrder, company, acting))
+                .filter(this::cancelledBy)
+                .map(OrderAcceptService::cancelled);
+        if (refusal.isPresent()) return new Result.Refused(refusal.get());
 
         var claimed = orderData
                 .submitOrderClaim(company, order, levelSettings.deliveryHoursBonus())
@@ -110,6 +149,11 @@ public final class OrderAcceptService {
                 .flatMap(found -> found)
                 .orElse(order);
         return orderData.retrieveFullOrder(refreshed).join();
+    }
+
+    private boolean cancelledBy(PreOrderAcceptEvent event) {
+        events.accept(event);
+        return event.isCancelled();
     }
 
     private static CommandFailure cancelled(PreOrderAcceptEvent event) {

@@ -42,9 +42,17 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
 
     @Override
     public Optional<CompanyMember> member(OfflinePlayer player) {
-        return members.stream()
-                .filter(m -> m.uuid().equals(player.getUniqueId()))
-                .findAny();
+        return member(player.getUniqueId());
+    }
+
+    /**
+     * The member with the id.
+     *
+     * @param player id of the player
+     * @return the member, empty when the player is no member
+     */
+    public Optional<CompanyMember> member(UUID player) {
+        return members.stream().filter(m -> m.uuid().equals(player)).findAny();
     }
 
     @Override

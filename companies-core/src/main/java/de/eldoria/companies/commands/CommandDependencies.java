@@ -7,6 +7,7 @@ package de.eldoria.companies.commands;
 
 import de.eldoria.companies.boards.Boards;
 import de.eldoria.companies.boards.npc.NpcBoards;
+import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
@@ -21,6 +22,7 @@ import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeCaches;
+import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
@@ -28,19 +30,22 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
+import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
+import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
-import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
@@ -294,17 +299,6 @@ public final class CommandDependencies {
     }
 
     /**
-     * @return accepts orders for companies
-     */
-    public OrderAcceptService orderAccept() {
-        return new OrderAcceptService(
-                orderData,
-                configuration::companySettings,
-                plugin.getServer().getPluginManager()::callEvent,
-                Threading.VIRTUAL);
-    }
-
-    /**
      * @return the order actions of admins
      * @throws CommandFailure {@code error.notReady} while the services do not exist
      */
@@ -376,6 +370,13 @@ public final class CommandDependencies {
      * @param treasury            moves money into and out of company treasuries
      * @param series              starts, stops and resumes repeating orders
      * @param soloOrders          claims and aborts the orders players work on alone
+     * @param profiles            edits the profiles of companies
+     * @param members             kicks, leaves, member permissions and transfers
+     * @param companies           founds and renames companies
+     * @param orderAccept         accepts orders for companies
+     * @param companyOrders       gives back orders companies work on
+     * @param ownerOrders         cancels, extends and raises orders of their owners
+     * @param search              searches the orders a company could accept
      */
     public record Services(
             Economy economy,
@@ -392,5 +393,12 @@ public final class CommandDependencies {
             OrderCreationService orderCreation,
             TreasuryService treasury,
             SeriesService series,
-            SoloOrderService soloOrders) {}
+            SoloOrderService soloOrders,
+            ProfileService profiles,
+            MemberService members,
+            CompanyService companies,
+            OrderAcceptService orderAccept,
+            CompanyOrderService companyOrders,
+            OwnerOrderService ownerOrders,
+            SearchExecutor search) {}
 }
