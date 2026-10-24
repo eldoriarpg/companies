@@ -243,15 +243,30 @@ public final class NodeHub {
     public void sweep() {
         Instant now = clock.instant();
         for (NodeLink link : List.copyOf(links.values())) {
-            if (link.state() == NodeLink.State.AWAITING_HELLO
-                    && link.connected().isBefore(now.minusSeconds(HELLO_SECONDS))) {
-                link.close(CLOSE_IDLE, "No hello");
-            } else if (link.lastHeard().isBefore(now.minusSeconds(IDLE_SECONDS))) {
-                link.close(CLOSE_IDLE, "Idle");
-            } else if (link.state() != NodeLink.State.AWAITING_HELLO
-                    && link.lastHeard().isBefore(now.minusSeconds(PING_SECONDS))) {
-                link.send(new Ping(link.nextId(), link.agreed().protocol(), now));
+            try {
+                sweep(link, now);
+            } catch (RuntimeException e) {
+                log.warn("Sweeping a node connection failed", e);
             }
+        }
+    }
+
+    private void sweep(NodeLink link, Instant now) {
+        NodeLink.State state = link.state();
+        if (state == NodeLink.State.CLOSED) {
+            if (link.lastHeard().isBefore(now.minusSeconds(IDLE_SECONDS))) disconnect(link.socketId());
+            return;
+        }
+        if (state == NodeLink.State.AWAITING_HELLO) {
+            if (link.connected().isBefore(now.minusSeconds(HELLO_SECONDS))) link.close(CLOSE_IDLE, "No hello");
+            return;
+        }
+        NodeLink.Handshake agreed = link.handshake();
+        if (agreed == null) return;
+        if (link.lastHeard().isBefore(now.minusSeconds(IDLE_SECONDS))) {
+            link.close(CLOSE_IDLE, "Idle");
+        } else if (link.lastHeard().isBefore(now.minusSeconds(PING_SECONDS))) {
+            link.send(new Ping(link.nextId(), agreed.protocol(), now));
         }
     }
 
@@ -307,10 +322,10 @@ public final class NodeHub {
         LiveServer server;
         NodeLink replaced;
         synchronized (this) {
+            if (!link.welcomed(agreed, discontinued ? NodeLink.State.DISCONTINUED : NodeLink.State.READY)) return;
             serverRepository.connected(accepted.serverId(), now);
             serverRepository.node(
                     accepted.serverId(), agreed.uid(), agreed.role().name(), hello.plugin(), protocol, now);
-            link.welcomed(agreed, discontinued ? NodeLink.State.DISCONTINUED : NodeLink.State.READY);
             server = servers.computeIfAbsent(accepted.serverId(), LiveServer::new);
             replaced = server.add(link);
         }

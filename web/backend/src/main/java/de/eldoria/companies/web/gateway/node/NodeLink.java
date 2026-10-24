@@ -186,14 +186,18 @@ public final class NodeLink {
     }
 
     /**
-     * Records the handshake and the state it leads to.
+     * Records the handshake and the state it leads to, unless the connection closed meanwhile, e.g. while its key
+     * was being verified.
      *
      * @param agreed the handshake
      * @param state {@link State#READY} or {@link State#DISCONTINUED}
+     * @return whether the connection is still open and now has the handshake
      */
-    void welcomed(Handshake agreed, State state) {
+    synchronized boolean welcomed(Handshake agreed, State state) {
+        if (this.state == State.CLOSED) return false;
         this.handshake = agreed;
         this.state = state;
+        return true;
     }
 
     /**
@@ -299,7 +303,7 @@ public final class NodeLink {
     /**
      * Marks the connection closed and fails every request still waiting.
      */
-    void closed() {
+    synchronized void closed() {
         state = State.CLOSED;
         for (CompletableFuture<Message> request : List.copyOf(pending.values())) {
             request.completeExceptionally(new NodeRequestException(null, "The server disconnected"));
