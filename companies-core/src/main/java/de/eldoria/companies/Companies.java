@@ -119,6 +119,7 @@ import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
@@ -499,7 +500,14 @@ public class Companies extends EldoPlugin {
                         commands.services().orderAccept(),
                         commands.services().companyOrders(),
                         commands.services().ownerOrders(),
-                        commands.services().notificationService().inbox()),
+                        commands.services().notificationService().inbox(),
+                        new DashboardModule.CompanyServices(
+                                commands.services().members(),
+                                commands.services().membershipService(),
+                                commands.services().profiles(),
+                                commands.services().companies(),
+                                commands.services().treasury(),
+                                () -> Money.currencyName(commands.services().economy()))),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

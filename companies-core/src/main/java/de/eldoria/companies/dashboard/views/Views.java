@@ -35,6 +35,7 @@ import de.eldoria.companies.web.api.snapshot.MemberView;
 import de.eldoria.companies.web.api.snapshot.OrderLineView;
 import de.eldoria.companies.web.api.snapshot.OrderState;
 import de.eldoria.companies.web.api.snapshot.OwnOrderView;
+import de.eldoria.companies.web.api.snapshot.PaletteColor;
 import de.eldoria.companies.web.api.snapshot.PlayerView;
 import de.eldoria.companies.web.api.snapshot.RankingEntry;
 import de.eldoria.companies.web.api.snapshot.RankingPage;
@@ -240,7 +241,17 @@ public final class Views {
                 members,
                 treasury(company, viewer).orElse(null),
                 claimed.stream().map(this::claimed).toList(),
-                alerts(company.id()));
+                alerts(company.id()),
+                company.color().orElse(null),
+                palette());
+    }
+
+    private List<PaletteColor> palette() {
+        return sources.companySettings().get().profile().colors().stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .flatMap(name ->
+                        Optional.ofNullable(PlainText.hexColor(name)).map(hex -> new PaletteColor(name, hex)).stream())
+                .toList();
     }
 
     /**
@@ -302,11 +313,14 @@ public final class Views {
                 .map(member -> member.hasPermission(CompanyPermission.TREASURY))
                 .orElse(false);
         if (!allowed) return Optional.empty();
-        return sources.api()
-                .companies()
-                .treasury(company.id())
-                .join()
-                .map(treasury -> new TreasuryView(treasury.balance().doubleValue()));
+        return sources.api().companies().treasury(company.id()).join().map(treasury -> {
+            var settings = sources.companySettings().get().treasury();
+            return new TreasuryView(
+                    treasury.balance().doubleValue(),
+                    settings.effectiveShare(treasury.payoutShare()),
+                    settings.maxPayoutShare(),
+                    settings.minTransaction());
+        });
     }
 
     private LevelView level(ICompanyProfile company) {

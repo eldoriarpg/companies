@@ -204,6 +204,8 @@ export interface CompanyView {
   treasury?: TreasuryView;
   orders: ClaimedOrderView[];
   alerts: AlertView[];
+  colorName?: string;
+  palette?: PaletteColor[];
 }
 export interface LevelView {
   level: number;
@@ -223,6 +225,9 @@ export interface MemberStatsView {
 }
 export interface TreasuryView {
   balance: number;
+  share?: number;
+  maxShare?: number;
+  minTransaction?: number;
 }
 export interface ClaimedOrderView {
   id: number;
@@ -246,6 +251,10 @@ export interface ItemView {
 export interface AlertView {
   name: string;
   enabled: boolean;
+}
+export interface PaletteColor {
+  name: string;
+  hex: string;
 }
 export interface OwnOrderView {
   id: number;

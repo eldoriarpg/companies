@@ -201,7 +201,7 @@ public final class BankCommand {
         company(player)
                 .thenCompose(profile -> action.apply(profile).thenAccept(result -> {
                     TreasurySources.invalidate(player.getUniqueId());
-                    var reply = result.done() ? success.apply(result) : failure(result, player);
+                    var reply = result.done() ? success.apply(result) : failure(result);
                     if (fromMenu) {
                         show(player, profile, Optional.of(reply.notice()));
                         return;
@@ -233,30 +233,14 @@ public final class BankCommand {
         return Reply.success("company.bank.shareChanged", Values.number("percent", percent));
     }
 
-    private Reply failure(Result result, Player player) {
-        return switch (result.outcome()) {
-            case DISABLED -> Reply.error("company.bank.error.disabled");
-            case NO_MEMBER -> Reply.error("error.noMember");
-            case NO_PERMISSION -> Reply.error("error.permission.treasury");
-            case INVALID_AMOUNT -> invalidAmount();
-            case PLAYER_FUNDS ->
-                Reply.error(
-                        "company.bank.error.playerFunds",
-                        Values.text(
-                                "currency", Money.currencyName(deps.services().economy())));
-            case TREASURY_FUNDS -> Reply.error("company.bank.error.insufficient");
-            case SHARE_CAP ->
-                Reply.error(
-                        "company.bank.error.shareCap",
-                        Values.number("max", treasury().settings().maxPayoutShare()));
-            case FAILED, PURCHASE_FAILED, DONE -> Reply.error("error.saveFailed");
-        };
+    private Reply failure(Result result) {
+        var refusal =
+                treasury().explain(result, Money.currencyName(deps.services().economy()));
+        return Reply.error(refusal.key(), refusal.values().toArray(TagResolver.Single[]::new));
     }
 
     private Reply invalidAmount() {
-        var min = BigDecimal.valueOf(treasury().settings().minTransaction());
-        return Reply.error(
-                "company.bank.error.amount", Values.text("min", treasury().format(min)));
+        return failure(Result.of(TreasuryService.Outcome.INVALID_AMOUNT));
     }
 
     private Map<UUID, String> names(List<TreasuryLogEntry> entries) {

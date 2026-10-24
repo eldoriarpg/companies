@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.feed.FeedListener;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
@@ -36,6 +37,11 @@ import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.services.CompanyService;
+import de.eldoria.companies.services.MemberService;
+import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.ProfileService;
+import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
 import de.eldoria.companies.util.Threading;
@@ -162,16 +168,30 @@ public final class DashboardModule {
                 Executors.newSingleThreadExecutor(
                         Thread.ofVirtual().name("Companies dashboard patches").factory()),
                 logger);
-        var writes = new DashboardWrites(new DashboardWrites.Sources(
+        var company = new CompanyWrites(new CompanyWrites.Sources(
                 data.companyOf(),
-                data.orderAccept(),
-                data.companyOrders(),
-                data.ownerOrders(),
-                data.inboxService(),
+                Bukkit::getOfflinePlayer,
+                data.company().members(),
+                data.company().memberships(),
+                data.company().profiles(),
+                data.company().companies(),
+                data.company().treasury(),
+                data.company().currency(),
                 failure -> PlainText.of(failure.render(null, messages)),
-                order -> feed.orderChanged(order, null),
-                player -> feed.inboxChanged(player),
-                clock));
+                text -> PlainText.of(messages.serializeError(
+                        text.build(), text.replacements().toArray(TagResolver[]::new)))));
+        var writes = new DashboardWrites(
+                new DashboardWrites.Sources(
+                        data.companyOf(),
+                        data.orderAccept(),
+                        data.companyOrders(),
+                        data.ownerOrders(),
+                        data.inboxService(),
+                        failure -> PlainText.of(failure.render(null, messages)),
+                        order -> feed.orderChanged(order, null),
+                        player -> feed.inboxChanged(player),
+                        clock),
+                company);
         var started = new AtomicReference<Dashboard>();
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
@@ -269,6 +289,7 @@ public final class DashboardModule {
      * @param companyOrders aborts a company's orders
      * @param ownerOrders   cancels, extends and raises own orders
      * @param inboxService  reads, clears and mutes inboxes
+     * @param company       the services acting on a company
      */
     public record Data(
             ADashboardData dashboard,
@@ -283,5 +304,24 @@ public final class DashboardModule {
             OrderAcceptService orderAccept,
             CompanyOrderService companyOrders,
             OwnerOrderService ownerOrders,
-            Inbox inboxService) {}
+            Inbox inboxService,
+            CompanyServices company) {}
+
+    /**
+     * The services the dashboard acts on a company through.
+     *
+     * @param members     kicks, lets leave and edits permissions
+     * @param memberships invites, applications and the join mode
+     * @param profiles    edits the profile
+     * @param companies   renames
+     * @param treasury    the treasuries
+     * @param currency    the name of the currency
+     */
+    public record CompanyServices(
+            MemberService members,
+            MembershipService memberships,
+            ProfileService profiles,
+            CompanyService companies,
+            TreasuryService treasury,
+            Supplier<String> currency) {}
 }

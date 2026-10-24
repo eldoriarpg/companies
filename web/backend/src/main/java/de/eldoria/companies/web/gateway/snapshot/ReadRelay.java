@@ -74,7 +74,21 @@ public final class ReadRelay {
             Actions.ORDERS_OWN_RAISE,
             Actions.INBOX_READ_ALL,
             Actions.INBOX_CLEAR,
-            Actions.INBOX_MUTE);
+            Actions.INBOX_MUTE,
+            Actions.MEMBERS_REVOKE,
+            Actions.MEMBERS_KICK,
+            Actions.MEMBERS_LEAVE,
+            Actions.MEMBERS_PERMISSIONS,
+            Actions.APPLICATIONS_ACCEPT,
+            Actions.APPLICATIONS_DENY,
+            Actions.APPLICATIONS_JOIN_MODE,
+            Actions.PROFILE_DESCRIPTION,
+            Actions.PROFILE_TAG,
+            Actions.PROFILE_COLOR,
+            Actions.PROFILE_RENAME,
+            Actions.TREASURY_DEPOSIT,
+            Actions.TREASURY_WITHDRAW,
+            Actions.TREASURY_SHARE);
 
     private static final long CACHE_SECONDS = 30;
     private static final Set<String> SESSION_ROOTS = Set.of("player", "company", "orders");

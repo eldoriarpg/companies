@@ -15,6 +15,7 @@ import CapsLabel from '@/components/typography/CapsLabel.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import PositionAbort from './PositionAbort.vue'
 import {count, hoursLeft, money} from '~/util/format'
+import {holds} from '~/util/permissions'
 import {itemsText, totalsOf} from '~/util/orders'
 
 /**
@@ -31,7 +32,7 @@ const {supports, snapshot} = useDashboard()
 const manages = computed(() => {
   const permissions = snapshot.value?.player.permissions ?? []
   return supports(Feature['orders.accept'])
-    && (permissions.includes(MemberPermission.MANAGE_ORDERS) || permissions.includes(MemberPermission.OWNER))
+    && holds(permissions, MemberPermission.MANAGE_ORDERS)
 })
 const done = ref('')
 const now = useNow({interval: 60_000})

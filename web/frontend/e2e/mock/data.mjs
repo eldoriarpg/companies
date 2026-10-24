@@ -50,7 +50,10 @@ export const SESSIONS = {
 }
 
 /** The features of the mock server. */
-export const FEATURES = ['orders.browse', 'orders.accept', 'orders.own', 'company.members', 'company.treasury', 'inbox', 'rankings', 'market']
+export const FEATURES = [
+    'orders.browse', 'orders.accept', 'orders.own', 'company.members', 'company.applications', 'company.profile',
+    'company.treasury', 'inbox', 'rankings', 'market',
+]
 
 const MEMBERS = [
     ['Wren', ['OWNER'], 4812], ['Kestrel_', ['MANAGE_ORDERS', 'TREASURY'], 3240], ['mossycobble', [], 1155],
@@ -143,15 +146,20 @@ export function snapshot(session, delivered = false) {
             id: 7,
             name: 'Stonebridge Builders',
             tag: 'BLD',
-            color: '#FFB74D',
+            color: '#FFAA00',
             description: 'Builders of walls, roofs and harbours. Applications open.',
             joinMode: 'APPLICATIONS',
             founded: '2025-03-14T18:00:00Z',
             level: {level: 3, name: 'Business', progress: 0.68},
             members,
-            treasury: {balance: delivered ? 19600 : 18450},
+            treasury: {balance: delivered ? 19600 : 18450, share: 5, maxShare: 25, minTransaction: 1},
             orders,
             alerts: [],
+            colorName: 'gold',
+            palette: [
+                {name: 'gold', hex: '#FFAA00'}, {name: 'dark_aqua', hex: '#00AAAA'}, {name: 'green', hex: '#55FF55'},
+                {name: 'red', hex: '#FF5555'},
+            ],
         },
         orders: [
             {
@@ -246,3 +254,31 @@ export const TREASURY_LOG = [14200, 14400, 14100, 14900, 15300, 15000, 15800, 16
         }
     })
     .reverse()
+
+/**
+ * A player outside the company, as applicants and invited players are named.
+ *
+ * @param index its number, which makes its id
+ * @param name its name
+ * @returns the player
+ */
+function outsider(index, name) {
+    return {uuid: `00000000-0000-4000-9000-${String(index).padStart(12, '0')}`, name}
+}
+
+/**
+ * The open applications to the mock company and the invites it sent, fresh for each session.
+ *
+ * @returns the applications and invites
+ */
+export function applications() {
+    return {
+        entries: [
+            {player: outsider(1, 'Juniper'), message: 'I build roofs and have my own scaffolding.', created: '2026-10-23T09:00:00Z', expires: '2026-10-30T09:00:00Z'},
+            {player: outsider(2, 'Pipwick'), message: '', created: '2026-10-24T07:30:00Z', expires: '2026-10-31T07:30:00Z'},
+        ],
+        invites: [
+            {player: outsider(3, 'Corvid'), inviter: {uuid: member(4).uuid, name: member(4).name}, created: '2026-10-22T18:00:00Z', expires: '2026-10-25T18:00:00Z'},
+        ],
+    }
+}

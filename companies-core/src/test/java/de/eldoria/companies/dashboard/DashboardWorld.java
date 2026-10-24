@@ -16,6 +16,8 @@ import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
+import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.Views;
@@ -31,6 +33,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.EventRecorder;
@@ -41,16 +44,24 @@ import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.services.CompanyChanges;
+import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.MemberService;
+import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.ProfileService;
+import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.util.TestExecutors;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
+import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -87,6 +98,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final Views views;
     public final DashboardReads reads;
     public final DashboardWrites writes;
+    public final TreasuryService treasuryService;
     public final EventRecorder events = new EventRecorder();
     public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
     public final List<Integer> changedOrders = new CopyOnWriteArrayList<>();
@@ -155,31 +167,81 @@ public final class DashboardWorld implements AutoCloseable {
                 ISimpleCompany::forId,
                 Logger.getAnonymousLogger(),
                 executor);
-        writes = new DashboardWrites(new DashboardWrites.Sources(
+        var changes = new CompanyChanges(companies, this::offline, events, Logger.getAnonymousLogger(), executor);
+        treasuryService = new TreasuryService(
+                treasury,
+                new TreasuryWallet(),
+                companySettings::treasury,
+                (recipient, type, args) -> {},
+                events,
+                Runnable::run,
+                Clock.systemDefaultZone(),
+                Logger.getAnonymousLogger());
+        var company = new CompanyWrites(new CompanyWrites.Sources(
                 player -> companies
                         .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
                         .asFuture(),
-                new OrderAcceptService(orders, () -> companySettings, events, uuid -> Optional.empty(), executor),
-                new CompanyOrderService(
-                        companies, orders, outcomes, events, uuid -> {}, SqLiteTestDatabase::player, executor),
-                new OwnerOrderService(
-                        orders,
-                        outcomes,
-                        id -> CompletableFuture.completedFuture(Optional.empty()),
-                        order -> CompletableFuture.completedFuture(false),
-                        () -> orderSettings,
+                this::offline,
+                new MemberService(companies, changes, (recipient, type, args) -> {}, events, this::offline, executor),
+                new MembershipService(
+                        companies,
+                        memberships,
+                        () -> companySettings,
+                        (recipient, type, args) -> {},
+                        new MembershipEvents(),
+                        this::offline,
+                        LocalDateTime::now,
+                        executor,
+                        Logger.getAnonymousLogger()),
+                new ProfileService(
+                        ProfileService.Store.of(companies),
+                        ProfileSettings::new,
+                        events,
+                        (recipient, type, args) -> {},
+                        Runnable::run),
+                new CompanyService(
+                        companies,
+                        changes,
+                        treasuryService,
                         new Wallet(),
-                        amount -> {},
-                        uuid -> {},
-                        SqLiteTestDatabase::player,
+                        () -> companySettings,
+                        this::offline,
+                        uuid -> Optional.empty(),
                         Runnable::run,
                         executor,
                         Logger.getAnonymousLogger()),
-                new Inbox(inbox, NotificationSettings::new),
+                treasuryService,
+                () -> "coins",
                 failure -> "text of " + failure.localeKey(),
-                order -> changedOrders.add(order.id()),
-                changedInboxes::add,
-                Clock.systemUTC()));
+                text -> "text of " + text.build()));
+        writes = new DashboardWrites(
+                new DashboardWrites.Sources(
+                        player -> companies
+                                .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
+                                .asFuture(),
+                        new OrderAcceptService(
+                                orders, () -> companySettings, events, uuid -> Optional.empty(), executor),
+                        new CompanyOrderService(
+                                companies, orders, outcomes, events, uuid -> {}, SqLiteTestDatabase::player, executor),
+                        new OwnerOrderService(
+                                orders,
+                                outcomes,
+                                id -> CompletableFuture.completedFuture(Optional.empty()),
+                                order -> CompletableFuture.completedFuture(false),
+                                () -> orderSettings,
+                                new Wallet(),
+                                amount -> {},
+                                uuid -> {},
+                                SqLiteTestDatabase::player,
+                                Runnable::run,
+                                executor,
+                                Logger.getAnonymousLogger()),
+                        new Inbox(inbox, NotificationSettings::new),
+                        failure -> "text of " + failure.localeKey(),
+                        order -> changedOrders.add(order.id()),
+                        changedInboxes::add,
+                        Clock.systemUTC()),
+                company);
     }
 
     /**
@@ -209,6 +271,28 @@ public final class DashboardWorld implements AutoCloseable {
     }
 
     /**
+     * A player as an offline player that knows its id and name.
+     *
+     * @param uuid the player's id
+     * @return the player
+     */
+    public OfflinePlayer offline(UUID uuid) {
+        return (OfflinePlayer) Proxy.newProxyInstance(
+                OfflinePlayer.class.getClassLoader(),
+                new Class[] {OfflinePlayer.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getUniqueId" -> uuid;
+                    case "getName" -> name(uuid);
+                    case "isOnline" -> false;
+                    case "getPlayer" -> null;
+                    case "hashCode" -> uuid.hashCode();
+                    case "equals" -> proxy == args[0];
+                    case "toString" -> "OfflinePlayer(" + uuid + ")";
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+    }
+
+    /**
      * Founds a company with members.
      *
      * @param name    the company's name
@@ -224,6 +308,20 @@ public final class DashboardWorld implements AutoCloseable {
                         CompanyPermission.composePermissions(permissions.toArray(CompanyPermission[]::new))))
                 .join());
         return id;
+    }
+
+    /**
+     * Adds a member to a company.
+     *
+     * @param company     the company id
+     * @param member      the member
+     * @param permissions the member's permissions
+     */
+    public void member(int company, UUID member, CompanyPermission... permissions) {
+        companies
+                .submitMemberUpdate(
+                        CompanyMember.of(company, member, CompanyPermission.composePermissions(permissions)))
+                .join();
     }
 
     /**
@@ -316,6 +414,45 @@ public final class DashboardWorld implements AutoCloseable {
         @Override
         public String currencyName() {
             return "coins";
+        }
+    }
+
+    /**
+     * Membership events go to {@link #events}; joins and profile edits are not recorded.
+     */
+    private final class MembershipEvents implements MembershipService.Events {
+        @Override
+        public void joined(CompanyProfile company, OfflinePlayer player) {}
+
+        @Override
+        public void profileEdited(CompanyProfile previous, CompanyProfile company, OfflinePlayer player) {}
+
+        @Override
+        public void fire(Event event) {
+            events.accept(event);
+        }
+    }
+
+    /**
+     * The same wallet for the treasury, which reports whether a payment happened.
+     */
+    private final class TreasuryWallet implements TreasuryService.Wallet {
+        private final Wallet wallet = new Wallet();
+
+        @Override
+        public boolean withdraw(OfflinePlayer player, double amount) {
+            return wallet.withdraw(player, amount);
+        }
+
+        @Override
+        public boolean deposit(OfflinePlayer player, double amount) {
+            wallet.deposit(player, amount);
+            return true;
+        }
+
+        @Override
+        public String format(double amount) {
+            return String.valueOf(amount);
         }
     }
 

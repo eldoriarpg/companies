@@ -7,7 +7,8 @@ import {randomUUID} from 'node:crypto'
 import {createServer} from 'node:http'
 import {WebSocketServer} from 'ws'
 import {
-    BOOK, CODE, DISCONTINUED, FEATURES, INBOX, MARKET, member, NODE, OTHER_NODE, positions, SESSIONS, snapshot, TREASURY_LOG,
+    applications, BOOK, CODE, DISCONTINUED, FEATURES, INBOX, MARKET, member, NODE, OTHER_NODE, positions, SESSIONS, snapshot,
+    TREASURY_LOG,
 } from './data.mjs'
 
 /** Where the mock listens, unless `MOCK_PORT` says otherwise. */
@@ -182,7 +183,9 @@ const LIMITED_ORDER = 3
 function action(name, args, state) {
     const page = data => ({type: 'action.result', v: 1, ok: true, data: {page: args.page ?? 1, pages: 1, ...data}})
     const done = data => ({type: 'action.result', v: 1, ok: true, data})
+    const refused = message => ({type: 'action.result', v: 1, ok: false, reason: 'error.refused', message})
     state.muted ??= new Set()
+    state.applications ??= applications()
     switch (name) {
         case 'orders.accept':
             if (args.order === LIMITED_ORDER) {
@@ -205,6 +208,40 @@ function action(name, args, state) {
             if (args.mute) state.muted.add(args.category)
             else state.muted.delete(args.category)
             return done({category: args.category, muted: args.mute, mask: state.muted.size})
+        case 'company.members.kick':
+            return done({player: args.player})
+        case 'company.members.permissions':
+            return done({player: args.player, permissions: Object.keys(args.permissions).filter(key => args.permissions[key])})
+        case 'company.members.leave':
+            return done({company: 7})
+        case 'company.members.revoke':
+            state.applications.invites = state.applications.invites.filter(invite => invite.player.uuid !== args.player)
+            return done({player: args.player})
+        case 'company.applications.accept':
+        case 'company.applications.deny':
+            state.applications.entries = state.applications.entries.filter(entry => entry.player.uuid !== args.player)
+            return done({player: args.player})
+        case 'company.applications.list':
+            return page({total: state.applications.entries.length, ...state.applications})
+        case 'company.applications.join-mode':
+            return done({mode: args.mode})
+        case 'company.profile.description':
+        case 'company.profile.tag':
+        case 'company.profile.color':
+            if (args.tag !== undefined && args.tag.length > 5) return refused('The tag may have at most 5 characters.')
+            return done({name: 'Stonebridge Builders', ...args})
+        case 'company.profile.rename':
+            if (args.quote) return done({price: 5000, treasury: 18450})
+            return done({name: args.name})
+        case 'company.treasury.deposit':
+            if (args.amount > 10_000) return refused('You do not have that much money.')
+            return done({balance: 18450 + args.amount})
+        case 'company.treasury.withdraw':
+            if (args.amount > 18450) return refused('The treasury does not hold that much.')
+            return done({balance: 18450 - args.amount})
+        case 'company.treasury.share':
+            if (args.percent > 25) return refused('The share may be at most 25%.')
+            return done({share: args.percent, balance: 18450})
         case 'orders.browse.search': {
             const orders = BOOK
                 .filter(order => !args.name || order.name.toLowerCase().includes(args.name.toLowerCase()))

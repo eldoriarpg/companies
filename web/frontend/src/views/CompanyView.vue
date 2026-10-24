@@ -6,23 +6,34 @@
 <script lang="ts" setup>
 import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
+import {Feature, MemberPermission} from '~/api/generated/protocol'
+import {holds} from '~/util/permissions'
+import ApplicationsPanel from './companyview/ApplicationsPanel.vue'
 import MembersPanel from './companyview/MembersPanel.vue'
 import ProfilePanel from './companyview/ProfilePanel.vue'
 
 /**
- * The player's company: its profile with level and rank, its treasury, and its members with what they delivered.
- * Inside the company every member is named. Managing it from the web comes with the later steps.
+ * The player's company: its profile with level and rank, its treasury, its members with what they delivered, and for
+ * members who may invite, who wants in. Inside the company every member is named. What a member may change is
+ * offered where the server switched it on; leaving is confirmed here once the company is gone from the snapshot.
  */
 const {t} = useI18n()
-const {company, snapshot} = useDashboard()
+const {company, snapshot, supports} = useDashboard()
+const left = ref(false)
+const recruits = computed(() => supports(Feature['company.applications'])
+    && holds(snapshot.value?.player.permissions ?? [], MemberPermission.INVITE))
 </script>
 
 <template>
   <ViewContent :title="company?.name ?? t('nav.company')">
+    <NoticeBanner v-if="left">{{ t('company.left') }}</NoticeBanner>
     <NoticeBanner v-if="!company">{{ t('portfolio.noCompany') }}</NoticeBanner>
     <div v-else class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
       <ProfilePanel :company="company" :ranking="snapshot?.rankings"/>
-      <MembersPanel :members="company.members"/>
+      <div class="flex min-w-0 flex-col gap-4">
+        <MembersPanel :members="company.members" :company="company.name" @left="left = true"/>
+        <ApplicationsPanel v-if="recruits" :members="company.members.length"/>
+      </div>
     </div>
   </ViewContent>
 </template>

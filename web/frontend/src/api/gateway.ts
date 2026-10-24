@@ -9,7 +9,9 @@ import type {
     DeprecatedPart,
     ErrorMessage,
     ItemView,
+    JoinMode,
     Limits,
+    MemberPermission,
     OrderLineView,
     OrderState,
     Patch,
@@ -235,6 +237,31 @@ export interface TreasuryLogPage {
     entries: TreasuryLogEntry[]
 }
 
+/** An open application to the company. */
+export interface Application {
+    player: PlayerRef
+    message: string
+    created: string
+    expires: string
+}
+
+/** An invite the company sent that is still open. */
+export interface SentInvite {
+    player: PlayerRef
+    inviter: PlayerRef
+    created: string
+    expires: string
+}
+
+/** The open applications to the company and the invites it sent, all on one page. */
+export interface ApplicationsPage {
+    page: number
+    pages: number
+    total: number
+    entries: Application[]
+    invites?: SentInvite[]
+}
+
 /** The read actions of the dashboard with their arguments and the `data` of their answer. */
 export interface ReadActions {
     'orders.browse.search': {args: OrderSearchArgs, result: OrderSearchPage}
@@ -244,6 +271,7 @@ export interface ReadActions {
     'market.search': {args: {query: string, page: number}, result: MarketPage}
     'market.top': {args: {page: number}, result: MarketPage}
     'company.treasury.log': {args: {page: number}, result: TreasuryLogPage}
+    'company.applications.list': {args: Record<string, never>, result: ApplicationsPage}
 }
 
 /** The name of a read action. */
@@ -270,7 +298,50 @@ export interface WriteActions {
     'inbox.read-all': {args: Record<string, never>, result: {marked: number}}
     'inbox.clear': {args: Record<string, never>, result: {deleted: number}}
     'inbox.mute': {args: {category: string, mute: boolean}, result: {category: string, muted: boolean, mask: number}}
+    'company.members.revoke': {args: PlayerArg, result: PlayerArg}
+    'company.members.kick': {args: PlayerArg, result: PlayerArg}
+    'company.members.leave': {args: Record<string, never>, result: {company: number}}
+    'company.members.permissions': {
+        args: PlayerArg & {permissions: Partial<Record<MemberPermission, boolean>>}
+        result: PlayerArg & {permissions: MemberPermission[]}
+    }
+    'company.applications.accept': {args: PlayerArg, result: PlayerArg}
+    'company.applications.deny': {args: PlayerArg, result: PlayerArg}
+    'company.applications.join-mode': {args: {mode: JoinMode}, result: {mode: JoinMode}}
+    'company.profile.description': {args: {description: string}, result: ProfileResult}
+    'company.profile.tag': {args: {tag: string}, result: ProfileResult}
+    'company.profile.color': {args: {color: string}, result: ProfileResult}
+    'company.profile.rename': {
+        args: {name: string, quote?: boolean, payment?: RenamePayment}
+        result: RenameResult
+    }
+    'company.treasury.deposit': {args: {amount: number}, result: {balance: number}}
+    'company.treasury.withdraw': {args: {amount: number}, result: {balance: number}}
+    'company.treasury.share': {args: {percent: number}, result: {share: number, balance: number}}
 }
+
+/** A player an action named, by id. */
+export interface PlayerArg {
+    player: string
+}
+
+/** The company's profile as an edit left it. */
+export interface ProfileResult {
+    name: string
+    description?: string
+    tag?: string
+    color?: string
+}
+
+/** What renaming costs, or the new name once it is done. */
+export interface RenameResult {
+    price?: number
+    treasury?: number
+    name?: string
+}
+
+/** Who pays a rename. */
+export type RenamePayment = 'PLAYER' | 'TREASURY'
 
 /** The name of an action that changes something. */
 export type WriteAction = keyof WriteActions

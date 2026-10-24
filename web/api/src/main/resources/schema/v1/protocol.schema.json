@@ -183,6 +183,15 @@
           "items" : {
             "$ref" : "#/$defs/AlertView"
           }
+        },
+        "colorName" : {
+          "type" : "string"
+        },
+        "palette" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/PaletteColor"
+          }
         }
       },
       "required" : [ "id", "name", "joinMode", "founded", "level", "members", "orders", "alerts" ]
@@ -535,6 +544,18 @@
         }
       },
       "required" : [ "id", "name", "state", "lines", "created", "waiting" ]
+    },
+    "PaletteColor" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "hex" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "name", "hex" ]
     },
     "PartKind" : {
       "type" : "string",
@@ -932,6 +953,15 @@
       "type" : "object",
       "properties" : {
         "balance" : {
+          "type" : "number"
+        },
+        "share" : {
+          "type" : "integer"
+        },
+        "maxShare" : {
+          "type" : "integer"
+        },
+        "minTransaction" : {
           "type" : "number"
         }
       },

@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The paged reads: market statistics, inbox and treasury log.
+ * The paged reads: market statistics, inbox, treasury log and applications; and the treasury members see.
  */
 class ReadPagesTest {
     private static final UUID NODE = UUID.fromString("00000000-0000-0000-0000-00000000000d");
@@ -165,5 +165,46 @@ class ReadPagesTest {
         assertEquals("Kestrel_", entry.path("actor").path("name").asString());
         assertTrue(entry.has("time"));
         assertTrue(entry.path("amount").asDouble() > 0);
+    }
+
+    @Test
+    void theApplicationsComeWithTheInvitesTheCompanySent() {
+        var now = LocalDateTime.now();
+        var invited = world.player("Ivy");
+        var applicant = world.player("Fern");
+        world.memberships
+                .submitInvite(miners, invited, kestrel, now, now.plusDays(1))
+                .join();
+        world.memberships
+                .submitApplication(miners, applicant, "Hi", now, now.plusDays(1), 5)
+                .join();
+
+        var page = read(kestrel, Actions.APPLICATIONS_LIST, "{}").data();
+
+        assertEquals(
+                "Fern", page.path("entries").get(0).path("player").path("name").asString());
+        var invite = page.path("invites").get(0);
+        assertEquals("Ivy", invite.path("player").path("name").asString());
+        assertEquals("Kestrel_", invite.path("inviter").path("name").asString());
+    }
+
+    @Test
+    void theTreasuryNamesTheShareAndTheServersLimits() {
+        world.companySettings.treasury().maxPayoutShare(20);
+        world.treasury.submitShare(miners, 30, kestrel, LocalDateTime.now()).join();
+        var company =
+                world.companies.retrieveCompanyById(miners).asFuture().join().orElseThrow();
+        var profile = world.companies
+                .retrieveCompanyProfile(company)
+                .asFuture()
+                .join()
+                .orElseThrow();
+
+        var treasury = world.views.treasury(profile, kestrel).orElseThrow();
+
+        assertEquals(20, treasury.share());
+        assertEquals(20, treasury.maxShare());
+        assertEquals(1.0, treasury.minTransaction());
+        assertTrue(world.views.treasury(profile, owner).isEmpty());
     }
 }
