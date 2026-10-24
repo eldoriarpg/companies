@@ -538,6 +538,49 @@ class HostedGatewayTest {
     }
 
     @Test
+    void aPatchBufferedDuringTheFirstLoadDropsTheCachedReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = treasuryNode(uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.69");
+            SessionCreated created = create(node, uid);
+            login(node, browser, created);
+
+            CompletableFuture<HttpResponse<String>> loading = browser.getAsync("/api/v1/me/snapshot");
+            SnapshotRequest request = node.expect(SnapshotRequest.class);
+            assertEquals(1, readFromNode(node, browser, TREASURY_LOG, 1));
+            assertEquals(2, readFromNode(node, browser, INBOX_PAGE, 2));
+            patch(node, created, uid, 2, "company.treasury.balance", 2600);
+            node.sendRaw(Recorded.snapshot(request.id(), request.session(), uid, 1));
+            assertEquals(200, loading.join().statusCode());
+
+            assertEquals(3, readFromNode(node, browser, TREASURY_LOG, 3));
+            assertEquals(4, readFromNode(node, browser, INBOX_PAGE, 4));
+        }
+    }
+
+    @Test
+    void aRankingsPatchBufferedDuringTheFirstLoadKeepsOtherReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.70");
+            SessionCreated created = create(node, uid);
+            login(node, browser, created);
+
+            CompletableFuture<HttpResponse<String>> loading = browser.getAsync("/api/v1/me/snapshot");
+            SnapshotRequest request = node.expect(SnapshotRequest.class);
+            assertEquals(1, readFromNode(node, browser, INBOX_PAGE, 1));
+            assertEquals(2, readFromNode(node, browser, RANKINGS_PAGE, 2));
+            patch(node, created, uid, 2, "rankings.pages", 5);
+            node.sendRaw(Recorded.snapshot(request.id(), request.session(), uid, 1));
+            assertEquals(200, loading.join().statusCode());
+
+            assertEquals(1, readCached(browser, INBOX_PAGE));
+            node.assertQuiet();
+            assertEquals(3, readFromNode(node, browser, RANKINGS_PAGE, 3));
+        }
+    }
+
+    @Test
     void aReloadedSnapshotDropsTheCachedReads() {
         UUID uid = UUID.randomUUID();
         try (FakeNode node = node(key(), uid)) {
