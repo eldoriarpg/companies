@@ -19,7 +19,7 @@ Keep it open on your phone next to the game: it updates while things happen on t
 2. The chat shows a short link and a code, for example:
 
    ```
-   Open dash.eldoria.de/AB12CD on any device and enter the code.
+   Open companies.eldoria.de/AB12CD on any device and enter the code.
    Login code: K P M W Q R, valid for 5 minutes
    ```
 

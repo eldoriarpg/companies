@@ -21,7 +21,9 @@ opens no port and needs no domain or certificate. You can also [run the gateway 
 
 1. Get a dashboard key in the account area of [Lyna](https://lyna.eldoria.de), where you got the plugin. Keys start
    with `lyd_`.
-2. Enter the key on any server of your network, from the console or in game:
+2. Give the key to the primary server as the environment variable `COMPANIES_DASHBOARD_KEY`, see
+   [the key from the environment](#the-key-from-the-environment). Or enter it on any server of your network, from the
+   console or in game:
 
    ```
    /companyadmin dashboard key lyd_...
@@ -29,6 +31,12 @@ opens no port and needs no domain or certificate. You can also [run the gateway 
 
    The key is stored in the database, so every server of the network uses it. The command line with the key is kept
    out of the server log, and debug reports mask keys.
+
+   :::tip Prefer the environment variable
+   A key typed into the console stays in the console's history: Paper keeps it in the file `.console_history` of the
+   server folder. Typed in game, it may stay in your client's chat history. The environment variable keeps the key out
+   of both.
+   :::
 3. Switch the dashboard on in `config.yml`:
 
    ```yaml
@@ -43,16 +51,17 @@ The console says "Connected to the dashboard gateway" once the server is connect
 
 ### The key from the environment
 
-Instead of the command, you can give the key in `node.yml` of a server, usually as an environment variable:
+Instead of the command, you can give the key in `node.yml` of the primary server, usually as an environment variable:
 
 ```yaml
 dashboard:
   serverKey: env:COMPANIES_DASHBOARD_KEY
 ```
 
-This is the default, so setting `COMPANIES_DASHBOARD_KEY` for the server process is enough. The key is moved into the
-database on start. Changing the variable later stores the new key; an unchanged variable never replaces a key that
-was rotated since.
+This is the default, so setting `COMPANIES_DASHBOARD_KEY` for the primary server's process is enough. The primary
+reads it when it starts and on every reload, and stores the key in the database only when the variable
+changed. An unchanged variable never replaces a key that was rotated since, or one you entered
+with `/companyadmin dashboard key`. The secondary servers ignore this setting; they read the key from the database.
 
 :::tip Never put the key into config.yml
 `config.yml` is copied to every server and often shared when asking for help. Debug reports mask dashboard keys.
@@ -167,3 +176,10 @@ token starting with `cst_` on its first start; enter that token like a key:
 
 or set it in `node.yml` as `dashboard.serverKey`. Then point `dashboard.gateway` at your gateway, for example
 `wss://dashboard.example.org/api/v1/servers/connect`, and reload. A server token never rotates.
+
+:::warning A Lyna key goes to Eldoria's gateway only
+A Lyna dashboard key is sent only over `wss://` to `companies.eldoria.de`. With another `dashboard.gateway`, or with
+`ws://`, the server keeps the key back, does not connect, and `/companyadmin dashboard status` says why. If a gateway
+calls itself self-hosted after it received a Lyna key, the server disconnects and sends the key no more until you
+enter a new key or reload. Give a self-hosted gateway its own server token.
+:::

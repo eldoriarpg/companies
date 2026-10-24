@@ -16,6 +16,12 @@ import java.util.UUID;
 /**
  * Plugin to gateway: a change of the snapshots of the given sessions. Each node numbers its patches; a gap makes the
  * gateway ask for a fresh snapshot.
+ * <p>
+ * The lists {@code orders} and {@code company.orders} (keyed by order id) and {@code company.members} (keyed by member
+ * uuid) change entry by entry with {@link PatchOp#UPSERT} and {@link PatchOp#REMOVE}. The paths {@code player},
+ * {@code company}, {@code player.invites} and {@code rankings} are whole values, changed with {@link PatchOp#REPLACE}
+ * ({@code company} with {@link PatchOp#REMOVE} when the player has none), as are {@code player.unreadInbox} and
+ * {@code company.treasury}.
  *
  * @param id the message id; an answer carries the id of its request, see {@link Message#id()}
  * @param v the protocol version, see {@link Message#v()}
