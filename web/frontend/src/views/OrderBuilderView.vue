@@ -19,13 +19,15 @@ import MutedText from '@/components/typography/MutedText.vue'
 import AddLineDialog from './orderbuilder/AddLineDialog.vue'
 import BuilderLine from './orderbuilder/BuilderLine.vue'
 import RepetitionFields from './orderbuilder/RepetitionFields.vue'
+import {Feature} from '~/api/generated/protocol'
 import {money} from '~/util/format'
 import {type LineSource, itemOf} from '~/util/orderDraft'
 
 /**
  * Placing an order from the dashboard: a name, the lines with amount and price of one item, and whether it repeats.
  * The plugin quotes the order while it is built and checks it as in game; placing it charges the player, who may be
- * offline, and opens their orders, where the new one shows up.
+ * offline, and opens the portfolio, where the new order shows up under their orders. A server that does not offer
+ * placing orders gets a notice instead.
  */
 const MAX_NAME = 31
 
@@ -33,12 +35,27 @@ const {t, locale} = useI18n()
 const router = useRouter()
 const builder = useOrderBuilder()
 const market = useMarket()
+const {supports} = useDashboard()
+const offered = computed(() => supports(Feature['orders.create']))
 const adding = ref(false)
+const editing = ref<number | null>(null)
+const editedSource = computed(() => builder.lines.value.find(line => line.id === editing.value)?.source ?? null)
 
 onMounted(() => {
+  if (!offered.value) return
   void builder.load()
   void market.loadTop()
 })
+
+/**
+ * Opens the dialog for a new line, or for changing a line's item.
+ *
+ * @param id the line to change, none for a new one
+ */
+function openDialog(id: number | null): void {
+  editing.value = id
+  adding.value = true
+}
 
 /**
  * Adds a line, priced at the market's average where it knows the material.
@@ -46,7 +63,8 @@ onMounted(() => {
  * @param source the line's item
  */
 function add(source: LineSource): void {
-  builder.addLine(source, market.averages.value.get(itemOf(source).material))
+  if (editing.value !== null) builder.replaceLine(editing.value, source)
+  else builder.addLine(source, market.averages.value.get(itemOf(source).material))
 }
 
 /** Places the order and opens the player's orders. */
@@ -59,8 +77,14 @@ async function place(): Promise<void> {
 
 <template>
   <ViewContent :title="t('builder.title')" standalone>
-    <Alert v-if="builder.status.value === 'failed'" variant="problem">{{ t('builder.loadFailed') }}</Alert>
-    <EmptyState v-if="builder.status.value !== 'ready' && builder.status.value !== 'failed'" loading/>
+    <Alert v-if="!offered" variant="notice">{{ t('builder.disabled') }}</Alert>
+    <Alert v-else-if="builder.status.value === 'failed'" variant="problem">
+      <span>{{ t('builder.loadFailed') }}</span>
+      <ButtonRow>
+        <SecondaryButton @click="builder.reload()">{{ t('builder.retry') }}</SecondaryButton>
+      </ButtonRow>
+    </Alert>
+    <EmptyState v-else-if="builder.status.value !== 'ready'" loading/>
     <template v-if="builder.status.value === 'ready' && builder.catalogue.value && builder.known.value">
       <PanelBox padded>
         <TextInput v-model="builder.name.value" :label="t('builder.name')" :hint="t('builder.nameHint')" :maxlength="MAX_NAME"/>
@@ -68,7 +92,7 @@ async function place(): Promise<void> {
       <PanelBox :aria-label="t('builder.lines')">
         <template #head>
           <SectionHeader :note="t('builder.linesNote')">{{ t('builder.lines') }}</SectionHeader>
-          <SecondaryButton icon="plus" @click="adding = true">{{ t('builder.addLine') }}</SecondaryButton>
+          <SecondaryButton icon="plus" @click="openDialog(null)">{{ t('builder.addLine') }}</SecondaryButton>
         </template>
         <EmptyState v-if="builder.lines.value.length === 0">{{ t('builder.noLines') }}</EmptyState>
         <ul v-else class="m-0 list-none p-0">
@@ -79,14 +103,16 @@ async function place(): Promise<void> {
               :catalogue="builder.catalogue.value"
               :average="market.averages.value.get(itemOf(line.source).material)"
               @remove="builder.removeLine(line.id)"
+              @edit="openDialog(line.id)"
           />
         </ul>
       </PanelBox>
       <PanelBox padded>
         <RepetitionFields v-model="builder.repetition.value"/>
       </PanelBox>
-      <PanelBox padded :aria-label="t('builder.cost')" aria-live="polite">
+      <PanelBox padded :aria-label="t('builder.cost')">
         <SectionHeader>{{ t('builder.cost') }}</SectionHeader>
+        <div aria-live="polite">
         <MutedText v-if="builder.quote.value.status === 'incomplete'" tag="p">{{ t('builder.incomplete') }}</MutedText>
         <span v-else-if="builder.quote.value.status === 'quoting'" class="flex items-center gap-2 text-sm text-ink-muted">
           <Spinner size="sm"/>{{ t('builder.quoting') }}
@@ -101,6 +127,7 @@ async function place(): Promise<void> {
           <dt class="font-semibold">{{ t('builder.total') }}</dt>
           <dd class="tabular m-0 text-right font-semibold">{{ money(builder.quote.value.quote.total, locale) }}</dd>
         </dl>
+        </div>
         <ActionNotice :problem="builder.problem.value"/>
         <ButtonRow>
           <PrimaryButton
@@ -112,7 +139,7 @@ async function place(): Promise<void> {
         </ButtonRow>
         <MutedText tag="p">{{ t('builder.placeNote') }}</MutedText>
       </PanelBox>
-      <AddLineDialog v-model:open="adding" :catalogue="builder.catalogue.value" :known="builder.known.value" @add="add"/>
+      <AddLineDialog v-model:open="adding" :editing="editedSource" :catalogue="builder.catalogue.value" :known="builder.known.value" @add="add"/>
     </template>
   </ViewContent>
 </template>

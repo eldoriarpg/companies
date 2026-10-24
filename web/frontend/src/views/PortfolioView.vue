@@ -16,13 +16,19 @@ import TreasuryPanel from './portfolioview/TreasuryPanel.vue'
 /**
  * The home view, made for a phone lying next to the game: the treasury, the key figures, the orders the company works
  * on, the player's own orders and the company's live feed, all updating in place. The screen can be kept on while it
- * is open. After an order was placed on the dashboard the view opens with its name and says so.
+ * is open. After an order was placed on the dashboard the view opens with its name and says so once; the name is
+ * taken out of the address, so a reload or the back gesture does not say it again.
  */
 const {t} = useI18n()
 const route = useRoute()
 const {snapshot, company, activity} = useDashboard()
 const wakeLock = useWakeLock()
-const placed = computed(() => (typeof route.query.placed === 'string' ? route.query.placed : ''))
+const router = useRouter()
+const placed = ref(typeof route.query.placed === 'string' ? route.query.placed : '')
+
+onMounted(() => {
+  if (route.query.placed !== undefined) void router.replace({query: {...route.query, placed: undefined}})
+})
 </script>
 
 <template>

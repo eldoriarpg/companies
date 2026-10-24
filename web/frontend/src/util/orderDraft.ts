@@ -41,7 +41,7 @@ export function itemOf(source: LineSource): ItemView {
 
 /**
  * What a line's item carries, as short lines: the details the plugin named for a known item, the chosen properties
- * for a defined one.
+ * for a defined one. An enchantment with a single level is named without it, as the plugin names it.
  *
  * @param source where the item comes from
  * @param catalogue the names of the properties
@@ -53,8 +53,10 @@ export function detailsOf(source: LineSource, catalogue: OrderCatalogue | null):
     const {definition} = source
     const named = (entries: {key: string, name: string}[] | undefined, key: string) =>
         entries?.find(entry => entry.key === key)?.name ?? key
-    const lines = Object.entries(definition.enchantments ?? {})
-        .map(([key, level]) => `${named(catalogue?.enchantments, key)} ${level}`)
+    const lines = Object.entries(definition.enchantments ?? {}).map(([key, level]) => {
+        const name = named(catalogue?.enchantments, key)
+        return catalogue?.enchantments.find(entry => entry.key === key)?.max === 1 ? name : `${name} ${level}`
+    })
     if (definition.potion) lines.push(named(catalogue?.potions, definition.potion))
     if (definition.dye) lines.push(named(catalogue?.dyes, definition.dye))
     if (definition.trim) {

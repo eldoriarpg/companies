@@ -12,7 +12,8 @@ import type {DraftRepetition} from '~/util/orderDraft'
 
 /**
  * Whether the order repeats, how often, and until when: a number of copies or a last day. Each copy is placed and
- * paid for when the one before is done; the server sets the limits and says so when one is crossed.
+ * paid for when the one before is done; the server sets the limits and says so when one is crossed. The earliest last
+ * day offered is the reader's tomorrow; the server decides by its own day.
  */
 const repetition = defineModel<DraftRepetition>({required: true})
 
@@ -28,7 +29,7 @@ const ends = computed(() => [
 const tomorrow = computed(() => {
   const day = new Date()
   day.setDate(day.getDate() + 1)
-  return day.toISOString().slice(0, 10)
+  return [day.getFullYear(), day.getMonth() + 1, day.getDate()].map(part => String(part).padStart(2, '0')).join('-')
 })
 
 /**

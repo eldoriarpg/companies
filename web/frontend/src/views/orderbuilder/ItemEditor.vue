@@ -13,8 +13,8 @@ import {excluded} from '~/util/orderDraft'
 
 /**
  * What survival can give an item of one material, and nothing else, so every order stays deliverable: enchantments up
- * to their survival level and never two that exclude each other, a potion type, a leather dye, an armour trim. The
- * server offers only what the material takes.
+ * to their survival level and never two that exclude each other, a potion type, a leather dye shown in its colour, an
+ * armour trim. The server offers only what the material takes.
  */
 const definition = defineModel<ItemDefinition>({required: true})
 
@@ -33,6 +33,7 @@ const blocked = computed(() => excluded(chosen.value, props.catalogue))
 const none = computed(() => ({value: '', label: t('builder.none')}))
 const potions = computed(() => [none.value, ...props.catalogue.potions.map(entry => ({value: entry.key, label: entry.name}))])
 const dyes = computed(() => [none.value, ...props.catalogue.dyes.map(entry => ({value: entry.key, label: entry.name}))])
+const dyeColor = computed(() => props.catalogue.dyes.find(entry => entry.key === definition.value.dye)?.color)
 const patterns = computed(() => [none.value, ...props.catalogue.trimPatterns.map(entry => ({value: entry.key, label: entry.name}))])
 const trimMaterials = computed(() => [none.value, ...props.catalogue.trimMaterials.map(entry => ({value: entry.key, label: entry.name}))])
 
@@ -110,13 +111,15 @@ function trim(half: 'pattern' | 'material', value: string): void {
         :options="potions"
         @update:model-value="value => choose('potion', value)"
     />
-    <SelectInput
-        v-if="material.dye"
-        :model-value="definition.dye ?? ''"
-        :label="t('builder.dye')"
-        :options="dyes"
-        @update:model-value="value => choose('dye', value)"
-    />
+    <div v-if="material.dye" class="flex items-center gap-2">
+      <SelectInput
+          :model-value="definition.dye ?? ''"
+          :label="t('builder.dye')"
+          :options="dyes"
+          @update:model-value="value => choose('dye', value)"
+      />
+      <span v-if="dyeColor" class="size-6 shrink-0 border border-line" :style="{background: dyeColor}" aria-hidden="true"/>
+    </div>
     <div v-if="material.trim" class="flex flex-wrap gap-3">
       <SelectInput
           :model-value="definition.trim?.pattern ?? ''"

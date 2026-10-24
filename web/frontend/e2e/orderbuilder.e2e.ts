@@ -63,6 +63,15 @@ test.describe('order builder', () => {
         await dialog.getByRole('button', {name: 'Add', exact: true}).click()
 
         await expect(page.getByText('Sharpness 5')).toBeVisible()
+
+        await page.getByRole('button', {name: 'Change Diamond Sword'}).click()
+        const change = page.getByRole('dialog', {name: 'Change the item'})
+        await change.getByLabel('Sharpness', {exact: true}).uncheck()
+        await change.getByLabel('Smite', {exact: true}).check()
+        await change.getByRole('button', {name: 'Save'}).click()
+
+        await expect(page.getByText('Smite 5')).toBeVisible()
+        await expect(page.getByText('Sharpness 5')).toHaveCount(0)
     })
 
     test('shows why the server would refuse the order', async ({page}, info) => {

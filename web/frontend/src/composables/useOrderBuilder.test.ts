@@ -92,9 +92,30 @@ describe('the order builder', () => {
         const builder = useOrderBuilder(api)
         builder.name.value = 'Walls'
         builder.addLine({kind: 'material', material: material('stone', 'Stone')}, 2)
+        await vi.advanceTimersByTimeAsync(500)
 
         expect(await builder.submit()).toBe(7)
         expect(api.act).toHaveBeenCalledWith('orders.create', {name: 'Walls', lines: [{item: 'minecraft:stone', amount: 1, unitPrice: 2}]})
+        expect(await builder.submit()).toBeNull()
+        expect(api.act).toHaveBeenCalledTimes(1)
+        expect(builder.placing.value).toBe(true)
+    })
+
+    it('drops the quote the moment the order changes, so nothing is placed at an old price', async () => {
+        const {api} = gateway(() => ({price: 2, fee: 0, total: 2}))
+        api.act = vi.fn() as unknown as GatewayApi['act']
+        const builder = useOrderBuilder(api)
+        builder.name.value = 'Walls'
+        builder.addLine({kind: 'material', material: material('stone', 'Stone')}, 2)
+        await vi.advanceTimersByTimeAsync(500)
+        expect(builder.quote.value.status).toBe('quoted')
+
+        builder.lines.value = builder.lines.value.map(line => ({...line, amount: 640}))
+        await vi.advanceTimersByTimeAsync(100)
+
+        expect(builder.quote.value).toEqual({status: 'quoting'})
+        expect(await builder.submit()).toBeNull()
+        expect(api.act).not.toHaveBeenCalled()
     })
 
     it('removes a line', () => {

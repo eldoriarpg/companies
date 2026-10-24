@@ -57,6 +57,12 @@ describe('an order draft', () => {
         }}, catalogue())).toEqual(['Red', 'Coast (Gold)'])
     })
 
+    it('names an enchantment of a single level without it', () => {
+        const book = material('enchanted_book', 'Enchanted Book', {enchantments: ['minecraft:mending']})
+        const withMending = {...catalogue(), enchantments: [{key: 'minecraft:mending', name: 'Mending', max: 1, conflicts: []}]}
+        expect(detailsOf({kind: 'defined', material: book, definition: {material: 'minecraft:enchanted_book', enchantments: {'minecraft:mending': 1}}}, withMending)).toEqual(['Mending'])
+    })
+
     it('excludes what conflicts with a chosen enchantment', () => {
         expect([...excluded(['minecraft:sharpness'], catalogue())]).toEqual(['minecraft:smite'])
     })

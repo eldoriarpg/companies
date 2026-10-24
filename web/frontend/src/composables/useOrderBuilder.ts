@@ -20,8 +20,10 @@ export type QuoteState =
 
 /**
  * An order being built on the dashboard: its name, lines and repetition, the catalogue and known items they are
- * picked from, and the plugin's quote, asked for again whenever the order changes and is complete. An answer
- * overtaken by a newer change is dropped. Placing it charges the player and creates the order.
+ * picked from, and the plugin's quote, asked for again whenever the order changes and is complete. A change drops the
+ * quote at once, so an order is never placed at the price of what it was before, and an answer overtaken by a newer
+ * change is dropped. Placing it charges the player and creates the order, once: after it was placed the builder
+ * places nothing more.
  *
  * @param api the gateway, for tests
  * @returns the order being built and what it is built with
@@ -35,6 +37,7 @@ export function useOrderBuilder(api: GatewayApi = gatewayApi()) {
     const repetition = ref<DraftRepetition>({enabled: false, interval: 'weekly', end: 'times', times: undefined, until: ''})
     const quote = shallowRef<QuoteState>({status: 'incomplete'})
     const place = useAction(api)
+    const placed = ref(false)
     const latest = useLatest()
     let nextId = 1
 
@@ -94,7 +97,29 @@ export function useOrderBuilder(api: GatewayApi = gatewayApi()) {
         if (latest.is(ticket)) quote.value = next
     }
 
+    watch(args, order => {
+        latest.next()
+        quote.value = order === null ? {status: 'incomplete'} : {status: 'quoting'}
+    }, {deep: true})
     watchDebounced(args, () => void requote(), {debounce: QUOTE_DELAY_MILLIS, deep: true})
+
+    /**
+     * Loads what the order is built from again after a failed load.
+     */
+    async function reload(): Promise<void> {
+        if (status.value === 'failed') status.value = 'idle'
+        await load()
+    }
+
+    /**
+     * Replaces a line's item, keeping its amount and price.
+     *
+     * @param id the line
+     * @param source the new item
+     */
+    function replaceLine(id: number, source: LineSource): void {
+        lines.value = lines.value.map(line => (line.id === id ? {...line, source} : line))
+    }
 
     /**
      * Places the order.
@@ -103,9 +128,11 @@ export function useOrderBuilder(api: GatewayApi = gatewayApi()) {
      */
     async function submit(): Promise<number | null> {
         const order = args.value
-        if (order === null) return null
+        if (order === null || placed.value || quote.value.status !== 'quoted') return null
         const result = await place.run('orders.create', order)
-        return result?.order ?? null
+        if (!result) return null
+        placed.value = true
+        return result.order
     }
 
     return {
@@ -117,10 +144,12 @@ export function useOrderBuilder(api: GatewayApi = gatewayApi()) {
         repetition,
         complete: computed(() => args.value !== null),
         quote: readonly(quote),
-        placing: place.busy,
+        placing: computed(() => place.busy.value || placed.value),
         problem: place.problem,
         load,
+        reload,
         addLine,
+        replaceLine,
         removeLine,
         requote,
         submit,
