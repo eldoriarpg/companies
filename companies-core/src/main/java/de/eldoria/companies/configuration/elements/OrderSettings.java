@@ -8,6 +8,7 @@ package de.eldoria.companies.configuration.elements;
 import de.eldoria.companies.configuration.elements.ordersettings.MarketSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.configuration.elements.ordersettings.RepeatingSettings;
+import de.eldoria.companies.configuration.elements.ordersettings.SavedItemSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.SoloSettings;
 
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
@@ -22,6 +23,7 @@ public class OrderSettings {
     private RepeatingSettings repeating = new RepeatingSettings();
     private SoloSettings solo = new SoloSettings();
     private MarketSettings market = new MarketSettings();
+    private SavedItemSettings savedItems = new SavedItemSettings();
 
     public OrderSettings() {}
 
@@ -123,5 +125,14 @@ public class OrderSettings {
      */
     public MarketSettings market() {
         return market == null ? new MarketSettings() : market;
+    }
+
+    /**
+     * The items players save to order again.
+     *
+     * @return saved item settings
+     */
+    public SavedItemSettings savedItems() {
+        return savedItems == null ? new SavedItemSettings() : savedItems;
     }
 }
