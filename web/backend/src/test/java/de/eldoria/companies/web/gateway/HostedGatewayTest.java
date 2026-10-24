@@ -478,6 +478,57 @@ class HostedGatewayTest {
     }
 
     @Test
+    void aPatchDropsTheCachedReadsOfItsSessionOnly() {
+        UUID uid = UUID.randomUUID();
+        List<String> features = new ArrayList<>(FakeNode.FEATURES);
+        features.add(Features.COMPANY_TREASURY);
+        try (FakeNode node = FakeNode.welcomed(
+                gateway, FakeNode.hello(KeyKind.DASHBOARD_KEY, key(), uid, NodeRole.PRIMARY, PLUGIN, features, null))) {
+            FakeBrowser patched = new FakeBrowser(gateway, "203.0.113.13");
+            SessionCreated created = create(node, uid);
+            login(node, patched, created);
+            FakeBrowser other = new FakeBrowser(gateway, "203.0.113.14");
+            login(node, other, create(node, uid));
+            String log = "{\"name\":\"company.treasury.log\",\"args\":{\"page\":1}}";
+
+            try (FakeBrowser.Stream stream = patched.stream()) {
+                stream.next();
+                snapshot(node, patched, uid, 1);
+                readFromNode(node, patched, log);
+                readFromNode(node, other, log);
+                assertEquals(200, patched.post("/api/v1/me/actions", log).statusCode());
+                assertEquals(200, other.post("/api/v1/me/actions", log).statusCode());
+                node.assertQuiet();
+
+                node.send(new Patch(
+                        null,
+                        1,
+                        List.of(created.session()),
+                        uid,
+                        2,
+                        "company.treasury.balance",
+                        PatchOp.REPLACE,
+                        null,
+                        JsonNodeFactory.instance.numberNode(2600)));
+                assertEquals(
+                        "company.treasury.balance", stream.next().path("path").asString());
+
+                assertEquals(200, other.post("/api/v1/me/actions", log).statusCode());
+                node.assertQuiet();
+                readFromNode(node, patched, log);
+            }
+        }
+    }
+
+    private static void readFromNode(FakeNode node, FakeBrowser browser, String action) {
+        CompletableFuture<HttpResponse<String>> answer = browser.postAsync("/api/v1/me/actions", action);
+        ActionRequest request = node.expect(ActionRequest.class);
+        node.send(new ActionResult(request.id(), 1, true, null, null, JsonNodeFactory.instance.objectNode()));
+        HttpResponse<String> result = answer.join();
+        assertEquals(200, result.statusCode(), result.body());
+    }
+
+    @Test
     void logoutEndsTheSessionEverywhere() {
         UUID uid = UUID.randomUUID();
         try (FakeNode node = node(key(), uid)) {

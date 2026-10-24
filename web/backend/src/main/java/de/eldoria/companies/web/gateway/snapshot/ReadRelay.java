@@ -11,6 +11,7 @@ import de.eldoria.companies.web.api.action.ActionResult;
 import de.eldoria.companies.web.gateway.node.NodeLink;
 import de.eldoria.companies.web.gateway.node.NodeRequestException;
 import de.eldoria.companies.web.gateway.storage.StoredSession;
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -27,6 +28,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * Forwards a browser's read requests, such as an order search or an inbox page, to a node as {@code action}s and
  * keeps successful answers per session, action and arguments for {@value #CACHE_SECONDS} seconds. Search results are
  * not live; a browser asks again to refresh them.
+ * <p>
+ * A patch to the session's player, company or own orders, or a reloaded snapshot, drops the session's cached answers,
+ * as a browser that reads again after such a change, for example the treasury log after a balance change, expects to
+ * see it.
  * <p>
  * Paging arguments are kept within the node's limits: {@code page} is at least 1 and {@code pageSize} (or
  * {@code size}) at most the node's {@code maxPageSize}.
@@ -51,6 +56,7 @@ public final class ReadRelay {
             Actions.MARKET_MOVERS);
 
     private static final long CACHE_SECONDS = 30;
+    private static final Set<String> PATCHED_ROOTS = Set.of("player", "company", "orders");
     private static final List<String> PAGE_SIZES = List.of("pageSize", "size");
     private final Map<String, Cached> answers = new ConcurrentHashMap<>();
     private final Clock clock;
@@ -103,6 +109,16 @@ public final class ReadRelay {
      */
     public void drop(String sessionId) {
         answers.values().removeIf(cached -> cached.sessionId().equals(sessionId));
+    }
+
+    /**
+     * A patch was applied to a session's snapshot; the session's answers are forgotten when the patch may change them.
+     *
+     * @param sessionId the session
+     * @param path the patch's dotted path
+     */
+    public void patched(String sessionId, @Nullable String path) {
+        if (path != null && PATCHED_ROOTS.contains(path.split("\\.", 2)[0])) drop(sessionId);
     }
 
     /**

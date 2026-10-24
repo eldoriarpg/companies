@@ -87,8 +87,8 @@ public final class GatewayApp {
         this.clientAddress = ClientAddress.trusting(config.trustedProxies(), config.cloudflare());
         this.hub = new NodeHub(authenticator, policy, config.mode().kind(), servers, icons, connects, clock);
         this.streams = new BrowserStreams(clock);
-        this.snapshots = new SnapshotCache(hub, streams, clock, config.cacheIdle(), config.requestTimeout());
         this.reads = new ReadRelay(clock, config.requestTimeout());
+        this.snapshots = new SnapshotCache(hub, streams, reads, clock, config.cacheIdle(), config.requestTimeout());
         this.sessions = new Sessions(
                 new SessionRepository(),
                 hub,
