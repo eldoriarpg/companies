@@ -1,0 +1,11 @@
+**/node_modules
+**/.nuxt
+**/.output
+**/build
+**/.gradle
+web/frontend/e2e/results
+web/frontend/e2e/report
+web/frontend/coverage
+.concept
+.git
+.idea

@@ -1,0 +1,13 @@
+node_modules
+.nuxt
+.output
+dist
+coverage
+*.log
+*.tsbuildinfo
+.vscode/*
+.idea
+.DS_Store
+e2e/results
+e2e/report
+e2e/.auth
