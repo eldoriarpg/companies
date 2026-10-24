@@ -34,6 +34,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -353,7 +354,10 @@ public final class DashboardReads {
                 .map(point ->
                         new Payloads.HistoryPoint(point.day().toString(), point.orders(), point.items(), point.avg()))
                 .toList();
-        return data(request, new Payloads.MarketDetail(item.get(), days, history));
+        return data(
+                request,
+                new Payloads.MarketDetail(
+                        item.get(), days, sources.marketToday().get().toString(), history));
     }
 
     private Optional<Payloads.MarketItem> marketItem(MarketRow row, Map<String, Double> changes) {
@@ -463,6 +467,7 @@ public final class DashboardReads {
      * @param marketSettings the current market settings
      * @param marketChanges  the change of each material's price in percent, by material name
      * @param marketHistory  the price history of a material over a number of days
+     * @param marketToday    today as the market history counts days
      * @param inboxText      renders an inbox entry as plain text
      * @param refusal        renders the message of a refusal key as plain text
      * @param names          a player's name by id
@@ -477,6 +482,7 @@ public final class DashboardReads {
             Supplier<MarketSettings> marketSettings,
             Supplier<Map<String, Double>> marketChanges,
             BiFunction<String, Integer, List<MarketHistory.Point>> marketHistory,
+            Supplier<LocalDate> marketToday,
             Function<InboxEntry, String> inboxText,
             Function<String, String> refusal,
             Function<UUID, String> names,

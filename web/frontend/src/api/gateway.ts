@@ -216,6 +216,8 @@ export interface MarketHistoryPoint {
 export interface MarketDetailView extends MarketItemView {
     /** How many days the history reaches back, today included. */
     days: number
+    /** The server's today, the last day of the history, as `yyyy-MM-dd`. */
+    to: string
     history: MarketHistoryPoint[]
 }
 

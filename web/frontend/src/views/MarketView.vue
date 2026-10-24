@@ -51,9 +51,8 @@ const sheetOpen = computed({
     </div>
     <NoticeBanner v-if="market.status.value === 'failed'" tone="problem">{{ t('market.failed') }}</NoticeBanner>
     <NoticeBanner v-if="moversShown && market.moversStatus.value === 'failed'" tone="problem">{{ t('market.moversFailed') }}</NoticeBanner>
-    <MutedText v-else-if="moversShown && market.moversStatus.value === 'ready' && market.items.value.length === 0" tag="p">{{ t('market.moversEmpty') }}</MutedText>
     <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-      <MarketList :items="market.items.value" :loading="market.status.value === 'loading' || market.searching.value || (moversShown && market.moversStatus.value === 'loading')" :selected="selection.id.value" @open="selection.open"/>
+      <MarketList :items="market.items.value" :loading="market.status.value === 'loading' || market.searching.value || (moversShown && market.moversStatus.value === 'loading')" :selected="selection.id.value" :empty="moversShown ? t('market.moversEmpty') : undefined" @open="selection.open"/>
       <MarketDetail v-if="wide && selected" :entry="selected" class="sticky top-4"/>
     </div>
     <MutedText tag="p">{{ t('market.privacy') }}</MutedText>

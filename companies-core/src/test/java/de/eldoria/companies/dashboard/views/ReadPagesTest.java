@@ -10,6 +10,7 @@ import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.dashboard.DashboardWorld;
+import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
@@ -295,5 +296,21 @@ class ReadPagesTest {
                 .get(0);
         assertEquals(1, point.path("orders").asInt());
         assertTrue(point.path("avg").isMissingNode() || point.path("avg").isNull());
+    }
+
+    @Test
+    void daysRecordedBeforeAPurgedStretchStayAfterALongPause() {
+        var today = world.market.today();
+        var stored = today.minusDays(15);
+        world.dashboard.saveMarketDay(stored, List.of(new MarketDay(stored, "STONE", 3, 30, 10.0, 9.0, 11.0)));
+        world.dashboard.saveMarketRecordedThrough(today.minusDays(20));
+        world.history.submitPurge(today.plusDays(1).atStartOfDay()).join();
+        world.orderHistoryDays = 7;
+
+        world.market.record();
+
+        assertEquals(
+                1, world.dashboard.marketHistory("STONE", today.minusDays(30)).size());
+        assertEquals(Optional.of(today), world.dashboard.marketRecordedThrough());
     }
 }

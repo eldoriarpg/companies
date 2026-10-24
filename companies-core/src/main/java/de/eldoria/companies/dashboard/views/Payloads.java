@@ -220,6 +220,7 @@ public final class Payloads {
      * @param orders  the number of delivered orders
      * @param change  the change of the average unit price in percent, as in {@link MarketItem}
      * @param days    how many days the history reaches back, today included
+     * @param to      the server's today, the last day of the history, as {@code yyyy-MM-dd}
      * @param history one point per day with delivered orders, oldest first
      */
     public record MarketDetail(
@@ -231,13 +232,15 @@ public final class Payloads {
             int orders,
             @Nullable Double change,
             int days,
+            String to,
             List<HistoryPoint> history) {
         /**
          * @param item    the statistics
          * @param days    how many days the history reaches back
+         * @param to      the last day of the history
          * @param history the history
          */
-        public MarketDetail(MarketItem item, int days, List<HistoryPoint> history) {
+        public MarketDetail(MarketItem item, int days, String to, List<HistoryPoint> history) {
             this(
                     item.item(),
                     item.avg(),
@@ -247,6 +250,7 @@ public final class Payloads {
                     item.orders(),
                     item.change(),
                     days,
+                    to,
                     history);
         }
     }

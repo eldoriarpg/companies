@@ -162,8 +162,9 @@ public abstract class ADashboardData {
      *
      * @param day  the day
      * @param rows one row per material completed on that day
+     * @return true when the day was stored
      */
-    public abstract void saveMarketDay(LocalDate day, List<MarketDay> rows);
+    public abstract boolean saveMarketDay(LocalDate day, List<MarketDay> rows);
 
     /**
      * The market history of one material, oldest day first.

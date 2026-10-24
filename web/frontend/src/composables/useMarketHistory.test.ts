@@ -11,6 +11,7 @@ import {daily, useMarketHistory} from './useMarketHistory'
 const STONE: MarketDetailView = {
     item: {material: 'minecraft:stone', name: 'Stone', amount: 1, icon: 'stone'},
     days: 30,
+    to: '2026-10-23',
     history: [
         {day: '2026-10-20', orders: 4, items: 40, avg: 10},
         {day: '2026-10-21', orders: 1, items: 10},
@@ -21,7 +22,7 @@ const STONE: MarketDetailView = {
 /** Loading a material's price history. */
 describe('the price history', () => {
     it('places each day by its date and leaves gaps for days without a price', () => {
-        const series = daily({...STONE, days: 5}, '2026-10-23')
+        const series = daily({...STONE, days: 5})
 
         expect(series).toEqual([null, 10, null, 11, null])
     })

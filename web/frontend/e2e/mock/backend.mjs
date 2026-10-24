@@ -258,7 +258,7 @@ function action(name, args, state) {
         case 'market.item': {
             const entry = MARKET.find(candidate => candidate.item.material === args.material)
             if (!entry) return {type: 'action.result', v: 1, ok: false, reason: 'dashboard.invalid', message: 'Unknown item'}
-            return done({...entry, days: args.days, history: history(entry, args.days)})
+            return done({...entry, days: args.days, to: '2026-10-24', history: history(entry, args.days)})
         }
         case 'market.search':
             return page({items: MARKET.filter(entry => entry.item.name.toLowerCase().includes(String(args.query).toLowerCase()))})

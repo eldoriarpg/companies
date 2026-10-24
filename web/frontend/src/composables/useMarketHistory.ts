@@ -14,7 +14,7 @@ export type HistoryRange = typeof HISTORY_RANGES[number]
 /**
  * The price history of one material over a period, loaded again when the material or the period changes; switching the
  * material drops the old history at once. The series has one slot per calendar day of the period the plugin answered
- * for, ending with the later of today and the last day it sent, so the chart spaces days by time; days without orders
+ * for, ending with the server's today, so the chart spaces days by time in the server's calendar; days without orders
  * or with too few for a price stay empty and leave a gap.
  *
  * @param material the material, null while none is open
@@ -66,14 +66,12 @@ export function useMarketHistory(material: Ref<string | null>, api: GatewayApi =
  * The average price of each calendar day of a history's period, null on days without one.
  *
  * @param detail the history, null while none is loaded
- * @param today today as `yyyy-MM-dd`, for tests
- * @returns one slot per day, oldest first
+ * @returns one slot per day, oldest first, the last being the server's today
  */
-export function daily(detail: MarketDetailView | null, today = new Date().toISOString().slice(0, 10)): (number | null)[] {
+export function daily(detail: MarketDetailView | null): (number | null)[] {
     if (detail === null) return []
     const prices = new Map(detail.history.map(point => [point.day, point.avg ?? null]))
-    const last = detail.history.reduce((latest, point) => (point.day > latest ? point.day : latest), today)
-    const end = Date.parse(`${last}T00:00:00Z`)
+    const end = Date.parse(`${detail.to}T00:00:00Z`)
     return Array.from({length: detail.days}, (_, index) => {
         const day = new Date(end - (detail.days - 1 - index) * 86_400_000).toISOString().slice(0, 10)
         return prices.get(day) ?? null

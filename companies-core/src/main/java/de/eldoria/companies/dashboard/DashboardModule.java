@@ -154,6 +154,7 @@ public final class DashboardModule {
                                 material,
                                 days,
                                 configuration.orderSetting().market().minOrders()),
+                        market::today,
                         entry -> inboxText(renderer, messages, entry),
                         refusal,
                         names,

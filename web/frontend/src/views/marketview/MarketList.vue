@@ -15,12 +15,14 @@ import {compact, money, percentChange, trendOf} from '~/util/format'
 
 /**
  * The materials of the market as ticker rows: the average price per item, the lowest and highest, the volume and the
- * change against the week before where both weeks have enough orders. A row opens the material's figures.
+ * change against the week before where both weeks have enough orders. A row opens the material's figures. Without
+ * items it says why, in the caller's words where given.
  */
 defineProps<{
   items: readonly MarketItemView[]
   loading: boolean
   selected: string | null
+  empty?: string
 }>()
 
 defineEmits<{
@@ -51,7 +53,7 @@ function price(value: number | undefined): string {
       <CapsLabel class="text-right">{{ t('market.columnVolume') }}</CapsLabel>
       <CapsLabel class="text-right">{{ t('market.columnChange') }}</CapsLabel>
     </div>
-    <EmptyState v-if="items.length === 0">{{ loading ? t('common.loading') : t('market.none') }}</EmptyState>
+    <EmptyState v-if="items.length === 0">{{ loading ? t('common.loading') : empty ?? t('market.none') }}</EmptyState>
     <ul v-else :aria-busy="loading" class="m-0 list-none p-0" data-testid="market">
       <li v-for="entry in items" :key="entry.item.material">
         <RowButton :selected="selected === entry.item.material" :class="COLUMNS" @click="$emit('open', entry.item.material)">

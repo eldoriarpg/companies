@@ -293,7 +293,7 @@ public class MariaDbDashboardData extends ADashboardData {
     }
 
     @Override
-    public void saveMarketDay(LocalDate day, List<MarketDay> rows) {
+    public boolean saveMarketDay(LocalDate day, List<MarketDay> rows) {
         @Language("mariadb")
         var clear = "DELETE FROM market_history WHERE day = ?";
         @Language("mariadb")
@@ -315,6 +315,7 @@ public class MariaDbDashboardData extends ADashboardData {
                         .insert();
             }
         }
+        return conf.context().exceptions().isEmpty();
     }
 
     @Override

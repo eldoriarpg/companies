@@ -60,16 +60,15 @@ public final class MarketHistory {
 
     /**
      * Records the days not recorded yet, then removes the days beyond the retention. A run that finds another one still
-     * busy does nothing. Failures are logged and the next run tries again.
+     * busy does nothing. A day that cannot be stored ends the run without moving the note forward, so the next run
+     * starts there again; other failures are logged and the next run tries again.
      */
     public void record() {
         if (!running.compareAndSet(false, true)) return;
         try {
             var today = today();
             var oldest = today.minusDays(sources.settings().get().historyDays() - 1L);
-            var complete = LocalDate.now(sources.clock().withZone(sources.zone()))
-                    .minusDays(sources.orderHistoryDays().get())
-                    .plusDays(1);
+            var complete = today.minusDays(sources.orderHistoryDays().get()).plusDays(1);
             var from = latest(
                     sources.data()
                             .marketRecordedThrough()
@@ -84,7 +83,11 @@ public final class MarketHistory {
                                 day.atStartOfDay(),
                                 day.plusDays(1).atStartOfDay())
                         .join();
-                sources.data().saveMarketDay(day, aggregate(day, entries));
+                if (!sources.data().saveMarketDay(day, aggregate(day, entries))) {
+                    sources.logger().warning("Could not store the market history of " + day + ".");
+                    if (day.isAfter(from)) sources.data().saveMarketRecordedThrough(day.minusDays(1));
+                    return;
+                }
             }
             sources.data().saveMarketRecordedThrough(today);
             sources.data().purgeMarketHistory(oldest);
@@ -204,13 +207,13 @@ public final class MarketHistory {
     /**
      * What the history is recorded from and stored in.
      *
-     * @param data     the market history table
-     * @param history  the order history the days are computed from
+     * @param data             the market history table
+     * @param history          the order history the days are computed from
      * @param settings         the retention and the orders a price needs
      * @param orderHistoryDays how many days the order history is kept, after which its entries are purged
-     * @param zone     the server's time zone, which decides where a day ends
-     * @param clock    the clock
-     * @param logger   logs failed runs
+     * @param zone             the server's time zone, which decides where a day ends
+     * @param clock            the clock
+     * @param logger           logs failed runs
      */
     public record Sources(
             ADashboardData data,

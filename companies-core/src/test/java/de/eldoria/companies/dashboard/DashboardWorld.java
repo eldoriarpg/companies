@@ -170,6 +170,7 @@ public final class DashboardWorld implements AutoCloseable {
                         market::changes,
                         (material, days) -> market.points(
                                 material, days, orderSettings.market().minOrders()),
+                        market::today,
                         entry -> entry.type().name(),
                         key -> "text of " + key,
                         this::name,
