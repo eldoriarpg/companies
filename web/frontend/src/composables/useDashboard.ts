@@ -163,6 +163,7 @@ export function useDashboard(wiring: DashboardWiring = {}) {
     function take(snapshot: Snapshot): void {
         const waiting = machinery.value.buffer ?? []
         machinery.value.buffer = null
+        forgetOtherCompany(data.value.snapshot, snapshot)
         data.value.snapshot = markRaw(snapshot)
         data.value.seqs = {[snapshot.node]: snapshot.seq}
         data.value.status = 'ready'
@@ -273,11 +274,23 @@ export function useDashboard(wiring: DashboardWiring = {}) {
             return
         }
         data.value.seqs = {...data.value.seqs, [patch.node]: patch.seq}
+        forgetOtherCompany(before, after)
         data.value.snapshot = markRaw(after)
         for (const entry of activityOf(before.company, after.company, patch, new Date().toISOString())) {
             data.value.activity = addActivity(data.value.activity, {...entry, id: String(data.value.nextActivity++)})
         }
         noteBalance(after)
+    }
+
+    /**
+     * Forgets the balances noted for a company the player is no longer in, so the treasury's line and its change
+     * belong to one company only.
+     *
+     * @param before the snapshot shown so far, none before the first
+     * @param after the snapshot shown next
+     */
+    function forgetOtherCompany(before: Snapshot | null, after: Snapshot): void {
+        if (before && before.company?.id !== after.company?.id) data.value.balances = []
     }
 
     /**

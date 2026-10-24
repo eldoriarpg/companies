@@ -17,7 +17,8 @@ const RELOAD_DELAY_MILLIS = 1500
 /**
  * The company's treasury over time: the balances of the treasury log's first page, where the server has the treasury
  * feature and the player may see it, followed by the balances the patches brought while the page was open. Once the
- * log was loaded, a changed balance loads it again shortly after, so the latest movements stay live.
+ * log was loaded, a changed balance loads it again shortly after, so the latest movements stay live; a switch to
+ * another company drops the old company's log and loads the new one's.
  *
  * @param api the gateway's calls, for tests
  * @returns the balance now, the series, the change over it and the latest movements
@@ -41,6 +42,14 @@ export function useTreasury(api: GatewayApi = gatewayApi()) {
             if (latest.is(ticket) && !loaded.value) log.value = []
         }
     }
+
+    watch(() => company.value?.id, (id, before) => {
+        if (id === before || !loaded.value) return
+        latest.next()
+        log.value = []
+        loaded.value = false
+        void loadLog()
+    })
 
     watchDebounced(() => company.value?.treasury?.balance, () => {
         if (loaded.value) void loadLog()

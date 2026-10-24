@@ -226,6 +226,19 @@ describe('the dashboard session', () => {
         expect(dashboard.status.value).toBe('gone')
     })
 
+    it('forgets the balances of a company the player left or switched from', async () => {
+        const {dashboard, socket} = wired()
+        dashboard.start()
+        await settle()
+        socket().receive(patch(42, {path: 'company.treasury', op: 'REPLACE', value: {balance: 3000}}))
+        expect(dashboard.balances.value.map(point => point.balance)).toEqual([2500, 3000])
+        const other = {...snapshot().company, id: 9, name: 'Copperworks', treasury: {balance: 90}}
+        socket().receive(patch(43, {path: 'company', op: 'REPLACE', value: other}))
+        expect(dashboard.balances.value.map(point => point.balance)).toEqual([90])
+        socket().receive(patch(44, {path: 'company', op: 'REMOVE'}))
+        expect(dashboard.balances.value).toEqual([])
+    })
+
     it('feeds a delivery into the activity', async () => {
         const {dashboard, socket} = wired()
         dashboard.start()
