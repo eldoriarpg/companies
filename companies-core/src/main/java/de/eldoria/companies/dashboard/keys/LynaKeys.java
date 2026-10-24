@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.time.Instant;
 
 /**
- * Trades a Lyna dashboard key for the current one, {@code POST /api/v1/dashboard/key/refresh}.
+ * Trades a Lyna dashboard key for the current one, {@code POST /api/v1/keys/refresh}.
  * <p>
  * Lyna answers 200 with the same key until its refresh time and with its successor after it. It refuses an unknown,
  * expired or retired key with 401, a key without access with 403 and a refresh asked too soon with 429.

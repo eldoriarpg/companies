@@ -36,7 +36,7 @@ class LynaAuthenticatorTest {
 
     private static LynaAuthenticator authenticator(String secret) {
         return new LynaAuthenticator(
-                new ServiceConfig.LynaConfig(URI.create(lyna.url()), secret, 2, Duration.ofMinutes(5)),
+                new ServiceConfig.LynaConfig(URI.create(lyna.url()), secret, 2, "dashboard", Duration.ofMinutes(5)),
                 HttpClient.newHttpClient(),
                 Clock.systemUTC());
     }
@@ -62,5 +62,15 @@ class LynaAuthenticatorTest {
                 Authentication.Accepted.class,
                 authenticator(FakeLyna.SECRET).authenticate(new Credentials(KeyKind.DASHBOARD_KEY, "lyd_fine")));
         assertEquals("TRIAL", trial.keyKind());
+    }
+
+    @Test
+    void refusesAKeyOfAnotherKeyType() {
+        lyna.ofType("lyd_other", "key-other-type", "updates");
+        Authentication result =
+                authenticator(FakeLyna.SECRET).authenticate(new Credentials(KeyKind.DASHBOARD_KEY, "lyd_other"));
+        assertEquals(
+                "The key is not a Companies dashboard key",
+                assertInstanceOf(Authentication.Refused.class, result).reason());
     }
 }

@@ -8,7 +8,8 @@ Main class: `de.eldoria.companies.web.gateway.GatewayService`. Not published; sh
 ## Modes
 
 - `GATEWAY_MODE=hosted` (default): nodes present a Lyna dashboard key (`lyd_…`), verified on every new connection
-  with `POST {LYNA_URL}/api/v1/dashboard/key/verify` and the bearer `DASHBOARD_GATEWAYSECRET`. The server id is
+  with `POST {LYNA_URL}/api/v1/keys/verify` and the bearer `LYNA_GATEWAY_SECRET`, the gateway secret (`lyg_…`) of
+  the key type `LYNA_KEY_TYPE` (`dashboard`) on Companies' Server keys tab at Lyna. The server id is
   `lyna:<keyId>`, stable across rotations. A positive answer is reused for `LYNA_CACHE_MINUTES` only while Lyna
   cannot be reached.
 - `GATEWAY_MODE=self-hosted`: nodes present a server token (`cst_…`). The first start creates the token `default`

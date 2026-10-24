@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Entry point of the dashboard gateway: reads the settings from the environment ({@link ServiceConfig}), migrates the
- * database and starts the gateway. A hosted gateway needs {@code DASHBOARD_GATEWAYSECRET}. A self-hosted gateway
+ * database and starts the gateway. A hosted gateway needs {@code LYNA_GATEWAY_SECRET}. A self-hosted gateway
  * creates a server token named {@code default} on its first start and prints it once.
  * <p>
  * With arguments it manages the server tokens of a self-hosted gateway instead and exits:
@@ -64,7 +64,7 @@ public final class GatewayService {
             return;
         }
         if (config.mode() == GatewayMode.HOSTED && config.lyna().secret().isBlank()) {
-            log.error("A hosted gateway needs DASHBOARD_GATEWAYSECRET; set GATEWAY_MODE=self-hosted to run your own");
+            log.error("A hosted gateway needs LYNA_GATEWAY_SECRET; set GATEWAY_MODE=self-hosted to run your own");
             System.exit(1);
             return;
         }
