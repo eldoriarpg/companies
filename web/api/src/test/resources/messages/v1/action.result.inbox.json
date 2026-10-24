@@ -1,0 +1,21 @@
+{
+  "type": "action.result",
+  "id": "g-22",
+  "v": 1,
+  "ok": true,
+  "data": {
+    "page": 1,
+    "pages": 2,
+    "total": 23,
+    "entries": [
+      {
+        "id": 512,
+        "type": "ORDER_DELIVERED",
+        "category": "ORDERS",
+        "created": "2026-10-24T09:30:00Z",
+        "read": false,
+        "text": "Your order Market stalls was delivered."
+      }
+    ]
+  }
+}
