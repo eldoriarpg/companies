@@ -6,12 +6,19 @@
 package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
+import de.eldoria.companies.events.company.CompanyApplicationAnswerEvent;
+import de.eldoria.companies.events.company.CompanyApplicationEvent;
+import de.eldoria.companies.events.company.CompanyApplicationWithdrawEvent;
 import de.eldoria.companies.events.company.CompanyCreateEvent;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyEvent;
+import de.eldoria.companies.events.company.CompanyInviteAnswerEvent;
+import de.eldoria.companies.events.company.CompanyInviteEvent;
+import de.eldoria.companies.events.company.CompanyInviteRevokeEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.events.company.CompanyLevelChangeEvent;
+import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
 import de.eldoria.companies.events.company.CompanyOwnerTransferEvent;
 import de.eldoria.companies.events.company.CompanyProfileEditEvent;
 import de.eldoria.companies.events.company.CompanyRenameEvent;
@@ -46,8 +53,10 @@ import java.util.UUID;
  * <p>
  * Events stay node-local; only the signals cross: a changed company invalidates its cached values, order changes
  * outdate the board sign counts, completed orders and level changes outdate the rankings, orders worked on alone
- * outdate the values of their owner and worker, and joins and quits keep the presence of players current. Changed single orders are announced by the order repository itself. On the
- * {@link DatabaseBus} every message is dropped.
+ * outdate the values of their owner and worker, invites and applications outdate the values of the invited or applying
+ * player, and joins and quits keep the presence of players current. A changed join mode is announced as a profile edit.
+ * Changed single orders are announced by the order repository itself. On the {@link DatabaseBus} every message is
+ * dropped.
  */
 public final class NodeSignals implements Listener {
     private final NodeBus bus;
@@ -104,6 +113,41 @@ public final class NodeSignals implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onProfileEdit(CompanyProfileEditEvent event) {
         companyChanged(event);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onMemberPermission(CompanyMemberPermissionEvent event) {
+        companyChanged(event);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInvite(CompanyInviteEvent event) {
+        playerChanged(event.target());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInviteRevoke(CompanyInviteRevokeEvent event) {
+        playerChanged(event.target());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInviteAnswer(CompanyInviteAnswerEvent event) {
+        playerChanged(event.target());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onApplication(CompanyApplicationEvent event) {
+        playerChanged(event.applicant());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onApplicationWithdraw(CompanyApplicationWithdrawEvent event) {
+        playerChanged(event.applicant());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onApplicationAnswer(CompanyApplicationAnswerEvent event) {
+        playerChanged(event.applicant());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

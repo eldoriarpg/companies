@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.util.StyledMessageSender;
@@ -124,6 +125,32 @@ class NotificationServiceTest {
             Thread.onSpinWait();
         }
         return data.only();
+    }
+
+    @Test
+    void storedEntryFiresTheInboxEvent() {
+        var events = EventRecorder.listen(plugin, InboxEntryCreatedEvent.class);
+        var offline = UUID.randomUUID();
+
+        service.send(offline, NotificationType.ORDER_DELIVERED, args()).join();
+
+        var event = events.single(InboxEntryCreatedEvent.class);
+        assertEquals(data.only(), event.entry());
+        assertEquals(offline, event.entry().recipient());
+        assertEquals(NotificationType.ORDER_DELIVERED, event.entry().type());
+        assertFalse(event.entry().delivered());
+        assertTrue(event.isAsynchronous());
+    }
+
+    @Test
+    void unstoredEntryFiresNoInboxEvent() {
+        var events = EventRecorder.listen(plugin, InboxEntryCreatedEvent.class);
+        data.refuseSaves();
+
+        service.send(UUID.randomUUID(), NotificationType.ORDER_DELIVERED, args())
+                .join();
+
+        assertTrue(events.of(InboxEntryCreatedEvent.class).isEmpty());
     }
 
     @Test

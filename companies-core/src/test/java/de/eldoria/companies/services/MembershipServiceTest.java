@@ -18,11 +18,20 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.events.EventRecorder;
+import de.eldoria.companies.events.company.CompanyApplicationAnswerEvent;
+import de.eldoria.companies.events.company.CompanyApplicationEvent;
+import de.eldoria.companies.events.company.CompanyApplicationWithdrawEvent;
+import de.eldoria.companies.events.company.CompanyInviteAnswerEvent;
+import de.eldoria.companies.events.company.CompanyInviteEvent;
+import de.eldoria.companies.events.company.CompanyInviteRevokeEvent;
+import de.eldoria.companies.events.company.CompanyJoinModeChangeEvent;
 import de.eldoria.companies.services.MembershipService.Outcome;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.Event;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +63,7 @@ class MembershipServiceTest {
     private final Map<UUID, OfflinePlayer> players = new HashMap<>();
     private final List<Sent> notifications = new ArrayList<>();
     private final List<String> events = new ArrayList<>();
+    private final EventRecorder fired = new EventRecorder();
     private final CompanySettings settings = new CompanySettings();
     private LocalDateTime now = START;
 
@@ -513,6 +523,153 @@ class MembershipServiceTest {
     }
 
     @Test
+    void storedInviteFiresTheInviteEvent() {
+        assertOutcome("error.permission.invite", false, invite(worker, outsider));
+        assertTrue(fired.of(CompanyInviteEvent.class).isEmpty());
+
+        invite(recruiter, outsider);
+
+        var event = fired.single(CompanyInviteEvent.class);
+        assertEquals(miners, event.company().id());
+        assertEquals(outsider.getUniqueId(), event.target());
+        assertEquals(recruiter.getUniqueId(), event.inviter());
+        assertEquals(START.plusHours(settings.inviteHours()), event.expires());
+        assertTrue(event.isAsynchronous());
+    }
+
+    @Test
+    void revokedInviteFiresTheRevokeEventOnce() {
+        invite(recruiter, outsider);
+        service.revokeInvite(worker, outsider.getUniqueId()).join();
+        assertTrue(fired.of(CompanyInviteRevokeEvent.class).isEmpty());
+
+        service.revokeInvite(owner, outsider.getUniqueId()).join();
+        service.revokeInvite(owner, outsider.getUniqueId()).join();
+
+        var event = fired.single(CompanyInviteRevokeEvent.class);
+        assertEquals(miners, event.company().id());
+        assertEquals(outsider.getUniqueId(), event.target());
+        assertEquals(owner.getUniqueId(), event.actor());
+    }
+
+    @Test
+    void acceptedInviteFiresTheAnswerWithTheNewMember() {
+        service.acceptInvite(outsider, miners).join();
+        assertTrue(fired.of(CompanyInviteAnswerEvent.class).isEmpty());
+        invite(recruiter, outsider);
+
+        service.acceptInvite(outsider, miners).join();
+
+        var event = fired.single(CompanyInviteAnswerEvent.class);
+        assertTrue(event.accepted());
+        assertEquals(outsider.getUniqueId(), event.target());
+        assertEquals(recruiter.getUniqueId(), event.inviter());
+        assertTrue(event.company().members().stream()
+                .anyMatch(member -> member.uuid().equals(outsider.getUniqueId())));
+    }
+
+    @Test
+    void refusedJoinOfAnInviteFiresNoAnswer() {
+        invite(recruiter, outsider);
+        settings.createLevel(1).settings().maxMembers(3);
+
+        service.acceptInvite(outsider, miners).join();
+
+        assertTrue(fired.of(CompanyInviteAnswerEvent.class).isEmpty());
+    }
+
+    @Test
+    void declinedInviteFiresTheAnswerOnce() {
+        invite(recruiter, outsider);
+
+        service.denyInvite(outsider, miners).join();
+        service.denyInvite(outsider, miners).join();
+
+        var event = fired.single(CompanyInviteAnswerEvent.class);
+        assertFalse(event.accepted());
+        assertEquals(miners, event.company().id());
+        assertEquals(outsider.getUniqueId(), event.target());
+        assertEquals(recruiter.getUniqueId(), event.inviter());
+    }
+
+    @Test
+    void storedApplicationFiresTheApplicationEvent() {
+        var bakers = companyOwnedBy("Bakers", JoinMode.APPLICATIONS, player("Baker"));
+        service.apply(outsider, "Miners", "Hi").join();
+        assertTrue(fired.of(CompanyApplicationEvent.class).isEmpty());
+
+        service.apply(outsider, "Bakers", "Let\nme in").join();
+        service.apply(outsider, "Bakers", "Again").join();
+
+        var event = fired.single(CompanyApplicationEvent.class);
+        assertEquals(bakers, event.company().id());
+        assertEquals(outsider.getUniqueId(), event.applicant());
+        assertEquals("Let me in", event.message());
+    }
+
+    @Test
+    void withdrawnApplicationFiresTheWithdrawEventOnce() {
+        var bakers = companyOwnedBy("Bakers", JoinMode.APPLICATIONS, player("Baker"));
+        service.apply(outsider, "Bakers", "Hi").join();
+
+        service.withdraw(outsider, bakers).join();
+        service.withdraw(outsider, bakers).join();
+
+        var event = fired.single(CompanyApplicationWithdrawEvent.class);
+        assertEquals(bakers, event.company().id());
+        assertEquals(outsider.getUniqueId(), event.applicant());
+    }
+
+    @Test
+    void acceptedApplicationFiresTheAnswerWithTheNewMember() {
+        var baker = player("Baker");
+        companyOwnedBy("Bakers", JoinMode.APPLICATIONS, baker);
+        service.apply(outsider, "Bakers", "Hi").join();
+        service.acceptApplication(owner, outsider.getUniqueId()).join();
+        assertTrue(fired.of(CompanyApplicationAnswerEvent.class).isEmpty());
+
+        service.acceptApplication(baker, outsider.getUniqueId()).join();
+
+        var event = fired.single(CompanyApplicationAnswerEvent.class);
+        assertTrue(event.accepted());
+        assertEquals(outsider.getUniqueId(), event.applicant());
+        assertEquals(baker.getUniqueId(), event.actor());
+        assertTrue(event.company().members().stream()
+                .anyMatch(member -> member.uuid().equals(outsider.getUniqueId())));
+    }
+
+    @Test
+    void deniedApplicationFiresTheAnswerOnce() {
+        var baker = player("Baker");
+        var bakers = companyOwnedBy("Bakers", JoinMode.APPLICATIONS, baker);
+        service.apply(outsider, "Bakers", "Hi").join();
+        service.denyApplication(owner, outsider.getUniqueId()).join();
+
+        service.denyApplication(baker, outsider.getUniqueId()).join();
+        service.denyApplication(baker, outsider.getUniqueId()).join();
+
+        var event = fired.single(CompanyApplicationAnswerEvent.class);
+        assertFalse(event.accepted());
+        assertEquals(bakers, event.company().id());
+        assertEquals(outsider.getUniqueId(), event.applicant());
+        assertEquals(baker.getUniqueId(), event.actor());
+    }
+
+    @Test
+    void changedJoinModeFiresTheJoinModeEvent() {
+        service.setJoinMode(recruiter, JoinMode.OPEN).join();
+        assertTrue(fired.of(CompanyJoinModeChangeEvent.class).isEmpty());
+
+        service.setJoinMode(owner, JoinMode.OPEN).join();
+
+        var event = fired.single(CompanyJoinModeChangeEvent.class);
+        assertEquals(miners, event.company().id());
+        assertEquals(JoinMode.INVITE_ONLY, event.previous());
+        assertEquals(JoinMode.OPEN, event.joinMode());
+        assertEquals(owner.getUniqueId(), event.actor());
+    }
+
+    @Test
     void applicationMessagesAreKeptOnOneLine() {
         assertEquals("a b c", MembershipService.singleLine(" a\r\nb\t c "));
         assertEquals("", MembershipService.singleLine("\n"));
@@ -531,6 +688,11 @@ class MembershipServiceTest {
         public void profileEdited(CompanyProfile previous, CompanyProfile company, OfflinePlayer player) {
             events.add("edited " + company.name() + " " + previous.joinMode() + " " + company.joinMode() + " "
                     + player.getName());
+        }
+
+        @Override
+        public void fire(Event event) {
+            fired.accept(event);
         }
     }
 }

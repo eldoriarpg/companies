@@ -12,6 +12,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
@@ -32,6 +33,7 @@ import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
@@ -68,7 +70,8 @@ import java.util.logging.Level;
  *     at once when the node bus is realtime and otherwise with its next {@link InboxPoller} poll, or their next join
  *     summary counts it.</li>
  * </ul>
- * Whether the recipient is online is decided on the main thread, where it is shown as well.
+ * Whether the recipient is online is decided on the main thread, where it is shown as well. Every stored entry fires
+ * {@link InboxEntryCreatedEvent}.
  */
 public class NotificationService implements Listener {
     private static final String INBOX_COMMAND = "/company inbox";
@@ -234,6 +237,16 @@ public class NotificationService implements Listener {
         return inboxData.submit(recipient, type, args, now, status).thenAccept(id -> {
             if (id.isEmpty()) plugin.getLogger().warning("A notification could not be stored for " + recipient);
             if (status == InboxStatus.PENDING) id.ifPresent(entry -> announcePending.accept(entry, recipient));
+            id.ifPresent(entry -> AsyncEvents.fire(
+                    plugin,
+                    new InboxEntryCreatedEvent(new InboxEntry(
+                            entry,
+                            recipient,
+                            type,
+                            args,
+                            now,
+                            status != InboxStatus.PENDING,
+                            status == InboxStatus.READ ? now : null))));
         });
     }
 

@@ -103,20 +103,28 @@ reason `INVALID`.
 
 ## Company events
 
-| Event                       | When                                                                                                   | Thread                   | Cancellable | Key methods |
-|-----------------------------|--------------------------------------------------------------------------------------------------------|--------------------------|-------------|-------------|
-| `PreCompanyCreateEvent`     | A player confirmed founding a company. Before the founding price is charged                             | Either, usually main     | With reason | `player()`, `name()`, `price()` |
-| `CompanyCreateEvent`        | A company was founded and saved                                                                         | Either, usually off main | No          | `company()`, `player()` (the founder) |
-| `CompanyRenameEvent`        | A company was renamed, by its owner or an admin                                                         | Either, usually off main | No          | `oldName()`, `newName()`, `actor()`, `byAdmin()` |
-| `CompanyOwnerTransferEvent` | The ownership passed to another member, by the owner or an admin                                        | Either, usually off main | No          | `previousOwner()`, `newOwner()`, `byAdmin()` |
-| `CompanyProfileEditEvent`   | A member changed the description, tag, colour or join mode                                              | Either                   | No          | `previous()` (the profile before), `company()` (after), `player()` |
-| `CompanyJoinEvent`          | A player joined: open join, accepted invite or application, or `addMember` of the API                   | Either, usually off main | No          | `player()` |
-| `CompanyLeaveEvent`         | A member left the company, or was kicked                                                                | Async                    | No          | `player()` |
-| `CompanyKickEvent`          | A member was kicked by another member                                                                   | Async                    | No          | `player()` (the kicked member) |
-| `CompanyLevelUpEvent`       | The level of a company went up                                                                          | Async                    | No          | `oldLevel()`, `newLevel()` |
-| `CompanyLevelDownEvent`     | The level of a company went down                                                                        | Async                    | No          | `oldLevel()`, `newLevel()` |
-| `CompanyDisbandEvent`       | A company was disbanded. Its orders were released and its treasury was emptied                          | Async                    | No          | `company()` |
-| `TreasuryTransactionEvent`  | Money moved into or out of a treasury, after it was saved                                               | Either, usually off main | No          | `kind()`, `amount()`, `balance()`, `actor()` |
+| Event                             | When                                                                                              | Thread                   | Cancellable | Key methods                                                        |
+|-----------------------------------|---------------------------------------------------------------------------------------------------|--------------------------|-------------|--------------------------------------------------------------------|
+| `PreCompanyCreateEvent`           | A player confirmed founding a company. Before the founding price is charged                       | Either, usually main     | With reason | `player()`, `name()`, `price()`                                    |
+| `CompanyCreateEvent`              | A company was founded and saved                                                                   | Either, usually off main | No          | `company()`, `player()` (the founder)                              |
+| `CompanyRenameEvent`              | A company was renamed, by its owner or an admin                                                   | Either, usually off main | No          | `oldName()`, `newName()`, `actor()`, `byAdmin()`                   |
+| `CompanyOwnerTransferEvent`       | The ownership passed to another member, by the owner or an admin                                  | Either, usually off main | No          | `previousOwner()`, `newOwner()`, `byAdmin()`                       |
+| `CompanyProfileEditEvent`         | A member changed the description, tag, colour or join mode                                        | Either                   | No          | `previous()` (the profile before), `company()` (after), `player()` |
+| `CompanyJoinModeChangeEvent`      | A member changed the join mode. Fired after the `CompanyProfileEditEvent` of the change           | Async                    | No          | `previous()`, `joinMode()`, `actor()`                              |
+| `CompanyInviteEvent`              | A member invited a player, or renewed an invite                                                   | Async                    | No          | `target()`, `inviter()`, `expires()`                               |
+| `CompanyInviteRevokeEvent`        | A member took an invite back                                                                      | Async                    | No          | `target()`, `actor()`                                              |
+| `CompanyInviteAnswerEvent`        | The invited player accepted or declined. An accepted invite fires it after the `CompanyJoinEvent` | Async                    | No          | `target()`, `inviter()`, `accepted()`                              |
+| `CompanyApplicationEvent`         | A player applied to a company                                                                     | Async                    | No          | `applicant()`, `message()`                                         |
+| `CompanyApplicationWithdrawEvent` | A player took their application back                                                              | Async                    | No          | `applicant()`                                                      |
+| `CompanyApplicationAnswerEvent`   | A member accepted or denied an application. An accepted one fires it after the `CompanyJoinEvent` | Async                    | No          | `applicant()`, `actor()`, `accepted()`                             |
+| `CompanyJoinEvent`                | A player joined: open join, accepted invite or application, or `addMember` of the API             | Either, usually off main | No          | `player()`                                                         |
+| `CompanyLeaveEvent`               | A member left the company, or was kicked                                                          | Async                    | No          | `player()`                                                         |
+| `CompanyKickEvent`                | A member was kicked by another member                                                             | Async                    | No          | `player()` (the kicked member)                                     |
+| `CompanyMemberPermissionEvent`    | A member granted or revoked permissions of another member. Not fired when nothing changed         | Async                    | No          | `member()`, `actor()`, `previous()`, `current()`                   |
+| `CompanyLevelUpEvent`             | The level of a company went up                                                                    | Async                    | No          | `oldLevel()`, `newLevel()`                                         |
+| `CompanyLevelDownEvent`           | The level of a company went down                                                                  | Async                    | No          | `oldLevel()`, `newLevel()`                                         |
+| `CompanyDisbandEvent`             | A company was disbanded. Its orders were released and its treasury was emptied                    | Async                    | No          | `company()`                                                        |
+| `TreasuryTransactionEvent`        | Money moved into or out of a treasury, after it was saved                                         | Either, usually off main | No          | `kind()`, `amount()`, `balance()`, `actor()`                       |
 
 Every company event also has `company()`.
 
@@ -126,6 +134,12 @@ too. Check `event instanceof CompanyKickEvent` to tell them apart, or listen to 
 **Levels.** `CompanyLevelUpEvent` and `CompanyLevelDownEvent` extend `CompanyLevelChangeEvent`. A listener of
 `CompanyLevelChangeEvent` gets both. Check `event instanceof CompanyLevelUpEvent` to tell them apart, or listen to
 `CompanyLevelUpEvent` or `CompanyLevelDownEvent` for one direction only.
+
+**Invites and applications.** Players are given by their UUID, so they need not be online. `target()` is the invited
+player, `applicant()` the applying one, `inviter()` and `actor()` the member who acted. Invites and applications that
+run out of time are removed without an event.
+
+**Permissions.** `previous()` and `current()` are the permissions of `member()` before and after the change.
 
 **Renames.** `actor()` is the player who renamed the company. It is empty when the console did it.
 
