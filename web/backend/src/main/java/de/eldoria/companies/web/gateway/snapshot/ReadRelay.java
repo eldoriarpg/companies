@@ -61,6 +61,7 @@ public final class ReadRelay {
             Actions.MARKET_SEARCH,
             Actions.MARKET_TOP,
             Actions.MARKET_MOVERS,
+            Actions.ORDERS_QUOTE,
             Actions.ORDERS_CATALOGUE,
             Actions.ORDERS_ITEMS);
 

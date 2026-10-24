@@ -20,5 +20,9 @@ public enum OrderSource {
     /**
      * A repeating order of a player posted its next copy. The copy is a normal order of that player.
      */
-    REPEATING
+    REPEATING,
+    /**
+     * A player placed the order on the web dashboard. The player may be offline.
+     */
+    DASHBOARD
 }

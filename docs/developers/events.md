@@ -83,6 +83,7 @@ change, remove or add lines. `source()` tells where the order comes from:
 | `PLAYER`      | A player with `/order create`                                |
 | `API`         | A plugin with `orders().create(...)`                         |
 | `REPEATING`   | A copy posted by a [repeating order](../players/repeating-orders.md). The owner pays for it, but the limits of the owner do not apply |
+| `DASHBOARD`   | A player on the web dashboard, who may be offline            |
 
 ```java
 @EventHandler

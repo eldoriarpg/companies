@@ -67,7 +67,8 @@ public class PreOrderCreateEvent extends Event implements OwnerProvider, Cancell
     }
 
     /**
-     * The player who will own the order. They may be offline when the order is created through the API.
+     * The player who will own the order. They may be offline when the order is created through the API,
+     * placed on the dashboard or posted by a repeating order.
      *
      * @return owner of the order
      */

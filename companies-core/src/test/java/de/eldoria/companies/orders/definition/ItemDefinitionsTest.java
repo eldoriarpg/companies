@@ -97,4 +97,14 @@ class ItemDefinitionsTest {
                 "dashboard.item.trimNotApplicable",
                 refusal(new ItemDefinition("stick", Map.of(), null, null, new ItemDefinition.Trim("coast", "gold"))));
     }
+
+    @Test
+    void aPotionOnlyCommandsGiveIsUnknown() {
+        assertEquals(
+                "dashboard.item.unknownPotion", refusal(new ItemDefinition("potion", Map.of(), "luck", null, null)));
+        assertTrue(
+                ItemDefinitions.build(new ItemDefinition("potion", Map.of(), "awkward", null, null))
+                                .getItemMeta()
+                        instanceof PotionMeta);
+    }
 }

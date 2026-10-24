@@ -318,10 +318,11 @@ public final class Payloads {
     /**
      * A dye colour.
      *
-     * @param name  the dye's name, e.g. {@code RED}
+     * @param key   the dye's key, e.g. {@code red}
+     * @param name  the dye's display name, e.g. {@code Red}
      * @param color the colour a leather item takes from it, as {@code #rrggbb}
      */
-    public record CatalogueDye(String name, String color) {}
+    public record CatalogueDye(String key, String name, String color) {}
 
     /**
      * An item the player can order again exactly.

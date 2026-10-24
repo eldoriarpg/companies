@@ -71,7 +71,7 @@ public class OrderBuilder {
             var existing = lines.get(similar.get() - 1);
             lines.set(
                     similar.get() - 1,
-                    new DraftLine(existing.template(), exact, existing.amount() + amount, unitPrice));
+                    new DraftLine(existing.template(), exact, Math.addExact(existing.amount(), amount), unitPrice));
             return similar.get();
         }
         lines.add(new DraftLine(template, exact, amount, unitPrice));

@@ -139,6 +139,15 @@ public final class OrderCreationService {
         }
     }
 
+    /**
+     * The most lines an order may have.
+     *
+     * @return the limit of lines
+     */
+    public int maxLines() {
+        return settings.get().maxMaterials();
+    }
+
     private CompletableFuture<Outcome> create(
             OfflinePlayer owner,
             IOrderDraft draft,
@@ -193,12 +202,19 @@ public final class OrderCreationService {
         var broken = draft.lines().stream()
                 .anyMatch(line -> line.amount() < 1 || line.unitPrice() < 0 || !Double.isFinite(line.unitPrice()));
         if (broken) return rejected(RejectReason.INVALID, "error.integrationDraftInvalid");
+        var items = draft.lines().stream().mapToLong(IDraftLine::amount).sum();
+        var total = draft.lines().stream()
+                .mapToDouble(line -> line.amount() * line.unitPrice())
+                .sum();
+        if (items > Integer.MAX_VALUE || !Double.isFinite(total)) {
+            return rejected(RejectReason.INVALID, "error.integrationDraftInvalid");
+        }
         if (!respectLimits) return Optional.empty();
         var current = settings.get();
         if (draft.lines().size() > current.maxMaterials()) {
             return rejected(RejectReason.TOO_MANY_LINES, "order.create.error.materialLimit");
         }
-        if (draft.amount() > current.maxItems()) {
+        if (items > current.maxItems()) {
             return rejected(RejectReason.TOO_MANY_ITEMS, "order.create.error.itemLimit");
         }
         return Optional.empty();
@@ -268,13 +284,25 @@ public final class OrderCreationService {
         return new Created(order, price, order.fee());
     }
 
+    /**
+     * Gives back what was charged for an order that could not be saved, on the main thread. While the plugin shuts
+     * down the main thread takes no more tasks, and the money is given back on the calling thread rather than lost.
+     *
+     * @param owner   player who was charged
+     * @param charged what was charged
+     * @return a future failing with {@code error.saveFailed} once the money is back
+     */
     private CompletableFuture<Outcome> refund(OfflinePlayer owner, double charged) {
-        return CompletableFuture.supplyAsync(
-                () -> {
-                    if (charged > 0) wallet.deposit(owner, charged);
-                    throw CommandFailure.of("error.saveFailed");
-                },
-                mainThread);
+        Supplier<Outcome> refund = () -> {
+            if (charged > 0) wallet.deposit(owner, charged);
+            throw CommandFailure.of("error.saveFailed");
+        };
+        try {
+            return CompletableFuture.supplyAsync(refund, mainThread);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "The main thread takes no tasks, refunding on this thread", e);
+            return CompletableFuture.supplyAsync(refund, Runnable::run);
+        }
     }
 
     private static Optional<Rejected> rejected(RejectReason reason, String localeKey) {

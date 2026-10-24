@@ -20,11 +20,13 @@ import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.inventory.meta.trim.ArmorTrim;
+import org.bukkit.potion.PotionType;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Builds the item of an {@link ItemDefinition}, refusing what survival cannot make, so every order defined on the
@@ -33,6 +35,8 @@ import java.util.Optional;
  * dyeable leather, a trim on something that is no armour.
  */
 public final class ItemDefinitions {
+    private static final Set<NamespacedKey> UNBREWABLE = Set.of(NamespacedKey.minecraft("luck"));
+
     private ItemDefinitions() {
         throw new UnsupportedOperationException("This is a utility class.");
     }
@@ -64,7 +68,9 @@ public final class ItemDefinitions {
      */
     public static Material material(String key) {
         var material = Material.matchMaterial(key);
-        if (material == null || !material.isItem() || material.isAir()) throw refused("dashboard.item.unknownMaterial");
+        if (material == null || material.isLegacy() || !material.isItem() || material.isAir()) {
+            throw refused("dashboard.item.unknownMaterial");
+        }
         return material;
     }
 
@@ -93,7 +99,9 @@ public final class ItemDefinitions {
     }
 
     private static void potion(ItemStack stack, String key) {
-        var type = lookup(RegistryKey.POTION, key).orElseThrow(() -> refused("dashboard.item.unknownPotion"));
+        var type = lookup(RegistryKey.POTION, key)
+                .filter(ItemDefinitions::brewable)
+                .orElseThrow(() -> refused("dashboard.item.unknownPotion"));
         if (!(stack.getItemMeta() instanceof PotionMeta)) throw refused("dashboard.item.potionNotApplicable");
         stack.editMeta(PotionMeta.class, meta -> meta.setBasePotionType(type));
     }
@@ -135,6 +143,16 @@ public final class ItemDefinitions {
 
     private static CommandFailure refused(String key) {
         return CommandFailure.of(key);
+    }
+
+    /**
+     * Whether survival can make a potion of a type. Every type can, except luck, which only commands give.
+     *
+     * @param type the potion type
+     * @return true when it can be brewed
+     */
+    public static boolean brewable(PotionType type) {
+        return !UNBREWABLE.contains(type.getKey());
     }
 
     /**

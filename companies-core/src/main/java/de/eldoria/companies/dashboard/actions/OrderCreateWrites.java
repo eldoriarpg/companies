@@ -18,6 +18,7 @@ import de.eldoria.companies.orders.definition.ItemDefinition;
 import de.eldoria.companies.orders.definition.ItemDefinitions;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import org.bukkit.OfflinePlayer;
@@ -39,7 +40,8 @@ import java.util.function.Function;
 import java.util.function.IntSupplier;
 
 /**
- * Places an order from the dashboard, or with {@code "quote": true} names what it would cost.
+ * Places an order from the dashboard ({@link Actions#ORDERS_CREATE}), or names what it would cost without placing it
+ * ({@link Actions#ORDERS_QUOTE}).
  * <p>
  * The arguments are {@code name}, {@code lines} and an optional {@code repetition}. A line names its item by
  * {@code item}, a material key or a key of {@link OrderCatalogue} ({@code saved:<id>}, {@code earlier:<entry>:<line>}),
@@ -47,11 +49,18 @@ import java.util.function.IntSupplier;
  * repetition has {@code interval} and either {@code times} or {@code until} ({@code yyyy-MM-dd}).
  * <p>
  * The order is built and checked as in game: the item rules decide whether a line is exact, the limits of lines and
- * items apply, the owner is charged. The player needs the permission to create orders, and to repeat them for a
+ * items apply, the owner is charged. A quote checks all of it except the limit of active orders and the balance, and a
+ * repeating order is checked like a quote before its series is saved, so a refused first copy leaves no series behind.
+ * Lines beyond the limit of lines are refused before any item is looked up. The player needs the permission to create orders, and to repeat them for a
  * repetition; the order limit comes from the permissions remembered with the session, else from the user settings.
  * The methods block on the database and the economy and are called off the main thread.
  */
 public final class OrderCreateWrites {
+    /**
+     * The actions performed here.
+     */
+    public static final Set<String> ACTIONS = Set.of(Actions.ORDERS_CREATE, Actions.ORDERS_QUOTE);
+
     private static final String INVALID = "dashboard.invalid";
 
     private final Sources sources;
@@ -68,7 +77,7 @@ public final class OrderCreateWrites {
     /**
      * Places or quotes an order of a session's player.
      *
-     * @param request the action
+     * @param request the action, one of {@link #ACTIONS}
      * @param session the session
      * @param args    the arguments
      * @return the result
@@ -85,17 +94,26 @@ public final class OrderCreateWrites {
                 || args.path("lines").isEmpty()) {
             return answers.refused(request, INVALID);
         }
+        if (args.path("lines").size() > sources.creation().maxLines()) {
+            return answers.refused(request, "order.create.error.materialLimit");
+        }
         Optional<Repetition> repetition;
         List<Line> lines;
         try {
             repetition = repetition(args.path("repetition"));
             lines = lines(player, args.path("lines"));
+            if (repetition.isPresent()) {
+                sources.series().check(repetition.get(), permissions.contains(Permission.Orders.REPEAT));
+            }
         } catch (CommandFailure failure) {
             return answers.refused(request, failure);
         }
         var owner = sources.players().apply(player);
         var draft = draft(name, lines);
-        if (args.path("quote").asBoolean(false)) return quote(request, owner, draft);
+        var quote = sources.creation().quote(owner, draft);
+        if (quote instanceof OrderCreationService.Rejected rejected)
+            return answers.refused(request, rejected.failure());
+        if (request.name().equals(Actions.ORDERS_QUOTE)) return priced(request, (OrderCreationService.Priced) quote);
         var limit = limit(permissions);
         try {
             if (repetition.isPresent()) {
@@ -110,7 +128,7 @@ public final class OrderCreateWrites {
                 return created(request, created.order().id(), created.price(), created.fee());
             }
             return switch (sources.creation()
-                    .create(owner, draft, OrderSource.PLAYER, limit)
+                    .create(owner, draft, OrderSource.DASHBOARD, limit)
                     .join()) {
                 case OrderCreationService.Created created ->
                     created(request, created.order().id(), created.price(), created.fee());
@@ -122,12 +140,8 @@ public final class OrderCreateWrites {
         }
     }
 
-    private ActionResult quote(ActionRequest request, OfflinePlayer owner, IOrderDraft draft) {
-        return switch (sources.creation().quote(owner, draft)) {
-            case OrderCreationService.Priced priced ->
-                answers.data(request, Map.of("price", priced.price(), "fee", priced.fee(), "total", priced.total()));
-            case OrderCreationService.Rejected rejected -> answers.refused(request, rejected.failure());
-        };
+    private ActionResult priced(ActionRequest request, OrderCreationService.Priced priced) {
+        return answers.data(request, Map.of("price", priced.price(), "fee", priced.fee(), "total", priced.total()));
     }
 
     private ActionResult created(ActionRequest request, int order, double price, double fee) {
@@ -162,7 +176,11 @@ public final class OrderCreateWrites {
         for (var line : lines) {
             var amount = line.path("amount");
             var price = line.path("unitPrice");
-            if (!amount.isIntegralNumber() || amount.asInt() < 1 || !price.isNumber() || price.asDouble() < 0) {
+            if (!whole(amount)
+                    || amount.asInt() < 1
+                    || !price.isNumber()
+                    || !Double.isFinite(price.asDouble())
+                    || price.asDouble() < 0) {
                 throw CommandFailure.of(INVALID);
             }
             var stack = item(player, line);
@@ -191,7 +209,7 @@ public final class OrderCreateWrites {
     private static ItemDefinition definition(JsonNode define) {
         Map<String, Integer> enchantments = new HashMap<>();
         for (var entry : define.path("enchantments").properties()) {
-            if (!entry.getValue().isIntegralNumber()) throw CommandFailure.of(INVALID);
+            if (!whole(entry.getValue())) throw CommandFailure.of(INVALID);
             enchantments.put(entry.getKey(), entry.getValue().asInt());
         }
         var trim = define.path("trim");
@@ -207,6 +225,10 @@ public final class OrderCreateWrites {
                         : null);
     }
 
+    private static boolean whole(JsonNode node) {
+        return node.isIntegralNumber() && node.canConvertToInt();
+    }
+
     private static String text(JsonNode node) {
         return node.isString() && !node.asString().isBlank() ? node.asString() : null;
     }
@@ -220,7 +242,7 @@ public final class OrderCreateWrites {
         try {
             return Optional.of(new Repetition(
                     interval,
-                    times.isIntegralNumber() ? OptionalInt.of(times.asInt()) : OptionalInt.empty(),
+                    whole(times) ? OptionalInt.of(times.asInt()) : OptionalInt.empty(),
                     until.isString() ? Optional.of(LocalDate.parse(until.asString())) : Optional.empty()));
         } catch (DateTimeParseException e) {
             throw CommandFailure.of(INVALID);

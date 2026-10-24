@@ -1095,6 +1095,9 @@
     "orders.create" : {
       "feature" : "orders.create"
     },
+    "orders.create.quote" : {
+      "feature" : "orders.create"
+    },
     "orders.create.catalogue" : {
       "feature" : "orders.create"
     },

@@ -116,6 +116,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final SavedItemService savedItems;
     public final OrderCatalogue catalogue;
     public final OrderCreationService creation;
+    public final SqLiteSeriesData seriesData;
     public final UserSettings userSettings = new UserSettings();
     public volatile int orderHistoryDays = 90;
     public final MarketHistory market;
@@ -184,8 +185,9 @@ public final class DashboardWorld implements AutoCloseable {
                 events,
                 Runnable::run,
                 Logger.getAnonymousLogger());
+        seriesData = new SqLiteSeriesData(SqLiteTestDatabase.mapper(), executor);
         var series = new SeriesService(
-                new SqLiteSeriesData(SqLiteTestDatabase.mapper(), executor),
+                seriesData,
                 (owner, draft) -> creation.create(offline(owner), draft, OrderSource.REPEATING, true, false),
                 id -> orders.retrievePlayerOrderCount(offline(id)).asFuture(),
                 player -> 5,

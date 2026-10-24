@@ -107,9 +107,15 @@ public final class OrderCatalogue {
                                         .map(other -> other.getKey().toString())
                                         .toList()))
                         .toList(),
-                names(entries(RegistryKey.POTION)),
+                names(entries(RegistryKey.POTION).stream()
+                        .filter(ItemDefinitions::brewable)
+                        .toList()),
                 ItemDefinitions.dyes().stream()
-                        .map(dye -> new Payloads.CatalogueDye(dye.name(), hex(dye)))
+                        .map(dye -> {
+                            var key = dye.name().toLowerCase(Locale.ROOT);
+                            return new Payloads.CatalogueDye(
+                                    key, PlainText.keyName(NamespacedKey.minecraft(key)), hex(dye));
+                        })
                         .toList(),
                 names(entries(RegistryKey.TRIM_PATTERN)),
                 names(entries(RegistryKey.TRIM_MATERIAL)));

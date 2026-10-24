@@ -33,6 +33,7 @@ class ActionsTest {
     void theLongestFeatureWins() {
         assertEquals(Features.ORDERS_ACCEPT, Actions.feature(Actions.ORDERS_ACCEPT));
         assertEquals(Features.ORDERS_ACCEPT, Actions.feature(Actions.ORDERS_ABORT));
+        assertEquals(Features.ORDERS_CREATE, Actions.feature(Actions.ORDERS_QUOTE));
         assertEquals(Features.ORDERS_CREATE, Actions.feature(Actions.ORDERS_CATALOGUE));
         assertEquals(Features.ORDERS_CREATE, Actions.feature(Actions.ORDERS_ITEMS));
         assertEquals(Features.COMPANY_MEMBERS, Actions.feature(Actions.MEMBERS_KICK));

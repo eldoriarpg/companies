@@ -39,9 +39,15 @@ public final class Actions {
     public static final String ORDERS_ABORT = "orders.accept.abort";
 
     /**
-     * Places an order, or with {@code "quote": true} names its price and fee.
+     * Places an order.
      */
     public static final String ORDERS_CREATE = "orders.create";
+
+    /**
+     * Names the price and fee of an order {@link #ORDERS_CREATE} would place, or why it would be refused, without
+     * placing it.
+     */
+    public static final String ORDERS_QUOTE = "orders.create.quote";
 
     /**
      * Returns what orders can be made of on this server: the orderable materials and what survival can give an item.
@@ -407,6 +413,7 @@ public final class Actions {
             ORDERS_ACCEPT,
             ORDERS_ABORT,
             ORDERS_CREATE,
+            ORDERS_QUOTE,
             ORDERS_CATALOGUE,
             ORDERS_ITEMS,
             ORDERS_OWN_LIST,

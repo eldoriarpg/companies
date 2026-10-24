@@ -5,10 +5,15 @@
  */
 package de.eldoria.companies.dashboard.actions;
 
+import de.eldoria.companies.components.order.HistoryOutcome;
+import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.history.HistoryEntry;
+import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
+import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
@@ -24,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class OrderCreateWritesTest {
     private static final Set<String> MAY_CREATE = Set.of(Permission.Orders.CREATE);
+    private static final Set<String> MAY_REPEAT = Set.of(Permission.Orders.CREATE, Permission.Orders.REPEAT);
+    private static final String DAILY = ",\"repetition\":{\"interval\":\"daily\",\"times\":2}";
 
     @TempDir
     Path directory;
@@ -67,13 +75,31 @@ class OrderCreateWritesTest {
                 owner,
                 action,
                 Protocol.mapper().readTree(args));
-        return Actions.ORDERS_CREATE.equals(action)
+        return DashboardWrites.performs(action)
                 ? world.writes.perform(request, session)
                 : world.reads.answer(request, session, feature -> true);
     }
 
     private ActionResult create(String lines, Set<String> permissions) {
         return perform(Actions.ORDERS_CREATE, "{\"name\":\"Walls\",\"lines\":" + lines + "}", permissions);
+    }
+
+    private ActionResult order(String name, String lines, String extra, Set<String> permissions) {
+        return perform(
+                Actions.ORDERS_CREATE, "{\"name\":\"" + name + "\",\"lines\":" + lines + extra + "}", permissions);
+    }
+
+    private static String stone(int count) {
+        var lines = new StringBuilder("[");
+        for (var index = 0; index < count; index++) {
+            if (index > 0) lines.append(',');
+            lines.append("{\"item\":\"stone\",\"amount\":1,\"unitPrice\":1}");
+        }
+        return lines.append(']').toString();
+    }
+
+    private int series() {
+        return world.seriesData.retrieveByOwner(owner, false).join().size();
     }
 
     private int ownOrders() {
@@ -86,8 +112,8 @@ class OrderCreateWritesTest {
     @Test
     void aQuoteNamesPriceAndFeeAndChargesNothing() {
         var quote = perform(
-                Actions.ORDERS_CREATE,
-                "{\"name\":\"Walls\",\"quote\":true,\"lines\":[{\"item\":\"minecraft:stone\",\"amount\":64,\"unitPrice\":2}]}",
+                Actions.ORDERS_QUOTE,
+                "{\"name\":\"Walls\",\"lines\":[{\"item\":\"minecraft:stone\",\"amount\":64,\"unitPrice\":2}]}",
                 MAY_CREATE);
 
         assertTrue(quote.ok(), quote.reason());
@@ -223,5 +249,115 @@ class OrderCreateWritesTest {
         assertTrue(sharpness.path("conflicts").valueStream().anyMatch(key -> key.asString()
                 .equals("minecraft:smite")));
         assertEquals(16, catalogue.path("dyes").size());
+    }
+
+    @Test
+    void itemTotalsBeyondAWholeNumberAreRefusedRatherThanWrapped() {
+        var wrapping = create(
+                "[{\"item\":\"stone\",\"amount\":2147483647,\"unitPrice\":0},"
+                        + "{\"item\":\"dirt\",\"amount\":2147483647,\"unitPrice\":0},"
+                        + "{\"item\":\"sand\",\"amount\":4,\"unitPrice\":0}]",
+                MAY_CREATE);
+        var merging = create(
+                "[{\"item\":\"diamond\",\"amount\":2147483647,\"unitPrice\":1},"
+                        + "{\"item\":\"diamond\",\"amount\":2,\"unitPrice\":1}]",
+                MAY_CREATE);
+
+        assertFalse(wrapping.ok());
+        assertFalse(merging.ok());
+        assertEquals(0, ownOrders());
+        assertEquals(10_000.0, world.wallets.get(owner));
+    }
+
+    @Test
+    void numbersOutOfRangeAreRefusedAsInvalid() {
+        assertEquals(
+                "dashboard.invalid",
+                create("[{\"item\":\"stone\",\"amount\":1,\"unitPrice\":1e400}]", MAY_CREATE)
+                        .reason());
+        assertEquals(
+                "dashboard.invalid",
+                create("[{\"item\":\"stone\",\"amount\":5000000000,\"unitPrice\":1}]", MAY_CREATE)
+                        .reason());
+        assertEquals(
+                "dashboard.invalid",
+                create("[{\"item\":\"stone\",\"amount\":2.5,\"unitPrice\":1}]", MAY_CREATE)
+                        .reason());
+        assertEquals(
+                "dashboard.invalid",
+                create(
+                                "[{\"define\":{\"material\":\"diamond_sword\",\"enchantments\":{\"sharpness\":5000000000}},\"amount\":1,\"unitPrice\":1}]",
+                                MAY_CREATE)
+                        .reason());
+        assertFalse(create("[{\"item\":\"stone\",\"amount\":10,\"unitPrice\":1e308}]", MAY_CREATE)
+                .ok());
+        assertEquals(10_000.0, world.wallets.get(owner));
+    }
+
+    @Test
+    void linesBeyondTheLimitAreRefusedBeforeAnyItemIsLookedUp() {
+        var refused = create(stone(6).replace("\"stone\"", "\"saved:1\""), MAY_CREATE);
+
+        assertEquals("order.create.error.materialLimit", refused.reason());
+    }
+
+    @Test
+    void aRepeatingOrderKeepsTheLimitsOfLinesAndItems() {
+        var tooMany = order("Daily", stone(6), DAILY, MAY_REPEAT);
+        var tooLarge = order("Daily", "[{\"item\":\"stone\",\"amount\":5000,\"unitPrice\":1}]", DAILY, MAY_REPEAT);
+
+        assertEquals("order.create.error.materialLimit", tooMany.reason());
+        assertEquals("order.create.error.itemLimit", tooLarge.reason());
+        assertEquals(0, series());
+        assertEquals(0, ownOrders());
+    }
+
+    @Test
+    void aRefusedRepeatingOrderLeavesNoSeriesBehind() {
+        var refused = order("x".repeat(40), stone(1), DAILY, MAY_REPEAT);
+
+        assertEquals("error.invalidLength", refused.reason());
+        assertEquals(0, series());
+    }
+
+    @Test
+    void aQuoteChecksTheRepetitionToo() {
+        var quote =
+                perform(Actions.ORDERS_QUOTE, "{\"name\":\"Daily\",\"lines\":" + stone(1) + DAILY + "}", MAY_CREATE);
+
+        assertEquals("error.permission.repeatOrder", quote.reason());
+        assertEquals(0, series());
+    }
+
+    @Test
+    void anOrderPlacedOnTheDashboardSaysSo() {
+        assertTrue(create(stone(1), MAY_CREATE).ok());
+
+        assertEquals(
+                OrderSource.DASHBOARD,
+                world.events.single(OrderCreatedEvent.class).source());
+    }
+
+    @Test
+    void anotherPlayersEarlierItemIsUnknown() {
+        var sword = new ItemStack(Material.DIAMOND_SWORD);
+        sword.addUnsafeEnchantment(Enchantment.SHARPNESS, 3);
+        var placed = Times.now();
+        var entry = world.history
+                .submitEntry(HistoryEntry.ofOwner(
+                        1,
+                        world.player("Rook"),
+                        HistoryOutcome.CANCELLED,
+                        "Theirs",
+                        placed,
+                        placed,
+                        new HistorySnapshot(
+                                List.of(new HistorySnapshot.Line(sword, true, 1, 0, 10)), 10, 0, 0, 0, 0, List.of())))
+                .join()
+                .orElseThrow();
+
+        var refused = create("[{\"item\":\"earlier:" + entry + ":0\",\"amount\":1,\"unitPrice\":1}]", MAY_CREATE);
+
+        assertEquals("dashboard.item.unknownItem", refused.reason());
     }
 }

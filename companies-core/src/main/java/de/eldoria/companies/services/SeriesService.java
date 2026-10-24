@@ -248,8 +248,24 @@ public final class SeriesService implements Listener {
      */
     public CompletableFuture<Created> start(
             UUID owner, OrderBuilder draft, Repetition repetition, boolean mayRepeat, int limit) {
-        if (!mayRepeat) return CompletableFuture.failedFuture(CommandFailure.of("error.permission.repeatOrder"));
+        try {
+            check(repetition, mayRepeat);
+        } catch (CommandFailure failure) {
+            return CompletableFuture.failedFuture(failure);
+        }
         return start(owner, draft, repetition, limit);
+    }
+
+    /**
+     * Checks whether a series could start with a repetition, without starting it.
+     *
+     * @param repetition how the order would repeat
+     * @param mayRepeat  whether the owner holds the permission to create repeating orders
+     * @throws CommandFailure when the owner may not repeat orders or the repetition is not allowed
+     */
+    public void check(Repetition repetition, boolean mayRepeat) {
+        if (!mayRepeat) throw CommandFailure.of("error.permission.repeatOrder");
+        repetition.validate(settings.get(), Times.local(now()).toLocalDate());
     }
 
     private CompletableFuture<Created> start(UUID owner, OrderBuilder draft, Repetition repetition, int limit) {

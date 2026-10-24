@@ -62,10 +62,11 @@ public final class DashboardWrites {
             Actions.INBOX_MUTE);
 
     /**
-     * Every action this version performs, including those of {@link CompanyWrites}.
+     * Every action this version performs, including those of {@link CompanyWrites} and {@link OrderCreateWrites}.
      */
-    public static final Set<String> ACTIONS =
-            Stream.concat(OWN_ACTIONS.stream(), CompanyWrites.ACTIONS.stream()).collect(Collectors.toUnmodifiableSet());
+    public static final Set<String> ACTIONS = Stream.of(OWN_ACTIONS, CompanyWrites.ACTIONS, OrderCreateWrites.ACTIONS)
+            .flatMap(Set::stream)
+            .collect(Collectors.toUnmodifiableSet());
 
     private final Sources sources;
     private final CompanyWrites company;
@@ -105,7 +106,7 @@ public final class DashboardWrites {
         var args = request.args() == null ? answers.empty() : request.args();
         var player = session.player();
         if (CompanyWrites.ACTIONS.contains(request.name())) return company.perform(request, player, args);
-        if (request.name().equals(Actions.ORDERS_CREATE)) return create.perform(request, session, args);
+        if (OrderCreateWrites.ACTIONS.contains(request.name())) return create.perform(request, session, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));
