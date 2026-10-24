@@ -22,7 +22,10 @@ anyone else it is dropped, since a browser could set it to any address.
 
 A player runs `/company dashboard` in game and gets a short link `/<short id>` and a six letter code. The code page
 sends the code (with a Cloudflare Turnstile token where the gateway names a site key); the gateway answers with an
-HttpOnly cookie the page never reads. Every page renders in the browser only.
+HttpOnly cookie the page never reads, `__Host-companies_session` (`companies_session` when the gateway runs with
+`COOKIE_SECURE=false`). The proxy and the stream relay hand the `Cookie` header on as it is, whatever its name, and
+keep the browser's `Origin` and `Sec-Fetch-Site`: the gateway refuses cookie requests and streams from any origin
+but its own public address. Every page renders in the browser only.
 
 `src/api/gateway.ts` is the one module that knows the browser API: every path and JSON shape is typed there.
 
@@ -64,7 +67,8 @@ npm run build        # linters, type checks and the production build into .outpu
 npm run e2e          # end-to-end stories against the build and the mock gateway
 ```
 
-`npm run e2e` starts `e2e/mock/backend.mjs`, a mock of the gateway on port 8787 whose short ids each play a story
+`npm run e2e` starts `e2e/mock/backend.mjs`, a mock of the gateway on port 8787 (with the insecure cookie name and the
+gateway's origin check) whose short ids each play a story
 (`e2e/mock/data.mjs`: two nodes and a resync, a discontinued or locked login, Turnstile, an offline server, an ended
 session, a node connection), and the built server on 4000 pointed at it, then runs the stories in Chromium, Firefox, a Pixel profile and an iPhone profile (WebKit).
 `COMPANIES_E2E_URL` points the stories at a running dashboard instead.
