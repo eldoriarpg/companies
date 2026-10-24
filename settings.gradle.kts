@@ -3,6 +3,8 @@ include(":companies-core")
 include(":companies-api")
 include(":companies-paper")
 include(":companies-hooks")
+include(":json-schema")
+project(":json-schema").projectDir = file("tools/json-schema")
 
 pluginManagement {
     repositories {
