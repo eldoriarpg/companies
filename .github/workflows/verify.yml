@@ -104,15 +104,48 @@ jobs:
           name: plugin
           path: companies-paper/build/libs/companies-paper-*-all.jar
 
+  verify-frontend:
+    runs-on: ubuntu-latest
+    name: Verify Frontend
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web/frontend
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Run the tests
+        run: npx vitest run
+      - name: Lint, type check and build
+        run: node scripts/build.mjs
+      - name: Install the browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Run the end-to-end stories against the build and a mock gateway
+        run: npx playwright test
+      - name: Upload the reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: web/frontend/e2e/report
+
   build:
     runs-on: ubuntu-latest
     name: build
     if: always()
-    needs: [verify-format, verify-nulls, verify-tests, verify-build]
+    needs: [verify-format, verify-nulls, verify-tests, verify-build, verify-frontend]
     steps:
       - name: Require every verification to pass
         run: |
           for result in "${{ needs.verify-format.result }}" "${{ needs.verify-nulls.result }}" \
-                        "${{ needs.verify-tests.result }}" "${{ needs.verify-build.result }}"; do
+                        "${{ needs.verify-tests.result }}" "${{ needs.verify-build.result }}" \
+                        "${{ needs.verify-frontend.result }}"; do
             [ "$result" = "success" ] || exit 1
           done
