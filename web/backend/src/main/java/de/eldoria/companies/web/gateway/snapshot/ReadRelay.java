@@ -1,0 +1,119 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
+package de.eldoria.companies.web.gateway.snapshot;
+
+import de.eldoria.companies.web.api.Actions;
+import de.eldoria.companies.web.api.action.ActionRequest;
+import de.eldoria.companies.web.api.action.ActionResult;
+import de.eldoria.companies.web.gateway.node.NodeLink;
+import de.eldoria.companies.web.gateway.node.NodeRequestException;
+import de.eldoria.companies.web.gateway.storage.StoredSession;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Forwards a browser's read requests, such as an order search or an inbox page, to a node as {@code action}s and
+ * keeps successful answers per session, action and arguments for {@value #CACHE_SECONDS} seconds. Search results are
+ * not live; a browser asks again to refresh them.
+ * <p>
+ * Paging arguments are kept within the node's limits: {@code page} is at least 1 and {@code size} at most the node's
+ * {@code maxPageSize}.
+ */
+public final class ReadRelay {
+    /**
+     * The actions that only read and may be forwarded.
+     */
+    public static final Set<String> READ_ACTIONS = Set.of(
+            Actions.ORDERS_SEARCH,
+            Actions.ORDERS_DETAILS,
+            Actions.ORDERS_OWN_LIST,
+            Actions.APPLICATIONS_LIST,
+            Actions.TREASURY_LOG,
+            Actions.INBOX_PAGE,
+            Actions.RANKINGS_PAGE,
+            Actions.RANKINGS_OWN,
+            Actions.RANKINGS_HISTORY,
+            Actions.MARKET_ITEM,
+            Actions.MARKET_SEARCH,
+            Actions.MARKET_TOP,
+            Actions.MARKET_MOVERS);
+
+    private static final long CACHE_SECONDS = 30;
+    private final Map<String, Cached> answers = new ConcurrentHashMap<>();
+    private final Clock clock;
+    private final Duration timeout;
+
+    private record Cached(String sessionId, ActionResult result, Instant at) {}
+
+    /**
+     * @param clock the time
+     * @param timeout how long to wait for the node's answer
+     */
+    public ReadRelay(Clock clock, Duration timeout) {
+        this.clock = clock;
+        this.timeout = timeout;
+    }
+
+    /**
+     * @param session the session asking
+     * @param link the node to ask
+     * @param name a read action of {@link #READ_ACTIONS}
+     * @param args the action's arguments, changed in place to fit the node's limits
+     * @return the node's answer; fails with {@link NodeRequestException} when the node refuses or does not answer
+     */
+    public CompletableFuture<ActionResult> read(StoredSession session, NodeLink link, String name, ObjectNode args) {
+        limitPaging(args, link.maxPageSize());
+        String key = session.id() + '\n' + name + '\n' + args;
+        Instant now = clock.instant();
+        Cached cached = answers.get(key);
+        if (cached != null && cached.at().isAfter(now.minusSeconds(CACHE_SECONDS))) {
+            return CompletableFuture.completedFuture(cached.result());
+        }
+        return link.request(
+                        id -> new ActionRequest(
+                                id, link.agreed().protocol(), session.id(), session.player(), name, args),
+                        timeout)
+                .thenApply(answer -> {
+                    if (!(answer instanceof ActionResult result)) {
+                        throw new NodeRequestException(null, "The server answered with something else");
+                    }
+                    if (result.ok()) answers.put(key, new Cached(session.id(), result, clock.instant()));
+                    return result;
+                });
+    }
+
+    /**
+     * Forgets the answers of a session.
+     *
+     * @param sessionId the session
+     */
+    public void drop(String sessionId) {
+        answers.values().removeIf(cached -> cached.sessionId().equals(sessionId));
+    }
+
+    /**
+     * Forgets answers older than the cache time.
+     */
+    public void sweep() {
+        Instant limit = clock.instant().minusSeconds(CACHE_SECONDS);
+        answers.values().removeIf(cached -> cached.at().isBefore(limit));
+    }
+
+    private static void limitPaging(ObjectNode args, int maxPageSize) {
+        JsonNode page = args.get("page");
+        if (page != null && page.isNumber() && page.asInt() < 1) args.put("page", 1);
+        JsonNode size = args.get("size");
+        if (size != null && size.isNumber()) args.put("size", Math.clamp(size.asInt(), 1, maxPageSize));
+    }
+}

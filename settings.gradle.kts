@@ -5,8 +5,10 @@ include(":companies-paper")
 include(":companies-hooks")
 include(":web-api")
 include(":json-schema")
+include(":web-backend")
 project(":web-api").projectDir = file("web/api")
 project(":json-schema").projectDir = file("tools/json-schema")
+project(":web-backend").projectDir = file("web/backend")
 
 pluginManagement {
     repositories {

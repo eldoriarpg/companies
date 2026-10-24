@@ -1,0 +1,68 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
+package de.eldoria.companies.web.gateway;
+
+/**
+ * The gateway's paths. Every answer below {@code /api} carries {@code Cache-Control: no-store}, except icons.
+ */
+public final class Routes {
+    /**
+     * Websocket of the nodes; the protocol of {@code web-api}.
+     */
+    public static final String CONNECT = "/api/v1/servers/connect";
+
+    /**
+     * {@code GET}: the gateway kind and the Turnstile site key.
+     */
+    public static final String CONFIG = "/api/v1/config";
+
+    /**
+     * {@code GET}: a pending session and its server's branding.
+     */
+    public static final String PENDING = "/api/v1/s/{shortId}";
+
+    /**
+     * {@code POST {code, turnstile}}: logs in with the code and sets the session cookie.
+     */
+    public static final String LOGIN = "/api/v1/s/{shortId}/login";
+
+    /**
+     * {@code GET}: the logged in player, the server and the features.
+     */
+    public static final String ME = "/api/v1/me";
+
+    /**
+     * {@code POST}: ends the session.
+     */
+    public static final String LOGOUT = "/api/v1/me/logout";
+
+    /**
+     * {@code GET}: the session's snapshot with its revision.
+     */
+    public static final String SNAPSHOT = "/api/v1/me/snapshot";
+
+    /**
+     * {@code GET ?page&size&search}: a page of the company's members, from the snapshot.
+     */
+    public static final String MEMBERS = "/api/v1/me/members";
+
+    /**
+     * {@code POST} with the arguments as body: a read action forwarded to the server.
+     */
+    public static final String ACTION = "/api/v1/me/actions/{name}";
+
+    /**
+     * Websocket of the browser: patches and session events.
+     */
+    public static final String STREAM = "/api/v1/me/stream";
+
+    /**
+     * {@code GET}: a server icon by its hash, cacheable for good.
+     */
+    public static final String ICON = "/api/v1/icons/{hash}";
+
+    private Routes() {}
+}
