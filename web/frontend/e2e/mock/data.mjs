@@ -209,6 +209,8 @@ export const BOOK = [
     state: 'UNCLAIMED',
     lines: [{item: item(itemName, amount), delivered: 0, price}],
     created: new Date(Date.now() - id * 3_600_000).toISOString(),
+    deadline: null,
+    expires: new Date(Date.now() + (48 - id) * 3_600_000 + 1_800_000).toISOString(),
 }))
 
 /** The inbox of the mock, newest first. */
@@ -220,11 +222,19 @@ export const INBOX = [
     [5, 'MY_ORDER_DONE', true, 'Your order Garden lights was completed. Collect it in game.'],
 ].map(([id, type, read, text]) => ({id, type, read, text, created: new Date(Date.now() - id * 1_800_000).toISOString()}))
 
-/** The treasury log of the mock, newest first. */
+/** The treasury log of the mock, newest first: deposits by Kestrel_, withdrawals by Wren, payout shares. */
 export const TREASURY_LOG = [14200, 14400, 14100, 14900, 15300, 15000, 15800, 16100, 15900, 16600, 17000, 16800, 17500, 17900, 18450]
-    .map((balance, index, all) => ({
-        time: new Date(Date.now() - (all.length - index) * 86_400_000).toISOString(),
-        amount: index === 0 ? balance : balance - all[index - 1],
-        balance,
-    }))
+    .map((balance, index, all) => {
+        const delta = index === 0 ? balance : balance - all[index - 1]
+        const kind = delta < 0 ? 'WITHDRAWAL' : index % 2 === 0 ? 'DEPOSIT' : 'PAYOUT_SHARE'
+        const actor = kind === 'WITHDRAWAL' ? member(0) : kind === 'DEPOSIT' ? member(1) : null
+        return {
+            id: index + 1,
+            time: new Date(Date.now() - (all.length - index) * 86_400_000).toISOString(),
+            kind,
+            amount: Math.abs(delta),
+            balance,
+            ...(actor ? {actor: {uuid: actor.uuid, name: actor.name}} : {order: 201}),
+        }
+    })
     .reverse()

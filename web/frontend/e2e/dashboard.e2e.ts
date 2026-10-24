@@ -29,6 +29,9 @@ test.describe('dashboard', () => {
         await expect(positions.getByText('Castle roof')).toBeVisible()
         await expect(positions.getByText('Market stalls')).toHaveCount(0)
         await expect(page.getByText('Garden lights')).toBeVisible()
+        const movements = page.getByRole('list', {name: 'Latest treasury movements'})
+        await expect(movements.getByRole('listitem')).toHaveCount(5)
+        await expect(movements.getByText('Kestrel_').first()).toBeVisible()
         await expect(page.getByText('120 items to collect in game')).toBeVisible()
     })
 
@@ -45,6 +48,7 @@ test.describe('dashboard', () => {
         const details = onPhone(info) ? page.getByRole('dialog') : page.getByRole('complementary', {name: 'Order details'})
         await expect(details.getByText('The owner stays anonymous')).toBeVisible()
         await expect(details.getByText('1,476')).toBeVisible()
+        await expect(details.getByText('Open for 47 more hours')).toBeVisible()
 
         await page.goBack()
         await expect(page).not.toHaveURL(/order=/)
