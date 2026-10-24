@@ -95,6 +95,19 @@ public final class Payloads {
     public record Page<T>(int page, int pages, int total, List<T> entries) {}
 
     /**
+     * A page of the inbox with the categories the player muted and the ones that can be muted.
+     *
+     * @param page     the page, starting at 1
+     * @param pages    the number of pages, at least 1
+     * @param total    the number of entries on all pages
+     * @param entries  the entries of the page
+     * @param muted    the muted categories
+     * @param mutable  the categories that can be muted
+     */
+    public record InboxPage(
+            int page, int pages, int total, List<InboxEntry> entries, List<String> muted, List<String> mutable) {}
+
+    /**
      * An inbox entry rendered as the player reads it.
      *
      * @param id       the entry id

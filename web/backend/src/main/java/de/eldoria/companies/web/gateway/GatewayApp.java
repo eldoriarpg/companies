@@ -82,8 +82,9 @@ public final class GatewayApp {
         RateLimiter logins = new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock);
         RateLimiter lookups = new RateLimiter(60, Duration.ofMinutes(1), clock);
         RateLimiter readLimit = new RateLimiter(config.readsPerSession(), Duration.ofSeconds(10), clock);
+        RateLimiter writeLimit = new RateLimiter(config.writesPerSession(), Duration.ofSeconds(10), clock);
         this.health = Health.of(Database::ping, clock);
-        this.limiters = List.of(connects, logins, lookups, readLimit);
+        this.limiters = List.of(connects, logins, lookups, readLimit, writeLimit);
         this.clientAddress = ClientAddress.trusting(config.trustedProxies(), config.cloudflare());
         this.hub = new NodeHub(authenticator, policy, config.mode().kind(), servers, icons, connects, clock);
         this.streams = new BrowserStreams(clock);
@@ -113,7 +114,7 @@ public final class GatewayApp {
                         icons,
                         new Turnstile(config.turnstile(), http),
                         clientAddress),
-                new BrowserApi.Limiters(logins, lookups, readLimit),
+                new BrowserApi.Limiters(logins, lookups, readLimit, writeLimit),
                 new BrowserApi.Settings(
                         config.publicUrl(),
                         config.turnstile().siteKey(),

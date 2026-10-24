@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -82,6 +83,7 @@ class DashboardIntegrationTest {
     Path directory;
 
     private final List<String> opened = new CopyOnWriteArrayList<>();
+    private final Set<String> disabled = ConcurrentHashMap.newKeySet();
     private final AtomicInteger disconnects = new AtomicInteger();
     private DashboardWorld world;
     private FakeGateway gateway;
@@ -130,8 +132,9 @@ class DashboardIntegrationTest {
                 feed,
                 world.views,
                 world.reads,
+                world.writes,
                 new ActionLimit(20, Duration.ofSeconds(10), clock),
-                feature -> true,
+                feature -> !disabled.contains(feature),
                 key -> "text of " + key,
                 (player, device) -> opened.add(player + " " + device.orElse("?")),
                 () -> disconnects.incrementAndGet(),
@@ -282,6 +285,50 @@ class DashboardIntegrationTest {
         var refused = gateway.next(ErrorMessage.class, WAIT);
         assertEquals("act-2", refused.id());
         assertEquals(ErrorCode.UNKNOWN_SESSION, refused.code());
+    }
+
+    @Test
+    void writesAreRefusedForSwitchedOffFeaturesAndBeyondTheLimit() throws Exception {
+        connect(supported());
+        var session = login();
+        gateway.send(new SessionOpened("open", Protocol.VERSION, session, wren, null));
+        gateway.next(SessionConfirmed.class, WAIT);
+
+        disabled.add("inbox");
+        gateway.send(new ActionRequest(
+                "off",
+                Protocol.VERSION,
+                session,
+                wren,
+                Actions.INBOX_READ_ALL,
+                Protocol.mapper().readTree("{}")));
+        var off = gateway.next(ActionResult.class, WAIT);
+        assertFalse(off.ok());
+        assertEquals("dashboard.featureDisabled", off.reason());
+
+        disabled.clear();
+        ActionResult last = null;
+        for (int i = 0; i < 20; i++) {
+            gateway.send(new ActionRequest(
+                    "w" + i,
+                    Protocol.VERSION,
+                    session,
+                    wren,
+                    Actions.INBOX_READ_ALL,
+                    Protocol.mapper().readTree("{}")));
+            last = gateway.next(ActionResult.class, WAIT);
+        }
+        assertNotNull(last);
+        gateway.send(new ActionRequest(
+                "over",
+                Protocol.VERSION,
+                session,
+                wren,
+                Actions.INBOX_READ_ALL,
+                Protocol.mapper().readTree("{}")));
+        var over = gateway.next(ActionResult.class, WAIT);
+        assertFalse(over.ok());
+        assertEquals("dashboard.rateLimited", over.reason());
     }
 
     @Test

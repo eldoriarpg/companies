@@ -21,6 +21,7 @@ import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.dashboard.MarketRow;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
+import de.eldoria.companies.services.notifications.NotificationCategory;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.Protocol;
@@ -52,10 +53,10 @@ import java.util.function.Supplier;
  * it and keeps orders anonymous between owner and company. Reading the inbox does not mark it read.
  * <p>
  * Pages are asked for with {@code page} (from 1) and {@code pageSize} (at most {@value #MAX_PAGE_SIZE}) and answered
- * with {@code page}, {@code pages} and {@code total}. This version reads only: an action that changes something is
- * refused with {@code dashboard.readOnly}, one of a switched off feature with {@code dashboard.featureDisabled}, an
- * unknown or unsupported one with {@code dashboard.unsupported}. The methods block on the database and are called off
- * the main thread.
+ * with {@code page}, {@code pages} and {@code total}. Actions that change something are performed by
+ * {@code DashboardWrites}; one this version does not perform yet is refused here with {@code dashboard.readOnly}, one
+ * of a switched off feature with {@code dashboard.featureDisabled}, an unknown or unsupported one with
+ * {@code dashboard.unsupported}. The methods block on the database and are called off the main thread.
  */
 public final class DashboardReads {
     /**
@@ -79,6 +80,7 @@ public final class DashboardReads {
      */
     public static final List<String> FEATURES = List.of(
             Features.ORDERS_BROWSE,
+            Features.ORDERS_ACCEPT,
             Features.ORDERS_OWN,
             Features.COMPANY_MEMBERS,
             Features.COMPANY_APPLICATIONS,
@@ -220,7 +222,7 @@ public final class DashboardReads {
         return new Payloads.OrderPage(page, Payloads.pages(orders.size(), size), orders.size(), shown);
     }
 
-    private Payloads.Page<Payloads.InboxEntry> inbox(UUID player, JsonNode args) {
+    private Payloads.InboxPage inbox(UUID player, JsonNode args) {
         var page = page(args);
         var size = size(args);
         var query = args.path("query").asString("").toLowerCase(Locale.ROOT).strip();
@@ -229,8 +231,21 @@ public final class DashboardReads {
                 .filter(entry ->
                         query.isEmpty() || entry.text().toLowerCase(Locale.ROOT).contains(query))
                 .toList();
-        return new Payloads.Page<>(
-                page, Payloads.pages(entries.size(), size), entries.size(), Payloads.slice(entries, page, size));
+        long mask = sources.inbox().retrieveMuted(player).join();
+        var categories = List.of(NotificationCategory.values());
+        return new Payloads.InboxPage(
+                page,
+                Payloads.pages(entries.size(), size),
+                entries.size(),
+                Payloads.slice(entries, page, size),
+                categories.stream()
+                        .filter(category -> (mask & category.bit()) != 0)
+                        .map(Enum::name)
+                        .toList(),
+                categories.stream()
+                        .filter(NotificationCategory::mutable)
+                        .map(Enum::name)
+                        .toList());
     }
 
     private Payloads.InboxEntry inboxEntry(InboxEntry entry) {

@@ -9,8 +9,8 @@ import {gatewayApi, type GatewayApi, type InboxPage} from '~/api/gateway'
 const SEARCH_DELAY_MILLIS = 300
 
 /**
- * The inbox, a page at a time, searched by the plugin. Reading it here marks nothing read; that comes with the
- * inbox's actions.
+ * The inbox, a page at a time, searched by the plugin, with the categories the player muted. Reading it marks nothing
+ * read; marking read, clearing and muting are the inbox's actions.
  *
  * @param api the gateway's calls, for tests
  * @returns the search, the page and its loader

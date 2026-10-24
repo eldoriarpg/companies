@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard;
 
 import de.eldoria.companies.components.company.ICompanyProfile;
+import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
 import de.eldoria.companies.dashboard.gateway.GatewayLink;
 import de.eldoria.companies.dashboard.gateway.GatewayStatus;
@@ -15,6 +16,7 @@ import de.eldoria.companies.dashboard.sessions.SessionPermissions;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
@@ -50,7 +52,9 @@ import java.util.logging.Logger;
  * create, that ended or that belongs to another player is answered with {@link ErrorCode#UNKNOWN_SESSION}, so a
  * compromised gateway cannot invent a player. A snapshot request subscribes the session to patches. While the plugin
  * version is discontinued only pings, the welcome and unsubscribes are handled, and a discontinued welcome drops every
- * subscription; everything else is refused with {@link ErrorCode#DISCONTINUED}. Snapshots and actions are built on the work executor, everything else in order of
+ * subscription; everything else is refused with {@link ErrorCode#DISCONTINUED}. Actions that change something go to
+ * {@link DashboardWrites}, reading ones to {@link DashboardReads}; both are checked against the switched on features and
+ * the per-player action limit first. Snapshots and actions are built on the work executor, everything else in order of
  * arrival.
  */
 public final class DashboardRouter {
@@ -174,6 +178,22 @@ public final class DashboardRouter {
                             null));
             return;
         }
+        if (DashboardWrites.performs(action.name())) {
+            var feature = Actions.feature(action.name());
+            if (feature == null || !parts.features().test(feature)) {
+                parts.link()
+                        .send(new ActionResult(
+                                action.id(),
+                                Protocol.VERSION,
+                                false,
+                                "dashboard.featureDisabled",
+                                parts.refusal().apply("dashboard.featureDisabled"),
+                                null));
+                return;
+            }
+            work(action, () -> parts.link().send(parts.writes().perform(action, session.get())));
+            return;
+        }
         work(action, () -> parts.link().send(parts.reads().answer(action, session.get(), parts.features())));
     }
 
@@ -212,6 +232,7 @@ public final class DashboardRouter {
      * @param feed      the subscriptions and patches
      * @param views     builds snapshots
      * @param reads     answers read actions
+     * @param writes    performs the actions that change something
      * @param limit     limits the actions per player
      * @param features  whether a feature is switched on
      * @param refusal   renders a refusal key as plain text
@@ -229,6 +250,7 @@ public final class DashboardRouter {
             PatchFeed feed,
             Views views,
             DashboardReads reads,
+            DashboardWrites writes,
             ActionLimit limit,
             Predicate<String> features,
             Function<String, String> refusal,

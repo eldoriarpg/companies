@@ -123,6 +123,7 @@ change them:
 | `CACHE_IDLE_MINUTES` | `15` | Dashboard data stays in memory this long after its last use. |
 | `LOGINS_PER_ADDRESS` | `10` | Login attempts per address in ten minutes. Each code also allows only 5 attempts. |
 | `READS_PER_SESSION` | `10` | Searches and pages per login in ten seconds. |
+| `WRITES_PER_SESSION` | `5` | Actions that change something (accepting, cancelling, inbox) per login in ten seconds. |
 
 ## Behind a web server
 

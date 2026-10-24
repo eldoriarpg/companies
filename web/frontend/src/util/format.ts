@@ -133,3 +133,21 @@ export function when(time: string, now: Date, locale: string): string {
     if (days < 6) return new Intl.DateTimeFormat(locale, {weekday: 'short'}).format(moment)
     return new Intl.DateTimeFormat(locale, {day: 'numeric', month: 'short'}).format(moment)
 }
+
+/**
+ * Reads an amount of money a player typed, in either decimal style: `20`, `20.5`, `20,5`, `1,000.50` and `1.000,50`
+ * all work. With both separators the last one is the decimal point; a single comma is one too.
+ *
+ * @param text what the player typed
+ * @returns the amount, or NaN when it is no number
+ */
+export function parseAmount(text: string): number {
+    const plain = text.trim().replace(/[\s']/g, '')
+    if (!/^\d[\d.,]*$/.test(plain)) return Number.NaN
+    const decimal = Math.max(plain.lastIndexOf('.'), plain.lastIndexOf(','))
+    const both = plain.includes('.') && plain.includes(',')
+    if (!both && plain.split(plain[decimal] ?? '').length > 2) return Number(plain.replace(/[.,]/g, ''))
+    if (decimal < 0) return Number(plain)
+    const whole = plain.slice(0, decimal).replace(/[.,]/g, '')
+    return Number(`${whole}.${plain.slice(decimal + 1)}`)
+}

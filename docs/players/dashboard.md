@@ -6,8 +6,8 @@ sidebar_position: 6
 # Dashboard
 
 :::info New in 2.1
-The web dashboard comes with Companies 2.1, on servers that switched it on. For now it shows your orders, your company
-and the market; you still place, accept and deliver orders in game.
+The web dashboard comes with Companies 2.1, on servers that switched it on. You can accept orders, manage your own
+orders and your inbox there; placing and delivering orders still happens in game.
 :::
 
 The dashboard shows your orders, your company and its orders, your inbox, the rankings and market prices in a browser.
@@ -47,3 +47,22 @@ default) or the server's maximum time has passed (a day by default). You can be 
 You see what you see in game, nothing more. Your own orders show their progress, but not which company or worker
 delivers them. Your company's orders show their progress, but not who placed them. Inside your company, you see which
 member delivered what.
+
+## What you can do
+
+Everything is checked by the server as if you typed the command, so the dashboard allows exactly what you may do in
+game. When the server refuses, the dashboard shows its reason.
+
+| Where | Action | Same as |
+|---|---|---|
+| Order book | Accept an order for your company (needs the *manage orders* permission) | `/company order accept <id>` |
+| Positions | Give an order your company works on back to the order book (needs the *manage orders* permission) | `/company order abort <id>` |
+| Your orders | Give an open order more time | `/order extend <id>` |
+| Your orders | Raise what an open order pays; the dashboard shows the fee and the total before you pay | `/order raise <id> <amount>` |
+| Your orders | Cancel an open order; it asks again first and tells you when a repeating order stops with it | `/order cancel <id>` |
+| Inbox | Mark everything read, delete the read entries, mute or unmute a category | `/company inbox read`, `clear`, `mute`, `unmute` |
+
+A server owner can switch single parts of the dashboard off; their buttons then do not appear.
+
+Some servers run add-ons that can stop an order from being accepted, for example because of where you stand. Those
+checks only run while you are online on that server. While you are not, the dashboard accepts without them.

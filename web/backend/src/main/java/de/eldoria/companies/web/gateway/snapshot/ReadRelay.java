@@ -62,6 +62,20 @@ public final class ReadRelay {
             Actions.MARKET_TOP,
             Actions.MARKET_MOVERS);
 
+    /**
+     * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
+     * answer of its session, since any of them may be outdated by it.
+     */
+    public static final Set<String> WRITE_ACTIONS = Set.of(
+            Actions.ORDERS_ACCEPT,
+            Actions.ORDERS_ABORT,
+            Actions.ORDERS_OWN_CANCEL,
+            Actions.ORDERS_OWN_EXTEND,
+            Actions.ORDERS_OWN_RAISE,
+            Actions.INBOX_READ_ALL,
+            Actions.INBOX_CLEAR,
+            Actions.INBOX_MUTE);
+
     private static final long CACHE_SECONDS = 30;
     private static final Set<String> SESSION_ROOTS = Set.of("player", "company", "orders");
     private static final String RANKINGS_ROOT = "rankings";
@@ -106,6 +120,32 @@ public final class ReadRelay {
                         throw new NodeRequestException(null, "The server answered with something else");
                     }
                     if (result.ok()) answers.put(key, new Cached(name, reply.raw(), clock.instant()));
+                    return reply.raw().deepCopy();
+                });
+    }
+
+    /**
+     * Forwards an action that changes something. The answer is not cached, and the session's cached answers are
+     * dropped once the request ends: performed, refused, failed or timed out, since a node may have performed an action
+     * whose answer came too late.
+     *
+     * @param session the session asking
+     * @param link the node to ask
+     * @param name an action of {@link #WRITE_ACTIONS}
+     * @param args the action's arguments
+     * @return the node's {@code action.result} as it sent it; fails with {@link NodeRequestException} when the node
+     * refuses or does not answer
+     */
+    public CompletableFuture<ObjectNode> write(StoredSession session, NodeLink link, String name, ObjectNode args) {
+        return link.request(
+                        id -> new ActionRequest(
+                                id, link.agreed().protocol(), session.id(), session.player(), name, args),
+                        timeout)
+                .whenComplete((reply, failure) -> drop(session.id()))
+                .thenApply(reply -> {
+                    if (!(reply.message() instanceof ActionResult)) {
+                        throw new NodeRequestException(null, "The server answered with something else");
+                    }
                     return reply.raw().deepCopy();
                 });
     }

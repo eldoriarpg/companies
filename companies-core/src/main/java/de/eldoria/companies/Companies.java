@@ -492,7 +492,14 @@ public class Companies extends EldoPlugin {
                         information.inbox(),
                         this.economy.treasury(),
                         information.stats(),
-                        search),
+                        search,
+                        player -> companyData
+                                .retrievePlayerCompanyProfile(getServer().getOfflinePlayer(player))
+                                .asFuture(),
+                        commands.services().orderAccept(),
+                        commands.services().companyOrders(),
+                        commands.services().ownerOrders(),
+                        commands.services().notificationService().inbox()),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
@@ -559,6 +566,7 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
+        if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {
             commands.npcBoards().stop();
@@ -573,7 +581,6 @@ public class Companies extends EldoPlugin {
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
-        if (dashboard != null) dashboard.stop();
         if (nodeConnection != null) {
             nodeConnection.stop();
         } else {
