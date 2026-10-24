@@ -14,14 +14,15 @@ import SearchInput from '@/components/input/SearchInput.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import PositionAbort from './PositionAbort.vue'
+import PositionDeliver from './PositionDeliver.vue'
 import {count, hoursLeft, money} from '~/util/format'
 import {holds} from '~/util/permissions'
 import {itemsText, totalsOf} from '~/util/orders'
 
 /**
  * The positions: the orders the company is processing, with their progress, payout and the time left. They update in
- * place as members deliver. Members who may manage orders can give one back to the order book from here. Delivering
- * from the web comes later; in game it works as always.
+ * place as members deliver. A member online on the server delivers from their inventory here, where the server
+ * offers it, and members who may manage orders can give one back to the order book.
  */
 const props = defineProps<{
   orders: readonly ClaimedOrderView[]
@@ -34,6 +35,7 @@ const manages = computed(() => {
   return supports(Feature['orders.accept'])
     && holds(permissions, MemberPermission.MANAGE_ORDERS)
 })
+const delivers = computed(() => supports(Feature['orders.deliver']))
 const done = ref('')
 const now = useNow({interval: 60_000})
 const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => line.item.name)])
@@ -79,6 +81,7 @@ const rows = computed(() => found.value.map(order => ({
         </div>
         <span class="tabular hidden text-right text-sm md:block">{{ money(row.totals.payout, locale) }}</span>
         <span class="tabular hidden text-right text-xs text-ink-muted md:block">{{ row.left }}</span>
+        <PositionDeliver v-if="delivers" :order="row.order"/>
         <PositionAbort v-if="manages" :order="row.order.id" :name="row.order.name" @aborted="name => done = t('positions.aborted', {name})"/>
       </li>
     </ul>

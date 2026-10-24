@@ -68,11 +68,14 @@ game. When the server refuses, the dashboard shows its reason.
 | Where | Action | Same as |
 |---|---|---|
 | Order book | Accept an order for your company (needs the *manage orders* permission) | `/company order accept <id>` |
+| Positions | Deliver to an order your company works on: everything you carry for it, or one line (only while you are online) | `/company order deliver <id> all`, `<line> max` |
 | Positions | Give an order your company works on back to the order book (needs the *manage orders* permission) | `/company order abort <id>` |
 | Order book, Your orders | Place a new order, see below | `/order create` |
 | Your orders | Give an open order more time | `/order extend <id>` |
 | Your orders | Raise what an open order pays; the dashboard shows the fee and the total before you pay | `/order raise <id> <amount>` |
 | Your orders | Cancel an open order; it asks again first and tells you when a repeating order stops with it | `/order cancel <id>` |
+| Your orders | Receive a delivered order into your inventory; what does not fit waits to be collected (only while you are online) | `/order receive <id>` |
+| Your orders | Collect the items waiting for you (only while you are online) | `/order collect` |
 | Inbox | Mark everything read, delete the read entries, mute or unmute a category | `/company inbox read`, `clear`, `mute`, `unmute` |
 | Company | Change a member's permissions, only those you hold yourself (needs *manage permissions*) | `/company permission <name>` |
 | Company | Remove a member (needs *kick*; nobody removes the owner) | `/company kick <name>` |
@@ -83,6 +86,12 @@ game. When the server refuses, the dashboard shows its reason.
 | Company | Pay into the treasury, take money out, set the share of payouts it keeps (needs *treasury*) | `/company bank deposit`, `withdraw`, `share` |
 
 A server owner can switch single parts of the dashboard off; their buttons then do not appear.
+
+## Moving items
+
+Delivering, receiving and collecting take items out of your inventory or put them in, so they work only while you are
+online on the server, on whichever of its servers you are. While you are not, the dashboard says so instead of showing
+the buttons. Delivering picks the items exactly as the command does.
 
 ## Placing an order
 

@@ -16,9 +16,9 @@ import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Inventories;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
-import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -207,7 +207,16 @@ public class ItemReturnService implements Listener {
     }
 
     /**
-     * Gives the player as many stored items of a kind as fit into the storage. Has to be called on the main thread.
+     * What handing out stored items gave a player.
+     *
+     * @param received  items put into the inventory
+     * @param remaining items still stored, because they did not fit or the player left
+     */
+    public record Collected(int received, int remaining) {}
+
+    /**
+     * Gives the player as many stored items of a kind as fit into the storage and tells the player how it went. Has to
+     * be called on the main thread.
      *
      * @param player player to receive the items
      * @param kind   kind of the items to hand out
@@ -215,66 +224,85 @@ public class ItemReturnService implements Listener {
      */
     public void handOut(Player player, ReturnKind kind, boolean silent) {
         var messages = Messages.of(kind);
-        orderData
+        collect(player, kind)
+                .thenAcceptAsync(collected -> report(player, messages, collected, silent), Threading.mainThread(plugin))
+                .exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Could not hand out item returns", err);
+                    return null;
+                });
+    }
+
+    /**
+     * Gives the player as many stored items of a kind as fit into the storage, without a message. Has to be called on
+     * the main thread; the result completes on it.
+     *
+     * @param player player to receive the items
+     * @param kind   kind of the items to hand out
+     * @return what the player received and what is still stored
+     */
+    public CompletableFuture<Collected> collect(Player player, ReturnKind kind) {
+        var main = Threading.mainThread(plugin);
+        return orderData
                 .retrieveItemReturns(player.getUniqueId(), kind)
-                .whenComplete(
+                .asFuture()
+                .thenComposeAsync(
                         returns -> {
-                            if (returns.isEmpty()) {
-                                if (!silent) messageSender().sendMessage(player, messages.none());
-                                return;
+                            var total = returns.stream()
+                                    .mapToInt(ItemReturn::amount)
+                                    .sum();
+                            if (returns.isEmpty() || !player.isOnline()) {
+                                return CompletableFuture.completedFuture(new Collected(0, total));
                             }
-                            if (!player.isOnline()) return;
                             var storage = Inventories.storageCopy(player);
                             Map<ItemReturn, Integer> takes = new LinkedHashMap<>();
                             for (var itemReturn : returns) {
                                 var fit = Inventories.fit(storage, itemReturn.stack(), itemReturn.amount());
                                 if (fit > 0) takes.put(itemReturn, fit);
                             }
-                            var total = returns.stream()
-                                    .mapToInt(ItemReturn::amount)
-                                    .sum();
-                            if (takes.isEmpty()) {
-                                messageSender()
-                                        .sendMessage(player, messages.remaining(), Replacement.create("amount", total));
-                                return;
-                            }
-                            take(player, kind, takes, total);
+                            if (takes.isEmpty()) return CompletableFuture.completedFuture(new Collected(0, total));
+                            return CompletableFuture.supplyAsync(() -> take(takes), VIRTUAL)
+                                    .thenApplyAsync(taken -> give(player, kind, taken, total), main);
                         },
-                        err -> plugin.getLogger().log(Level.SEVERE, "Could not load item returns", err));
+                        main);
     }
 
-    private void take(Player player, ReturnKind kind, Map<ItemReturn, Integer> takes, int total) {
-        CompletableBukkitFuture.supplyAsync(
-                        () -> takes.entrySet().stream()
-                                .filter(entry -> Boolean.TRUE.equals(orderData
-                                        .submitItemReturnTake(entry.getKey(), entry.getValue())
-                                        .join()))
-                                .toList(),
-                        VIRTUAL)
-                .whenComplete(taken -> give(player, kind, taken, total), err -> plugin.getLogger()
-                        .log(Level.SEVERE, "Could not take item returns", err));
+    private List<Map.Entry<ItemReturn, Integer>> take(Map<ItemReturn, Integer> takes) {
+        return takes.entrySet().stream()
+                .filter(entry -> Boolean.TRUE.equals(orderData
+                        .submitItemReturnTake(entry.getKey(), entry.getValue())
+                        .join()))
+                .toList();
     }
 
-    private void give(Player player, ReturnKind kind, List<Map.Entry<ItemReturn, Integer>> taken, int total) {
+    private Collected give(Player player, ReturnKind kind, List<Map.Entry<ItemReturn, Integer>> taken, int total) {
         if (!player.isOnline()) {
             for (var entry : taken) {
                 orderData.submitItemReturn(
                         player.getUniqueId(), kind, entry.getKey().stack(), entry.getValue());
             }
-            return;
+            return new Collected(0, total);
         }
-        var messages = Messages.of(kind);
         var received = 0;
         for (var entry : taken) {
             Inventories.give(player, Inventories.split(entry.getKey().stack(), entry.getValue()));
             received += entry.getValue();
         }
-        if (received > 0) {
-            messageSender().sendMessage(player, messages.received(), Replacement.create("amount", received));
+        return new Collected(received, total - received);
+    }
+
+    private void report(Player player, Messages messages, Collected collected, boolean silent) {
+        if (!player.isOnline()) return;
+        if (collected.received() == 0 && collected.remaining() == 0) {
+            if (!silent) messageSender().sendMessage(player, messages.none());
+            return;
         }
-        var remaining = total - received;
-        if (remaining > 0) {
-            messageSender().sendMessage(player, messages.remaining(), Replacement.create("amount", remaining));
+        if (collected.received() > 0) {
+            messageSender()
+                    .sendMessage(player, messages.received(), Replacement.create("amount", collected.received()));
+        }
+        if (collected.remaining() > 0) {
+            messageSender()
+                    .sendMessage(player, messages.remaining(), Replacement.create("amount", collected.remaining()));
         }
     }
 

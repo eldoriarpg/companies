@@ -387,6 +387,26 @@ export default {
         abortConfirm: 'Auftrag zurückgeben',
         aborted: '{name} ist wieder im Auftragsbuch.',
     },
+    deliver: {
+        all: 'Liefern, was ich trage',
+        line: '{name} liefern ({missing} fehlen)',
+        nothing: 'Du trägst nichts, was dieser Auftrag noch braucht.',
+        delivered: '{count} Gegenstände geliefert.',
+        finished: '{count} Gegenstände geliefert. {name} ist vollständig.',
+        joinFirst: 'Betritt den Server, um von hier zu liefern; die Gegenstände kommen aus deinem Inventar.',
+    },
+    receive: {
+        button: 'Ins Inventar holen',
+        done: '{name} ist in deinem Inventar.',
+        partly: '{name} ist erhalten; {waiting} Gegenstände passten nicht und warten auf Abholung.',
+        joinFirst: 'Betritt den Server, um diesen Auftrag in dein Inventar zu holen.',
+    },
+    collect: {
+        button: 'Wartende Gegenstände abholen',
+        none: 'Auf dich wartet nichts.',
+        done: '{received} Gegenstände abgeholt.',
+        partly: '{received} Gegenstände abgeholt; {remaining} passten nicht und warten weiter.',
+    },
     own: {
         extend: 'Mehr Zeit',
         raise: 'Bezahlung erhöhen',

@@ -101,6 +101,7 @@ import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
@@ -391,7 +392,9 @@ public class Companies extends EldoPlugin {
                     search,
                     new SavedItemService(this.economy.savedItems(), commands.drafts()::request, () -> configuration
                             .orderSetting()
-                            .savedItems())));
+                            .savedItems()),
+                    new OrderReceiveService(
+                            orderData, outcomes, itemReturnService, Threading.mainThread(this), getLogger())));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
@@ -538,7 +541,12 @@ public class Companies extends EldoPlugin {
                                 commands.services().series(),
                                 commands.services().savedItems(),
                                 commands.drafts()::request,
-                                () -> configuration.userSettings().maxOrders())),
+                                () -> configuration.userSettings().maxOrders()),
+                        new DashboardModule.ItemServices(
+                                commands.orderData(),
+                                commands.services().deliveryService(),
+                                commands.services().receive(),
+                                commands.services().itemReturnService())),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

@@ -91,6 +91,7 @@ public final class DashboardReads {
             Features.ORDERS_BROWSE,
             Features.ORDERS_ACCEPT,
             Features.ORDERS_CREATE,
+            Features.ORDERS_DELIVER,
             Features.ORDERS_OWN,
             Features.COMPANY_MEMBERS,
             Features.COMPANY_APPLICATIONS,

@@ -14,6 +14,7 @@ import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.actions.ItemWrites;
 import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.feed.FeedListener;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
@@ -33,18 +34,22 @@ import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
+import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.services.CompanyService;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
@@ -224,6 +229,15 @@ public final class DashboardModule {
                         player -> feed.inboxChanged(player),
                         clock),
                 company,
+                new ItemWrites(new ItemWrites.Sources(
+                        uuid -> Optional.ofNullable(plugin.getServer().getPlayer(uuid)),
+                        Threading.mainThread(plugin),
+                        data.companyOf(),
+                        data.items().orders(),
+                        ItemWrites.Deliveries.of(data.items().delivery()),
+                        data.items().receive(),
+                        data.items().returns(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
                 new OrderCreateWrites(new OrderCreateWrites.Sources(
                         Bukkit::getOfflinePlayer,
                         data.orders().creation(),
@@ -336,6 +350,7 @@ public final class DashboardModule {
      * @param inboxService  reads, clears and mutes inboxes
      * @param company       the services acting on a company
      * @param orders        the services placing orders
+     * @param items         the services moving items with the player's inventory
      */
     public record Data(
             ADashboardData dashboard,
@@ -353,7 +368,19 @@ public final class DashboardModule {
             OwnerOrderService ownerOrders,
             Inbox inboxService,
             CompanyServices company,
-            OrderServices orders) {}
+            OrderServices orders,
+            ItemServices items) {}
+
+    /**
+     * The services the dashboard moves items through, with the inventory of a player online on this node.
+     *
+     * @param orders   the order repository
+     * @param delivery delivers to company orders
+     * @param receive  receives delivered own orders
+     * @param returns  hands out waiting items
+     */
+    public record ItemServices(
+            AOrderData orders, DeliveryService delivery, OrderReceiveService receive, ItemReturnService returns) {}
 
     /**
      * The services the dashboard places orders through.

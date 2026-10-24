@@ -105,8 +105,14 @@ export interface ServerUpdate {
     server: ServerInfo
 }
 
+/** The session's player came online on the server or went offline, which decides whether items can be moved. */
+export interface PresenceUpdate {
+    type: 'presence'
+    online: boolean
+}
+
 /** What the gateway sends on the stream. Messages of any other type are ignored. */
-export type StreamMessage = Patch | Pong | SessionClosed | ErrorMessage | Resync | ServerUpdate
+export type StreamMessage = Patch | Pong | SessionClosed | ErrorMessage | Resync | ServerUpdate | PresenceUpdate
 
 /** The search of the order book, mirroring the in-game search: every field is optional but the page. */
 export interface OrderSearchArgs {
@@ -398,6 +404,14 @@ export interface ReadActions {
 /** The name of a read action. */
 export type ReadAction = keyof ReadActions
 
+/** What a delivery from the web moved. */
+export interface DeliveryDone {
+    /** How many items were delivered. */
+    delivered: number
+    /** Whether the delivery completed the order. */
+    done: boolean
+}
+
 /** An order an action named. */
 export interface OrderRef {
     order: number
@@ -409,6 +423,10 @@ export interface OrderRef {
  */
 export interface WriteActions {
     'orders.create': {args: OrderCreateArgs, result: OrderRef & OrderQuote}
+    'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
+    'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
+    'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}
+    'orders.deliver.collect': {args: Record<string, never>, result: {received: number, remaining: number}}
     'orders.accept': {args: OrderRef, result: OrderRef}
     'orders.accept.abort': {args: OrderRef, result: OrderRef}
     'orders.own.cancel': {args: OrderRef & {quote?: boolean}, result: OrderRef & {repeating?: boolean}}

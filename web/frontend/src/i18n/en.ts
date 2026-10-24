@@ -387,6 +387,26 @@ export default {
         abortConfirm: 'Give the order back',
         aborted: '{name} is back in the order book.',
     },
+    deliver: {
+        all: 'Deliver what I carry',
+        line: 'Deliver {name} ({missing} missing)',
+        nothing: 'You carry nothing this order still needs.',
+        delivered: 'Delivered {count} items.',
+        finished: 'Delivered {count} items. {name} is complete.',
+        joinFirst: 'Join the server to deliver from here; the items come from your inventory.',
+    },
+    receive: {
+        button: 'Receive into inventory',
+        done: '{name} is in your inventory.',
+        partly: '{name} is received; {waiting} items did not fit and wait to be collected.',
+        joinFirst: 'Join the server to receive this order into your inventory.',
+    },
+    collect: {
+        button: 'Collect waiting items',
+        none: 'Nothing is waiting for you.',
+        done: 'Collected {received} items.',
+        partly: 'Collected {received} items; {remaining} did not fit and are still waiting.',
+    },
     own: {
         extend: 'More time',
         raise: 'Raise payout',

@@ -181,6 +181,16 @@ export function useDashboard(wiring: DashboardWiring = {}) {
     }
 
     /**
+     * Shows whether the session's player is online on the server, as the gateway reports it.
+     *
+     * @param online whether the player is online
+     */
+    function showPresence(online: boolean): void {
+        const current = data.value.snapshot
+        if (current) data.value.snapshot = {...current, player: {...current.player, online}}
+    }
+
+    /**
      * Tells why loading failed: the session is gone, the server is discontinued, or the gateway or the server cannot
      * be reached right now, which is tried again.
      *
@@ -247,6 +257,7 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         if (message.type === 'patch') receivePatch(message)
         else if (message.type === 'resync') void loadSnapshot()
         else if (message.type === 'server') showServer(message.server)
+        else if (message.type === 'presence') showPresence(message.online)
         else if (message.type === 'session.closed' || (message.type === 'error' && message.code === 'UNAUTHORIZED')) {
             stop()
             data.value.status = 'gone'
@@ -311,6 +322,7 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         company: computed(() => data.value.snapshot?.company ?? null),
         live: computed(() => data.value.live),
         online: computed(() => data.value.server?.online ?? true),
+        playerOnline: computed(() => data.value.snapshot?.player.online === true),
         problem: computed(() => data.value.problem),
         activity: computed(() => data.value.activity),
         balances: computed(() => data.value.balances),

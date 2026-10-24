@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class RecordedMessagesReplayTest {
     private static final Set<String> SILENT =
-            Set.of("branding.update", "patch", "session.closed", "session.revoked", "pong", "error");
+            Set.of("branding.update", "patch", "session.closed", "session.revoked", "player.presence", "pong", "error");
     private static final Map<String, Class<? extends Message>> ANSWERED =
             Map.of("ping", Pong.class, "session.create", SessionCreated.class);
     private static TestGateway gateway;
