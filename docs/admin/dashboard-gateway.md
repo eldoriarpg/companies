@@ -92,7 +92,7 @@ All settings go into `.env`.
 | `PUBLIC_URL` | | The address players open. Login links are this plus a short id. No `/` at the end. |
 | `DB_PASSWORD` | | A password for the database. Only the gateway uses it. |
 | `PORT` | `4000` | The port the dashboard listens on, on this machine. It only listens on `127.0.0.1`, for a web server on the same machine. |
-| `COMPANIES_VERSION` | `latest` | Which gateway version to run. |
+| `COMPANIES_VERSION` | `latest` | Which gateway version to run: `latest` is the newest release, a version such as `2.2.0` or `2.2` pins it, `edge` follows the newest development build. |
 | `TRUSTED_PROXIES` | private addresses | Proxies whose `X-Forwarded-For` is believed, comma separated. See [Behind a web server](#behind-a-web-server). |
 | `CLOUDFLARE` | `false` | `true` behind Cloudflare: the client address is taken from `CF-Connecting-IP`. See [Cloudflare Tunnel](#cloudflare-tunnel). |
 | `TURNSTILE_SECRET` | empty | Switches on [Turnstile](#turnstile) for the login form. |
