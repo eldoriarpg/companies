@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
+import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
 import de.eldoria.companies.data.wrapper.dashboard.StoredKey;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.web.api.handshake.KeyKind;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -66,6 +68,7 @@ public abstract class DashboardDataContract {
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
         query("DELETE FROM dashboard_sessions").single().delete();
         query("DELETE FROM dashboard_key").single().delete();
+        query("DELETE FROM market_history").single().delete();
         data = data();
     }
 
@@ -147,5 +150,40 @@ public abstract class DashboardDataContract {
                 .toList();
 
         assertEquals(List.of("idle", "pending"), ended);
+    }
+
+    @Test
+    void aMarketDayIsReplacedAsAWholeAndReadPerMaterial() {
+        var day = LocalDate.of(2026, 10, 20);
+        data.saveMarketDay(
+                day,
+                List.of(
+                        new MarketDay(day, "STONE", 3, 30, 10.0, 8.0, 12.0),
+                        new MarketDay(day, "DIRT", 1, 5, 2.0, 2.0, 2.0)));
+        data.saveMarketDay(day.plusDays(1), List.of(new MarketDay(day.plusDays(1), "STONE", 2, 20, 11.0, 9.0, 13.0)));
+        data.saveMarketDay(day, List.of(new MarketDay(day, "STONE", 4, 40, 10.5, 8.0, 12.0)));
+
+        var stone = data.marketHistory("STONE", day);
+        assertEquals(
+                List.of(
+                        new MarketDay(day, "STONE", 4, 40, 10.5, 8.0, 12.0),
+                        new MarketDay(day.plusDays(1), "STONE", 2, 20, 11.0, 9.0, 13.0)),
+                stone);
+        assertTrue(data.marketHistory("DIRT", day).isEmpty());
+        assertEquals(1, data.marketHistory("STONE", day.plusDays(1)).size());
+        assertEquals(2, data.marketDays(day).size());
+        assertEquals(Optional.of(day.plusDays(1)), data.lastMarketDay());
+    }
+
+    @Test
+    void theMarketHistoryIsPurgedBeforeADay() {
+        var day = LocalDate.of(2026, 10, 20);
+        assertEquals(Optional.empty(), data.lastMarketDay());
+        data.saveMarketDay(day, List.of(new MarketDay(day, "STONE", 3, 30, 10.0, 8.0, 12.0)));
+        data.saveMarketDay(day.plusDays(2), List.of(new MarketDay(day.plusDays(2), "STONE", 3, 30, 10.0, 8.0, 12.0)));
+        data.saveMarketDay(day.plusDays(3), List.of());
+
+        assertEquals(1, data.purgeMarketHistory(day.plusDays(1)));
+        assertEquals(1, data.marketDays(day).size());
     }
 }

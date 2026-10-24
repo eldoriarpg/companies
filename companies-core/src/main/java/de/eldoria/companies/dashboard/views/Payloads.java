@@ -196,7 +196,8 @@ public final class Payloads {
      * @param max    the highest unit price
      * @param volume the number of items ordered
      * @param orders the number of delivered orders
-     * @param change the price change, none until the plugin keeps a price history
+     * @param change the change of the average unit price in percent over the last week against the week before, absent
+     *               while either week stands on too few orders
      */
     public record MarketItem(
             ItemView item,
@@ -206,6 +207,68 @@ public final class Payloads {
             long volume,
             int orders,
             @Nullable Double change) {}
+
+    /**
+     * The market statistics of one material with its price history: the fields of {@link MarketItem}, then the
+     * history.
+     *
+     * @param item    the material
+     * @param avg     the average unit price
+     * @param min     the lowest unit price
+     * @param max     the highest unit price
+     * @param volume  the number of items ordered
+     * @param orders  the number of delivered orders
+     * @param change  the change of the average unit price in percent, as in {@link MarketItem}
+     * @param days    how many days the history reaches back, today included
+     * @param history one point per day with delivered orders, oldest first
+     */
+    public record MarketDetail(
+            ItemView item,
+            @Nullable Double avg,
+            @Nullable Double min,
+            @Nullable Double max,
+            long volume,
+            int orders,
+            @Nullable Double change,
+            int days,
+            List<HistoryPoint> history) {
+        /**
+         * @param item    the statistics
+         * @param days    how many days the history reaches back
+         * @param history the history
+         */
+        public MarketDetail(MarketItem item, int days, List<HistoryPoint> history) {
+            this(
+                    item.item(),
+                    item.avg(),
+                    item.min(),
+                    item.max(),
+                    item.volume(),
+                    item.orders(),
+                    item.change(),
+                    days,
+                    history);
+        }
+    }
+
+    /**
+     * One day of a material's price history. The prices are left out on days with fewer orders than the server's
+     * minimum.
+     *
+     * @param day    the day, as {@code yyyy-MM-dd}
+     * @param orders the orders delivered that day
+     * @param items  the items of the material in them
+     * @param avg    the average unit price
+     * @param min    the lowest unit price
+     * @param max    the highest unit price
+     */
+    public record HistoryPoint(
+            String day,
+            int orders,
+            long items,
+            @Nullable Double avg,
+            @Nullable Double min,
+            @Nullable Double max) {}
 
     /**
      * A page of market items.

@@ -149,6 +149,7 @@ class DashboardIntegrationTest {
                 status,
                 handshake,
                 feed,
+                () -> {},
                 router::accept,
                 () -> {},
                 NODE,

@@ -1,0 +1,245 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C) EldoriaRPG Team and Contributor
+ */
+package de.eldoria.companies.dashboard.market;
+
+import de.eldoria.companies.components.order.HistoryOutcome;
+import de.eldoria.companies.configuration.elements.ordersettings.MarketSettings;
+import de.eldoria.companies.data.repository.ADashboardData;
+import de.eldoria.companies.data.repository.AHistoryData;
+import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
+import de.eldoria.companies.data.wrapper.history.HistoryEntry;
+import org.jetbrains.annotations.Nullable;
+
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * The market's price history: one row per material and day, from the orders companies delivered that day, kept for
+ * {@code market.historyDays} of {@code order.yml}. Exact lines count under their material. No owner or company is
+ * stored.
+ * <p>
+ * The primary node records it: each run computes every day from the latest one stored, which may have been partial,
+ * up to today, and on the first run as far back as the order history and the retention reach. Days are replaced as a
+ * whole, so a run can be repeated. Reading compares periods: the change of a material is that of its average unit
+ * price over the last seven days against the seven days before, both weighted by orders, and is left out unless both
+ * periods stand on at least {@code market.minOrders} orders.
+ */
+public final class MarketHistory {
+    /**
+     * The days of each period a change compares.
+     */
+    public static final int CHANGE_DAYS = 7;
+
+    private final Sources sources;
+
+    /**
+     * @param sources where the history is read from and stored
+     */
+    public MarketHistory(Sources sources) {
+        this.sources = sources;
+    }
+
+    /**
+     * Records the days not recorded yet, then removes the days beyond the retention. Failures are logged and the next
+     * run tries again.
+     */
+    public void record() {
+        try {
+            var today = today();
+            var oldest = today.minusDays(sources.settings().get().historyDays() - 1L);
+            var from = sources.data()
+                    .lastMarketDay()
+                    .filter(day -> day.isAfter(oldest))
+                    .orElse(oldest);
+            for (var day = from; !day.isAfter(today); day = day.plusDays(1)) {
+                var entries = sources.history()
+                        .retrieveCompanyEntries(
+                                HistoryOutcome.DELIVERED,
+                                day.atStartOfDay(),
+                                day.plusDays(1).atStartOfDay())
+                        .join();
+                sources.data().saveMarketDay(day, aggregate(day, entries));
+            }
+            sources.data().purgeMarketHistory(oldest);
+        } catch (RuntimeException e) {
+            sources.logger().log(Level.WARNING, "Could not record the market history.", e);
+        }
+    }
+
+    /**
+     * @return today in the server's time zone
+     */
+    public LocalDate today() {
+        return LocalDate.now(sources.clock().withZone(sources.zone()));
+    }
+
+    /**
+     * Adds up the orders delivered on one day per material.
+     *
+     * @param day     the day
+     * @param entries the company entries of the orders delivered that day
+     * @return one row per material, ordered by material
+     */
+    public static List<MarketDay> aggregate(LocalDate day, List<HistoryEntry> entries) {
+        Map<String, Totals> totals = new HashMap<>();
+        for (var entry : entries) {
+            for (var line : entry.snapshot().lines()) {
+                if (line.amount() <= 0) continue;
+                totals.computeIfAbsent(line.template().getType().name(), material -> new Totals())
+                        .add(entry.order(), line.amount(), line.price() / line.amount());
+            }
+        }
+        return totals.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(total -> total.getValue().toDay(day, total.getKey()))
+                .toList();
+    }
+
+    /**
+     * The change of each material's average unit price over the last {@value #CHANGE_DAYS} days against the
+     * {@value #CHANGE_DAYS} days before.
+     *
+     * @param days      the rows of at least the last {@code 2 * CHANGE_DAYS} days
+     * @param today     the last day of the recent period
+     * @param minOrders the orders each period needs
+     * @return the change in percent per material, for materials both periods stand on enough orders for
+     */
+    public static Map<String, Double> changes(List<MarketDay> days, LocalDate today, int minOrders) {
+        var recentStart = today.minusDays(CHANGE_DAYS - 1L);
+        var previousStart = recentStart.minusDays(CHANGE_DAYS);
+        Map<String, Period[]> periods = new HashMap<>();
+        for (var day : days) {
+            if (day.day().isBefore(previousStart) || day.day().isAfter(today)) continue;
+            var both = periods.computeIfAbsent(day.material(), material -> new Period[] {new Period(), new Period()});
+            both[day.day().isBefore(recentStart) ? 0 : 1].add(day);
+        }
+        Map<String, Double> changes = new HashMap<>();
+        periods.forEach((material, both) -> {
+            if (both[0].orders < minOrders || both[1].orders < minOrders) return;
+            var previous = both[0].average();
+            if (previous <= 0) return;
+            changes.put(material, (both[1].average() - previous) / previous * 100);
+        });
+        return changes;
+    }
+
+    /**
+     * The history of one material for a chart, a point per day with completed orders. Prices of a day that stands on
+     * fewer than {@code minOrders} orders are left out, so a single order cannot be traced back.
+     *
+     * @param material  the material name
+     * @param days      how many days back, today included
+     * @param minOrders the orders a day needs for its prices to show
+     * @return the points, oldest first
+     */
+    public List<Point> points(String material, int days, int minOrders) {
+        var from = today().minusDays(Math.max(1, days) - 1L);
+        return sources.data().marketHistory(material, from).stream()
+                .sorted(Comparator.comparing(MarketDay::day))
+                .map(day -> day.orders() >= minOrders
+                        ? new Point(day.day(), day.orders(), day.items(), day.avg(), day.min(), day.max())
+                        : new Point(day.day(), day.orders(), day.items(), null, null, null))
+                .toList();
+    }
+
+    /**
+     * The changes of every material, as {@link #changes(List, LocalDate, int)} computes them.
+     *
+     * @return the change in percent per material
+     */
+    public Map<String, Double> changes() {
+        var today = today();
+        var days = sources.data().marketDays(today.minusDays(2L * CHANGE_DAYS - 1));
+        return changes(days, today, sources.settings().get().minOrders());
+    }
+
+    /**
+     * One day of a material's history.
+     *
+     * @param day    the day
+     * @param orders the orders completed that day
+     * @param items  the items in them
+     * @param avg    the average unit price, absent with too few orders
+     * @param min    the lowest unit price, absent with too few orders
+     * @param max    the highest unit price, absent with too few orders
+     */
+    public record Point(
+            LocalDate day,
+            int orders,
+            long items,
+            @Nullable Double avg,
+            @Nullable Double min,
+            @Nullable Double max) {}
+
+    /**
+     * What the history is recorded from and stored in.
+     *
+     * @param data     the market history table
+     * @param history  the order history the days are computed from
+     * @param settings the retention and the orders a price needs
+     * @param zone     the server's time zone, which decides where a day ends
+     * @param clock    the clock
+     * @param logger   logs failed runs
+     */
+    public record Sources(
+            ADashboardData data,
+            AHistoryData history,
+            Supplier<MarketSettings> settings,
+            ZoneId zone,
+            Clock clock,
+            Logger logger) {}
+
+    /**
+     * The running totals of one material on one day.
+     */
+    private static final class Totals {
+        private final List<Integer> orders = new ArrayList<>();
+        private long items;
+        private double sum;
+        private int lines;
+        private double min = Double.MAX_VALUE;
+        private double max;
+
+        void add(int order, int amount, double unitPrice) {
+            if (!orders.contains(order)) orders.add(order);
+            items += amount;
+            sum += unitPrice;
+            lines++;
+            min = Math.min(min, unitPrice);
+            max = Math.max(max, unitPrice);
+        }
+
+        MarketDay toDay(LocalDate day, String material) {
+            return new MarketDay(day, material, orders.size(), items, sum / lines, min, max);
+        }
+    }
+
+    /**
+     * The days of one material in one period of a change.
+     */
+    private static final class Period {
+        private int orders;
+        private double weighted;
+
+        void add(MarketDay day) {
+            orders += day.orders();
+            weighted += day.avg() * day.orders();
+        }
+
+        double average() {
+            return orders == 0 ? 0 : weighted / orders;
+        }
+    }
+}

@@ -15,6 +15,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.elements.ordersettings.MarketSettings;
+import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ATreasuryData;
@@ -38,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -46,6 +48,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * Answers the reading actions of the dashboard: search results, order details, own orders, inbox, rankings, market
@@ -73,6 +76,7 @@ public final class DashboardReads {
             Actions.MARKET_ITEM,
             Actions.MARKET_SEARCH,
             Actions.MARKET_TOP,
+            Actions.MARKET_MOVERS,
             Actions.APPLICATIONS_LIST,
             Actions.TREASURY_LOG);
 
@@ -98,6 +102,7 @@ public final class DashboardReads {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_LISTED = 1000;
+    private static final int DEFAULT_HISTORY_DAYS = 30;
 
     private final Views views;
     private final Sources sources;
@@ -138,6 +143,7 @@ public final class DashboardReads {
             case Actions.RANKINGS_PAGE -> rankings(request, player, args);
             case Actions.RANKINGS_OWN -> ownRank(request, player, args);
             case Actions.MARKET_TOP -> data(request, market(args, Optional.empty()));
+            case Actions.MARKET_MOVERS -> data(request, movers(args));
             case Actions.MARKET_SEARCH ->
                 data(request, market(args, Optional.of(args.path("query").asString(""))));
             case Actions.MARKET_ITEM -> marketItem(request, args);
@@ -148,7 +154,7 @@ public final class DashboardReads {
     }
 
     private static boolean isRead(String action) {
-        return action.equals(Actions.RANKINGS_HISTORY) || action.equals(Actions.MARKET_MOVERS);
+        return action.equals(Actions.RANKINGS_HISTORY);
     }
 
     private Payloads.SearchPage search(UUID player, JsonNode args) {
@@ -296,12 +302,8 @@ public final class DashboardReads {
      * The materials of delivered orders, the most ordered first, or those matching a search.
      */
     private Payloads.MarketPage market(JsonNode args, Optional<String> search) {
-        var page = page(args);
-        var size = size(args);
         var query = search.map(value -> value.toLowerCase(Locale.ROOT).strip().replace("minecraft:", ""));
-        var items = sources.market().get().stream()
-                .map(this::marketItem)
-                .flatMap(Optional::stream)
+        var items = marketItems()
                 .filter(item -> query.isEmpty()
                         || item.item().name().toLowerCase(Locale.ROOT).contains(query.get())
                         || item.item().icon().contains(query.get().replace(' ', '_')))
@@ -309,8 +311,31 @@ public final class DashboardReads {
                         .reversed()
                         .thenComparing(item -> item.item().name()))
                 .toList();
+        return marketPage(args, items);
+    }
+
+    private Payloads.MarketPage movers(JsonNode args) {
+        var items = marketItems()
+                .filter(item -> item.change() != null)
+                .sorted(Comparator.comparingDouble((Payloads.MarketItem item) -> Math.abs(item.change()))
+                        .reversed()
+                        .thenComparing(item -> item.item().name()))
+                .toList();
+        return marketPage(args, items);
+    }
+
+    private Payloads.MarketPage marketPage(JsonNode args, List<Payloads.MarketItem> items) {
+        var page = page(args);
+        var size = size(args);
         return new Payloads.MarketPage(
                 page, Payloads.pages(items.size(), size), items.size(), Payloads.slice(items, page, size));
+    }
+
+    private Stream<Payloads.MarketItem> marketItems() {
+        var changes = sources.marketChanges().get();
+        return sources.market().get().stream()
+                .map(row -> marketItem(row, changes))
+                .flatMap(Optional::stream);
     }
 
     private ActionResult marketItem(ActionRequest request, JsonNode args) {
@@ -318,12 +343,20 @@ public final class DashboardReads {
         var item = sources.market().get().stream()
                 .filter(row -> row.material().equals(key))
                 .findFirst()
-                .flatMap(this::marketItem);
+                .flatMap(row -> marketItem(row, sources.marketChanges().get()));
         if (item.isEmpty()) return refused(request, "dashboard.invalid");
-        return data(request, item.get());
+        var days = Math.clamp(
+                args.path("days").asInt(DEFAULT_HISTORY_DAYS),
+                1,
+                sources.marketSettings().get().historyDays());
+        var history = sources.marketHistory().apply(key, days).stream()
+                .map(point -> new Payloads.HistoryPoint(
+                        point.day().toString(), point.orders(), point.items(), point.avg(), point.min(), point.max()))
+                .toList();
+        return data(request, new Payloads.MarketDetail(item.get(), days, history));
     }
 
-    private Optional<Payloads.MarketItem> marketItem(MarketRow row) {
+    private Optional<Payloads.MarketItem> marketItem(MarketRow row, Map<String, Double> changes) {
         var material = Material.matchMaterial(row.material());
         if (material == null) return Optional.empty();
         var shown = row.orders() >= sources.marketSettings().get().minOrders();
@@ -334,7 +367,7 @@ public final class DashboardReads {
                 shown ? row.max() : null,
                 row.volume(),
                 row.orders(),
-                null));
+                changes.get(row.material())));
     }
 
     private ActionResult applications(ActionRequest request, UUID player) {
@@ -428,6 +461,8 @@ public final class DashboardReads {
      * @param treasury       the treasuries
      * @param market         what the delivered orders add up to per material
      * @param marketSettings the current market settings
+     * @param marketChanges  the change of each material's price in percent, by material name
+     * @param marketHistory  the price history of a material over a number of days
      * @param inboxText      renders an inbox entry as plain text
      * @param refusal        renders the message of a refusal key as plain text
      * @param names          a player's name by id
@@ -440,6 +475,8 @@ public final class DashboardReads {
             ATreasuryData treasury,
             Supplier<List<MarketRow>> market,
             Supplier<MarketSettings> marketSettings,
+            Supplier<Map<String, Double>> marketChanges,
+            BiFunction<String, Integer, List<MarketHistory.Point>> marketHistory,
             Function<InboxEntry, String> inboxText,
             Function<String, String> refusal,
             Function<UUID, String> names,

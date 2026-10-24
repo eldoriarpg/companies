@@ -493,6 +493,7 @@ public class Companies extends EldoPlugin {
                         information.inbox(),
                         this.economy.treasury(),
                         information.stats(),
+                        information.history(),
                         search,
                         player -> companyData
                                 .retrievePlayerCompanyProfile(getServer().getOfflinePlayer(player))

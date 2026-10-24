@@ -64,6 +64,7 @@ public final class Dashboard implements GatewayLink {
     private static final Duration SWEEP_INTERVAL = Duration.ofMinutes(1);
     private static final Duration KEY_CHECK_INTERVAL = Duration.ofMinutes(1);
     private static final Duration RANKING_INTERVAL = Duration.ofMinutes(1);
+    private static final Duration MARKET_HISTORY_INTERVAL = Duration.ofMinutes(30);
     private static final URI HOSTED = URI.create(DashboardSettings.DEFAULT_GATEWAY);
 
     private final Parts parts;
@@ -95,6 +96,11 @@ public final class Dashboard implements GatewayLink {
         if (parts.primary()) {
             tasks.add(timer.scheduleAtFixedRate(
                     this::checkKey, KEY_CHECK_INTERVAL.toSeconds(), KEY_CHECK_INTERVAL.toSeconds(), TimeUnit.SECONDS));
+            tasks.add(timer.scheduleAtFixedRate(
+                    () -> parts.work().execute(parts.marketHistory()),
+                    SWEEP_INTERVAL.toSeconds(),
+                    MARKET_HISTORY_INTERVAL.toSeconds(),
+                    TimeUnit.SECONDS));
         }
         restartLater();
     }
@@ -481,6 +487,7 @@ public final class Dashboard implements GatewayLink {
      * @param status        what the gateway said
      * @param handshake     builds the hello
      * @param feed          the subscriptions and patches
+     * @param marketHistory records the market's price history, on the primary node
      * @param inbound       answers the gateway's messages
      * @param keyChanged    tells the other nodes that a new key was stored
      * @param node          this node's uid
@@ -498,6 +505,7 @@ public final class Dashboard implements GatewayLink {
             GatewayStatus status,
             Handshake handshake,
             PatchFeed feed,
+            Runnable marketHistory,
             Consumer<Message> inbound,
             Runnable keyChanged,
             UUID node,
