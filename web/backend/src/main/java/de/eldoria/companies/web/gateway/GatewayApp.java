@@ -47,7 +47,6 @@ import java.time.Duration;
  */
 public final class GatewayApp {
     private static final Logger log = LoggerFactory.getLogger(GatewayApp.class);
-    private static final long MAX_NODE_MESSAGE_BYTES = 4L * 1024 * 1024;
     private final ServiceConfig config;
     private final NodeHub hub;
     private final BrowserStreams streams;
@@ -182,7 +181,6 @@ public final class GatewayApp {
     private void nodes(WsConfig ws) {
         ws.onConnect(ctx -> {
             ctx.session.setIdleTimeout(Duration.ofSeconds(120));
-            ctx.session.setMaxTextMessageSize(MAX_NODE_MESSAGE_BYTES);
             hub.connect(ctx.sessionId(), new JettySocket(ctx.session), BrowserApi.address(ctx, clientAddress));
         });
         ws.onMessage(ctx -> hub.message(ctx.sessionId(), ctx.message()));

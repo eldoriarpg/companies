@@ -51,6 +51,11 @@ public final class JettySocket implements Socket {
     }
 
     @Override
+    public void limit(long bytes) {
+        session.setMaxTextMessageSize(bytes);
+    }
+
+    @Override
     public boolean isOpen() {
         return session.isOpen();
     }

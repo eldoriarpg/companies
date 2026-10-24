@@ -215,6 +215,13 @@ public final class NodeLink {
     }
 
     /**
+     * @param bytes the largest message the node may send from now on
+     */
+    void limit(long bytes) {
+        socket.limit(bytes);
+    }
+
+    /**
      * Sends a message.
      *
      * @param message the message

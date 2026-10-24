@@ -80,6 +80,7 @@ public final class BrowserApi {
     private static final VersionStatus UNKNOWN_VERSION =
             new VersionStatus(VersionState.SUPPORTED, null, null, null, null);
     private static final Limits DEFAULT_LIMITS = new Limits(50);
+    private static final long STREAM_MESSAGE_BYTES = 4096;
     private final Sessions sessions;
     private final NodeHub hub;
     private final SnapshotCache snapshots;
@@ -301,6 +302,7 @@ public final class BrowserApi {
     public void stream(WsConfig ws) {
         ws.onConnect(ctx -> {
             ctx.session.setIdleTimeout(Duration.ofSeconds(120));
+            ctx.session.setMaxTextMessageSize(STREAM_MESSAGE_BYTES);
             String origin = ctx.header("Origin");
             if (origin != null && !sameOrigin(origin)) {
                 ctx.closeSession(1008, "Foreign origin");

@@ -31,6 +31,7 @@ import de.eldoria.companies.web.api.update.Patch;
 import de.eldoria.companies.web.api.update.PatchOp;
 import de.eldoria.companies.web.api.update.Subscribe;
 import de.eldoria.companies.web.gateway.node.Icons;
+import de.eldoria.companies.web.gateway.node.NodeHub;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -209,6 +210,15 @@ class HostedGatewayTest {
         try (FakeNode node = FakeNode.connect(gateway)) {
             node.send(new Ping("p", 1, Instant.now()));
             assertEquals(ErrorCode.UNAUTHORIZED, node.expect(ErrorMessage.class).code());
+            assertEquals(NodeHub.CLOSE_INVALID, node.awaitClose());
+        }
+    }
+
+    @Test
+    void limitsMessagesBeforeTheWelcome() {
+        try (FakeNode node = FakeNode.connect(gateway)) {
+            node.sendRaw("{\"type\":\"hello\",\"pad\":\"" + "x".repeat(200 * 1024) + "\"}");
+            assertEquals(1009, node.awaitClose());
         }
     }
 

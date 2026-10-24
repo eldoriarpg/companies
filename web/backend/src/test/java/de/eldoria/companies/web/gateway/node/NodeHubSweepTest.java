@@ -77,6 +77,9 @@ class NodeHubSweepTest {
         }
 
         @Override
+        public void limit(long bytes) {}
+
+        @Override
         public boolean isOpen() {
             return closes.isEmpty();
         }

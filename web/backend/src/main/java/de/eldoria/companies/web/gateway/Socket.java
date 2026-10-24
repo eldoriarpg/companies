@@ -25,6 +25,13 @@ public interface Socket {
     void close(int code, String reason);
 
     /**
+     * Sets the largest text message the peer may send.
+     *
+     * @param bytes the size in bytes
+     */
+    void limit(long bytes);
+
+    /**
      * @return whether the socket is still open
      */
     boolean isOpen();

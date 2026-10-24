@@ -61,7 +61,9 @@ import java.util.stream.Collectors;
  * a node that connects again replaces its previous connection.
  * <p>
  * The gateway pings a node it has not heard from for {@value #PING_SECONDS} seconds and closes a connection silent
- * for {@value #IDLE_SECONDS} seconds, or one that sends no hello within {@value #HELLO_SECONDS} seconds.
+ * for {@value #IDLE_SECONDS} seconds, or one that sends no hello within {@value #HELLO_SECONDS} seconds, or anything
+ * else first. Until its welcome a node may send messages of up to {@value #HELLO_BYTES} bytes, enough for a hello with
+ * the largest icon; afterwards {@value #MESSAGE_BYTES} bytes.
  */
 public final class NodeHub {
     /**
@@ -92,6 +94,8 @@ public final class NodeHub {
     private static final Logger log = LoggerFactory.getLogger(NodeHub.class);
     private static final JsonMapper MAPPER = Protocol.mapper();
     private static final long HELLO_SECONDS = 10;
+    private static final long HELLO_BYTES = 128L * 1024;
+    private static final long MESSAGE_BYTES = 4L * 1024 * 1024;
     private static final long PING_SECONDS = 30;
     private static final long IDLE_SECONDS = 75;
     private final Map<String, NodeLink> links = new ConcurrentHashMap<>();
@@ -177,6 +181,7 @@ public final class NodeHub {
      */
     public void connect(String socketId, Socket socket, String address) {
         NodeLink link = new NodeLink(socketId, socket, address, clock.instant());
+        socket.limit(HELLO_BYTES);
         if (!connects.tryAcquire(address)) {
             socket.close(CLOSE_RATE_LIMITED, "Too many connections, try again later");
             return;
@@ -280,6 +285,7 @@ public final class NodeHub {
     private void awaitingHello(NodeLink link, Message message) {
         if (!(message instanceof Hello hello)) {
             link.send(error(message, ErrorCode.UNAUTHORIZED, "Send hello first"));
+            link.close(CLOSE_INVALID, "No hello");
             return;
         }
         if (hello.credentials() == null
@@ -330,6 +336,7 @@ public final class NodeHub {
             replaced = server.add(link);
         }
         if (replaced != null && replaced != link) replaced.close(CLOSE_REPLACED, "Replaced by a newer connection");
+        link.limit(MESSAGE_BYTES);
         boolean iconCached = branding(accepted.serverId(), hello.branding());
         link.send(new Welcome(hello.id(), protocol, protocol, kind, offered, status, deprecated, iconCached));
         log.info(
