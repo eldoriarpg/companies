@@ -22,6 +22,7 @@ import de.eldoria.companies.menus.company.TopView;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.util.FutureCache;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -158,7 +159,7 @@ public final class TopCommand {
                 profiles.id(viewer, company);
             }
         });
-        var now = LocalDateTime.now();
+        var now = Times.now();
         var ranking = pages.get(
                 new PageKey(ordering, range, page),
                 key -> deps.information().stats().retrieveRanking(ordering, range, now, page, PAGE_SIZE));

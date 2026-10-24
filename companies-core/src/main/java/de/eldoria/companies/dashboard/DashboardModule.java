@@ -47,6 +47,7 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.handshake.NodeInfo;
 import de.eldoria.companies.web.api.handshake.NodeRole;
 import de.eldoria.eldoutilities.localization.ILocalizer;
@@ -59,7 +60,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -129,14 +130,14 @@ public final class DashboardModule {
                 configuration::companySettings,
                 configuration::orderSetting,
                 names,
-                ZoneId.systemDefault(),
+                ZoneOffset.UTC,
                 clock));
         var market = new MarketHistory(new MarketHistory.Sources(
                 data.dashboard(),
                 data.history(),
                 () -> configuration.orderSetting().market(),
                 () -> configuration.generalSettings().historyDays(),
-                ZoneId.systemDefault(),
+                Times::zone,
                 clock,
                 logger));
         var renderer = new NotificationRenderer(localizer::localize);

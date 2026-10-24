@@ -16,6 +16,7 @@ import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.junit.jupiter.api.AfterAll;
@@ -32,7 +33,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -179,7 +179,7 @@ abstract class LowLatencyIntegrationTest {
         b.caches.register(NodeCaches.COMPANY, key -> dropped.add("company:" + key.orElse("*")));
         b.caches.register(NodeCaches.RANKING, key -> dropped.add("ranking"));
         b.caches.register(NodeCaches.BOARDS, key -> dropped.add("boards"));
-        var company = new CompanyProfile(77, "Renamed", LocalDateTime.now(), 2, CompanyDetails.NONE, List.of());
+        var company = new CompanyProfile(77, "Renamed", Times.now(), 2, CompanyDetails.NONE, List.of());
 
         a.connection.signals().onCompanyRename(new CompanyRenameEvent(company, "Old", null, false));
         a.connection
@@ -241,9 +241,8 @@ abstract class LowLatencyIntegrationTest {
         awaitReading(a, b);
         var old = codec.encode(SECONDARY, new CacheInvalidate("probe", "old"));
         var recent = codec.encode(SECONDARY, new CacheInvalidate("probe", "recent"));
-        b.messages.insert(
-                SECONDARY, "cache.invalidate", old, LocalDateTime.now().minusMinutes(2));
-        b.messages.insert(SECONDARY, "cache.invalidate", recent, LocalDateTime.now());
+        b.messages.insert(SECONDARY, "cache.invalidate", old, Times.now().minusMinutes(2));
+        b.messages.insert(SECONDARY, "cache.invalidate", recent, Times.now());
 
         await(() -> !payloads(a).contains(old), WAIT, "the primary to delete the old row");
         assertTrue(payloads(a).contains(recent));
@@ -257,7 +256,7 @@ abstract class LowLatencyIntegrationTest {
                 PRIMARY,
                 "cache.invalidate",
                 codec.encode(PRIMARY, new CacheInvalidate("probe", "before")),
-                LocalDateTime.now());
+                Times.now());
         var b = secondary();
         awaitReading(b);
 

@@ -21,6 +21,7 @@ import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.Replacement;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -118,7 +119,7 @@ public final class SoloOrderService {
                         .isPresent(),
                 plugin.getServer()::getOfflinePlayer,
                 plugin.getServer().getPluginManager()::callEvent,
-                Clock.systemDefaultZone(),
+                Times.UTC,
                 Threading.VIRTUAL);
     }
 

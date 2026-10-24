@@ -15,12 +15,12 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Times;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -205,7 +205,7 @@ public final class OrderDraftService {
         if (!player.hasPermission(Permission.Orders.REPEAT)) {
             throw CommandFailure.actionBar("error.permission.repeatOrder");
         }
-        repetition.validate(configuration.orderSetting().repeating(), LocalDate.now());
+        repetition.validate(configuration.orderSetting().repeating(), Times.today());
         draft.repetition(Optional.of(repetition));
     }
 

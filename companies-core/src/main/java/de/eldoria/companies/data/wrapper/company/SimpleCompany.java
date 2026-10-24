@@ -7,6 +7,7 @@ package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.util.Times;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -50,7 +51,7 @@ public class SimpleCompany implements ISimpleCompany {
 
     @Override
     public String foundedString() {
-        return founded.format(FORMATTER);
+        return Times.local(founded).format(FORMATTER);
     }
 
     @Override

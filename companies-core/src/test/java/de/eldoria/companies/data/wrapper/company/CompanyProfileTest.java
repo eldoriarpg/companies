@@ -5,10 +5,10 @@
  */
 package de.eldoria.companies.data.wrapper.company;
 
+import de.eldoria.companies.util.Times;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,7 +16,7 @@ class CompanyProfileTest {
     private final UUID member = UUID.randomUUID();
     private final UUID stranger = UUID.randomUUID();
     private final CompanyProfile company = new CompanyProfile(
-            1, "company", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of(CompanyMember.of(1, member, 0L)));
+            1, "company", Times.now(), 1, CompanyDetails.NONE, List.of(CompanyMember.of(1, member, 0L)));
 
     @Test
     void membersAreRecognised() {

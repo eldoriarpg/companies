@@ -69,6 +69,12 @@ into after the error about two primaries.
 
 See [node.yml](./configuration/node-yml.md) for the file reference.
 
+## Time zones
+
+Times are stored in UTC, so servers in different zones agree on them. Set the same `timezone` in
+[config.yml](configuration/config-yml.md) on every server, so they show the same times and start a day at the same
+moment.
+
 ## What is shared
 
 **All data** lives in the database: orders, companies, members, treasuries, inboxes, history and alerts. Every server

@@ -7,6 +7,7 @@ package de.eldoria.companies.data.wrapper.history;
 
 import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.data.TestMappers;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
@@ -16,7 +17,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -65,7 +65,7 @@ class HistorySnapshotTest {
     @Test
     void entriesBelongToExactlyOneSide() {
         var snapshot = new HistorySnapshot(List.of(), 0, 0, 0, 0, 0, List.of());
-        var now = LocalDateTime.now();
+        var now = Times.now();
         var owner = UUID.randomUUID();
 
         Assertions.assertThrows(

@@ -20,6 +20,7 @@ import de.eldoria.companies.services.TreasuryService.Outcome;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Event;
 import org.junit.jupiter.api.AfterEach;
@@ -32,7 +33,6 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +106,7 @@ class TreasuryServiceTest {
         company = new CompanyProfile(
                 id,
                 "Miners",
-                LocalDateTime.now(),
+                Times.now(),
                 1,
                 CompanyDetails.NONE,
                 List.of(

@@ -51,7 +51,7 @@ public interface ISimpleOrder {
     /**
      * When the order was created.
      *
-     * @return creation time in the server's time zone
+     * @return creation time in UTC
      */
     LocalDateTime created();
 

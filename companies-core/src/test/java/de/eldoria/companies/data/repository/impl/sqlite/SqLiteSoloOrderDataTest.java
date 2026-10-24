@@ -10,6 +10,7 @@ import de.eldoria.companies.data.wrapper.order.Claimant;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -150,7 +151,7 @@ class SqLiteSoloOrderDataTest {
         Assertions.assertTrue(claim(alice, orders.place(0.0), 1));
 
         var stored = orderData.retrieveSoloCooldown(alice).join();
-        Assertions.assertTrue(stored.isEmpty() || stored.get().isBefore(LocalDateTime.now()));
+        Assertions.assertTrue(stored.isEmpty() || stored.get().isBefore(Times.now()));
     }
 
     @Test

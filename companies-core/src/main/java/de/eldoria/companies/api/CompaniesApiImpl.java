@@ -13,6 +13,7 @@ import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
@@ -71,7 +72,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
         var server = new Server(
                 plugin.getServer()::getOfflinePlayer,
                 failure -> failure.render(null, MessageSender.getPluginMessageSender(plugin)),
-                LocalDateTime::now);
+                Times::now);
         return new CompaniesApiImpl(repositories, server, executor);
     }
 

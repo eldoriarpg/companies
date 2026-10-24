@@ -7,6 +7,7 @@ package de.eldoria.companies.services.notifications;
 
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.data.repository.AInboxData;
+import de.eldoria.companies.util.Times;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.ScheduledExecutorService;
@@ -46,7 +47,7 @@ public final class InboxRetention {
 
     private void purgeSafely() {
         try {
-            purge(LocalDateTime.now());
+            purge(Times.now());
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "Could not delete old notifications", e);
         }

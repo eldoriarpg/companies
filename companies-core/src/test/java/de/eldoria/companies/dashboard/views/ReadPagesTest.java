@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
@@ -69,7 +70,7 @@ class ReadPagesTest {
     }
 
     private ActionResult read(UUID player, String action, String args) {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         var session = new StoredSession("session", player, "name", NODE, now, now, now, now, null, Set.of());
         var request = new ActionRequest(
                 "read",
@@ -140,7 +141,7 @@ class ReadPagesTest {
                             owner,
                             NotificationType.LEGACY,
                             NotificationArgs.create().text(NotificationArgs.LEGACY_MESSAGE, "Message " + i),
-                            LocalDateTime.now(),
+                            Times.now(),
                             InboxStatus.PENDING)
                     .join();
         }
@@ -157,7 +158,7 @@ class ReadPagesTest {
 
     @Test
     void theTreasuryLogNamesTheActorAndPages() {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         world.treasury
                 .submitCredit(miners, 1050, new TreasuryEntry(TreasuryKind.DEPOSIT, kestrel, null, null, now))
                 .join();
@@ -176,7 +177,7 @@ class ReadPagesTest {
 
     @Test
     void theApplicationsComeWithTheInvitesTheCompanySent() {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         var invited = world.player("Ivy");
         var applicant = world.player("Fern");
         world.memberships
@@ -198,7 +199,7 @@ class ReadPagesTest {
     @Test
     void theTreasuryNamesTheShareAndTheServersLimits() {
         world.companySettings.treasury().maxPayoutShare(20);
-        world.treasury.submitShare(miners, 30, kestrel, LocalDateTime.now()).join();
+        world.treasury.submitShare(miners, 30, kestrel, Times.now()).join();
         var company =
                 world.companies.retrieveCompanyById(miners).asFuture().join().orElseThrow();
         var profile = world.companies

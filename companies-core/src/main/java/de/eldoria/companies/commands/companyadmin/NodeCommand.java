@@ -15,6 +15,7 @@ import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.util.Confirmations;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.strokkur.commands.Executes;
@@ -187,7 +188,7 @@ public final class NodeCommand {
     }
 
     private static String lastSeen(Node node) {
-        return node.seen().map(SEEN::format).orElse("-");
+        return node.seen().map(seen -> SEEN.format(Times.local(seen))).orElse("-");
     }
 
     private static UUID parse(String uid) {

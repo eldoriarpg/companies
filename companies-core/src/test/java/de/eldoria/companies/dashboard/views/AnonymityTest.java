@@ -9,6 +9,7 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.Protocol;
@@ -23,7 +24,6 @@ import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
 
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -94,7 +94,7 @@ class AnonymityTest {
     }
 
     private static StoredSession session(UUID player) {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         return new StoredSession("session", player, "name", NODE, now, now, now, now, null, Set.of());
     }
 

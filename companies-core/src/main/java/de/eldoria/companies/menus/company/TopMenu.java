@@ -15,6 +15,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Colors;
 import de.eldoria.companies.util.ProfileColors;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -166,7 +167,7 @@ public final class TopMenu implements Menu<TopView> {
                 .newLine()
                 .text(
                         "<name><i18n:words.founded>: <value><founded>",
-                        Values.text("founded", FOUNDED.format(rank.founded())))
+                        Values.text("founded", FOUNDED.format(Times.local(rank.founded()))))
                 .newLine()
                 .text("<name><i18n:words.level>: <value><company_level>", Values.number("company_level", rank.level()))
                 .newLine()

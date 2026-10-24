@@ -16,9 +16,9 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.menus.company.CompanyOrderActions;
 import de.eldoria.companies.menus.company.CompanyOrderListMenu;
 import de.eldoria.companies.menus.company.CompanyOrderMenu;
+import de.eldoria.companies.util.Times;
 import org.bukkit.entity.Player;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
@@ -72,7 +72,7 @@ public final class CompanyOrderViews implements CompanyOrderActions {
                 configuration.companySettings().taxPercent(company.level()),
                 member.hasPermission(CompanyPermission.MANAGE_ORDERS),
                 services.deliveryService().matcher(),
-                LocalDateTime.now());
+                Times.now());
         services.menus().show(player, new CompanyOrderMenu(this, deps.messages(), services.economy()), model);
     }
 

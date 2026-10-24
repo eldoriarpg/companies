@@ -31,6 +31,7 @@ import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.Replacement;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -152,7 +153,7 @@ public final class SeriesService implements Listener {
                 limits::limit,
                 new InboxNotices(notifications, money),
                 settings,
-                Clock.systemDefaultZone(),
+                Times.UTC,
                 plugin.getLogger());
     }
 
@@ -231,7 +232,7 @@ public final class SeriesService implements Listener {
         int limit;
         try {
             requirePermission(owner);
-            repetition.validate(current, now.toLocalDate());
+            repetition.validate(current, Times.local(now).toLocalDate());
             limit = limits.applyAsInt(owner);
         } catch (CommandFailure failure) {
             return CompletableFuture.failedFuture(failure);

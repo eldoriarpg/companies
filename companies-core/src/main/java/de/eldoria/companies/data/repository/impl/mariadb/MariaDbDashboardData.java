@@ -71,8 +71,8 @@ public class MariaDbDashboardData extends ADashboardData {
      * @throws SQLException when the column is missing
      */
     protected @Nullable LocalDateTime readTime(Row row, String column) throws SQLException {
-        var timestamp = row.getTimestamp(column);
-        return timestamp == null ? null : timestamp.toLocalDateTime();
+        var timestamp = row.getObject(column, LocalDateTime.class);
+        return timestamp == null ? null : timestamp;
     }
 
     /**

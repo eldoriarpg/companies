@@ -7,6 +7,7 @@ package de.eldoria.companies.services.notifications;
 
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.data.repository.AInboxData;
+import de.eldoria.companies.util.Times;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -135,7 +136,7 @@ public final class InboxPoller {
 
     private void pollSafely() {
         try {
-            poll(LocalDateTime.now());
+            poll(Times.now());
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "Could not deliver notifications from other servers", e);
         }

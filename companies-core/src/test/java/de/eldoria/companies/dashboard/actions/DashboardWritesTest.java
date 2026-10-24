@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
@@ -23,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,10 +67,10 @@ class DashboardWritesTest {
                 player,
                 "player",
                 UUID.randomUUID(),
-                LocalDateTime.now(),
-                LocalDateTime.now(),
-                LocalDateTime.now(),
-                LocalDateTime.now(),
+                Times.now(),
+                Times.now(),
+                Times.now(),
+                Times.now(),
                 null,
                 Set.of());
         return world.writes.perform(
@@ -212,12 +212,7 @@ class DashboardWritesTest {
     @Test
     void theInboxIsReadClearedAndMuted() {
         world.inbox
-                .submit(
-                        owner,
-                        NotificationType.PAYMENT,
-                        NotificationArgs.create(),
-                        LocalDateTime.now(),
-                        InboxStatus.PENDING)
+                .submit(owner, NotificationType.PAYMENT, NotificationArgs.create(), Times.now(), InboxStatus.PENDING)
                 .join();
 
         var read = perform(owner, Actions.INBOX_READ_ALL, "{}");

@@ -19,13 +19,13 @@ import de.eldoria.companies.menus.company.MemberMenu;
 import de.eldoria.companies.menus.company.MemberSorting;
 import de.eldoria.companies.menus.company.MemberView;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -197,7 +197,7 @@ public final class MemberCommand {
     private CompletableFuture<MemberView> contributions(MemberView view, int company) {
         if (!view.showPermissions()) return CompletableFuture.completedFuture(view);
         var stats = deps.information().stats();
-        var since = TimeRange.LAST_30_DAYS.start(LocalDateTime.now()).orElseThrow();
+        var since = Times.start(TimeRange.LAST_30_DAYS, Times.now()).orElseThrow();
         return stats.retrieveMemberStats(company, null)
                 .thenCombine(stats.retrieveMemberStats(company, since), MemberContributions::of)
                 .thenApply(view::withContributions);

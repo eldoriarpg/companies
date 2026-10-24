@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
+import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.eldoria.companies.components.company.CompanyPermission;
@@ -13,16 +14,19 @@ import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ConstraintViolations;
+import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
 import de.eldoria.companies.data.wrapper.company.DetailsResult;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 import org.intellij.lang.annotations.Language;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -204,15 +208,22 @@ public class MariaDbCompanyData extends ACompanyData {
         return DetailsResult.FAILED;
     }
 
+    /**
+     * @return how a time is bound, so it compares with the dialect's time columns
+     */
+    protected Adapter<LocalDateTime> time() {
+        return TimeColumns.TIMESTAMP;
+    }
+
     @Override
     protected Integer createCompany(String name, JoinMode joinMode) {
         @Language("mariadb")
         var query = """
-                INSERT INTO companies(name, join_mode)
-                VALUES (?, ?)
+                INSERT INTO companies(name, join_mode, founded)
+                VALUES (?, ?, ?)
                 RETURNING id""";
         return query(query)
-                .single(call().bind(name).bind(joinMode.id()))
+                .single(call().bind(name).bind(joinMode.id()).bind(Times.now(), time()))
                 .map(rs -> rs.getInt(1))
                 .first()
                 .get();
@@ -223,7 +234,7 @@ public class MariaDbCompanyData extends ACompanyData {
         return new SimpleCompany(
                 rs.getInt("id"),
                 rs.getString("name"),
-                rs.getTimestamp("founded").toLocalDateTime(),
+                rs.getObject("founded", LocalDateTime.class),
                 rs.getInt("level"),
                 parseDetails(rs));
     }
@@ -354,7 +365,7 @@ public class MariaDbCompanyData extends ACompanyData {
         return new CompanyStats(
                 rs.getInt("id"),
                 rs.getString("name"),
-                rs.getTimestamp("founded").toLocalDateTime(),
+                rs.getObject("founded", LocalDateTime.class),
                 rs.getInt("member_count"),
                 rs.getInt("order_count"),
                 rs.getDouble("price"),

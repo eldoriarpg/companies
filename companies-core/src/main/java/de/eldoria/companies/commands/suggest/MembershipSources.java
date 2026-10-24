@@ -13,9 +13,9 @@ import de.eldoria.companies.data.wrapper.company.Application;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.Invite;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Bukkit;
 
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -144,7 +144,7 @@ public final class MembershipSources {
         }
 
         private static PlayerMembership load(ACompanyData companyData, AMembershipData membershipData, UUID player) {
-            var now = LocalDateTime.now();
+            var now = Times.now();
             var inviting = membershipData.retrieveInvitesOf(player, now).join().stream()
                     .map(Invite::companyName)
                     .toList();

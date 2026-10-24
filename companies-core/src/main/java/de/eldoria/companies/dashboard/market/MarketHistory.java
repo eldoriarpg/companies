@@ -15,7 +15,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -78,10 +80,7 @@ public final class MarketHistory {
                     complete);
             for (var day = from; !day.isAfter(today); day = day.plusDays(1)) {
                 var entries = sources.history()
-                        .retrieveCompanyEntries(
-                                HistoryOutcome.DELIVERED,
-                                day.atStartOfDay(),
-                                day.plusDays(1).atStartOfDay())
+                        .retrieveCompanyEntries(HistoryOutcome.DELIVERED, utcStart(day), utcStart(day.plusDays(1)))
                         .join();
                 if (!sources.data().saveMarketDay(day, aggregate(day, entries))) {
                     sources.logger().warning("Could not store the market history of " + day + ".");
@@ -98,6 +97,12 @@ public final class MarketHistory {
         }
     }
 
+    private LocalDateTime utcStart(LocalDate day) {
+        return day.atStartOfDay(sources.zone().get())
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
+    }
+
     private static LocalDate latest(LocalDate first, LocalDate... others) {
         var latest = first;
         for (var other : others) if (other.isAfter(latest)) latest = other;
@@ -108,7 +113,7 @@ public final class MarketHistory {
      * @return today in the server's time zone
      */
     public LocalDate today() {
-        return LocalDate.now(sources.clock().withZone(sources.zone()));
+        return LocalDate.now(sources.clock().withZone(sources.zone().get()));
     }
 
     /**
@@ -211,7 +216,7 @@ public final class MarketHistory {
      * @param history          the order history the days are computed from
      * @param settings         the retention and the orders a price needs
      * @param orderHistoryDays how many days the order history is kept, after which its entries are purged
-     * @param zone             the server's time zone, which decides where a day ends
+     * @param zone             the server's time zone, which decides where a day ends; stored times are UTC
      * @param clock            the clock
      * @param logger           logs failed runs
      */
@@ -220,7 +225,7 @@ public final class MarketHistory {
             AHistoryData history,
             Supplier<MarketSettings> settings,
             Supplier<Integer> orderHistoryDays,
-            ZoneId zone,
+            Supplier<ZoneId> zone,
             Clock clock,
             Logger logger) {}
 

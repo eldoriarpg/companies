@@ -14,8 +14,8 @@ import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.util.Times;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -67,7 +67,7 @@ public final class NodeConnection {
         messaging.start(
                 new NodeMessaging.Node(
                         parts.primary(),
-                        player -> inbox.deliver(player, LocalDateTime.now()),
+                        player -> inbox.deliver(player, Times.now()),
                         parts.configSynced(),
                         () -> {
                             inbox.reschedule();

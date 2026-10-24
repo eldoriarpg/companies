@@ -8,10 +8,14 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.elements.ordersettings.RepeatingSettings;
 import de.eldoria.companies.data.wrapper.series.RepeatInterval;
+import de.eldoria.companies.util.Times;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -20,6 +24,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RepetitionTest {
+    @BeforeEach
+    void useServerZone() {
+        Times.useZone(() -> ZoneId.of("Europe/Berlin"));
+    }
+
+    @AfterEach
+    void useMachineZone() {
+        Times.useZone(Times::machineZone);
+    }
+
     private static final LocalDate TODAY = LocalDate.of(2026, 6, 1);
 
     private final RepeatingSettings settings = new RepeatingSettings();
@@ -83,10 +97,10 @@ class RepetitionTest {
     }
 
     @Test
-    void anEndDateIncludesItsWholeDay() {
+    void anEndDateIncludesItsWholeDayInTheServersZone() {
         var repetition = Repetition.until(RepeatInterval.DAILY, TODAY);
 
-        assertEquals(Optional.of(LocalDateTime.of(2026, 6, 1, 23, 59, 59)), repetition.ends());
+        assertEquals(Optional.of(LocalDateTime.of(2026, 6, 1, 21, 59, 59)), repetition.ends());
         assertEquals(Optional.empty(), Repetition.times(RepeatInterval.DAILY, 3).ends());
     }
 

@@ -23,6 +23,7 @@ import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import org.bukkit.OfflinePlayer;
@@ -36,7 +37,6 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -117,9 +117,7 @@ class DisbandServiceTest {
         if (treasuryCents > 0) {
             treasuryData
                     .submitCredit(
-                            id,
-                            treasuryCents,
-                            new TreasuryEntry(TreasuryKind.DEPOSIT, owner, null, null, LocalDateTime.now()))
+                            id, treasuryCents, new TreasuryEntry(TreasuryKind.DEPOSIT, owner, null, null, Times.now()))
                     .join();
         }
         return companyData

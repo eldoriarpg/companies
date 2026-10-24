@@ -9,7 +9,6 @@ import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
 
 import java.sql.PreparedStatement;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
 
@@ -18,10 +17,11 @@ import java.time.LocalDateTime;
  */
 public final class TimeColumns {
     /**
-     * Binds a time as SQL timestamp, for MariaDB and PostgreSQL.
+     * Binds a time as it is, for MariaDB and PostgreSQL; unlike {@link java.sql.Timestamp} it never passes through the
+     * machine's zone, so a stored UTC time in that zone's summer time gap is not moved.
      */
     public static final Adapter<LocalDateTime> TIMESTAMP =
-            Adapter.create(PreparedStatement::setTimestamp, Types.TIMESTAMP, Timestamp::valueOf);
+            Adapter.create(PreparedStatement::setObject, Types.TIMESTAMP, time -> time);
 
     /**
      * Binds a time as text in the format of SQLite's {@code CURRENT_TIMESTAMP}, so it compares correctly as string.

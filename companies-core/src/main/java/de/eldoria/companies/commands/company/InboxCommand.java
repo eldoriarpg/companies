@@ -17,6 +17,7 @@ import de.eldoria.companies.menus.company.InboxMenu;
 import de.eldoria.companies.menus.company.InboxSettingsMenu;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationCategory;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.strokkur.commands.Executes;
@@ -25,7 +26,6 @@ import net.strokkur.commands.arguments.IntArg;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -78,7 +78,7 @@ public final class InboxCommand {
     @Executes("read")
     public void readAll(CommandSender sender) {
         var player = Senders.player(sender);
-        reply(player, inbox().readAll(player.getUniqueId(), LocalDateTime.now()).thenApply(InboxCommand::markedRead));
+        reply(player, inbox().readAll(player.getUniqueId(), Times.now()).thenApply(InboxCommand::markedRead));
     }
 
     /**
@@ -134,7 +134,7 @@ public final class InboxCommand {
     public void show(Player player, int page, Optional<MenuText> notice) {
         var services = deps.services();
         var menu = new InboxMenu(deps.messages(), services.notificationService().renderer(), new InboxButtons());
-        inbox().page(player.getUniqueId(), page, LocalDateTime.now())
+        inbox().page(player.getUniqueId(), page, Times.now())
                 .thenAccept(shown -> services.menus().show(player, menu, new InboxMenu.Model(shown, notice)))
                 .exceptionally(this::log);
     }
@@ -205,7 +205,7 @@ public final class InboxCommand {
 
         @Override
         public void readAll(Player player) {
-            inbox().readAll(player.getUniqueId(), LocalDateTime.now())
+            inbox().readAll(player.getUniqueId(), Times.now())
                     .thenAccept(count -> show(player, 1, Optional.of(markedRead(count))))
                     .exceptionally(InboxCommand.this::log);
         }

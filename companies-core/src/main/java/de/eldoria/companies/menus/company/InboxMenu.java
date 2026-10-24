@@ -14,6 +14,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.notifications.InboxPage;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -113,10 +114,10 @@ public final class InboxMenu implements Menu<InboxMenu.Model> {
         var days = 0;
         for (var i = 0; i < entries.size(); i++) {
             var entry = entries.get(i);
-            var date = entry.created().toLocalDate();
+            var date = Times.local(entry.created()).toLocalDate();
             if (!date.equals(day)) {
                 if (day != null) text.newLine();
-                text.append(dayHeader(date, page.now().toLocalDate(), days++));
+                text.append(dayHeader(date, Times.local(page.now()).toLocalDate(), days++));
                 day = date;
             }
             text.newLine().append(entry(components, i, entry));
@@ -131,7 +132,7 @@ public final class InboxMenu implements Menu<InboxMenu.Model> {
         return MenuText.create()
                 .text(
                         "  <name><" + time + "></name> " + marker + "<" + message + ">",
-                        Values.text(time, TIME_FORMATTER.format(entry.created())),
+                        Values.text(time, TIME_FORMATTER.format(Times.local(entry.created()))),
                         Values.component(message, components.of(renderer.message(entry.type(), entry.args()))));
     }
 

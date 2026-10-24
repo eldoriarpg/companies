@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterAll;
@@ -30,7 +31,6 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.time.Instant;
 import java.time.InstantSource;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -46,7 +46,7 @@ class DiscordListenerTest {
     private static final String COMPANY_NAME = "Acme Holdings";
     private static final UUID OWNER = UUID.fromString("00000000-0000-0000-0000-00000000a11c");
     private static final CompanyProfile COMPANY =
-            new CompanyProfile(77, COMPANY_NAME, LocalDateTime.now(), 2, CompanyDetails.NONE, List.of());
+            new CompanyProfile(77, COMPANY_NAME, Times.now(), 2, CompanyDetails.NONE, List.of());
 
     private static ServerMock server;
 
@@ -83,9 +83,9 @@ class DiscordListenerTest {
                 12,
                 OWNER,
                 "Iron please",
-                LocalDateTime.now(),
+                Times.now(),
                 COMPANY.id(),
-                LocalDateTime.now(),
+                Times.now(),
                 OrderState.DELIVERED,
                 5.0,
                 0,

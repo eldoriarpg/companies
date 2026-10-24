@@ -38,8 +38,8 @@ days. To give an ordering, also give the page. To give a range, also give the or
 
 Some things to know:
 
-- The 30 and 7 day ranges are rolling. They always end now, so `7d` on a Wednesday covers the time since last
-  Wednesday.
+- The 30 and 7 day ranges count whole days: `7d` is today and the six days before, from midnight in the server's
+  time zone. They move on at midnight.
 - Only companies that were active in a range are ranked in it. If your company did nothing in the last 7 days, you
   see a dash instead of a place.
 - Members and level are always the current values. The range only decides which companies are ranked.

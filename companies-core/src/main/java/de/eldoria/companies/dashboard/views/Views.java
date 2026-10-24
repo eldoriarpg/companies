@@ -617,7 +617,7 @@ public final class Views {
     }
 
     /**
-     * A time of the plugin's data, which is in the server's time zone.
+     * A time of the plugin's data, which is stored in UTC.
      *
      * @param time the time
      * @return the instant

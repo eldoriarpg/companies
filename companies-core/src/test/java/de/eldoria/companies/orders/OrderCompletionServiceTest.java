@@ -21,6 +21,7 @@ import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.EventHandler;
@@ -34,7 +35,6 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OrderCompletionServiceTest {
     private static final int COMPANY = 4;
     private static final CompanyProfile PROFILE =
-            new CompanyProfile(COMPANY, "Acme", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of());
+            new CompanyProfile(COMPANY, "Acme", Times.now(), 1, CompanyDetails.NONE, List.of());
 
     private final UUID alice = UUID.randomUUID();
     private final UUID bob = UUID.randomUUID();

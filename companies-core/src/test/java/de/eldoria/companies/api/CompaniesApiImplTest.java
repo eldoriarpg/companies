@@ -37,6 +37,7 @@ import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -178,8 +179,7 @@ class CompaniesApiImplTest {
     @Test
     void treasuryIsReadForKnownCompaniesOnly() throws Exception {
         treasuryData
-                .submitCredit(
-                        miners, 1234, new TreasuryEntry(TreasuryKind.DEPOSIT, null, null, null, LocalDateTime.now()))
+                .submitCredit(miners, 1234, new TreasuryEntry(TreasuryKind.DEPOSIT, null, null, null, Times.now()))
                 .join();
 
         var treasury = api.companies().treasury(miners).get(5, TimeUnit.SECONDS).orElseThrow();

@@ -9,6 +9,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterAll;
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,9 +37,9 @@ class CompanyOrderProvidersTest {
                 id,
                 UUID.randomUUID(),
                 "order " + id,
-                LocalDateTime.now(),
+                Times.now(),
                 1,
-                LocalDateTime.now(),
+                Times.now(),
                 OrderState.CLAIMED,
                 0.0,
                 0,

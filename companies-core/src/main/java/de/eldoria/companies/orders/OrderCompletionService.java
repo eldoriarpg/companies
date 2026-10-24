@@ -20,6 +20,7 @@ import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Cancellable;
@@ -151,7 +152,7 @@ public final class OrderCompletionService {
                 treasury,
                 level -> configuration.companySettings().taxPercent(level),
                 () -> configuration.orderSetting().solo().taxPercent(),
-                Clock.systemDefaultZone(),
+                Times.UTC,
                 Threading.VIRTUAL);
     }
 

@@ -11,6 +11,7 @@ import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Money;
+import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
 
 import java.time.format.DateTimeFormatter;
@@ -67,7 +68,7 @@ public final class TreasuryTexts {
                 .text(
                         "<inactive><" + time + "></inactive> <name><i18n:"
                                 + entry.kind().translationKey() + "></name>",
-                        Values.text(time, TIME.format(entry.created())));
+                        Values.text(time, TIME.format(Times.local(entry.created()))));
         if (entry.kind() != TreasuryKind.SHARE_CHANGED) {
             var amount = Keys.of(key, "amount");
             var balance = Keys.of(key, "balance");

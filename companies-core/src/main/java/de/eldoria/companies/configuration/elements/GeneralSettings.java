@@ -9,6 +9,10 @@ import com.fasterxml.jackson.annotation.JsonSetter;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
 import de.eldoria.companies.configuration.elements.generalsettings.UpdateSettings;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
+import java.util.Optional;
+
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor", "CanBeFinal"})
 public class GeneralSettings {
     private String language = "en_US";
@@ -17,6 +21,7 @@ public class GeneralSettings {
     private boolean messageBlocking = true;
     private Hooks hooks = new Hooks();
     private int historyDays = 90;
+    private String timezone = "";
 
     public GeneralSettings() {}
 
@@ -47,6 +52,29 @@ public class GeneralSettings {
      */
     public int historyDays() {
         return Math.max(1, historyDays);
+    }
+
+    /**
+     * The server's time zone, an IANA name such as {@code Europe/Berlin}. It decides how times are shown and where a
+     * day starts; stored times are UTC either way. Empty uses the machine's zone.
+     *
+     * @return the zone, empty when none is set or the name is no zone
+     */
+    public Optional<ZoneId> timezone() {
+        if (timezone == null || timezone.isBlank()) return Optional.empty();
+        try {
+            return Optional.of(ZoneId.of(timezone.strip()));
+        } catch (DateTimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * @return the configured name of the zone when it names no zone, for a warning
+     */
+    public Optional<String> invalidTimezone() {
+        if (timezone == null || timezone.isBlank() || timezone().isPresent()) return Optional.empty();
+        return Optional.of(timezone);
     }
 
     /**

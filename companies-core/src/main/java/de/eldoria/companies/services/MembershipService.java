@@ -33,6 +33,7 @@ import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.AsyncEvents;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.OfflinePlayer;
@@ -148,7 +149,7 @@ public final class MembershipService {
                 notifications::send,
                 Events.bukkit(plugin),
                 plugin.getServer()::getOfflinePlayer,
-                LocalDateTime::now,
+                Times::now,
                 executor,
                 plugin.getLogger());
     }

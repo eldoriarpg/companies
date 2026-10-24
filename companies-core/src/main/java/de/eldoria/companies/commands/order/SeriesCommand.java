@@ -19,12 +19,12 @@ import de.eldoria.companies.menus.order.SeriesActions;
 import de.eldoria.companies.menus.order.SeriesInfoMenu;
 import de.eldoria.companies.menus.order.SeriesListMenu;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -128,7 +128,7 @@ public final class SeriesCommand implements SeriesActions {
         load(player, id, series -> {
             var services = deps.services();
             var fee = deps.configuration().orderSetting().fee();
-            var model = SeriesInfoMenu.Model.of(series, fee::of, LocalDateTime.now());
+            var model = SeriesInfoMenu.Model.of(series, fee::of, Times.now());
             services.menus().show(player, new SeriesInfoMenu(this, deps.messages(), services.economy()), model);
         });
     }
@@ -173,7 +173,7 @@ public final class SeriesCommand implements SeriesActions {
 
     private void show(Player player, List<OrderSeries> series) {
         var menu = new SeriesListMenu(this, deps.messages());
-        deps.services().menus().show(player, menu, SeriesListMenu.Model.of(series, LocalDateTime.now()));
+        deps.services().menus().show(player, menu, SeriesListMenu.Model.of(series, Times.now()));
     }
 
     private void load(Player player, int id, Consumer<OrderSeries> action) {

@@ -10,9 +10,9 @@ import de.eldoria.companies.data.wrapper.series.RepeatInterval;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.Repetition;
+import de.eldoria.companies.util.Times;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -38,7 +38,8 @@ public final class RepetitionTexts {
      * @return interval and end
      */
     public static MenuText summary(OrderSeries series) {
-        return summary(series.interval(), series.maxCopies(), series.ends().map(LocalDateTime::toLocalDate));
+        return summary(series.interval(), series.maxCopies(), series.ends().map(end -> Times.local(end)
+                .toLocalDate()));
     }
 
     /**

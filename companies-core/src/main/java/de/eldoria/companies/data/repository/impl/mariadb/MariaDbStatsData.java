@@ -15,6 +15,7 @@ import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.stats.MemberStats;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
+import de.eldoria.companies.util.Times;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
 
@@ -101,7 +102,7 @@ public class MariaDbStatsData extends AStatsData {
      * @throws SQLException when the column is missing
      */
     protected LocalDateTime readTime(Row row, String column) throws SQLException {
-        return row.getTimestamp(column).toLocalDateTime();
+        return row.getObject(column, LocalDateTime.class);
     }
 
     @Override
@@ -219,7 +220,7 @@ public class MariaDbStatsData extends AStatsData {
     }
 
     private Call sourceCall(TimeRange range, LocalDateTime now) {
-        var start = range.start(now);
+        var start = Times.start(range, now);
         return start.isPresent() ? call().bind(start.get(), time()) : call();
     }
 

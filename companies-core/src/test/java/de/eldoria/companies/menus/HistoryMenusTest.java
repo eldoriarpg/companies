@@ -11,6 +11,7 @@ import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
 import de.eldoria.companies.menus.order.OrderFixtures;
 import de.eldoria.companies.util.StyledMessageSender;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -28,6 +29,7 @@ import org.mockbukkit.mockbukkit.entity.PlayerMock;
 
 import java.lang.reflect.Proxy;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +39,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HistoryMenusTest {
+    @BeforeEach
+    void useServerZone() {
+        Times.useZone(() -> ZoneOffset.UTC);
+    }
+
+    @AfterEach
+    void useMachineZone() {
+        Times.useZone(Times::machineZone);
+    }
+
     private static final LocalDateTime PLACED = LocalDateTime.of(2026, 3, 1, 10, 0);
     private static final LocalDateTime FINISHED = LocalDateTime.of(2026, 3, 2, 18, 30);
 
