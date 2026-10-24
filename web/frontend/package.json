@@ -46,7 +46,7 @@
     "eslint": "^9.39.5",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-vuejs-accessibility": "^2.6.2",
-    "happy-dom": "^20.14.6",
+    "happy-dom": "^21.0.4",
     "jiti": "^2.7.0",
     "jscpd": "^5.4.1",
     "json-schema-to-typescript": "^16.0.0",
