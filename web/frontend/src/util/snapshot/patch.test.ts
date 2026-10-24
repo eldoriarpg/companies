@@ -68,6 +68,11 @@ describe('applying a patch', () => {
 
 /** Which parts of the snapshot this version knows. */
 describe('the known parts', () => {
+    it('knows every part of the snapshot besides its envelope, as the gateway does', () => {
+        const envelope = new Set(['type', 'id', 'v', 'session', 'node', 'seq'])
+        for (const field of Object.keys(snapshot()).filter(name => !envelope.has(name))) expect(knownRoot({path: field})).toBe(true)
+    })
+
     it('knows the parts of the snapshot and nothing else', () => {
         for (const path of ['player.unreadInbox', 'company', 'company.members', 'orders', 'rankings']) expect(knownRoot({path})).toBe(true)
         for (const path of ['alerts', 'market.top', '']) expect(knownRoot({path})).toBe(false)

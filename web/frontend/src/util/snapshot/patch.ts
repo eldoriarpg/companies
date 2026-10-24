@@ -5,8 +5,17 @@
  */
 import type {Patch, Snapshot} from '~/api/generated/protocol'
 
-/** The parts of the snapshot this version knows, as the gateway's patch applier knows them. */
-const ROOTS: ReadonlySet<string> = new Set(['player', 'company', 'orders', 'rankings'])
+/** The fields of a snapshot that belong to its envelope rather than to what it shows. */
+type Envelope = 'type' | 'id' | 'v' | 'session' | 'node' | 'seq'
+
+/** A part of the snapshot a patch can change. */
+export type SnapshotRoot = Exclude<keyof Snapshot, Envelope>
+
+/**
+ * The parts of the snapshot this version knows, as the gateway's patch applier knows them: every field of the
+ * generated `Snapshot` besides its envelope. The type check fails when the protocol adds a part and this is not told.
+ */
+const ROOTS: ReadonlySet<string> = new Set(Object.keys({player: true, company: true, orders: true, rankings: true} satisfies Record<SnapshotRoot, true>))
 
 /** The fields that tell the entries of a list apart, in the order they are tried, as the gateway tries them. */
 const KEY_FIELDS = ['id', 'uuid', 'key'] as const
