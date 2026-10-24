@@ -123,7 +123,10 @@ export interface OrderSearchArgs {
     pageSize: number
 }
 
-/** An open order as the order book shows it. The owner is never part of it. */
+/**
+ * An order as the plugin's read actions send it (`OrderSummary`). Neither its owner nor the company or worker on it are
+ * ever part of it.
+ */
 export interface OrderListing {
     id: number
     name: string
@@ -132,8 +135,16 @@ export interface OrderListing {
     created: string
     /** When an accepted order has to be done; none (or null) for an open order. */
     deadline?: string | null
-    /** When an open order expires unless a company accepts it. */
+    /** When an open order expires unless a company accepts it; none once claimed. */
     expires?: string | null
+    /** What all lines pay together. */
+    price?: number
+    /** How many items all lines ask for. */
+    amount?: number
+    /** When it was claimed, for the company working on it. */
+    claimed?: string | null
+    /** Items delivered and waiting for the owner, for the owner of a delivered order. */
+    waiting?: ItemView[] | null
 }
 
 /** A page of the order book. */
@@ -142,6 +153,12 @@ export interface OrderSearchPage {
     pages: number
     /** How many orders match in total, where the plugin counts them. */
     total?: number
+    /** The tax taken from payments, 5 meaning 5 %. */
+    taxPercent?: number
+    /** Whether the player may accept orders, for the company or alone. */
+    canAccept?: boolean
+    /** Whether the company or the player works on as many orders as allowed. */
+    limitReached?: boolean
     orders: OrderListing[]
 }
 
@@ -150,6 +167,8 @@ export interface InboxEntryView {
     id: number
     /** The kind of notification, an open set such as `ORDER_ACCEPTED`. */
     type: string
+    /** The category the notification is muted by. */
+    category?: string
     created: string
     read: boolean
     /** The message as the plugin renders it in the player's language, plain text. */
@@ -160,6 +179,7 @@ export interface InboxEntryView {
 export interface InboxPage {
     page: number
     pages: number
+    total?: number
     entries: InboxEntryView[]
 }
 
@@ -171,6 +191,8 @@ export interface MarketItemView {
     max?: number
     /** Items ordered over the period, where known. */
     volume?: number
+    /** How many orders the statistics stand on. */
+    orders?: number
     /** The change of the average over the period in percent, once price history exists. */
     change?: number
 }
@@ -179,6 +201,7 @@ export interface MarketItemView {
 export interface MarketPage {
     page: number
     pages: number
+    total?: number
     items: MarketItemView[]
 }
 
