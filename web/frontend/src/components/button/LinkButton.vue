@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
 /** A button that reads as a link in running text, such as the name of an order in a table that opens its details. */

@@ -2,7 +2,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 /**
  * Writes the TypeScript types of the dashboard protocol, `src/api/generated/protocol.ts`, from the protocol's JSON
@@ -26,7 +26,7 @@ export const PROTOCOL_TARGET = join(SRC, 'api', 'generated', 'protocol.ts')
 const LICENSE = `/*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */`
 
 /**

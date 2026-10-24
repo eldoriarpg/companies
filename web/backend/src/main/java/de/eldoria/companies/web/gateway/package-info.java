@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 /**
  * The dashboard gateway: relays between the Companies nodes and the browsers of the web dashboard. See

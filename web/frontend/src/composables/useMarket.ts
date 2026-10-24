@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 import {watchDebounced} from '@vueuse/core'
 import {gatewayApi, type GatewayApi, type MarketItemView} from '~/api/gateway'

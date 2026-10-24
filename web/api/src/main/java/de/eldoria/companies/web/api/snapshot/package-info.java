@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 /**
  * The snapshot of a session and the views it is made of. Views carry only what the player may see in game; items

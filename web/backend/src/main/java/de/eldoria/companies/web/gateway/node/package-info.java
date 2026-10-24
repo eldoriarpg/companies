@@ -1,7 +1,7 @@
 /*
  *     SPDX-License-Identifier: AGPL-3.0-only
  *
- *     Copyright (C EldoriaRPG Team and Contributor
+ *     Copyright (C) EldoriaRPG Team and Contributor
  */
 /**
  * The nodes' websocket: handshake, authentication with Lyna keys or server tokens, routing of requests to the
