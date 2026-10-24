@@ -37,4 +37,12 @@ test.describe('node connection', () => {
         socket.send('bye')
         expect(await closed).toBe(4409)
     })
+
+    test('closes a node that sends more than 4 MB at once', async ({baseURL}, info) => {
+        test.skip(info.project.name !== 'chromium', 'no browser involved')
+        const {socket, messages, closed} = await connect(baseURL as string)
+        socket.send('x'.repeat(5 * 1024 * 1024))
+        expect(await closed).toBe(1009)
+        expect(messages).toEqual([])
+    })
 })
