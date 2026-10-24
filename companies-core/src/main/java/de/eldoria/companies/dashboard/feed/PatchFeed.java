@@ -52,7 +52,10 @@ import java.util.logging.Logger;
  * {@code rankings} are replaced as a whole per viewer ({@code company} is removed when the player
  * has none); {@code player.unreadInbox} and {@code company.treasury} are replaced.
  * <p>
- * A session is only sent patches below {@code company} once it was sent the whole {@code company} of the same id.
+ * A session is only sent patches below {@code company} once it was sent the whole {@code company} of the same id. The
+ * gateway only refuses such patches for a snapshot without a company, so this ordering and the membership read with
+ * each change are what keep a session to its own company. Only the company patches correct the company a subscription
+ * remembers.
  * <p>
  * Patches are built one after another on the given executor, so a later change never overtakes an earlier one.
  */
@@ -302,12 +305,11 @@ public final class PatchFeed {
             Map<Integer, Optional<RankingEntry>> own = new HashMap<>();
             Map<UUID, Integer> companies = new HashMap<>();
             for (var subscriber : List.copyOf(subscribers.values())) {
-                subscriber.company = companies.computeIfAbsent(subscriber.player, player -> views.companyOf(player)
+                int company = companies.computeIfAbsent(subscriber.player, player -> views.companyOf(player)
                         .map(ICompanyProfile::id)
                         .orElse(0));
-                var place = subscriber.company > 0
-                        ? own.computeIfAbsent(
-                                subscriber.company, id -> views.rank(Views.DEFAULT_RANKING, Views.DEFAULT_RANGE, id))
+                var place = company > 0
+                        ? own.computeIfAbsent(company, id -> views.rank(Views.DEFAULT_RANKING, Views.DEFAULT_RANGE, id))
                         : Optional.<RankingEntry>empty();
                 emit(
                         List.of(subscriber.session),
@@ -384,8 +386,8 @@ public final class PatchFeed {
 
     /**
      * Sends a session the whole company and player before any patch below {@code company}, when it joined a company
-     * this node did not know it was in. The gateway applies {@code company.*} patches only to a snapshot of the same
-     * company.
+     * this node did not know it was in. The gateway applies {@code company.*} patches only to a snapshot that has a
+     * company, and does not check which one.
      *
      * @param subscriber the session
      * @param company    its company now
