@@ -41,6 +41,26 @@ public final class PatchApplier {
     private PatchApplier() {}
 
     /**
+     * Whether a patch into the company belongs to another company than the snapshot's: its path is below
+     * {@code company.} and its value names a {@code company} other than the snapshot's {@code company.id}, or the
+     * snapshot has no company to patch. Such a patch is never applied; the snapshot is loaded again instead.
+     *
+     * @param snapshot the snapshot
+     * @param patch the patch
+     * @return whether the patch must not be applied to this snapshot
+     */
+    public static boolean foreignCompany(ObjectNode snapshot, Patch patch) {
+        String path = patch.path();
+        if (path == null || !path.startsWith("company.")) return false;
+        JsonNode own = snapshot.path("company").path("id");
+        if (!own.isNumber()) return true;
+        JsonNode value = patch.value();
+        if (value == null) return false;
+        JsonNode named = value.path("company");
+        return named.isNumber() && named.asLong() != own.asLong();
+    }
+
+    /**
      * @param patch a patch
      * @return whether it changes a part of the snapshot this version knows, such as {@code company}
      */

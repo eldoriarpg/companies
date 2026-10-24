@@ -80,6 +80,20 @@ class PatchApplierTest {
     }
 
     @Test
+    void recognisesPatchesOfAnotherCompany() {
+        ObjectNode snapshot = snapshot();
+        snapshot.withObject("company").put("id", 7);
+        assertFalse(PatchApplier.foreignCompany(
+                snapshot, patch("company.orders", PatchOp.UPSERT, "1", "{\"id\":1,\"company\":7}")));
+        assertTrue(PatchApplier.foreignCompany(
+                snapshot, patch("company.orders", PatchOp.UPSERT, "1", "{\"id\":1,\"company\":8}")));
+        assertFalse(PatchApplier.foreignCompany(snapshot, patch("company.members", PatchOp.REMOVE, "a", null)));
+        assertFalse(PatchApplier.foreignCompany(snapshot, patch("company", PatchOp.REPLACE, null, "{\"id\":8}")));
+        snapshot.remove("company");
+        assertTrue(PatchApplier.foreignCompany(snapshot, patch("company.members", PatchOp.REMOVE, "a", null)));
+    }
+
+    @Test
     void refusesWhatDoesNotFit() {
         ObjectNode snapshot = snapshot();
         snapshot.remove("company");

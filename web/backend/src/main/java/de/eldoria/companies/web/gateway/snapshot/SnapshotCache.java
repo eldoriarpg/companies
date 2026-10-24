@@ -251,6 +251,10 @@ public final class SnapshotCache {
             entry.base = Map.of(snapshot.node(), snapshot.seq());
             for (Patch patch : entry.buffered) {
                 if (!applies(entry, patch)) continue;
+                if (PatchApplier.foreignCompany(tree, patch)) {
+                    stale = true;
+                    continue;
+                }
                 try {
                     PatchApplier.apply(tree, patch);
                 } catch (PatchApplier.Unapplicable e) {
@@ -274,6 +278,11 @@ public final class SnapshotCache {
             }
             ObjectNode snapshot = entry.snapshot;
             if (snapshot == null || !applies(entry, patch)) return;
+            if (PatchApplier.foreignCompany(snapshot, patch)) {
+                log.warn("A patch of {} names another company than the session's, reloading", patch.path());
+                reload(entry);
+                return;
+            }
             try {
                 PatchApplier.apply(snapshot, patch);
             } catch (PatchApplier.Unapplicable e) {
