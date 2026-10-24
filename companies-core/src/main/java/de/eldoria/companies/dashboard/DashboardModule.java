@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.feed.FeedListener;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
 import de.eldoria.companies.dashboard.gateway.BrandingSource;
@@ -29,8 +30,13 @@ import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.CompanyOrderService;
+import de.eldoria.companies.orders.OrderAcceptService;
+import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.web.api.handshake.NodeInfo;
@@ -50,6 +56,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -130,6 +137,14 @@ public final class DashboardModule {
                         refusal,
                         names,
                         clock));
+        var writes = new DashboardWrites(new DashboardWrites.Sources(
+                data.companyOf(),
+                data.orderAccept(),
+                data.companyOrders(),
+                data.ownerOrders(),
+                data.inboxService(),
+                failure -> PlainText.of(failure.render(null, messages)),
+                clock));
         Supplier<DashboardSettings> settings = configuration::dashboardSettings;
         var handshake = new Handshake(
                 new Handshake.Identity(
@@ -164,6 +179,7 @@ public final class DashboardModule {
                 feed,
                 views,
                 reads,
+                writes,
                 new ActionLimit(ACTIONS_PER_WINDOW, ACTION_WINDOW, clock),
                 feature -> settings.get().feature(feature),
                 refusal,
@@ -236,7 +252,7 @@ public final class DashboardModule {
     }
 
     /**
-     * The plugin's repositories and services the dashboard reads.
+     * The plugin's repositories and services the dashboard reads and acts through.
      *
      * @param dashboard   the dashboard tables
      * @param api         the plugin's API
@@ -245,7 +261,12 @@ public final class DashboardModule {
      * @param inbox       inboxes
      * @param treasury    treasuries
      * @param stats       statistics and rankings
-     * @param search      the order search
+     * @param search        the order search
+     * @param companyOf     the company a player is a member of
+     * @param orderAccept   accepts orders for a company
+     * @param companyOrders aborts a company's orders
+     * @param ownerOrders   cancels, extends and raises own orders
+     * @param inboxService  reads, clears and mutes inboxes
      */
     public record Data(
             ADashboardData dashboard,
@@ -255,5 +276,10 @@ public final class DashboardModule {
             AInboxData inbox,
             ATreasuryData treasury,
             AStatsData stats,
-            SearchExecutor search) {}
+            SearchExecutor search,
+            Function<UUID, CompletableFuture<Optional<CompanyProfile>>> companyOf,
+            OrderAcceptService orderAccept,
+            CompanyOrderService companyOrders,
+            OwnerOrderService ownerOrders,
+            Inbox inboxService) {}
 }

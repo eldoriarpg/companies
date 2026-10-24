@@ -52,8 +52,8 @@ import java.util.function.Supplier;
  * it and keeps orders anonymous between owner and company. Reading the inbox does not mark it read.
  * <p>
  * Pages are asked for with {@code page} (from 1) and {@code pageSize} (at most {@value #MAX_PAGE_SIZE}) and answered
- * with {@code page}, {@code pages} and {@code total}. This version reads only: an action that changes something is
- * refused with {@code dashboard.readOnly}, one of a switched off feature with {@code dashboard.featureDisabled}, an
+ * with {@code page}, {@code pages} and {@code total}. Actions that change something are performed by
+ * {@code DashboardWrites}; one this version does not perform yet is refused here with {@code dashboard.readOnly}, one of a switched off feature with {@code dashboard.featureDisabled}, an
  * unknown or unsupported one with {@code dashboard.unsupported}. The methods block on the database and are called off
  * the main thread.
  */
@@ -79,6 +79,7 @@ public final class DashboardReads {
      */
     public static final List<String> FEATURES = List.of(
             Features.ORDERS_BROWSE,
+            Features.ORDERS_ACCEPT,
             Features.ORDERS_OWN,
             Features.COMPANY_MEMBERS,
             Features.COMPANY_APPLICATIONS,

@@ -130,6 +130,7 @@ class DashboardIntegrationTest {
                 feed,
                 world.views,
                 world.reads,
+                world.writes,
                 new ActionLimit(20, Duration.ofSeconds(10), clock),
                 feature -> true,
                 key -> "text of " + key,

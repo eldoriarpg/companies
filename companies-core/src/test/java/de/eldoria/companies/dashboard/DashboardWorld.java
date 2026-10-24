@@ -8,18 +8,22 @@ package de.eldoria.companies.dashboard;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
+import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
@@ -29,10 +33,20 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.events.EventRecorder;
+import de.eldoria.companies.orders.CompanyOrderService;
+import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.ItemMatcher;
+import de.eldoria.companies.orders.OrderAcceptService;
+import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OwnerOrderService;
+import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.util.TestExecutors;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
@@ -43,10 +57,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
@@ -68,6 +85,9 @@ public final class DashboardWorld implements AutoCloseable {
     public final CompaniesApiImpl api;
     public final Views views;
     public final DashboardReads reads;
+    public final DashboardWrites writes;
+    public final EventRecorder events = new EventRecorder();
+    public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
     public final CompanySettings companySettings = new CompanySettings();
     public final OrderSettings orderSettings = new OrderSettings();
 
@@ -123,6 +143,38 @@ public final class DashboardWorld implements AutoCloseable {
                         key -> "text of " + key,
                         this::name,
                         Clock.systemUTC()));
+        var plugin = MockBukkit.createMockPlugin();
+        var outcomes = new OrderOutcomes(
+                orders,
+                new HistoryRecorder(new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor), Clock.systemUTC()),
+                new ItemReturnService(plugin, orders),
+                events,
+                ISimpleCompany::forId,
+                Logger.getAnonymousLogger(),
+                executor);
+        writes = new DashboardWrites(new DashboardWrites.Sources(
+                player -> companies
+                        .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
+                        .asFuture(),
+                new OrderAcceptService(orders, () -> companySettings, events, uuid -> Optional.empty(), executor),
+                new CompanyOrderService(
+                        companies, orders, outcomes, events, uuid -> {}, SqLiteTestDatabase::player, executor),
+                new OwnerOrderService(
+                        orders,
+                        outcomes,
+                        id -> CompletableFuture.completedFuture(Optional.empty()),
+                        order -> CompletableFuture.completedFuture(false),
+                        () -> orderSettings,
+                        new Wallet(),
+                        amount -> {},
+                        uuid -> {},
+                        SqLiteTestDatabase::player,
+                        Runnable::run,
+                        executor,
+                        Logger.getAnonymousLogger()),
+                new Inbox(inbox, NotificationSettings::new),
+                failure -> "text of " + failure.localeKey(),
+                Clock.systemUTC()));
     }
 
     /**
@@ -232,6 +284,34 @@ public final class DashboardWorld implements AutoCloseable {
                         .bind(amount))
                 .insert();
         orders.forgetFullOrder(order.id());
+    }
+
+    /**
+     * A wallet kept in {@link #wallets}.
+     */
+    private final class Wallet implements OrderCreationService.Wallet {
+        @Override
+        public synchronized boolean withdraw(OfflinePlayer player, double amount) {
+            var current = wallets.getOrDefault(player.getUniqueId(), 0.0);
+            if (current < amount) return false;
+            wallets.put(player.getUniqueId(), current - amount);
+            return true;
+        }
+
+        @Override
+        public synchronized void deposit(OfflinePlayer player, double amount) {
+            wallets.merge(player.getUniqueId(), amount, Double::sum);
+        }
+
+        @Override
+        public String format(double amount) {
+            return String.valueOf(amount);
+        }
+
+        @Override
+        public String currencyName() {
+            return "coins";
+        }
     }
 
     @Override

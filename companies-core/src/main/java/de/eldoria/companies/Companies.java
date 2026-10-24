@@ -492,7 +492,14 @@ public class Companies extends EldoPlugin {
                         information.inbox(),
                         this.economy.treasury(),
                         information.stats(),
-                        search),
+                        search,
+                        player -> companyData
+                                .retrievePlayerCompanyProfile(getServer().getOfflinePlayer(player))
+                                .asFuture(),
+                        commands.services().orderAccept(),
+                        commands.services().companyOrders(),
+                        commands.services().ownerOrders(),
+                        commands.services().notificationService().inbox()),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
