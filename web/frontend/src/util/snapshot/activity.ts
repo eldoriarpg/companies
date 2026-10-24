@@ -1,0 +1,156 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C EldoriaRPG Team and Contributor
+ */
+import type {ClaimedOrderView, CompanyView, Patch} from '~/api/generated/protocol'
+
+/** What happened in the company. */
+export type ActivityKind = 'delivered' | 'accepted' | 'done' | 'dropped' | 'joined' | 'left' | 'level' | 'deposit' | 'withdrawal'
+
+/**
+ * One line of the company's live feed. Inside a company anonymity ends, so a delivery names the member who made it;
+ * the owner of an order is never part of a line.
+ */
+export interface ActivityEntry {
+    id: string
+    kind: ActivityKind
+    time: string
+    /** The member it was, where the patches tell. */
+    actor?: string
+    /** The order it was about. */
+    order?: string
+    /** The item delivered. */
+    item?: string
+    /** Items delivered or money moved. */
+    amount?: number
+    /** The level reached. */
+    level?: string
+}
+
+/** How long a delivery waits for its other half: the member's statistics and the order's progress come apart. */
+const PAIRING_MILLIS = 10_000
+
+/** How many lines the feed keeps. */
+export const FEED_LENGTH = 50
+
+/**
+ * The lines one patch adds to the feed, read from the company before and after it.
+ *
+ * <p>The protocol has no feed of its own, so the feed is what the patches show: a member whose delivered items rose
+ * delivered them, an order whose lines rose was delivered to, a new order was accepted, a gone one is done or dropped,
+ * a higher level was reached, a member came or went, the treasury moved.
+ *
+ * @param before the company before the patch
+ * @param after the company after it
+ * @param patch the patch
+ * @param time when it arrived
+ * @returns the new lines, without ids
+ */
+export function activityOf(before: CompanyView | undefined, after: CompanyView | undefined, patch: Patch, time: string): Omit<ActivityEntry, 'id'>[] {
+    if (!before || !after) return []
+    switch (patch.path) {
+        case 'company.members':
+            return memberActivity(before, after, patch, time)
+        case 'company.orders':
+            return orderActivity(before, after, patch, time)
+        case 'company.level':
+            return after.level.level > before.level.level ? [{kind: 'level', time, level: after.level.name}] : []
+        case 'company.treasury':
+            return treasuryActivity(before, after, time)
+        default:
+            return []
+    }
+}
+
+/**
+ * The lines of a member patch: joined, left, or delivered items.
+ *
+ * @param before the company before
+ * @param after the company after
+ * @param patch the patch
+ * @param time when it arrived
+ * @returns the lines
+ */
+function memberActivity(before: CompanyView, after: CompanyView, patch: Patch, time: string): Omit<ActivityEntry, 'id'>[] {
+    const old = before.members.find(entry => entry.uuid === patch.key)
+    const now = after.members.find(entry => entry.uuid === patch.key)
+    if (!old && now) return [{kind: 'joined', time, actor: now.name}]
+    if (old && !now) return [{kind: 'left', time, actor: old.name}]
+    const delivered = (now?.stats.items ?? 0) - (old?.stats.items ?? 0)
+    return delivered > 0 ? [{kind: 'delivered', time, actor: now?.name, amount: delivered}] : []
+}
+
+/**
+ * The lines of an order patch: accepted, delivered to, done or dropped.
+ *
+ * @param before the company before
+ * @param after the company after
+ * @param patch the patch
+ * @param time when it arrived
+ * @returns the lines
+ */
+function orderActivity(before: CompanyView, after: CompanyView, patch: Patch, time: string): Omit<ActivityEntry, 'id'>[] {
+    const old = before.orders.find(order => String(order.id) === patch.key)
+    const now = after.orders.find(order => String(order.id) === patch.key)
+    if (!old && now) return [{kind: 'accepted', time, order: now.name}]
+    if (old && !now) return [{kind: complete(old) ? 'done' : 'dropped', time, order: old.name}]
+    if (!old || !now) return []
+    return now.lines.flatMap((line, index) => {
+        const amount = line.delivered - (old.lines[index]?.delivered ?? 0)
+        return amount > 0 ? [{kind: 'delivered' as const, time, order: now.name, item: line.item.name, amount}] : []
+    })
+}
+
+/**
+ * The line of a treasury patch: money in or out.
+ *
+ * @param before the company before
+ * @param after the company after
+ * @param time when it arrived
+ * @returns the line
+ */
+function treasuryActivity(before: CompanyView, after: CompanyView, time: string): Omit<ActivityEntry, 'id'>[] {
+    const delta = (after.treasury?.balance ?? 0) - (before.treasury?.balance ?? 0)
+    if (delta === 0 || !before.treasury || !after.treasury) return []
+    return [{kind: delta > 0 ? 'deposit' : 'withdrawal', time, amount: Math.abs(delta)}]
+}
+
+/**
+ * Whether every line of an order is delivered.
+ *
+ * @param order the order
+ * @returns true when nothing is missing
+ */
+function complete(order: ClaimedOrderView): boolean {
+    return order.lines.every(line => line.delivered >= line.item.amount)
+}
+
+/**
+ * The feed with a new line on top. A delivery that arrives as its two halves, the member's statistics and the order's
+ * progress, becomes one line naming both the member and the order.
+ *
+ * @param feed the feed, newest first
+ * @param entry the new line
+ * @returns the new feed
+ */
+export function addActivity(feed: readonly ActivityEntry[], entry: ActivityEntry): ActivityEntry[] {
+    const half = entry.kind === 'delivered' ? feed.find(other => pairs(other, entry)) : undefined
+    if (!half) return [entry, ...feed].slice(0, FEED_LENGTH)
+    const merged: ActivityEntry = {...half, actor: half.actor ?? entry.actor, order: half.order ?? entry.order, item: half.item ?? entry.item}
+    return feed.map(other => (other === half ? merged : other))
+}
+
+/**
+ * Whether two delivery lines are the halves of one delivery: the same amount, close in time, one with the member and
+ * the other with the order.
+ *
+ * @param other a line of the feed
+ * @param entry the new line
+ * @returns true for two halves
+ */
+function pairs(other: ActivityEntry, entry: ActivityEntry): boolean {
+    if (other.kind !== 'delivered' || other.amount !== entry.amount) return false
+    if (Math.abs(new Date(entry.time).getTime() - new Date(other.time).getTime()) > PAIRING_MILLIS) return false
+    return (other.actor === undefined) !== (entry.actor === undefined) && (other.order === undefined) !== (entry.order === undefined)
+}
