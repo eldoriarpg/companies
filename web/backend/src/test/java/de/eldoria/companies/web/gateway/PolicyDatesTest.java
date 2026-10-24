@@ -88,10 +88,10 @@ class PolicyDatesTest {
             node.send(new Ping("p", 1, CLOCK.instant()));
             node.expect(Pong.class);
             gateway.app().sweep();
+            assertEquals(created.session(), node.expect(Unsubscribe.class).session());
             Welcome again = node.expect(Welcome.class);
             assertNull(again.id());
             assertEquals(VersionState.DISCONTINUED, again.version().status());
-            assertEquals(created.session(), node.expect(Unsubscribe.class).session());
 
             node.send(new CreateSession("c", 1, new PlayerRef(UUID.randomUUID(), "Steve"), UUID.randomUUID()));
             assertEquals(ErrorCode.DISCONTINUED, node.expect(ErrorMessage.class).code());

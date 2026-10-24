@@ -338,7 +338,8 @@ public final class NodeHub {
     /**
      * Applies the version policy again to every welcomed node, as its dates pass: a node whose state, features or
      * deprecated parts changed gets a new {@code welcome}, and a node whose version is now discontinued takes only
-     * status from then on.
+     * status from then on. Such a node is sent {@code unsubscribe} for its sessions before that welcome, as a plugin
+     * on a discontinued version accepts nothing else afterwards.
      */
     private void reevaluate(LocalDate today) {
         for (NodeLink link : List.copyOf(links.values())) {
@@ -348,6 +349,8 @@ public final class NodeHub {
             if (after.equals(before)) continue;
             boolean discontinued = after.status().status() == VersionState.DISCONTINUED;
             if (!link.reagreed(after, discontinued ? NodeLink.State.DISCONTINUED : NodeLink.State.READY)) continue;
+            boolean newlyDiscontinued = discontinued && before.status().status() != VersionState.DISCONTINUED;
+            if (newlyDiscontinued) server(after.serverId()).ifPresent(server -> events.nodeDiscontinued(server, link));
             Branding branding = before.hello().branding();
             String iconHash = branding == null ? null : branding.iconHash();
             link.send(new Welcome(
@@ -359,8 +362,6 @@ public final class NodeHub {
                     after.status(),
                     after.deprecated(),
                     iconHash != null && icons.exists(iconHash)));
-            boolean newlyDiscontinued = discontinued && before.status().status() != VersionState.DISCONTINUED;
-            if (newlyDiscontinued) server(after.serverId()).ifPresent(server -> events.nodeDiscontinued(server, link));
             log.info(
                     "The version policy moved node {} of {} to {}",
                     after.uid(),
