@@ -19,7 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The open browser streams, by session. A browser pings every 20 seconds; a stream silent for
- * {@value #IDLE_SECONDS} seconds is closed.
+ * {@value #IDLE_SECONDS} seconds is closed. Streams are expected to send without blocking, see
+ * {@link de.eldoria.companies.web.gateway.QueuedSocket}.
  */
 public final class BrowserStreams {
     /**
@@ -83,7 +84,8 @@ public final class BrowserStreams {
      * @param socketId the websocket's id
      */
     public void closed(String socketId) {
-        streams.remove(socketId);
+        Stream stream = streams.remove(socketId);
+        if (stream != null) stream.socket.close(1000, "Closed");
     }
 
     /**

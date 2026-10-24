@@ -17,6 +17,7 @@ import de.eldoria.companies.web.api.link.Ping;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.gateway.ClientAddress;
 import de.eldoria.companies.web.gateway.JettySocket;
+import de.eldoria.companies.web.gateway.QueuedSocket;
 import de.eldoria.companies.web.gateway.RateLimiter;
 import de.eldoria.companies.web.gateway.node.Icons;
 import de.eldoria.companies.web.gateway.node.LiveServer;
@@ -319,7 +320,7 @@ public final class BrowserApi {
                 ctx.closeSession(BrowserStreams.CLOSE_DISCONTINUED, "Discontinued");
                 return;
             }
-            streams.open(ctx.sessionId(), found.id(), found.serverId(), new JettySocket(ctx.session));
+            streams.open(ctx.sessionId(), found.id(), found.serverId(), new QueuedSocket(new JettySocket(ctx.session)));
             streams.reply(ctx.sessionId(), GatewayEvent.server(info));
         });
         ws.onMessage(ctx -> {
