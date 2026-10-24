@@ -169,7 +169,7 @@ public final class BrowserApi {
      * @param ctx the request
      */
     public void pending(Context ctx) {
-        if (!limits.lookups().tryAcquire(address(ctx))) throw tooMany();
+        if (!limits.lookups().tryAcquire(ClientAddress.bucket(address(ctx)))) throw tooMany();
         StoredSession session = sessions.pending(ctx.pathParam("shortId")).orElseThrow(BrowserApi::unknownSession);
         String siteKey = settings.turnstileSiteKey();
         ctx.json(new Views.Pending(
@@ -187,7 +187,7 @@ public final class BrowserApi {
      */
     public void login(Context ctx) {
         String address = address(ctx);
-        if (!limits.logins().tryAcquire(address)) throw tooMany();
+        if (!limits.logins().tryAcquire(ClientAddress.bucket(address))) throw tooMany();
         Views.LoginRequest request = body(ctx, Views.LoginRequest.class);
         String code = request.code();
         if (code == null || code.isBlank()) {

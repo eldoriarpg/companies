@@ -28,6 +28,7 @@ import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.update.Patch;
+import de.eldoria.companies.web.gateway.ClientAddress;
 import de.eldoria.companies.web.gateway.RateLimiter;
 import de.eldoria.companies.web.gateway.Socket;
 import de.eldoria.companies.web.gateway.policy.VersionPolicy;
@@ -182,7 +183,7 @@ public final class NodeHub {
     public void connect(String socketId, Socket socket, String address) {
         NodeLink link = new NodeLink(socketId, socket, address, clock.instant());
         socket.limit(HELLO_BYTES);
-        if (!connects.tryAcquire(address)) {
+        if (!connects.tryAcquire(ClientAddress.bucket(address))) {
             socket.close(CLOSE_RATE_LIMITED, "Too many connections, try again later");
             return;
         }

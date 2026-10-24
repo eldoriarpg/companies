@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,6 +70,22 @@ public final class ClientAddress {
             if (!trusts(chain.get(i))) return chain.get(i);
         }
         return chain.getFirst();
+    }
+
+    /**
+     * The key a client is rate limited by: its address, or for IPv6 its /64 network, since one host commonly holds a
+     * whole /64.
+     *
+     * @param address a client address
+     * @return the key
+     */
+    public static String bucket(String address) {
+        if (!address.contains(":")) return address;
+        return Range.address(address)
+                .map(InetAddress::getAddress)
+                .filter(bytes -> bytes.length == 16)
+                .map(bytes -> HexFormat.of().formatHex(bytes, 0, 8) + "::/64")
+                .orElse(address);
     }
 
     private boolean trusts(String address) {

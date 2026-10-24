@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ClientAddressTest {
@@ -35,6 +36,14 @@ class ClientAddressTest {
         assertEquals("198.51.100.2", CLOUDFLARE.of("198.51.100.2", null, "203.0.113.8"));
         assertEquals("198.51.100.1", CLOUDFLARE.of("172.18.0.5", "198.51.100.1", "not an address"));
         assertEquals("198.51.100.1", PRIVATE.of("172.18.0.5", "198.51.100.1", "203.0.113.8"));
+    }
+
+    @Test
+    void bucketsIpv6ByTheirNetwork() {
+        assertEquals("203.0.113.7", ClientAddress.bucket("203.0.113.7"));
+        assertEquals(ClientAddress.bucket("2001:db8:1:2::1"), ClientAddress.bucket("2001:db8:1:2:ffff::9"));
+        assertEquals("20010db800010002::/64", ClientAddress.bucket("2001:db8:1:2::1"));
+        assertNotEquals(ClientAddress.bucket("2001:db8:1:2::1"), ClientAddress.bucket("2001:db8:1:3::1"));
     }
 
     @Test
