@@ -41,6 +41,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -318,7 +319,8 @@ public final class DashboardReads {
     private Payloads.MarketPage movers(JsonNode args) {
         var items = marketItems()
                 .filter(item -> item.change() != null)
-                .sorted(Comparator.comparingDouble((Payloads.MarketItem item) -> Math.abs(item.change()))
+                .sorted(Comparator.comparingDouble(
+                                (Payloads.MarketItem item) -> Math.abs(Objects.requireNonNullElse(item.change(), 0.0)))
                         .reversed()
                         .thenComparing(item -> item.item().name()))
                 .toList();
