@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "key": "companies.language",
+      "purpose": "The language the reader picked for the dashboard, so the next visit opens in it."
+    },
+    {
+      "key": "companies.wakeLock",
+      "purpose": "Whether the reader wants the screen kept on while the home view is open, 'on' or 'off'."
+    }
+  ]
+}

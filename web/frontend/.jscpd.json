@@ -1,0 +1,8 @@
+{
+  "path": ["src"],
+  "format": ["typescript", "vue"],
+  "minLines": 10,
+  "ignore": ["**/components/**", "**/api/**", "**/i18n/**", "**/*.d.ts", "**/*.generated.ts"],
+  "reporters": ["console"],
+  "threshold": 0.6
+}
