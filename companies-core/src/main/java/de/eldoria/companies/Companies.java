@@ -532,7 +532,13 @@ public class Companies extends EldoPlugin {
                                 commands.services().profiles(),
                                 commands.services().companies(),
                                 commands.services().treasury(),
-                                () -> Money.currencyName(commands.services().economy()))),
+                                () -> Money.currencyName(commands.services().economy())),
+                        new DashboardModule.OrderServices(
+                                commands.services().orderCreation(),
+                                commands.services().series(),
+                                commands.services().savedItems(),
+                                commands.drafts()::request,
+                                () -> configuration.userSettings().maxOrders())),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

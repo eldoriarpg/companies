@@ -268,6 +268,81 @@ public final class Payloads {
             String day, int orders, long items, @Nullable Double avg) {}
 
     /**
+     * What orders can be made of on this server.
+     *
+     * @param materials    the orderable materials with what each can be given
+     * @param enchantments the enchantments with their highest survival level and those they exclude
+     * @param potions      the potion types
+     * @param dyes         the dye colours a leather item can take
+     * @param trimPatterns the armour trim patterns
+     * @param trimMaterials the armour trim materials
+     */
+    public record Catalogue(
+            List<CatalogueMaterial> materials,
+            List<CatalogueEnchantment> enchantments,
+            List<CatalogueEntry> potions,
+            List<CatalogueDye> dyes,
+            List<CatalogueEntry> trimPatterns,
+            List<CatalogueEntry> trimMaterials) {}
+
+    /**
+     * An orderable material.
+     *
+     * @param item         the material
+     * @param enchantments the keys of the enchantments it can take; every enchantment for an enchanted book
+     * @param potion       whether it takes a potion type
+     * @param dye          whether it can be dyed
+     * @param trim         whether it takes an armour trim
+     */
+    public record CatalogueMaterial(
+            ItemView item, List<String> enchantments, boolean potion, boolean dye, boolean trim) {}
+
+    /**
+     * An enchantment.
+     *
+     * @param key       its key
+     * @param name      its English name
+     * @param max       its highest level in survival
+     * @param conflicts the keys of the enchantments it excludes
+     */
+    public record CatalogueEnchantment(String key, String name, int max, List<String> conflicts) {}
+
+    /**
+     * An entry of a registry.
+     *
+     * @param key  its key
+     * @param name its English name
+     */
+    public record CatalogueEntry(String key, String name) {}
+
+    /**
+     * A dye colour.
+     *
+     * @param key   the dye's key, e.g. {@code red}
+     * @param name  the dye's display name, e.g. {@code Red}
+     * @param color the colour a leather item takes from it, as {@code #rrggbb}
+     */
+    public record CatalogueDye(String key, String name, String color) {}
+
+    /**
+     * An item the player can order again exactly.
+     *
+     * @param ref     how {@code orders.create} names it: {@code saved:<id>} or {@code earlier:<history entry>:<line>}
+     * @param label   the saved item's name, or the earlier order's name
+     * @param item    the item
+     * @param details what it carries, such as enchantments, as short lines
+     */
+    public record KnownItem(String ref, String label, ItemView item, List<String> details) {}
+
+    /**
+     * The items a player can order again exactly.
+     *
+     * @param saved   the player's saved items
+     * @param earlier the exact items of the player's earlier orders, newest first, each once
+     */
+    public record KnownItems(List<KnownItem> saved, List<KnownItem> earlier) {}
+
+    /**
      * A page of market items.
      *
      * @param page  the page, starting at 1

@@ -31,6 +31,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -98,7 +99,63 @@ public final class OrderCreationService {
      */
     public CompletableFuture<Outcome> create(
             OfflinePlayer owner, IOrderDraft draft, OrderSource source, boolean charge, boolean respectLimits) {
-        return CompletableFuture.supplyAsync(() -> prepare(owner, draft, source, respectLimits), mainThread)
+        return create(owner, draft, source, charge, respectLimits, limits::limit);
+    }
+
+    /**
+     * Creates and charges an order of a player who may be offline, against an order limit known from elsewhere, such
+     * as the permissions remembered with a dashboard session. The limits of lines and items apply as well.
+     *
+     * @param owner  player who owns the order
+     * @param draft  the order to create; listeners of the pre-event may change it
+     * @param source where the creation came from
+     * @param limit  how many active orders the player may have
+     * @return the created order or why it was not created; exceptionally with a {@link CommandFailure} when the
+     *         order could not be saved
+     */
+    public CompletableFuture<Outcome> create(OfflinePlayer owner, IOrderDraft draft, OrderSource source, int limit) {
+        return create(owner, draft, source, true, true, player -> limit);
+    }
+
+    /**
+     * What an order would cost, without listeners, limits of active orders or charging: its price and fee, or why its
+     * lines are refused.
+     *
+     * @param owner player who would own the order
+     * @param draft the order
+     * @return the quote, or why the lines are refused
+     */
+    public Quote quote(OfflinePlayer owner, IOrderDraft draft) {
+        var violation = violation(draft, true);
+        if (violation.isPresent()) return violation.get();
+        try {
+            var price = build(owner, draft, false, player -> Integer.MAX_VALUE)
+                    .builder()
+                    .price();
+            var fee = feeOf(price);
+            return new Priced(price, fee, price + fee);
+        } catch (Rejection rejection) {
+            return rejection.rejected();
+        }
+    }
+
+    /**
+     * The most lines an order may have.
+     *
+     * @return the limit of lines
+     */
+    public int maxLines() {
+        return settings.get().maxMaterials();
+    }
+
+    private CompletableFuture<Outcome> create(
+            OfflinePlayer owner,
+            IOrderDraft draft,
+            OrderSource source,
+            boolean charge,
+            boolean respectLimits,
+            ToIntFunction<OfflinePlayer> limitOf) {
+        return CompletableFuture.supplyAsync(() -> prepare(owner, draft, source, respectLimits, limitOf), mainThread)
                 .thenCompose(order -> checkActive(owner, order, respectLimits))
                 .thenApplyAsync(order -> charge(owner, order, charge), mainThread)
                 .thenCompose(order -> save(owner, order, source))
@@ -112,7 +169,12 @@ public final class OrderCreationService {
         throw err instanceof CompletionException completion ? completion : new CompletionException(err);
     }
 
-    private PendingOrder prepare(OfflinePlayer owner, IOrderDraft draft, OrderSource source, boolean respectLimits) {
+    private PendingOrder prepare(
+            OfflinePlayer owner,
+            IOrderDraft draft,
+            OrderSource source,
+            boolean respectLimits,
+            ToIntFunction<OfflinePlayer> limitOf) {
         violation(draft, respectLimits).ifPresent(OrderCreationService::reject);
         var event = new PreOrderCreateEvent(owner, draft, source);
         events.accept(event);
@@ -125,7 +187,7 @@ public final class OrderCreationService {
         if (violation(draft, respectLimits).isPresent()) {
             reject(new Rejected(RejectReason.INVALID, CommandFailure.of("error.integrationDraftInvalid")));
         }
-        return build(owner, draft, respectLimits);
+        return build(owner, draft, respectLimits, limitOf);
     }
 
     private Optional<Rejected> violation(IOrderDraft draft, boolean respectLimits) {
@@ -140,18 +202,26 @@ public final class OrderCreationService {
         var broken = draft.lines().stream()
                 .anyMatch(line -> line.amount() < 1 || line.unitPrice() < 0 || !Double.isFinite(line.unitPrice()));
         if (broken) return rejected(RejectReason.INVALID, "error.integrationDraftInvalid");
+        var items = draft.lines().stream().mapToLong(IDraftLine::amount).sum();
+        var total = draft.lines().stream()
+                .mapToDouble(line -> line.amount() * line.unitPrice())
+                .sum();
+        if (items > Integer.MAX_VALUE || !Double.isFinite(total)) {
+            return rejected(RejectReason.INVALID, "error.integrationDraftInvalid");
+        }
         if (!respectLimits) return Optional.empty();
         var current = settings.get();
         if (draft.lines().size() > current.maxMaterials()) {
             return rejected(RejectReason.TOO_MANY_LINES, "order.create.error.materialLimit");
         }
-        if (draft.amount() > current.maxItems()) {
+        if (items > current.maxItems()) {
             return rejected(RejectReason.TOO_MANY_ITEMS, "order.create.error.itemLimit");
         }
         return Optional.empty();
     }
 
-    private PendingOrder build(OfflinePlayer owner, IOrderDraft draft, boolean respectLimits) {
+    private PendingOrder build(
+            OfflinePlayer owner, IOrderDraft draft, boolean respectLimits, ToIntFunction<OfflinePlayer> limitOf) {
         var builder = new OrderBuilder(owner.getUniqueId(), draft.name());
         for (var line : draft.lines()) {
             var requested = requested(line)
@@ -159,7 +229,10 @@ public final class OrderCreationService {
                             new Rejected(RejectReason.INVALID, CommandFailure.of("order.draft.error.notOrderable"))));
             builder.add(requested.template(), requested.exact(), line.amount(), line.unitPrice());
         }
-        var limit = respectLimits ? limits.limit(owner) : Integer.MAX_VALUE;
+        if (!Double.isFinite(builder.price())) {
+            reject(new Rejected(RejectReason.INVALID, CommandFailure.of("error.integrationDraftInvalid")));
+        }
+        var limit = respectLimits ? limitOf.applyAsInt(owner) : Integer.MAX_VALUE;
         return new PendingOrder(builder, limit);
     }
 
@@ -181,7 +254,7 @@ public final class OrderCreationService {
 
     private PendingOrder charge(OfflinePlayer owner, PendingOrder order, boolean charge) {
         var price = order.builder().price();
-        var fee = charge ? settings.get().fee().of(price) : 0.0;
+        var fee = charge ? feeOf(price) : 0.0;
         var charged = charge ? price + fee : 0.0;
         if (charged > 0 && !wallet.withdraw(owner, charged)) {
             reject(new Rejected(
@@ -192,6 +265,14 @@ public final class OrderCreationService {
                             Replacement.create("amount", wallet.format(charged)))));
         }
         return order.charged(fee, charged);
+    }
+
+    private double feeOf(double price) {
+        var fee = settings.get().fee().of(price);
+        if (!Double.isFinite(price + fee)) {
+            reject(new Rejected(RejectReason.INVALID, CommandFailure.of("error.integrationDraftInvalid")));
+        }
+        return fee;
     }
 
     private CompletableFuture<Outcome> save(OfflinePlayer owner, PendingOrder order, OrderSource source) {
@@ -214,13 +295,25 @@ public final class OrderCreationService {
         return new Created(order, price, order.fee());
     }
 
+    /**
+     * Gives back what was charged for an order that could not be saved, on the main thread. While the plugin shuts
+     * down the main thread takes no more tasks, and the money is given back on the calling thread rather than lost.
+     *
+     * @param owner   player who was charged
+     * @param charged what was charged
+     * @return a future failing with {@code error.saveFailed} once the money is back
+     */
     private CompletableFuture<Outcome> refund(OfflinePlayer owner, double charged) {
-        return CompletableFuture.supplyAsync(
-                () -> {
-                    if (charged > 0) wallet.deposit(owner, charged);
-                    throw CommandFailure.of("error.saveFailed");
-                },
-                mainThread);
+        Supplier<Outcome> refund = () -> {
+            if (charged > 0) wallet.deposit(owner, charged);
+            throw CommandFailure.of("error.saveFailed");
+        };
+        try {
+            return CompletableFuture.supplyAsync(refund, mainThread);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "The main thread takes no tasks, refunding on this thread", e);
+            return CompletableFuture.supplyAsync(refund, Runnable::run);
+        }
     }
 
     private static Optional<Rejected> rejected(RejectReason reason, String localeKey) {
@@ -310,12 +403,26 @@ public final class OrderCreationService {
     public record Created(FullOrder order, double price, double fee) implements Outcome {}
 
     /**
+     * What an order would cost, or why its lines are refused.
+     */
+    public sealed interface Quote permits Priced, Rejected {}
+
+    /**
+     * The cost of an order.
+     *
+     * @param price price of the lines
+     * @param fee   fee on top
+     * @param total what the owner pays
+     */
+    public record Priced(double price, double fee, double total) implements Quote {}
+
+    /**
      * The order was not created and nothing was charged.
      *
      * @param reason  why it was not created
      * @param failure the error the owner sees
      */
-    public record Rejected(RejectReason reason, CommandFailure failure) implements Outcome {}
+    public record Rejected(RejectReason reason, CommandFailure failure) implements Outcome, Quote {}
 
     private record PendingOrder(OrderBuilder builder, int limit, double fee, double charged) {
         private PendingOrder(OrderBuilder builder, int limit) {

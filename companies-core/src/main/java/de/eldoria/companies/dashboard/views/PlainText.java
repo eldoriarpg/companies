@@ -11,6 +11,7 @@ import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
@@ -52,7 +53,21 @@ public final class PlainText {
      * @return the name
      */
     public static String materialName(Material material) {
-        var words = material.name().toLowerCase(Locale.ROOT).split("_");
+        return words(material.name());
+    }
+
+    /**
+     * The English name of a registry entry, made from its key: {@code minecraft:fire_aspect} is {@code Fire Aspect}.
+     *
+     * @param key the key
+     * @return the name
+     */
+    public static String keyName(NamespacedKey key) {
+        return words(key.getKey());
+    }
+
+    private static String words(String text) {
+        var words = text.toLowerCase(Locale.ROOT).split("_");
         var name = new StringBuilder();
         for (var word : words) {
             if (word.isEmpty()) continue;
