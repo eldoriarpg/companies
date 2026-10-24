@@ -1,0 +1,10 @@
+{
+  "type": "session.create",
+  "id": "2",
+  "v": 1,
+  "player": {
+    "uuid": "a3b1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+    "name": "Steve"
+  },
+  "node": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10"
+}

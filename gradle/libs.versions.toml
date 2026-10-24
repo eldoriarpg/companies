@@ -43,6 +43,7 @@ sadu-sqlite = { module = "de.chojo.sadu:sadu-sqlite", version.ref = "sadu" }
 jetbrains-annotations = "org.jetbrains:annotations:26.1.0"
 jspecify = "org.jspecify:jspecify:1.0.1"
 spotbugs-annotations = "com.github.spotbugs:spotbugs-annotations:4.10.5"
+json-schema-validator = "com.networknt:json-schema-validator:3.0.8"
 paper = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
 
 mockbukkit = "org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.116.3"

@@ -1,0 +1,1134 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "title" : "Companies dashboard protocol v1",
+  "$ref" : "#/$defs/Message",
+  "$defs" : {
+    "ActionRequest" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "action"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "args" : { }
+      },
+      "required" : [ "type", "v", "session", "player", "name", "args" ]
+    },
+    "ActionResult" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "action.result"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "ok" : {
+          "type" : "boolean"
+        },
+        "reason" : {
+          "type" : "string"
+        },
+        "message" : {
+          "type" : "string"
+        },
+        "data" : { }
+      },
+      "required" : [ "type", "v", "ok" ]
+    },
+    "AlertView" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "enabled" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "name", "enabled" ]
+    },
+    "ClaimedOrderView" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "integer"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "state" : {
+          "$ref" : "#/$defs/OrderState"
+        },
+        "lines" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/OrderLineView"
+          }
+        },
+        "claimed" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "deadline" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      },
+      "required" : [ "id", "name", "state", "lines", "claimed" ]
+    },
+    "CloseReason" : {
+      "type" : "string",
+      "enum" : [ "logout", "idle", "expired", "revoked", "connection-lost" ]
+    },
+    "CompanyView" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "integer"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "tag" : {
+          "type" : "string"
+        },
+        "color" : {
+          "type" : "string"
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "joinMode" : {
+          "$ref" : "#/$defs/JoinMode"
+        },
+        "founded" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "level" : {
+          "$ref" : "#/$defs/LevelView"
+        },
+        "members" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/MemberView"
+          }
+        },
+        "treasury" : {
+          "$ref" : "#/$defs/TreasuryView"
+        },
+        "orders" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/ClaimedOrderView"
+          }
+        },
+        "alerts" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/AlertView"
+          }
+        }
+      },
+      "required" : [ "id", "name", "joinMode", "founded", "level", "members", "orders", "alerts" ]
+    },
+    "CreateSession" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "session.create"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "player" : {
+          "$ref" : "#/$defs/PlayerRef"
+        },
+        "node" : {
+          "type" : "string",
+          "format" : "uuid"
+        }
+      },
+      "required" : [ "type", "v", "player", "node" ]
+    },
+    "Credentials" : {
+      "type" : "object",
+      "properties" : {
+        "kind" : {
+          "$ref" : "#/$defs/KeyKind"
+        },
+        "key" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "kind", "key" ]
+    },
+    "DeprecatedPart" : {
+      "type" : "object",
+      "properties" : {
+        "kind" : {
+          "$ref" : "#/$defs/PartKind"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "since" : {
+          "type" : "string",
+          "format" : "date"
+        },
+        "removedAt" : {
+          "type" : "string",
+          "format" : "date"
+        },
+        "replacement" : {
+          "type" : "string"
+        },
+        "message" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "kind", "name", "since", "removedAt" ]
+    },
+    "ErrorCode" : {
+      "type" : "string",
+      "enum" : [ "unknown-type", "invalid", "unsupported-protocol", "unauthorized", "discontinued", "unknown-session", "rate-limited", "internal" ]
+    },
+    "ErrorMessage" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "error"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "code" : {
+          "$ref" : "#/$defs/ErrorCode"
+        },
+        "message" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "type", "v", "code" ]
+    },
+    "GatewayKind" : {
+      "type" : "string",
+      "enum" : [ "hosted", "self-hosted" ]
+    },
+    "Hello" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "hello"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "plugin" : {
+          "type" : "string"
+        },
+        "schema" : {
+          "type" : "string"
+        },
+        "node" : {
+          "$ref" : "#/$defs/NodeInfo"
+        },
+        "features" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "limits" : {
+          "$ref" : "#/$defs/Limits"
+        },
+        "credentials" : {
+          "$ref" : "#/$defs/Credentials"
+        },
+        "userAgent" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "type", "v", "plugin", "schema", "node", "features", "limits", "credentials", "userAgent" ]
+    },
+    "InviteView" : {
+      "type" : "object",
+      "properties" : {
+        "company" : {
+          "type" : "integer"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "company", "name" ]
+    },
+    "ItemView" : {
+      "type" : "object",
+      "properties" : {
+        "material" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "amount" : {
+          "type" : "integer"
+        },
+        "icon" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "material", "name", "amount", "icon" ]
+    },
+    "JoinMode" : {
+      "type" : "string",
+      "enum" : [ "open", "applications", "invite-only" ]
+    },
+    "KeyKind" : {
+      "type" : "string",
+      "enum" : [ "dashboard-key", "server-token" ]
+    },
+    "LevelView" : {
+      "type" : "object",
+      "properties" : {
+        "level" : {
+          "type" : "integer"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "progress" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "level", "name" ]
+    },
+    "Limits" : {
+      "type" : "object",
+      "properties" : {
+        "maxPageSize" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "maxPageSize" ]
+    },
+    "MemberPermission" : {
+      "type" : "string",
+      "enum" : [ "owner", "invite", "kick", "manage-orders", "manage-permissions", "edit-profile", "treasury" ]
+    },
+    "MemberStatsView" : {
+      "type" : "object",
+      "properties" : {
+        "orders" : {
+          "type" : "integer"
+        },
+        "items" : {
+          "type" : "integer"
+        },
+        "earned" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "orders", "items", "earned" ]
+    },
+    "MemberView" : {
+      "type" : "object",
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "permissions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/MemberPermission"
+          }
+        },
+        "stats" : {
+          "$ref" : "#/$defs/MemberStatsView"
+        }
+      },
+      "required" : [ "uuid", "name", "permissions", "stats" ]
+    },
+    "Message" : {
+      "oneOf" : [ {
+        "$ref" : "#/$defs/Hello"
+      }, {
+        "$ref" : "#/$defs/Welcome"
+      }, {
+        "$ref" : "#/$defs/CreateSession"
+      }, {
+        "$ref" : "#/$defs/SessionCreated"
+      }, {
+        "$ref" : "#/$defs/SessionOpened"
+      }, {
+        "$ref" : "#/$defs/SessionConfirmed"
+      }, {
+        "$ref" : "#/$defs/SessionClosed"
+      }, {
+        "$ref" : "#/$defs/SessionsRevoked"
+      }, {
+        "$ref" : "#/$defs/SnapshotRequest"
+      }, {
+        "$ref" : "#/$defs/Snapshot"
+      }, {
+        "$ref" : "#/$defs/Subscribe"
+      }, {
+        "$ref" : "#/$defs/Unsubscribe"
+      }, {
+        "$ref" : "#/$defs/Patch"
+      }, {
+        "$ref" : "#/$defs/ActionRequest"
+      }, {
+        "$ref" : "#/$defs/ActionResult"
+      }, {
+        "$ref" : "#/$defs/Ping"
+      }, {
+        "$ref" : "#/$defs/Pong"
+      }, {
+        "$ref" : "#/$defs/ErrorMessage"
+      } ]
+    },
+    "NodeInfo" : {
+      "type" : "object",
+      "properties" : {
+        "uid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "role" : {
+          "$ref" : "#/$defs/NodeRole"
+        }
+      },
+      "required" : [ "uid", "role" ]
+    },
+    "NodeRole" : {
+      "type" : "string",
+      "enum" : [ "primary", "secondary" ]
+    },
+    "OrderLineView" : {
+      "type" : "object",
+      "properties" : {
+        "item" : {
+          "$ref" : "#/$defs/ItemView"
+        },
+        "delivered" : {
+          "type" : "integer"
+        },
+        "price" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "item", "delivered", "price" ]
+    },
+    "OrderState" : {
+      "type" : "string",
+      "enum" : [ "unclaimed", "claimed", "delivered", "received" ]
+    },
+    "OwnOrderView" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "integer"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "state" : {
+          "$ref" : "#/$defs/OrderState"
+        },
+        "lines" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/OrderLineView"
+          }
+        },
+        "created" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "deadline" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "waiting" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/ItemView"
+          }
+        }
+      },
+      "required" : [ "id", "name", "state", "lines", "created", "waiting" ]
+    },
+    "PartKind" : {
+      "type" : "string",
+      "enum" : [ "field", "message", "feature", "protocol" ]
+    },
+    "Patch" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "patch"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "sessions" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "node" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "seq" : {
+          "type" : "integer"
+        },
+        "path" : {
+          "type" : "string"
+        },
+        "op" : {
+          "$ref" : "#/$defs/PatchOp"
+        },
+        "key" : {
+          "type" : "string"
+        },
+        "value" : { }
+      },
+      "required" : [ "type", "v", "sessions", "node", "seq", "path", "op" ]
+    },
+    "PatchOp" : {
+      "type" : "string",
+      "enum" : [ "upsert", "remove", "replace" ]
+    },
+    "Ping" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "ping"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "time" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      },
+      "required" : [ "type", "v", "time" ]
+    },
+    "PlayerRef" : {
+      "type" : "object",
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "uuid", "name" ]
+    },
+    "PlayerView" : {
+      "type" : "object",
+      "properties" : {
+        "uuid" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "company" : {
+          "type" : "integer"
+        },
+        "permissions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/MemberPermission"
+          }
+        },
+        "invites" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/InviteView"
+          }
+        },
+        "unreadInbox" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "uuid", "name", "permissions", "invites", "unreadInbox" ]
+    },
+    "Pong" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "pong"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "time" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      },
+      "required" : [ "type", "v", "time" ]
+    },
+    "RankingEntry" : {
+      "type" : "object",
+      "properties" : {
+        "place" : {
+          "type" : "integer"
+        },
+        "company" : {
+          "type" : "integer"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "value" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "place", "company", "name", "value" ]
+    },
+    "RankingPage" : {
+      "type" : "object",
+      "properties" : {
+        "ranking" : {
+          "type" : "string"
+        },
+        "range" : {
+          "type" : "string"
+        },
+        "page" : {
+          "type" : "integer"
+        },
+        "pages" : {
+          "type" : "integer"
+        },
+        "entries" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/RankingEntry"
+          }
+        },
+        "own" : {
+          "$ref" : "#/$defs/RankingEntry"
+        }
+      },
+      "required" : [ "ranking", "range", "page", "pages", "entries" ]
+    },
+    "SessionClosed" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "session.closed"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "reason" : {
+          "$ref" : "#/$defs/CloseReason"
+        }
+      },
+      "required" : [ "type", "v", "session", "player", "reason" ]
+    },
+    "SessionConfirmed" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "session.confirmed"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "type", "v", "session" ]
+    },
+    "SessionCreated" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "session.created"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        },
+        "shortId" : {
+          "type" : "string"
+        },
+        "code" : {
+          "type" : "string"
+        },
+        "link" : {
+          "type" : "string"
+        },
+        "expiresAt" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      },
+      "required" : [ "type", "v", "session", "shortId", "code", "link", "expiresAt" ]
+    },
+    "SessionOpened" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "session.opened"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "device" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "type", "v", "session", "player" ]
+    },
+    "SessionsRevoked" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "session.revoked"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "reason" : {
+          "$ref" : "#/$defs/CloseReason"
+        }
+      },
+      "required" : [ "type", "v", "player", "reason" ]
+    },
+    "Snapshot" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "snapshot"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        },
+        "node" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "seq" : {
+          "type" : "integer"
+        },
+        "player" : {
+          "$ref" : "#/$defs/PlayerView"
+        },
+        "company" : {
+          "$ref" : "#/$defs/CompanyView"
+        },
+        "orders" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/OwnOrderView"
+          }
+        },
+        "rankings" : {
+          "$ref" : "#/$defs/RankingPage"
+        }
+      },
+      "required" : [ "type", "v", "session", "node", "seq", "player", "orders", "rankings" ]
+    },
+    "SnapshotRequest" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "snapshot.request"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        }
+      },
+      "required" : [ "type", "v", "session", "player" ]
+    },
+    "Subscribe" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "subscribe"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        }
+      },
+      "required" : [ "type", "v", "session", "player" ]
+    },
+    "TreasuryView" : {
+      "type" : "object",
+      "properties" : {
+        "balance" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "balance" ]
+    },
+    "Unsubscribe" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "unsubscribe"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "session" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "type", "v", "session" ]
+    },
+    "VersionState" : {
+      "type" : "string",
+      "enum" : [ "supported", "deprecated", "discontinued" ]
+    },
+    "VersionStatus" : {
+      "type" : "object",
+      "properties" : {
+        "status" : {
+          "$ref" : "#/$defs/VersionState"
+        },
+        "since" : {
+          "type" : "string",
+          "format" : "date"
+        },
+        "discontinuedAt" : {
+          "type" : "string",
+          "format" : "date"
+        },
+        "updateTo" : {
+          "type" : "string"
+        },
+        "message" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "status" ]
+    },
+    "Welcome" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "welcome"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "protocol" : {
+          "type" : "integer"
+        },
+        "gateway" : {
+          "$ref" : "#/$defs/GatewayKind"
+        },
+        "features" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "version" : {
+          "$ref" : "#/$defs/VersionStatus"
+        },
+        "deprecated" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/DeprecatedPart"
+          }
+        }
+      },
+      "required" : [ "type", "v", "protocol", "gateway", "features", "version", "deprecated" ]
+    }
+  },
+  "x-protocol" : 1,
+  "x-features" : {
+    "orders.browse" : { },
+    "orders.accept" : { },
+    "orders.create" : { },
+    "orders.own" : { },
+    "orders.receive" : { },
+    "orders.deliver" : { },
+    "company.members" : { },
+    "company.applications" : { },
+    "company.profile" : { },
+    "company.treasury" : { },
+    "company.create" : { },
+    "company.disband" : { },
+    "inbox" : { },
+    "rankings" : { },
+    "market" : { }
+  },
+  "x-actions" : {
+    "orders.browse.search" : {
+      "feature" : "orders.browse"
+    },
+    "orders.browse.details" : {
+      "feature" : "orders.browse"
+    },
+    "orders.accept" : {
+      "feature" : "orders.accept"
+    },
+    "orders.accept.abort" : {
+      "feature" : "orders.accept"
+    },
+    "orders.create" : {
+      "feature" : "orders.create"
+    },
+    "orders.own.list" : {
+      "feature" : "orders.own"
+    },
+    "orders.own.cancel" : {
+      "feature" : "orders.own"
+    },
+    "orders.own.extend" : {
+      "feature" : "orders.own"
+    },
+    "orders.own.raise" : {
+      "feature" : "orders.own"
+    },
+    "orders.receive" : {
+      "feature" : "orders.receive"
+    },
+    "orders.deliver.line" : {
+      "feature" : "orders.deliver"
+    },
+    "orders.deliver.all" : {
+      "feature" : "orders.deliver"
+    },
+    "orders.deliver.receive" : {
+      "feature" : "orders.deliver"
+    },
+    "orders.deliver.collect" : {
+      "feature" : "orders.deliver"
+    },
+    "company.members.revoke" : {
+      "feature" : "company.members"
+    },
+    "company.members.kick" : {
+      "feature" : "company.members"
+    },
+    "company.members.leave" : {
+      "feature" : "company.members"
+    },
+    "company.members.permissions" : {
+      "feature" : "company.members"
+    },
+    "company.members.transfer" : {
+      "feature" : "company.members"
+    },
+    "company.applications.list" : {
+      "feature" : "company.applications"
+    },
+    "company.applications.accept" : {
+      "feature" : "company.applications"
+    },
+    "company.applications.deny" : {
+      "feature" : "company.applications"
+    },
+    "company.applications.join-mode" : {
+      "feature" : "company.applications"
+    },
+    "company.profile.description" : {
+      "feature" : "company.profile"
+    },
+    "company.profile.tag" : {
+      "feature" : "company.profile"
+    },
+    "company.profile.color" : {
+      "feature" : "company.profile"
+    },
+    "company.profile.rename" : {
+      "feature" : "company.profile"
+    },
+    "company.treasury.log" : {
+      "feature" : "company.treasury"
+    },
+    "company.treasury.deposit" : {
+      "feature" : "company.treasury"
+    },
+    "company.treasury.withdraw" : {
+      "feature" : "company.treasury"
+    },
+    "company.treasury.share" : {
+      "feature" : "company.treasury"
+    },
+    "company.create" : {
+      "feature" : "company.create"
+    },
+    "company.disband" : {
+      "feature" : "company.disband"
+    },
+    "inbox.page" : {
+      "feature" : "inbox"
+    },
+    "inbox.read-all" : {
+      "feature" : "inbox"
+    },
+    "inbox.clear" : {
+      "feature" : "inbox"
+    },
+    "inbox.mute" : {
+      "feature" : "inbox"
+    },
+    "rankings.page" : {
+      "feature" : "rankings"
+    },
+    "rankings.own" : {
+      "feature" : "rankings"
+    },
+    "rankings.history" : {
+      "feature" : "rankings"
+    },
+    "market.item" : {
+      "feature" : "market"
+    },
+    "market.search" : {
+      "feature" : "market"
+    },
+    "market.top" : {
+      "feature" : "market"
+    },
+    "market.movers" : {
+      "feature" : "market"
+    }
+  }
+}
