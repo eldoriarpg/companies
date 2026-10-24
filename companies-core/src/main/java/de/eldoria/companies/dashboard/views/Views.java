@@ -35,6 +35,7 @@ import de.eldoria.companies.web.api.snapshot.MemberView;
 import de.eldoria.companies.web.api.snapshot.OrderLineView;
 import de.eldoria.companies.web.api.snapshot.OrderState;
 import de.eldoria.companies.web.api.snapshot.OwnOrderView;
+import de.eldoria.companies.web.api.snapshot.PaletteColor;
 import de.eldoria.companies.web.api.snapshot.PlayerView;
 import de.eldoria.companies.web.api.snapshot.RankingEntry;
 import de.eldoria.companies.web.api.snapshot.RankingPage;
@@ -240,7 +241,16 @@ public final class Views {
                 members,
                 treasury(company, viewer).orElse(null),
                 claimed.stream().map(this::claimed).toList(),
-                alerts(company.id()));
+                alerts(company.id()),
+                company.color().orElse(null),
+                palette());
+    }
+
+    private List<PaletteColor> palette() {
+        return sources.companySettings().get().profile().colors().stream()
+                .flatMap(name ->
+                        Optional.ofNullable(PlainText.hexColor(name)).map(hex -> new PaletteColor(name, hex)).stream())
+                .toList();
     }
 
     /**

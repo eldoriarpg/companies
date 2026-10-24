@@ -32,7 +32,7 @@ const recruits = computed(() => supports(Feature['company.applications'])
       <ProfilePanel :company="company" :ranking="snapshot?.rankings"/>
       <div class="flex min-w-0 flex-col gap-4">
         <MembersPanel :members="company.members" :company="company.name" @left="left = true"/>
-        <ApplicationsPanel v-if="recruits" :join-mode="company.joinMode"/>
+        <ApplicationsPanel v-if="recruits" :members="company.members.length"/>
       </div>
     </div>
   </ViewContent>

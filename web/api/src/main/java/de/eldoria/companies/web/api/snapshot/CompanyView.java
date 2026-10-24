@@ -25,6 +25,8 @@ import java.util.List;
  * @param treasury the treasury, only for players with the treasury permission
  * @param orders the orders it claimed, with progress
  * @param alerts its alerts
+ * @param colorName its colour as the palette entry the profile stores
+ * @param palette the colours of the server's palette a company may choose from
  */
 public record CompanyView(
         int id,
@@ -38,4 +40,6 @@ public record CompanyView(
         List<MemberView> members,
         @Nullable TreasuryView treasury,
         List<ClaimedOrderView> orders,
-        List<AlertView> alerts) {}
+        List<AlertView> alerts,
+        @Nullable String colorName,
+        @Nullable List<PaletteColor> palette) {}

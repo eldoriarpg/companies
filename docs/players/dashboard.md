@@ -64,8 +64,8 @@ game. When the server refuses, the dashboard shows its reason.
 | Company | Change a member's permissions, only those you hold yourself (needs *manage permissions*) | `/company permission <name>` |
 | Company | Remove a member (needs *kick*; nobody removes the owner) | `/company kick <name>` |
 | Company | Leave the company; the owner hands it over in game first | `/company leave` |
-| Company | Accept or deny an application, take back an invite, change how players join (needs *invite*) | `/company applications accept`, `deny`, `/company invite revoke`, `/company joinmode` |
-| Company | Edit description, tag and colour (needs *edit profile*) | `/company profile edit` |
+| Company | Accept or deny an application, take back an invite (needs *invite*) | `/company applications accept`, `deny`, `/company invite revoke` |
+| Company | Edit description, tag and colour, change how players join (needs *edit profile*) | `/company profile edit`, `/company joinmode` |
 | Company | Rename the company, paid by you or from the treasury; the dashboard shows the price first (owner only) | `/company rename <name>` |
 | Company | Pay into the treasury, take money out, set the share of payouts it keeps (needs *treasury*) | `/company bank deposit`, `withdraw`, `share` |
 

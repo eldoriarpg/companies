@@ -10,13 +10,14 @@ import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
 import AmountInput from '@/components/input/AmountInput.vue'
+import TextInput from '@/components/input/TextInput.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import {money, parseAmount} from '~/util/format'
 
 /**
- * Pays money into the treasury or takes it out, and sets the share of every payout the company keeps, up to the
- * server's cap. The plugin checks the smallest amount, the balances and the cap again; the balance follows through
- * its patch.
+ * Pays money into the treasury or takes it out, and sets the share of every payout the company keeps, a whole percent
+ * up to the server's cap. The plugin checks the smallest amount, the balances and the cap again; the balance follows
+ * through its patch, and the share field follows it too until the player types into it.
  */
 const props = defineProps<{
   treasury: TreasuryView
@@ -25,8 +26,23 @@ const props = defineProps<{
 const {t, locale} = useI18n()
 const action = useAction()
 const amount = ref('')
-const share = ref(props.treasury.share === undefined ? '' : String(props.treasury.share))
+const share = ref(shown(props.treasury.share))
 const done = ref('')
+const wholePercent = computed(() => /^\d{1,3}$/.test(share.value.trim()))
+
+watch(() => props.treasury.share, (now, before) => {
+  if (share.value === shown(before)) share.value = shown(now)
+})
+
+/**
+ * A share as the field shows it.
+ *
+ * @param value the share
+ * @returns the text, empty without a share
+ */
+function shown(value: number | undefined): string {
+  return value === undefined ? '' : String(value)
+}
 
 /**
  * Moves money into or out of the treasury.
@@ -46,7 +62,7 @@ async function move(direction: 'deposit' | 'withdraw'): Promise<void> {
 /** Sets the share. */
 async function saveShare(): Promise<void> {
   done.value = ''
-  const result = await action.run('company.treasury.share', {percent: Number(share.value)})
+  const result = await action.run('company.treasury.share', {percent: Number(share.value.trim())})
   if (result) done.value = t('company.shareSaved', {share: result.share})
 }
 </script>
@@ -64,8 +80,10 @@ async function saveShare(): Promise<void> {
     </div>
     <MutedText v-if="treasury.minTransaction !== undefined" tag="p">{{ t('company.minTransaction', {amount: money(treasury.minTransaction, locale)}) }}</MutedText>
     <form v-if="treasury.maxShare !== undefined" class="flex flex-wrap items-end gap-2" @submit.prevent="saveShare">
-      <AmountInput v-model="share" :label="t('company.share', {max: treasury.maxShare})"/>
-      <SecondaryButton type="submit" :disabled="action.busy.value || share.trim() === ''">{{ t('company.saveShare') }}</SecondaryButton>
+      <div class="w-40">
+        <TextInput v-model="share" :label="t('company.share', {max: treasury.maxShare})" :maxlength="3" inputmode="numeric"/>
+      </div>
+      <SecondaryButton type="submit" :disabled="action.busy.value || !wholePercent">{{ t('company.saveShare') }}</SecondaryButton>
     </form>
   </div>
 </template>

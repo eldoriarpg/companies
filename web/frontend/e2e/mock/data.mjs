@@ -146,7 +146,7 @@ export function snapshot(session, delivered = false) {
             id: 7,
             name: 'Stonebridge Builders',
             tag: 'BLD',
-            color: '#FFB74D',
+            color: '#FFAA00',
             description: 'Builders of walls, roofs and harbours. Applications open.',
             joinMode: 'APPLICATIONS',
             founded: '2025-03-14T18:00:00Z',
@@ -155,6 +155,11 @@ export function snapshot(session, delivered = false) {
             treasury: {balance: delivered ? 19600 : 18450, share: 5, maxShare: 25, minTransaction: 1},
             orders,
             alerts: [],
+            colorName: 'gold',
+            palette: [
+                {name: 'gold', hex: '#FFAA00'}, {name: 'dark_aqua', hex: '#00AAAA'}, {name: 'green', hex: '#55FF55'},
+                {name: 'red', hex: '#FF5555'},
+            ],
         },
         orders: [
             {

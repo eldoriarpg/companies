@@ -311,6 +311,20 @@ public final class DashboardWorld implements AutoCloseable {
     }
 
     /**
+     * Adds a member to a company.
+     *
+     * @param company     the company id
+     * @param member      the member
+     * @param permissions the member's permissions
+     */
+    public void member(int company, UUID member, CompanyPermission... permissions) {
+        companies
+                .submitMemberUpdate(
+                        CompanyMember.of(company, member, CompanyPermission.composePermissions(permissions)))
+                .join();
+    }
+
+    /**
      * Places an order of 10 stone for 100 and 5 dirt for 50.
      *
      * @param owner the owner

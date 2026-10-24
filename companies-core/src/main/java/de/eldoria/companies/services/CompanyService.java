@@ -166,7 +166,7 @@ public final class CompanyService {
     }
 
     private ActionResult<String> checkFoundable(UUID actor, String name) {
-        if (name.length() >= MAX_NAME_LENGTH) return invalidLength();
+        if (name.isBlank() || name.length() >= MAX_NAME_LENGTH) return invalidLength();
         var current = companyData
                 .retrievePlayerCompany(players.apply(actor))
                 .asFuture()
@@ -250,7 +250,7 @@ public final class CompanyService {
     }
 
     private ActionResult<CompanyProfile> checkRenamable(UUID actor, String name) {
-        if (name.length() >= MAX_NAME_LENGTH) return invalidLength();
+        if (name.isBlank() || name.length() >= MAX_NAME_LENGTH) return invalidLength();
         var optProfile = companyData
                 .retrievePlayerCompanyProfile(players.apply(actor))
                 .asFuture()

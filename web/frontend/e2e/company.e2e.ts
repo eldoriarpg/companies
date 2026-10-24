@@ -44,7 +44,7 @@ test.describe('company management', () => {
         await expect(list.getByRole('button', {name: 'Wren'})).toHaveCount(0)
     })
 
-    test('answers applications, takes back an invite and changes how players join', async ({page}) => {
+    test('answers applications and takes back an invite', async ({page}) => {
         const panel = page.getByRole('region', {name: 'Applications'}).or(page.getByLabel('Applications', {exact: true})).first()
         const applications = page.getByTestId('applications')
         await expect(applications.getByRole('listitem')).toHaveCount(2)
@@ -56,9 +56,6 @@ test.describe('company management', () => {
         await page.getByTestId('invites').getByRole('button', {name: 'Take back'}).click()
         await expect(panel.getByText('The invite of Corvid is taken back.')).toBeVisible()
         await expect(page.getByTestId('invites')).toHaveCount(0)
-
-        await panel.getByLabel('Joining').selectOption('OPEN')
-        await expect(panel.getByText('Joining is now: Anyone may join.')).toBeVisible()
     })
 
     test('edits the profile and shows the plugin\'s refusal', async ({page}) => {
@@ -68,8 +65,18 @@ test.describe('company management', () => {
         await expect(page.getByText('The tag may have at most 5 characters.')).toBeVisible()
 
         await page.getByLabel('Tag', {exact: true}).fill('SBB')
+        await page.getByLabel('Colour').selectOption('dark_aqua')
+        await page.getByLabel('Joining').selectOption('OPEN')
         await page.getByRole('button', {name: 'Save profile'}).click()
         await expect(page.getByText('The profile is saved.')).toBeVisible()
+    })
+
+    test('backs out of removing a member with the focus on the button again', async ({page}) => {
+        const list = members(page)
+        await list.getByRole('button', {name: 'Tidewalker'}).click()
+        await list.getByRole('button', {name: 'Remove from the company'}).click()
+        await list.getByRole('button', {name: 'Back'}).click()
+        await expect(list.getByRole('button', {name: 'Remove from the company'})).toBeFocused()
     })
 
     test('renames the company after naming the price', async ({page}) => {

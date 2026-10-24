@@ -49,8 +49,9 @@ import java.util.function.Supplier;
 
 /**
  * Answers the reading actions of the dashboard: search results, order details, own orders, inbox, rankings, market
- * statistics, applications with the company's open invites and the treasury log, a page at a time. Every answer is checked as the command would check
- * it and keeps orders anonymous between owner and company. Reading the inbox does not mark it read.
+ * statistics, applications with the company's open invites and the treasury log, a page at a time. Every answer is
+ * checked as the command would check it and keeps orders anonymous between owner and company. Reading the inbox does
+ * not mark it read.
  * <p>
  * Pages are asked for with {@code page} (from 1) and {@code pageSize} (at most {@value #MAX_PAGE_SIZE}) and answered
  * with {@code page}, {@code pages} and {@code total}. Actions that change something are performed by

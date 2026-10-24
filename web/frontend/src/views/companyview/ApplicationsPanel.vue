@@ -5,7 +5,6 @@
  */
 <script lang="ts" setup>
 import {useNow} from '@vueuse/core'
-import type {JoinMode} from '~/api/generated/protocol'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
@@ -13,41 +12,29 @@ import PanelBox from '@/components/container/PanelBox.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
-import SelectInput from '@/components/input/SelectInput.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {when} from '~/util/format'
 
 /**
- * How players join the company and who wants in: the join mode, the open applications with their message to accept or
- * deny, and the invites the company sent, which can be taken back. For members who may invite; the plugin checks
- * every answer again. The lists are loaded again after each answer.
+ * Who wants in: the open applications with their message to accept or deny, and the invites the company sent, which
+ * can be taken back. For members who may invite; the plugin checks every answer again. No patch carries them, so the
+ * lists are loaded again after each answer and whenever the members change, as when another member accepted someone.
+ * How players join is set with the profile.
  */
 const props = defineProps<{
-  joinMode: JoinMode
+  members: number
 }>()
-
-const MODES: readonly JoinMode[] = ['OPEN', 'APPLICATIONS', 'INVITE_ONLY']
 
 const {t, locale} = useI18n()
 const now = useNow({interval: 60_000})
 const applications = useApplications()
 const action = useAction()
 const done = ref('')
-const mode = ref<string>(props.joinMode)
-const modes = computed(() => MODES.map(value => ({value, label: t(`company.joinMode.${value}`)})))
 
 onMounted(() => void applications.load())
-watch(() => props.joinMode, value => {
-  mode.value = value
-})
-watch(mode, async value => {
-  if (value === props.joinMode) return
-  const result = await action.run('company.applications.join-mode', {mode: value as JoinMode})
-  if (result) done.value = t('company.joinModeSaved', {mode: t(`company.joinMode.${result.mode}`)})
-  else mode.value = props.joinMode
-})
+watch(() => props.members, () => void applications.load())
 
 /**
  * Answers an application or takes back an invite, then loads the lists again.
@@ -67,7 +54,6 @@ async function answer(name: 'company.applications.accept' | 'company.application
   <PanelBox :aria-label="t('company.applications')">
     <template #head>
       <SectionHeader :note="String(applications.result.value?.total ?? 0)">{{ t('company.applications') }}</SectionHeader>
-      <SelectInput v-model="mode" :label="t('company.joinModeLabel')" :options="modes"/>
     </template>
     <div class="flex flex-col gap-2 px-3 pt-3 md:px-4 empty:hidden">
       <NoticeBanner v-if="done">{{ done }}</NoticeBanner>

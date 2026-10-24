@@ -321,4 +321,82 @@ class CompanyWritesTest {
         assertEquals("company.bank.error.amount", refusal.key());
         assertEquals(1, refusal.values().size());
     }
+
+    @Test
+    void theJoinModeNeedsThePermissionToEditTheProfile() {
+        var recruiter = world.player("Rook");
+        var editor = world.player("Quill");
+        world.member(company, recruiter, CompanyPermission.INVITE);
+        world.member(company, editor, CompanyPermission.EDIT_PROFILE);
+
+        assertFalse(perform(recruiter, Actions.APPLICATIONS_JOIN_MODE, "{\"mode\":\"OPEN\"}")
+                .ok());
+        assertEquals(JoinMode.INVITE_ONLY, profile().joinMode());
+        assertTrue(perform(editor, Actions.APPLICATIONS_JOIN_MODE, "{\"mode\":\"OPEN\"}")
+                .ok());
+        assertEquals(JoinMode.OPEN, profile().joinMode());
+    }
+
+    @Test
+    void theTreasuryPaysARenameWhenItHoldsEnoughAndTheServerAllowsIt() {
+        world.companySettings.renamePrice(100);
+        world.wallets.put(manager, 80.0);
+        perform(manager, Actions.TREASURY_DEPOSIT, "{\"amount\":80}");
+
+        var quote = perform(owner, Actions.PROFILE_RENAME, "{\"name\":\"Diggers\",\"quote\":true}");
+        assertEquals(80.0, quote.data().path("treasury").asDouble());
+        assertEquals(
+                "company.bank.error.insufficient",
+                perform(owner, Actions.PROFILE_RENAME, "{\"name\":\"Diggers\",\"payment\":\"TREASURY\"}")
+                        .reason());
+
+        world.wallets.put(manager, 20.0);
+        perform(manager, Actions.TREASURY_DEPOSIT, "{\"amount\":20}");
+        var renamed = perform(owner, Actions.PROFILE_RENAME, "{\"name\":\"Diggers\",\"payment\":\"TREASURY\"}");
+        assertTrue(renamed.ok(), renamed.reason());
+        assertEquals("Diggers", profile().name());
+
+        world.companySettings.treasury().payRename(false);
+        assertEquals(
+                "company.bank.error.disabled",
+                perform(owner, Actions.PROFILE_RENAME, "{\"name\":\"Miners\",\"payment\":\"TREASURY\"}")
+                        .reason());
+    }
+
+    @Test
+    void aBlankNameIsRefused() {
+        world.wallets.put(owner, 50000.0);
+        for (var name : List.of("\"\"", "\"   \"")) {
+            var result = perform(owner, Actions.PROFILE_RENAME, "{\"name\":" + name + ",\"payment\":\"PLAYER\"}");
+            assertFalse(result.ok(), name);
+        }
+        assertEquals("Miners", profile().name());
+    }
+
+    @Test
+    void membersAndPlayersOfAnotherCompanyAreOutOfReach() {
+        var rival = world.player("Rival");
+        var rivalWorker = world.player("Rook");
+        var other = world.company("Rivals", Map.of(rival, List.of(CompanyPermission.OWNER), rivalWorker, List.of()));
+        var now = LocalDateTime.now();
+        world.memberships
+                .submitInvite(other, outsider, rival, now, now.plusDays(1))
+                .join();
+        world.memberships
+                .submitApplication(other, world.player("Fern"), "Hi", now, now.plusDays(1), 5)
+                .join();
+
+        assertFalse(perform(manager, Actions.MEMBERS_KICK, player(rivalWorker)).ok());
+        assertFalse(perform(manager, Actions.MEMBERS_REVOKE, player(outsider)).ok());
+        assertEquals(1, world.memberships.retrieveInvitesBy(other, now).join().size());
+        var applicant = world.memberships
+                .retrieveApplicationsTo(other, now)
+                .join()
+                .getFirst()
+                .applicant();
+        assertFalse(
+                perform(manager, Actions.APPLICATIONS_ACCEPT, player(applicant)).ok());
+        assertEquals(
+                1, world.memberships.retrieveApplicationsTo(other, now).join().size());
+    }
 }

@@ -42,7 +42,8 @@ import java.util.function.Supplier;
  * Every action goes through the service the command uses, with the session's player as actor, so the company
  * permissions are checked exactly as in game. A player is named by id in {@code player}. Renaming answers a quote
  * with {@code "quote": true}: the price, and the treasury's balance when the server lets the treasury pay; the rename
- * itself takes {@code payment}, {@code PLAYER} or {@code TREASURY}. Amounts of money are numbers, shares whole
+ * itself takes {@code payment}, {@code PLAYER} or {@code TREASURY}; the name is stripped, and a blank one refused by the
+ * service. Amounts of money are numbers, shares whole
  * percents. Arguments of the wrong shape are refused with {@code dashboard.invalid}. The methods block on the database
  * and the economy and are called off the main thread.
  */
@@ -217,7 +218,7 @@ public final class CompanyWrites {
 
     private ActionResult rename(ActionRequest request, UUID player, JsonNode args) {
         if (!args.path("name").isString()) return answers.refused(request, INVALID);
-        var name = args.path("name").asString();
+        var name = args.path("name").asString().strip();
         if (Answers.quote(args)) {
             return answers.answer(
                     request, sources.companies().renamable(player, name).join(), quote -> {

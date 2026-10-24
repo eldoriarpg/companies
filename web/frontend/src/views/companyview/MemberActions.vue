@@ -7,14 +7,15 @@
 import type {MemberPermission, MemberView} from '~/api/generated/protocol'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
-import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
+import ConfirmStep from '@/components/feedback/ConfirmStep.vue'
 import ToggleSwitch from '@/components/input/ToggleSwitch.vue'
 
 /**
  * What a member may do to another: switch the permissions they hold themselves on or off for them, and remove them
- * from the company after asking once more. The plugin checks both again. A removed member leaves the list through its
- * patch, so the confirmation is told to the panel, which outlives the row; the question takes the focus.
+ * from the company after asking once more. The plugin checks both again. Only the switches the player flipped are
+ * sent, so a change another member made meanwhile is kept. A removed member leaves the list through its patch, so the
+ * confirmation is told to the panel, which outlives the row.
  */
 const props = defineProps<{
   member: MemberView
@@ -29,32 +30,38 @@ const emit = defineEmits<{
 
 const {t} = useI18n()
 const action = useAction()
-const wanted = ref(new Map(props.editable.map(permission => [permission, props.member.permissions.includes(permission)])))
-const changes = computed(() => props.editable.filter(permission => wanted.value.get(permission) !== props.member.permissions.includes(permission)))
-const asking = ref(false)
-const question = useTemplateRef<HTMLElement>('question')
+const flipped = ref(new Map<MemberPermission, boolean>())
 
 /**
- * Switches a permission in the form.
+ * Whether a switch is on: as the player flipped it, else as the member holds it now.
  *
  * @param permission the permission
- * @param on whether it should be held
+ * @returns true when it is on
  */
-function set(permission: MemberPermission, on: boolean): void {
-  wanted.value = new Map(wanted.value).set(permission, on)
+function on(permission: MemberPermission): boolean {
+  return flipped.value.get(permission) ?? props.member.permissions.includes(permission)
 }
 
-/** Saves the switched permissions. */
+/**
+ * Flips a switch; flipping it back to what the member holds forgets it.
+ *
+ * @param permission the permission
+ * @param value whether it should be held
+ */
+function set(permission: MemberPermission, value: boolean): void {
+  const next = new Map(flipped.value)
+  if (value === props.member.permissions.includes(permission)) next.delete(permission)
+  else next.set(permission, value)
+  flipped.value = next
+}
+
+/** Saves the flipped permissions. */
 async function save(): Promise<void> {
-  const permissions = Object.fromEntries(changes.value.map(permission => [permission, wanted.value.get(permission) === true]))
-  if (await action.run('company.members.permissions', {player: props.member.uuid, permissions})) emit('saved', props.member.name)
-}
-
-/** Asks once more and moves the focus to the question. */
-async function askKick(): Promise<void> {
-  asking.value = true
-  await nextTick()
-  question.value?.querySelector<HTMLElement>('button')?.focus()
+  const permissions = Object.fromEntries(flipped.value)
+  if (await action.run('company.members.permissions', {player: props.member.uuid, permissions})) {
+    flipped.value = new Map()
+    emit('saved', props.member.name)
+  }
 }
 
 /** Removes the member. */
@@ -72,26 +79,22 @@ async function kick(): Promise<void> {
         <ToggleSwitch
             v-for="permission in editable"
             :key="permission"
-            :model-value="wanted.get(permission) === true"
+            :model-value="on(permission)"
             :label="t(`permission.${permission}`)"
-            @update:model-value="on => set(permission, on)"
+            @update:model-value="value => set(permission, value)"
         />
       </div>
       <ButtonRow>
-        <PrimaryButton :disabled="action.busy.value || changes.length === 0" @click="save">{{ t('company.savePermissions') }}</PrimaryButton>
+        <PrimaryButton :disabled="action.busy.value || flipped.size === 0" @click="save">{{ t('company.savePermissions') }}</PrimaryButton>
       </ButtonRow>
     </fieldset>
-    <template v-if="kickable">
-      <div v-if="asking" ref="question" class="flex flex-col gap-2">
-        <span class="text-sm">{{ t('company.kickQuestion', {name: member.name}) }}</span>
-        <ButtonRow>
-          <PrimaryButton :disabled="action.busy.value" @click="kick">{{ t('company.kickConfirm') }}</PrimaryButton>
-          <SecondaryButton @click="asking = false">{{ t('common.back') }}</SecondaryButton>
-        </ButtonRow>
-      </div>
-      <ButtonRow v-else>
-        <SecondaryButton @click="askKick">{{ t('company.kick') }}</SecondaryButton>
-      </ButtonRow>
-    </template>
+    <ConfirmStep
+        v-if="kickable"
+        :trigger="t('company.kick')"
+        :question="t('company.kickQuestion', {name: member.name})"
+        :confirm="t('company.kickConfirm')"
+        :busy="action.busy.value"
+        @confirmed="kick"
+    />
   </div>
 </template>
