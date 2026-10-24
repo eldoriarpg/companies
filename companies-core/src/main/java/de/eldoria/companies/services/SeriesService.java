@@ -227,17 +227,40 @@ public final class SeriesService implements Listener {
      * @return the first copy, or a {@link CommandFailure} when the repeating order was not started
      */
     public CompletableFuture<Created> start(Player owner, OrderBuilder draft, Repetition repetition) {
-        var current = settings.get();
-        var now = now();
-        int limit;
         try {
             requirePermission(owner);
-            repetition.validate(current, Times.local(now).toLocalDate());
-            limit = limits.applyAsInt(owner);
         } catch (CommandFailure failure) {
             return CompletableFuture.failedFuture(failure);
         }
-        var id = owner.getUniqueId();
+        return start(owner.getUniqueId(), draft, repetition, limits.applyAsInt(owner));
+    }
+
+    /**
+     * Starts a series for an owner who may be offline, with the repeat permission and the order limit known from
+     * elsewhere, such as the permissions remembered with a dashboard session. Its first copy is created at once.
+     *
+     * @param owner      id of the player owning the draft
+     * @param draft      the finished draft
+     * @param repetition how the order repeats
+     * @param mayRepeat  whether the owner holds the permission to create repeating orders
+     * @param limit      how many active orders the owner may have
+     * @return the first copy, or a {@link CommandFailure} when the series could not start
+     */
+    public CompletableFuture<Created> start(
+            UUID owner, OrderBuilder draft, Repetition repetition, boolean mayRepeat, int limit) {
+        if (!mayRepeat) return CompletableFuture.failedFuture(CommandFailure.of("error.permission.repeatOrder"));
+        return start(owner, draft, repetition, limit);
+    }
+
+    private CompletableFuture<Created> start(UUID owner, OrderBuilder draft, Repetition repetition, int limit) {
+        var current = settings.get();
+        var now = now();
+        try {
+            repetition.validate(current, Times.local(now).toLocalDate());
+        } catch (CommandFailure failure) {
+            return CompletableFuture.failedFuture(failure);
+        }
+        var id = owner;
         var lines = draft.lines().stream().map(SeriesLine::of).toList();
         return data.retrieveActiveCount(id)
                 .thenCombine(activeOrders.apply(id), (series, orders) -> {

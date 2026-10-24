@@ -39,9 +39,19 @@ public final class Actions {
     public static final String ORDERS_ABORT = "orders.accept.abort";
 
     /**
-     * Places an order.
+     * Places an order, or with {@code "quote": true} names its price and fee.
      */
     public static final String ORDERS_CREATE = "orders.create";
+
+    /**
+     * Returns what orders can be made of on this server: the orderable materials and what survival can give an item.
+     */
+    public static final String ORDERS_CATALOGUE = "orders.create.catalogue";
+
+    /**
+     * Returns the player's saved items and the exact items of their earlier orders.
+     */
+    public static final String ORDERS_ITEMS = "orders.create.items";
 
     /**
      * Lists the player's own orders, paged.
@@ -397,6 +407,8 @@ public final class Actions {
             ORDERS_ACCEPT,
             ORDERS_ABORT,
             ORDERS_CREATE,
+            ORDERS_CATALOGUE,
+            ORDERS_ITEMS,
             ORDERS_OWN_LIST,
             ORDERS_OWN_CANCEL,
             ORDERS_OWN_EXTEND,

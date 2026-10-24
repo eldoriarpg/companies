@@ -1095,6 +1095,12 @@
     "orders.create" : {
       "feature" : "orders.create"
     },
+    "orders.create.catalogue" : {
+      "feature" : "orders.create"
+    },
+    "orders.create.items" : {
+      "feature" : "orders.create"
+    },
     "orders.own.list" : {
       "feature" : "orders.own"
     },
