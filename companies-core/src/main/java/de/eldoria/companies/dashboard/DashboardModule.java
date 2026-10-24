@@ -14,6 +14,7 @@ import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.actions.ItemWrites;
 import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.feed.FeedListener;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
@@ -33,18 +34,22 @@ import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
+import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.services.CompanyService;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
@@ -60,6 +65,7 @@ import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
@@ -76,6 +82,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -222,6 +229,17 @@ public final class DashboardModule {
                         player -> feed.inboxChanged(player),
                         clock),
                 company,
+                new ItemWrites(new ItemWrites.Sources(
+                        uuid -> Optional.ofNullable(plugin.getServer().getPlayer(uuid)),
+                        Threading.mainThread(plugin),
+                        data.companyOf(),
+                        data.items().orders(),
+                        ItemWrites.Deliveries.of(data.items().delivery()),
+                        data.items().receive(),
+                        data.items().returns(),
+                        failure -> PlainText.of(failure.render(null, messages)),
+                        player -> Threading.mainThread(plugin)
+                                .execute(() -> data.items().moved().accept(player)))),
                 new OrderCreateWrites(new OrderCreateWrites.Sources(
                         Bukkit::getOfflinePlayer,
                         data.orders().creation(),
@@ -230,6 +248,10 @@ public final class DashboardModule {
                         data.orders().requests(),
                         data.orders().defaultLimit(),
                         failure -> PlainText.of(failure.render(null, messages)))));
+        var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
+        presence.online(plugin.getServer().getOnlinePlayers().stream()
+                .map(Player::getUniqueId)
+                .toList());
         var started = new AtomicReference<Dashboard>();
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
@@ -253,6 +275,7 @@ public final class DashboardModule {
                     if (current != null) current.disconnect();
                 },
                 node,
+                presence::reportAll,
                 Threading.VIRTUAL,
                 logger));
         var dashboard = new Dashboard(new Dashboard.Parts(
@@ -274,18 +297,21 @@ public final class DashboardModule {
                 logger));
         link.use(dashboard);
         started.set(dashboard);
-        var listener = new DashboardListener(dashboard, () -> messages);
+        var listener = new DashboardListener(dashboard, () -> messages, presence);
         plugin.getServer().getPluginManager().registerEvents(new FeedListener(feed), plugin);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         plugin.getServer()
                 .getScheduler()
                 .runTaskTimer(
                         plugin,
-                        () -> dashboard.playersWithSessions().thenAccept(players -> Threading.mainThread(plugin)
-                                .execute(() -> players.stream()
-                                        .map(plugin.getServer()::getPlayer)
-                                        .filter(Objects::nonNull)
-                                        .forEach(listener::refresh))),
+                        () -> {
+                            presence.reportAll();
+                            dashboard.playersWithSessions().thenAccept(players -> Threading.mainThread(plugin)
+                                    .execute(() -> players.stream()
+                                            .map(plugin.getServer()::getPlayer)
+                                            .filter(Objects::nonNull)
+                                            .forEach(listener::refresh)));
+                        },
                         PERMISSION_REFRESH_TICKS,
                         PERMISSION_REFRESH_TICKS);
         dashboard.start(timer);
@@ -331,6 +357,7 @@ public final class DashboardModule {
      * @param inboxService  reads, clears and mutes inboxes
      * @param company       the services acting on a company
      * @param orders        the services placing orders
+     * @param items         the services moving items with the player's inventory
      */
     public record Data(
             ADashboardData dashboard,
@@ -348,7 +375,24 @@ public final class DashboardModule {
             OwnerOrderService ownerOrders,
             Inbox inboxService,
             CompanyServices company,
-            OrderServices orders) {}
+            OrderServices orders,
+            ItemServices items) {}
+
+    /**
+     * The services the dashboard moves items through, with the inventory of a player online on this node.
+     *
+     * @param orders   the order repository
+     * @param delivery delivers to company orders
+     * @param receive  receives delivered own orders
+     * @param returns  hands out waiting items
+     * @param moved    what the commands do after a delivery or a receipt, on the main thread
+     */
+    public record ItemServices(
+            AOrderData orders,
+            DeliveryService delivery,
+            OrderReceiveService receive,
+            ItemReturnService returns,
+            Consumer<Player> moved) {}
 
     /**
      * The services the dashboard places orders through.

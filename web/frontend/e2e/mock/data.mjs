@@ -52,7 +52,7 @@ export const SESSIONS = {
 /** The features of the mock server. */
 export const FEATURES = [
     'orders.browse', 'orders.accept', 'orders.own', 'company.members', 'company.applications', 'company.profile',
-    'company.treasury', 'inbox', 'rankings', 'market', 'orders.create',
+    'company.treasury', 'inbox', 'rankings', 'market', 'orders.create', 'orders.deliver',
 ]
 
 const MEMBERS = [
@@ -141,7 +141,7 @@ export function snapshot(session, delivered = false) {
         session,
         node: NODE,
         seq: 41,
-        player: {uuid: member(0).uuid, name: 'Wren', company: 7, permissions: ['OWNER'], invites: [], unreadInbox: delivered ? 3 : 2},
+        player: {uuid: member(0).uuid, name: 'Wren', company: 7, permissions: ['OWNER'], invites: [], unreadInbox: delivered ? 3 : 2, online: true},
         company: {
             id: 7,
             name: 'Stonebridge Builders',

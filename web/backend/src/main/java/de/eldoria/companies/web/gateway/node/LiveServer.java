@@ -18,11 +18,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The connected nodes of one server. Data requests go to the primary node first and to any other ready node
- * otherwise; nodes on a discontinued version answer only status and are never asked.
+ * otherwise; nodes on a discontinued version answer only status and are never asked. The server also knows on which
+ * node each player with a dashboard session is online, as the nodes report it, so actions that move items reach the
+ * node holding the player's inventory.
  */
 public final class LiveServer {
     private final String id;
     private final Map<UUID, NodeLink> nodes = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> presence = new ConcurrentHashMap<>();
 
     /**
      * @param id the server id
@@ -71,6 +74,53 @@ public final class LiveServer {
         NodeLink link = nodes.get(node);
         if (link != null && link.state() == NodeLink.State.READY) return Optional.of(link);
         return route();
+    }
+
+    /**
+     * @param player a player
+     * @return the node the player is online on when it is ready, otherwise the node {@link #route()} picks, which
+     * then refuses what needs the player
+     */
+    public Optional<NodeLink> routeFor(UUID player) {
+        UUID node = presence.get(player);
+        return node == null ? route() : routeTo(node);
+    }
+
+    /**
+     * @param player a player
+     * @return whether the player is online on a node of the server
+     */
+    public boolean online(UUID player) {
+        return presence.containsKey(player);
+    }
+
+    /**
+     * Notes where a player is, as a node reported it. A node reporting that a player left forgets the player only when
+     * the player was last seen on that node, so a switch to another node that is reported first is kept.
+     *
+     * @param player the player
+     * @param node the reporting node's uid
+     * @param online whether the player is now online on that node
+     * @return whether the player's online state changed
+     */
+    boolean present(UUID player, UUID node, boolean online) {
+        if (online) return presence.put(player, node) == null;
+        return presence.remove(player, node);
+    }
+
+    /**
+     * Forgets the players of a node that went away.
+     *
+     * @param node the node's uid
+     * @return the players that are no longer online anywhere
+     */
+    List<UUID> forget(UUID node) {
+        List<UUID> gone = presence.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(node))
+                .map(Map.Entry::getKey)
+                .toList();
+        gone.forEach(player -> presence.remove(player, node));
+        return gone;
     }
 
     /**

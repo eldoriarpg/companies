@@ -36,7 +36,8 @@ import java.util.stream.Stream;
 /**
  * Performs the actions of the dashboard that change something: accepting and aborting orders for the company,
  * cancelling, extending and raising own orders, and reading, clearing and muting the inbox. The actions on the player's
- * company are handed to {@link CompanyWrites}, placing orders to {@link OrderCreateWrites}.
+ * company are handed to {@link CompanyWrites}, moving items to {@link ItemWrites}, placing orders to
+ * {@link OrderCreateWrites}.
  * <p>
  * Every action goes through the same service the command uses, with the session's player as actor, so the company
  * permissions, order states and limits are checked exactly as in game. A refusal carries the service's locale key as
@@ -62,25 +63,30 @@ public final class DashboardWrites {
             Actions.INBOX_MUTE);
 
     /**
-     * Every action this version performs, including those of {@link CompanyWrites} and {@link OrderCreateWrites}.
+     * Every action this version performs, including those of {@link CompanyWrites}, {@link ItemWrites} and
+     * {@link OrderCreateWrites}.
      */
-    public static final Set<String> ACTIONS = Stream.of(OWN_ACTIONS, CompanyWrites.ACTIONS, OrderCreateWrites.ACTIONS)
+    public static final Set<String> ACTIONS = Stream.of(
+                    OWN_ACTIONS, CompanyWrites.ACTIONS, ItemWrites.ACTIONS, OrderCreateWrites.ACTIONS)
             .flatMap(Set::stream)
             .collect(Collectors.toUnmodifiableSet());
 
     private final Sources sources;
     private final CompanyWrites company;
+    private final ItemWrites items;
     private final OrderCreateWrites create;
     private final Answers answers;
 
     /**
      * @param sources what the actions on orders and the inbox are performed with
      * @param company performs the actions on the player's company
+     * @param items   moves items with the player's inventory
      * @param create  places orders
      */
-    public DashboardWrites(Sources sources, CompanyWrites company, OrderCreateWrites create) {
+    public DashboardWrites(Sources sources, CompanyWrites company, ItemWrites items, OrderCreateWrites create) {
         this.sources = sources;
         this.company = company;
+        this.items = items;
         this.create = create;
         answers = new Answers(sources.render());
     }
@@ -107,6 +113,7 @@ public final class DashboardWrites {
         var player = session.player();
         if (CompanyWrites.ACTIONS.contains(request.name())) return company.perform(request, player, args);
         if (OrderCreateWrites.ACTIONS.contains(request.name())) return create.perform(request, session, args);
+        if (ItemWrites.ACTIONS.contains(request.name())) return items.perform(request, player, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));

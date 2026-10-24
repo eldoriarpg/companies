@@ -23,6 +23,7 @@ import de.eldoria.companies.web.api.link.Ping;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.link.UnknownMessage;
 import de.eldoria.companies.web.api.session.CreateSession;
+import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -238,13 +240,22 @@ public final class NodeHub {
         NodeLink.Handshake agreed = link.handshake();
         if (agreed == null) return;
         LiveServer offline = null;
+        LiveServer left = null;
+        List<UUID> gone = List.of();
         synchronized (this) {
             LiveServer server = servers.get(agreed.serverId());
-            if (server != null && server.remove(link) && server.isEmpty()) {
-                servers.remove(server.id());
-                serverRepository.disconnected(server.id(), clock.instant());
-                offline = server;
+            if (server != null && server.remove(link)) {
+                left = server;
+                gone = server.forget(agreed.uid());
+                if (server.isEmpty()) {
+                    servers.remove(server.id());
+                    serverRepository.disconnected(server.id(), clock.instant());
+                    offline = server;
+                }
             }
+        }
+        if (left != null) {
+            for (UUID player : gone) events.presence(left, player, false);
         }
         if (offline != null) events.serverOffline(offline);
     }
@@ -427,9 +438,21 @@ public final class NodeHub {
                 branding(server.id(), update.branding());
                 events.serverChanged(server);
             }
-            case CreateSession request -> link.send(events.createSession(server, link, request));
+            case CreateSession request -> {
+                if (server.present(request.player().uuid(), request.node(), true)) {
+                    events.presence(server, request.player().uuid(), true);
+                }
+                link.send(events.createSession(server, link, request));
+            }
             case SessionClosed closed -> events.sessionClosed(server, closed);
             case SessionsRevoked revoked -> events.sessionsRevoked(server, revoked);
+            case PlayerPresence presence -> {
+                UUID named = presence.node();
+                UUID node = named == null ? link.agreed().uid() : named;
+                if (server.present(presence.player(), node, presence.online())) {
+                    events.presence(server, presence.player(), presence.online());
+                }
+            }
             case Patch patch -> events.patch(server, link, patch);
             case SessionConfirmed confirmed -> answer(link, confirmed, raw);
             case Snapshot snapshot -> answer(link, snapshot, raw);
@@ -501,6 +524,9 @@ public final class NodeHub {
 
         @Override
         public void sessionsRevoked(LiveServer server, SessionsRevoked message) {}
+
+        @Override
+        public void presence(LiveServer server, UUID player, boolean online) {}
 
         @Override
         public void patch(LiveServer server, NodeLink link, Patch patch) {}

@@ -17,6 +17,7 @@ export type ProtocolMessage =
   | SessionConfirmed
   | SessionClosed
   | SessionsRevoked
+  | PlayerPresence
   | SnapshotRequest
   | Snapshot
   | Subscribe
@@ -160,6 +161,14 @@ export interface SessionsRevoked {
   player: string;
   reason: CloseReason;
 }
+export interface PlayerPresence {
+  type: 'player.presence';
+  id?: string;
+  v: number;
+  player: string;
+  online: boolean;
+  node?: string;
+}
 export interface SnapshotRequest {
   type: 'snapshot.request';
   id?: string;
@@ -186,6 +195,7 @@ export interface PlayerView {
   permissions: MemberPermission[];
   invites: InviteView[];
   unreadInbox: number;
+  online?: boolean;
 }
 export interface InviteView {
   company: number;

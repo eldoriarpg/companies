@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -42,13 +43,15 @@ public final class BrowserStreams {
     private static final class Stream {
         private final String sessionId;
         private final String serverId;
+        private final UUID player;
         private final boolean admin;
         private final Socket socket;
         private volatile Instant lastHeard;
 
-        private Stream(String sessionId, String serverId, boolean admin, Socket socket, Instant now) {
+        private Stream(String sessionId, String serverId, UUID player, boolean admin, Socket socket, Instant now) {
             this.sessionId = sessionId;
             this.serverId = serverId;
+            this.player = player;
             this.admin = admin;
             this.socket = socket;
             this.lastHeard = now;
@@ -66,11 +69,12 @@ public final class BrowserStreams {
      * @param socketId the websocket's id
      * @param sessionId the session it belongs to
      * @param serverId the session's server
+     * @param player the session's player
      * @param admin whether the session's player has admin rights
      * @param socket the websocket
      */
-    public void open(String socketId, String sessionId, String serverId, boolean admin, Socket socket) {
-        streams.put(socketId, new Stream(sessionId, serverId, admin, socket, clock.instant()));
+    public void open(String socketId, String sessionId, String serverId, UUID player, boolean admin, Socket socket) {
+        streams.put(socketId, new Stream(sessionId, serverId, player, admin, socket, clock.instant()));
     }
 
     /**
@@ -109,6 +113,18 @@ public final class BrowserStreams {
         String text = MAPPER.writeValueAsString(message);
         for (Stream stream : List.copyOf(streams.values())) {
             if (stream.sessionId.equals(sessionId)) stream.socket.send(text);
+        }
+    }
+
+    /**
+     * @param serverId a server
+     * @param player a player
+     * @param message the message for every stream of that player's sessions on that server
+     */
+    public void pushPlayer(String serverId, UUID player, Object message) {
+        String text = MAPPER.writeValueAsString(message);
+        for (Stream stream : List.copyOf(streams.values())) {
+            if (stream.serverId.equals(serverId) && stream.player.equals(player)) stream.socket.send(text);
         }
     }
 

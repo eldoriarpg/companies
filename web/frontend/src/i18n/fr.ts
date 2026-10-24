@@ -387,6 +387,26 @@ export default {
         abortConfirm: 'Rendre la commande',
         aborted: '{name} est de nouveau dans le carnet de commandes.',
     },
+    deliver: {
+        all: 'Livrer ce que je porte',
+        line: 'Livrer {name} ({missing} manquants)',
+        nothing: 'Tu ne portes rien dont {name} a encore besoin.',
+        delivered: '{count} objets livrés à {name}.',
+        finished: '{count} objets livrés. {name} est complète.',
+        joinFirst: 'Rejoins le serveur pour livrer d’ici ; les objets viennent de ton inventaire.',
+    },
+    receive: {
+        button: 'Recevoir dans l’inventaire',
+        done: '{name} est dans ton inventaire.',
+        partly: '{name} est reçue ; {waiting} objets ne rentraient pas et attendent d’être récupérés.',
+        joinFirst: 'Rejoins le serveur pour recevoir cette commande dans ton inventaire.',
+    },
+    collect: {
+        button: 'Récupérer les objets en attente',
+        none: 'Rien ne t’attend.',
+        done: '{received} objets récupérés.',
+        partly: '{received} objets récupérés ; {remaining} ne rentraient pas et attendent encore.',
+    },
     own: {
         extend: 'Plus de temps',
         raise: 'Augmenter le paiement',

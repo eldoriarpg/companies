@@ -29,6 +29,8 @@ export interface DashboardData {
     seqs: Record<string, number>
     /** Whether the stream stands. */
     live: boolean
+    /** Whether the player is online on the server, from the snapshot and the gateway's presence events. */
+    playerOnline: boolean
     /** The company's feed, newest first. */
     activity: ActivityEntry[]
     nextActivity: number
@@ -62,7 +64,7 @@ export interface DashboardMachinery {
  */
 export function dashboardState() {
     const data = useState<DashboardData>('dashboardState', () => ({
-        status: 'idle', server: null, snapshot: null, seqs: {}, live: false, activity: [], nextActivity: 1, balances: [], retries: 0,
+        status: 'idle', server: null, snapshot: null, seqs: {}, live: false, playerOnline: false, activity: [], nextActivity: 1, balances: [], retries: 0,
         problem: null,
     }))
     const machinery = useState<DashboardMachinery>('dashboardState.machinery', () => ({
@@ -78,7 +80,7 @@ export function dashboardState() {
                 stream: null, generation: machinery.value.generation + 1, retry: null, buffer: null, loading: false, reloadAgain: false,
             }
             data.value = {
-                status: 'idle', server: null, snapshot: null, seqs: {}, live: false, activity: [], nextActivity: 1, balances: [], retries: 0,
+                status: 'idle', server: null, snapshot: null, seqs: {}, live: false, playerOnline: false, activity: [], nextActivity: 1, balances: [], retries: 0,
                 problem: null,
             }
         },

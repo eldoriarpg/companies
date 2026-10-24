@@ -21,6 +21,7 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.actions.ItemWrites;
 import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.views.DashboardReads;
@@ -41,11 +42,13 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.series.OrderSeries;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.orders.CompanyOrderService;
+import de.eldoria.companies.orders.DeliveryResult;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.OrderAcceptService;
@@ -53,6 +56,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.services.CompanyChanges;
@@ -65,12 +69,15 @@ import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
@@ -78,6 +85,7 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -99,6 +107,10 @@ import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
  */
 public final class DashboardWorld implements AutoCloseable {
     public final ServerMock server;
+    public final Plugin plugin;
+    public final ItemReturnService itemReturns;
+    public final RecordedDeliveries deliveries = new RecordedDeliveries();
+    public final List<UUID> moved = new CopyOnWriteArrayList<>();
     public final ExecutorService executor = Executors.newFixedThreadPool(4);
     public final Map<UUID, String> names = new ConcurrentHashMap<>();
     public final SqLiteCompanyData companies;
@@ -221,10 +233,12 @@ public final class DashboardWorld implements AutoCloseable {
                         this::name,
                         Clock.systemUTC()));
         var plugin = MockBukkit.createMockPlugin();
+        this.plugin = plugin;
+        itemReturns = new ItemReturnService(plugin, orders);
         var outcomes = new OrderOutcomes(
                 orders,
                 new HistoryRecorder(history, Clock.systemUTC()),
-                new ItemReturnService(plugin, orders),
+                itemReturns,
                 events,
                 ISimpleCompany::forId,
                 Logger.getAnonymousLogger(),
@@ -304,6 +318,23 @@ public final class DashboardWorld implements AutoCloseable {
                         changedInboxes::add,
                         Clock.systemUTC()),
                 company,
+                new ItemWrites(new ItemWrites.Sources(
+                        uuid -> Optional.ofNullable(server.getPlayer(uuid)),
+                        Threading.mainThread(plugin),
+                        player -> companies
+                                .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
+                                .asFuture(),
+                        orders,
+                        deliveries,
+                        new OrderReceiveService(
+                                orders,
+                                outcomes,
+                                itemReturns,
+                                Threading.mainThread(plugin),
+                                Logger.getAnonymousLogger()),
+                        itemReturns,
+                        failure -> "text of " + failure.localeKey(),
+                        player -> moved.add(player.getUniqueId()))),
                 new OrderCreateWrites(new OrderCreateWrites.Sources(
                         this::offline,
                         creation,
@@ -547,5 +578,31 @@ public final class DashboardWorld implements AutoCloseable {
     public void close() {
         TestExecutors.drain(executor);
         MockBukkit.unmock();
+    }
+
+    /**
+     * Deliveries that record what was asked: one line delivers the asked amount up to what it misses and never completes
+     * the order, everything delivers what every line misses and completes it. The item matching itself needs Paper's
+     * item stacks.
+     */
+    public static final class RecordedDeliveries implements ItemWrites.Deliveries {
+        public final List<String> calls = new CopyOnWriteArrayList<>();
+
+        @Override
+        public CompletableFuture<DeliveryResult> line(
+                Player worker, CompanyProfile company, FullOrder order, int line, int amount) {
+            calls.add("line " + order.id() + " " + line + " " + amount);
+            var missing = order.line(line).orElseThrow().missing();
+            var delivered = Math.min(missing, amount);
+            return CompletableFuture.completedFuture(new DeliveryResult(Map.of(line, delivered), order, false));
+        }
+
+        @Override
+        public CompletableFuture<DeliveryResult> all(Player worker, CompanyProfile company, FullOrder order) {
+            calls.add("all " + order.id());
+            Map<Integer, Integer> lines = new HashMap<>();
+            order.contents().forEach(content -> lines.put(content.line(), content.missing()));
+            return CompletableFuture.completedFuture(new DeliveryResult(lines, order, true));
+        }
     }
 }

@@ -453,6 +453,8 @@
       }, {
         "$ref" : "#/$defs/SessionsRevoked"
       }, {
+        "$ref" : "#/$defs/PlayerPresence"
+      }, {
         "$ref" : "#/$defs/SnapshotRequest"
       }, {
         "$ref" : "#/$defs/Snapshot"
@@ -624,6 +626,33 @@
       },
       "required" : [ "type", "v", "time" ]
     },
+    "PlayerPresence" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "player.presence"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        },
+        "online" : {
+          "type" : "boolean"
+        },
+        "node" : {
+          "type" : "string",
+          "format" : "uuid"
+        }
+      },
+      "required" : [ "type", "v", "player", "online" ]
+    },
     "PlayerRef" : {
       "type" : "object",
       "properties" : {
@@ -664,6 +693,9 @@
         },
         "unreadInbox" : {
           "type" : "integer"
+        },
+        "online" : {
+          "type" : "boolean"
         }
       },
       "required" : [ "uuid", "name", "permissions", "invites", "unreadInbox" ]

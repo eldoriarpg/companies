@@ -121,6 +121,7 @@ public final class DashboardRouter {
             return;
         }
         parts.handshake().iconFor(welcome).ifPresent(parts.link()::send);
+        parts.reportPresence().run();
     }
 
     private void opened(SessionOpened opened) {
@@ -239,6 +240,7 @@ public final class DashboardRouter {
      * @param opened    tells a player that a browser logged in, with the browser's name
      * @param disconnect  closes the connection without sending the key again
      * @param node      this node's uid
+     * @param reportPresence tells the gateway which players with a session are online here
      * @param work      builds snapshots and answers actions off the inbound thread
      * @param logger    logger of the plugin
      */
@@ -257,6 +259,7 @@ public final class DashboardRouter {
             BiConsumer<UUID, Optional<String>> opened,
             Runnable disconnect,
             UUID node,
+            Runnable reportPresence,
             Executor work,
             Logger logger) {}
 }

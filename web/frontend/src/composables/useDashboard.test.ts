@@ -103,6 +103,22 @@ describe('the dashboard session', () => {
         expect(dashboard.live.value).toBe(true)
     })
 
+    it('follows whether the player is online on the server', async () => {
+        const {api, dashboard, socket} = wired()
+        api.snapshot.mockResolvedValue({...snapshot(), player: {...snapshot().player, online: true}})
+        dashboard.start()
+        socket().emit('open')
+        await settle()
+        expect(dashboard.playerOnline.value).toBe(true)
+
+        socket().receive(patch(42, {path: 'player', op: 'REPLACE', value: snapshot().player}))
+        expect(dashboard.playerOnline.value).toBe(true)
+
+        socket().receive({type: 'presence', online: false})
+
+        expect(dashboard.playerOnline.value).toBe(false)
+    })
+
     it('loads the snapshot again when a patch does not fit it', async () => {
         const {api, dashboard, socket} = wired()
         dashboard.start()

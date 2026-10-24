@@ -210,6 +210,14 @@ function action(name, args, state) {
                 return {type: 'action.result', v: 1, ok: false, reason: 'error.orderLimit', message: 'Your company works on as many orders as its level allows.'}
             }
             return done({order: args.order})
+        case 'orders.deliver.all':
+            return done({order: args.order, delivered: 18, done: false})
+        case 'orders.deliver.line':
+            return done({order: args.order, delivered: 0, done: false})
+        case 'orders.deliver.receive':
+            return done({order: args.order, amount: 120, waiting: 20})
+        case 'orders.deliver.collect':
+            return done({received: 12, remaining: 0})
         case 'orders.create.catalogue':
             return done(CATALOGUE)
         case 'orders.create.items':
