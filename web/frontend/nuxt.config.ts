@@ -21,7 +21,9 @@ const POLLING = process.env.CHOKIDAR_USEPOLLING === 'true'
  * development the dev proxies hand it on, HTTP and WebSocket alike, and the built server forwards it through
  * `server/middleware/backend-proxy.ts` and relays the stream through `server/routes/api/v1/me/stream.ts`.
  *
- * <p>`runtimeConfig.backendUrl` is read per request, so one build serves any gateway address.
+ * <p>`runtimeConfig.backendUrl` is read per request, so one build serves any gateway address. `trustedProxies`
+ * (`NUXT_TRUSTED_PROXIES`, addresses and networks separated by commas) names the proxies in front of this server whose
+ * `CF-Connecting-IP` is handed on to the gateway; none by default.
  */
 export default defineNuxtConfig({
   devServer: {
@@ -77,6 +79,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     backendUrl: BACKEND_URL,
+    trustedProxies: '',
   },
 
   css: ['~/style.css'],
