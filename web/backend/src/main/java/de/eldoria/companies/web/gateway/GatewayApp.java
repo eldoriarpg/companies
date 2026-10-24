@@ -82,7 +82,7 @@ public final class GatewayApp {
         RateLimiter logins = new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock);
         RateLimiter lookups = new RateLimiter(60, Duration.ofMinutes(1), clock);
         RateLimiter readLimit = new RateLimiter(config.readsPerSession(), Duration.ofSeconds(10), clock);
-        this.health = new Health(Database::ping, clock);
+        this.health = Health.of(Database::ping, clock);
         this.limiters = List.of(connects, logins, lookups, readLimit);
         this.clientAddress = ClientAddress.trusting(config.trustedProxies(), config.cloudflare());
         this.hub = new NodeHub(authenticator, policy, config.mode().kind(), servers, icons, connects, clock);
