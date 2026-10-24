@@ -1,0 +1,37 @@
+{
+  "type": "action.result",
+  "id": "g-20",
+  "v": 1,
+  "ok": true,
+  "data": {
+    "page": 1,
+    "pages": 3,
+    "total": 47,
+    "taxPercent": 5.0,
+    "canAccept": true,
+    "limitReached": false,
+    "orders": [
+      {
+        "id": 101,
+        "name": "Market stalls",
+        "state": "UNCLAIMED",
+        "lines": [
+          {
+            "item": {
+              "material": "minecraft:spruce_planks",
+              "name": "Spruce Planks",
+              "amount": 64,
+              "icon": "spruce_planks"
+            },
+            "delivered": 0,
+            "price": 128.0
+          }
+        ],
+        "created": "2026-10-24T08:00:00Z",
+        "expires": "2026-10-31T08:00:00Z",
+        "price": 128.0,
+        "amount": 64
+      }
+    ]
+  }
+}

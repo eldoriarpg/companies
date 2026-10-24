@@ -1,0 +1,28 @@
+{
+  "type": "action.result",
+  "id": "g-21",
+  "v": 1,
+  "ok": true,
+  "data": {
+    "id": 101,
+    "name": "Market stalls",
+    "state": "CLAIMED",
+    "lines": [
+      {
+        "item": {
+          "material": "minecraft:spruce_planks",
+          "name": "Spruce Planks",
+          "amount": 64,
+          "icon": "spruce_planks"
+        },
+        "delivered": 40,
+        "price": 128.0
+      }
+    ],
+    "created": "2026-10-24T08:00:00Z",
+    "deadline": "2026-10-26T09:00:00Z",
+    "price": 128.0,
+    "amount": 64,
+    "claimed": "2026-10-24T09:00:00Z"
+  }
+}

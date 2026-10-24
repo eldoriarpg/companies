@@ -70,6 +70,19 @@ class CompaniesDebugSettingsTest {
     }
 
     @Test
+    void dashboardKeysAreMaskedAnywhereAndInNodeYml() {
+        var line = settings.applyFilter("Stored lyd_AbC-123_test-key for the network");
+        var node = settings.applyFilter("nodeType: PRIMARY\ndashboard:\n  serverKey: self-hosted-token\n");
+
+        assertEquals("Stored lyd_***** for the network", line);
+        assertEquals("token cst_*****", settings.applyFilter("token cst_Self-Hosted_9"));
+        assertFalse(node.contains("self-hosted-token"), node);
+        assertTrue(node.contains("nodeType: PRIMARY"));
+        assertTrue(settings.applyFilter("dashboard:\n  serverKey: env:COMPANIES_DASHBOARD_KEY\n")
+                .contains("serverKey: env:COMPANIES_DASHBOARD_KEY"));
+    }
+
+    @Test
     void defaultFiltersStayActive() {
         var filtered = settings.applyFilter("password: hunter2\n");
 

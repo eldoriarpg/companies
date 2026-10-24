@@ -136,6 +136,12 @@ again. See [Levels](./levels.md).
 
 `/companyadmin board ...` lists presets, rewrites board signs and binds NPCs. See [Boards](./boards.md).
 
+## Web dashboard
+
+`/companyadmin dashboard status` shows the dashboard connection, `/companyadmin dashboard key <key>` stores the
+dashboard key, and `/companyadmin dashboard revoke <player>` logs a player out of the dashboard. New in 2.1. See
+[Web dashboard](./dashboard.md).
+
 ## Plugin
 
 | Command | Permission | What it does |
@@ -153,7 +159,7 @@ Some settings are only read at start. `reload` does not apply them. The
 for `node`, see [Old server entries](./multiserver.md#old-server-entries).
 
 `debug` creates a report with your settings, the server setup and a check of the database, the economy and, when
-used, Redis, PostgreSQL notify or low latency mode. Passwords and the Discord webhook secret are masked. See [Discord webhook](./discord-webhook.md#secrets-in-logs-and-debug-reports).
+used, Redis, PostgreSQL notify or low latency mode. Passwords, the Discord webhook secret and dashboard keys are masked. See [Discord webhook](./discord-webhook.md#secrets-in-logs-and-debug-reports).
 
 ## The admin log
 

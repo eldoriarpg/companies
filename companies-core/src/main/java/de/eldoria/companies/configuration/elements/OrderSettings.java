@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements;
 
+import de.eldoria.companies.configuration.elements.ordersettings.MarketSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.configuration.elements.ordersettings.RepeatingSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.SoloSettings;
@@ -20,6 +21,7 @@ public class OrderSettings {
     private ItemMatchSettings matching = new ItemMatchSettings();
     private RepeatingSettings repeating = new RepeatingSettings();
     private SoloSettings solo = new SoloSettings();
+    private MarketSettings market = new MarketSettings();
 
     public OrderSettings() {}
 
@@ -112,5 +114,14 @@ public class OrderSettings {
      */
     public SoloSettings solo() {
         return solo == null ? new SoloSettings() : solo;
+    }
+
+    /**
+     * The market statistics of the dashboard.
+     *
+     * @return market settings
+     */
+    public MarketSettings market() {
+        return market == null ? new MarketSettings() : market;
     }
 }

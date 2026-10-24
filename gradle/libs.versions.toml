@@ -7,6 +7,8 @@ paper = "1.21.11-R0.1-SNAPSHOT"
 junit = "6.1.3"
 strokkcommands = "2.3.1"
 testcontainers = "2.0.5"
+javalin = "7.2.3"
+logback = "1.6.5"
 
 [libraries]
 strokkcommands-annotations = { module = "net.strokkur.commands:annotations-paper", version.ref = "strokkcommands" }
@@ -32,6 +34,7 @@ mariadb = "org.mariadb.jdbc:mariadb-java-client:3.5.11"
 sqlite = "org.xerial:sqlite-jdbc:3.53.4.0"
 postgres = "org.postgresql:postgresql:42.7.14"
 jedis = "redis.clients:jedis:8.0.2"
+log4j-core = "org.apache.logging.log4j:log4j-core:2.25.2"
 
 sadu-queries = { module = "de.chojo.sadu:sadu-queries", version.ref = "sadu" }
 sadu-updater = { module = "de.chojo.sadu:sadu-updater", version.ref = "sadu" }
@@ -39,6 +42,10 @@ sadu-datasource = { module = "de.chojo.sadu:sadu-datasource", version.ref = "sad
 sadu-postgresql = { module = "de.chojo.sadu:sadu-postgresql", version.ref = "sadu" }
 sadu-mariadb = { module = "de.chojo.sadu:sadu-mariadb", version.ref = "sadu" }
 sadu-sqlite = { module = "de.chojo.sadu:sadu-sqlite", version.ref = "sadu" }
+sadu-mapper = { module = "de.chojo.sadu:sadu-mapper", version.ref = "sadu" }
+
+javalin = { module = "io.javalin:javalin", version.ref = "javalin" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 jetbrains-annotations = "org.jetbrains:annotations:26.1.0"
 jspecify = "org.jspecify:jspecify:1.0.1"
@@ -62,6 +69,7 @@ gradle-spotbugs = "com.github.spotbugs:com.github.spotbugs.gradle.plugin:6.5.13"
 jackson = ["jackson-databind", "jackson-annotations", "jackson-yaml"]
 eldoria-utilities = ["jackson-configuration", "plugin", "threading", "updater"]
 database = ["hikari", "mariadb", "sqlite", "postgres"]
+sadu-postgresql = ["sadu-queries", "sadu-updater", "sadu-datasource", "sadu-postgresql", "sadu-mapper"]
 sadu = ["sadu-queries", "sadu-updater", "sadu-datasource", "sadu-postgresql", "sadu-mariadb", "sadu-sqlite"]
 
 [plugins]

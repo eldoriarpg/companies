@@ -1,0 +1,11 @@
+**/build
+**/.gradle
+.gradle
+**/run
+**/node_modules
+web/frontend
+docs
+.concept
+.claude
+.git
+.idea

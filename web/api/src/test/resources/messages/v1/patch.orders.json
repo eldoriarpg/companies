@@ -1,0 +1,32 @@
+{
+  "type": "patch",
+  "v": 1,
+  "sessions": [
+    "s-2b8e41"
+  ],
+  "node": "4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10",
+  "seq": 46,
+  "path": "orders",
+  "op": "UPSERT",
+  "key": "101",
+  "value": {
+    "id": 101,
+    "name": "Market stalls",
+    "state": "CLAIMED",
+    "lines": [
+      {
+        "item": {
+          "material": "minecraft:spruce_planks",
+          "name": "Spruce Planks",
+          "amount": 64,
+          "icon": "spruce_planks"
+        },
+        "delivered": 40,
+        "price": 128.0
+      }
+    ],
+    "created": "2026-10-24T08:00:00Z",
+    "deadline": "2026-10-26T09:00:00Z",
+    "waiting": []
+  }
+}

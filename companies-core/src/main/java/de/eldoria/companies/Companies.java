@@ -28,8 +28,12 @@ import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.dashboard.Dashboard;
+import de.eldoria.companies.dashboard.DashboardModule;
+import de.eldoria.companies.dashboard.KeyCommandFilter;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANodeMessageData;
@@ -38,6 +42,7 @@ import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAlertData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbDashboardData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
@@ -49,6 +54,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbTreasuryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresAlertData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresDashboardData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
@@ -60,6 +66,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresTreasuryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
@@ -79,6 +86,7 @@ import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeBuses;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.nodes.NodeConnection;
+import de.eldoria.companies.nodes.NodeMessage;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -157,6 +165,8 @@ public class Companies extends EldoPlugin {
     private ANodeData nodeData;
     private AMembershipData membershipData;
     private ANodeMessageData nodeMessages;
+    private ADashboardData dashboardData;
+    private Dashboard dashboard;
     private Updates updates;
     private CommandDependencies commands;
     private OrderDraftService drafts;
@@ -194,6 +204,7 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginEnable(boolean reload) {
+        KeyCommandFilter.install(getLogger());
 
         var localizer = Localizer.builder(this, "en_US")
                 .setIncludedLocales("en_US", "de_DE", "fr_FR")
@@ -335,6 +346,7 @@ public class Companies extends EldoPlugin {
                 Threading.VIRTUAL);
         var ownerOrders = OwnerOrderService.create(
                 this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
+        var search = new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher);
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -365,7 +377,7 @@ public class Companies extends EldoPlugin {
                     orderAccept,
                     CompanyOrderService.create(this, companyData, orderData, outcomes),
                     ownerOrders,
-                    new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher)));
+                    search));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
@@ -458,6 +470,37 @@ public class Companies extends EldoPlugin {
             registerPlaceholderCaches(placeholders);
         }
         connectNodes(notificationService, inboxPoller);
+        startDashboard(search);
+    }
+
+    /**
+     * Starts the web dashboard of this node, which connects only while it is enabled. A new key stored on another node
+     * makes it connect again.
+     *
+     * @param search the order search the dashboard pages through
+     */
+    private void startDashboard(SearchExecutor search) {
+        if (commands == null || api == null) return;
+        dashboard = DashboardModule.start(
+                this,
+                configuration,
+                new DashboardModule.Data(
+                        dashboardData,
+                        api,
+                        membershipData,
+                        this.economy.alerts(),
+                        information.inbox(),
+                        this.economy.treasury(),
+                        information.stats(),
+                        search),
+                () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
+                workerPool);
+        var started = dashboard;
+        caches.register(NodeCaches.DASHBOARD, key -> {
+            if (key.filter(NodeCaches.DASHBOARD_KEY::equals).isPresent()) started.keyChangedElsewhere();
+        });
+        commands.useDashboard(started);
+        commands.onReload(started::restartLater);
     }
 
     /**
@@ -530,6 +573,7 @@ public class Companies extends EldoPlugin {
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
+        if (dashboard != null) dashboard.stop();
         if (nodeConnection != null) {
             nodeConnection.stop();
         } else {
@@ -606,6 +650,7 @@ public class Companies extends EldoPlugin {
                 nodeData = new SqLiteNodeData(configuration.nodeSettings());
                 membershipData = new SqLiteMembershipData(workerPool);
                 nodeMessages = new SqLiteNodeMessageData();
+                dashboardData = new SqLiteDashboardData();
             }
             case MARIADB -> {
                 companyData = new MariaDbCompanyData(workerPool);
@@ -621,6 +666,7 @@ public class Companies extends EldoPlugin {
                 nodeData = new MariaDbNodeData(configuration.nodeSettings());
                 membershipData = new MariaDbMembershipData(workerPool);
                 nodeMessages = new MariaDbNodeMessageData();
+                dashboardData = new MariaDbDashboardData();
             }
             case POSTGRES -> {
                 companyData = new PostgresCompanyData(workerPool);
@@ -636,6 +682,7 @@ public class Companies extends EldoPlugin {
                 nodeData = new PostgresNodeData(configuration.nodeSettings());
                 membershipData = new PostgresMembershipData(workerPool);
                 nodeMessages = new PostgresNodeMessageData();
+                dashboardData = new PostgresDashboardData();
             }
             default ->
                 throw new IllegalStateException(

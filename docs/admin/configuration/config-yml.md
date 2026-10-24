@@ -230,3 +230,21 @@ Posts new orders, completed orders and level ups to a Discord channel. See [Disc
 :::tip
 The webhook URL is a secret. In a network this file is copied to every server through the database. Use `env:NAME` there and set the variable on each server.
 :::
+
+## dashboard
+
+:::info New in 2.1
+:::
+
+The web dashboard. See [Web dashboard](../dashboard.md) for a guide. The key is not set here, since this file is
+copied to every server; see [node.yml](./node-yml.md).
+
+| Key | Type | Default | Meaning | Applies |
+|---|---|---|---|---|
+| `enabled` | true/false | `false` | Connect to the gateway and let players open the dashboard. | reload |
+| `gateway` | text | `wss://companies.eldoria.de/api/v1/servers/connect` | The gateway's address, `ws://` or `wss://`. Change it only for a self-hosted gateway. | reload |
+| `sessionIdleMinutes` | number (minutes) | `60` | A login ends after this long without use. From 5 minutes to a week. | reload |
+| `sessionMaxHours` | number (hours) | `24` | A login ends after this long in any case. From 1 hour to 30 days. | reload |
+| `features` | map of true/false | every part `true` | Switch parts of the dashboard off, for example `market: false`. A part missing from the map is on. | reload |
+| `branding.name` | text | `''` | The server's name on the dashboard. When empty, the MOTD without colours is used. At most 64 characters. | reload |
+| `branding.icon` | text | `server-icon.png` | A PNG in the plugin folder, or in the server folder, of at most 256×256 pixels and 48 KB. When it is missing or too large, the dashboard shows no icon and the console says why. | reload |

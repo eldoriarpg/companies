@@ -8,6 +8,7 @@ package de.eldoria.companies.configuration;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import de.eldoria.companies.configuration.elements.BoardSettings;
+import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.DiscordSettings;
 import de.eldoria.companies.configuration.elements.EconomySettings;
 import de.eldoria.companies.configuration.elements.GeneralSettings;
@@ -32,6 +33,7 @@ public class ConfigFile {
     private TopSettings top = new TopSettings();
     private BoardSettings boards = new BoardSettings();
     private DiscordSettings discord = new DiscordSettings();
+    private DashboardSettings dashboard = new DashboardSettings();
 
     /**
      * The configuration written for a new installation, which shows menus as dialogs.
@@ -100,5 +102,12 @@ public class ConfigFile {
      */
     public DiscordSettings discord() {
         return discord;
+    }
+
+    /**
+     * @return the web dashboard
+     */
+    public DashboardSettings dashboard() {
+        return dashboard == null ? new DashboardSettings() : dashboard;
     }
 }

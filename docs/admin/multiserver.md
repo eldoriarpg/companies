@@ -72,7 +72,8 @@ See [node.yml](./configuration/node-yml.md) for the file reference.
 ## What is shared
 
 **All data** lives in the database: orders, companies, members, treasuries, inboxes, history and alerts. Every server
-sees changes at once.
+sees changes at once. So do the key and the logins of the [web dashboard](./dashboard.md), to which every server
+connects on its own.
 
 **The configuration** is copied from the primary server:
 
