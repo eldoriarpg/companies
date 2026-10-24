@@ -32,7 +32,7 @@ const now = useNow({interval: 60_000})
  */
 function textOf(entry: ActivityEntry): string {
   const amount = entry.amount === undefined ? '' : entry.kind === 'deposit' || entry.kind === 'withdrawal' ? money(entry.amount, locale.value) : count(entry.amount, locale.value)
-  const values = {amount, item: entry.item ?? t('activity.items'), order: entry.order ?? '', level: entry.level ?? ''}
+  const values = {amount, item: entry.item ?? t('activity.items'), order: entry.order ?? '', level: entry.level ?? '', company: entry.company ?? ''}
   if (entry.kind === 'delivered' && entry.order === undefined) return t('activity.deliveredSomewhere', values)
   if (entry.kind === 'delivered' && entry.actor === undefined) return t('activity.deliveredTo', values)
   return t(`activity.${entry.kind}`, values)

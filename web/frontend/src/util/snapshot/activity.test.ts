@@ -56,6 +56,21 @@ describe('company activity', () => {
         expect(linesOf(patch(42, {path: 'company', op: 'REPLACE', value: {...company, description: 'New text'}}))).toEqual([])
     })
 
+    it('reads another company replaced in as joining it, and nothing else', () => {
+        const company = snapshot().company
+        const other = {...company, id: 9, name: 'Copperworks', level: {level: 7, name: 'Empire', progress: 0}, members: [], orders: []}
+        expect(linesOf(patch(42, {path: 'company', op: 'REPLACE', value: other})))
+            .toEqual([{kind: 'companyJoined', time: TIME, company: 'Copperworks'}])
+    })
+
+    it('reads a company coming or going as joining or leaving it', () => {
+        const before = snapshot()
+        const left = patch(42, {path: 'company', op: 'REMOVE'})
+        expect(activityOf(before.company, undefined, left, TIME)).toEqual([{kind: 'companyLeft', time: TIME, company: 'Diamond Diggers'}])
+        const joined = patch(43, {path: 'company', op: 'REPLACE', value: before.company})
+        expect(activityOf(undefined, before.company, joined, TIME)).toEqual([{kind: 'companyJoined', time: TIME, company: 'Diamond Diggers'}])
+    })
+
     it('reads a whole list replaced entry by entry', () => {
         const members = [member(ALEX, 'Alex', 2274), ...(snapshot().company?.members.filter(entry => entry.uuid !== ALEX) ?? [])]
         expect(linesOf(patch(42, {path: 'company.members', op: 'REPLACE', value: members})))

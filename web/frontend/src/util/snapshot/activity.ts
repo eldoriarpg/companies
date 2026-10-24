@@ -6,7 +6,9 @@
 import type {ClaimedOrderView, CompanyView, Patch} from '~/api/generated/protocol'
 
 /** What happened in the company. */
-export type ActivityKind = 'delivered' | 'accepted' | 'done' | 'dropped' | 'joined' | 'left' | 'level' | 'deposit' | 'withdrawal'
+export type ActivityKind =
+    | 'delivered' | 'accepted' | 'done' | 'dropped' | 'joined' | 'left' | 'level' | 'deposit' | 'withdrawal'
+    | 'companyJoined' | 'companyLeft'
 
 /**
  * One line of the company's live feed. Inside a company anonymity ends, so a delivery names the member who made it;
@@ -26,6 +28,8 @@ export interface ActivityEntry {
     amount?: number
     /** The level reached. */
     level?: string
+    /** The company the player joined or left. */
+    company?: string
 }
 
 /** How long a delivery waits for its other half: the member's statistics and the order's progress come apart. */
@@ -41,7 +45,8 @@ export const FEED_LENGTH = 50
  * delivered them, an order whose lines rose was delivered to, a new order was accepted, a gone one is done or dropped,
  * a higher level was reached, a member came or went, the treasury moved. The plugin sends a changed level, and other
  * changes of the profile, as the whole `company` replaced; such a patch, and a whole list replaced, is compared part
- * by part.
+ * by part. A whole `company` that is another one, or that comes or goes, means the player joined, switched or left
+ * a company: that is one line, and nothing of the two companies is compared.
  *
  * @param before the company before the patch
  * @param after the company after it
@@ -50,6 +55,7 @@ export const FEED_LENGTH = 50
  * @returns the new lines, without ids
  */
 export function activityOf(before: CompanyView | undefined, after: CompanyView | undefined, patch: Patch, time: string): Omit<ActivityEntry, 'id'>[] {
+    if (patch.path === 'company' && (before?.id !== after?.id)) return companyChange(after ?? undefined, before ?? undefined, time)
     if (!before || !after) return []
     switch (patch.path) {
         case 'company':
@@ -70,6 +76,19 @@ export function activityOf(before: CompanyView | undefined, after: CompanyView |
         default:
             return []
     }
+}
+
+/**
+ * The line of the player joining a company, switching to another one, or leaving theirs.
+ *
+ * @param joined the company the player is in now, none after leaving
+ * @param left the company the player was in, none before joining
+ * @param time when it arrived
+ * @returns the line
+ */
+function companyChange(joined: CompanyView | undefined, left: CompanyView | undefined, time: string): Omit<ActivityEntry, 'id'>[] {
+    if (joined) return [{kind: 'companyJoined', time, company: joined.name}]
+    return left ? [{kind: 'companyLeft', time, company: left.name}] : []
 }
 
 /**
