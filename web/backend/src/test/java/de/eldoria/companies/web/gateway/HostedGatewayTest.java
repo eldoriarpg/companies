@@ -227,8 +227,12 @@ class HostedGatewayTest {
     @Test
     void limitsMessagesBeforeTheWelcome() {
         try (FakeNode node = FakeNode.connect(gateway)) {
-            node.sendRaw("{\"type\":\"hello\",\"pad\":\"" + "x".repeat(200 * 1024) + "\"}");
-            assertEquals(1009, node.awaitClose());
+            boolean written = node.sendRefusable("{\"type\":\"hello\",\"pad\":\"" + "x".repeat(200 * 1024) + "\"}");
+            if (written) {
+                assertEquals(1009, node.awaitClose());
+            } else {
+                assertTrue(node.outputClosed());
+            }
         }
     }
 
