@@ -200,7 +200,10 @@ public final class Sessions {
             if (attempts.get() < MAX_ATTEMPTS) return new LoginResult.WrongCode(MAX_ATTEMPTS - attempts.get());
             return noAttemptLeft(session);
         }
-        if (!repository.startOpening(session.id())) return new LoginResult.Busy();
+        if (!repository.startOpening(session.id())) {
+            repository.refundAttempt(session.id());
+            return new LoginResult.Busy();
+        }
         NodeLink node = link.get();
         Reply answer;
         try {

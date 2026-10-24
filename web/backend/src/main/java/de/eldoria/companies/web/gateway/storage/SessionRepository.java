@@ -119,6 +119,17 @@ public final class SessionRepository {
     }
 
     /**
+     * Returns an attempt a right code took when another browser opened the session first.
+     *
+     * @param id the session id
+     */
+    public void refundAttempt(String id) {
+        query("UPDATE session SET attempts = greatest(attempts - 1, 0) WHERE id = :id;")
+                .single(call().bind("id", id))
+                .update();
+    }
+
+    /**
      * Moves a pending session to {@link SessionState#OPENING}, so only one browser logs in with a code.
      *
      * @param id the session id
