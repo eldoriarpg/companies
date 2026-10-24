@@ -18,6 +18,7 @@ import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
+import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
@@ -316,6 +317,10 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 () -> configuration.orderSetting().repeating());
 
+        var deliveryService =
+                new DeliveryService(this, orderData, orderCompletion, itemReturnService, () -> configuration
+                        .orderSetting()
+                        .matching());
         var profileService = new ProfileService(
                 ProfileService.Store.of(companyData),
                 () -> configuration.companySettings().profile(),
@@ -340,9 +345,7 @@ public class Companies extends EldoPlugin {
                     notificationService,
                     disbandService,
                     updates,
-                    new DeliveryService(this, orderData, orderCompletion, itemReturnService, () -> configuration
-                            .orderSetting()
-                            .matching()),
+                    deliveryService,
                     new MenuService(
                             messageBlocker, () -> configuration.menuSettings().mode()),
                     membershipService,
@@ -361,7 +364,8 @@ public class Companies extends EldoPlugin {
                             configuration::companySettings),
                     orderAccept,
                     CompanyOrderService.create(this, companyData, orderData, outcomes),
-                    ownerOrders));
+                    ownerOrders,
+                    new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher)));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 

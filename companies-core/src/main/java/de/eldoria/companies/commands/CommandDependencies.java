@@ -7,6 +7,7 @@ package de.eldoria.companies.commands;
 
 import de.eldoria.companies.boards.Boards;
 import de.eldoria.companies.boards.npc.NpcBoards;
+import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
@@ -375,6 +376,7 @@ public final class CommandDependencies {
      * @param orderAccept         accepts orders for companies
      * @param companyOrders       gives back orders companies work on
      * @param ownerOrders         cancels, extends and raises orders of their owners
+     * @param search              searches the orders a company could accept
      */
     public record Services(
             Economy economy,
@@ -397,5 +399,6 @@ public final class CommandDependencies {
             CompanyService companies,
             OrderAcceptService orderAccept,
             CompanyOrderService companyOrders,
-            OwnerOrderService ownerOrders) {}
+            OwnerOrderService ownerOrders,
+            SearchExecutor search) {}
 }

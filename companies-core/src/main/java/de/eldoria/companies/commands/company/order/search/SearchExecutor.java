@@ -16,6 +16,8 @@ import de.eldoria.companies.orders.Deliverable;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -23,6 +25,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -30,12 +35,16 @@ import java.util.function.Supplier;
  * <p>
  * Hidden are orders of the company's own members (unless allowed), orders larger than the company's level allows and,
  * with the fillable filter, orders the player can deliver nothing to. A company at its order limit gets no orders.
+ * <p>
+ * The fillable filter reads the inventory of an online player. A search for a player given by id, who does not need
+ * to be online, ignores it.
  */
 public class SearchExecutor implements OrderFinder {
     private final AOrderData orderData;
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final Supplier<ItemMatcher> matcher;
+    private final Function<UUID, OfflinePlayer> players;
 
     /**
      * @param orderData     order repository
@@ -48,10 +57,27 @@ public class SearchExecutor implements OrderFinder {
             ACompanyData companyData,
             Configuration configuration,
             Supplier<ItemMatcher> matcher) {
+        this(orderData, companyData, configuration, matcher, Bukkit::getOfflinePlayer);
+    }
+
+    /**
+     * @param orderData     order repository
+     * @param companyData   company repository
+     * @param configuration configuration of the plugin
+     * @param matcher       the current item matcher, which decides what the player can deliver
+     * @param players       looks up a player by id
+     */
+    public SearchExecutor(
+            AOrderData orderData,
+            ACompanyData companyData,
+            Configuration configuration,
+            Supplier<ItemMatcher> matcher,
+            Function<UUID, OfflinePlayer> players) {
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
         this.matcher = matcher;
+        this.players = players;
     }
 
     /**
@@ -64,17 +90,36 @@ public class SearchExecutor implements OrderFinder {
     @Override
     public BukkitFutureResult<SearchResults> execute(Player player, SearchQuery query) {
         List<ItemStack> available = query.fillable() ? Deliverable.available(player) : List.of();
+        return BukkitFutureResult.of(run(player, query, query.fillable(), available));
+    }
+
+    /**
+     * Runs the query for a player who does not need to be online. The fillable filter of the query is ignored.
+     *
+     * @param player id of the player searching
+     * @param query  query to run
+     * @return the orders the player's company could accept
+     */
+    public CompletableFuture<SearchResults> search(UUID player, SearchQuery query) {
+        return run(players.apply(player), query, false, List.of());
+    }
+
+    private CompletableFuture<SearchResults> run(
+            OfflinePlayer player, SearchQuery query, boolean fillable, List<ItemStack> available) {
         var itemMatcher = matcher.get();
         var orders = orderData
                 .retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
                 .asFuture();
-        return BukkitFutureResult.of(companyData
+        return companyData
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
                 .thenCombineAsync(
                         orders,
-                        (company, found) -> results(player, company, filled(found, query, itemMatcher, available)),
-                        Threading.VIRTUAL));
+                        (company, found) -> results(
+                                player.getUniqueId(),
+                                company,
+                                fillable ? filled(found, query, itemMatcher, available) : found),
+                        Threading.VIRTUAL);
     }
 
     /**
@@ -97,7 +142,7 @@ public class SearchExecutor implements OrderFinder {
         return fillable;
     }
 
-    private SearchResults results(Player player, Optional<CompanyProfile> optCompany, List<FullOrder> orders) {
+    private SearchResults results(UUID player, Optional<CompanyProfile> optCompany, List<FullOrder> orders) {
         var settings = configuration.companySettings();
         if (optCompany.isEmpty())
             return new SearchResults(orders, settings.tax().percent(), false, false);
