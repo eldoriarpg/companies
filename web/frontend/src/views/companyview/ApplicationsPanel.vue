@@ -11,7 +11,7 @@ import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
@@ -56,10 +56,10 @@ async function answer(name: 'company.applications.accept' | 'company.application
       <SectionHeader :note="String(applications.result.value?.total ?? 0)">{{ t('company.applications') }}</SectionHeader>
     </template>
     <div class="flex flex-col gap-2 px-3 pt-3 md:px-4 empty:hidden">
-      <NoticeBanner v-if="done">{{ done }}</NoticeBanner>
+      <Alert v-if="done" variant="success">{{ done }}</Alert>
       <ActionNotice :problem="action.problem.value"/>
     </div>
-    <NoticeBanner v-if="applications.status.value === 'failed'" tone="problem" class="m-3 md:mx-4">{{ t('company.applicationsFailed') }}</NoticeBanner>
+    <Alert v-if="applications.status.value === 'failed'" variant="problem" class="m-3 md:mx-4">{{ t('company.applicationsFailed') }}</Alert>
     <template v-else-if="applications.result.value">
       <EmptyState v-if="applications.result.value.entries.length === 0">{{ t('company.noApplications') }}</EmptyState>
       <ul v-else class="m-0 list-none p-0" data-testid="applications">

@@ -10,7 +10,7 @@ import ButtonRow from '@/components/button/ButtonRow.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import ToggleSwitch from '@/components/input/ToggleSwitch.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
@@ -83,10 +83,10 @@ onMounted(() => void inbox.load())
               @update:model-value="value => setMuted(category, value)"
           />
         </div>
-        <NoticeBanner v-if="done && action.problem.value === null">{{ done }}</NoticeBanner>
+        <Alert v-if="done && action.problem.value === null" variant="success">{{ done }}</Alert>
         <ActionNotice :problem="action.problem.value"/>
       </div>
-      <NoticeBanner v-if="inbox.status.value === 'failed'" tone="problem">{{ t('inbox.failed') }}</NoticeBanner>
+      <Alert v-if="inbox.status.value === 'failed'" variant="problem">{{ t('inbox.failed') }}</Alert>
       <EmptyState v-else-if="!inbox.result.value?.entries.length">{{ inbox.status.value === 'loading' ? t('common.loading') : t('inbox.empty') }}</EmptyState>
       <ol v-else class="m-0 list-none p-0" data-testid="inbox">
         <li v-for="entry in inbox.result.value.entries" :key="entry.id" class="flex flex-col gap-1 border-b border-line-soft px-3 py-3 last:border-b-0 md:flex-row md:gap-4 md:px-4">

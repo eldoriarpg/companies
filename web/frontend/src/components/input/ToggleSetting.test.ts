@@ -3,6 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
+import {describe, expect, it} from 'vitest'
 import {mount} from '@vue/test-utils'
 import CheckboxInput from './CheckboxInput.vue'
 import ToggleSetting from './ToggleSetting.vue'

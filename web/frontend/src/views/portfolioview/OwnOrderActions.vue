@@ -9,7 +9,7 @@ import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import DecimalInput from '@/components/input/DecimalInput.vue'
 import {money} from '~/util/format'
 
@@ -110,7 +110,7 @@ function finish(text: string): void {
 
 <template>
   <div v-if="!cancelled" class="flex flex-col gap-2">
-    <NoticeBanner v-if="done">{{ done }}</NoticeBanner>
+    <Alert v-if="done" variant="success">{{ done }}</Alert>
     <ActionNotice :problem="action.problem.value"/>
     <ButtonRow v-if="step === 'idle'">
       <SecondaryButton :disabled="action.busy.value" @click="extend">{{ t('own.extend') }}</SecondaryButton>

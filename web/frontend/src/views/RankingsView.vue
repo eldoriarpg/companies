@@ -6,7 +6,7 @@
 <script lang="ts" setup>
 import PanelBox from '@/components/container/PanelBox.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import SelectInput from '@/components/input/SelectInput.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
@@ -43,7 +43,7 @@ const {query, found} = useListSearch(rows, entry => [entry.name])
       <SelectInput v-model="rankings.ranking.value" :label="t('rankings.ranking')" :options="rankingChoices"/>
       <SelectInput v-model="rankings.range.value" :label="t('rankings.range.label')" :options="rangeChoices"/>
     </div>
-    <NoticeBanner v-if="rankings.status.value === 'failed'" tone="problem">{{ t('rankings.failed') }}</NoticeBanner>
+    <Alert v-if="rankings.status.value === 'failed'" variant="problem">{{ t('rankings.failed') }}</Alert>
     <PanelBox>
       <EmptyState v-if="found.length === 0">{{ rows.length === 0 ? t('rankings.empty') : t('common.noMatch') }}</EmptyState>
       <ol v-else class="m-0 list-none p-0" data-testid="rankings">

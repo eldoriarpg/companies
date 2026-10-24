@@ -8,7 +8,7 @@ import type {TreasuryView} from '~/api/generated/protocol'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import DecimalInput from '@/components/input/DecimalInput.vue'
 import NumberInput from '@/components/input/NumberInput.vue'
 import MutedText from '@/components/typography/MutedText.vue'
@@ -61,7 +61,7 @@ async function saveShare(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-3 border-t border-line-soft pt-3">
-    <NoticeBanner v-if="done">{{ done }}</NoticeBanner>
+    <Alert v-if="done" variant="success">{{ done }}</Alert>
     <ActionNotice :problem="action.problem.value"/>
     <div class="flex flex-wrap items-end gap-2">
       <DecimalInput v-model="amount" :label="t('company.amount')" :min="0"/>

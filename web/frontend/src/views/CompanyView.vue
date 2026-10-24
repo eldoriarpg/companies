@@ -4,7 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import {Feature, MemberPermission} from '~/api/generated/protocol'
 import {holds} from '~/util/permissions'
@@ -26,8 +26,8 @@ const recruits = computed(() => supports(Feature['company.applications'])
 
 <template>
   <ViewContent :title="company?.name ?? t('nav.company')">
-    <NoticeBanner v-if="left">{{ t('company.left') }}</NoticeBanner>
-    <NoticeBanner v-if="!company">{{ t('portfolio.noCompany') }}</NoticeBanner>
+    <Alert v-if="left" variant="success">{{ t('company.left') }}</Alert>
+    <Alert v-if="!company" variant="notice">{{ t('portfolio.noCompany') }}</Alert>
     <div v-else class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
       <ProfilePanel :company="company" :ranking="snapshot?.rankings"/>
       <div class="flex min-w-0 flex-col gap-4">

@@ -11,7 +11,7 @@ import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import FigureValue from '@/components/display/FigureValue.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {count, money, when} from '~/util/format'
@@ -70,7 +70,7 @@ function finish(text: string): void {
       <ProgressBar :value="progress" tone="accent" :label="t('company.levelProgress', {level: company.level.name})"/>
       <MutedText tag="p">{{ t('company.levelNote', {level: company.level.name, progress}) }}</MutedText>
       <MutedText tag="p">{{ openLabel({t, te}, `company.joinMode.${company.joinMode}`, company.joinMode) }} · {{ t('company.founded', {time: when(company.founded, now, locale)}) }}</MutedText>
-      <NoticeBanner v-if="done">{{ done }}</NoticeBanner>
+      <Alert v-if="done" variant="success">{{ done }}</Alert>
       <ProfileEditor v-if="editing === 'profile'" :company="company" @saved="finish(t('company.profileSaved'))" @close="editing = 'none'"/>
       <RenameCompany v-else-if="editing === 'rename'" @renamed="name => finish(t('company.renamed', {name}))" @close="editing = 'none'"/>
       <ButtonRow v-else-if="edits || renames">

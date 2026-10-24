@@ -5,7 +5,7 @@
  */
 <script lang="ts" setup>
 import type {DeprecatedPart, VersionStatus} from '~/api/generated/protocol'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 
 /**
  * The warning on every page of a server whose plugin version is deprecated: what the gateway says about it, when it
@@ -33,7 +33,7 @@ function day(date: string): string {
 </script>
 
 <template>
-  <NoticeBanner v-if="shows">
+  <Alert v-if="shows" variant="notice">
     <template v-if="version.status === 'DEPRECATED'">
       <strong class="font-semibold">{{ version.discontinuedAt ? t('version.deprecatedUntil', {date: day(version.discontinuedAt)}) : t('version.deprecated') }}</strong>
       <span v-if="version.message">{{ version.message }}</span>
@@ -44,5 +44,5 @@ function day(date: string): string {
         {{ part.message ?? t('version.part', {name: part.name, date: day(part.removedAt)}) }}
       </li>
     </ul>
-  </NoticeBanner>
+  </Alert>
 </template>

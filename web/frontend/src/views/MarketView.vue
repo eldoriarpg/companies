@@ -7,7 +7,7 @@
 import {useMediaQuery} from '@vueuse/core'
 import ChipButton from '@/components/button/ChipButton.vue'
 import BottomSheet from '@/components/feedback/BottomSheet.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import MutedText from '@/components/typography/MutedText.vue'
@@ -49,8 +49,8 @@ const sheetOpen = computed({
         <ChipButton :pressed="market.view.value === 'movers'" @click="market.view.value = 'movers'; market.loadMovers()">{{ t('market.movers') }}</ChipButton>
       </div>
     </div>
-    <NoticeBanner v-if="market.status.value === 'failed'" tone="problem">{{ t('market.failed') }}</NoticeBanner>
-    <NoticeBanner v-if="moversShown && market.moversStatus.value === 'failed'" tone="problem">{{ t('market.moversFailed') }}</NoticeBanner>
+    <Alert v-if="market.status.value === 'failed'" variant="problem">{{ t('market.failed') }}</Alert>
+    <Alert v-if="moversShown && market.moversStatus.value === 'failed'" variant="problem">{{ t('market.moversFailed') }}</Alert>
     <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
       <MarketList :items="market.items.value" :loading="market.status.value === 'loading' || market.searching.value || (moversShown && market.moversStatus.value === 'loading')" :selected="selection.id.value" :empty="moversShown ? t('market.moversEmpty') : undefined" @open="selection.open"/>
       <MarketDetail v-if="wide && selected" :entry="selected" class="sticky top-4"/>

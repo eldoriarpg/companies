@@ -9,7 +9,7 @@ import {useNow} from '@vueuse/core'
 import type {OrderListing} from '~/api/gateway'
 import {Feature} from '~/api/generated/protocol'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import FigureValue from '@/components/display/FigureValue.vue'
 import ItemMark from '@/components/display/ItemMark.vue'
 import TrendText from '@/components/display/TrendText.vue'
@@ -84,7 +84,7 @@ async function accept(): Promise<void> {
     <MutedText tag="p">{{ t('orders.created', {time: when(order.created, now, locale)}) }}</MutedText>
     <MutedText v-if="order.expires" tag="p">{{ t('orders.expires', {hours: hoursLeft(order.expires, now)}) }}</MutedText>
     <MutedText v-else-if="order.deadline" tag="p">{{ t('orders.due', {hours: hoursLeft(order.deadline, now)}) }}</MutedText>
-    <NoticeBanner v-if="accepted">{{ t('orders.accepted') }}</NoticeBanner>
+    <Alert v-if="accepted" variant="success">{{ t('orders.accepted') }}</Alert>
     <ActionNotice v-else :problem="action.problem.value"/>
     <PrimaryButton v-if="offered && canAccept && !accepted" :disabled="action.busy.value" full-width @click="accept">{{ t('orders.accept') }}</PrimaryButton>
     <MutedText v-else-if="!offered" tag="p">{{ t('orders.acceptInGame') }}</MutedText>
