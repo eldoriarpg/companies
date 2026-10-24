@@ -31,6 +31,7 @@ import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
+import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.LevelService;
@@ -380,6 +381,7 @@ public final class CommandDependencies {
      * @param soloOrders          claims and aborts the orders players work on alone
      * @param profiles            edits the profiles of companies
      * @param members             kicks, leaves, member permissions and transfers
+     * @param companies           founds and renames companies
      */
     public record Services(
             Economy economy,
@@ -398,5 +400,6 @@ public final class CommandDependencies {
             SeriesService series,
             SoloOrderService soloOrders,
             ProfileService profiles,
-            MemberService members) {}
+            MemberService members,
+            CompanyService companies) {}
 }

@@ -86,6 +86,7 @@ import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
+import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
 import de.eldoria.companies.services.HistoryRetention;
@@ -339,7 +340,13 @@ public class Companies extends EldoPlugin {
                     seriesService,
                     soloOrders,
                     profileService,
-                    MemberService.create(this, companyData, notificationService)));
+                    MemberService.create(this, companyData, notificationService),
+                    CompanyService.create(
+                            this,
+                            companyData,
+                            treasuryService,
+                            OrderCreationService.Wallet.of(economy),
+                            configuration::companySettings)));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
