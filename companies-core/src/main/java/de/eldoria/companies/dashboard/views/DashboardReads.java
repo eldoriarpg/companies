@@ -21,6 +21,7 @@ import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.dashboard.MarketRow;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
+import de.eldoria.companies.services.notifications.NotificationCategory;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.Protocol;
@@ -221,7 +222,7 @@ public final class DashboardReads {
         return new Payloads.OrderPage(page, Payloads.pages(orders.size(), size), orders.size(), shown);
     }
 
-    private Payloads.Page<Payloads.InboxEntry> inbox(UUID player, JsonNode args) {
+    private Payloads.InboxPage inbox(UUID player, JsonNode args) {
         var page = page(args);
         var size = size(args);
         var query = args.path("query").asString("").toLowerCase(Locale.ROOT).strip();
@@ -230,8 +231,21 @@ public final class DashboardReads {
                 .filter(entry ->
                         query.isEmpty() || entry.text().toLowerCase(Locale.ROOT).contains(query))
                 .toList();
-        return new Payloads.Page<>(
-                page, Payloads.pages(entries.size(), size), entries.size(), Payloads.slice(entries, page, size));
+        long mask = sources.inbox().retrieveMuted(player).join();
+        var categories = List.of(NotificationCategory.values());
+        return new Payloads.InboxPage(
+                page,
+                Payloads.pages(entries.size(), size),
+                entries.size(),
+                Payloads.slice(entries, page, size),
+                categories.stream()
+                        .filter(category -> (mask & category.bit()) != 0)
+                        .map(Enum::name)
+                        .toList(),
+                categories.stream()
+                        .filter(NotificationCategory::mutable)
+                        .map(Enum::name)
+                        .toList());
     }
 
     private Payloads.InboxEntry inboxEntry(InboxEntry entry) {
