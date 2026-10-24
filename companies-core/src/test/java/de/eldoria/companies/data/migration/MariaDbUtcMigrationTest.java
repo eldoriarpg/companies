@@ -24,7 +24,7 @@ class MariaDbUtcMigrationTest extends UtcMigrationContract {
 
     @Override
     protected DataSource start() throws Exception {
-        mariadb = new MariaDBContainer(DockerImageName.parse("mariadb:11.4"));
+        mariadb = new MariaDBContainer(DockerImageName.parse("mariadb:11.4")).withCommand("--default-time-zone=+02:00");
         mariadb.start();
         var dataSource = new MariaDbDataSource(
                 mariadb.getJdbcUrl() + "?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true");
@@ -73,5 +73,10 @@ class MariaDbUtcMigrationTest extends UtcMigrationContract {
     @Override
     protected boolean databaseTimesConverted() {
         return false;
+    }
+
+    @Override
+    protected boolean copiesConverted() {
+        return true;
     }
 }

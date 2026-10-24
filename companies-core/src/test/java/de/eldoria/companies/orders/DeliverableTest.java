@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.util.Times;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemEnchantments;
 import org.bukkit.Material;
@@ -21,7 +22,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -47,9 +47,9 @@ class DeliverableTest {
                 1,
                 UUID.randomUUID(),
                 "order",
-                LocalDateTime.now(),
+                Times.now(),
                 0,
-                LocalDateTime.now(),
+                Times.now(),
                 OrderState.UNCLAIMED,
                 0.0,
                 0,

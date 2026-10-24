@@ -18,6 +18,7 @@ import javax.sql.DataSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * The move to schema 1.13 converts the stored times of a server in Berlin to UTC, as each dialect needs it.
@@ -25,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 public abstract class UtcMigrationContract {
     private static final ZoneId BERLIN = ZoneId.of("Europe/Berlin");
     private static final SqlVersion BEFORE = new SqlVersion(1, 12);
-    private static final SqlVersion AFTER = new SqlVersion(1, 13);
+    private static final SqlVersion AFTER = new SqlVersion(1, 14);
 
     /**
      * @return an empty database of the dialect
@@ -70,6 +71,11 @@ public abstract class UtcMigrationContract {
      */
     protected abstract boolean databaseTimesConverted();
 
+    /**
+     * @return whether copies of database times the plugin stored are converted, from the zone they were read in
+     */
+    protected abstract boolean copiesConverted();
+
     @Test
     void storedTimesBecomeUtcWithSummerTimeAndNullsKept() throws Exception {
         var dataSource = start();
@@ -86,11 +92,15 @@ public abstract class UtcMigrationContract {
             empty.setBytes(1, bytes(UUID.randomUUID()));
             empty.executeUpdate();
             company.executeUpdate("INSERT INTO companies(name, founded) VALUES ('Miners', " + literal(winter) + ")");
+            company.executeUpdate(
+                    "INSERT INTO order_history(order_id, company_id, outcome, order_name, placed, finished, snapshot) "
+                            + "VALUES (7, 1, 5, 'Walls', " + literal(summer) + ", " + literal(summer) + ", '{}')");
         }
+        var migration = new UtcMigration(dialect(), BERLIN, schema());
 
         updater(dataSource)
                 .setVersion(AFTER)
-                .preUpdateHook(AFTER, connection -> new UtcMigration(dialect(), BERLIN, schema()).run(connection))
+                .preUpdateHook(AFTER, migration::run)
                 .execute();
 
         assertEquals(
@@ -100,6 +110,17 @@ public abstract class UtcMigrationContract {
         assertEquals(
                 databaseTimesConverted() ? LocalDateTime.of(2026, 1, 1, 13, 0) : winter,
                 time(dataSource, "SELECT founded FROM companies"));
+        assertEquals(LocalDateTime.of(2026, 7, 1, 12, 0), time(dataSource, "SELECT finished FROM order_history"));
+        assertEquals(
+                copiesConverted() ? LocalDateTime.of(2026, 7, 1, 12, 0) : summer,
+                time(dataSource, "SELECT placed FROM order_history"));
+
+        try (var connection = dataSource.getConnection()) {
+            assertThrows(SQLException.class, () -> migration.run(connection));
+        }
+        assertEquals(
+                LocalDateTime.of(2026, 7, 1, 12, 0),
+                time(dataSource, "SELECT last_seen FROM node WHERE last_seen IS NOT NULL"));
     }
 
     private static byte[] bytes(UUID uuid) {

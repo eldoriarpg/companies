@@ -67,4 +67,9 @@ class SqLiteUtcMigrationTest extends UtcMigrationContract {
     protected boolean databaseTimesConverted() {
         return false;
     }
+
+    @Override
+    protected boolean copiesConverted() {
+        return false;
+    }
 }

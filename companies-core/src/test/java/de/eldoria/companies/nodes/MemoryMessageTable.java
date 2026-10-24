@@ -6,6 +6,7 @@
 package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.data.repository.ANodeMessageData;
+import de.eldoria.companies.util.Times;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -47,7 +48,7 @@ final class MemoryMessageTable extends ANodeMessageData {
      * @param payload JSON text
      */
     synchronized void insertWithId(long id, String payload) {
-        rows.add(new Row(id, LocalDateTime.now(), "test", payload));
+        rows.add(new Row(id, Times.now(), "test", payload));
         nextId = Math.max(nextId, id + 1);
     }
 

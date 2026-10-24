@@ -9,6 +9,7 @@ import de.eldoria.companies.dashboard.MutableClock;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.dashboard.StoredKey;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.handshake.KeyKind;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -185,7 +186,7 @@ class DashboardKeysTest {
         failing.set(true);
         rotating.refreshIfDue();
         failing.set(false);
-        data.saveKey(StoredKey.entered("lyd_test-key-three", null), LocalDateTime.now());
+        data.saveKey(StoredKey.entered("lyd_test-key-three", null), Times.now());
 
         assertEquals("lyd_test-key-three", rotating.current().orElseThrow().secret());
         assertEquals("lyd_test-key-three", data.key().orElseThrow().secret());

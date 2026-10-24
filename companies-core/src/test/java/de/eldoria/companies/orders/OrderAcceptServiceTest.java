@@ -17,6 +17,7 @@ import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.events.order.PreOrderAcceptEvent;
 import de.eldoria.companies.orders.OrderAcceptService.Result;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -78,7 +78,7 @@ class OrderAcceptServiceTest {
 
     private CompanyProfile companyWith(CompanyPermission permission) {
         var member = CompanyMember.forCompanyId(COMPANY, player).addPermission(permission);
-        return new CompanyProfile(COMPANY, "Acme", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of(member));
+        return new CompanyProfile(COMPANY, "Acme", Times.now(), 1, CompanyDetails.NONE, List.of(member));
     }
 
     private Result accept(int id) {
@@ -154,7 +154,7 @@ class OrderAcceptServiceTest {
     void anOfflineMemberAcceptsWithoutThePlayerTypedPreEvent() {
         var offline = UUID.randomUUID();
         var member = CompanyMember.of(COMPANY, offline, CompanyPermission.MANAGE_ORDERS.mask());
-        company = new CompanyProfile(COMPANY, "Acme", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of(member));
+        company = new CompanyProfile(COMPANY, "Acme", Times.now(), 1, CompanyDetails.NONE, List.of(member));
         listener = event -> event.setCancelled(true);
         var order = orders.place(0.0);
 

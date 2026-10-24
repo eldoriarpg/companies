@@ -68,7 +68,7 @@ public class CompanyInviteEvent extends CompanyEvent<ICompanyProfile> {
     }
 
     /**
-     * When the invite runs out, in the server's local time.
+     * When the invite runs out, in UTC.
      *
      * @return expiry time
      */

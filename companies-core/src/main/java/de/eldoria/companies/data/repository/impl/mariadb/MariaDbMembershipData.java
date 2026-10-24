@@ -20,7 +20,6 @@ import org.intellij.lang.annotations.Language;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -55,7 +54,7 @@ public class MariaDbMembershipData extends AMembershipData {
             """;
 
     private static final Adapter<LocalDateTime> TIMESTAMP =
-            Adapter.create(PreparedStatement::setTimestamp, Types.TIMESTAMP, Timestamp::valueOf);
+            Adapter.create(PreparedStatement::setObject, Types.TIMESTAMP, time -> time);
 
     public MariaDbMembershipData(ExecutorService executor) {
         super(executor);
@@ -79,7 +78,7 @@ public class MariaDbMembershipData extends AMembershipData {
      * @throws SQLException when the column is missing
      */
     protected LocalDateTime readTime(Row row, String column) throws SQLException {
-        return row.getTimestamp(column).toLocalDateTime();
+        return row.getObject(column, LocalDateTime.class);
     }
 
     @Override

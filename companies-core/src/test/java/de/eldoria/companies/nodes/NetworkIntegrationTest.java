@@ -24,6 +24,7 @@ import de.eldoria.companies.events.order.SoloOrderAcceptEvent;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -50,7 +51,6 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -184,8 +184,8 @@ class NetworkIntegrationTest {
                 .join();
 
         await(() -> b.shownTo(bob) == 1, DELIVERY, "the notification on B");
-        assertEquals(0, a.poller.poll(LocalDateTime.now()));
-        assertEquals(0, b.poller.poll(LocalDateTime.now()));
+        assertEquals(0, a.poller.poll(Times.now()));
+        assertEquals(0, b.poller.poll(Times.now()));
         assertEquals(1, b.shownTo(bob));
         assertEquals(0, a.shownTo(bob));
         assertDeliveredOnce(b, bob);
@@ -198,12 +198,7 @@ class NetworkIntegrationTest {
         var bob = server.addPlayer();
         b.join(bob);
         var entry = a.inbox
-                .submit(
-                        bob.getUniqueId(),
-                        NotificationType.ORDER_DELIVERED,
-                        args(),
-                        LocalDateTime.now(),
-                        InboxStatus.PENDING)
+                .submit(bob.getUniqueId(), NotificationType.ORDER_DELIVERED, args(), Times.now(), InboxStatus.PENDING)
                 .join()
                 .orElseThrow();
         b.quit(bob);
@@ -211,12 +206,12 @@ class NetworkIntegrationTest {
 
         a.bus.publish(new InboxNew(entry, bob.getUniqueId()));
         var polls = List.of(
-                CompletableFuture.supplyAsync(() -> a.poller.poll(LocalDateTime.now())),
-                CompletableFuture.supplyAsync(() -> b.poller.poll(LocalDateTime.now())));
+                CompletableFuture.supplyAsync(() -> a.poller.poll(Times.now())),
+                CompletableFuture.supplyAsync(() -> b.poller.poll(Times.now())));
         polls.forEach(CompletableFuture::join);
 
         await(() -> a.shownTo(bob) == 1, DELIVERY, "the notification on A");
-        assertEquals(0, a.poller.poll(LocalDateTime.now()));
+        assertEquals(0, a.poller.poll(Times.now()));
         assertEquals(1, a.shownTo(bob));
         assertEquals(0, b.shownTo(bob));
         assertDeliveredOnce(a, bob);
@@ -386,7 +381,7 @@ class NetworkIntegrationTest {
         b.caches.register(NodeCaches.COMPANY, key -> dropped.add("company:" + key.orElse("*")));
         b.caches.register(NodeCaches.RANKING, key -> dropped.add("ranking"));
         b.caches.register(NodeCaches.BOARDS, key -> dropped.add("boards"));
-        var company = new CompanyProfile(77, "Renamed", LocalDateTime.now(), 2, CompanyDetails.NONE, List.of());
+        var company = new CompanyProfile(77, "Renamed", Times.now(), 2, CompanyDetails.NONE, List.of());
 
         a.connection.signals().onCompanyRename(new CompanyRenameEvent(company, "Old", null, false));
         a.connection

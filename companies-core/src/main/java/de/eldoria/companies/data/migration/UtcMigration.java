@@ -19,13 +19,18 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Converts the stored times to UTC once, when the schema moves to 1.13. Before, the plugin wrote the machine's local
+ * Converts the stored times to UTC once, when the schema moves to 1.14. Before, the plugin wrote the machine's local
  * time, and the databases wrote their own: SQLite UTC, PostgreSQL the session zone, which its driver sets to the
  * machine's, and MariaDB into {@code TIMESTAMP} columns, which hold an instant and read as UTC with the UTC session
  * the plugin now opens.
  * <p>
  * So every column the plugin wrote is converted from the machine's zone, and the columns the database wrote only on
- * PostgreSQL. The dashboard tables were always UTC. Rows are converted one by one by their key, aware of summer
+ * PostgreSQL. A column the plugin filled with a time the database wrote, the order history's {@code placed}, follows
+ * the database: left alone on SQLite, from the machine's zone on PostgreSQL, and on MariaDB from the zone of the old
+ * session, the database's own, which MariaDB applies itself. The dashboard tables were always UTC.
+ * <p>
+ * The run first notes the machine's zone in {@code companies_utc}; a second run fails on that row before it changes
+ * anything, so the times are converted exactly once. Rows are converted one by one by their key, aware of summer
  * time; a wall time in the hour summer time skips is moved forward, one that occurs twice takes the earlier instant.
  */
 public final class UtcMigration {
@@ -34,7 +39,8 @@ public final class UtcMigration {
             plugin("company_applications", "id", "created", "expires"),
             plugin("company_inbox", "id", "created", "read_at"),
             plugin("order_payouts", "id", "created"),
-            plugin("order_history", "id", "placed", "finished"),
+            plugin("order_history", "id", "finished"),
+            copy("order_history", "id", "placed"),
             plugin("treasury_log", "id", "created"),
             plugin("order_series", "id", "ends", "next_due", "created", "updated"),
             plugin("order_alerts", "id", "created", "last_notified"),
@@ -70,12 +76,49 @@ public final class UtcMigration {
      * @throws SQLException when a table cannot be read or written
      */
     public int run(Connection connection) throws SQLException {
+        try (var marker = connection.prepareStatement(
+                "INSERT INTO %scompanies_utc(id, converted_from) VALUES (1, ?)".formatted(prefix))) {
+            marker.setString(1, machine.getId());
+            marker.executeUpdate();
+        }
         var converted = 0;
         for (var columns : COLUMNS) {
-            if (columns.writer() == Writer.DATABASE && dialect != Dialect.POSTGRES) continue;
-            converted += convert(connection, columns);
+            if (columns.writer() == Writer.PLUGIN || dialect == Dialect.POSTGRES) {
+                converted += convert(connection, columns);
+            } else if (columns.writer() == Writer.COPY && dialect == Dialect.MARIADB) {
+                converted += convertInDatabaseZone(connection, columns);
+            }
         }
         return converted;
+    }
+
+    private int convertInDatabaseZone(Connection connection, Columns columns) throws SQLException {
+        var seconds = String.join(
+                ", ",
+                columns.columns().stream()
+                        .map(column -> "UNIX_TIMESTAMP(" + column + ")")
+                        .toList());
+        List<Object[]> updates = new ArrayList<>();
+        try (var statement = connection.createStatement()) {
+            statement.execute("SET time_zone = @@global.time_zone");
+            try (var rows = statement.executeQuery(
+                    "SELECT %s, %s FROM %s".formatted(columns.key(), seconds, prefix + columns.table()))) {
+                while (rows.next()) {
+                    var values = new Object[columns.columns().size() + 1];
+                    for (var index = 0; index < columns.columns().size(); index++) {
+                        var second = rows.getObject(index + 2);
+                        values[index] = second == null
+                                ? null
+                                : LocalDateTime.ofEpochSecond(((Number) second).longValue(), 0, ZoneOffset.UTC);
+                    }
+                    values[values.length - 1] = rows.getObject(1);
+                    updates.add(values);
+                }
+            } finally {
+                statement.execute("SET time_zone = '+00:00'");
+            }
+        }
+        return update(connection, columns, updates);
     }
 
     private int convert(Connection connection, Columns columns) throws SQLException {
@@ -86,6 +129,11 @@ public final class UtcMigration {
                 var rows = select.executeQuery()) {
             while (rows.next()) updates.add(row(rows, columns));
         }
+        return update(connection, columns, updates);
+    }
+
+    private int update(Connection connection, Columns columns, List<Object[]> updates) throws SQLException {
+        var table = prefix + columns.table();
         var sets = String.join(
                 ", ", columns.columns().stream().map(column -> column + " = ?").toList());
         try (var update =
@@ -132,6 +180,10 @@ public final class UtcMigration {
         return new Columns(table, key, Writer.DATABASE, List.of(columns));
     }
 
+    private static Columns copy(String table, String key, String... columns) {
+        return new Columns(table, key, Writer.COPY, List.of(columns));
+    }
+
     /**
      * The databases the plugin stores in.
      */
@@ -163,7 +215,8 @@ public final class UtcMigration {
      */
     private enum Writer {
         PLUGIN,
-        DATABASE
+        DATABASE,
+        COPY
     }
 
     /**

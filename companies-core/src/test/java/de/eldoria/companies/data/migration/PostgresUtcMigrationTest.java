@@ -74,4 +74,9 @@ class PostgresUtcMigrationTest extends UtcMigrationContract {
     protected boolean databaseTimesConverted() {
         return true;
     }
+
+    @Override
+    protected boolean copiesConverted() {
+        return true;
+    }
 }

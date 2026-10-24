@@ -10,6 +10,7 @@ import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.dashboard.RecordingLink;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.update.Patch;
 import de.eldoria.companies.web.api.update.PatchOp;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -141,7 +141,7 @@ class PatchFeedTest {
 
     @Test
     void theInvitedPlayerSeesTheOpenInvites() {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         world.memberships
                 .submitInvite(miners, outsider, kestrel, now, now.plusHours(1))
                 .join();

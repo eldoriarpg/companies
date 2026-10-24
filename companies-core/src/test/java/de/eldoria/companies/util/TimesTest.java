@@ -19,6 +19,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -28,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class TimesTest {
     private static final ZoneId BERLIN = ZoneId.of("Europe/Berlin");
     private static final Pattern MACHINE_TIME =
-            Pattern.compile("LocalDateTime\\.now\\(\\)|LocalDate\\.now\\(\\)|Clock\\.systemDefaultZone\\(\\)");
+            Pattern.compile("(LocalDate(Time)?|LocalTime|ZonedDateTime|OffsetDateTime)(\\.now\\(\\)|::now\\b)"
+                    + "|Clock\\.systemDefaultZone|ZoneId\\.systemDefault|ZoneId::systemDefault");
 
     @BeforeEach
     void useBerlin() {
@@ -70,9 +72,9 @@ class TimesTest {
 
     @Test
     void mainCodeTakesItsTimeFromTheUtcClock() throws IOException {
-        var root = Path.of("src/main/java");
         List<String> offenders;
-        try (var files = Files.walk(root)) {
+        try (var files = Stream.concat(
+                Files.walk(Path.of("src/main/java")), Files.walk(Path.of("../companies-api/src/main/java")))) {
             offenders = files.filter(path -> path.toString().endsWith(".java"))
                     .filter(path -> !path.endsWith("Times.java"))
                     .filter(path -> {
@@ -82,7 +84,7 @@ class TimesTest {
                             throw new IllegalStateException(e);
                         }
                     })
-                    .map(path -> root.relativize(path).toString())
+                    .map(Path::toString)
                     .toList();
         }
         assertEquals(List.of(), offenders);

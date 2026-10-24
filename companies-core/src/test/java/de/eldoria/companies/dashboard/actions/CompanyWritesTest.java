@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
@@ -22,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -80,10 +80,10 @@ class CompanyWritesTest {
                 player,
                 "player",
                 UUID.randomUUID(),
-                LocalDateTime.now(),
-                LocalDateTime.now(),
-                LocalDateTime.now(),
-                LocalDateTime.now(),
+                Times.now(),
+                Times.now(),
+                Times.now(),
+                Times.now(),
                 null,
                 Set.of());
         return world.writes.perform(
@@ -177,7 +177,7 @@ class CompanyWritesTest {
 
     @Test
     void anInviteIsTakenBackAndAnApplicationAcceptedOrDenied() {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         world.memberships
                 .submitInvite(company, outsider, manager, now, now.plusDays(1))
                 .join();
@@ -378,7 +378,7 @@ class CompanyWritesTest {
         var rival = world.player("Rival");
         var rivalWorker = world.player("Rook");
         var other = world.company("Rivals", Map.of(rival, List.of(CompanyPermission.OWNER), rivalWorker, List.of()));
-        var now = LocalDateTime.now();
+        var now = Times.now();
         world.memberships
                 .submitInvite(other, outsider, rival, now, now.plusDays(1))
                 .join();

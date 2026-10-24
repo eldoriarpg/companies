@@ -17,6 +17,7 @@ import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -75,7 +75,7 @@ class NodeSignalsTest {
         var target = UUID.randomUUID();
         var applicant = UUID.randomUUID();
 
-        signals.onInvite(new CompanyInviteEvent(company(), target, UUID.randomUUID(), LocalDateTime.now()));
+        signals.onInvite(new CompanyInviteEvent(company(), target, UUID.randomUUID(), Times.now()));
         signals.onApplication(new CompanyApplicationEvent(company(), applicant, "Hi"));
 
         assertEquals(
@@ -95,6 +95,6 @@ class NodeSignalsTest {
     }
 
     private static CompanyProfile company() {
-        return new CompanyProfile(7, "Miners", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of());
+        return new CompanyProfile(7, "Miners", Times.now(), 1, CompanyDetails.NONE, List.of());
     }
 }

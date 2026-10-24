@@ -106,8 +106,8 @@ public class MariaDbNodeData extends ANodeData {
      * @throws SQLException when the column can not be read
      */
     protected @Nullable LocalDateTime readLastSeen(Row row) throws SQLException {
-        var timestamp = row.getTimestamp("last_seen");
-        return timestamp == null ? null : timestamp.toLocalDateTime();
+        var timestamp = row.getObject("last_seen", LocalDateTime.class);
+        return timestamp == null ? null : timestamp;
     }
 
     @Override

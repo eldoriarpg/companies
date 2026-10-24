@@ -6,25 +6,16 @@
 package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.util.Times;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 class SimpleOrderTest {
     private static SimpleOrder order(int extensions) {
         return new SimpleOrder(
-                1,
-                UUID.randomUUID(),
-                "order",
-                LocalDateTime.now(),
-                0,
-                LocalDateTime.now(),
-                OrderState.UNCLAIMED,
-                0.0,
-                extensions,
-                0);
+                1, UUID.randomUUID(), "order", Times.now(), 0, Times.now(), OrderState.UNCLAIMED, 0.0, extensions, 0);
     }
 
     @Test

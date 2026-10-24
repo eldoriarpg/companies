@@ -21,6 +21,7 @@ import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -33,7 +34,6 @@ import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DeliveryEventsTest {
     private static final int COMPANY = 4;
     private static final CompanyProfile PROFILE =
-            new CompanyProfile(COMPANY, "Acme", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of());
+            new CompanyProfile(COMPANY, "Acme", Times.now(), 1, CompanyDetails.NONE, List.of());
 
     @TempDir
     Path directory;

@@ -6,11 +6,11 @@
 package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
+import de.eldoria.companies.util.Times;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -82,7 +82,7 @@ class MessageTableBusTest {
 
     @Test
     void readingStartsAtTheHighestIdPresent() throws InterruptedException {
-        table.insert(A, "cache.invalidate", encoded("old"), LocalDateTime.now());
+        table.insert(A, "cache.invalidate", encoded("old"), Times.now());
         var b = start(table, B, false);
         var atB = received(b);
         await(b::realtime, "the bus to read");
@@ -99,7 +99,7 @@ class MessageTableBusTest {
         var atB = received(b);
         await(b::realtime, "the bus to read");
         var late = table.skipId();
-        table.insert(A, "cache.invalidate", encoded("early"), LocalDateTime.now());
+        table.insert(A, "cache.invalidate", encoded("early"), Times.now());
         await(() -> atB.contains(A + "/early"), "the early row");
 
         table.insertWithId(late, encoded("late"));
@@ -117,7 +117,7 @@ class MessageTableBusTest {
         await(b::realtime, "the bus to read");
 
         var count = MessageTableBus.PAGE * 2 + 3;
-        for (var i = 0; i < count; i++) table.insert(A, "cache.invalidate", encoded("m" + i), LocalDateTime.now());
+        for (var i = 0; i < count; i++) table.insert(A, "cache.invalidate", encoded("m" + i), Times.now());
 
         await(() -> atB.size() == count, "every row");
         assertEquals(A + "/m" + (count - 1), atB.getLast());
@@ -135,7 +135,7 @@ class MessageTableBusTest {
         await(() -> b.state() == NodeBus.State.DISCONNECTED, "the failure");
         assertFalse(b.realtime());
         table.broken = false;
-        table.insert(A, "cache.invalidate", encoded("meanwhile"), LocalDateTime.now());
+        table.insert(A, "cache.invalidate", encoded("meanwhile"), Times.now());
 
         await(b::realtime, "the recovery");
         await(() -> atB.contains(A + "/meanwhile"), "the row written meanwhile");
@@ -145,9 +145,9 @@ class MessageTableBusTest {
     @Test
     void onlyThePrimaryDeletesOldRows() throws InterruptedException {
         var secondaryTable = new MemoryMessageTable();
-        var old = LocalDateTime.now().minusMinutes(2);
+        var old = Times.now().minusMinutes(2);
         table.insert(A, "cache.invalidate", encoded("old"), old);
-        table.insert(A, "cache.invalidate", encoded("recent"), LocalDateTime.now());
+        table.insert(A, "cache.invalidate", encoded("recent"), Times.now());
         secondaryTable.insert(A, "cache.invalidate", encoded("old"), old);
         start(table, A, true);
         start(secondaryTable, B, false);

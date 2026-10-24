@@ -27,7 +27,7 @@ public final class Times {
      */
     public static final Clock UTC = Clock.systemUTC();
 
-    private static volatile Supplier<ZoneId> zone = ZoneId::systemDefault;
+    private static volatile Supplier<ZoneId> zone = Times::machineZone;
 
     private Times() {
         throw new UnsupportedOperationException("This is a utility class.");
@@ -38,6 +38,16 @@ public final class Times {
      */
     public static LocalDateTime now() {
         return LocalDateTime.now(UTC);
+    }
+
+    /**
+     * The zone of the machine the server runs on: the fallback of the server's zone, and the zone times were stored in
+     * before they were stored in UTC.
+     *
+     * @return the machine's zone
+     */
+    public static ZoneId machineZone() {
+        return ZoneId.systemDefault();
     }
 
     /**

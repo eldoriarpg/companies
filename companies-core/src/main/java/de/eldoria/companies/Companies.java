@@ -141,7 +141,6 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -185,6 +184,7 @@ public class Companies extends EldoPlugin {
     public Companies() {
         configuration = new Configuration(this);
         configuration.secondary(PluginBaseConfiguration.KEY);
+        Times.useZone(() -> configuration.generalSettings().timezone().orElseGet(Times::machineZone));
     }
 
     @Override
@@ -419,7 +419,6 @@ public class Companies extends EldoPlugin {
                             getLogger())
                     .start(workerPool);
         }
-        Times.useZone(() -> configuration.generalSettings().timezone().orElseGet(ZoneId::systemDefault));
         warnAboutTimezone();
         if (commands != null) commands.onReload(this::warnAboutTimezone);
         var inboxPoller = new InboxPoller(information.inbox(), notificationService, getLogger());
@@ -486,7 +485,7 @@ public class Companies extends EldoPlugin {
      */
     private void warnAboutTimezone() {
         configuration.generalSettings().invalidTimezone().ifPresent(name -> getLogger()
-                .warning("The timezone \"" + name + "\" in config.yml is no time zone; using " + ZoneId.systemDefault()
+                .warning("The timezone \"" + name + "\" in config.yml is no time zone; using " + Times.machineZone()
                         + " instead."));
     }
 
@@ -658,21 +657,13 @@ public class Companies extends EldoPlugin {
 
         var settings = configuration.databaseSettings();
         var utc = new UtcMigration(
-                UtcMigration.Dialect.of(settings.storageType().name()), ZoneId.systemDefault(), settings.schema());
+                UtcMigration.Dialect.of(settings.storageType().name()), Times.machineZone(), settings.schema());
         builder.setVersionTable("companies_db_version")
                 .withClassLoader(this.getClass().getClassLoader())
                 .setReplacements(new QueryReplacement("companies_schema", settings.schema()))
-                .preUpdateHook(new SqlVersion(1, 13), connection -> getLogger()
-                        .info("Converted " + utc.run(connection) + " rows of stored times from "
-                                + ZoneId.systemDefault() + " to UTC."))
-                .postUpdateHook(new SqlVersion(1, 13), connection -> {
-                    try (var insert = connection.prepareStatement("INSERT INTO "
-                            + (settings.storageType().name().equals("POSTGRES") ? settings.schema() + "." : "")
-                            + "companies_utc(id, converted_from) VALUES (1, ?)")) {
-                        insert.setString(1, ZoneId.systemDefault().getId());
-                        insert.executeUpdate();
-                    }
-                })
+                .preUpdateHook(new SqlVersion(1, 14), connection -> getLogger()
+                        .info("Converted " + utc.run(connection) + " rows of stored times from " + Times.machineZone()
+                                + " to UTC."))
                 .execute();
 
         initDataRepositories();

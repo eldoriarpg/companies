@@ -30,6 +30,7 @@ import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.services.AdminOrderService.Refusal;
 import de.eldoria.companies.services.AdminOrderService.Result;
 import de.eldoria.companies.util.TestExecutors;
+import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Material;
@@ -46,7 +47,6 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +70,7 @@ class AdminOrderServiceTest {
     private static final int COMPANY = 4;
     private static final double FEE = 5.0;
     private static final CompanyProfile PROFILE =
-            new CompanyProfile(COMPANY, "Acme", LocalDateTime.now(), 1, CompanyDetails.NONE, List.of());
+            new CompanyProfile(COMPANY, "Acme", Times.now(), 1, CompanyDetails.NONE, List.of());
 
     private final UUID alice = UUID.randomUUID();
     private final UUID bob = UUID.randomUUID();

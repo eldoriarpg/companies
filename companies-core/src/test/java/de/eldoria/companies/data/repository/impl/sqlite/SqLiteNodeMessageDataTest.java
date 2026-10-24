@@ -6,12 +6,12 @@
 package de.eldoria.companies.data.repository.impl.sqlite;
 
 import de.eldoria.companies.data.repository.ANodeMessageData.StoredMessage;
+import de.eldoria.companies.util.Times;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,7 +41,7 @@ class SqLiteNodeMessageDataTest {
 
     @Test
     void rowsAreReadAfterAnIdInOrderAndInPages() {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         messages.insert(NODE, "inbox.new", "{\"a\":1}", now);
         messages.insert(NODE, "inbox.new", "{\"a\":2}", now);
         messages.insert(NODE, "inbox.new", "{\"a\":3}", now);
@@ -58,7 +58,7 @@ class SqLiteNodeMessageDataTest {
 
     @Test
     void purgingDeletesOnlyOlderRows() {
-        var now = LocalDateTime.now();
+        var now = Times.now();
         messages.insert(NODE, "inbox.new", "old", now.minusMinutes(2));
         messages.insert(NODE, "inbox.new", "new", now);
 
@@ -74,6 +74,6 @@ class SqLiteNodeMessageDataTest {
         query("DROP TABLE node_messages").single().update();
 
         assertThrows(RuntimeException.class, () -> messages.after(0, 10));
-        assertThrows(RuntimeException.class, () -> messages.insert(NODE, "inbox.new", "{}", LocalDateTime.now()));
+        assertThrows(RuntimeException.class, () -> messages.insert(NODE, "inbox.new", "{}", Times.now()));
     }
 }

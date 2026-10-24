@@ -145,13 +145,21 @@ Companies 2.1 stores every time in UTC, so servers of a network in different tim
 2.1 the stored times are converted once, from the time zone of the machine the server runs on. The zone they were
 converted from is kept in the table `companies_utc`.
 
-- Update **all servers of a network together**, and start the primary first. A server still on 2.0 would keep writing
-  local times.
+- Update **all servers of a network together**. Start the primary first and wait until it logs `Converted … rows of
+  stored times … to UTC` before you start the others. A server still on 2.0 would keep writing local times.
 - Start the first server **on the machine whose time zone the old times were written in**, usually the primary.
 - Times are shown in game in the zone of `timezone` in [config.yml](configuration/config-yml.md), which is the
   machine's zone until you set one.
 - Back up the database before you update, as for every update.
+- The rankings of the last 7 and 30 days now count whole days from midnight in the server's zone, instead of a window
+  ending at this very moment.
+- Payout records written by 1.x before 2.0 kept the order's last change as their time; they are converted like the
+  rest and may be off by the difference between the database's and the machine's zone. They only show in the `all`
+  range.
 
 ## For developers
+
+From 2.1 on, every `LocalDateTime` the API hands out or takes, in events and getters, is UTC. Convert it to a zone
+before you show it.
 
 The API changed a lot. See [Migrating from 1.x](../developers/migrating-from-1x.md).

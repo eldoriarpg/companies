@@ -64,7 +64,7 @@ public class MariaDbInboxData extends AInboxData {
      * @throws SQLException when the column is missing
      */
     protected LocalDateTime readTime(Row row, String column) throws SQLException {
-        return row.getTimestamp(column).toLocalDateTime();
+        return row.getObject(column, LocalDateTime.class);
     }
 
     /**
@@ -76,8 +76,8 @@ public class MariaDbInboxData extends AInboxData {
      * @throws SQLException when the column is missing
      */
     protected @Nullable LocalDateTime readNullableTime(Row row, String column) throws SQLException {
-        var timestamp = row.getTimestamp(column);
-        return timestamp == null ? null : timestamp.toLocalDateTime();
+        var timestamp = row.getObject(column, LocalDateTime.class);
+        return timestamp == null ? null : timestamp;
     }
 
     /**

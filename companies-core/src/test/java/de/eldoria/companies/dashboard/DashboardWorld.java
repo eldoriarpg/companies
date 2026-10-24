@@ -66,7 +66,6 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -125,7 +124,7 @@ public final class DashboardWorld implements AutoCloseable {
         api = new CompaniesApiImpl(
                 new CompaniesApiImpl.Repositories(companies, orders, stats, treasury),
                 new CompaniesApiImpl.Server(
-                        server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), LocalDateTime::now),
+                        server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now),
                 executor);
         views = new Views(new Views.Sources(
                 api,
@@ -208,7 +207,7 @@ public final class DashboardWorld implements AutoCloseable {
                         (recipient, type, args) -> {},
                         new MembershipEvents(),
                         this::offline,
-                        LocalDateTime::now,
+                        Times::now,
                         executor,
                         Logger.getAnonymousLogger()),
                 new ProfileService(
@@ -371,7 +370,7 @@ public final class DashboardWorld implements AutoCloseable {
         query("UPDATE order_states SET state = ?, company = ?, last_update = ? WHERE id = ?")
                 .single(call().bind(OrderState.CLAIMED.stateId())
                         .bind(company)
-                        .bind(SqLiteAdapter.format(LocalDateTime.now()))
+                        .bind(SqLiteAdapter.format(Times.now()))
                         .bind(order.id()))
                 .update();
         orders.forgetFullOrder(order.id());

@@ -14,6 +14,7 @@ import de.eldoria.companies.commands.suggest.MembershipSources.PlayerMembership;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.Times;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -26,7 +27,6 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -63,7 +63,7 @@ class MembershipProvidersTest {
     }
 
     private static SimpleCompany company(int id, String name, JoinMode mode) {
-        return new SimpleCompany(id, name, LocalDateTime.now(), 1, CompanyDetails.NONE.withJoinMode(mode));
+        return new SimpleCompany(id, name, Times.now(), 1, CompanyDetails.NONE.withJoinMode(mode));
     }
 
     private static List<String> texts(CompletableFuture<Suggestions> suggestions) {

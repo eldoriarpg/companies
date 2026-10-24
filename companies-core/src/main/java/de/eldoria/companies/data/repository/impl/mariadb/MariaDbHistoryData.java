@@ -61,7 +61,7 @@ public class MariaDbHistoryData extends AHistoryData {
      * @throws SQLException when the column is missing
      */
     protected LocalDateTime readTime(Row row, String column) throws SQLException {
-        return row.getTimestamp(column).toLocalDateTime();
+        return row.getObject(column, LocalDateTime.class);
     }
 
     /**

@@ -22,6 +22,7 @@ import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.StyledMessageSender;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import org.bukkit.Material;
@@ -36,6 +37,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.entity.PlayerMock;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +57,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AdminMenusTest {
+    @BeforeEach
+    void useServerZone() {
+        Times.useZone(() -> ZoneOffset.UTC);
+    }
+
+    @AfterEach
+    void useMachineZone() {
+        Times.useZone(Times::machineZone);
+    }
+
     private Plugin plugin;
     private MessageSender messages;
     private PlayerMock viewer;

@@ -13,7 +13,8 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The time a ranking or a statistic covers. The ranged values are rolling windows ending now, not calendar periods.
+ * The time a ranking or a statistic covers. The plugin counts the ranged values in days of the server's calendar:
+ * {@link #LAST_7_DAYS} is today and the six days before, from midnight in the server's time zone.
  * Only companies with activity in a window are ranked in it.
  */
 public enum TimeRange implements Translatable {
@@ -59,9 +60,10 @@ public enum TimeRange implements Translatable {
     }
 
     /**
-     * The first moment of the range.
+     * The first moment of a rolling window of the range's days ending at a point in time. The plugin's own rankings
+     * start at midnight instead, see the class description.
      *
-     * @param now current time
+     * @param now the end of the window
      * @return the start, or empty for {@link #ALL}
      */
     public Optional<LocalDateTime> start(LocalDateTime now) {

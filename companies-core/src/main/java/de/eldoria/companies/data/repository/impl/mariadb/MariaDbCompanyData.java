@@ -234,7 +234,7 @@ public class MariaDbCompanyData extends ACompanyData {
         return new SimpleCompany(
                 rs.getInt("id"),
                 rs.getString("name"),
-                rs.getTimestamp("founded").toLocalDateTime(),
+                rs.getObject("founded", LocalDateTime.class),
                 rs.getInt("level"),
                 parseDetails(rs));
     }
@@ -365,7 +365,7 @@ public class MariaDbCompanyData extends ACompanyData {
         return new CompanyStats(
                 rs.getInt("id"),
                 rs.getString("name"),
-                rs.getTimestamp("founded").toLocalDateTime(),
+                rs.getObject("founded", LocalDateTime.class),
                 rs.getInt("member_count"),
                 rs.getInt("order_count"),
                 rs.getDouble("price"),

@@ -15,6 +15,7 @@ import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.util.StyledMessageSender;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import org.bukkit.plugin.Plugin;
@@ -25,7 +26,6 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.entity.PlayerMock;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -224,7 +224,7 @@ class NotificationServiceTest {
     @Test
     void summaryCountsUnreadLeavesOutMutedAndDeliversPending() {
         var player = online.getUniqueId();
-        var now = LocalDateTime.now();
+        var now = Times.now();
         data.submit(player, NotificationType.ORDER_DELIVERED, args(), now, InboxStatus.PENDING)
                 .join();
         data.submit(player, NotificationType.LEGACY, NotificationArgs.create(), now, InboxStatus.PENDING)

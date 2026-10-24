@@ -11,6 +11,7 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.query.OrderFilter;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
@@ -221,18 +221,8 @@ class AlertMatcherTest {
         var lines = IntStream.range(0, 7)
                 .mapToObj(i -> new OrderContent(i, new ItemStack(Material.STONE), false, i + 1, 1.0))
                 .toList();
-        var order = new FullOrder(
-                1,
-                BUYER,
-                "Stones",
-                LocalDateTime.now(),
-                0,
-                LocalDateTime.now(),
-                OrderState.UNCLAIMED,
-                0.0,
-                0,
-                0,
-                lines);
+        var order =
+                new FullOrder(1, BUYER, "Stones", Times.now(), 0, Times.now(), OrderState.UNCLAIMED, 0.0, 0, 0, lines);
 
         assertEquals("1 stone, 2 stone, 3 stone, 4 stone, 5 stone, …", AlertNotices.contents(order));
     }

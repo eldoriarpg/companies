@@ -64,7 +64,7 @@ public interface ISimpleCompany {
     /**
      * When the company was founded.
      *
-     * @return founding time in the server's time zone
+     * @return founding time in UTC
      */
     LocalDateTime founded();
 
