@@ -6,7 +6,7 @@
 /** @vitest-environment happy-dom */
 import {describe, expect, it} from 'vitest'
 import {ALEX, claimed, member, NODE, patch, snapshot} from '~/test/snapshots'
-import {applyPatch, isNewer, Unapplicable} from './patch'
+import {applyPatch, isNewer, knownRoot, Unapplicable} from './patch'
 
 /** How the patches of the plugin change the snapshot, the same way the gateway's patch applier does. */
 describe('applying a patch', () => {
@@ -63,6 +63,14 @@ describe('applying a patch', () => {
         const before = snapshot()
         applyPatch(before, patch(42, {path: 'player.unreadInbox', op: 'REPLACE', value: 9}))
         expect(before.player.unreadInbox).toBe(3)
+    })
+})
+
+/** Which parts of the snapshot this version knows. */
+describe('the known parts', () => {
+    it('knows the parts of the snapshot and nothing else', () => {
+        for (const path of ['player.unreadInbox', 'company', 'company.members', 'orders', 'rankings']) expect(knownRoot({path})).toBe(true)
+        for (const path of ['alerts', 'market.top', '']) expect(knownRoot({path})).toBe(false)
     })
 })
 

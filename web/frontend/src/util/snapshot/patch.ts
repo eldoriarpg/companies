@@ -5,6 +5,9 @@
  */
 import type {Patch, Snapshot} from '~/api/generated/protocol'
 
+/** The parts of the snapshot this version knows, as the gateway's patch applier knows them. */
+const ROOTS: ReadonlySet<string> = new Set(['player', 'company', 'orders', 'rankings'])
+
 /** The fields that tell the entries of a list apart, in the order they are tried, as the gateway tries them. */
 const KEY_FIELDS = ['id', 'uuid', 'key'] as const
 
@@ -19,6 +22,17 @@ export class Unapplicable extends Error {
         super(reason)
         this.name = 'Unapplicable'
     }
+}
+
+/**
+ * Whether a patch changes a part of the snapshot this version knows. A patch into a part a newer plugin added does
+ * not fit and is dropped rather than making the snapshot load again and again, as the gateway does.
+ *
+ * @param patch the patch
+ * @returns true for a path below `player`, `company`, `orders` or `rankings`
+ */
+export function knownRoot(patch: Pick<Patch, 'path'>): boolean {
+    return ROOTS.has((patch.path ?? '').split('.')[0] as string)
 }
 
 /**
