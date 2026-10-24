@@ -32,6 +32,7 @@ final class FakeBrowser {
     private final HttpClient client = HttpClient.newHttpClient();
     private final TestGateway gateway;
     private final String address;
+    private String origin = "https://dash.test";
     private @Nullable String cookie;
 
     FakeBrowser(TestGateway gateway, String address) {
@@ -53,6 +54,10 @@ final class FakeBrowser {
 
     CompletableFuture<HttpResponse<String>> getAsync(String path) {
         return CompletableFuture.supplyAsync(() -> get(path));
+    }
+
+    void origin(String origin) {
+        this.origin = origin;
     }
 
     @Nullable
@@ -80,6 +85,7 @@ final class FakeBrowser {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(gateway.base() + path))
                 .header("X-Forwarded-For", address)
                 .header("User-Agent", FIREFOX_ON_ANDROID)
+                .header("Origin", origin)
                 .header("Content-Type", "application/json");
         if (cookie != null) request.header("Cookie", BrowserApi.COOKIE + "=" + cookie);
         return request;
@@ -110,7 +116,7 @@ final class FakeBrowser {
         private final WebSocket socket;
 
         private Stream() {
-            WebSocket.Builder builder = client.newWebSocketBuilder().header("Origin", "https://dash.test");
+            WebSocket.Builder builder = client.newWebSocketBuilder().header("Origin", origin);
             if (cookie != null) builder.header("Cookie", BrowserApi.COOKIE + "=" + cookie);
             socket = builder.buildAsync(gateway.ws(Routes.STREAM), new WebSocket.Listener() {
                         @Override

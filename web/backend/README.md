@@ -36,7 +36,7 @@ Base `/api/v1`. Every answer carries `Cache-Control: no-store` except icons. Err
 | Route | |
 |---|---|
 | `GET /s/{shortId}` | `{server: {name, iconUrl?}, expiresAt, attemptsLeft, turnstileSiteKey?, version}`; 404 `UNKNOWN_SESSION` |
-| `POST /s/{shortId}/login` | `{code, turnstileToken?}` → 204 and the cookie `companies_session`; 401 `WRONG_CODE`, 410 `TOO_MANY_ATTEMPTS`, 403 `TURNSTILE_FAILED`, 429, 503, 410 `DISCONTINUED` |
+| `POST /s/{shortId}/login` | `{code, turnstileToken?}` → 204 and the cookie `__Host-companies_session`; 401 `WRONG_CODE`, 410 `TOO_MANY_ATTEMPTS`, 403 `TURNSTILE_FAILED`, 429, 503, 410 `DISCONTINUED` |
 | `GET /me/server` | `{server, features, limits, version, deprecated, online}` |
 | `GET /me/snapshot` | the `snapshot` message with every patch since applied |
 | `POST /me/actions` | `{name, args}` for a read action (`ReadRelay.READ_ACTIONS`) → the `action.result` message |

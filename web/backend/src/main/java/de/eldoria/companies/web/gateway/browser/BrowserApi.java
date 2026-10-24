@@ -60,7 +60,9 @@ import java.util.concurrent.TimeoutException;
  * snapshot, read actions and the stream. See {@link de.eldoria.companies.web.gateway.Routes} for the paths.
  * <p>
  * The cookie {@value #COOKIE} is {@code HttpOnly}, {@code Secure} and {@code SameSite=Strict}; the web app never reads
- * it. Logins are limited per client address, read actions per session. The stream accepts only the gateway's own
+ * it. Without {@code Secure} (only for local tests over plain HTTP) it is named {@value #PLAIN_COOKIE}, as the
+ * {@code __Host-} prefix needs it. Requests the cookie authorises that change something must come from the gateway's
+ * own origin. Logins are limited per client address, read actions per session. The stream accepts only the gateway's own
  * origin and closes with {@value BrowserStreams#CLOSE_SESSION_ENDED} when the session is gone and
  * {@value BrowserStreams#CLOSE_DISCONTINUED} when the server's plugin version is discontinued.
  */
@@ -68,7 +70,12 @@ public final class BrowserApi {
     /**
      * The session cookie's name.
      */
-    public static final String COOKIE = "companies_session";
+    public static final String COOKIE = "__Host-companies_session";
+
+    /**
+     * The session cookie's name when it is not {@code Secure}.
+     */
+    public static final String PLAIN_COOKIE = "companies_session";
 
     /**
      * The name shown for a server that sent no branding.
@@ -240,7 +247,8 @@ public final class BrowserApi {
      * @param ctx the request
      */
     public void logout(Context ctx) {
-        sessions.authenticate(ctx.cookie(COOKIE)).ifPresent(sessions::logout);
+        sameSite(ctx);
+        sessions.authenticate(ctx.cookie(cookieName())).ifPresent(sessions::logout);
         ctx.header("Set-Cookie", cookie("", Duration.ZERO));
         ctx.status(HttpStatus.NO_CONTENT);
     }
@@ -261,6 +269,7 @@ public final class BrowserApi {
      * @param ctx the request
      */
     public void action(Context ctx) {
+        sameSite(ctx);
         StoredSession session = session(ctx);
         Views.ActionCall call = body(ctx, Views.ActionCall.class);
         String name = call.name();
@@ -308,7 +317,7 @@ public final class BrowserApi {
                 ctx.closeSession(1008, "Foreign origin");
                 return;
             }
-            Optional<StoredSession> session = sessions.authenticate(ctx.cookie(COOKIE));
+            Optional<StoredSession> session = sessions.authenticate(ctx.cookie(cookieName()));
             if (session.isEmpty()) {
                 ctx.closeSession(BrowserStreams.CLOSE_SESSION_ENDED, "Not logged in");
                 return;
@@ -404,7 +413,7 @@ public final class BrowserApi {
     }
 
     private StoredSession session(Context ctx) {
-        StoredSession session = sessions.authenticate(ctx.cookie(COOKIE))
+        StoredSession session = sessions.authenticate(ctx.cookie(cookieName()))
                 .orElseThrow(() -> new ApiError(401, ApiError.Code.UNAUTHORIZED, "Log in with the code from the game"));
         snapshots.touch(session.id());
         return session;
@@ -443,13 +452,30 @@ public final class BrowserApi {
         }
     }
 
+    private String cookieName() {
+        return settings.secureCookie() ? COOKIE : PLAIN_COOKIE;
+    }
+
+    /**
+     * Refuses a request another site made the browser send: its {@code Origin} is foreign or, without one, the browser
+     * says it came from another site.
+     */
+    private void sameSite(Context ctx) {
+        String origin = ctx.header("Origin");
+        String site = ctx.header("Sec-Fetch-Site");
+        boolean foreign = origin != null
+                ? !sameOrigin(origin)
+                : site != null && !site.equals("same-origin") && !site.equals("none");
+        if (foreign) throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "Requests from other sites are refused");
+    }
+
     private boolean sameOrigin(String origin) {
         URI own = URI.create(settings.publicUrl());
         return origin.equalsIgnoreCase(own.getScheme() + "://" + own.getRawAuthority());
     }
 
     private String cookie(String value, Duration maxAge) {
-        return COOKIE + "=" + value + "; Path=/; Max-Age=" + maxAge.toSeconds() + "; HttpOnly; SameSite=Strict"
+        return cookieName() + "=" + value + "; Path=/; Max-Age=" + maxAge.toSeconds() + "; HttpOnly; SameSite=Strict"
                 + (settings.secureCookie() ? "; Secure" : "");
     }
 

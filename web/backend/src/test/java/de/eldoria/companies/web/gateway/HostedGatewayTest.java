@@ -269,6 +269,8 @@ class HostedGatewayTest {
             assertTrue(setCookie.contains("HttpOnly"));
             assertTrue(setCookie.contains("SameSite=Strict"));
             assertTrue(setCookie.contains("Secure"));
+            assertTrue(setCookie.startsWith("__Host-companies_session="));
+            assertTrue(setCookie.contains("Path=/"));
             assertNotNull(browser.cookie());
 
             JsonNode server = FakeBrowser.json(browser.get("/api/v1/me/server"));
@@ -488,6 +490,29 @@ class HostedGatewayTest {
                 browser.cookie(cookie);
                 assertEquals(401, browser.get("/api/v1/me/server").statusCode());
             }
+        }
+    }
+
+    @Test
+    void refusesRequestsFromOtherSites() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.22");
+            login(node, browser, create(node, uid));
+            browser.origin("https://evil.test");
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                assertEquals(1008, stream.awaitClose());
+            }
+            HttpResponse<String> logout = browser.post("/api/v1/me/logout", "");
+            assertEquals(403, logout.statusCode());
+            assertEquals("UNAUTHORIZED", error(logout));
+            assertEquals(
+                    403,
+                    browser.post("/api/v1/me/actions", "{\"name\":\"inbox.page\",\"args\":{}}")
+                            .statusCode());
+            node.assertQuiet();
+            browser.origin("https://dash.test");
+            assertEquals(200, browser.get("/api/v1/me/server").statusCode());
         }
     }
 
