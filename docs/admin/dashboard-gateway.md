@@ -68,6 +68,10 @@ never written to a file:
 
 Run `/companyadmin reload` and check `/companyadmin dashboard status`.
 
+Each server opens a websocket to `wss://dash.example.com/api/v1/servers/connect`. That path must reach the gateway:
+the web app passes it on, or your web server routes it straight there, see
+[Behind a web server](#behind-a-web-server).
+
 ## Server tokens
 
 Each network needs its own token. Manage them with the gateway's token command:
@@ -79,9 +83,17 @@ docker compose exec backend /app/bin/web-backend token regenerate default
 docker compose exec backend /app/bin/web-backend token delete my-other-network
 ```
 
-`create` and `regenerate` print the new token once. After `regenerate` the old token can no longer connect; give the
-new one to the network with `/companyadmin dashboard key`. Its players stay logged in. Only the token's hash is
-stored.
+`create` and `regenerate` print the new token once. After `regenerate` or `delete` the old token can no longer
+connect; give the new one to the network with `/companyadmin dashboard key`. Only the token's hash is stored.
+
+Servers that are connected already stay connected until they reconnect. To cut them off at once, restart the gateway
+after `regenerate` or `delete`:
+
+```bash
+docker compose restart backend
+```
+
+Players stay logged in through the restart.
 
 ## Settings
 
@@ -91,6 +103,7 @@ All settings go into `.env`.
 |---|---|---|
 | `PUBLIC_URL` | | The address players open. Login links are this plus a short id. No `/` at the end. |
 | `DB_PASSWORD` | | A password for the database. Only the gateway uses it. |
+| `GATEWAY_PORT` | `8080` | The gateway's own port on `127.0.0.1`, for routing `/api/v1/servers/connect` straight to it. |
 | `PORT` | `4000` | The port the dashboard listens on, on this machine. It only listens on `127.0.0.1`, for a web server on the same machine. |
 | `COMPANIES_VERSION` | `latest` | Which gateway version to run: `latest` is the newest release, a version such as `2.2.0` or `2.2` pins it, `edge` follows the newest development build. |
 | `TRUSTED_PROXIES` | private addresses | Proxies whose `X-Forwarded-For` is believed, comma separated. See [Behind a web server](#behind-a-web-server). |
@@ -112,14 +125,35 @@ change them:
 
 ## Behind a web server
 
-Only the `frontend` service is published. It serves the web app and passes `/api` and the websockets on to the
-gateway. Your web server must pass websockets through as well. With Caddy:
+The `frontend` service serves the web app and passes `/api` and both websockets on to the gateway: the browsers'
+`/api/v1/me/stream` and the servers' `/api/v1/servers/connect`. Your web server must pass websockets through as
+well. With Caddy:
 
 ```
 dash.example.com {
     reverse_proxy localhost:4000
 }
 ```
+
+You can also route the servers' path straight to the gateway, which listens on `127.0.0.1:8080` (`GATEWAY_PORT`):
+
+```
+dash.example.com {
+    reverse_proxy /api/v1/servers/connect localhost:8080
+    reverse_proxy localhost:4000
+}
+```
+
+To check the setup, ask for the gateway's health and open the servers' websocket:
+
+```bash
+curl https://dash.example.com/api/v1/health
+curl -i -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" \
+     -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" https://dash.example.com/api/v1/servers/connect
+```
+
+The first answers `{"status":"up"}`, the second `101 Switching Protocols`. The gateway closes that socket after ten
+seconds, as no hello follows.
 
 The dashboard listens on `127.0.0.1` only. If your web server runs on another machine, change the `ports` of
 `frontend` in `compose.yaml` to `"${PORT:-4000}:4000"` and allow only the web server to reach it.
