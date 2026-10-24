@@ -26,6 +26,7 @@ final class MemoryInboxData extends AInboxData {
     private final List<InboxEntry> entries = new ArrayList<>();
     private final Map<UUID, Long> muted = new HashMap<>();
     private long nextId = 1;
+    private boolean refuseSaves;
 
     MemoryInboxData(ExecutorService executor) {
         super(executor);
@@ -33,6 +34,13 @@ final class MemoryInboxData extends AInboxData {
 
     synchronized List<InboxEntry> all() {
         return List.copyOf(entries);
+    }
+
+    /**
+     * Fails every save from now on, as a database that is gone would.
+     */
+    synchronized void refuseSaves() {
+        refuseSaves = true;
     }
 
     synchronized InboxEntry only() {
@@ -43,6 +51,7 @@ final class MemoryInboxData extends AInboxData {
     @Override
     protected synchronized Optional<Long> save(
             UUID recipient, NotificationType type, NotificationArgs args, LocalDateTime created, InboxStatus status) {
+        if (refuseSaves) return Optional.empty();
         var id = nextId++;
         entries.add(new InboxEntry(
                 id,
