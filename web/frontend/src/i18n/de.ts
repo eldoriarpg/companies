@@ -92,6 +92,7 @@ export default {
         noCompany: 'Du bist in keiner Firma. Tritt im Spiel einer bei oder gründe deine eigene.',
         invited: 'Du bist zu {company} eingeladen.',
         treasuryOf: 'Kasse · {company}',
+        movements: 'Letzte Kassenbewegungen',
         treasuryChart: 'Die Kasse im Verlauf',
         level: 'Stufe',
         rank: 'Rang',
@@ -177,6 +178,8 @@ export default {
         details: 'Auftragsdetails',
         anonymous: 'Der Auftraggeber bleibt anonym',
         created: 'Erteilt {time}',
+        expires: 'Noch {hours} Stunden offen',
+        due: 'Fällig in {hours} Stunden',
         acceptInGame: 'Nimm Aufträge vorerst im Spiel mit /order an; das Annehmen hier kommt bald.',
     },
     market: {
@@ -235,6 +238,14 @@ export default {
             INVITE_RECEIVED: 'Einladung',
             APPLICATION_RECEIVED: 'Bewerbung',
             MEMBER_JOINED: 'Neues Mitglied',
+        },
+    },
+    treasury: {
+        kind: {
+            DEPOSIT: 'hat eingezahlt',
+            WITHDRAWAL: 'hat entnommen',
+            PAYOUT_SHARE: 'Anteil einer Auszahlung',
+            SHARE_CHANGED: 'Anteil geändert',
         },
     },
     rankings: {

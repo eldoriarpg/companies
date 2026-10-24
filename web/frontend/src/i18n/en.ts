@@ -92,6 +92,7 @@ export default {
         noCompany: 'You are not in a company. Join one or found your own in game.',
         invited: 'You are invited to {company}.',
         treasuryOf: 'Treasury · {company}',
+        movements: 'Latest treasury movements',
         treasuryChart: 'The treasury over time',
         level: 'Level',
         rank: 'Rank',
@@ -177,6 +178,8 @@ export default {
         details: 'Order details',
         anonymous: 'The owner stays anonymous',
         created: 'Placed {time}',
+        expires: 'Open for {hours} more hours',
+        due: 'Due in {hours} hours',
         acceptInGame: 'Accept orders in game with /order for now; accepting here comes soon.',
     },
     market: {
@@ -235,6 +238,14 @@ export default {
             INVITE_RECEIVED: 'Invitation',
             APPLICATION_RECEIVED: 'Application',
             MEMBER_JOINED: 'New member',
+        },
+    },
+    treasury: {
+        kind: {
+            DEPOSIT: 'paid in',
+            WITHDRAWAL: 'took out',
+            PAYOUT_SHARE: 'Share of a payout',
+            SHARE_CHANGED: 'Share changed',
         },
     },
     rankings: {

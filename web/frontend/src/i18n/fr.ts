@@ -92,6 +92,7 @@ export default {
         noCompany: 'Tu n’es dans aucune entreprise. Rejoins-en une ou fonde la tienne en jeu.',
         invited: 'Tu es invité chez {company}.',
         treasuryOf: 'Trésorerie · {company}',
+        movements: 'Derniers mouvements de la trésorerie',
         treasuryChart: 'La trésorerie dans le temps',
         level: 'Niveau',
         rank: 'Rang',
@@ -177,6 +178,8 @@ export default {
         details: 'Détails de la commande',
         anonymous: 'Le donneur d’ordre reste anonyme',
         created: 'Passée {time}',
+        expires: 'Encore ouverte {hours} heures',
+        due: 'À livrer dans {hours} heures',
         acceptInGame: 'Accepte les commandes en jeu avec /order pour l’instant ; l’acceptation ici arrive bientôt.',
     },
     market: {
@@ -235,6 +238,14 @@ export default {
             INVITE_RECEIVED: 'Invitation',
             APPLICATION_RECEIVED: 'Candidature',
             MEMBER_JOINED: 'Nouveau membre',
+        },
+    },
+    treasury: {
+        kind: {
+            DEPOSIT: 'a versé',
+            WITHDRAWAL: 'a retiré',
+            PAYOUT_SHARE: 'Part d’un paiement',
+            SHARE_CHANGED: 'Part modifiée',
         },
     },
     rankings: {
