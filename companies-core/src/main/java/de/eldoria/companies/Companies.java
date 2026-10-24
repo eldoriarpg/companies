@@ -80,6 +80,7 @@ import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.nodes.NodeConnection;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
+import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
@@ -126,6 +127,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -318,6 +320,12 @@ public class Companies extends EldoPlugin {
                 getServer().getPluginManager()::callEvent,
                 notificationService::send,
                 Threading.mainThread(this));
+        var orderAccept = new OrderAcceptService(
+                orderData,
+                configuration::companySettings,
+                getServer().getPluginManager()::callEvent,
+                uuid -> Optional.ofNullable(getServer().getPlayer(uuid)),
+                Threading.VIRTUAL);
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -346,7 +354,8 @@ public class Companies extends EldoPlugin {
                             companyData,
                             treasuryService,
                             OrderCreationService.Wallet.of(economy),
-                            configuration::companySettings)));
+                            configuration::companySettings),
+                    orderAccept));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 

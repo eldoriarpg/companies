@@ -43,7 +43,6 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
-import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
@@ -297,17 +296,6 @@ public final class CommandDependencies {
     }
 
     /**
-     * @return accepts orders for companies
-     */
-    public OrderAcceptService orderAccept() {
-        return new OrderAcceptService(
-                orderData,
-                configuration::companySettings,
-                plugin.getServer().getPluginManager()::callEvent,
-                Threading.VIRTUAL);
-    }
-
-    /**
      * @return the order actions of admins
      * @throws CommandFailure {@code error.notReady} while the services do not exist
      */
@@ -382,6 +370,7 @@ public final class CommandDependencies {
      * @param profiles            edits the profiles of companies
      * @param members             kicks, leaves, member permissions and transfers
      * @param companies           founds and renames companies
+     * @param orderAccept         accepts orders for companies
      */
     public record Services(
             Economy economy,
@@ -401,5 +390,6 @@ public final class CommandDependencies {
             SoloOrderService soloOrders,
             ProfileService profiles,
             MemberService members,
-            CompanyService companies) {}
+            CompanyService companies,
+            OrderAcceptService orderAccept) {}
 }
