@@ -20,16 +20,20 @@ export function useInbox(api: GatewayApi = gatewayApi()) {
     const page = ref(1)
     const result = shallowRef<InboxPage | null>(null)
     const status = ref<'loading' | 'ready' | 'failed'>('loading')
+    const latest = useLatest()
 
-    /** Loads the current page. */
+    /** Loads the current page; an answer overtaken by a newer request is dropped. */
     async function load(): Promise<void> {
+        const ticket = latest.next()
         status.value = 'loading'
         try {
             const text = query.value.trim()
-            result.value = await api.read('inbox.page', {page: page.value, query: text === '' ? undefined : text})
+            const answer = await api.read('inbox.page', {page: page.value, query: text === '' ? undefined : text})
+            if (!latest.is(ticket)) return
+            result.value = answer
             status.value = 'ready'
         } catch {
-            status.value = 'failed'
+            if (latest.is(ticket)) status.value = 'failed'
         }
     }
 

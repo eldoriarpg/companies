@@ -15,7 +15,7 @@ import {useDashboard} from './useDashboard'
  * @returns the balance now, the series and the change over it
  */
 export function useTreasury(api: GatewayApi = gatewayApi()) {
-    const {company, balances, supports} = useDashboard(api)
+    const {company, balances, supports} = useDashboard({api})
     const log = shallowRef<TreasuryLogEntry[]>([])
 
     /** Loads the log once, where it is available. */

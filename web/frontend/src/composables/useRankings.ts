@@ -21,21 +21,25 @@ export const RANGES = ['all', '30d', '7d'] as const
  * @returns the choice of ranking, range and page, and the page shown
  */
 export function useRankings(api: GatewayApi = gatewayApi()) {
-    const {snapshot} = useDashboard(api)
+    const {snapshot} = useDashboard({api})
     const ranking = ref(snapshot.value?.rankings.ranking ?? 'orders')
     const range = ref(snapshot.value?.rankings.range ?? 'all')
     const page = ref(1)
     const loaded = shallowRef<RankingPage | null>(null)
     const status = ref<'ready' | 'loading' | 'failed'>('ready')
+    const latest = useLatest()
 
-    /** Loads the chosen page. */
+    /** Loads the chosen page; an answer overtaken by a newer choice is dropped. */
     async function load(): Promise<void> {
+        const ticket = latest.next()
         status.value = 'loading'
         try {
-            loaded.value = await api.read('rankings.page', {ranking: ranking.value, range: range.value, page: page.value})
+            const answer = await api.read('rankings.page', {ranking: ranking.value, range: range.value, page: page.value})
+            if (!latest.is(ticket)) return
+            loaded.value = answer
             status.value = 'ready'
         } catch {
-            status.value = 'failed'
+            if (latest.is(ticket)) status.value = 'failed'
         }
     }
 

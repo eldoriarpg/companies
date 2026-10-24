@@ -52,19 +52,24 @@ export function useOrderBook(api: GatewayApi = gatewayApi()) {
     const query = ref('')
     const filter = ref<OrderFilter>('all')
     const sort = ref<OrderSorting>('AGE')
-    const page = ref(1)
+    const pageNumber = ref(1)
     const result = shallowRef<OrderSearchPage | null>(null)
     const status = ref<'loading' | 'ready' | 'failed'>('loading')
     const detail = shallowRef<OrderListing | null>(null)
+    const latest = useLatest()
+    const details = useLatest()
 
-    /** Loads the current page of the search. */
+    /** Loads the current page of the search; an answer overtaken by a newer search is dropped. */
     async function load(): Promise<void> {
+        const ticket = latest.next()
         status.value = 'loading'
         try {
-            result.value = await api.read('orders.browse.search', searchArgs(query.value, filter.value, sort.value, page.value))
+            const page = await api.read('orders.browse.search', searchArgs(query.value, filter.value, sort.value, pageNumber.value))
+            if (!latest.is(ticket)) return
+            result.value = page
             status.value = 'ready'
         } catch {
-            status.value = 'failed'
+            if (latest.is(ticket)) status.value = 'failed'
         }
     }
 
@@ -80,22 +85,24 @@ export function useOrderBook(api: GatewayApi = gatewayApi()) {
         }
         detail.value = result.value?.orders.find(order => order.id === id) ?? null
         if (detail.value) return
+        const ticket = details.next()
         try {
-            detail.value = await api.read('orders.browse.details', {order: id})
+            const order = await api.read('orders.browse.details', {order: id})
+            if (details.is(ticket)) detail.value = order
         } catch {
-            detail.value = null
+            if (details.is(ticket)) detail.value = null
         }
     }
 
     watchDebounced(query, () => {
-        page.value = 1
+        pageNumber.value = 1
         void load()
     }, {debounce: SEARCH_DELAY_MILLIS})
     watch([filter, sort], () => {
-        page.value = 1
+        pageNumber.value = 1
         void load()
     })
-    watch(page, () => void load())
+    watch(pageNumber, () => void load())
 
-    return {query, filter, sort, page, result, status: readonly(status), detail, load, open}
+    return {query, filter, sort, page: pageNumber, result, status: readonly(status), detail, load, open}
 }

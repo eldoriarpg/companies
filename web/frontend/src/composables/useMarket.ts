@@ -22,10 +22,11 @@ const SEARCH_DELAY_MILLIS = 300
  */
 export function useMarket(api: GatewayApi = gatewayApi()) {
     const state = marketState()
-    const {supports} = useDashboard(api)
+    const {supports} = useDashboard({api})
     const query = ref('')
     const found = ref<MarketItemView[] | null>(null)
     const searching = ref(false)
+    const latest = useLatest()
 
     /** Loads the most ordered items once, where the server has the market. */
     async function loadTop(): Promise<void> {
@@ -39,21 +40,25 @@ export function useMarket(api: GatewayApi = gatewayApi()) {
         }
     }
 
-    /** Asks the plugin for the materials matching the search. */
+    /** Asks the plugin for the materials matching the search; an answer overtaken by a newer search is dropped. */
     async function search(): Promise<void> {
+        const ticket = latest.next()
         const text = query.value.trim()
         if (text === '') {
             found.value = null
+            searching.value = false
             return
         }
         searching.value = true
+        let items: MarketItemView[]
         try {
-            found.value = (await api.read('market.search', {query: text, page: 1})).items
+            items = (await api.read('market.search', {query: text, page: 1})).items
         } catch {
-            found.value = []
-        } finally {
-            searching.value = false
+            items = []
         }
+        if (!latest.is(ticket)) return
+        found.value = items
+        searching.value = false
     }
 
     watchDebounced(query, () => void search(), {debounce: SEARCH_DELAY_MILLIS})
