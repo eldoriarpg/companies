@@ -159,7 +159,8 @@ public final class CompanyWrites {
 
     /**
      * Founds a company with the player as owner, or with {@code "quote": true} names its price. The player needs the
-     * permission to found companies, from the permissions remembered with the session.
+     * permission to found companies, checked against the permissions remembered with the session, as every dashboard
+     * action is; the copy is refreshed when the player joins and every few minutes while online.
      *
      * @param request     the action
      * @param player      the session's player
@@ -191,7 +192,9 @@ public final class CompanyWrites {
             if (!company.member(player).map(CompanyMember::isOwner).orElse(false)) {
                 return answers.refused(request, "error.noOwner");
             }
-            if (!company.name().equalsIgnoreCase(args.path("name").asString("").strip())) {
+            if (!company.name()
+                    .strip()
+                    .equalsIgnoreCase(args.path("name").asString("").strip())) {
                 return answers.refused(request, "dashboard.disband.nameMismatch");
             }
             return answers.answer(

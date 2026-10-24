@@ -50,7 +50,10 @@ async function check(): Promise<void> {
 async function found(): Promise<void> {
   if (!quote.value) return
   const founded = quote.value.name
-  if (await action.run('company.create', {name: founded})) emit('founded', founded)
+  if (!await action.run('company.create', {name: founded})) return
+  quote.value = null
+  name.value = ''
+  emit('founded', founded)
 }
 </script>
 

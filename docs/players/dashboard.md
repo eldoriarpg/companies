@@ -82,7 +82,7 @@ game. When the server refuses, the dashboard shows its reason.
 | Company | Leave the company; the owner hands it over first | `/company leave` |
 | Company | Hand the company to a member; you stay a member without owner rights (owner only) | `/company transfer <name>` |
 | Company | Dissolve the company after typing its name: its orders go back to the order book, delivered items to the members who delivered them, the treasury is paid out to you (owner only) | `/company disband` |
-| Company | Found a company when you have none; the dashboard shows the price first | `/company create <name>` |
+| Company | Found a company when you have none; the dashboard shows the price first and takes it from your balance, also while you are not online | `/company create <name>` |
 | Company | Accept or deny an application, take back an invite (needs *invite*) | `/company applications accept`, `deny`, `/company invite revoke` |
 | Company | Edit description, tag and colour, change how players join (needs *edit profile*) | `/company profile edit`, `/company joinmode` |
 | Company | Rename the company, paid by you or from the treasury; the dashboard shows the price first (owner only) | `/company rename <name>` |

@@ -29,7 +29,7 @@ const {t} = useI18n()
 const action = useAction()
 const open = ref(false)
 const typed = ref('')
-const matches = computed(() => typed.value.trim().toLowerCase() === props.company.toLowerCase())
+const matches = computed(() => typed.value.trim().toLowerCase() === props.company.trim().toLowerCase())
 
 watch(open, isOpen => {
   if (isOpen) typed.value = ''

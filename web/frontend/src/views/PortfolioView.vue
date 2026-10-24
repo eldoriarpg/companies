@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import {Feature} from '~/api/generated/protocol'
 import Alert from '@/components/feedback/Alert.vue'
 import ToggleSwitch from '@/components/input/ToggleSwitch.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
@@ -21,7 +22,7 @@ import TreasuryPanel from './portfolioview/TreasuryPanel.vue'
  */
 const {t} = useI18n()
 const route = useRoute()
-const {snapshot, company, activity} = useDashboard()
+const {snapshot, company, activity, supports} = useDashboard()
 const wakeLock = useWakeLock()
 const router = useRouter()
 const placed = ref(typeof route.query.placed === 'string' ? route.query.placed : '')
@@ -38,7 +39,7 @@ onMounted(() => {
     </div>
     <Alert v-if="placed" variant="success">{{ t('builder.placed', {name: placed}) }}</Alert>
     <Alert v-if="snapshot && !company" variant="notice">
-      <span>{{ t('portfolio.noCompany') }}</span>
+      <span>{{ t(supports(Feature['company.create']) ? 'company.noCompanyFound' : 'portfolio.noCompany') }}</span>
       <span v-for="invite in snapshot.player.invites" :key="invite.company">{{ t('portfolio.invited', {company: invite.name}) }}</span>
     </Alert>
     <div v-if="snapshot" class="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">

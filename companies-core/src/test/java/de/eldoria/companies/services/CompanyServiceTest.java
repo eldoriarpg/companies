@@ -33,6 +33,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -184,6 +185,25 @@ class CompanyServiceTest {
         assertEquals("Smiths", company.name());
         assertTrue(company.member(founder).orElseThrow().isOwner());
         assertEquals(10.0, wallet(founder));
+    }
+
+    @Test
+    void twoFoundingsAtOnceChargeOnceAndFoundOne() {
+        var founder = player(2 * FOUNDING + 10);
+
+        var first = service.found(founder.getUniqueId(), "Smiths");
+        var second = service.found(founder.getUniqueId(), "Masons");
+        var results = List.of(first.join(), second.join());
+
+        assertEquals(
+                1, results.stream().filter(ActionResult.Done.class::isInstance).count());
+        assertEquals(
+                List.of("error.alreadyMember"),
+                results.stream()
+                        .filter(ActionResult.Refused.class::isInstance)
+                        .map(CompanyServiceTest::refusalKey)
+                        .toList());
+        assertEquals(FOUNDING + 10, wallet(founder));
     }
 
     @Test
