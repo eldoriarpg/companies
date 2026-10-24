@@ -27,3 +27,21 @@ export function restrictSyntax(...restrictions) {
         'vue/no-restricted-syntax': ['error', ...restrictions],
     }
 }
+
+/**
+ * A failure worded by hand. `describeFailure` in `util/failure.ts` says what failed and what to do about it, and the
+ * failure texts are only ever reached through it.
+ */
+export const GENERIC_FAILURE = {
+    selector: "CallExpression:matches([callee.name=/^\\$?t$/], [callee.property.name='t'])[arguments.0.value=/^failure\\./]",
+    message: 'A failure worded by hand. Describe it: describeFailure(e, t) or describeKind(kind, t) from util/failure.ts.',
+}
+
+/**
+ * A date formatted for the locale in place. `toLocaleString` also formats numbers, which pass the locale alone, while
+ * a date always passes options after it.
+ */
+export const INLINE_DATE_FORMAT = {
+    selector: "CallExpression:matches([callee.property.name=/^toLocale(Date|Time)String$/], [callee.property.name='toLocaleString'][arguments.length>1])",
+    message: 'Inline toLocale date formatting: use the helpers in util/format.ts.',
+}

@@ -9,12 +9,41 @@ export default {
         name: 'Companies-Dashboard',
     },
     common: {
-        actionFailed: 'Das hat nicht geklappt. Versuch es gleich noch einmal.',
         actionUncertain: 'Der Server hat nicht rechtzeitig geantwortet. Sieh nach, ob es geklappt hat, bevor du es noch einmal versuchst.',
         back: 'Zurück',
         close: 'Schließen',
         loading: 'Wird geladen…',
         noMatch: 'Nichts passt zur Suche.',
+    },
+    failure: {
+        offline: {
+            message: 'Das Dashboard hat den Server nicht erreicht.',
+            guidance: 'Prüfe deine Verbindung und versuch es noch einmal.',
+        },
+        timeout: {
+            message: 'Der Server hat nicht rechtzeitig geantwortet.',
+            guidance: 'Sieh nach, ob es geklappt hat, bevor du es noch einmal versuchst.',
+        },
+        signedOut: {
+            message: 'Deine Sitzung ist beendet.',
+            guidance: 'Nutze /company dashboard im Spiel, um dich neu anzumelden.',
+        },
+        tooOften: {
+            message: 'Das waren zu viele Aktionen auf einmal.',
+            guidance: 'Warte ein paar Sekunden und versuch es dann noch einmal.',
+        },
+        serverOffline: {
+            message: 'Der Server ist gerade nicht verbunden.',
+            guidance: 'Versuch es noch einmal, sobald er wieder online ist.',
+        },
+        serverFault: {
+            message: 'Auf dem Server ist etwas schiefgegangen.',
+            guidance: 'Versuch es gleich noch einmal; passiert es wieder, sag dem Serverteam Bescheid.',
+        },
+        unknown: {
+            message: 'Das hat nicht geklappt.',
+            guidance: 'Versuch es gleich noch einmal; passiert es wieder, sag dem Serverteam Bescheid.',
+        },
     },
     footer: {
         mark: 'Companies-Dashboard',

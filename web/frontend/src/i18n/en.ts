@@ -9,12 +9,41 @@ export default {
         name: 'Companies dashboard',
     },
     common: {
-        actionFailed: 'That did not work. Try again in a moment.',
         actionUncertain: 'The server did not answer in time. Check whether it happened before you try again.',
         back: 'Back',
         close: 'Close',
         loading: 'Loading…',
         noMatch: 'Nothing matches the search.',
+    },
+    failure: {
+        offline: {
+            message: 'The dashboard could not reach the server.',
+            guidance: 'Check your connection and try again.',
+        },
+        timeout: {
+            message: 'The server did not answer in time.',
+            guidance: 'Check whether it happened before you try again.',
+        },
+        signedOut: {
+            message: 'Your session has ended.',
+            guidance: 'Run /company dashboard in game to log in again.',
+        },
+        tooOften: {
+            message: 'That was too many actions at once.',
+            guidance: 'Wait a few seconds, then try again.',
+        },
+        serverOffline: {
+            message: 'The server is not connected right now.',
+            guidance: 'Try again once it is back online.',
+        },
+        serverFault: {
+            message: 'Something broke on the server.',
+            guidance: 'Try again in a moment; if it keeps happening, tell the server team.',
+        },
+        unknown: {
+            message: 'That did not work.',
+            guidance: 'Try again in a moment; if it keeps happening, tell the server team.',
+        },
     },
     footer: {
         mark: 'Companies dashboard',

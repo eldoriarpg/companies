@@ -5,23 +5,25 @@
  */
 <script lang="ts" setup>
 import type {ActionProblem} from '~/composables/useAction'
+import {describeKind} from '~/util/failure'
 import NoticeBanner from './NoticeBanner.vue'
 
 /**
  * Says what went wrong with an action: the plugin's own sentence for a refusal, a warning to check before trying again
- * when the server did not answer in time, or a general message.
+ * when the server did not answer in time, or what failed and what to do about it.
  */
-defineProps<{
+const props = defineProps<{
   problem: ActionProblem | null
 }>()
 
 const {t} = useI18n()
+const failure = computed(() => (props.problem?.kind === 'failed' ? describeKind(props.problem.cause, t) : null))
 </script>
 
 <template>
   <NoticeBanner v-if="problem" tone="problem">
     <template v-if="problem.kind === 'refused'">{{ problem.text }}</template>
     <template v-else-if="problem.kind === 'uncertain'">{{ t('common.actionUncertain') }}</template>
-    <template v-else>{{ t('common.actionFailed') }}</template>
+    <template v-else-if="failure">{{ failure.message }} {{ failure.guidance }}</template>
   </NoticeBanner>
 </template>

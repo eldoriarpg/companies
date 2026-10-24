@@ -36,7 +36,7 @@ describe('an action', () => {
         const action = useAction(api)
 
         expect(await action.run('inbox.clear', {})).toBeNull()
-        expect(action.problem.value).toEqual({kind: 'failed'})
+        expect(action.problem.value).toEqual({kind: 'failed', cause: 'OFFLINE'})
         action.reset()
         expect(action.problem.value).toBeNull()
     })

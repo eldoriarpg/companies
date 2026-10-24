@@ -9,12 +9,41 @@ export default {
         name: 'Tableau de bord Companies',
     },
     common: {
-        actionFailed: 'Cela n’a pas fonctionné. Réessaie dans un instant.',
         actionUncertain: 'Le serveur n’a pas répondu à temps. Vérifie si c’est fait avant de réessayer.',
         back: 'Retour',
         close: 'Fermer',
         loading: 'Chargement…',
         noMatch: 'Rien ne correspond à la recherche.',
+    },
+    failure: {
+        offline: {
+            message: 'Le tableau de bord n’a pas pu joindre le serveur.',
+            guidance: 'Vérifie ta connexion et réessaie.',
+        },
+        timeout: {
+            message: 'Le serveur n’a pas répondu à temps.',
+            guidance: 'Vérifie si c’est fait avant de réessayer.',
+        },
+        signedOut: {
+            message: 'Ta session est terminée.',
+            guidance: 'Utilise /company dashboard en jeu pour te reconnecter.',
+        },
+        tooOften: {
+            message: 'Trop d’actions à la fois.',
+            guidance: 'Attends quelques secondes, puis réessaie.',
+        },
+        serverOffline: {
+            message: 'Le serveur n’est pas connecté pour le moment.',
+            guidance: 'Réessaie quand il sera de nouveau en ligne.',
+        },
+        serverFault: {
+            message: 'Quelque chose a échoué sur le serveur.',
+            guidance: 'Réessaie dans un instant ; si cela continue, préviens l’équipe du serveur.',
+        },
+        unknown: {
+            message: 'Cela n’a pas fonctionné.',
+            guidance: 'Réessaie dans un instant ; si cela continue, préviens l’équipe du serveur.',
+        },
     },
     footer: {
         mark: 'Tableau de bord Companies',

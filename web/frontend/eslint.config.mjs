@@ -10,7 +10,7 @@ import withNuxt from './.nuxt/eslint.config.mjs'
 import * as localeParser from './eslint/i18n/locale-parser.mjs'
 import companies from './eslint/index.mjs'
 import {LANGUAGES, localeModules, localeSnapshots} from './eslint/locales.mjs'
-import {INLINE_STATE_TYPE, restrictSyntax} from './eslint/restrictions.mjs'
+import {GENERIC_FAILURE, INLINE_DATE_FORMAT, INLINE_STATE_TYPE, restrictSyntax} from './eslint/restrictions.mjs'
 
 /**
  * The messages as the application holds them, for the rules that look keys up. The locale modules
@@ -156,7 +156,9 @@ export default withNuxt(
             'companies/button-row': 'error',
             'companies/no-dead-button-size': 'error',
             'companies/no-stacked-inline-text': 'error',
+            'companies/rows-open-pages-as-links': 'error',
             'companies/styled-elements': 'error',
+            'companies/view-content-title': 'error',
         },
     },
     {
@@ -237,6 +239,11 @@ export default withNuxt(
         name: 'companies/state-types',
         files: ['src/**/*.{ts,vue}'],
         rules: restrictSyntax(INLINE_STATE_TYPE),
+    },
+    {
+        name: 'companies/failures',
+        files: ['src/views/**/*.{ts,vue}', 'src/components/**/*.{ts,vue}', 'src/composables/**/*.{ts,vue}'],
+        rules: restrictSyntax(INLINE_STATE_TYPE, GENERIC_FAILURE, INLINE_DATE_FORMAT),
     },
     {
         name: 'companies/views',

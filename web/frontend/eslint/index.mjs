@@ -13,9 +13,11 @@ import noModuleState from './rules/no-module-state.mjs'
 import noStackedInlineText from './rules/no-stacked-inline-text.mjs'
 import repeatedClassPattern from './rules/repeated-class-pattern.mjs'
 import routeViewContent from './rules/route-view-content.mjs'
+import rowsOpenPagesAsLinks from './rules/rows-open-pages-as-links.mjs'
 import sectionDensity from './rules/section-density.mjs'
 import styledElements from './rules/styled-elements.mjs'
 import templateBlockSize from './rules/template-block-size.mjs'
+import viewContentTitle from './rules/view-content-title.mjs'
 
 /**
  * The rules this project holds its frontend to that no published plugin knows about.
@@ -36,8 +38,10 @@ export default {
         'no-stacked-inline-text': noStackedInlineText,
         'repeated-class-pattern': repeatedClassPattern,
         'route-view-content': routeViewContent,
+        'rows-open-pages-as-links': rowsOpenPagesAsLinks,
         'section-density': sectionDensity,
         'styled-elements': styledElements,
         'template-block-size': templateBlockSize,
+        'view-content-title': viewContentTitle,
     },
 }
