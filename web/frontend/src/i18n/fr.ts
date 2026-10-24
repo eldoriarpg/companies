@@ -45,6 +45,9 @@ export default {
     dashboard: {
         loading: 'Chargement de ton tableau de bord…',
         offline: 'Le serveur est injoignable pour le moment. Le tableau de bord continue d’essayer.',
+        serverOffline: 'Le serveur n’est pas connecté pour le moment. Tu vois le dernier état connu ; il se met à jour dès le retour du serveur.',
+        refused: 'Le tableau de bord a refusé cette connexion. Ouvre-le depuis le lien du chat.',
+        unavailable: 'Ce serveur ne propose pas cette partie du tableau de bord.',
     },
     version: {
         deprecated: 'Ce serveur utilise une version de Companies que le tableau de bord cessera bientôt de prendre en charge.',
@@ -68,10 +71,13 @@ export default {
         unknown: 'Ce lien a expiré ou n’existe pas. Tape /company dashboard en jeu pour en obtenir un nouveau.',
         offline: 'Le tableau de bord est injoignable pour le moment. Réessaie dans un instant.',
         challengeFailed: 'La vérification humaine n’a pas pu être chargée. Recharge la page et réessaie.',
+        locked: 'Trop de codes erronés. Tape /company dashboard en jeu pour en obtenir un nouveau.',
         problem: {
             wrong: 'Ce code n’est pas le bon.',
-            locked: 'Trop de codes erronés. Tape /company dashboard en jeu pour en obtenir un nouveau.',
             challenge: 'La vérification humaine a échoué. Réessaie.',
+            elsewhere: 'Cette session est en train d’être ouverte dans un autre navigateur.',
+            refused: 'Le serveur a refusé cette connexion.',
+            serverOffline: 'Le serveur n’est pas connecté pour le moment. Réessaie dans un instant.',
             busy: 'Trop d’essais à la fois. Patiente un instant et réessaie.',
             offline: 'Le tableau de bord est injoignable pour le moment. Réessaie dans un instant.',
         },
@@ -233,6 +239,7 @@ export default {
     },
     rankings: {
         ranking: 'Classement',
+        search: 'Rechercher une entreprise sur cette page',
         failed: 'Le classement n’a pas pu être chargé. Réessaie dans un instant.',
         empty: 'Aucune entreprise n’est encore classée.',
         kind: {

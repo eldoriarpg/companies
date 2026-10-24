@@ -45,6 +45,9 @@ export default {
     dashboard: {
         loading: 'Loading your dashboard…',
         offline: 'The server cannot be reached right now. The dashboard keeps trying.',
+        serverOffline: 'The server is not connected right now. You see what was last known; it updates once the server is back.',
+        refused: 'The dashboard refused this connection. Open it from the link in chat.',
+        unavailable: 'This server does not offer this part of the dashboard.',
     },
     version: {
         deprecated: 'This server runs a Companies version the dashboard will stop supporting.',
@@ -68,10 +71,13 @@ export default {
         unknown: 'This link has expired or does not exist. Run /company dashboard in game for a new one.',
         offline: 'The dashboard cannot be reached right now. Try again in a moment.',
         challengeFailed: 'The check that you are a person could not be loaded. Reload the page and try again.',
+        locked: 'Too many wrong codes. Run /company dashboard in game for a new one.',
         problem: {
             wrong: 'That code is not right.',
-            locked: 'Too many wrong codes. Run /company dashboard in game for a new one.',
             challenge: 'The check that you are a person failed. Try again.',
+            elsewhere: 'This session is being opened in another browser right now.',
+            refused: 'The server refused this login.',
+            serverOffline: 'The server is not connected right now. Try again in a moment.',
             busy: 'Too many tries at once. Wait a moment and try again.',
             offline: 'The dashboard cannot be reached right now. Try again in a moment.',
         },
@@ -233,6 +239,7 @@ export default {
     },
     rankings: {
         ranking: 'Ranking',
+        search: 'Search companies on this page',
         failed: 'The ranking could not be loaded. Try again in a moment.',
         empty: 'No company is ranked yet.',
         kind: {

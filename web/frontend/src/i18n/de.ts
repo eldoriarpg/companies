@@ -45,6 +45,9 @@ export default {
     dashboard: {
         loading: 'Dein Dashboard wird geladen…',
         offline: 'Der Server ist gerade nicht erreichbar. Das Dashboard versucht es weiter.',
+        serverOffline: 'Der Server ist gerade nicht verbunden. Du siehst den letzten Stand; er wird aktuell, sobald der Server zurück ist.',
+        refused: 'Das Dashboard hat diese Verbindung abgelehnt. Öffne es über den Link im Chat.',
+        unavailable: 'Dieser Server bietet diesen Teil des Dashboards nicht an.',
     },
     version: {
         deprecated: 'Dieser Server nutzt eine Companies-Version, die das Dashboard bald nicht mehr unterstützt.',
@@ -68,10 +71,13 @@ export default {
         unknown: 'Dieser Link ist abgelaufen oder existiert nicht. Hol dir mit /company dashboard im Spiel einen neuen.',
         offline: 'Das Dashboard ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
         challengeFailed: 'Die Prüfung, ob du ein Mensch bist, konnte nicht geladen werden. Lade die Seite neu und versuch es noch einmal.',
+        locked: 'Zu viele falsche Codes. Hol dir mit /company dashboard im Spiel einen neuen.',
         problem: {
             wrong: 'Dieser Code stimmt nicht.',
-            locked: 'Zu viele falsche Codes. Hol dir mit /company dashboard im Spiel einen neuen.',
             challenge: 'Die Prüfung, ob du ein Mensch bist, ist fehlgeschlagen. Versuch es noch einmal.',
+            elsewhere: 'Diese Sitzung wird gerade in einem anderen Browser geöffnet.',
+            refused: 'Der Server hat diese Anmeldung abgelehnt.',
+            serverOffline: 'Der Server ist gerade nicht verbunden. Versuch es gleich noch einmal.',
             busy: 'Zu viele Versuche auf einmal. Warte kurz und versuch es noch einmal.',
             offline: 'Das Dashboard ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
         },
@@ -233,6 +239,7 @@ export default {
     },
     rankings: {
         ranking: 'Rangliste',
+        search: 'Firmen auf dieser Seite suchen',
         failed: 'Die Rangliste konnte nicht geladen werden. Versuch es gleich noch einmal.',
         empty: 'Noch keine Firma ist eingestuft.',
         kind: {
