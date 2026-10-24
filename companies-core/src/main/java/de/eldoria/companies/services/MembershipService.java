@@ -18,18 +18,26 @@ import de.eldoria.companies.data.wrapper.company.Application;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.DetailsResult;
 import de.eldoria.companies.data.wrapper.company.Invite;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.events.company.CompanyApplicationAnswerEvent;
+import de.eldoria.companies.events.company.CompanyApplicationEvent;
+import de.eldoria.companies.events.company.CompanyApplicationWithdrawEvent;
+import de.eldoria.companies.events.company.CompanyInviteAnswerEvent;
+import de.eldoria.companies.events.company.CompanyInviteEvent;
+import de.eldoria.companies.events.company.CompanyInviteRevokeEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
+import de.eldoria.companies.events.company.CompanyJoinModeChangeEvent;
 import de.eldoria.companies.events.company.CompanyProfileEditEvent;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 
 import java.time.LocalDateTime;
@@ -57,6 +65,8 @@ import java.util.logging.Logger;
  * A player becomes a member only through {@link AMembershipData#submitJoin(int, UUID, int)}, which keeps the member
  * limit and never moves a member of another company. A successful join fires the join event, which also recalculates
  * the company level and announces the new member to the company.
+ * <p>
+ * Every stored invite, application, answer and join mode change fires its event afterwards, off the main thread.
  * <p>
  * Each action runs on the executor and answers with an {@link Outcome}: the message the acting player sees.
  */
@@ -86,7 +96,7 @@ public final class MembershipService {
      * @param membershipData invite and application repository
      * @param settings       current company settings
      * @param notifier       notifies players, online or later
-     * @param events         fires the events of a join or a profile change
+     * @param events         fires the events of joins, profile changes, invites and applications
      * @param players        looks up a player by id
      * @param clock          the current time
      * @param executor       runs the actions
@@ -334,6 +344,7 @@ public final class MembershipService {
                 .submitInvite(profile.id(), target.getUniqueId(), inviter.getUniqueId(), now, now.plusHours(hours))
                 .join();
         if (!stored) return Outcome.failure(FAILED);
+        events.fire(new CompanyInviteEvent(profile, target.getUniqueId(), inviter.getUniqueId(), now.plusHours(hours)));
         notifier.send(
                 target.getUniqueId(),
                 NotificationType.INVITE_RECEIVED,
@@ -358,6 +369,7 @@ public final class MembershipService {
                 membershipData.retrieveInvite(profile.id(), target, clock.get()).join();
         if (invite.isEmpty()) return notInvited;
         if (!membershipData.submitInviteRemoval(invite.get().id()).join()) return notInvited;
+        events.fire(new CompanyInviteRevokeEvent(profile, target, member.getUniqueId()));
         notifier.send(
                 target,
                 NotificationType.INVITE_REVOKED,
@@ -372,6 +384,9 @@ public final class MembershipService {
         if (invite.isEmpty()) return Outcome.failure("company.invite.error.noPending");
         var outcome = joinCompany(player, company, "error.alreadyMember");
         if (outcome.success()) {
+            companyProfile(company)
+                    .ifPresent(profile -> events.fire(new CompanyInviteAnswerEvent(
+                            profile, player.getUniqueId(), invite.get().inviter(), true)));
             notifier.send(
                     invite.get().inviter(),
                     NotificationType.INVITE_ACCEPTED,
@@ -387,6 +402,9 @@ public final class MembershipService {
                 .join();
         if (invite.isEmpty()) return noPending;
         if (!membershipData.submitInviteRemoval(invite.get().id()).join()) return noPending;
+        companyProfile(company)
+                .ifPresent(profile -> events.fire(new CompanyInviteAnswerEvent(
+                        profile, player.getUniqueId(), invite.get().inviter(), false)));
         notifier.send(
                 invite.get().inviter(),
                 NotificationType.INVITE_DECLINED,
@@ -438,7 +456,10 @@ public final class MembershipService {
                 .join();
         return switch (result) {
             case CREATED -> {
-                notifyRecruiters(company, player);
+                companyData.retrieveCompanyProfile(company).asFuture().join().ifPresent(profile -> {
+                    events.fire(new CompanyApplicationEvent(profile, player.getUniqueId(), text));
+                    notifyRecruiters(profile, player);
+                });
                 yield Outcome.success("company.apply.sent", named);
             }
             case ALREADY_PENDING -> Outcome.failure("company.apply.error.alreadyPending", named);
@@ -449,11 +470,11 @@ public final class MembershipService {
         };
     }
 
-    private void notifyRecruiters(SimpleCompany company, OfflinePlayer applicant) {
+    private void notifyRecruiters(CompanyProfile profile, OfflinePlayer applicant) {
         var args = NotificationArgs.create().text(PLAYER_NAME, name(applicant.getUniqueId()));
-        companyData.retrieveCompanyProfile(company).asFuture().join().ifPresent(profile -> profile.members().stream()
+        profile.members().stream()
                 .filter(member -> member.hasPermission(CompanyPermission.INVITE))
-                .forEach(member -> notifier.send(member.uuid(), NotificationType.APPLICATION_RECEIVED, args)));
+                .forEach(member -> notifier.send(member.uuid(), NotificationType.APPLICATION_RECEIVED, args));
     }
 
     private Outcome withdrawNow(OfflinePlayer player, int company) {
@@ -463,6 +484,8 @@ public final class MembershipService {
                 .join();
         if (application.isEmpty()) return noPending;
         if (!membershipData.submitApplicationRemoval(application.get().id()).join()) return noPending;
+        companyProfile(company)
+                .ifPresent(profile -> events.fire(new CompanyApplicationWithdrawEvent(profile, player.getUniqueId())));
         return Outcome.success(
                 "company.apply.withdrawn",
                 Values.text(COMPANY_NAME, application.get().companyName()));
@@ -481,6 +504,9 @@ public final class MembershipService {
         if (application.isEmpty()) return noApplication(applicant);
         var joined = joinCompany(players.apply(applicant), profile.id(), "error.hasCompany");
         if (!joined.success()) return joined;
+        companyProfile(profile.id())
+                .ifPresent(company ->
+                        events.fire(new CompanyApplicationAnswerEvent(company, applicant, member.getUniqueId(), true)));
         notifier.send(
                 applicant,
                 NotificationType.APPLICATION_ACCEPTED,
@@ -500,6 +526,7 @@ public final class MembershipService {
                 .join();
         if (application.isEmpty()) return noApplication(applicant);
         if (!membershipData.submitApplicationRemoval(application.get().id()).join()) return noApplication(applicant);
+        events.fire(new CompanyApplicationAnswerEvent(profile, applicant, member.getUniqueId(), false));
         notifier.send(
                 applicant,
                 NotificationType.APPLICATION_DENIED,
@@ -524,6 +551,7 @@ public final class MembershipService {
         if (result != DetailsResult.SAVED) return Outcome.failure(FAILED);
         var changed = profile.withDetails(details);
         events.profileEdited(profile, changed, member);
+        events.fire(new CompanyJoinModeChangeEvent(changed, profile.joinMode(), member.getUniqueId()));
         var args = NotificationArgs.create().text(PLAYER_NAME, name(member.getUniqueId()));
         profile.members().stream()
                 .map(ICompanyMember::uuid)
@@ -654,6 +682,13 @@ public final class MembershipService {
         };
     }
 
+    private Optional<CompanyProfile> companyProfile(int company) {
+        return companyData.retrieveCompanyById(company).asFuture().join().flatMap(found -> companyData
+                .retrieveCompanyProfile(found)
+                .asFuture()
+                .join());
+    }
+
     private Optional<CompanyProfile> profileOf(OfflinePlayer player) {
         return companyData.retrievePlayerCompanyProfile(player).asFuture().join();
     }
@@ -713,7 +748,7 @@ public final class MembershipService {
     }
 
     /**
-     * Fires the events of joins and profile changes.
+     * Fires the events of joins, profile changes, invites, applications and join mode changes.
      */
     public interface Events {
         /**
@@ -734,6 +769,11 @@ public final class MembershipService {
                 public void profileEdited(CompanyProfile previous, CompanyProfile company, OfflinePlayer player) {
                     manager.callEvent(new CompanyProfileEditEvent(previous, company, player));
                 }
+
+                @Override
+                public void fire(Event event) {
+                    AsyncEvents.fire(plugin, event);
+                }
             };
         }
 
@@ -753,6 +793,13 @@ public final class MembershipService {
          * @param player   the member
          */
         void profileEdited(CompanyProfile previous, CompanyProfile company, OfflinePlayer player);
+
+        /**
+         * Fires an asynchronous event of an invite, an application or a join mode change, off the main thread.
+         *
+         * @param event the event
+         */
+        void fire(Event event);
     }
 
     /**
