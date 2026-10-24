@@ -79,13 +79,13 @@ export function useOrderBook(api: GatewayApi = gatewayApi()) {
      * @param id the order's id, none to close the details
      */
     async function open(id: number | null): Promise<void> {
+        const ticket = details.next()
         if (id === null) {
             detail.value = null
             return
         }
         detail.value = result.value?.orders.find(order => order.id === id) ?? null
         if (detail.value) return
-        const ticket = details.next()
         try {
             const order = await api.read('orders.browse.details', {order: id})
             if (details.is(ticket)) detail.value = order
