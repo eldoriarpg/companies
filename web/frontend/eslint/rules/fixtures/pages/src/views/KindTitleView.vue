@@ -8,7 +8,7 @@ const {t} = useI18n()
 </script>
 
 <template>
-  <ViewContent :title="t('pages.catalog.title')">
-    <p>{{ t('pages.catalog.intro') }}</p>
+  <ViewContent :title="t('pages.order.title')">
+    <p>{{ t('pages.order.intro') }}</p>
   </ViewContent>
 </template>

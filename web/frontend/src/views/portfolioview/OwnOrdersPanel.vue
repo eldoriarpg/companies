@@ -9,7 +9,7 @@ import {Feature, OrderState, type OwnOrderView} from '~/api/generated/protocol'
 import PanelBox from '@/components/container/PanelBox.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import OwnOrderActions from './OwnOrderActions.vue'
@@ -50,7 +50,7 @@ const rows = computed(() => found.value.map(order => ({
         <SearchInput v-model="query" :label="t('portfolio.searchOwn')"/>
       </div>
     </template>
-    <NoticeBanner v-if="done" class="m-3 md:mx-4">{{ done }}</NoticeBanner>
+    <Alert v-if="done" variant="success" class="m-3 md:mx-4">{{ done }}</Alert>
     <EmptyState v-if="rows.length === 0">{{ orders.length === 0 ? t('portfolio.noOwn') : t('common.noMatch') }}</EmptyState>
     <ul v-else class="m-0 list-none p-0">
       <li v-for="row in rows" :key="row.order.id" class="flex flex-col gap-2 border-b border-line-soft px-3 py-3 last:border-b-0 md:px-4">

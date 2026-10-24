@@ -53,7 +53,7 @@ function price(value: number | undefined): string {
       <CapsLabel class="text-right">{{ t('market.columnVolume') }}</CapsLabel>
       <CapsLabel class="text-right">{{ t('market.columnChange') }}</CapsLabel>
     </div>
-    <EmptyState v-if="items.length === 0">{{ loading ? t('common.loading') : empty ?? t('market.none') }}</EmptyState>
+    <EmptyState v-if="items.length === 0" :loading="loading">{{ empty ?? t('market.none') }}</EmptyState>
     <ul v-else :aria-busy="loading" class="m-0 list-none p-0" data-testid="market">
       <li v-for="entry in items" :key="entry.item.material">
         <RowButton :selected="selected === entry.item.material" :class="COLUMNS" @click="$emit('open', entry.item.material)">

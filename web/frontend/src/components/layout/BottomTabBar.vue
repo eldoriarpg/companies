@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import CountBadge from '@/components/badge/CountBadge.vue'
 import AppIcon from '@/components/display/AppIcon.vue'
 import type {Section} from '~/util/navigation'
 
@@ -36,10 +37,7 @@ const tabs = computed(() => props.sections.filter(section => section.tab))
         >
           <AppIcon :name="section.icon" :size="22"/>
           <span>{{ t(`nav.${section.id}`) }}</span>
-          <span
-              v-if="badges[section.id]"
-              class="tabular absolute top-0.5 left-1/2 ml-2 min-w-4 bg-accent px-1 text-center text-[0.625rem] text-accent-contrast"
-          >{{ badges[section.id] }}</span>
+          <CountBadge v-if="badges[section.id]" :count="badges[section.id] ?? 0" class="absolute top-0.5 left-1/2 ml-2"/>
         </NuxtLink>
       </li>
     </ul>

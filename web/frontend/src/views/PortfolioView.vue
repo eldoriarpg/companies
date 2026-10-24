@@ -4,7 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import ToggleSwitch from '@/components/input/ToggleSwitch.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import ActivityPanel from './portfolioview/ActivityPanel.vue'
@@ -28,10 +28,10 @@ const wakeLock = useWakeLock()
     <div v-if="wakeLock.supported.value" class="flex justify-end">
       <ToggleSwitch v-model="wakeLock.wanted.value" icon="screen" :label="t('portfolio.keepScreenOn')"/>
     </div>
-    <NoticeBanner v-if="snapshot && !company">
+    <Alert v-if="snapshot && !company" variant="notice">
       <span>{{ t('portfolio.noCompany') }}</span>
       <span v-for="invite in snapshot.player.invites" :key="invite.company">{{ t('portfolio.invited', {company: invite.name}) }}</span>
-    </NoticeBanner>
+    </Alert>
     <div v-if="snapshot" class="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
       <TreasuryPanel v-if="company" :company="company.name"/>
       <StatTiles :snapshot="snapshot"/>

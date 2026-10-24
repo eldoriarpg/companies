@@ -56,7 +56,7 @@ const rows = computed(() => props.orders.map(order => {
       <CapsLabel class="text-right">{{ t('orders.columnVersus') }}</CapsLabel>
       <CapsLabel class="text-right">{{ t('orders.columnPayout') }}</CapsLabel>
     </div>
-    <EmptyState v-if="rows.length === 0">{{ loading ? t('common.loading') : t('orders.none') }}</EmptyState>
+    <EmptyState v-if="rows.length === 0" :loading="loading">{{ t('orders.none') }}</EmptyState>
     <ul v-else :aria-busy="loading" class="m-0 list-none p-0" data-testid="order-book">
       <li v-for="row in rows" :key="row.order.id">
         <RowButton :selected="selected === row.order.id" :class="COLUMNS" @click="$emit('open', row.order.id)">

@@ -4,11 +4,11 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script setup lang="ts">
-import CatalogShell from './CatalogShell.vue'
+import OrderShell from './OrderShell.vue'
 </script>
 
 <template>
-  <CatalogShell>
-    <p>{{ $t('pages.catalog.intro') }}</p>
-  </CatalogShell>
+  <OrderShell>
+    <p>{{ $t('pages.order.intro') }}</p>
+  </OrderShell>
 </template>

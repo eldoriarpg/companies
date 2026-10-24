@@ -9,7 +9,7 @@ import {Feature, MemberPermission, type ClaimedOrderView} from '~/api/generated/
 import PanelBox from '@/components/container/PanelBox.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
@@ -54,7 +54,7 @@ const rows = computed(() => found.value.map(order => ({
         <SearchInput v-model="query" :label="t('portfolio.searchPositions')"/>
       </div>
     </template>
-    <NoticeBanner v-if="done" class="m-3 md:mx-4">{{ done }}</NoticeBanner>
+    <Alert v-if="done" variant="success" class="m-3 md:mx-4">{{ done }}</Alert>
     <div v-if="rows.length > 0" class="hidden gap-4 border-b border-line-soft px-4 py-2 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_7rem_5rem]" aria-hidden="true">
       <CapsLabel>{{ t('portfolio.columnOrder') }}</CapsLabel>
       <CapsLabel>{{ t('portfolio.columnFilled') }}</CapsLabel>

@@ -5,7 +5,7 @@
  */
 <script setup lang="ts">
 const router = useRouter()
-router.replace('/catalogs')
+router.replace('/orders')
 </script>
 
 <template>

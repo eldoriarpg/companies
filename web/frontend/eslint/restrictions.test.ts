@@ -6,7 +6,7 @@
 import tsParser from '@typescript-eslint/parser'
 import {RuleTester} from 'eslint'
 import {builtinRules} from 'eslint/use-at-your-own-risk'
-import {INLINE_STATE_TYPE} from './restrictions.mjs'
+import {GENERIC_FAILURE, INLINE_DATE_FORMAT, INLINE_STATE_TYPE} from './restrictions.mjs'
 
 /**
  * What each refused shape catches and what it leaves alone.
@@ -40,4 +40,20 @@ holds(INLINE_STATE_TYPE, [
 ], [
     'const impact = ref<{folders: number}>({folders: 0})',
     'const impact = ref<{folders: number} | null>(null)',
+])
+
+holds(GENERIC_FAILURE, [
+    "t('market.failed')",
+    'describeKind(kindOf(error), t)',
+], [
+    "t('failure.unknown.message')",
+    "i18n.t('failure.offline.guidance')",
+])
+
+holds(INLINE_DATE_FORMAT, [
+    'count.toLocaleString(locale)',
+    'when(time, now, locale)',
+], [
+    'date.toLocaleDateString(locale)',
+    "date.toLocaleString(locale, {hour: '2-digit'})",
 ])

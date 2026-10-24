@@ -8,7 +8,7 @@ import {Feature, MemberPermission, type MemberView} from '~/api/generated/protoc
 import LinkButton from '@/components/button/LinkButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
 import MutedText from '@/components/typography/MutedText.vue'
@@ -84,7 +84,7 @@ const {query, found} = useListSearch(sorted, row => [row.member.name, row.role])
       <CapsLabel class="text-right">{{ t('company.columnOrders') }}</CapsLabel>
       <CapsLabel class="text-right">{{ t('company.columnEarned') }}</CapsLabel>
     </div>
-    <NoticeBanner v-if="done" class="m-3 md:mx-4">{{ done }}</NoticeBanner>
+    <Alert v-if="done" variant="success" class="m-3 md:mx-4">{{ done }}</Alert>
     <EmptyState v-if="found.length === 0">{{ t('common.noMatch') }}</EmptyState>
     <ul v-else class="m-0 list-none p-0" data-testid="members">
       <li v-for="row in found" :key="row.member.uuid" :class="COLUMNS" class="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-3 py-2.5 last:border-b-0 md:px-4">

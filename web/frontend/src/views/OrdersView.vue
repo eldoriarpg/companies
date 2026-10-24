@@ -6,7 +6,7 @@
 <script lang="ts" setup>
 import {useMediaQuery} from '@vueuse/core'
 import BottomSheet from '@/components/feedback/BottomSheet.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import PageSwitcher from '@/components/navigation/PageSwitcher.vue'
 import OrderDetail from './ordersview/OrderDetail.vue'
@@ -42,7 +42,7 @@ const sheetOpen = computed({
 <template>
   <ViewContent :title="t('nav.orders')">
     <OrderFilters v-model:query="book.query.value" v-model:filter="book.filter.value" v-model:sort="book.sort.value" :total="book.result.value?.total"/>
-    <NoticeBanner v-if="book.status.value === 'failed'" tone="problem">{{ t('orders.failed') }}</NoticeBanner>
+    <Alert v-if="book.status.value === 'failed'" variant="problem">{{ t('orders.failed') }}</Alert>
     <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
       <div class="flex min-w-0 flex-col gap-3">
         <OrderList

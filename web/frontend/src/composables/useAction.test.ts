@@ -32,13 +32,31 @@ describe('an action', () => {
 
     it('reports a failure without a sentence as failed, until it is reset', async () => {
         const api = fakeApi()
-        api.act = vi.fn().mockRejectedValue(new Error('network')) as unknown as GatewayApi['act']
+        api.act = vi.fn().mockRejectedValue(new AxiosError('network', AxiosError.ERR_NETWORK)) as unknown as GatewayApi['act']
         const action = useAction(api)
 
         expect(await action.run('inbox.clear', {})).toBeNull()
-        expect(action.problem.value).toEqual({kind: 'failed'})
+        expect(action.problem.value).toEqual({kind: 'failed', cause: 'OFFLINE'})
         action.reset()
         expect(action.problem.value).toBeNull()
+    })
+
+    it('reports a request the browser gave up waiting for as uncertain', async () => {
+        const api = fakeApi()
+        api.act = vi.fn().mockRejectedValue(new AxiosError('slow', AxiosError.ECONNABORTED)) as unknown as GatewayApi['act']
+        const action = useAction(api)
+
+        expect(await action.run('orders.own.cancel', {order: 4})).toBeNull()
+        expect(action.problem.value).toEqual({kind: 'uncertain'})
+    })
+
+    it('does not call a refusal without a sentence offline', async () => {
+        const api = fakeApi()
+        api.act = vi.fn().mockRejectedValue(new ActionRefused('error.unknown', '')) as unknown as GatewayApi['act']
+        const action = useAction(api)
+
+        expect(await action.run('inbox.clear', {})).toBeNull()
+        expect(action.problem.value).toEqual({kind: 'failed', cause: 'UNKNOWN'})
     })
 
     it('reports a server that did not answer in time as uncertain', async () => {

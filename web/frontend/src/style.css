@@ -45,6 +45,21 @@
 
     --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+    --animate-fade-in: fade-in 0.15s ease;
+    --animate-fade-out: fade-out 0.15s ease;
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+        }
+    }
+
+    @keyframes fade-out {
+        to {
+            opacity: 0;
+        }
+    }
 }
 
 @layer base {

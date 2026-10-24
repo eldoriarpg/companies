@@ -18,8 +18,8 @@ import {parseComponent} from './sfc.mjs'
  *
  * <p>The whole rule rests on this one judgement, and both halves of it are easy to get wrong in a
  * way that only shows much later: too eager and it refuses the constant a page rightly falls back
- * to while its record is on its way, too shy and every catalogue in the product goes on being
- * called "Catalogue".
+ * to while its record is on its way, too shy and every order in the product goes on being
+ * called "Order".
  */
 describe('a title that says which thing', () => {
     function titleOf(template: string) {
@@ -47,10 +47,10 @@ describe('a title that says which thing', () => {
     })
 
     it('reads a title written out rather than bound', () => {
-        const found = titleOf('<template><ViewContent title="Catalogue"/></template>')
+        const found = titleOf('<template><ViewContent title="Order"/></template>')
 
         expect(found?.written).toBe(true)
-        expect(found?.expression).toBe('Catalogue')
+        expect(found?.expression).toBe('Order')
     })
 
     it('finds nothing where the page hands no title', () => {
@@ -70,17 +70,17 @@ describe('a title that says which thing', () => {
     })
 
     it('calls a translated constant what it is', () => {
-        expect(isConstantTitle(bound("t('pages.quiz-catalog-detail.title')"))).toBe(true)
+        expect(isConstantTitle(bound("t('pages.order-detail.title')"))).toBe(true)
     })
 
     /** A title written out rather than bound cannot change, whatever it happens to say. */
     it('calls a written out title a constant whatever is in it', () => {
-        expect(isConstantTitle(titleOf('<template><ViewContent title="Catalogue"/></template>')!)).toBe(true)
+        expect(isConstantTitle(titleOf('<template><ViewContent title="Order"/></template>')!)).toBe(true)
     })
 
     /** The shape every converted page uses: the record where there is one, the constant until then. */
     it('accepts a title falling back to the constant while the record is on its way', () => {
-        expect(isConstantTitle(bound("catalog?.name || t('pages.quiz-catalog-detail.title')"))).toBe(false)
+        expect(isConstantTitle(bound("order?.name || t('pages.order-detail.title')"))).toBe(false)
     })
 
     it('accepts a title built out of more than one thing the page loaded', () => {
@@ -103,7 +103,7 @@ import ${view} from '~/views/${view}.vue'
 
 definePageMeta({
   layout: 'default',
-  name: 'catalog-detail',
+  name: 'order-detail',
 })
 </script>
 
@@ -119,17 +119,17 @@ const tester = new RuleTester({
 
 tester.run('context-title', rule, {
     valid: [
-        {name: 'a page naming the catalogue it shows', filename: join(PAGES, 'catalogs', '[id].vue'), code: page('NamedTitleView')},
-        {name: 'a page whose address points at no one thing', filename: join(PAGES, 'catalogs', 'index.vue'), code: page('KindTitleView')},
-        {name: 'a page reached with and without the parameter', filename: join(PAGES, 'catalogs', '[[id]].vue'), code: page('KindTitleView')},
+        {name: 'a page naming the order it shows', filename: join(PAGES, 'orders', '[id].vue'), code: page('NamedTitleView')},
+        {name: 'a page whose address points at no one thing', filename: join(PAGES, 'orders', 'index.vue'), code: page('KindTitleView')},
+        {name: 'a page reached with and without the parameter', filename: join(PAGES, 'orders', '[[id]].vue'), code: page('KindTitleView')},
         {name: 'a public page naming its own tab', filename: join(PAGES, 'blog', '[id].vue'), code: page('OwnHeadView')},
     ],
     invalid: [
         {
-            name: 'a page pointing at one catalogue and titled after the kind',
-            filename: join(PAGES, 'catalogs', '[id].vue'),
+            name: 'a page pointing at one order and titled after the kind',
+            filename: join(PAGES, 'orders', '[id].vue'),
             code: page('KindTitleView'),
-            errors: [{messageId: 'kind', data: {path: 'catalogs/:id', shown: ":title=\"t('pages.catalog.title')\""}}],
+            errors: [{messageId: 'kind', data: {path: 'orders/:id', shown: ":title=\"t('pages.order.title')\""}}],
         },
     ],
 })

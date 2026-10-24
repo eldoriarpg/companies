@@ -7,7 +7,7 @@
 import {useNow} from '@vueuse/core'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import DiscontinuedNotice from '@/components/feedback/DiscontinuedNotice.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import TextField from '@/components/input/TextField.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import MutedText from '@/components/typography/MutedText.vue'
@@ -65,9 +65,9 @@ async function submit(): Promise<void> {
         :version="login.version.value"
         :message="login.message.value"
     />
-    <NoticeBanner v-else-if="!known || login.status.value === 'unknown'" tone="problem">{{ t('login.unknown') }}</NoticeBanner>
-    <NoticeBanner v-else-if="login.status.value === 'locked'" tone="problem">{{ t('login.locked') }}</NoticeBanner>
-    <NoticeBanner v-else-if="login.status.value === 'offline'" tone="problem">{{ t('login.offline') }}</NoticeBanner>
+    <Alert v-else-if="!known || login.status.value === 'unknown'" variant="problem">{{ t('login.unknown') }}</Alert>
+    <Alert v-else-if="login.status.value === 'locked'" variant="problem">{{ t('login.locked') }}</Alert>
+    <Alert v-else-if="login.status.value === 'offline'" variant="problem">{{ t('login.offline') }}</Alert>
     <p v-else-if="login.status.value === 'loading'" class="m-0 text-sm text-ink-muted" role="status">{{ t('login.loading') }}</p>
     <form v-else class="flex flex-col gap-6" @submit.prevent="submit">
       <MutedText tag="p">{{ t('login.lead') }}</MutedText>
@@ -81,10 +81,10 @@ async function submit(): Promise<void> {
           :hint="t('login.codeHint', {minutes: minutesLeft, attempts: login.attemptsLeft.value})"
       />
       <div v-if="turnstile.needed.value" ref="challenge" class="min-h-16"/>
-      <NoticeBanner v-if="login.problem.value" tone="problem">
+      <Alert v-if="login.problem.value" variant="problem">
         {{ login.problem.value === 'refused' && login.message.value ? login.message.value : t(`login.problem.${login.problem.value}`) }}
-      </NoticeBanner>
-      <NoticeBanner v-if="turnstile.failed.value" tone="problem">{{ t('login.challengeFailed') }}</NoticeBanner>
+      </Alert>
+      <Alert v-if="turnstile.failed.value" variant="problem">{{ t('login.challengeFailed') }}</Alert>
       <PrimaryButton type="submit" :disabled="!ready || login.sending.value" full-width>{{ t('login.open') }}</PrimaryButton>
     </form>
   </ViewContent>

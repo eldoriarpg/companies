@@ -7,7 +7,7 @@
 import {useEventListener} from '@vueuse/core'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import DiscontinuedNotice from '@/components/feedback/DiscontinuedNotice.vue'
-import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
+import Alert from '@/components/feedback/Alert.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import BottomTabBar from '@/components/layout/BottomTabBar.vue'
@@ -61,12 +61,12 @@ async function logout(): Promise<void> {
       <TickerStrip v-if="market.top.value.length > 0" :items="market.top.value"/>
       <main class="px-safe flex grow flex-col gap-4 pt-4 pb-28 md:px-6 md:pt-6 md:pb-8">
         <VersionBanner v-if="server && status !== 'discontinued'" :version="server.version" :deprecated="server.deprecated"/>
-        <NoticeBanner v-if="server && !server.online && status === 'ready'" tone="problem">{{ t('dashboard.serverOffline') }}</NoticeBanner>
+        <Alert v-if="server && !server.online && status === 'ready'" variant="problem">{{ t('dashboard.serverOffline') }}</Alert>
         <DiscontinuedNotice v-if="status === 'discontinued'" :server-name="server?.server.name" :version="server?.version ?? null" :message="problem"/>
-        <NoticeBanner v-else-if="status === 'refused'" tone="problem">{{ problem ?? t('dashboard.refused') }}</NoticeBanner>
-        <NoticeBanner v-else-if="status === 'offline'" tone="problem">{{ t('dashboard.offline') }}</NoticeBanner>
+        <Alert v-else-if="status === 'refused'" variant="problem">{{ problem ?? t('dashboard.refused') }}</Alert>
+        <Alert v-else-if="status === 'offline'" variant="problem">{{ t('dashboard.offline') }}</Alert>
         <p v-else-if="!snapshot" class="m-0 text-sm text-ink-muted" role="status">{{ t('dashboard.loading') }}</p>
-        <NoticeBanner v-else-if="shell.unavailable.value">{{ t('dashboard.unavailable') }}</NoticeBanner>
+        <Alert v-else-if="shell.unavailable.value" variant="notice">{{ t('dashboard.unavailable') }}</Alert>
         <slot v-else/>
         <AppFooter class="mt-auto"/>
       </main>
