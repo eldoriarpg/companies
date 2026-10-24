@@ -126,4 +126,40 @@ class SavedItemServiceTest {
                 "order.items.error.unknown",
                 refusal(service.item(owner, "blade").join()));
     }
+
+    @Test
+    void namesIgnoreCaseAndLongMaterialNamesAreCut() {
+        service.save(owner, swords(), Optional.of("Blade")).join();
+        assertEquals(
+                "order.items.error.nameTaken",
+                refusal(service.save(owner, swords(), Optional.of("blade")).join()));
+        assertInstanceOf(ActionResult.Done.class, service.item(owner, "BLADE").join());
+
+        var template = new ItemStack(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE);
+        var saved = (SavedItem) assertInstanceOf(
+                        ActionResult.Done.class,
+                        service.save(owner, template, Optional.empty()).join())
+                .value();
+        assertEquals("netherite_upgrade_smithing_templ", saved.name());
+    }
+
+    @Test
+    void quickSavesOfOnePlayerKeepTheCap() {
+        max = 3;
+        var saves = java.util.stream.IntStream.range(0, 16)
+                .mapToObj(index -> service.save(owner, swords(), Optional.of("item" + index)))
+                .toList();
+        var results =
+                saves.stream().map(java.util.concurrent.CompletableFuture::join).toList();
+
+        assertEquals(
+                3, results.stream().filter(ActionResult.Done.class::isInstance).count());
+        assertEquals(
+                13,
+                results.stream()
+                        .filter(result -> result instanceof ActionResult.Refused<?> refused
+                                && refused.failure().localeKey().equals("order.items.error.limit"))
+                        .count());
+        assertEquals(3, service.items(owner).join().size());
+    }
 }

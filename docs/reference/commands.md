@@ -45,11 +45,8 @@ Commands for players who place orders. Read [Orders](../players/orders.md) and [
 | `/order draft name <name>` | `companies.orders.create` | Renames the draft. |
 | `/order draft add <item> <amount> <unitPrice>` | `companies.orders.create` | Adds a line. A plain material makes a material line. An item with components makes an exact line. |
 | `/order draft add hand <amount> <unitPrice>` | `companies.orders.create` | Adds the item in your main hand. A plain item makes a material line. An item with components makes an exact line. |
-| `/order draft add saved <name> <amount> <unitPrice>` | `companies.orders.create` | Adds a saved item as an exact line. |
+| `/order draft add saved <name> <amount> <unitPrice>` | `companies.orders.create` | Adds a saved item. An item with components makes an exact line, a plain one a material line. |
 | `/order draft remove <line>` | `companies.orders.create` | Removes a line. |
-| `/order items` | `companies.orders.create` | Lists your saved items. |
-| `/order items save [name]` | `companies.orders.create` | Saves the item in your main hand to order it again. You keep the item. |
-| `/order items remove <name>` | `companies.orders.create` | Forgets a saved item. |
 | `/order draft amount <line> <amount>` | `companies.orders.create` | Changes the amount of a line. |
 | `/order draft price <line> <unitPrice>` | `companies.orders.create` | Changes the price per item of a line. |
 | `/order draft price <line> market` | `companies.orders.create` | Uses the market average as the price per item. |
@@ -58,6 +55,9 @@ Commands for players who place orders. Read [Orders](../players/orders.md) and [
 | `/order draft repeat off` | `companies.orders.create` | Makes the draft a one-time order again. |
 | `/order draft done` | `companies.orders.create` | Places the order and pays for it. |
 | `/order draft cancel` | `companies.orders.create` | Throws the draft away. |
+| `/order items` | `companies.orders.create` | Lists your saved items. |
+| `/order items save [name]` | `companies.orders.create` | Saves the item in your main hand to order it again. You keep the item. |
+| `/order items remove <name>` | `companies.orders.create` | Forgets a saved item. |
 | `/order history [page]` | none | Shows your orders that have ended. |
 | `/order history info <entry>` | none | Shows one ended order. |
 | `/order series` | none | Lists your repeating orders. |

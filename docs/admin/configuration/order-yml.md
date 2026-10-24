@@ -147,4 +147,4 @@ The items players save to order them again.
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `savedItems.max` | number | `27` | How many items a player may save with `/order items save` to order them again, in game and on the dashboard. `0` switches saving off. | reload |
+| `savedItems.max` | number | `27` | How many items a player may save with `/order items save` to order them again. `0` switches saving off; items saved before stay usable and can be removed. | reload |

@@ -15,9 +15,11 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -25,7 +27,12 @@ import java.util.regex.Pattern;
 /**
  * The items players save to order them again. Saving copies the item as the template an order line would request,
  * with an amount of one; the player keeps the item. An item the server does not let players order cannot be saved.
- * Names are letters, digits, {@code _} and {@code -}, unique per player; without a name the material's name is used.
+ * Names are letters, digits, {@code _} and {@code -}, unique per player regardless of case and kept in lower case, so
+ * every database treats them alike; without a name the material's name is used, cut to the longest name.
+ * <p>
+ * The saves of one player run one after the other, so the cap holds even when the player saves quickly. A player saves
+ * on the server they play on; two servers of a network saving for the same player at the same moment could pass the
+ * cap by one.
  */
 public final class SavedItemService {
     /**
@@ -35,6 +42,7 @@ public final class SavedItemService {
 
     private static final Pattern NAME = Pattern.compile("[\\p{L}\\p{N}_-]{1," + MAX_NAME_LENGTH + "}");
 
+    private final Map<UUID, CompletableFuture<?>> saving = new ConcurrentHashMap<>();
     private final ASavedItemData data;
     private final Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests;
     private final Supplier<SavedItemSettings> settings;
@@ -62,13 +70,28 @@ public final class SavedItemService {
      * @return the saved item, or why it was not saved
      */
     public CompletableFuture<ActionResult<SavedItem>> save(UUID owner, ItemStack item, Optional<String> name) {
+        var result = new CompletableFuture<ActionResult<SavedItem>>();
+        saving.compute(owner, (player, before) -> {
+            (before == null ? CompletableFuture.completedFuture(null) : before)
+                    .handle((ignored, err) -> null)
+                    .thenCompose(ignored -> saveNow(owner, item, name))
+                    .whenComplete((saved, err) -> {
+                        if (err != null) result.completeExceptionally(err);
+                        else result.complete(saved);
+                    });
+            return result;
+        });
+        result.whenComplete((saved, err) -> saving.remove(owner, result));
+        return result;
+    }
+
+    private CompletableFuture<ActionResult<SavedItem>> saveNow(UUID owner, ItemStack item, Optional<String> name) {
         if (item.isEmpty()) return refused("order.draft.error.emptyHand");
         var max = settings.get().max();
         if (max == 0) return refused("order.items.error.disabled");
         var requested = requests.apply(item);
         if (requested.isEmpty()) return refused("order.draft.error.notOrderable");
-        var chosen =
-                name.map(String::strip).orElseGet(() -> item.getType().name().toLowerCase(Locale.ROOT));
+        var chosen = name.map(SavedItemService::normal).orElseGet(() -> defaultName(item));
         if (!NAME.matcher(chosen).matches()) {
             return CompletableFuture.completedFuture(ActionResult.refusedActionBar(
                     "order.items.error.invalidName", Placeholder.unparsed("max", String.valueOf(MAX_NAME_LENGTH))));
@@ -81,7 +104,7 @@ public final class SavedItemService {
                                 .orElseGet(() -> ActionResult.refusedActionBar("error.saveFailed")));
             case NAME_TAKEN ->
                 CompletableFuture.completedFuture(ActionResult.refusedActionBar(
-                        "order.items.error.nameTaken", Placeholder.unparsed("name", chosen)));
+                        "order.items.error.nameTaken", Placeholder.unparsed("item_name", chosen)));
             case LIMIT_REACHED ->
                 CompletableFuture.completedFuture(ActionResult.refusedActionBar(
                         "order.items.error.limit", Placeholder.unparsed("max", String.valueOf(max))));
@@ -103,8 +126,9 @@ public final class SavedItemService {
      * @return the saved item, or why there is none
      */
     public CompletableFuture<ActionResult<SavedItem>> item(UUID owner, String name) {
-        return data.retrieveItem(owner, name).thenApply(item -> item.<ActionResult<SavedItem>>map(ActionResult::done)
-                .orElseGet(() -> unknown(name)));
+        return data.retrieveItem(owner, normal(name))
+                .thenApply(item ->
+                        item.<ActionResult<SavedItem>>map(ActionResult::done).orElseGet(() -> unknown(name)));
     }
 
     /**
@@ -128,7 +152,16 @@ public final class SavedItemService {
     }
 
     private static <T> ActionResult<T> unknown(String name) {
-        return ActionResult.refusedActionBar("order.items.error.unknown", Placeholder.unparsed("name", name));
+        return ActionResult.refusedActionBar("order.items.error.unknown", Placeholder.unparsed("item_name", name));
+    }
+
+    private static String normal(String name) {
+        return name.strip().toLowerCase(Locale.ROOT);
+    }
+
+    private static String defaultName(ItemStack item) {
+        var name = item.getType().name().toLowerCase(Locale.ROOT);
+        return name.length() > MAX_NAME_LENGTH ? name.substring(0, MAX_NAME_LENGTH) : name;
     }
 
     private static <T> CompletableFuture<ActionResult<T>> refused(String key) {

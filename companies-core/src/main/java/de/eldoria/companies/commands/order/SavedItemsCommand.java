@@ -8,6 +8,7 @@ package de.eldoria.companies.commands.order;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.SavedItemNames;
 import de.eldoria.companies.commands.suggest.SavedItemSources;
+import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.saved.SavedItem;
@@ -27,12 +28,13 @@ import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 
 /**
  * {@code /order items}: the items a player saved to order them again. {@code save [name]} saves the item in hand,
  * which the player keeps; {@code remove <name>} forgets one. A saved item is added to a draft with
- * {@code /order draft add saved}, and offered when creating an order on the dashboard.
+ * {@code /order draft add saved}. Failures are logged and the player is told that it did not work.
  */
 @Subcommand("items")
 @Permission(Orders.CREATE)
@@ -59,7 +61,7 @@ public final class SavedItemsCommand {
                 .savedItems()
                 .items(player.getUniqueId())
                 .thenAccept(items -> deps.messages().sendMessage(player, list(items)))
-                .exceptionally(this::logError);
+                .exceptionally(err -> failed(player, err));
     }
 
     /**
@@ -103,11 +105,11 @@ public final class SavedItemsCommand {
                                     .sendMessage(
                                             player,
                                             MenuText.create()
-                                                    .locale("order.items.removed", Values.text("name", removed)));
+                                                    .locale("order.items.removed", Values.text("item_name", removed)));
                         }
                     }
                 })
-                .exceptionally(this::logError);
+                .exceptionally(err -> failed(player, err));
     }
 
     private void save(Player player, Optional<String> name) {
@@ -127,12 +129,12 @@ public final class SavedItemsCommand {
                                             MenuText.create()
                                                     .locale(
                                                             "order.items.saved",
-                                                            Values.text("name", saved.name()),
+                                                            Values.text("item_name", saved.name()),
                                                             Values.item("item", saved.stack())));
                         }
                     }
                 })
-                .exceptionally(this::logError);
+                .exceptionally(err -> failed(player, err));
     }
 
     private MenuText list(List<SavedItem> items) {
@@ -161,8 +163,14 @@ public final class SavedItemsCommand {
         return text;
     }
 
-    private Void logError(Throwable err) {
-        deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong with saved items", err);
+    private Void failed(Player player, Throwable err) {
+        var cause = err instanceof CompletionException && err.getCause() != null ? err.getCause() : err;
+        if (cause instanceof CommandFailure failure) {
+            failure.sendTo(player, deps.messages());
+            return null;
+        }
+        deps.plugin().getLogger().log(Level.SEVERE, "Something went wrong with saved items", cause);
+        deps.messages().sendError(player, "error.saveFailed");
         return null;
     }
 }

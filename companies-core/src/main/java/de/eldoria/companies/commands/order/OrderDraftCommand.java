@@ -33,7 +33,9 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
+import java.util.logging.Level;
 
 /**
  * {@code /order draft …}: the actions of the order builder on the sender's draft.
@@ -100,7 +102,8 @@ public final class OrderDraftCommand {
     }
 
     /**
-     * Adds a saved item as an exact line.
+     * Adds a saved item. Its data decides whether it becomes an exact line, as for the item in hand. A refusal, such as
+     * a full draft, is told to the player, who sees the draft unchanged.
      *
      * @param sender    sender of the command
      * @param name      name of the saved item
@@ -120,14 +123,23 @@ public final class OrderDraftCommand {
                 .thenAcceptAsync(
                         result -> {
                             switch (result) {
-                                case ActionResult.Refused<SavedItem> refused ->
-                                    refused.failure().sendTo(player, deps.messages());
+                                case ActionResult.Refused<SavedItem> refused -> throw refused.failure();
                                 case ActionResult.Done<SavedItem>(var saved) ->
                                     edit(player, (owner, draft) -> drafts().add(
                                                     draft, saved.stack(), amount, unitPrice));
                             }
                         },
-                        Threading.mainThread(deps.plugin()));
+                        Threading.mainThread(deps.plugin()))
+                .exceptionally(err -> {
+                    var cause = err instanceof CompletionException && err.getCause() != null ? err.getCause() : err;
+                    if (cause instanceof CommandFailure failure) {
+                        failure.sendTo(player, deps.messages());
+                        return null;
+                    }
+                    deps.plugin().getLogger().log(Level.SEVERE, "Could not add a saved item to a draft", cause);
+                    deps.messages().sendError(player, "error.saveFailed");
+                    return null;
+                });
     }
 
     /**
