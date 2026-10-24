@@ -291,6 +291,28 @@ class OrderCreateWritesTest {
                         .reason());
         assertFalse(create("[{\"item\":\"stone\",\"amount\":10,\"unitPrice\":1e308}]", MAY_CREATE)
                 .ok());
+        assertEquals(
+                "error.integrationDraftInvalid",
+                create(
+                                "[{\"item\":\"stone\",\"amount\":1,\"unitPrice\":0},"
+                                        + "{\"item\":\"stone\",\"amount\":1,\"unitPrice\":1e308}]",
+                                MAY_CREATE)
+                        .reason());
+        assertEquals(
+                "error.integrationDraftInvalid",
+                perform(
+                                Actions.ORDERS_QUOTE,
+                                "{\"name\":\"Walls\",\"lines\":[{\"item\":\"stone\",\"amount\":1,\"unitPrice\":1e308},{\"item\":\"dirt\",\"amount\":1,\"unitPrice\":1e308}]}",
+                                MAY_CREATE)
+                        .reason());
+        assertEquals(
+                "dashboard.invalid",
+                order(
+                                "Daily",
+                                stone(1),
+                                ",\"repetition\":{\"interval\":\"daily\",\"times\":2.5,\"until\":\"2099-01-01\"}",
+                                MAY_REPEAT)
+                        .reason());
         assertEquals(10_000.0, world.wallets.get(owner));
     }
 

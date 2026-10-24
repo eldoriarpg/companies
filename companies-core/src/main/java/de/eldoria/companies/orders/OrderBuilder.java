@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -170,11 +171,13 @@ public class OrderBuilder {
     }
 
     /**
-     * @return price of the order, the sum of the line totals
+     * @return price of the order, the sum of the line totals; infinite when a line total is too large for a number
      */
     public double price() {
-        return lines.stream()
-                .map(line -> BigDecimal.valueOf(line.total()))
+        var totals = lines.stream().mapToDouble(DraftLine::total).toArray();
+        if (Arrays.stream(totals).anyMatch(total -> !Double.isFinite(total))) return Double.POSITIVE_INFINITY;
+        return Arrays.stream(totals)
+                .mapToObj(BigDecimal::valueOf)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .doubleValue();
     }

@@ -50,7 +50,8 @@ import java.util.function.IntSupplier;
  * <p>
  * The order is built and checked as in game: the item rules decide whether a line is exact, the limits of lines and
  * items apply, the owner is charged. A quote checks all of it except the limit of active orders and the balance, and a
- * repeating order is checked like a quote before its series is saved, so a refused first copy leaves no series behind.
+ * repeating order is checked like a quote before its series is saved, so lines, items or a name its first copy would be
+ * refused for leave no series behind; a first copy the balance or a listener refuses stops the series as in game.
  * Lines beyond the limit of lines are refused before any item is looked up. The player needs the permission to create orders, and to repeat them for a
  * repetition; the order limit comes from the permissions remembered with the session, else from the user settings.
  * The methods block on the database and the economy and are called off the main thread.
@@ -239,6 +240,7 @@ public final class OrderCreateWrites {
                 .orElseThrow(() -> CommandFailure.of(INVALID));
         var times = repetition.path("times");
         var until = repetition.path("until");
+        if (!times.isMissingNode() && !times.isNull() && !whole(times)) throw CommandFailure.of(INVALID);
         try {
             return Optional.of(new Repetition(
                     interval,

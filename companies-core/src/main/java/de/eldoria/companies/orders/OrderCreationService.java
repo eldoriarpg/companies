@@ -132,7 +132,7 @@ public final class OrderCreationService {
             var price = build(owner, draft, false, player -> Integer.MAX_VALUE)
                     .builder()
                     .price();
-            var fee = settings.get().fee().of(price);
+            var fee = feeOf(price);
             return new Priced(price, fee, price + fee);
         } catch (Rejection rejection) {
             return rejection.rejected();
@@ -229,6 +229,9 @@ public final class OrderCreationService {
                             new Rejected(RejectReason.INVALID, CommandFailure.of("order.draft.error.notOrderable"))));
             builder.add(requested.template(), requested.exact(), line.amount(), line.unitPrice());
         }
+        if (!Double.isFinite(builder.price())) {
+            reject(new Rejected(RejectReason.INVALID, CommandFailure.of("error.integrationDraftInvalid")));
+        }
         var limit = respectLimits ? limitOf.applyAsInt(owner) : Integer.MAX_VALUE;
         return new PendingOrder(builder, limit);
     }
@@ -251,7 +254,7 @@ public final class OrderCreationService {
 
     private PendingOrder charge(OfflinePlayer owner, PendingOrder order, boolean charge) {
         var price = order.builder().price();
-        var fee = charge ? settings.get().fee().of(price) : 0.0;
+        var fee = charge ? feeOf(price) : 0.0;
         var charged = charge ? price + fee : 0.0;
         if (charged > 0 && !wallet.withdraw(owner, charged)) {
             reject(new Rejected(
@@ -262,6 +265,14 @@ public final class OrderCreationService {
                             Replacement.create("amount", wallet.format(charged)))));
         }
         return order.charged(fee, charged);
+    }
+
+    private double feeOf(double price) {
+        var fee = settings.get().fee().of(price);
+        if (!Double.isFinite(price + fee)) {
+            reject(new Rejected(RejectReason.INVALID, CommandFailure.of("error.integrationDraftInvalid")));
+        }
+        return fee;
     }
 
     private CompletableFuture<Outcome> save(OfflinePlayer owner, PendingOrder order, OrderSource source) {
