@@ -54,7 +54,8 @@ test.describe('actions', () => {
         await dome.getByRole('button', {name: 'Cancel', exact: true}).click()
         await expect(dome.getByText('Cancel this order? The fee stays paid.')).toBeVisible()
         await dome.getByRole('button', {name: 'Cancel the order'}).click()
-        await expect(dome.getByText('The order is cancelled and its price is back on your account.')).toBeVisible()
+        await expect(own.getByText('Glass dome is cancelled and its price is back on your account.')).toBeVisible()
+        await expect(dome.getByRole('button')).toHaveCount(0)
     })
 
     test('offers nothing on orders that are no longer open', async ({page}) => {
@@ -63,13 +64,14 @@ test.describe('actions', () => {
     })
 
     test('gives a position back to the order book after asking', async ({page}) => {
-        const stalls = page.getByTestId('positions').getByRole('listitem').filter({hasText: 'Market stalls'})
+        const positions = page.getByRole('region', {name: 'Positions'}).or(page.getByLabel('Positions')).first()
+        const stalls = positions.getByRole('listitem').filter({hasText: 'Market stalls'})
 
         await stalls.getByRole('button', {name: 'Give back'}).click()
         await expect(stalls.getByText('Give Market stalls back to the order book?')).toBeVisible()
         await stalls.getByRole('button', {name: 'Give the order back'}).click()
 
-        await expect(stalls.getByText('Market stalls is back in the order book.')).toBeVisible()
+        await expect(positions.getByText('Market stalls is back in the order book.')).toBeVisible()
     })
 
     test('marks the inbox read and mutes a category', async ({page}, info) => {
