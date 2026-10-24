@@ -188,7 +188,7 @@ export interface TreasuryLogEntry {
     time: string
     /** What moved the money, an open set such as `DEPOSIT`, `WITHDRAWAL` or `PAYOUT_SHARE`. */
     kind: string
-    /** How much moved. */
+    /** How much moved, signed: positive into the treasury, negative out of it. */
     amount: number
     /** The balance after the movement. */
     balance: number
@@ -196,6 +196,8 @@ export interface TreasuryLogEntry {
     actor?: PlayerRef
     /** The order a payout share came from. */
     order?: number
+    /** Free text the plugin adds, such as a company's new name. */
+    note?: string
 }
 
 /** A page of the treasury log, newest first. */

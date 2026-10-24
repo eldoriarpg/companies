@@ -232,7 +232,7 @@ export const TREASURY_LOG = [14200, 14400, 14100, 14900, 15300, 15000, 15800, 16
             id: index + 1,
             time: new Date(Date.now() - (all.length - index) * 86_400_000).toISOString(),
             kind,
-            amount: Math.abs(delta),
+            amount: delta,
             balance,
             ...(actor ? {actor: {uuid: actor.uuid, name: actor.name}} : {order: 201}),
         }

@@ -32,6 +32,8 @@ test.describe('dashboard', () => {
         const movements = page.getByRole('list', {name: 'Latest treasury movements'})
         await expect(movements.getByRole('listitem')).toHaveCount(5)
         await expect(movements.getByText('Kestrel_').first()).toBeVisible()
+        await expect(movements.getByText('▼ 200.00')).toBeVisible()
+        await expect(movements.getByText('▲ 550.00')).toBeVisible()
         await expect(page.getByText('120 items to collect in game')).toBeVisible()
     })
 

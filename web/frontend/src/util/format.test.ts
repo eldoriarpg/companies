@@ -5,7 +5,7 @@
  */
 /** @vitest-environment happy-dom */
 import {describe, expect, it} from 'vitest'
-import {arrow, compact, count, hoursLeft, money, moneyChange, percentChange, trendOf, when} from './format'
+import {arrow, compact, count, hoursLeft, money, moneyChange, percentChange, signedMoney, trendOf, when} from './format'
 
 /** How numbers, changes and times read on the dashboard. */
 describe('format', () => {
@@ -32,6 +32,12 @@ describe('format', () => {
     it('writes a change of money with its share', () => {
         expect(moneyChange(1240, 17210, 'en')).toBe('▲ 1,240.00 (7.2%)')
         expect(moneyChange(-50, 0, 'en')).toBe('▼ 50.00 (0.0%)')
+    })
+
+    it('writes a signed amount with its arrow', () => {
+        expect(signedMoney(250, 'en')).toBe('▲ 250.00')
+        expect(signedMoney(-120.5, 'en')).toBe('▼ 120.50')
+        expect(signedMoney(0, 'en')).toBe('0.00')
     })
 
     it('counts the hours left, rounded up and never negative', () => {

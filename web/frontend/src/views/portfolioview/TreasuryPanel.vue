@@ -9,7 +9,7 @@ import PanelBox from '@/components/container/PanelBox.vue'
 import LineChart from '@/components/display/LineChart.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import MutedText from '@/components/typography/MutedText.vue'
-import {money, moneyChange, trendOf, when} from '~/util/format'
+import {money, moneyChange, signedMoney, trendOf, when} from '~/util/format'
 import {openLabel} from '~/util/labels'
 
 /**
@@ -49,7 +49,7 @@ onMounted(() => void treasury.loadLog())
           <span v-if="entry.actor" class="font-semibold text-accent">{{ entry.actor.name }}</span>
           {{ openLabel({t, te}, `treasury.kind.${entry.kind}`, entry.kind) }}
         </span>
-        <span class="tabular shrink-0">{{ money(entry.amount, locale) }}</span>
+        <TrendText :trend="trendOf(entry.amount)" class="shrink-0">{{ signedMoney(entry.amount, locale) }}</TrendText>
       </li>
     </ol>
   </PanelBox>

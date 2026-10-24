@@ -44,6 +44,18 @@ export function compact(value: number, locale: string): string {
 }
 
 /**
+ * A signed amount of money with its arrow, green in and red out: ▲ 250.00 for money in, ▼ 120.00 for money out.
+ *
+ * @param value the signed amount
+ * @param locale the reader's language
+ * @returns the amount as text
+ */
+export function signedMoney(value: number, locale: string): string {
+    const sign = arrow(trendOf(value))
+    return `${sign}${sign ? ' ' : ''}${money(Math.abs(value), locale)}`
+}
+
+/**
  * Which way a change went.
  *
  * @param change the change, in percent or absolute
