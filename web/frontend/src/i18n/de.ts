@@ -132,6 +132,8 @@ export default {
         level: 'Die Firma hat Stufe {level} erreicht',
         deposit: '{amount} in die Kasse eingezahlt',
         withdrawal: '{amount} aus der Kasse genommen',
+        companyJoined: 'Du bist {company} beigetreten',
+        companyLeft: 'Du hast {company} verlassen',
     },
     orderState: {
         UNCLAIMED: 'Offen',

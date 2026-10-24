@@ -132,6 +132,8 @@ export default {
         level: 'The company reached level {level}',
         deposit: '{amount} paid into the treasury',
         withdrawal: '{amount} taken from the treasury',
+        companyJoined: 'You joined {company}',
+        companyLeft: 'You left {company}',
     },
     orderState: {
         UNCLAIMED: 'Open',

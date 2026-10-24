@@ -132,6 +132,8 @@ export default {
         level: 'L’entreprise a atteint le niveau {level}',
         deposit: '{amount} versés dans la trésorerie',
         withdrawal: '{amount} retirés de la trésorerie',
+        companyJoined: 'Tu as rejoint {company}',
+        companyLeft: 'Tu as quitté {company}',
     },
     orderState: {
         UNCLAIMED: 'Ouverte',
