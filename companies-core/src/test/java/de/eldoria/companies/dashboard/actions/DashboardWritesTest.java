@@ -81,6 +81,13 @@ class DashboardWritesTest {
         return Protocol.mapper().readTree(args);
     }
 
+    private double price(SimpleOrder order) {
+        world.orders.forgetFullOrder(order.id());
+        var simple =
+                world.orders.retrieveOrderById(order.id()).asFuture().join().orElseThrow();
+        return world.orders.retrieveFullOrder(simple).asFuture().join().price();
+    }
+
     private OrderState state(SimpleOrder order) {
         world.orders.forgetFullOrder(order.id());
         return world.orders
@@ -109,8 +116,8 @@ class DashboardWritesTest {
         var result = perform(worker, Actions.ORDERS_ACCEPT, "{\"order\":" + order.id() + "}");
 
         assertFalse(result.ok());
-        assertTrue(result.message().startsWith("text of "), result.message());
-        assertEquals("text of " + result.reason(), result.message());
+        assertEquals("error.permission.acceptOrder", result.reason());
+        assertEquals("text of error.permission.acceptOrder", result.message());
         assertNull(result.data());
         assertEquals(OrderState.UNCLAIMED, state(order));
     }
@@ -184,10 +191,12 @@ class DashboardWritesTest {
         var total = quote.data().path("total").asDouble();
         assertEquals(20.0 + quote.data().path("fee").asDouble(), total);
         assertEquals(100.0, world.wallets.get(owner));
+        assertEquals(150.0, price(order));
 
         var raise = perform(owner, Actions.ORDERS_OWN_RAISE, "{\"order\":" + order.id() + ",\"increase\":20}");
         assertTrue(raise.ok(), raise.reason());
         assertEquals(100.0 - total, world.wallets.get(owner), 0.001);
+        assertEquals(170.0, price(order), 0.001);
     }
 
     @Test
@@ -237,12 +246,58 @@ class DashboardWritesTest {
     }
 
     @Test
-    void theWritesAreTheActionsTheReadsRefuse() {
-        for (var action : DashboardWrites.ACTIONS) {
-            assertTrue(DashboardWrites.performs(action));
-            assertTrue(Actions.ALL.contains(action), action);
+    void aMemberWhoMayNotManageOrdersCannotAbort() {
+        var order = world.order(owner, "Stone");
+        world.claim(order, company);
+
+        var result = perform(worker, Actions.ORDERS_ABORT, "{\"order\":" + order.id() + "}");
+
+        assertFalse(result.ok());
+        assertEquals("error.permission.cancelOrder", result.reason());
+        assertEquals(OrderState.CLAIMED, state(order));
+    }
+
+    @Test
+    void anOrderThatIsNoWholePositiveNumberIsUnknown() {
+        for (var args : List.of("{}", "{\"order\":0}", "{\"order\":-3}", "{\"order\":2.9}", "{\"order\":\"7\"}")) {
+            var result = perform(manager, Actions.ORDERS_ACCEPT, args);
+            assertFalse(result.ok(), args);
+            assertEquals("error.unknownOrder", result.reason(), args);
         }
-        assertFalse(DashboardWrites.performs(Actions.INBOX_PAGE));
-        assertFalse(DashboardWrites.performs(Actions.ORDERS_CREATE));
+    }
+
+    @Test
+    void aRaiseNeedsANumber() {
+        var order = world.order(owner, "Stone");
+
+        for (var increase : List.of("\"abc\"", "null", "0", "-5")) {
+            var result = perform(
+                    owner, Actions.ORDERS_OWN_RAISE, "{\"order\":" + order.id() + ",\"increase\":" + increase + "}");
+            assertFalse(result.ok(), increase);
+            assertEquals("error.invalidNumber", result.reason(), increase);
+        }
+    }
+
+    @Test
+    void extendingAndRaisingTellThePatchFeedReadingTheInboxToo() {
+        var order = world.order(owner, "Stone");
+        world.wallets.put(owner, 100.0);
+
+        perform(owner, Actions.ORDERS_OWN_RAISE, "{\"order\":" + order.id() + ",\"increase\":5,\"quote\":true}");
+        assertTrue(world.changedOrders.isEmpty());
+        perform(owner, Actions.ORDERS_OWN_EXTEND, "{\"order\":" + order.id() + "}");
+        perform(owner, Actions.ORDERS_OWN_RAISE, "{\"order\":" + order.id() + ",\"increase\":5}");
+        assertEquals(List.of(order.id(), order.id()), world.changedOrders);
+
+        perform(owner, Actions.INBOX_READ_ALL, "{}");
+        perform(owner, Actions.INBOX_CLEAR, "{}");
+        assertEquals(List.of(owner, owner), world.changedInboxes);
+    }
+
+    @Test
+    void aMuteNeedsToSayWhetherToMute() {
+        var result = perform(owner, Actions.INBOX_MUTE, "{\"category\":\"orders\"}");
+        assertFalse(result.ok());
+        assertEquals("dashboard.invalid", result.reason());
     }
 }

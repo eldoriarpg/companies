@@ -566,6 +566,7 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
+        if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {
             commands.npcBoards().stop();
@@ -580,7 +581,6 @@ public class Companies extends EldoPlugin {
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
-        if (dashboard != null) dashboard.stop();
         if (nodeConnection != null) {
             nodeConnection.stop();
         } else {

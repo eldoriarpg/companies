@@ -137,14 +137,6 @@ public final class DashboardModule {
                         refusal,
                         names,
                         clock));
-        var writes = new DashboardWrites(new DashboardWrites.Sources(
-                data.companyOf(),
-                data.orderAccept(),
-                data.companyOrders(),
-                data.ownerOrders(),
-                data.inboxService(),
-                failure -> PlainText.of(failure.render(null, messages)),
-                clock));
         Supplier<DashboardSettings> settings = configuration::dashboardSettings;
         var handshake = new Handshake(
                 new Handshake.Identity(
@@ -170,6 +162,16 @@ public final class DashboardModule {
                 Executors.newSingleThreadExecutor(
                         Thread.ofVirtual().name("Companies dashboard patches").factory()),
                 logger);
+        var writes = new DashboardWrites(new DashboardWrites.Sources(
+                data.companyOf(),
+                data.orderAccept(),
+                data.companyOrders(),
+                data.ownerOrders(),
+                data.inboxService(),
+                failure -> PlainText.of(failure.render(null, messages)),
+                order -> feed.orderChanged(order, null),
+                player -> feed.inboxChanged(player),
+                clock));
         var started = new AtomicReference<Dashboard>();
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,

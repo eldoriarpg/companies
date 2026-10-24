@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.orders.CompanyOrderService;
@@ -24,12 +25,12 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -40,7 +41,9 @@ import java.util.function.Function;
  * permissions, order states and limits are checked exactly as in game. A refusal carries the service's locale key as
  * reason and its text as message. Cancelling and raising answer a quote instead when the arguments hold
  * {@code "quote": true}: cancelling says whether the order belongs to a repeating order, raising names the fee and the
- * total, and nothing is changed. The methods block on the database and the economy and are called off the main thread.
+ * total, and nothing is changed. An order is named by a whole positive number; anything else is refused as unknown.
+ * Extending and raising fire no event, so their changed order is handed to the patch feed here, as is the unread count
+ * after reading or clearing the inbox. The methods block on the database and the economy and are called off the main thread.
  */
 public final class DashboardWrites {
     /**
@@ -86,6 +89,7 @@ public final class DashboardWrites {
     public ActionResult perform(ActionRequest request, StoredSession session) {
         var args = request.args() == null ? mapper.createObjectNode() : request.args();
         var player = session.player();
+        if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));
             case Actions.ORDERS_ABORT -> abort(request, player, order(args));
@@ -93,16 +97,18 @@ public final class DashboardWrites {
             case Actions.ORDERS_OWN_EXTEND -> extend(request, player, order(args));
             case Actions.ORDERS_OWN_RAISE -> raise(request, player, args);
             case Actions.INBOX_READ_ALL ->
-                data(
+                inboxChanged(
                         request,
+                        player,
                         Map.of(
                                 "marked",
                                 sources.inbox()
                                         .readAll(player, LocalDateTime.now(sources.clock()))
                                         .join()));
             case Actions.INBOX_CLEAR ->
-                data(
+                inboxChanged(
                         request,
+                        player,
                         Map.of("deleted", sources.inbox().clearRead(player).join()));
             case Actions.INBOX_MUTE -> mute(request, player, args);
             default -> refused(request, "dashboard.unsupported");
@@ -148,53 +154,67 @@ public final class DashboardWrites {
 
     private ActionResult extend(ActionRequest request, UUID player, int order) {
         return switch (sources.ownerOrders().extend(player, order).join()) {
-            case Done<OwnerOrderService.Extended>(var extended) ->
-                data(
+            case Done<OwnerOrderService.Extended>(var extended) -> {
+                sources.orderChanged().accept(extended.order());
+                yield data(
                         request,
                         Map.of(
                                 "order", extended.order().id(),
                                 "left", extended.left(),
                                 "refundInSeconds", extended.refundIn().toSeconds()));
+            }
             case Refused<OwnerOrderService.Extended>(var failure) -> refused(request, failure);
         };
     }
 
     private ActionResult raise(ActionRequest request, UUID player, JsonNode args) {
         var order = order(args);
-        var increase = args.path("increase").asDouble(0);
+        var increase = args.path("increase").isNumber() ? args.path("increase").asDouble() : Double.NaN;
         if (!(increase > 0) || !Double.isFinite(increase)) return refused(request, "error.invalidNumber");
-        var result = quote(args)
+        var quote = quote(args);
+        var result = quote
                 ? sources.ownerOrders().raiseQuote(player, order, increase).join()
                 : sources.ownerOrders().raise(player, order, increase).join();
         return switch (result) {
-            case Done<OwnerOrderService.Raise>(var raise) ->
-                data(
+            case Done<OwnerOrderService.Raise>(var raise) -> {
+                if (!quote) sources.orderChanged().accept(raise.order());
+                yield data(
                         request,
                         Map.of(
                                 "order", order,
                                 "increase", raise.increase(),
                                 "fee", raise.fee(),
                                 "total", raise.total()));
+            }
             case Refused<OwnerOrderService.Raise>(var failure) -> refused(request, failure);
         };
     }
 
     private ActionResult mute(ActionRequest request, UUID player, JsonNode args) {
-        var name = args.path("category").asString("").toUpperCase(Locale.ROOT);
-        NotificationCategory category;
-        try {
-            category = NotificationCategory.valueOf(name);
-        } catch (IllegalArgumentException e) {
-            return refused(request, "dashboard.unknownCategory");
-        }
-        if (!category.mutable()) return refused(request, "dashboard.unknownCategory");
-        var mute = args.path("mute").asBoolean(true);
+        var category = NotificationCategory.mutable(args.path("category").asString(""));
+        if (category.isEmpty()) return refused(request, "dashboard.unknownCategory");
+        if (!args.path("mute").isBoolean()) return refused(request, "dashboard.invalid");
+        var mute = args.path("mute").asBoolean();
+        return mute(request, player, category.get(), mute);
+    }
+
+    private ActionResult mute(ActionRequest request, UUID player, NotificationCategory category, boolean mute) {
         var mask = sources.inbox().mute(player, category, mute).join();
         return data(request, Map.of("category", category.name(), "muted", (mask & category.bit()) != 0, "mask", mask));
     }
 
+    private ActionResult inboxChanged(ActionRequest request, UUID player, Map<String, ?> value) {
+        sources.inboxChanged().accept(player);
+        return data(request, value);
+    }
+
+    private static boolean needsOrder(String action) {
+        return action.startsWith("orders.");
+    }
+
     private static int order(JsonNode args) {
-        return args.path("order").asInt(0);
+        var order = args.path("order");
+        return order.isIntegralNumber() && order.canConvertToInt() ? order.asInt() : 0;
     }
 
     private static boolean quote(JsonNode args) {
@@ -228,6 +248,8 @@ public final class DashboardWrites {
      * @param ownerOrders   cancels, extends and raises own orders
      * @param inbox         the inboxes
      * @param render        renders a refusal as plain text, with its values
+     * @param orderChanged  tells the patch feed that an own order changed without an event, after extending or raising
+     * @param inboxChanged  tells the patch feed that a player's unread count changed
      * @param clock         the clock
      */
     public record Sources(
@@ -237,5 +259,7 @@ public final class DashboardWrites {
             OwnerOrderService ownerOrders,
             Inbox inbox,
             Function<CommandFailure, String> render,
+            Consumer<ISimpleOrder> orderChanged,
+            Consumer<UUID> inboxChanged,
             Clock clock) {}
 }

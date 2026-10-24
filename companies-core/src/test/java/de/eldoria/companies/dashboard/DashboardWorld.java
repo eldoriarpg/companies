@@ -61,6 +61,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
@@ -88,6 +89,8 @@ public final class DashboardWorld implements AutoCloseable {
     public final DashboardWrites writes;
     public final EventRecorder events = new EventRecorder();
     public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
+    public final List<Integer> changedOrders = new CopyOnWriteArrayList<>();
+    public final List<UUID> changedInboxes = new CopyOnWriteArrayList<>();
     public final CompanySettings companySettings = new CompanySettings();
     public final OrderSettings orderSettings = new OrderSettings();
 
@@ -174,6 +177,8 @@ public final class DashboardWorld implements AutoCloseable {
                         Logger.getAnonymousLogger()),
                 new Inbox(inbox, NotificationSettings::new),
                 failure -> "text of " + failure.localeKey(),
+                order -> changedOrders.add(order.id()),
+                changedInboxes::add,
                 Clock.systemUTC()));
     }
 
