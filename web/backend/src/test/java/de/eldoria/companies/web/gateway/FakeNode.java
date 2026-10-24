@@ -19,12 +19,14 @@ import de.eldoria.companies.web.api.handshake.Welcome;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -123,6 +125,18 @@ final class FakeNode implements AutoCloseable {
 
     void sendRaw(String text) {
         socket.sendText(text, true).join();
+    }
+
+    /**
+     * Sends a text the gateway may refuse while it is still being written, as it closes the socket once it has read
+     * more than it allows. A close during the write is not an error; {@link #awaitClose()} reports how the socket ended.
+     */
+    void sendRefusable(String text) {
+        try {
+            socket.sendText(text, true).join();
+        } catch (CompletionException e) {
+            if (!(e.getCause() instanceof IOException)) throw e;
+        }
     }
 
     Message next() {

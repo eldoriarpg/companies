@@ -53,6 +53,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * When a patch changes the session's company, the other ready nodes are sent {@code subscribe} again, so they push for
  * the new company's members and orders and stop pushing for the old one's.
  * <p>
+ * Applied patches and replaced snapshots also drop the session's cached read answers in {@link ReadRelay} that they may
+ * change.
+ * <p>
  * Browsers get each applied patch over their stream, addressed to their session only, and a {@code resync} when the
  * snapshot was replaced. Patches only upsert, replace or remove by key, so a browser that applies a patch its fetched
  * snapshot already holds ends in the same state.
@@ -66,6 +69,7 @@ public final class SnapshotCache {
     private final Map<String, Entry> entries = new ConcurrentHashMap<>();
     private final NodeHub hub;
     private final BrowserStreams streams;
+    private final ReadRelay reads;
     private final Clock clock;
     private final Duration idle;
     private final Duration timeout;
@@ -91,13 +95,16 @@ public final class SnapshotCache {
     /**
      * @param hub the node connections
      * @param streams the browser streams
+     * @param reads the cached read answers to drop when a patch changes them
      * @param clock the time
      * @param idle how long a snapshot stays without a browser using it
      * @param timeout how long to wait for a node's snapshot
      */
-    public SnapshotCache(NodeHub hub, BrowserStreams streams, Clock clock, Duration idle, Duration timeout) {
+    public SnapshotCache(
+            NodeHub hub, BrowserStreams streams, ReadRelay reads, Clock clock, Duration idle, Duration timeout) {
         this.hub = hub;
         this.streams = streams;
+        this.reads = reads;
         this.clock = clock;
         this.idle = idle;
         this.timeout = timeout;
@@ -263,6 +270,7 @@ public final class SnapshotCache {
         ObjectNode tree = reply.raw().deepCopy();
         JsonNode copy;
         boolean stale = false;
+        List<String> patchedPaths = new ArrayList<>();
         synchronized (entry) {
             entry.snapshot = tree;
             entry.base = Map.of(snapshot.node(), snapshot.seq());
@@ -274,6 +282,7 @@ public final class SnapshotCache {
                 }
                 try {
                     PatchApplier.apply(tree, patch);
+                    patchedPaths.add(patch.path());
                 } catch (PatchApplier.Unapplicable e) {
                     stale |= PatchApplier.knownRoot(patch);
                 }
@@ -281,6 +290,11 @@ public final class SnapshotCache {
             entry.buffered.clear();
             entry.loading = null;
             copy = tree.deepCopy();
+        }
+        if (replacing) {
+            reads.drop(entry.sessionId);
+        } else {
+            patchedPaths.forEach(path -> reads.patched(entry.sessionId, path));
         }
         if (replacing) streams.push(entry.sessionId, GatewayEvent.resync());
         if (stale) CompletableFuture.runAsync(() -> reload(entry));
@@ -314,6 +328,7 @@ public final class SnapshotCache {
             }
             companyChanged = !companyBefore.equals(PatchApplier.company(snapshot));
         }
+        reads.patched(entry.sessionId, patch.path());
         if (companyChanged) resubscribe(entry, patch.node());
         streams.push(
                 entry.sessionId,
