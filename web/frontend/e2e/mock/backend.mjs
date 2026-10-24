@@ -124,7 +124,7 @@ function route(method, path, body, session) {
             return {status: 200, body: snapshot(session.id, state.delivered)}
         case 'POST /api/v1/me/actions':
             if (story.offline) return error(504, 'SERVER_OFFLINE', {message: 'The server did not answer in time'})
-            return {status: 200, body: action(body.name, body.args ?? {})}
+            return {status: 200, body: action(body.name, body.args ?? {}, state)}
         case 'POST /api/v1/me/logout':
             return {status: 204, headers: {'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`}}
         default:
@@ -168,22 +168,49 @@ function login(method, shortId, submit, body) {
     return {status: 204, headers: {'set-cookie': `${COOKIE}=${shortId}.${randomUUID()}; Path=/; HttpOnly; SameSite=Strict`}}
 }
 
+/** The order the mock refuses to accept, as a company at its limit would hear it. */
+const LIMITED_ORDER = 3
+
 /**
- * The answer to a read action.
+ * The answer to an action. Accepting order 3 is refused as the plugin words it; every other action succeeds.
  *
  * @param name the action
  * @param args its arguments
+ * @param state the session's state, which keeps the muted inbox categories
  * @returns the action result
  */
-function action(name, args) {
+function action(name, args, state) {
     const page = data => ({type: 'action.result', v: 1, ok: true, data: {page: args.page ?? 1, pages: 1, ...data}})
+    const done = data => ({type: 'action.result', v: 1, ok: true, data})
+    state.muted ??= new Set()
     switch (name) {
+        case 'orders.accept':
+            if (args.order === LIMITED_ORDER) {
+                return {type: 'action.result', v: 1, ok: false, reason: 'error.orderLimit', message: 'Your company works on as many orders as its level allows.'}
+            }
+            return done({order: args.order})
+        case 'orders.accept.abort':
+            return done({order: args.order})
+        case 'orders.own.cancel':
+            return done(args.quote ? {order: args.order, repeating: false} : {order: args.order})
+        case 'orders.own.extend':
+            return done({order: args.order, left: 1, refundInSeconds: 86_400})
+        case 'orders.own.raise':
+            return done({order: args.order, increase: args.increase, fee: args.increase / 10, total: args.increase * 1.1})
+        case 'inbox.read-all':
+            return done({marked: 3})
+        case 'inbox.clear':
+            return done({deleted: 2})
+        case 'inbox.mute':
+            if (args.mute) state.muted.add(args.category)
+            else state.muted.delete(args.category)
+            return done({category: args.category, muted: args.mute, mask: state.muted.size})
         case 'orders.browse.search': {
             const orders = BOOK
                 .filter(order => !args.name || order.name.toLowerCase().includes(args.name.toLowerCase()))
                 .filter(order => args.maxOrderSize === undefined || order.lines[0].item.amount <= args.maxOrderSize)
                 .filter(order => args.minPrice === undefined || order.lines[0].price >= args.minPrice)
-            return page({total: BOOK.length, orders})
+            return page({total: BOOK.length, orders, canAccept: true, limitReached: false})
         }
         case 'orders.browse.details':
             return {type: 'action.result', v: 1, ok: true, data: BOOK.find(order => order.id === args.order)}
@@ -192,7 +219,11 @@ function action(name, args) {
         case 'market.search':
             return page({items: MARKET.filter(entry => entry.item.name.toLowerCase().includes(String(args.query).toLowerCase()))})
         case 'inbox.page':
-            return page({entries: INBOX.filter(entry => !args.query || entry.text.toLowerCase().includes(args.query.toLowerCase()))})
+            return page({
+                entries: INBOX.filter(entry => !args.query || entry.text.toLowerCase().includes(args.query.toLowerCase())),
+                muted: [...state.muted],
+                mutable: ['MEMBERS', 'ORDERS', 'PAYMENTS', 'LEVEL', 'ALERTS'],
+            })
         case 'rankings.page':
             return page({...snapshot('').rankings, ranking: args.ranking, range: args.range})
         case 'company.treasury.log':

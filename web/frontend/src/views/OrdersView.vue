@@ -54,10 +54,10 @@ const sheetOpen = computed({
         />
         <PageSwitcher v-model:page="book.page.value" :pages="book.result.value?.pages ?? 1"/>
       </div>
-      <OrderDetail v-if="wide && book.detail.value" :order="book.detail.value" :averages="market.averages.value" class="sticky top-4"/>
+      <OrderDetail v-if="wide && book.detail.value" :order="book.detail.value" :averages="market.averages.value" :can-accept="book.result.value?.canAccept ?? false" class="sticky top-4" @accepted="book.load()"/>
     </div>
     <BottomSheet v-if="book.detail.value" v-model:open="sheetOpen" :title="book.detail.value.name" :description="t('orders.anonymous')">
-      <OrderDetail :order="book.detail.value" :averages="market.averages.value" in-sheet/>
+      <OrderDetail :order="book.detail.value" :averages="market.averages.value" :can-accept="book.result.value?.canAccept ?? false" in-sheet @accepted="book.load()"/>
     </BottomSheet>
   </ViewContent>
 </template>

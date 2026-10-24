@@ -181,6 +181,10 @@ export interface InboxPage {
     pages: number
     total?: number
     entries: InboxEntryView[]
+    /** The categories the player muted. */
+    muted?: string[]
+    /** The categories that can be muted. */
+    mutable?: string[]
 }
 
 /** The price statistics of one material. Prices are absent when too few orders back them. */
@@ -245,6 +249,32 @@ export interface ReadActions {
 /** The name of a read action. */
 export type ReadAction = keyof ReadActions
 
+/** An order an action named. */
+export interface OrderRef {
+    order: number
+}
+
+/**
+ * The actions that change something, with their arguments and the `data` of their answer. Cancelling and raising
+ * answer a quote and change nothing when `quote` is true.
+ */
+export interface WriteActions {
+    'orders.accept': {args: OrderRef, result: OrderRef}
+    'orders.accept.abort': {args: OrderRef, result: OrderRef}
+    'orders.own.cancel': {args: OrderRef & {quote?: boolean}, result: OrderRef & {repeating?: boolean}}
+    'orders.own.extend': {args: OrderRef, result: OrderRef & {left: number, refundInSeconds: number}}
+    'orders.own.raise': {
+        args: OrderRef & {increase: number, quote?: boolean}
+        result: OrderRef & {increase: number, fee: number, total: number}
+    }
+    'inbox.read-all': {args: Record<string, never>, result: {marked: number}}
+    'inbox.clear': {args: Record<string, never>, result: {deleted: number}}
+    'inbox.mute': {args: {category: string, mute: boolean}, result: {category: string, muted: boolean, mask: number}}
+}
+
+/** The name of an action that changes something. */
+export type WriteAction = keyof WriteActions
+
 /** An action the plugin refused, with its reason key and the sentence it rendered. */
 export class ActionRefused extends Error {
     /**
@@ -264,6 +294,7 @@ export interface GatewayApi {
     server(): Promise<ServerInfo>
     snapshot(): Promise<Snapshot>
     read<N extends ReadAction>(name: N, args: ReadActions[N]['args']): Promise<ReadActions[N]['result']>
+    act<N extends WriteAction>(name: N, args: WriteActions[N]['args']): Promise<WriteActions[N]['result']>
     logout(): Promise<void>
 }
 
@@ -281,6 +312,7 @@ export function gatewayApi(http: AxiosInstance = gatewayHttp()): GatewayApi {
         server: () => http.get<ServerInfo>('/me/server').then(response => response.data),
         snapshot: () => http.get<Snapshot>('/me/snapshot').then(response => response.data),
         read: (name, args) => http.post<ActionResult>('/me/actions', {name, args}).then(response => resultData(response.data)),
+        act: (name, args) => http.post<ActionResult>('/me/actions', {name, args}).then(response => resultData(response.data)),
         logout: () => http.post('/me/logout').then(() => undefined),
     }
 }

@@ -5,22 +5,55 @@
  */
 <script lang="ts" setup>
 import {useNow} from '@vueuse/core'
+import ButtonRow from '@/components/button/ButtonRow.vue'
+import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
+import ToggleSwitch from '@/components/input/ToggleSwitch.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import PageSwitcher from '@/components/navigation/PageSwitcher.vue'
 import {when} from '~/util/format'
 import {openLabel} from '~/util/labels'
 
 /**
- * The inbox: what the server told the player, newest first, unread in bold, searched by the plugin. Marking read,
- * clearing and muting come with the inbox's actions.
+ * The inbox: what the server told the player, newest first, unread in bold, searched by the plugin. Everything can be
+ * marked read, the read entries cleared, and each category that allows it muted, as with the in-game inbox.
  */
 const {t, te, locale} = useI18n()
 const inbox = useInbox()
+const action = useAction()
 const now = useNow({interval: 60_000})
+const muted = computed(() => new Set(inbox.result.value?.muted ?? []))
+const mutable = computed(() => inbox.result.value?.mutable ?? [])
+const done = ref('')
+
+/** Marks every entry read. */
+async function readAll(): Promise<void> {
+  const result = await action.run('inbox.read-all', {})
+  if (!result) return
+  done.value = t('inbox.markedRead', {count: result.marked})
+  await inbox.load()
+}
+
+/** Deletes the read entries. */
+async function clearRead(): Promise<void> {
+  const result = await action.run('inbox.clear', {})
+  if (!result) return
+  done.value = t('inbox.cleared', {count: result.deleted})
+  await inbox.load()
+}
+
+/**
+ * Mutes or unmutes a category.
+ *
+ * @param category the category
+ * @param mute whether to mute it
+ */
+async function setMuted(category: string, mute: boolean): Promise<void> {
+  if (await action.run('inbox.mute', {category, mute})) await inbox.load()
+}
 
 onMounted(() => void inbox.load())
 </script>
@@ -33,6 +66,24 @@ onMounted(() => void inbox.load())
           <SearchInput v-model="inbox.query.value" :label="t('inbox.search')"/>
         </div>
       </template>
+      <div class="flex flex-col gap-3 border-b border-line-soft px-3 py-3 md:px-4">
+        <ButtonRow>
+          <SecondaryButton :disabled="action.busy.value" @click="readAll">{{ t('inbox.readAll') }}</SecondaryButton>
+          <SecondaryButton :disabled="action.busy.value" @click="clearRead">{{ t('inbox.clearRead') }}</SecondaryButton>
+        </ButtonRow>
+        <div v-if="mutable.length" class="flex flex-wrap gap-2" role="group" :aria-label="t('inbox.mutes')">
+          <ToggleSwitch
+              v-for="category in mutable"
+              :key="category"
+              :model-value="muted.has(category)"
+              :label="t('inbox.mute', {category: openLabel({t, te}, `inbox.category.${category}`, category)})"
+              :disabled="action.busy.value"
+              @update:model-value="value => setMuted(category, value)"
+          />
+        </div>
+        <NoticeBanner v-if="done && action.problem.value === null">{{ done }}</NoticeBanner>
+        <NoticeBanner v-if="action.problem.value !== null" tone="problem">{{ action.problem.value || t('common.actionFailed') }}</NoticeBanner>
+      </div>
       <NoticeBanner v-if="inbox.status.value === 'failed'" tone="problem">{{ t('inbox.failed') }}</NoticeBanner>
       <EmptyState v-else-if="!inbox.result.value?.entries.length">{{ inbox.status.value === 'loading' ? t('common.loading') : t('inbox.empty') }}</EmptyState>
       <ol v-else class="m-0 list-none p-0" data-testid="inbox">

@@ -170,6 +170,14 @@ export function snapshot(session, delivered = false) {
                 created: '2026-10-18T08:00:00Z',
                 waiting: [item('Lantern', 120)],
             },
+            {
+                id: 90,
+                name: 'Glass dome',
+                state: 'UNCLAIMED',
+                lines: [{item: item('Glass', 512), delivered: 0, price: 300}],
+                created: '2026-10-23T08:00:00Z',
+                waiting: [],
+            },
         ],
         rankings: {
             ranking: 'orders',

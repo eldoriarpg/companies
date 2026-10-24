@@ -5,25 +5,29 @@
  */
 <script lang="ts" setup>
 import {useNow} from '@vueuse/core'
-import type {OwnOrderView} from '~/api/generated/protocol'
+import {Feature, OrderState, type OwnOrderView} from '~/api/generated/protocol'
 import PanelBox from '@/components/container/PanelBox.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
+import OwnOrderActions from './OwnOrderActions.vue'
 import {count, money, when} from '~/util/format'
 import {openLabel} from '~/util/labels'
 import {itemsText, totalsOf} from '~/util/orders'
 
 /**
  * The orders the player placed: their state, how far they are, what they pay and what waits to be collected in game.
- * Who works on them stays unknown, as in game.
+ * Who works on them stays unknown, as in game. An order nobody accepted yet can be extended, raised or cancelled
+ * here where the server offers it.
  */
 const props = defineProps<{
   orders: readonly OwnOrderView[]
 }>()
 
 const {t, te, locale} = useI18n()
+const {supports} = useDashboard()
+const manageable = computed(() => supports(Feature['orders.own']))
 const now = useNow({interval: 60_000})
 const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => line.item.name)])
 
@@ -57,6 +61,7 @@ const rows = computed(() => found.value.map(order => ({
         </div>
         <ProgressBar :value="row.totals.progress" :label="t('portfolio.filled', {name: row.order.name})"/>
         <span v-if="row.waiting > 0" class="text-xs font-semibold text-accent">{{ t('portfolio.toCollect', {count: count(row.waiting, locale)}) }}</span>
+        <OwnOrderActions v-if="manageable && row.order.state === OrderState.UNCLAIMED" :order="row.order"/>
       </li>
     </ul>
   </PanelBox>

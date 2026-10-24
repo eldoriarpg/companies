@@ -5,25 +5,33 @@
  */
 <script lang="ts" setup>
 import {useNow} from '@vueuse/core'
-import type {ClaimedOrderView} from '~/api/generated/protocol'
+import {Feature, MemberPermission, type ClaimedOrderView} from '~/api/generated/protocol'
 import PanelBox from '@/components/container/PanelBox.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
+import PositionAbort from './PositionAbort.vue'
 import {count, hoursLeft, money} from '~/util/format'
 import {itemsText, totalsOf} from '~/util/orders'
 
 /**
  * The positions: the orders the company is processing, with their progress, payout and the time left. They update in
- * place as members deliver. Delivering from the web comes later; in game it works as always.
+ * place as members deliver. Members who may manage orders can give one back to the order book from here. Delivering
+ * from the web comes later; in game it works as always.
  */
 const props = defineProps<{
   orders: readonly ClaimedOrderView[]
 }>()
 
 const {t, locale} = useI18n()
+const {supports, snapshot} = useDashboard()
+const manages = computed(() => {
+  const permissions = snapshot.value?.player.permissions ?? []
+  return supports(Feature['orders.accept'])
+    && (permissions.includes(MemberPermission.MANAGE_ORDERS) || permissions.includes(MemberPermission.OWNER))
+})
 const now = useNow({interval: 60_000})
 const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => line.item.name)])
 
@@ -67,6 +75,7 @@ const rows = computed(() => found.value.map(order => ({
         </div>
         <span class="tabular hidden text-right text-sm md:block">{{ money(row.totals.payout, locale) }}</span>
         <span class="tabular hidden text-right text-xs text-ink-muted md:block">{{ row.left }}</span>
+        <PositionAbort v-if="manages" :order="row.order.id" :name="row.order.name"/>
       </li>
     </ul>
   </PanelBox>

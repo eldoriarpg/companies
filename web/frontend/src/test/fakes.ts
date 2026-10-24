@@ -103,6 +103,7 @@ export function fakeApi() {
         server: vi.fn<GatewayApi['server']>(async () => serverInfo()),
         snapshot: vi.fn<GatewayApi['snapshot']>(async () => snapshot()),
         read: vi.fn() as unknown as GatewayApi['read'],
+        act: vi.fn() as unknown as GatewayApi['act'],
         logout: vi.fn<GatewayApi['logout']>(async () => undefined),
     }
 }
