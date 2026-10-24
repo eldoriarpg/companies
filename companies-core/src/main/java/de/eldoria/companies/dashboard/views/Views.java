@@ -81,8 +81,6 @@ public final class Views {
      */
     public static final int RANKING_PAGE_SIZE = 10;
 
-    private static final int RANKED_AT_MOST = 10_000;
-
     private final Sources sources;
 
     /**
@@ -428,10 +426,10 @@ public final class Views {
      * @return the summary
      */
     public Payloads.OrderSummary summary(IFullOrder order, boolean owner, boolean company) {
-        var deadline = deadline(order).orElse(null);
+        Instant expires = null;
         if (order.state() == de.eldoria.companies.components.order.OrderState.UNCLAIMED) {
             var hours = sources.orderSettings().get().maxUnclaimedHours();
-            deadline = hours > 0 ? instant(order.created().plusHours(hours)) : null;
+            expires = hours > 0 ? instant(order.created().plusHours(hours)) : null;
         }
         var claimed = company && order.claimed() != null ? instant(order.claimed()) : null;
         return new Payloads.OrderSummary(
@@ -440,7 +438,8 @@ public final class Views {
                 state(order),
                 lines(order),
                 instant(order.created()),
-                deadline,
+                deadline(order).orElse(null),
+                expires,
                 order.price(),
                 order.amount(),
                 claimed,
@@ -508,7 +507,8 @@ public final class Views {
     }
 
     /**
-     * A page of a ranking with the place of the player's company.
+     * A page of a ranking with the place of the player's company. Only the page is read; {@code pages} is the page
+     * after it while more companies follow, so the dashboard pages on without counting every company.
      *
      * @param ranking what the ranking is sorted by
      * @param range   the time range
@@ -517,17 +517,16 @@ public final class Views {
      * @return the page
      */
     public RankingPage ranking(TopOrder ranking, TimeRange range, int page, Optional<Integer> company) {
-        var all = sources.api().ranking().page(ranking, range, 1, RANKED_AT_MOST).join().stream()
+        var rankings = sources.api().ranking();
+        var entries = rankings.page(ranking, range, page, RANKING_PAGE_SIZE).join().stream()
                 .map(rank -> new RankingEntry(rank.rank(), rank.id(), rank.name(), value(ranking, rank)))
                 .toList();
+        var hasNext = entries.size() == RANKING_PAGE_SIZE
+                && !rankings.page(ranking, range, page * RANKING_PAGE_SIZE + 1, 1)
+                        .join()
+                        .isEmpty();
         var own = company.flatMap(id -> rank(ranking, range, id)).orElse(null);
-        return new RankingPage(
-                key(ranking),
-                range.id(),
-                page,
-                Payloads.pages(all.size(), RANKING_PAGE_SIZE),
-                Payloads.slice(all, page, RANKING_PAGE_SIZE),
-                own);
+        return new RankingPage(key(ranking), range.id(), page, hasNext ? page + 1 : page, entries, own);
     }
 
     /**

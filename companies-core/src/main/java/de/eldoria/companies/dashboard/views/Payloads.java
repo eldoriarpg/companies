@@ -33,7 +33,8 @@ public final class Payloads {
      * @param state   its state
      * @param lines   its lines with progress
      * @param created when it was placed
-     * @param deadline when a claim runs out, or when an unclaimed order is removed
+     * @param deadline when the claim runs out, none unless claimed
+     * @param expires  when an unclaimed order is removed, none once claimed
      * @param price   the price of all lines
      * @param amount  the number of ordered items
      * @param claimed when it was claimed, for the company working on it
@@ -46,6 +47,7 @@ public final class Payloads {
             List<OrderLineView> lines,
             Instant created,
             @Nullable Instant deadline,
+            @Nullable Instant expires,
             double price,
             int amount,
             @Nullable Instant claimed,

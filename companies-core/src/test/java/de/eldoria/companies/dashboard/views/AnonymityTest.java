@@ -177,7 +177,8 @@ class AnonymityTest {
         assertEquals(1, result.data().path("pages").asInt());
         assertEquals(1, result.data().path("total").asInt());
         assertEquals("UNCLAIMED", orders.get(0).path("state").asString());
-        assertTrue(orders.get(0).has("deadline"));
+        assertTrue(orders.get(0).has("expires"));
+        assertFalse(orders.get(0).has("deadline"));
         assertEquals(open.id(), orders.get(0).path("id").asInt());
         assertFalse(json(result.data()).contains(owner.toString()));
         assertFalse(json(result.data()).contains("Ottilie"));
