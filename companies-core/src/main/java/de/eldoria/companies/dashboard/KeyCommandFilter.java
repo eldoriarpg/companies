@@ -56,6 +56,15 @@ public final class KeyCommandFilter {
     }
 
     /**
+     * Adds the filter to a Log4j logger.
+     *
+     * @param logger the logger
+     */
+    static void addTo(org.apache.logging.log4j.core.Logger logger) {
+        logger.addFilter(new Log4jFilter());
+    }
+
+    /**
      * The Log4j filter, loaded only when it is added.
      */
     private static final class Log4jFilter extends AbstractFilter {
@@ -64,9 +73,7 @@ public final class KeyCommandFilter {
         }
 
         static void addToRoot() {
-            if (LogManager.getRootLogger() instanceof org.apache.logging.log4j.core.Logger root) {
-                root.addFilter(new Log4jFilter());
-            }
+            if (LogManager.getRootLogger() instanceof org.apache.logging.log4j.core.Logger root) addTo(root);
         }
 
         @Override
