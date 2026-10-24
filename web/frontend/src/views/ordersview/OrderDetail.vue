@@ -11,7 +11,7 @@ import ItemMark from '@/components/display/ItemMark.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
-import {count, money, percentChange, trendOf, when} from '~/util/format'
+import {count, hoursLeft, money, percentChange, trendOf, when} from '~/util/format'
 import {totalsOf, versusAverage} from '~/util/orders'
 
 /**
@@ -55,6 +55,8 @@ const versus = computed(() => versusAverage(props.order.lines, props.averages))
       </li>
     </ul>
     <MutedText tag="p">{{ t('orders.created', {time: when(order.created, now, locale)}) }}</MutedText>
+    <MutedText v-if="order.expires" tag="p">{{ t('orders.expires', {hours: hoursLeft(order.expires, now)}) }}</MutedText>
+    <MutedText v-else-if="order.deadline" tag="p">{{ t('orders.due', {hours: hoursLeft(order.deadline, now)}) }}</MutedText>
     <MutedText tag="p">{{ t('orders.acceptInGame') }}</MutedText>
   </aside>
 </template>

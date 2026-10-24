@@ -130,8 +130,10 @@ export interface OrderListing {
     state: OrderState
     lines: OrderLineView[]
     created: string
-    /** When an accepted order has to be done; none for an open order. */
-    deadline?: string
+    /** When an accepted order has to be done; none (or null) for an open order. */
+    deadline?: string | null
+    /** When an open order expires unless a company accepts it. */
+    expires?: string | null
 }
 
 /** A page of the order book. */
