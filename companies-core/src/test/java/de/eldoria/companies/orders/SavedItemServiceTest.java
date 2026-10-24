@@ -23,8 +23,10 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -45,7 +47,7 @@ class SavedItemServiceTest {
     void setUp() throws Exception {
         MockBukkit.mock();
         SqLiteTestDatabase.create(directory);
-        executor = Executors.newSingleThreadExecutor();
+        executor = Executors.newFixedThreadPool(16);
         service = new SavedItemService(
                 new SqLiteSavedItemData(SqLiteTestDatabase.mapper(), executor),
                 item -> item.getType() == Material.BEDROCK
@@ -134,6 +136,7 @@ class SavedItemServiceTest {
                 "order.items.error.nameTaken",
                 refusal(service.save(owner, swords(), Optional.of("blade")).join()));
         assertInstanceOf(ActionResult.Done.class, service.item(owner, "BLADE").join());
+        assertInstanceOf(ActionResult.Done.class, service.remove(owner, "BLADE").join());
 
         var template = new ItemStack(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE);
         var saved = (SavedItem) assertInstanceOf(
@@ -146,11 +149,10 @@ class SavedItemServiceTest {
     @Test
     void quickSavesOfOnePlayerKeepTheCap() {
         max = 3;
-        var saves = java.util.stream.IntStream.range(0, 16)
+        var saves = IntStream.range(0, 16)
                 .mapToObj(index -> service.save(owner, swords(), Optional.of("item" + index)))
                 .toList();
-        var results =
-                saves.stream().map(java.util.concurrent.CompletableFuture::join).toList();
+        var results = saves.stream().map(CompletableFuture::join).toList();
 
         assertEquals(
                 3, results.stream().filter(ActionResult.Done.class::isInstance).count());

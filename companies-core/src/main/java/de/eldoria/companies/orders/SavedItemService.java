@@ -30,7 +30,8 @@ import java.util.regex.Pattern;
  * Names are letters, digits, {@code _} and {@code -}, unique per player regardless of case and kept in lower case, so
  * every database treats them alike; without a name the material's name is used, cut to the longest name.
  * <p>
- * The saves of one player run one after the other, so the cap holds even when the player saves quickly. A player saves
+ * The checks run at once; the writes of one player's saves run one after the other, so the cap holds even when the
+ * player saves quickly. A player saves
  * on the server they play on; two servers of a network saving for the same player at the same moment could pass the
  * cap by one.
  */
@@ -70,22 +71,6 @@ public final class SavedItemService {
      * @return the saved item, or why it was not saved
      */
     public CompletableFuture<ActionResult<SavedItem>> save(UUID owner, ItemStack item, Optional<String> name) {
-        var result = new CompletableFuture<ActionResult<SavedItem>>();
-        saving.compute(owner, (player, before) -> {
-            (before == null ? CompletableFuture.completedFuture(null) : before)
-                    .handle((ignored, err) -> null)
-                    .thenCompose(ignored -> saveNow(owner, item, name))
-                    .whenComplete((saved, err) -> {
-                        if (err != null) result.completeExceptionally(err);
-                        else result.complete(saved);
-                    });
-            return result;
-        });
-        result.whenComplete((saved, err) -> saving.remove(owner, result));
-        return result;
-    }
-
-    private CompletableFuture<ActionResult<SavedItem>> saveNow(UUID owner, ItemStack item, Optional<String> name) {
         if (item.isEmpty()) return refused("order.draft.error.emptyHand");
         var max = settings.get().max();
         if (max == 0) return refused("order.items.error.disabled");
@@ -97,14 +82,29 @@ public final class SavedItemService {
                     "order.items.error.invalidName", Placeholder.unparsed("max", String.valueOf(MAX_NAME_LENGTH))));
         }
         var template = requested.get().template().asOne();
-        return data.submitItem(owner, chosen, template, max, Times.now()).thenCompose(result -> switch (result) {
+        var result = new CompletableFuture<ActionResult<SavedItem>>();
+        saving.compute(owner, (player, before) -> {
+            (before == null ? CompletableFuture.completedFuture(null) : before)
+                    .handle((ignored, err) -> null)
+                    .thenCompose(ignored -> store(owner, chosen, template, max))
+                    .whenComplete((saved, err) -> {
+                        if (err != null) result.completeExceptionally(err);
+                        else result.complete(saved);
+                    });
+            return result;
+        });
+        result.whenComplete((saved, err) -> saving.remove(owner, result));
+        return result;
+    }
+
+    private CompletableFuture<ActionResult<SavedItem>> store(UUID owner, String name, ItemStack template, int max) {
+        return data.submitItem(owner, name, template, max, Times.now()).thenCompose(result -> switch (result) {
             case SAVED ->
-                data.retrieveItem(owner, chosen)
-                        .thenApply(saved -> saved.<ActionResult<SavedItem>>map(ActionResult::done)
-                                .orElseGet(() -> ActionResult.refusedActionBar("error.saveFailed")));
+                data.retrieveItem(owner, name).thenApply(saved -> saved.<ActionResult<SavedItem>>map(ActionResult::done)
+                        .orElseGet(() -> ActionResult.refusedActionBar("error.saveFailed")));
             case NAME_TAKEN ->
                 CompletableFuture.completedFuture(ActionResult.refusedActionBar(
-                        "order.items.error.nameTaken", Placeholder.unparsed("item_name", chosen)));
+                        "order.items.error.nameTaken", Placeholder.unparsed("item_name", name)));
             case LIMIT_REACHED ->
                 CompletableFuture.completedFuture(ActionResult.refusedActionBar(
                         "order.items.error.limit", Placeholder.unparsed("max", String.valueOf(max))));
@@ -148,7 +148,9 @@ public final class SavedItemService {
      * @return the name, or why nothing was removed
      */
     public CompletableFuture<ActionResult<String>> remove(UUID owner, String name) {
-        return data.submitRemoval(owner, name).thenApply(removed -> removed ? ActionResult.done(name) : unknown(name));
+        var normal = normal(name);
+        return data.submitRemoval(owner, normal)
+                .thenApply(removed -> removed ? ActionResult.done(normal) : unknown(normal));
     }
 
     private static <T> ActionResult<T> unknown(String name) {
