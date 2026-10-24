@@ -50,6 +50,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * of the snapshot this version does not know is passed on even when it cannot be applied here, rather than loading the
  * snapshot again.
  * <p>
+ * When a patch changes the session's company, the other ready nodes are sent {@code subscribe} again, so they push for
+ * the new company's members and orders and stop pushing for the old one's.
+ * <p>
  * Browsers get each applied patch over their stream, addressed to their session only, and a {@code resync} when the
  * snapshot was replaced. Patches only upsert, replace or remove by key, so a browser that applies a patch its fetched
  * snapshot already holds ends in the same state.
@@ -271,6 +274,7 @@ public final class SnapshotCache {
     }
 
     private void apply(Entry entry, Patch patch) {
+        boolean companyChanged;
         synchronized (entry) {
             if (entry.loading != null) {
                 entry.buffered.add(patch);
@@ -279,10 +283,11 @@ public final class SnapshotCache {
             ObjectNode snapshot = entry.snapshot;
             if (snapshot == null || !applies(entry, patch)) return;
             if (PatchApplier.foreignCompany(snapshot, patch)) {
-                log.warn("A patch of {} names another company than the session's, reloading", patch.path());
+                log.warn("A patch of {} reaches into a company the session has none of, reloading", patch.path());
                 reload(entry);
                 return;
             }
+            String companyBefore = PatchApplier.company(snapshot);
             try {
                 PatchApplier.apply(snapshot, patch);
             } catch (PatchApplier.Unapplicable e) {
@@ -293,7 +298,9 @@ public final class SnapshotCache {
                 }
                 log.debug("Passing on a patch of {}, which this version does not know", patch.path());
             }
+            companyChanged = !companyBefore.equals(PatchApplier.company(snapshot));
         }
+        if (companyChanged) resubscribe(entry, patch.node());
         streams.push(
                 entry.sessionId,
                 new Patch(
@@ -306,6 +313,19 @@ public final class SnapshotCache {
                         patch.op(),
                         patch.key(),
                         patch.value()));
+    }
+
+    /**
+     * The session's player changed company on one node; the other nodes still push for the old one until they look
+     * at the membership again, which a {@code subscribe} makes them do.
+     */
+    private void resubscribe(Entry entry, UUID changedBy) {
+        hub.server(entry.serverId).ifPresent(server -> {
+            for (NodeLink link : server.ready()) {
+                if (link.agreed().uid().equals(changedBy)) continue;
+                link.send(new Subscribe(link.nextId(), link.agreed().protocol(), entry.sessionId, entry.player));
+            }
+        });
     }
 
     private static boolean applies(Entry entry, Patch patch) {

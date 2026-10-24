@@ -596,6 +596,67 @@ class HostedGatewayTest {
     }
 
     @Test
+    void aCompanyChangeResubscribesTheOtherNodes() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        try (FakeNode primary = node(key, primaryId);
+                FakeNode secondary = FakeNode.welcomed(
+                        gateway,
+                        FakeNode.hello(
+                                KeyKind.DASHBOARD_KEY,
+                                key,
+                                secondaryId,
+                                NodeRole.SECONDARY,
+                                PLUGIN,
+                                FakeNode.FEATURES,
+                                null))) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.25");
+            SessionCreated created = create(primary, primaryId);
+            login(primary, browser, created);
+            CompletableFuture<HttpResponse<String>> loading = browser.getAsync("/api/v1/me/snapshot");
+            SnapshotRequest request = primary.expect(SnapshotRequest.class);
+            assertEquals(created.session(), secondary.expect(Subscribe.class).session());
+            primary.sendRaw(Recorded.snapshot(request.id(), request.session(), primaryId, 1));
+            assertEquals(200, loading.join().statusCode());
+
+            ObjectNode other = ((ObjectNode) Recorded.message("snapshot.json").path("company")).put("id", 9);
+            other.putArray("members");
+            primary.send(new Patch(
+                    null, 1, List.of(created.session()), primaryId, 2, "company", PatchOp.REPLACE, null, other));
+            assertEquals(created.session(), secondary.expect(Subscribe.class).session());
+            primary.assertQuiet();
+            assertEquals(
+                    9,
+                    FakeBrowser.json(browser.get("/api/v1/me/snapshot"))
+                            .at("/company/id")
+                            .asInt());
+
+            primary.send(new Patch(
+                    null, 1, List.of(created.session()), primaryId, 3, "company", PatchOp.REMOVE, null, null));
+            assertEquals(created.session(), secondary.expect(Subscribe.class).session());
+            secondary.send(new Patch(
+                    null,
+                    1,
+                    List.of(created.session()),
+                    secondaryId,
+                    1,
+                    "company.members",
+                    PatchOp.UPSERT,
+                    "0b1c2d3e-4f5a-4b6c-9d7e-8f9a0b1c2d3e",
+                    Recorded.message("patch.json").path("value")));
+            SnapshotRequest reload = primary.expect(SnapshotRequest.class);
+            ObjectNode without =
+                    (ObjectNode) FakeBrowser.json(Recorded.snapshot(reload.id(), reload.session(), primaryId, 3));
+            without.remove("company");
+            primary.sendRaw(without.toString());
+            assertTrue(FakeBrowser.json(browser.get("/api/v1/me/snapshot"))
+                    .path("company")
+                    .isMissingNode());
+        }
+    }
+
+    @Test
     void thePluginRevokesSessions() {
         UUID uid = UUID.randomUUID();
         try (FakeNode node = node(key(), uid)) {
