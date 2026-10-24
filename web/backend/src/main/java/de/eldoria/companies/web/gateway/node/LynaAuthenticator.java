@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Verifies Lyna dashboard keys for the hosted gateway: {@code POST {LYNA_URL}/api/v1/dashboard/key/verify} with the
@@ -50,6 +51,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
     private final HttpClient client;
     private final Clock clock;
     private final Map<String, Remembered> remembered = new ConcurrentHashMap<>();
+    private final AtomicLong rotated = new AtomicLong();
 
     /**
      * Lyna's answer to a verification.
@@ -58,6 +60,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
      * @param product the product the key is for
      * @param kind {@code BOUGHT} or {@code TRIAL}
      * @param keyId the key's id, stable across rotations
+     * @param rotated whether the key was already traded for its successor and is inside the grace period
      * @param reason why it is not valid: {@code UNKNOWN}, {@code EXPIRED}, {@code NO_ACCESS} or {@code RETIRED}
      */
     record Verification(
@@ -65,6 +68,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
             @Nullable Integer product,
             @Nullable String kind,
             @Nullable String keyId,
+            boolean rotated,
             @Nullable String reason) {}
 
     private record Remembered(Verification verification, Instant at) {}
@@ -115,10 +119,27 @@ public final class LynaAuthenticator implements ServerAuthenticator {
             remembered.remove(hash);
             return new Authentication.Refused(ErrorCode.UNAUTHORIZED, "The key is not a Companies dashboard key");
         }
+        if (verification.rotated()) {
+            long count = rotated.incrementAndGet();
+            log.info(
+                    "Key {} connected with its previous dashboard key inside the grace period ({} so far)",
+                    keyId,
+                    count);
+        }
         Instant now = clock.instant();
         remembered.values().removeIf(entry -> entry.at().isBefore(now.minus(config.cache())));
         remembered.put(hash, new Remembered(verification, now));
         return new Authentication.Accepted("lyna:" + keyId, verification.kind());
+    }
+
+    /**
+     * Connections made with a key that was already rotated, which happens when a node connects just after another
+     * node of its network traded the key. Many of them mean nodes do not read the current key from the database.
+     *
+     * @return how many connections used a rotated key since the start
+     */
+    public long rotatedConnections() {
+        return rotated.get();
     }
 
     private Verification verify(String key) throws Unavailable {

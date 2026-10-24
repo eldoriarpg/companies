@@ -48,9 +48,17 @@ final class FakeLyna implements AutoCloseable {
     }
 
     void valid(String key, String keyId, int product, String kind) {
+        answer(key, keyId, product, kind, false);
+    }
+
+    void rotated(String key, String keyId) {
+        answer(key, keyId, 2, "BOUGHT", true);
+    }
+
+    private void answer(String key, String keyId, int product, String kind, boolean rotated) {
         answers.put(key, """
                 {"valid":true,"product":%d,"kind":"%s","keyId":"%s","name":"Test key",
-                 "refreshAt":"2026-10-31T00:00:00Z","rotated":false}""".formatted(product, kind, keyId));
+                 "refreshAt":"2026-10-31T00:00:00Z","rotated":%s}""".formatted(product, kind, keyId, rotated));
     }
 
     void invalid(String key, String reason) {
