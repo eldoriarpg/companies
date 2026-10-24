@@ -26,6 +26,7 @@ export const ICONS = {
     info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7h.01',
     chevronDown: 'M6 9l6 6 6-6',
     plus: 'M12 5v14M5 12h14',
+    admin: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
     pencil: 'M4 20h4L19 9l-4-4L4 16zM13 7l4 4',
     trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
 } as const

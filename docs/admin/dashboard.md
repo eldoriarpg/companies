@@ -118,7 +118,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings` and `market`; the other parts arrive with later versions. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`; the other parts arrive with later versions. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is your `server-icon.png`. |
 
@@ -141,6 +141,19 @@ next time they are online.
 Players use the dashboard while they are not on the server. Their server permissions cannot be checked then, so the
 plugin remembers the ones that matter to the dashboard when the login starts and refreshes them while the player is
 online. Company permissions are always current.
+
+## Admin tools
+
+Players with admin rights get an *Admin* section on the dashboard; other players never see it, and the gateway does not
+even list the admin parts to them. Each tool works only with the permission of its `/companyadmin` command, checked by
+the plugin, and every change is written to the server log as `[admin] <name> (dashboard) …`, like the commands write
+it.
+
+| Tab | What it does | Permission | Same as |
+|---|---|---|---|
+| Orders | Open any order by id or find the orders of a player or company; take a claimed order from its company, mark it delivered, delete it with or without refund, give it more time. Every change asks once more and names the money it moves. | `companies.admin.orders` | `/companyadmin order …` |
+
+Switch a tool off with `dashboard.features` like any other part, for example `admin.orders: false`.
 
 ## Several servers
 

@@ -31,6 +31,7 @@ export const SESSIONS = {
     MOSS01: {version: SUPPORTED, stream: 'deliver'},
     CALM01: {version: SUPPORTED},
     LONE01: {version: SUPPORTED, company: false},
+    ADMN01: {version: SUPPORTED, admin: true},
     NOMK01: {version: SUPPORTED, features: ['orders.browse', 'inbox', 'rankings']},
     DEPR01: {
         version: {

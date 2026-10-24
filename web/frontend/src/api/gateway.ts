@@ -69,6 +69,8 @@ export interface ServerInfo {
     deprecated: DeprecatedPart[]
     /** Whether a node of the server takes requests; while none does, the features are not to be trusted. */
     online: boolean
+    /** Whether the player has admin rights; the admin features are listed for them only. */
+    admin?: boolean
 }
 
 /** Why a call failed, as the gateway names it in the body of every answer that is not 2xx. */
@@ -384,6 +386,60 @@ export interface OrderQuote {
     total: number
 }
 
+/** One line of an order as an admin sees it. */
+export interface AdminOrderLine {
+    item: ItemView
+    delivered: number
+    price: number
+    /** Who delivered how many, by name. */
+    workers: Record<string, number>
+}
+
+/** An order as an admin sees it, whoever owns or works on it. */
+export interface AdminOrder {
+    id: number
+    name: string
+    state: OrderState
+    owner: PlayerRef
+    /** The company working on it, none while open or worked on alone. */
+    company?: string | null
+    /** The player working on it alone. */
+    soloWorker?: string | null
+    created: string
+    /** When it runs out, none once delivered. */
+    deadline?: string | null
+    /** Whether the open order is removed at the deadline rather than being due. */
+    removal: boolean
+    price: number
+    fee: number
+    lines: AdminOrderLine[]
+    /** What cancelling with a refund gives the owner back. */
+    refundOnCancel: number
+    /** What cancelling without a refund hands to the collector. */
+    keptOnCancel: number
+    /** What marking it delivered refunds the owner for the missing items. */
+    refundOnDeliver: number
+}
+
+/** An order of a page of an admin search. */
+export interface AdminOrderRow {
+    id: number
+    name: string
+    state: OrderState
+    owner: string
+    /** The company or the player working on it, none while open. */
+    claimant?: string | null
+    created: string
+}
+
+/** A page of an admin search. */
+export interface AdminOrderPage {
+    target: string
+    page: number
+    hasNext: boolean
+    orders: AdminOrderRow[]
+}
+
 /** The read actions of the dashboard with their arguments and the `data` of their answer. */
 export interface ReadActions {
     'orders.browse.search': {args: OrderSearchArgs, result: OrderSearchPage}
@@ -423,6 +479,12 @@ export interface OrderRef {
  */
 export interface WriteActions {
     'orders.create': {args: OrderCreateArgs, result: OrderRef & OrderQuote}
+    'admin.orders.info': {args: OrderRef, result: AdminOrder}
+    'admin.orders.search': {args: {player?: string, company?: string, page: number}, result: AdminOrderPage}
+    'admin.orders.unclaim': {args: OrderRef, result: OrderRef & {workers: number}}
+    'admin.orders.cancel': {args: OrderRef & {refund: boolean}, result: OrderRef & {refunded: number, collected: number}}
+    'admin.orders.deliver': {args: OrderRef, result: OrderRef & {refund: number}}
+    'admin.orders.extend': {args: OrderRef & {hours: number}, result: OrderRef & {hours: number}}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

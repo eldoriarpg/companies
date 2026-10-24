@@ -141,7 +141,9 @@ function route(method, path, body, session) {
  */
 function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
-    return {server: {name: 'Mossvale SMP'}, features: session.story.features ?? FEATURES, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline}
+    const admin = Boolean(session.story.admin)
+    const features = admin ? [...(session.story.features ?? FEATURES), 'admin.orders'] : session.story.features ?? FEATURES
+    return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin}
 }
 
 /**
@@ -179,6 +181,24 @@ function companyless(session) {
     const body = snapshot(session)
     delete body.company
     return {...body, player: {...body.player, company: null, permissions: []}}
+}
+
+/** The order the mock's admin looks at. */
+const ADMIN_ORDER = {
+    id: 301,
+    name: 'Harbour wall',
+    state: 'CLAIMED',
+    owner: {uuid: '00000000-0000-0000-0000-0000000000a1', name: 'Orla'},
+    company: 'Stonebridge Builders',
+    created: '2026-10-20T08:00:00Z',
+    deadline: '2026-10-27T08:00:00Z',
+    removal: false,
+    price: 1100,
+    fee: 55,
+    lines: [{item: {material: 'minecraft:stone_bricks', name: 'Stone Bricks', amount: 512, icon: 'stone_bricks'}, delivered: 200, price: 1100, workers: {Kestrel_: 120, mossycobble: 80}}],
+    refundOnCancel: 1155,
+    keptOnCancel: 1155,
+    refundOnDeliver: 670,
 }
 
 /** The most items an order may hold on the mock server. */
@@ -222,6 +242,20 @@ function action(name, args, state) {
                 return {type: 'action.result', v: 1, ok: false, reason: 'error.orderLimit', message: 'Your company works on as many orders as its level allows.'}
             }
             return done({order: args.order})
+        case 'admin.orders.info':
+            if (args.order !== ADMIN_ORDER.id) return refused('There is no order with this id.')
+            return done(ADMIN_ORDER)
+        case 'admin.orders.search':
+            if (args.player && args.player.toLowerCase() !== 'orla') return refused('This player is not known.')
+            return done({target: 'Orla', page: 1, hasNext: false, orders: [{id: ADMIN_ORDER.id, name: ADMIN_ORDER.name, state: 'CLAIMED', owner: 'Orla', claimant: 'Stonebridge Builders', created: ADMIN_ORDER.created}]})
+        case 'admin.orders.cancel':
+            return done({order: args.order, refunded: args.refund ? 1155 : 0, collected: args.refund ? 0 : 1155})
+        case 'admin.orders.unclaim':
+            return done({order: args.order, workers: 2})
+        case 'admin.orders.deliver':
+            return done({order: args.order, refund: 300})
+        case 'admin.orders.extend':
+            return done({order: args.order, hours: args.hours})
         case 'company.create':
             if (args.name === 'Taken') return refused('A company with this name already exists.')
             return done(args.quote ? {name: args.name, price: 5000} : {company: 8, price: 5000})

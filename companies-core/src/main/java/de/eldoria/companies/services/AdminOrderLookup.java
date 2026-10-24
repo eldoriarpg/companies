@@ -130,7 +130,10 @@ public final class AdminOrderLookup {
      */
     public List<Row> page(@Nullable UUID owner, @Nullable Integer company, int page, int size) {
         Map<Integer, Optional<String>> claimants = new HashMap<>();
-        return orders.retrieveOrdersForAdmin(owner, company, Math.max(1, page), size).join().stream()
+        var found = orders.retrieveOrdersForAdmin(owner, company, Math.max(1, page), size)
+                .join();
+        if (found == null) return List.of();
+        return found.stream()
                 .map(order -> new Row(order, names.apply(order.owner()), claimantName(order, claimants)))
                 .toList();
     }

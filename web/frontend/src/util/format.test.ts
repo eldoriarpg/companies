@@ -5,7 +5,7 @@
  */
 /** @vitest-environment happy-dom */
 import {describe, expect, it} from 'vitest'
-import {arrow, compact, count, hoursLeft, money, moneyChange, parseAmount, percentChange, signedMoney, trendOf, when} from './format'
+import {arrow, compact, count, dateTime, hoursLeft, money, moneyChange, parseAmount, percentChange, signedMoney, trendOf, when} from './format'
 
 /** How numbers, changes and times read on the dashboard. */
 describe('format', () => {
@@ -64,5 +64,9 @@ describe('format', () => {
         expect(parseAmount('abc')).toBeNaN()
         expect(parseAmount('-5')).toBeNaN()
         expect(parseAmount('')).toBeNaN()
+    })
+
+    it('writes a moment in full with date and time', () => {
+        expect(dateTime('2026-10-24T14:05:00Z', 'en')).toMatch(/2026/)
     })
 })
