@@ -107,7 +107,7 @@ reason `INVALID`.
 
 | Event                             | When                                                                                              | Thread                   | Cancellable | Key methods                                                        |
 |-----------------------------------|---------------------------------------------------------------------------------------------------|--------------------------|-------------|--------------------------------------------------------------------|
-| `PreCompanyCreateEvent`           | A player confirmed founding a company. Before the founding price is charged; only while the founder is online | Either, usually main     | With reason | `player()`, `name()`, `price()`                                    |
+| `PreCompanyCreateEvent`           | A player confirmed founding a company, before it is charged; only while the founder is online     | Either, usually main     | With reason | `player()`, `name()`, `price()`                                    |
 | `CompanyCreateEvent`              | A company was founded and saved                                                                   | Either, usually off main | No          | `company()`, `player()` (the founder)                              |
 | `CompanyRenameEvent`              | A company was renamed, by its owner or an admin                                                   | Either, usually off main | No          | `oldName()`, `newName()`, `actor()`, `byAdmin()`                   |
 | `CompanyOwnerTransferEvent`       | The ownership passed to another member, by the owner or an admin                                  | Either, usually off main | No          | `previousOwner()`, `newOwner()`, `byAdmin()`                       |

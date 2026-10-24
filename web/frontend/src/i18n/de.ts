@@ -188,6 +188,7 @@ export default {
     },
     portfolio: {
         keepScreenOn: 'Bildschirm anlassen',
+        noCompanyFound: 'Du bist in keinem Unternehmen. Tritt im Spiel einem bei oder gründe dein eigenes auf der Unternehmensseite.',
         noCompany: 'Du bist in keiner Firma. Tritt im Spiel einer bei oder gründe deine eigene.',
         invited: 'Du bist zu {company} eingeladen.',
         treasuryOf: 'Kasse · {company}',

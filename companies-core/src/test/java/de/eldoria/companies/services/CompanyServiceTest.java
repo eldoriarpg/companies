@@ -188,22 +188,23 @@ class CompanyServiceTest {
     }
 
     @Test
-    void twoFoundingsAtOnceChargeOnceAndFoundOne() {
-        var founder = player(2 * FOUNDING + 10);
+    void foundingsAtOnceChargeOnceAndFoundOne() {
+        var founder = player(3 * FOUNDING + 10);
 
         var first = service.found(founder.getUniqueId(), "Smiths");
         var second = service.found(founder.getUniqueId(), "Masons");
-        var results = List.of(first.join(), second.join());
+        var third = service.found(founder.getUniqueId(), "Carvers");
+        var results = List.of(first.join(), second.join(), third.join());
 
         assertEquals(
                 1, results.stream().filter(ActionResult.Done.class::isInstance).count());
         assertEquals(
-                List.of("error.alreadyMember"),
+                List.of("error.alreadyMember", "error.alreadyMember"),
                 results.stream()
                         .filter(ActionResult.Refused.class::isInstance)
                         .map(CompanyServiceTest::refusalKey)
                         .toList());
-        assertEquals(FOUNDING + 10, wallet(founder));
+        assertEquals(2 * FOUNDING + 10, wallet(founder));
     }
 
     @Test

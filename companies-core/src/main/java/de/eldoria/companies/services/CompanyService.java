@@ -160,7 +160,9 @@ public final class CompanyService {
      * Founds a company with the actor as owner and charges the founding price. Integrations may refuse it through
      * {@link PreCompanyCreateEvent} before the founder is charged, which only fires while the founder is online on
      * this server. A company that could not be saved refunds the price. Foundings of one player on this server run one
-     * after the other, so two founded at once, from the dashboard and in game, cannot both pass the membership check.
+     * after the other, so two founded at once, from the dashboard and in game, cannot both pass the membership check;
+     * the lock of a player who founded once is kept, since dropping it lets a later founding take a new lock while
+     * another still waits on the old one.
      *
      * @param actor player who founds the company
      * @param name  name of the company
@@ -189,7 +191,6 @@ public final class CompanyService {
             return foundLocked(actor, name);
         } finally {
             lock.unlock();
-            founding.remove(actor, lock);
         }
     }
 

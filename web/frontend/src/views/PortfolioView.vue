@@ -5,6 +5,7 @@
  */
 <script lang="ts" setup>
 import {Feature} from '~/api/generated/protocol'
+import ButtonLink from '@/components/button/ButtonLink.vue'
 import Alert from '@/components/feedback/Alert.vue'
 import ToggleSwitch from '@/components/input/ToggleSwitch.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
@@ -39,7 +40,8 @@ onMounted(() => {
     </div>
     <Alert v-if="placed" variant="success">{{ t('builder.placed', {name: placed}) }}</Alert>
     <Alert v-if="snapshot && !company" variant="notice">
-      <span>{{ t(supports(Feature['company.create']) ? 'company.noCompanyFound' : 'portfolio.noCompany') }}</span>
+      <span>{{ t(supports(Feature['company.create']) ? 'portfolio.noCompanyFound' : 'portfolio.noCompany') }}</span>
+      <ButtonLink v-if="supports(Feature['company.create'])" :to="{name: 'company'}" class="self-start">{{ t('company.foundTitle') }}</ButtonLink>
       <span v-for="invite in snapshot.player.invites" :key="invite.company">{{ t('portfolio.invited', {company: invite.name}) }}</span>
     </Alert>
     <div v-if="snapshot" class="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">

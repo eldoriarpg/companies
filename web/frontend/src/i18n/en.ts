@@ -188,6 +188,7 @@ export default {
     },
     portfolio: {
         keepScreenOn: 'Keep screen on',
+        noCompanyFound: 'You are not in a company. Join one in game, or found your own on the company page.',
         noCompany: 'You are not in a company. Join one or found your own in game.',
         invited: 'You are invited to {company}.',
         treasuryOf: 'Treasury · {company}',
