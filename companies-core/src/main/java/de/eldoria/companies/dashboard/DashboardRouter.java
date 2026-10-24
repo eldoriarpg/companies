@@ -49,8 +49,8 @@ import java.util.logging.Logger;
  * Every request about a session is checked against the plugin's own sessions first: a session the plugin did not
  * create, that ended or that belongs to another player is answered with {@link ErrorCode#UNKNOWN_SESSION}, so a
  * compromised gateway cannot invent a player. A snapshot request subscribes the session to patches. While the plugin
- * version is discontinued only pings and the welcome are handled; everything else is refused with
- * {@link ErrorCode#DISCONTINUED}. Snapshots and actions are built on the work executor, everything else in order of
+ * version is discontinued only pings, the welcome and unsubscribes are handled, and a discontinued welcome drops every
+ * subscription; everything else is refused with {@link ErrorCode#DISCONTINUED}. Snapshots and actions are built on the work executor, everything else in order of
  * arrival.
  */
 public final class DashboardRouter {
@@ -74,6 +74,7 @@ public final class DashboardRouter {
             case Ping ping -> parts.link().send(new Pong(ping.id(), Protocol.VERSION, ping.time()));
             case Pong ignored -> {}
             case ErrorMessage error -> parts.status().error(error);
+            case Unsubscribe unsubscribe -> parts.feed().unsubscribe(unsubscribe.session());
             default -> {
                 if (parts.status().discontinued()) {
                     refuse(message, ErrorCode.DISCONTINUED, "This plugin version is discontinued.");
@@ -90,7 +91,6 @@ public final class DashboardRouter {
             case SessionClosed closed -> closed(closed);
             case SnapshotRequest request -> snapshot(request);
             case Subscribe subscribe -> subscribe(subscribe);
-            case Unsubscribe unsubscribe -> parts.feed().unsubscribe(unsubscribe.session());
             case ActionRequest action -> action(action);
             case UnknownMessage unknown -> refuse(unknown, ErrorCode.UNKNOWN_TYPE, "Unknown message type.");
             default -> refuse(message, ErrorCode.INVALID, "Not expected from the gateway.");

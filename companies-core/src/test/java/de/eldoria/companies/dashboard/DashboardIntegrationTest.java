@@ -37,6 +37,7 @@ import de.eldoria.companies.web.api.session.SessionOpened;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
+import de.eldoria.companies.web.api.update.Unsubscribe;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -355,6 +356,12 @@ class DashboardIntegrationTest {
             TimeUnit.MILLISECONDS.sleep(20);
         }
         assertEquals(0, dashboard.status().get().subscriptions());
+
+        gateway.send(new Unsubscribe("unsub", Protocol.VERSION, session));
+        gateway.send(new SnapshotRequest("late", Protocol.VERSION, session, wren));
+        var refused = gateway.next(ErrorMessage.class, WAIT);
+        assertEquals("late", refused.id());
+        assertEquals(ErrorCode.DISCONTINUED, refused.code());
     }
 
     @Test
