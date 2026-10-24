@@ -15,7 +15,7 @@ import rule from './route-view-content.mjs'
  *
  * @vitest-environment node
  */
-const PAGE = join(import.meta.dirname, 'fixtures', 'pages', 'src', 'pages', 'catalogs', 'index.vue')
+const PAGE = join(import.meta.dirname, 'fixtures', 'pages', 'src', 'pages', 'orders', 'index.vue')
 
 /** A page of the fixture tree rendering the named view under the given layout. */
 function page(view: string, layout = 'default') {
@@ -25,7 +25,7 @@ import ${view} from '~/views/${view}.vue'
 
 definePageMeta({
   layout: '${layout}',
-  name: 'catalogs',
+  name: 'orders',
 })
 </script>
 
@@ -51,13 +51,13 @@ tester.run('route-view-content', rule, {
             name: 'a view that never reaches a ViewContent',
             filename: PAGE,
             code: page('BareView'),
-            errors: [{messageId: 'noViewContent', data: {name: 'catalogs', path: 'catalogs'}}],
+            errors: [{messageId: 'noViewContent', data: {name: 'orders', path: 'orders'}}],
         },
         {
             name: 'a view whose delegate takes its title from a prop nobody passes',
             filename: PAGE,
             code: page('DelegatingView'),
-            errors: [{messageId: 'untitled', data: {name: 'catalogs', path: 'catalogs', delegate: 'CatalogShell', missing: '`heading`'}}],
+            errors: [{messageId: 'untitled', data: {name: 'orders', path: 'orders', delegate: 'OrderShell', missing: '`heading`'}}],
         },
     ],
 })

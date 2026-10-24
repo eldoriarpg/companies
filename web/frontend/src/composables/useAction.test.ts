@@ -41,6 +41,15 @@ describe('an action', () => {
         expect(action.problem.value).toBeNull()
     })
 
+    it('reports a request the browser gave up waiting for as uncertain', async () => {
+        const api = fakeApi()
+        api.act = vi.fn().mockRejectedValue(new AxiosError('slow', AxiosError.ECONNABORTED)) as unknown as GatewayApi['act']
+        const action = useAction(api)
+
+        expect(await action.run('orders.own.cancel', {order: 4})).toBeNull()
+        expect(action.problem.value).toEqual({kind: 'uncertain'})
+    })
+
     it('does not call a refusal without a sentence offline', async () => {
         const api = fakeApi()
         api.act = vi.fn().mockRejectedValue(new ActionRefused('error.unknown', '')) as unknown as GatewayApi['act']

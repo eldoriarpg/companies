@@ -8,10 +8,10 @@ import {attributeOf, boundExpression, callOf, elementsOf, findAll, pageOf, readC
 /**
  * Finds pages whose address names one particular thing while their title names only the kind.
  *
- * <p>An address with a parameter in it points at one catalogue, one ticket, one member, and the
+ * <p>An address with a parameter in it points at one order, one company, one member, and the
  * title of such a page should say which: `ViewContent` writes it into the shared header, the
  * browser tab and every bookmark. Titled after the kind, a dozen open tabs all read
- * "Catalogue" and none of them says which catalogue.
+ * "Order" and none of them says which order.
  *
  * <p>What counts as naming the thing is that the title depends on something the page loaded. A
  * title that is nothing but a translated constant cannot; one falling back to that constant while

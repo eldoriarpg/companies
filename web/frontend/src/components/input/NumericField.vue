@@ -11,8 +11,8 @@ import {FIELD_CLASSES} from './inputClasses'
 /**
  * A number typed as text and read by the caller's parser, so a German "1.000,50" means what the player meant rather
  * than what a browser's number field makes of it. The model holds the number, or nothing while the field is empty,
- * unreadable or outside its bounds; the field then shows itself invalid and says underneath what it expects. Setting the model from outside rewrites the
- * text, unless the text already reads as that number.
+ * unreadable or outside its bounds; the field then shows itself invalid and says underneath what it expects. Setting
+ * the model from outside rewrites the text, unless the text already reads as that number.
  */
 const model = defineModel<number | undefined>()
 

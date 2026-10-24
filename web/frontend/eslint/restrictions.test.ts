@@ -44,7 +44,7 @@ holds(INLINE_STATE_TYPE, [
 
 holds(GENERIC_FAILURE, [
     "t('market.failed')",
-    'describeFailure(error, t)',
+    'describeKind(kindOf(error), t)',
 ], [
     "t('failure.unknown.message')",
     "i18n.t('failure.offline.guidance')",

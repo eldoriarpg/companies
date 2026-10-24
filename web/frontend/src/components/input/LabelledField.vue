@@ -8,8 +8,9 @@ import {useId} from 'vue'
 
 /**
  * One field with its label above it and, where there is one, a line underneath saying what it is for. The slot is
- * handed the `id` the label points at, the label's own `labelId` and the `hintId` the field is described by; binding both on the field is what
- * ties the three together for a screen reader.
+ * handed the `id` the label points at, the label's own `labelId` and the `hintId` the field is described by. Binding
+ * the id and the hint on the field ties them together for a screen reader; a field whose name is more than its label
+ * points at the `labelId` itself.
  */
 defineProps<{
   label: string

@@ -5,6 +5,6 @@
  */
 <template>
   <div>
-    <p>{{ $t('pages.catalog.intro') }}</p>
+    <p>{{ $t('pages.order.intro') }}</p>
   </div>
 </template>

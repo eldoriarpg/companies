@@ -4,13 +4,13 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script setup lang="ts">
-import CatalogShell from './CatalogShell.vue'
+import OrderShell from './OrderShell.vue'
 
 const {t} = useI18n()
 </script>
 
 <template>
-  <CatalogShell :heading="t('pages.catalog.title')">
-    <p>{{ t('pages.catalog.intro') }}</p>
-  </CatalogShell>
+  <OrderShell :heading="t('pages.order.title')">
+    <p>{{ t('pages.order.intro') }}</p>
+  </OrderShell>
 </template>

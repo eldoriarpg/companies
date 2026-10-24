@@ -3,7 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-import {type FailureKindName, kindOf} from '~/util/failure'
+import {FailureKind, type FailureKindName, kindOf} from '~/util/failure'
 import {ActionRefused, gatewayApi, gatewayFailure, type GatewayApi, type WriteAction, type WriteActions} from '~/api/gateway'
 
 /**
@@ -67,6 +67,7 @@ export function useAction(api: GatewayApi = gatewayApi()) {
  */
 function problemOf(error: unknown): ActionProblem {
     if (error instanceof ActionRefused && error.message !== '') return {kind: 'refused', text: error.message}
-    if (gatewayFailure(error).status === NO_ANSWER_IN_TIME) return {kind: 'uncertain'}
-    return {kind: 'failed', cause: kindOf(error)}
+    const cause = kindOf(error)
+    if (gatewayFailure(error).status === NO_ANSWER_IN_TIME || cause === FailureKind.TIMEOUT) return {kind: 'uncertain'}
+    return {kind: 'failed', cause}
 }

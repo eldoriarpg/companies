@@ -29,12 +29,12 @@ export function restrictSyntax(...restrictions) {
 }
 
 /**
- * A failure worded by hand. `describeFailure` in `util/failure.ts` says what failed and what to do about it, and the
+ * A failure worded by hand. `describeKind` in `util/failure.ts` says what failed and what to do about it, and the
  * failure texts are only ever reached through it.
  */
 export const GENERIC_FAILURE = {
     selector: "CallExpression:matches([callee.name=/^\\$?t$/], [callee.property.name='t'])[arguments.0.value=/^failure\\./]",
-    message: 'A failure worded by hand. Describe it: describeFailure(e, t) or describeKind(kind, t) from util/failure.ts.',
+    message: 'A failure worded by hand. Describe it: describeKind(kindOf(e), t) from util/failure.ts.',
 }
 
 /**

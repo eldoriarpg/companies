@@ -5,11 +5,11 @@
  */
 <script setup lang="ts">
 const {t} = useI18n()
-const catalog = ref<{name: string} | null>(null)
+const order = ref<{name: string} | null>(null)
 </script>
 
 <template>
-  <ViewContent :title="catalog?.name || t('pages.catalog.title')">
-    <p>{{ t('pages.catalog.intro') }}</p>
+  <ViewContent :title="order?.name || t('pages.order.title')">
+    <p>{{ t('pages.order.intro') }}</p>
   </ViewContent>
 </template>
