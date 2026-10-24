@@ -187,7 +187,8 @@ public final class Views {
                 company.map(ICompanyProfile::id).orElse(null),
                 permissions,
                 invites(player),
-                unreadInbox(player));
+                unreadInbox(player),
+                null);
     }
 
     /**

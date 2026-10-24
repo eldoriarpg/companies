@@ -21,6 +21,7 @@ import de.eldoria.companies.web.api.link.Ping;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.CreateSession;
+import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
@@ -67,6 +68,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * a fake plugin node and a fake browser.
  */
 class HostedGatewayTest {
+    private static final List<String> DELIVERING = List.of(Features.ORDERS_BROWSE, Features.ORDERS_DELIVER);
     private static final UUID PLAYER = UUID.fromString("a3b1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d");
     private static final String PLUGIN = "2.2.0";
     private static FakeLyna lyna;
@@ -1111,6 +1113,80 @@ class HostedGatewayTest {
             secondary.expect(Subscribe.class);
             primary.sendRaw(Recorded.snapshot(request.id(), request.session(), primaryId, 1));
             assertEquals(200, response.join().statusCode());
+        }
+    }
+
+    @Test
+    void routesItemActionsToTheNodeThePlayerIsOn() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        try (FakeNode secondary = FakeNode.welcomed(
+                        gateway,
+                        FakeNode.hello(
+                                KeyKind.DASHBOARD_KEY,
+                                key,
+                                secondaryId,
+                                NodeRole.SECONDARY,
+                                PLUGIN,
+                                DELIVERING,
+                                null));
+                FakeNode primary = FakeNode.welcomed(
+                        gateway,
+                        FakeNode.hello(
+                                KeyKind.DASHBOARD_KEY, key, primaryId, NodeRole.PRIMARY, PLUGIN, DELIVERING, null))) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.21");
+            login(secondary, browser, create(secondary, secondaryId));
+            String deliver = "{\"name\":\"orders.deliver.all\",\"args\":{\"order\":4}}";
+
+            CompletableFuture<HttpResponse<String>> onSecondary = browser.postAsync("/api/v1/me/actions", deliver);
+            answer(secondary, secondary.expect(ActionRequest.class), 1);
+            assertEquals(1, content(onSecondary.join()));
+            primary.assertQuietBut(SnapshotRequest.class);
+
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                assertEquals("server", stream.next().path("type").asString());
+                secondary.send(new PlayerPresence(null, 1, PLAYER, false));
+                JsonNode presence = stream.next();
+                assertEquals("presence", presence.path("type").asString());
+                assertFalse(presence.path("online").asBoolean());
+            }
+
+            CompletableFuture<HttpResponse<String>> onPrimary = browser.postAsync("/api/v1/me/actions", deliver);
+            answer(primary, primary.expect(ActionRequest.class), 2);
+            assertEquals(2, content(onPrimary.join()));
+        }
+    }
+
+    @Test
+    void forgetsThePlayersOfANodeThatWentAway() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        try (FakeNode primary = node(key, primaryId)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.22");
+            FakeNode secondary = FakeNode.welcomed(
+                    gateway,
+                    FakeNode.hello(
+                            KeyKind.DASHBOARD_KEY,
+                            key,
+                            secondaryId,
+                            NodeRole.SECONDARY,
+                            PLUGIN,
+                            FakeNode.FEATURES,
+                            null));
+            login(secondary, browser, create(secondary, secondaryId));
+            assertTrue(snapshot(primary, browser, primaryId, 1)
+                    .at("/player/online")
+                    .asBoolean());
+            secondary.expect(Subscribe.class);
+            try (FakeBrowser.Stream stream = browser.stream()) {
+                assertEquals("server", stream.next().path("type").asString());
+                secondary.close();
+                JsonNode presence = stream.next();
+                assertEquals("presence", presence.path("type").asString());
+                assertFalse(presence.path("online").asBoolean());
+            }
         }
     }
 

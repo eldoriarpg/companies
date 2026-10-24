@@ -19,6 +19,8 @@ import java.util.UUID;
  * @param permissions the player's permissions in the company
  * @param invites pending invites
  * @param unreadInbox the number of unread inbox entries
+ * @param online whether the player is online on a node of the server; the gateway fills it in from the nodes'
+ *               {@link de.eldoria.companies.web.api.session.PlayerPresence}, a plugin leaves it out
  */
 public record PlayerView(
         UUID uuid,
@@ -26,4 +28,5 @@ public record PlayerView(
         @Nullable Integer company,
         List<MemberPermission> permissions,
         List<InviteView> invites,
-        int unreadInbox) {}
+        int unreadInbox,
+        @Nullable Boolean online) {}

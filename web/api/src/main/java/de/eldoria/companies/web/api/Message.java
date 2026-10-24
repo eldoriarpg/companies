@@ -17,6 +17,7 @@ import de.eldoria.companies.web.api.link.Ping;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.link.UnknownMessage;
 import de.eldoria.companies.web.api.session.CreateSession;
+import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionCreated;
@@ -46,6 +47,7 @@ import org.jspecify.annotations.Nullable;
     @JsonSubTypes.Type(SessionConfirmed.class),
     @JsonSubTypes.Type(SessionClosed.class),
     @JsonSubTypes.Type(SessionsRevoked.class),
+    @JsonSubTypes.Type(PlayerPresence.class),
     @JsonSubTypes.Type(SnapshotRequest.class),
     @JsonSubTypes.Type(Snapshot.class),
     @JsonSubTypes.Type(Subscribe.class),

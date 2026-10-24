@@ -41,6 +41,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The gateway: the nodes' websocket ({@link NodeHub}), the sessions ({@link Sessions}), the snapshot cache
@@ -223,6 +224,11 @@ public final class GatewayApp {
         @Override
         public void sessionsRevoked(LiveServer server, SessionsRevoked message) {
             sessions.revokedByPlugin(server, message);
+        }
+
+        @Override
+        public void presence(LiveServer server, UUID player, boolean online) {
+            streams.pushPlayer(server.id(), player, GatewayEvent.presence(online));
         }
 
         @Override

@@ -92,7 +92,20 @@ public final class ReadRelay {
             Actions.PROFILE_RENAME,
             Actions.TREASURY_DEPOSIT,
             Actions.TREASURY_WITHDRAW,
-            Actions.TREASURY_SHARE);
+            Actions.TREASURY_SHARE,
+            Actions.ORDERS_DELIVER_LINE,
+            Actions.ORDERS_DELIVER_ALL,
+            Actions.ORDERS_DELIVER_RECEIVE,
+            Actions.ORDERS_DELIVER_COLLECT);
+
+    /**
+     * The actions that move items and so run with the player's inventory, on the node the player is online on.
+     */
+    public static final Set<String> PLAYER_ACTIONS = Set.of(
+            Actions.ORDERS_DELIVER_LINE,
+            Actions.ORDERS_DELIVER_ALL,
+            Actions.ORDERS_DELIVER_RECEIVE,
+            Actions.ORDERS_DELIVER_COLLECT);
 
     private static final long CACHE_SECONDS = 30;
     private static final Set<String> SESSION_ROOTS = Set.of("player", "company", "orders");

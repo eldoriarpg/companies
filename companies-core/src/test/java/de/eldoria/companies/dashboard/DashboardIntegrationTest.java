@@ -31,6 +31,7 @@ import de.eldoria.companies.web.api.link.ErrorCode;
 import de.eldoria.companies.web.api.link.ErrorMessage;
 import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.CreateSession;
+import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionCreated;
@@ -85,6 +86,7 @@ class DashboardIntegrationTest {
     private final List<String> opened = new CopyOnWriteArrayList<>();
     private final Set<String> disabled = ConcurrentHashMap.newKeySet();
     private final AtomicInteger disconnects = new AtomicInteger();
+    private final Set<UUID> onlineHere = ConcurrentHashMap.newKeySet();
     private DashboardWorld world;
     private FakeGateway gateway;
     private Dashboard dashboard;
@@ -139,6 +141,7 @@ class DashboardIntegrationTest {
                 (player, device) -> opened.add(player + " " + device.orElse("?")),
                 () -> disconnects.incrementAndGet(),
                 NODE,
+                () -> Set.copyOf(onlineHere),
                 world.executor,
                 logger));
         dashboard = new Dashboard(new Dashboard.Parts(
@@ -330,6 +333,19 @@ class DashboardIntegrationTest {
         var over = gateway.next(ActionResult.class, WAIT);
         assertFalse(over.ok());
         assertEquals("dashboard.rateLimited", over.reason());
+    }
+
+    @Test
+    void joinsAndQuitsOfPlayersWithASessionReachTheGateway() throws Exception {
+        connect(supported());
+        login();
+
+        dashboard.presence(UUID.randomUUID(), true);
+        dashboard.presence(wren, false);
+
+        var presence = gateway.next(PlayerPresence.class, WAIT);
+        assertEquals(wren, presence.player());
+        assertFalse(presence.online());
     }
 
     @Test

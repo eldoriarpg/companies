@@ -71,8 +71,10 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -230,6 +232,8 @@ public final class DashboardModule {
                         data.orders().requests(),
                         data.orders().defaultLimit(),
                         failure -> PlainText.of(failure.render(null, messages)))));
+        Set<UUID> onlineHere = ConcurrentHashMap.newKeySet();
+        plugin.getServer().getOnlinePlayers().forEach(player -> onlineHere.add(player.getUniqueId()));
         var started = new AtomicReference<Dashboard>();
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
@@ -253,6 +257,7 @@ public final class DashboardModule {
                     if (current != null) current.disconnect();
                 },
                 node,
+                () -> Set.copyOf(onlineHere),
                 Threading.VIRTUAL,
                 logger));
         var dashboard = new Dashboard(new Dashboard.Parts(
@@ -274,7 +279,7 @@ public final class DashboardModule {
                 logger));
         link.use(dashboard);
         started.set(dashboard);
-        var listener = new DashboardListener(dashboard, () -> messages);
+        var listener = new DashboardListener(dashboard, () -> messages, onlineHere);
         plugin.getServer().getPluginManager().registerEvents(new FeedListener(feed), plugin);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         plugin.getServer()

@@ -39,6 +39,7 @@ import io.javalin.websocket.WsConfig;
 import io.javalin.websocket.WsContext;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -262,7 +263,15 @@ public final class BrowserApi {
      */
     public void snapshot(Context ctx) {
         StoredSession session = session(ctx);
-        ctx.json(await(session, snapshots.snapshot(session)));
+        JsonNode snapshot = await(session, snapshots.snapshot(session));
+        if (snapshot.path("player") instanceof ObjectNode player) {
+            player.put(
+                    "online",
+                    hub.server(session.serverId())
+                            .map(live -> live.online(session.player()))
+                            .orElse(false));
+        }
+        ctx.json(snapshot);
     }
 
     /**
@@ -281,7 +290,8 @@ public final class BrowserApi {
         }
         if (!(write ? limits.writes() : limits.reads()).tryAcquire(session.id())) throw tooMany();
         LiveServer server = online(session);
-        NodeLink link = server.route().orElseThrow(BrowserApi::offline);
+        NodeLink link = (ReadRelay.PLAYER_ACTIONS.contains(name) ? server.routeFor(session.player()) : server.route())
+                .orElseThrow(BrowserApi::offline);
         String feature = Actions.feature(name);
         if (feature == null || !link.agreed().features().contains(feature)) {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "The server does not offer this");
@@ -336,6 +346,7 @@ public final class BrowserApi {
                     ctx.sessionId(),
                     found.id(),
                     found.serverId(),
+                    found.player(),
                     found.admin(),
                     new QueuedSocket(new JettySocket(ctx.session)));
             streams.reply(ctx.sessionId(), GatewayEvent.server(info));

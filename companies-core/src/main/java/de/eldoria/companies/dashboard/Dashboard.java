@@ -27,6 +27,7 @@ import de.eldoria.companies.web.api.handshake.Welcome;
 import de.eldoria.companies.web.api.link.ErrorMessage;
 import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.CreateSession;
+import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionCreated;
@@ -288,6 +289,24 @@ public final class Dashboard implements GatewayLink {
      */
     public CompletableFuture<List<StoredSession>> sessions(UUID player) {
         return CompletableFuture.supplyAsync(() -> parts.sessions().of(player), parts.work());
+    }
+
+    /**
+     * Tells the gateway that a player with a dashboard session joined or left this node, so it routes the actions that
+     * move items to where the player's inventory is. Players without a session are never reported.
+     *
+     * @param player the player
+     * @param online whether the player is now online on this node
+     */
+    public void presence(UUID player, boolean online) {
+        parts.work().execute(() -> {
+            try {
+                if (parts.sessions().of(player).isEmpty()) return;
+                send(new PlayerPresence(null, Protocol.VERSION, player, online));
+            } catch (RuntimeException e) {
+                parts.logger().log(Level.FINE, "Could not report a player's presence to the gateway.", e);
+            }
+        });
     }
 
     /**

@@ -11,6 +11,8 @@ import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.api.update.Patch;
 
+import java.util.UUID;
+
 /**
  * What the {@link NodeHub} hands on from the nodes. Calls arrive on the connection's thread, in the order the node
  * sent them; none may wait for an answer of a node.
@@ -41,6 +43,15 @@ public interface NodeEvents {
      * @param message the message
      */
     void sessionsRevoked(LiveServer server, SessionsRevoked message);
+
+    /**
+     * A player with a dashboard session came online on the server or went offline.
+     *
+     * @param server the server
+     * @param player the player
+     * @param online whether the player is now online on a node of the server
+     */
+    void presence(LiveServer server, UUID player, boolean online);
 
     /**
      * A node pushed a change of snapshots.
