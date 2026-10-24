@@ -32,6 +32,7 @@ mariadb = "org.mariadb.jdbc:mariadb-java-client:3.5.11"
 sqlite = "org.xerial:sqlite-jdbc:3.53.4.0"
 postgres = "org.postgresql:postgresql:42.7.14"
 jedis = "redis.clients:jedis:8.0.2"
+log4j-core = "org.apache.logging.log4j:log4j-core:2.25.2"
 
 sadu-queries = { module = "de.chojo.sadu:sadu-queries", version.ref = "sadu" }
 sadu-updater = { module = "de.chojo.sadu:sadu-updater", version.ref = "sadu" }
