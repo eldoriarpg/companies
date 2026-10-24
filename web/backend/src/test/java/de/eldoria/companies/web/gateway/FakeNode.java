@@ -129,22 +129,14 @@ final class FakeNode implements AutoCloseable {
 
     /**
      * Sends a text the gateway may refuse while it is still being written, as it closes the socket once it has read
-     * more than it allows.
-     *
-     * @return whether the whole text was written; when not, the gateway closed the socket during the write
+     * more than it allows. A close during the write is not an error; {@link #awaitClose()} reports how the socket ended.
      */
-    boolean sendRefusable(String text) {
+    void sendRefusable(String text) {
         try {
             socket.sendText(text, true).join();
-            return true;
         } catch (CompletionException e) {
-            if (e.getCause() instanceof IOException) return false;
-            throw e;
+            if (!(e.getCause() instanceof IOException)) throw e;
         }
-    }
-
-    boolean outputClosed() {
-        return socket.isOutputClosed();
     }
 
     Message next() {
