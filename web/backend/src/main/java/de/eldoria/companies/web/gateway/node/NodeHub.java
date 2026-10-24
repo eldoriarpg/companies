@@ -324,7 +324,8 @@ public final class NodeHub {
                 accepted.serverId(),
                 hello.plugin(),
                 status.status());
-        if (!discontinued) events.nodeReady(server, link);
+        if (discontinued) events.serverChanged(server);
+        else events.nodeReady(server, link);
     }
 
     private void discontinued(NodeLink link, Message message) {
@@ -346,7 +347,10 @@ public final class NodeHub {
         switch (message) {
             case Ping ping -> link.send(new Pong(ping.id(), v, ping.time()));
             case Pong ignored -> {}
-            case BrandingUpdate update -> branding(server.id(), update.branding());
+            case BrandingUpdate update -> {
+                branding(server.id(), update.branding());
+                events.serverChanged(server);
+            }
             case CreateSession request -> link.send(events.createSession(server, link, request));
             case SessionClosed closed -> events.sessionClosed(server, closed);
             case SessionsRevoked revoked -> events.sessionsRevoked(server, revoked);
@@ -420,6 +424,9 @@ public final class NodeHub {
 
         @Override
         public void nodeReady(LiveServer server, NodeLink link) {}
+
+        @Override
+        public void serverChanged(LiveServer server) {}
 
         @Override
         public void serverOffline(LiveServer server) {}

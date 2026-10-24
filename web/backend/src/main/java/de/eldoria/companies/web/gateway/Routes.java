@@ -15,24 +15,19 @@ public final class Routes {
     public static final String CONNECT = "/api/v1/servers/connect";
 
     /**
-     * {@code GET}: the gateway kind and the Turnstile site key.
-     */
-    public static final String CONFIG = "/api/v1/config";
-
-    /**
-     * {@code GET}: a pending session and its server's branding.
+     * {@code GET}: a pending session, its server's branding and version status, and the Turnstile site key.
      */
     public static final String PENDING = "/api/v1/s/{shortId}";
 
     /**
-     * {@code POST {code, turnstile}}: logs in with the code and sets the session cookie.
+     * {@code POST {code, turnstileToken}}: logs in with the code and sets the session cookie.
      */
     public static final String LOGIN = "/api/v1/s/{shortId}/login";
 
     /**
-     * {@code GET}: the logged in player, the server and the features.
+     * {@code GET}: the session's server: branding, features, limits, version status and deprecated parts.
      */
-    public static final String ME = "/api/v1/me";
+    public static final String SERVER = "/api/v1/me/server";
 
     /**
      * {@code POST}: ends the session.
@@ -40,19 +35,14 @@ public final class Routes {
     public static final String LOGOUT = "/api/v1/me/logout";
 
     /**
-     * {@code GET}: the session's snapshot with its revision.
+     * {@code GET}: the session's snapshot.
      */
     public static final String SNAPSHOT = "/api/v1/me/snapshot";
 
     /**
-     * {@code GET ?page&size&search}: a page of the company's members, from the snapshot.
+     * {@code POST {name, args}}: a read action forwarded to the server.
      */
-    public static final String MEMBERS = "/api/v1/me/members";
-
-    /**
-     * {@code POST} with the arguments as body: a read action forwarded to the server.
-     */
-    public static final String ACTION = "/api/v1/me/actions/{name}";
+    public static final String ACTIONS = "/api/v1/me/actions";
 
     /**
      * Websocket of the browser: patches and session events.

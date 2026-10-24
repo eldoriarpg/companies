@@ -6,6 +6,7 @@
 package de.eldoria.companies.web.gateway.session;
 
 import de.eldoria.companies.web.api.Message;
+import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.handshake.VersionState;
 import de.eldoria.companies.web.api.handshake.VersionStatus;
 import de.eldoria.companies.web.api.link.ErrorCode;
@@ -258,19 +259,6 @@ public final class Sessions {
     }
 
     /**
-     * When the session's bound browser ends.
-     *
-     * @param session the session
-     * @return when it ends without being used again
-     */
-    public Instant expires(StoredSession session) {
-        Instant byIdle = session.lastAccess().plus(idle);
-        Instant bound = session.boundAt();
-        Instant byAge = (bound == null ? session.created() : bound).plus(maxAge);
-        return byIdle.isBefore(byAge) ? byIdle : byAge;
-    }
-
-    /**
      * The browser logged out.
      *
      * @param session the session
@@ -332,7 +320,10 @@ public final class Sessions {
     private void end(StoredSession session, CloseReason reason, boolean tellPlugin) {
         snapshots.drop(session.id());
         reads.drop(session.id());
-        streams.end(session.id(), reason);
+        streams.end(
+                session.id(),
+                new SessionClosed(null, Protocol.VERSION, session.id(), session.player(), reason),
+                BrowserStreams.CLOSE_SESSION_ENDED);
         if (!tellPlugin) return;
         hub.server(session.serverId())
                 .flatMap(server -> server.routeTo(session.node()))

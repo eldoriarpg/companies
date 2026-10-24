@@ -6,7 +6,6 @@
 package de.eldoria.companies.web.gateway.browser;
 
 import de.eldoria.companies.web.api.Protocol;
-import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.gateway.Socket;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -27,6 +26,11 @@ public final class BrowserStreams {
      * Close code when the session ended or the cookie is not valid.
      */
     public static final int CLOSE_SESSION_ENDED = 4401;
+
+    /**
+     * Close code when the server's plugin version is discontinued on the dashboard.
+     */
+    public static final int CLOSE_DISCONTINUED = 4403;
 
     private static final long IDLE_SECONDS = 60;
     private static final JsonMapper MAPPER = Protocol.mapper();
@@ -84,19 +88,19 @@ public final class BrowserStreams {
 
     /**
      * @param socketId the websocket's id
-     * @param event the event to send to that stream only
+     * @param message the message for that stream only
      */
-    public void reply(String socketId, StreamEvent event) {
+    public void reply(String socketId, Object message) {
         Stream stream = streams.get(socketId);
-        if (stream != null) stream.socket.send(MAPPER.writeValueAsString(event));
+        if (stream != null) stream.socket.send(MAPPER.writeValueAsString(message));
     }
 
     /**
      * @param sessionId a session
-     * @param event the event for every stream of it
+     * @param message the message for every stream of it
      */
-    public void push(String sessionId, StreamEvent event) {
-        String text = MAPPER.writeValueAsString(event);
+    public void push(String sessionId, Object message) {
+        String text = MAPPER.writeValueAsString(message);
         for (Stream stream : List.copyOf(streams.values())) {
             if (stream.sessionId.equals(sessionId)) stream.socket.send(text);
         }
@@ -104,28 +108,29 @@ public final class BrowserStreams {
 
     /**
      * @param serverId a server
-     * @param event the event for every stream of its sessions
+     * @param message the message for every stream of its sessions
      */
-    public void pushServer(String serverId, StreamEvent event) {
-        String text = MAPPER.writeValueAsString(event);
+    public void pushServer(String serverId, Object message) {
+        String text = MAPPER.writeValueAsString(message);
         for (Stream stream : List.copyOf(streams.values())) {
             if (stream.serverId.equals(serverId)) stream.socket.send(text);
         }
     }
 
     /**
-     * Tells every stream of a session that it ended and closes them.
+     * Sends a last message to every stream of a session and closes them.
      *
      * @param sessionId the session
-     * @param reason why it ended
+     * @param message the last message, such as {@code session.closed}
+     * @param code the close code
      */
-    public void end(String sessionId, CloseReason reason) {
-        String text = MAPPER.writeValueAsString(StreamEvent.closed(reason));
+    public void end(String sessionId, Object message, int code) {
+        String text = MAPPER.writeValueAsString(message);
         streams.entrySet().removeIf(entry -> {
             Stream stream = entry.getValue();
             if (!stream.sessionId.equals(sessionId)) return false;
             stream.socket.send(text);
-            stream.socket.close(CLOSE_SESSION_ENDED, "Session ended");
+            stream.socket.close(code, code == CLOSE_DISCONTINUED ? "Discontinued" : "Session ended");
             return true;
         });
     }

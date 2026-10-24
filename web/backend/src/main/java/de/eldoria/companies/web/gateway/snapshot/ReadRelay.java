@@ -17,6 +17,7 @@ import tools.jackson.databind.node.ObjectNode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -27,8 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * keeps successful answers per session, action and arguments for {@value #CACHE_SECONDS} seconds. Search results are
  * not live; a browser asks again to refresh them.
  * <p>
- * Paging arguments are kept within the node's limits: {@code page} is at least 1 and {@code size} at most the node's
- * {@code maxPageSize}.
+ * Paging arguments are kept within the node's limits: {@code page} is at least 1 and {@code pageSize} (or
+ * {@code size}) at most the node's {@code maxPageSize}.
  */
 public final class ReadRelay {
     /**
@@ -50,6 +51,7 @@ public final class ReadRelay {
             Actions.MARKET_MOVERS);
 
     private static final long CACHE_SECONDS = 30;
+    private static final List<String> PAGE_SIZES = List.of("pageSize", "size");
     private final Map<String, Cached> answers = new ConcurrentHashMap<>();
     private final Clock clock;
     private final Duration timeout;
@@ -113,7 +115,9 @@ public final class ReadRelay {
     private static void limitPaging(ObjectNode args, int maxPageSize) {
         JsonNode page = args.get("page");
         if (page != null && page.isNumber() && page.asInt() < 1) args.put("page", 1);
-        JsonNode size = args.get("size");
-        if (size != null && size.isNumber()) args.put("size", Math.clamp(size.asInt(), 1, maxPageSize));
+        for (String field : PAGE_SIZES) {
+            JsonNode size = args.get(field);
+            if (size != null && size.isNumber()) args.put(field, Math.clamp(size.asInt(), 1, maxPageSize));
+        }
     }
 }

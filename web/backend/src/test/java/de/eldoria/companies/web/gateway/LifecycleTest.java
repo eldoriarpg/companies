@@ -19,16 +19,13 @@ import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionClosed;
-import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionCreated;
-import de.eldoria.companies.web.api.session.SessionOpened;
 import de.eldoria.companies.web.gateway.policy.VersionPolicy;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -36,7 +33,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -146,12 +142,12 @@ class LifecycleTest {
             FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.40");
             login(node, browser, create(node));
             CLOCK.advance(Duration.ofMinutes(59));
-            assertEquals(200, browser.get("/api/v1/me").statusCode());
+            assertEquals(200, browser.get("/api/v1/me/server").statusCode());
             CLOCK.advance(Duration.ofMinutes(61));
             keepAlive(node);
             gateway.app().sweep();
             assertEquals(CloseReason.IDLE, node.expect(SessionClosed.class).reason());
-            assertEquals(401, browser.get("/api/v1/me").statusCode());
+            assertEquals(401, browser.get("/api/v1/me/server").statusCode());
         }
     }
 
@@ -162,15 +158,15 @@ class LifecycleTest {
             node.expect(Welcome.class);
             login(node, browser, create(node));
         }
-        HostedGatewayTest.assertEventually(() -> !FakeBrowser.json(browser.get("/api/v1/me"))
-                .at("/server/online")
+        HostedGatewayTest.assertEventually(() -> !FakeBrowser.json(browser.get("/api/v1/me/server"))
+                .path("online")
                 .asBoolean());
         CLOCK.advance(Duration.ofMinutes(5));
         gateway.app().sweep();
-        assertEquals(200, browser.get("/api/v1/me").statusCode());
+        assertEquals(200, browser.get("/api/v1/me/server").statusCode());
         CLOCK.advance(Duration.ofMinutes(6));
         gateway.app().sweep();
-        assertEquals(401, browser.get("/api/v1/me").statusCode());
+        assertEquals(401, browser.get("/api/v1/me/server").statusCode());
     }
 
     private static SessionCreated create(FakeNode node) {
@@ -179,11 +175,7 @@ class LifecycleTest {
     }
 
     private static void login(FakeNode node, FakeBrowser browser, SessionCreated created) {
-        CompletableFuture<HttpResponse<String>> response =
-                browser.postAsync("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}");
-        SessionOpened opened = node.expect(SessionOpened.class);
-        node.send(new SessionConfirmed(opened.id(), 1, opened.session()));
-        assertEquals(200, response.join().statusCode());
+        HostedGatewayTest.login(node, browser, created);
     }
 
     private static void keepAlive(FakeNode node) {

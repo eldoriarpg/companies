@@ -97,17 +97,19 @@ class HostedGatewayTest {
         return FakeNode.welcomed(gateway, FakeNode.hello(KeyKind.DASHBOARD_KEY, key, uid, PLUGIN));
     }
 
-    private static SessionCreated create(FakeNode node, UUID uid) {
+    static SessionCreated create(FakeNode node, UUID uid) {
         node.send(new CreateSession("c", 1, new PlayerRef(PLAYER, "Steve"), uid));
         return node.expect(SessionCreated.class);
     }
 
-    private static HttpResponse<String> login(FakeNode node, FakeBrowser browser, SessionCreated created) {
+    static HttpResponse<String> login(FakeNode node, FakeBrowser browser, SessionCreated created) {
         CompletableFuture<HttpResponse<String>> response =
                 browser.postAsync("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}");
         SessionOpened opened = node.expect(SessionOpened.class);
         node.send(new SessionConfirmed(opened.id(), 1, opened.session()));
-        return response.join();
+        HttpResponse<String> answer = response.join();
+        assertEquals(204, answer.statusCode(), answer.body());
+        return answer;
     }
 
     private static JsonNode snapshot(FakeNode node, FakeBrowser browser, UUID uid, long seq) {
@@ -117,6 +119,10 @@ class HostedGatewayTest {
         HttpResponse<String> answer = response.join();
         assertEquals(200, answer.statusCode(), answer.body());
         return FakeBrowser.json(answer);
+    }
+
+    private static String error(HttpResponse<String> response) {
+        return FakeBrowser.json(response).path("error").asString();
     }
 
     @Test
@@ -225,14 +231,16 @@ class HostedGatewayTest {
             assertEquals(200, pending.statusCode(), pending.body());
             assertEquals(
                     "no-store", pending.headers().firstValue("Cache-Control").orElse(""));
-            assertEquals(
-                    "Stonecutter Isles",
-                    FakeBrowser.json(pending).at("/server/name").asString());
-            assertTrue(FakeBrowser.json(pending).at("/server/online").asBoolean());
+            JsonNode waiting = FakeBrowser.json(pending);
+            assertEquals("Stonecutter Isles", waiting.at("/server/name").asString());
+            assertEquals(5, waiting.path("attemptsLeft").asInt());
+            assertEquals("SUPPORTED", waiting.at("/version/status").asString());
+            assertFalse(waiting.has("turnstileSiteKey"));
 
             HttpResponse<String> wrong =
                     browser.post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"AAAAAA\"}");
             assertEquals(401, wrong.statusCode());
+            assertEquals("WRONG_CODE", error(wrong));
             assertEquals(4, FakeBrowser.json(wrong).path("attemptsLeft").asInt());
 
             CompletableFuture<HttpResponse<String>> response = browser.postAsync(
@@ -245,30 +253,36 @@ class HostedGatewayTest {
             assertEquals("Firefox on Android", opened.device());
             node.send(new SessionConfirmed(opened.id(), 1, opened.session()));
             HttpResponse<String> loggedIn = response.join();
-            assertEquals(200, loggedIn.statusCode(), loggedIn.body());
+            assertEquals(204, loggedIn.statusCode(), loggedIn.body());
             String setCookie = loggedIn.headers().firstValue("Set-Cookie").orElseThrow();
             assertTrue(setCookie.contains("HttpOnly"));
             assertTrue(setCookie.contains("SameSite=Strict"));
             assertTrue(setCookie.contains("Secure"));
             assertNotNull(browser.cookie());
 
-            JsonNode me = FakeBrowser.json(browser.get("/api/v1/me"));
-            assertEquals("Steve", me.at("/player/name").asString());
-            assertTrue(
-                    me.path("features").valueStream().anyMatch(f -> f.asString().equals("orders.browse")));
+            JsonNode server = FakeBrowser.json(browser.get("/api/v1/me/server"));
+            assertEquals("Stonecutter Isles", server.at("/server/name").asString());
+            assertTrue(server.path("features").valueStream().anyMatch(f -> f.asString()
+                    .equals("orders.browse")));
+            assertEquals(50, server.at("/limits/maxPageSize").asInt());
+            assertEquals("SUPPORTED", server.at("/version/status").asString());
+            assertTrue(server.path("online").asBoolean());
             assertEquals(404, browser.get("/api/v1/s/" + created.shortId()).statusCode());
 
             try (FakeBrowser.Stream stream = browser.stream()) {
-                assertEquals("server", stream.next().path("type").asString());
+                JsonNode hello = stream.next();
+                assertEquals("server", hello.path("type").asString());
+                assertEquals(
+                        "Stonecutter Isles", hello.at("/server/server/name").asString());
 
                 JsonNode first = snapshot(node, browser, uid, 10);
-                assertEquals(1, first.path("revision").asLong());
-                assertEquals(3, first.at("/snapshot/player/unreadInbox").asInt());
+                assertEquals("snapshot", first.path("type").asString());
+                assertEquals(3, first.at("/player/unreadInbox").asInt());
 
                 node.send(new Patch(
                         null,
                         1,
-                        List.of(created.session()),
+                        List.of(created.session(), "someone-else"),
                         uid,
                         11,
                         "player.unreadInbox",
@@ -277,12 +291,11 @@ class HostedGatewayTest {
                         JsonNodeFactory.instance.numberNode(5)));
                 JsonNode patch = stream.next();
                 assertEquals("patch", patch.path("type").asString());
-                assertEquals(2, patch.path("revision").asLong());
                 assertEquals(5, patch.path("value").asInt());
+                assertEquals(1, patch.path("sessions").size());
+                assertEquals(created.session(), patch.at("/sessions/0").asString());
 
-                JsonNode cached = FakeBrowser.json(browser.get("/api/v1/me/snapshot"));
-                assertEquals(2, cached.path("revision").asLong());
-                assertEquals(5, cached.at("/snapshot/player/unreadInbox").asInt());
+                assertEquals(5, cachedInbox(browser));
                 node.assertQuiet();
 
                 node.send(new Patch(
@@ -307,16 +320,11 @@ class HostedGatewayTest {
                         ((ObjectNode) Recorded.message("patch.json").path("value"))
                                 .put("uuid", "11111111-2222-4333-8444-555555555555")
                                 .put("name", "Kestrel_")));
-                assertEquals(3, stream.next().path("revision").asLong());
-                JsonNode members = FakeBrowser.json(browser.get("/api/v1/me/members?search=kes"));
-                assertEquals(1, members.path("total").asInt());
-                assertEquals("Kestrel_", members.at("/entries/0/name").asString());
-                assertEquals(
-                        3,
-                        FakeBrowser.json(browser.get("/api/v1/me/members"))
-                                .path("total")
-                                .asInt());
-                assertEquals(5, cachedInbox(browser));
+                assertEquals("company.members", stream.next().path("path").asString());
+                JsonNode cached = FakeBrowser.json(browser.get("/api/v1/me/snapshot"));
+                assertEquals(3, cached.at("/company/members").size());
+                assertEquals("Kestrel_", cached.at("/company/members/2/name").asString());
+                assertEquals(5, cached.at("/player/unreadInbox").asInt());
 
                 node.send(new Patch(
                         null,
@@ -330,33 +338,39 @@ class HostedGatewayTest {
                         JsonNodeFactory.instance.numberNode(7)));
                 SnapshotRequest reload = node.expect(SnapshotRequest.class);
                 node.sendRaw(Recorded.snapshot(reload.id(), reload.session(), uid, 14));
-                JsonNode reloaded = stream.next();
-                assertEquals("reload", reloaded.path("type").asString());
+                assertEquals("resync", stream.next().path("type").asString());
                 assertEquals(7, cachedInbox(browser));
+
+                stream.ping();
+                JsonNode pong = stream.next();
+                assertEquals("pong", pong.path("type").asString());
+                assertEquals("b-1", pong.path("id").asString());
             }
         }
     }
 
     private static int cachedInbox(FakeBrowser browser) {
         return FakeBrowser.json(browser.get("/api/v1/me/snapshot"))
-                .at("/snapshot/player/unreadInbox")
+                .at("/player/unreadInbox")
                 .asInt();
     }
 
     @Test
-    void forwardsReadRequestsWithinTheNodesLimits() {
+    void forwardsReadActionsWithinTheNodesLimits() {
         UUID uid = UUID.randomUUID();
         try (FakeNode node = node(key(), uid)) {
             FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.11");
-            assertEquals(200, login(node, browser, create(node, uid)).statusCode());
+            login(node, browser, create(node, uid));
 
-            CompletableFuture<HttpResponse<String>> search = browser.postAsync(
-                    "/api/v1/me/actions/orders.browse.search", "{\"query\":\"diamond\",\"page\":0,\"size\":500}");
+            String search = "{\"name\":\"orders.browse.search\",\"args\":{\"name\":\"diamond\",\"page\":0,"
+                    + "\"pageSize\":500,\"sort\":\"PRICE\"}}";
+            CompletableFuture<HttpResponse<String>> answer = browser.postAsync("/api/v1/me/actions", search);
             ActionRequest request = node.expect(ActionRequest.class);
             assertEquals("orders.browse.search", request.name());
             assertEquals(PLAYER, request.player());
             assertEquals(1, request.args().path("page").asInt());
-            assertEquals(50, request.args().path("size").asInt());
+            assertEquals(50, request.args().path("pageSize").asInt());
+            assertEquals("PRICE", request.args().path("sort").asString());
             node.send(new ActionResult(
                     request.id(),
                     1,
@@ -364,27 +378,27 @@ class HostedGatewayTest {
                     null,
                     null,
                     Recorded.message("action.result.data.json").path("data")));
-            HttpResponse<String> answer = search.join();
-            assertEquals(200, answer.statusCode(), answer.body());
-            assertTrue(FakeBrowser.json(answer).path("ok").asBoolean());
-            assertEquals(1, FakeBrowser.json(answer).at("/data/pages").asInt());
+            HttpResponse<String> result = answer.join();
+            assertEquals(200, result.statusCode(), result.body());
+            assertEquals("action.result", FakeBrowser.json(result).path("type").asString());
+            assertTrue(FakeBrowser.json(result).path("ok").asBoolean());
+            assertEquals(1, FakeBrowser.json(result).at("/data/pages").asInt());
 
-            HttpResponse<String> again = browser.post(
-                    "/api/v1/me/actions/orders.browse.search", "{\"query\":\"diamond\",\"page\":0,\"size\":500}");
-            assertEquals(200, again.statusCode());
+            assertEquals(200, browser.post("/api/v1/me/actions", search).statusCode());
             node.assertQuiet();
 
+            HttpResponse<String> write =
+                    browser.post("/api/v1/me/actions", "{\"name\":\"orders.accept\",\"args\":{\"order\":1}}");
+            assertEquals(403, write.statusCode());
+            assertEquals("UNAUTHORIZED", error(write));
             assertEquals(
                     403,
-                    browser.post("/api/v1/me/actions/orders.accept", "{\"order\":1}")
+                    browser.post("/api/v1/me/actions", "{\"name\":\"market.top\",\"args\":{\"page\":1}}")
                             .statusCode());
-            assertEquals(
-                    404, browser.post("/api/v1/me/actions/market.top", "{}").statusCode());
-            assertEquals(
-                    401,
-                    new FakeBrowser(gateway, "203.0.113.12")
-                            .post("/api/v1/me/actions/inbox.page", "{}")
-                            .statusCode());
+            HttpResponse<String> stranger = new FakeBrowser(gateway, "203.0.113.12")
+                    .post("/api/v1/me/actions", "{\"name\":\"inbox.page\",\"args\":{\"page\":1}}");
+            assertEquals(401, stranger.statusCode());
+            assertEquals("UNAUTHORIZED", error(stranger));
         }
     }
 
@@ -403,18 +417,18 @@ class HostedGatewayTest {
                 assertEquals(created.session(), closed.session());
                 assertEquals(CloseReason.LOGOUT, closed.reason());
                 JsonNode event = stream.next();
-                assertEquals("closed", event.path("type").asString());
+                assertEquals("session.closed", event.path("type").asString());
                 assertEquals("LOGOUT", event.path("reason").asString());
                 assertEquals(4401, stream.awaitClose());
                 assertNull(browser.cookie());
                 browser.cookie(cookie);
-                assertEquals(401, browser.get("/api/v1/me").statusCode());
+                assertEquals(401, browser.get("/api/v1/me/server").statusCode());
             }
         }
     }
 
     @Test
-    void thePluginRevokesSessions() throws InterruptedException {
+    void thePluginRevokesSessions() {
         UUID uid = UUID.randomUUID();
         try (FakeNode node = node(key(), uid)) {
             FakeBrowser phone = new FakeBrowser(gateway, "203.0.113.14");
@@ -422,8 +436,8 @@ class HostedGatewayTest {
             login(node, phone, create(node, uid));
             login(node, desktop, create(node, uid));
             node.send(new SessionsRevoked(null, 1, PLAYER, CloseReason.REVOKED));
-            assertEventually(() -> phone.get("/api/v1/me").statusCode() == 401);
-            assertEquals(401, desktop.get("/api/v1/me").statusCode());
+            assertEventually(() -> phone.get("/api/v1/me/server").statusCode() == 401);
+            assertEquals(401, desktop.get("/api/v1/me/snapshot").statusCode());
         }
     }
 
@@ -433,15 +447,25 @@ class HostedGatewayTest {
         try (FakeNode node = node(key(), uid)) {
             SessionCreated created = create(node, uid);
             FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.16");
-            for (int left = 4; left >= 0; left--) {
+            for (int left = 4; left >= 1; left--) {
                 HttpResponse<String> wrong =
                         browser.post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"ZZZZZZ\"}");
                 assertEquals(401, wrong.statusCode());
                 assertEquals(left, FakeBrowser.json(wrong).path("attemptsLeft").asInt());
+                assertEquals(
+                        left,
+                        FakeBrowser.json(browser.get("/api/v1/s/" + created.shortId()))
+                                .path("attemptsLeft")
+                                .asInt());
             }
-            SessionClosed closed = node.expect(SessionClosed.class);
-            assertEquals(CloseReason.EXPIRED, closed.reason());
-            assertEquals(404, browser.get("/api/v1/s/" + created.shortId()).statusCode());
+            HttpResponse<String> last =
+                    browser.post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"ZZZZZZ\"}");
+            assertEquals(410, last.statusCode());
+            assertEquals("TOO_MANY_ATTEMPTS", error(last));
+            assertEquals(CloseReason.EXPIRED, node.expect(SessionClosed.class).reason());
+            HttpResponse<String> gone = browser.get("/api/v1/s/" + created.shortId());
+            assertEquals(404, gone.statusCode());
+            assertEquals("UNKNOWN_SESSION", error(gone));
             assertEquals(
                     404,
                     browser.post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}")
@@ -458,9 +482,12 @@ class HostedGatewayTest {
             for (int i = 0; i < 3; i++) {
                 SessionCreated created = create(node, uid);
                 for (int attempt = 0; attempt < 4; attempt++) {
-                    int status = browser.post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"ZZZZZZ\"}")
-                            .statusCode();
-                    if (status == 429) refused++;
+                    HttpResponse<String> response =
+                            browser.post("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"ZZZZZZ\"}");
+                    if (response.statusCode() == 429) {
+                        assertEquals("RATE_LIMITED", error(response));
+                        refused++;
+                    }
                 }
             }
             assertEquals(2, refused);
@@ -489,7 +516,7 @@ class HostedGatewayTest {
                     new Branding("Iconic", null, hash)));
             assertFalse(node.expect(Welcome.class).iconCached());
             node.send(new BrandingUpdate(null, 1, new Branding("Iconic", icon, hash)));
-            assertEventually(() -> gateway(hash).statusCode() == 200);
+            assertEventually(() -> icon(hash).statusCode() == 200);
         }
         try (FakeNode node = FakeNode.connect(gateway)) {
             node.send(FakeNode.hello(
@@ -502,10 +529,10 @@ class HostedGatewayTest {
                     new Branding("Iconic", null, hash)));
             assertTrue(node.expect(Welcome.class).iconCached());
         }
-        HttpResponse<String> served = gateway(hash);
+        HttpResponse<String> served = icon(hash);
         assertEquals("image/png", served.headers().firstValue("Content-Type").orElse(""));
         assertTrue(served.headers().firstValue("Cache-Control").orElse("").contains("immutable"));
-        assertEquals(404, gateway("0".repeat(64)).statusCode());
+        assertEquals(404, icon("0".repeat(64)).statusCode());
 
         String other = Base64.getEncoder().encodeToString(png());
         try (FakeNode node = FakeNode.connect(gateway)) {
@@ -557,14 +584,16 @@ class HostedGatewayTest {
         try (TestGateway restarted = TestGateway.start(env)) {
             FakeBrowser same = new FakeBrowser(restarted, "203.0.113.20");
             same.cookie(browser.cookie());
-            HttpResponse<String> me = same.get("/api/v1/me");
-            assertEquals(200, me.statusCode(), me.body());
-            assertFalse(FakeBrowser.json(me).at("/server/online").asBoolean());
-            assertEquals(503, same.get("/api/v1/me/snapshot").statusCode());
+            HttpResponse<String> server = same.get("/api/v1/me/server");
+            assertEquals(200, server.statusCode(), server.body());
+            assertFalse(FakeBrowser.json(server).path("online").asBoolean());
+            HttpResponse<String> snapshot = same.get("/api/v1/me/snapshot");
+            assertEquals(503, snapshot.statusCode());
+            assertEquals("SERVER_OFFLINE", error(snapshot));
         }
     }
 
-    private static HttpResponse<String> gateway(String hash) {
+    private static HttpResponse<String> icon(String hash) {
         return new FakeBrowser(gateway, "203.0.113.30").get("/api/v1/icons/" + hash);
     }
 

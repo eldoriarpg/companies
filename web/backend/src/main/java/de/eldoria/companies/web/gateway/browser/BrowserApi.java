@@ -6,11 +6,15 @@
 package de.eldoria.companies.web.gateway.browser;
 
 import de.eldoria.companies.web.api.Actions;
+import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionResult;
-import de.eldoria.companies.web.api.handshake.GatewayKind;
+import de.eldoria.companies.web.api.handshake.Limits;
+import de.eldoria.companies.web.api.handshake.VersionState;
+import de.eldoria.companies.web.api.handshake.VersionStatus;
 import de.eldoria.companies.web.api.link.ErrorCode;
-import de.eldoria.companies.web.api.session.PlayerRef;
+import de.eldoria.companies.web.api.link.Ping;
+import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.gateway.ClientAddress;
 import de.eldoria.companies.web.gateway.JettySocket;
 import de.eldoria.companies.web.gateway.RateLimiter;
@@ -25,7 +29,6 @@ import de.eldoria.companies.web.gateway.session.Sessions;
 import de.eldoria.companies.web.gateway.session.Turnstile;
 import de.eldoria.companies.web.gateway.snapshot.ReadRelay;
 import de.eldoria.companies.web.gateway.snapshot.SnapshotCache;
-import de.eldoria.companies.web.gateway.snapshot.SnapshotView;
 import de.eldoria.companies.web.gateway.storage.IconRepository;
 import de.eldoria.companies.web.gateway.storage.ServerRepository;
 import de.eldoria.companies.web.gateway.storage.StoredSession;
@@ -34,14 +37,15 @@ import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import io.javalin.websocket.WsConfig;
 import io.javalin.websocket.WsContext;
+import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
@@ -52,12 +56,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * The browser's side of the gateway: the login with short id and code, the session cookie, the snapshot, read
- * requests and the stream. See {@link de.eldoria.companies.web.gateway.Routes} for the paths.
+ * The browser's side of the gateway: the login with short id and code, the session cookie, the server's info, the
+ * snapshot, read actions and the stream. See {@link de.eldoria.companies.web.gateway.Routes} for the paths.
  * <p>
  * The cookie {@value #COOKIE} is {@code HttpOnly}, {@code Secure} and {@code SameSite=Strict}; the web app never reads
- * it. Logins are limited per client address, read requests per session. The stream accepts only the gateway's own
- * origin.
+ * it. Logins are limited per client address, read actions per session. The stream accepts only the gateway's own
+ * origin and closes with {@value BrowserStreams#CLOSE_SESSION_ENDED} when the session is gone and
+ * {@value BrowserStreams#CLOSE_DISCONTINUED} when the server's plugin version is discontinued.
  */
 public final class BrowserApi {
     /**
@@ -65,10 +70,16 @@ public final class BrowserApi {
      */
     public static final String COOKIE = "companies_session";
 
+    /**
+     * The name shown for a server that sent no branding.
+     */
+    public static final String DEFAULT_NAME = "Minecraft server";
+
     private static final JsonMapper MAPPER = Protocol.mapper();
     private static final String IMMUTABLE = "public, max-age=31536000, immutable";
-    private static final int DEFAULT_PAGE_SIZE = 20;
-    private static final int MAX_PAGE_SIZE = 100;
+    private static final VersionStatus UNKNOWN_VERSION =
+            new VersionStatus(VersionState.SUPPORTED, null, null, null, null);
+    private static final Limits DEFAULT_LIMITS = new Limits(50);
     private final Sessions sessions;
     private final NodeHub hub;
     private final SnapshotCache snapshots;
@@ -78,7 +89,7 @@ public final class BrowserApi {
     private final IconRepository icons;
     private final Turnstile turnstile;
     private final ClientAddress clientAddress;
-    private final Limits limits;
+    private final Limiters limits;
     private final Settings settings;
 
     /**
@@ -86,27 +97,27 @@ public final class BrowserApi {
      *
      * @param logins login attempts per client address
      * @param lookups short id lookups per client address
-     * @param reads read requests per session
+     * @param reads read actions per session
      */
-    public record Limits(RateLimiter logins, RateLimiter lookups, RateLimiter reads) {}
+    public record Limiters(RateLimiter logins, RateLimiter lookups, RateLimiter reads) {}
 
     /**
      * What the browser API needs from the configuration.
      *
-     * @param gateway hosted or self-hosted
      * @param publicUrl the gateway's address, whose origin the stream accepts
      * @param turnstileSiteKey the Turnstile site key, empty when off
      * @param secureCookie whether the cookie is {@code Secure}
      * @param cookieMaxAge the cookie's lifetime
      * @param timeout how long to wait for a node
+     * @param clock the time
      */
     public record Settings(
-            GatewayKind gateway,
             String publicUrl,
             String turnstileSiteKey,
             boolean secureCookie,
             Duration cookieMaxAge,
-            Duration timeout) {}
+            Duration timeout,
+            Clock clock) {}
 
     /**
      * The parts the browser API works with.
@@ -137,7 +148,7 @@ public final class BrowserApi {
      * @param limits the rate limits
      * @param settings the settings
      */
-    public BrowserApi(Parts parts, Limits limits, Settings settings) {
+    public BrowserApi(Parts parts, Limiters limits, Settings settings) {
         this.sessions = parts.sessions();
         this.hub = parts.hub();
         this.snapshots = parts.snapshots();
@@ -152,28 +163,20 @@ public final class BrowserApi {
     }
 
     /**
-     * {@code GET /api/v1/config}.
-     *
-     * @param ctx the request
-     */
-    public void config(Context ctx) {
-        String siteKey = settings.turnstileSiteKey();
-        ctx.json(new Views.ConfigView(settings.gateway(), siteKey.isBlank() ? null : siteKey));
-    }
-
-    /**
      * {@code GET /api/v1/s/{shortId}}.
      *
      * @param ctx the request
      */
     public void pending(Context ctx) {
         if (!limits.lookups().tryAcquire(address(ctx))) throw tooMany();
-        StoredSession session = sessions.pending(ctx.pathParam("shortId"))
-                .orElseThrow(() -> new ApiError(404, "unknown-session", "No session is waiting for this link"));
-        ctx.json(new Views.PendingView(
-                Optional.ofNullable(session.shortId()).orElse(""),
-                server(session.serverId()),
-                Optional.ofNullable(session.codeExpires()).orElse(session.created())));
+        StoredSession session = sessions.pending(ctx.pathParam("shortId")).orElseThrow(BrowserApi::unknownSession);
+        String siteKey = settings.turnstileSiteKey();
+        ctx.json(new Views.Pending(
+                brand(session.serverId()),
+                Optional.ofNullable(session.codeExpires()).orElse(session.created()),
+                Math.max(0, Sessions.MAX_ATTEMPTS - session.attempts()),
+                siteKey.isBlank() ? null : siteKey,
+                version(session.serverId())));
     }
 
     /**
@@ -186,42 +189,47 @@ public final class BrowserApi {
         if (!limits.logins().tryAcquire(address)) throw tooMany();
         Views.LoginRequest request = body(ctx, Views.LoginRequest.class);
         String code = request.code();
-        if (code == null || code.isBlank()) throw new ApiError(400, "missing-code", "Enter the code from the game");
-        if (!turnstile.verify(request.turnstile(), address)) {
-            throw new ApiError(400, "challenge-failed", "The browser check failed, try again");
+        if (code == null || code.isBlank()) {
+            throw new ApiError(400, ApiError.Code.INTERNAL, "Enter the code from the game");
+        }
+        if (!turnstile.verify(request.turnstileToken(), address)) {
+            throw new ApiError(403, ApiError.Code.TURNSTILE_FAILED, "The browser check failed, try again");
         }
         switch (sessions.login(ctx.pathParam("shortId"), code, Devices.describe(ctx.userAgent()))) {
             case LoginResult.LoggedIn in -> {
                 ctx.header("Set-Cookie", cookie(in.cookie(), settings.cookieMaxAge()));
-                ctx.json(me(in.session()));
+                ctx.status(HttpStatus.NO_CONTENT);
             }
-            case LoginResult.WrongCode wrong ->
-                throw new ApiError(
-                        401,
-                        "wrong-code",
-                        wrong.attemptsLeft() == 0
-                                ? "Wrong code. Run the command in game again for a new one"
-                                : "Wrong code",
-                        wrong.attemptsLeft());
-            case LoginResult.Unknown ignored ->
-                throw new ApiError(404, "unknown-session", "No session is waiting for this link");
+            case LoginResult.WrongCode wrong -> {
+                if (wrong.attemptsLeft() == 0) {
+                    throw new ApiError(
+                            410,
+                            ApiError.Code.TOO_MANY_ATTEMPTS,
+                            "Too many wrong codes. Run the command in game again for a new one");
+                }
+                throw new ApiError(401, ApiError.Code.WRONG_CODE, "Wrong code", wrong.attemptsLeft(), null);
+            }
+            case LoginResult.Unknown ignored -> throw unknownSession();
             case LoginResult.Busy ignored ->
-                throw new ApiError(409, "busy", "This session is being opened in another browser");
-            case LoginResult.Offline ignored ->
-                throw new ApiError(503, "server-offline", "The server is not connected right now");
+                throw new ApiError(409, ApiError.Code.INTERNAL, "This session is being opened in another browser");
+            case LoginResult.Offline ignored -> throw offline();
             case LoginResult.Discontinued discontinued ->
-                throw new ApiError(410, "discontinued", discontinued.message());
-            case LoginResult.Refused refused -> throw new ApiError(403, "refused", refused.message());
+                throw discontinued(
+                        discontinued.message(),
+                        sessions.pending(ctx.pathParam("shortId"))
+                                .map(pending -> version(pending.serverId()))
+                                .orElse(null));
+            case LoginResult.Refused refused -> throw new ApiError(403, ApiError.Code.UNAUTHORIZED, refused.message());
         }
     }
 
     /**
-     * {@code GET /api/v1/me}.
+     * {@code GET /api/v1/me/server}.
      *
      * @param ctx the request
      */
-    public void me(Context ctx) {
-        ctx.json(me(session(ctx)));
+    public void server(Context ctx) {
+        ctx.json(serverInfo(session(ctx).serverId()));
     }
 
     /**
@@ -246,55 +254,27 @@ public final class BrowserApi {
     }
 
     /**
-     * {@code GET /api/v1/me/members?page&size&search}.
-     *
-     * @param ctx the request
-     */
-    public void members(Context ctx) {
-        StoredSession session = session(ctx);
-        SnapshotView view = await(session, snapshots.snapshot(session));
-        String search = Optional.ofNullable(ctx.queryParam("search"))
-                .map(text -> text.strip().toLowerCase(Locale.ROOT))
-                .orElse("");
-        List<JsonNode> members = view.snapshot()
-                .path("company")
-                .path("members")
-                .valueStream()
-                .filter(member -> member.path("name")
-                        .asString("")
-                        .toLowerCase(Locale.ROOT)
-                        .contains(search))
-                .toList();
-        int size = Math.clamp(integer(ctx, "size", DEFAULT_PAGE_SIZE), 1, MAX_PAGE_SIZE);
-        int pages = Math.max(1, (members.size() + size - 1) / size);
-        int page = Math.clamp(integer(ctx, "page", 1), 1, pages);
-        int from = (page - 1) * size;
-        List<JsonNode> entries = members.subList(Math.min(from, members.size()), Math.min(from + size, members.size()));
-        ctx.json(new Views.PageView(page, pages, members.size(), entries));
-    }
-
-    /**
-     * {@code POST /api/v1/me/actions/{name}}.
+     * {@code POST /api/v1/me/actions}.
      *
      * @param ctx the request
      */
     public void action(Context ctx) {
         StoredSession session = session(ctx);
-        String name = ctx.pathParam("name");
-        if (!ReadRelay.READ_ACTIONS.contains(name)) {
-            throw new ApiError(403, "not-available", "This action is not available on the dashboard yet");
+        Views.ActionCall call = body(ctx, Views.ActionCall.class);
+        String name = call.name();
+        if (name == null || !ReadRelay.READ_ACTIONS.contains(name)) {
+            throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is not available on the dashboard");
         }
         if (!limits.reads().tryAcquire(session.id())) throw tooMany();
         LiveServer server = online(session);
         NodeLink link = server.route().orElseThrow(BrowserApi::offline);
         String feature = Actions.feature(name);
         if (feature == null || !link.agreed().features().contains(feature)) {
-            throw new ApiError(404, "feature-unavailable", "The server does not offer this");
+            throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "The server does not offer this");
         }
-        ObjectNode args = ctx.body().isBlank() ? MAPPER.createObjectNode() : body(ctx, ObjectNode.class);
-        snapshots.touch(session.id());
+        ObjectNode args = Optional.ofNullable(call.args()).orElseGet(MAPPER::createObjectNode);
         ActionResult result = await(session, reads.read(session, link, name, args));
-        ctx.json(new Views.ActionView(result.ok(), result.reason(), result.message(), result.data()));
+        ctx.json(result);
     }
 
     /**
@@ -305,14 +285,16 @@ public final class BrowserApi {
     public void icon(Context ctx) {
         String hash = ctx.pathParam("hash").toLowerCase(Locale.ROOT);
         byte[] png = Icons.isHash(hash) ? icons.find(hash).orElse(null) : null;
-        if (png == null) throw new ApiError(404, "unknown-icon", "No such icon");
+        if (png == null) throw new ApiError(404, ApiError.Code.INTERNAL, "No such icon");
         ctx.header("Cache-Control", IMMUTABLE)
                 .contentType(ContentType.IMAGE_PNG)
                 .result(png);
     }
 
     /**
-     * The browser's stream: patches and session events from the gateway, {@code {"type":"ping"}} from the browser.
+     * The browser's stream. The gateway sends {@code patch}, {@code pong}, {@code session.closed} and {@code error}
+     * messages of the protocol and its own {@link GatewayEvent}s; the browser sends
+     * {@code {"type":"ping","v":1,"time":…}} every 20 seconds.
      *
      * @param ws the websocket configuration
      */
@@ -321,7 +303,7 @@ public final class BrowserApi {
             ctx.session.setIdleTimeout(Duration.ofSeconds(120));
             String origin = ctx.header("Origin");
             if (origin != null && !sameOrigin(origin)) {
-                ctx.closeSession(4403, "Foreign origin");
+                ctx.closeSession(1008, "Foreign origin");
                 return;
             }
             Optional<StoredSession> session = sessions.authenticate(ctx.cookie(COOKIE));
@@ -330,20 +312,57 @@ public final class BrowserApi {
                 return;
             }
             StoredSession found = session.get();
+            Views.ServerInfo info = serverInfo(found.serverId());
+            if (!info.online() && info.version().status() == VersionState.DISCONTINUED) {
+                ctx.closeSession(BrowserStreams.CLOSE_DISCONTINUED, "Discontinued");
+                return;
+            }
             streams.open(ctx.sessionId(), found.id(), found.serverId(), new JettySocket(ctx.session));
-            boolean online =
-                    hub.server(found.serverId()).flatMap(LiveServer::route).isPresent();
-            streams.reply(ctx.sessionId(), StreamEvent.server(online));
+            streams.reply(ctx.sessionId(), GatewayEvent.server(info));
         });
         ws.onMessage(ctx -> {
-            if (!ctx.message().contains("ping")) return;
+            Message message;
+            try {
+                message = NodeHub.read(ctx.message());
+            } catch (JacksonException e) {
+                return;
+            }
+            if (!(message instanceof Ping ping)) return;
             streams.heard(ctx.sessionId()).ifPresent(sessionId -> {
                 sessions.touch(sessionId);
                 snapshots.touch(sessionId);
-                streams.reply(ctx.sessionId(), StreamEvent.pong());
+                streams.reply(
+                        ctx.sessionId(),
+                        new Pong(
+                                ping.id(),
+                                Protocol.VERSION,
+                                ping.time() == null ? settings.clock().instant() : ping.time()));
             });
         });
         ws.onClose(ctx -> streams.closed(ctx.sessionId()));
+    }
+
+    /**
+     * The server as the browser sees it: branding, the features both the server and the gateway support, the limits
+     * and the version status of the node requests go to, and the deprecated parts it uses. While no node is connected,
+     * the features are empty and the version reads as supported, unless a node on a discontinued version is connected.
+     *
+     * @param serverId the server
+     * @return the server's info
+     */
+    public Views.ServerInfo serverInfo(String serverId) {
+        Optional<LiveServer> live = hub.server(serverId);
+        Optional<NodeLink> routed = live.flatMap(LiveServer::route);
+        Optional<NodeLink.Handshake> agreed =
+                live.flatMap(LiveServer::representative).map(NodeLink::agreed);
+        return new Views.ServerInfo(
+                brand(serverId),
+                routed.map(link -> link.agreed().features().stream().sorted().toList())
+                        .orElse(List.of()),
+                routed.map(link -> new Limits(link.maxPageSize())).orElse(DEFAULT_LIMITS),
+                agreed.map(NodeLink.Handshake::status).orElse(UNKNOWN_VERSION),
+                agreed.map(NodeLink.Handshake::deprecated).orElse(List.of()),
+                routed.isPresent());
     }
 
     /**
@@ -359,39 +378,25 @@ public final class BrowserApi {
         return proxies.of(socket, ctx.header("X-Forwarded-For"), ctx.header("CF-Connecting-IP"));
     }
 
-    private Views.MeView me(StoredSession session) {
-        List<String> features = hub.server(session.serverId())
-                .flatMap(LiveServer::route)
-                .map(link -> link.agreed().features().stream().sorted().toList())
-                .orElse(List.of());
-        return new Views.MeView(
-                new PlayerRef(session.player(), session.playerName()),
-                server(session.serverId()),
-                features,
-                sessions.expires(session));
-    }
-
-    private Views.ServerView server(String serverId) {
+    private Views.Brand brand(String serverId) {
         Optional<ServerRepository.StoredServer> stored = servers.find(serverId);
-        String name = stored.map(ServerRepository.StoredServer::name).orElse(null);
-        String icon = stored.map(ServerRepository.StoredServer::iconHash)
+        String name = stored.map(ServerRepository.StoredServer::name).orElse(DEFAULT_NAME);
+        String iconUrl = stored.map(ServerRepository.StoredServer::iconHash)
                 .map(hash -> "/api/v1/icons/" + hash)
                 .orElse(null);
-        Optional<LiveServer> live = hub.server(serverId);
-        boolean online = live.flatMap(LiveServer::route).isPresent();
-        Optional<NodeLink.Handshake> agreed =
-                live.flatMap(LiveServer::representative).map(NodeLink::agreed);
-        return new Views.ServerView(
-                name,
-                icon,
-                online,
-                agreed.map(NodeLink.Handshake::status).orElse(null),
-                agreed.map(NodeLink.Handshake::deprecated).orElse(List.of()));
+        return new Views.Brand(name, iconUrl);
+    }
+
+    private VersionStatus version(String serverId) {
+        return hub.server(serverId)
+                .flatMap(LiveServer::representative)
+                .map(link -> link.agreed().status())
+                .orElse(UNKNOWN_VERSION);
     }
 
     private StoredSession session(Context ctx) {
         StoredSession session = sessions.authenticate(ctx.cookie(COOKIE))
-                .orElseThrow(() -> new ApiError(401, "not-logged-in", "Log in with the code from the game"));
+                .orElseThrow(() -> new ApiError(401, ApiError.Code.UNAUTHORIZED, "Log in with the code from the game"));
         snapshots.touch(session.id());
         return session;
     }
@@ -400,7 +405,7 @@ public final class BrowserApi {
         LiveServer server = hub.server(session.serverId()).orElseThrow(BrowserApi::offline);
         if (server.route().isEmpty()) {
             throw Sessions.discontinued(server)
-                    .map(message -> new ApiError(410, "discontinued", message))
+                    .map(message -> discontinued(message, version(session.serverId())))
                     .orElseGet(BrowserApi::offline);
         }
         return server;
@@ -413,16 +418,18 @@ public final class BrowserApi {
             Thread.currentThread().interrupt();
             throw offline();
         } catch (TimeoutException e) {
-            throw new ApiError(504, "server-timeout", "The server did not answer in time");
+            throw new ApiError(504, ApiError.Code.SERVER_OFFLINE, "The server did not answer in time");
         } catch (ExecutionException e) {
             NodeRequestException failure = NodeRequestException.of(e);
             if (failure.code() == ErrorCode.UNKNOWN_SESSION) {
                 sessions.unknownToPlugin(session);
-                throw new ApiError(401, "not-logged-in", "The server ended this session");
+                throw new ApiError(401, ApiError.Code.UNAUTHORIZED, "The server ended this session");
             }
-            if (failure.code() != null) throw new ApiError(502, "server-error", String.valueOf(failure.getMessage()));
+            if (failure.code() != null) {
+                throw new ApiError(502, ApiError.Code.INTERNAL, String.valueOf(failure.getMessage()));
+            }
             Optional<String> discontinued = hub.server(session.serverId()).flatMap(Sessions::discontinued);
-            if (discontinued.isPresent()) throw new ApiError(410, "discontinued", discontinued.get());
+            if (discontinued.isPresent()) throw discontinued(discontinued.get(), version(session.serverId()));
             throw offline();
         }
     }
@@ -445,25 +452,23 @@ public final class BrowserApi {
         try {
             return MAPPER.readValue(ctx.body(), type);
         } catch (JacksonException e) {
-            throw new ApiError(400, "invalid-body", "The request body is not valid JSON");
+            throw new ApiError(400, ApiError.Code.INTERNAL, "The request body is not valid JSON");
         }
     }
 
-    private static int integer(Context ctx, String name, int fallback) {
-        String value = ctx.queryParam(name);
-        if (value == null) return fallback;
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            throw new ApiError(400, "invalid-query", name + " must be a number");
-        }
+    private static ApiError discontinued(String message, @Nullable VersionStatus version) {
+        return new ApiError(410, ApiError.Code.DISCONTINUED, message, null, version);
+    }
+
+    private static ApiError unknownSession() {
+        return new ApiError(404, ApiError.Code.UNKNOWN_SESSION, "No session is waiting for this link");
     }
 
     private static ApiError offline() {
-        return new ApiError(503, "server-offline", "The server is not connected right now");
+        return new ApiError(503, ApiError.Code.SERVER_OFFLINE, "The server is not connected right now");
     }
 
     private static ApiError tooMany() {
-        return new ApiError(429, "rate-limited", "Too many requests, wait a moment");
+        return new ApiError(429, ApiError.Code.RATE_LIMITED, "Too many requests, wait a moment");
     }
 }

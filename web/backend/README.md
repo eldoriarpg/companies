@@ -28,20 +28,21 @@ after 75 s.
 
 ## Browser API
 
-Every answer carries `Cache-Control: no-store` except icons. Errors are `{error, message, attemptsLeft?}`.
+Base `/api/v1`. Every answer carries `Cache-Control: no-store` except icons. Errors are
+`{error, message?, attemptsLeft?, version?}` with `error` one of `UNKNOWN_SESSION`, `WRONG_CODE`,
+`TOO_MANY_ATTEMPTS`, `TURNSTILE_FAILED`, `UNAUTHORIZED`, `DISCONTINUED`, `SERVER_OFFLINE`, `RATE_LIMITED`,
+`INTERNAL`.
 
 | Route | |
 |---|---|
-| `GET /api/v1/config` | `{gateway, turnstileSiteKey?}` |
-| `GET /api/v1/s/{shortId}` | `{shortId, server, expiresAt}`; `server` is `{name?, icon?, online, version?, deprecated}` |
-| `POST /api/v1/s/{shortId}/login` | `{code, turnstile?}` → the `me` view and the cookie `companies_session`; 401 `wrong-code` with `attemptsLeft`, 404, 409, 410 `discontinued`, 429, 503 |
-| `GET /api/v1/me` | `{player, server, features, expiresAt}` |
-| `POST /api/v1/me/logout` | 204 |
-| `GET /api/v1/me/snapshot` | `{revision, snapshot}` |
-| `GET /api/v1/me/members?page&size&search` | `{page, pages, total, entries}` from the snapshot |
-| `POST /api/v1/me/actions/{name}` | read actions only (`ReadRelay.READ_ACTIONS`), body = args → `{ok, reason?, message?, data?}` |
-| `GET /api/v1/icons/{hash}` | the PNG, cached for good |
-| `WS /api/v1/me/stream` | `patch` (with `revision`), `reload`, `server` (`online`), `closed` (`reason`), `pong`; the browser sends `{"type":"ping"}` every 20 s |
+| `GET /s/{shortId}` | `{server: {name, iconUrl?}, expiresAt, attemptsLeft, turnstileSiteKey?, version}`; 404 `UNKNOWN_SESSION` |
+| `POST /s/{shortId}/login` | `{code, turnstileToken?}` → 204 and the cookie `companies_session`; 401 `WRONG_CODE`, 410 `TOO_MANY_ATTEMPTS`, 403 `TURNSTILE_FAILED`, 429, 503, 410 `DISCONTINUED` |
+| `GET /me/server` | `{server, features, limits, version, deprecated, online}` |
+| `GET /me/snapshot` | the `snapshot` message with every patch since applied |
+| `POST /me/actions` | `{name, args}` for a read action (`ReadRelay.READ_ACTIONS`) → the `action.result` message |
+| `POST /me/logout` | 204 |
+| `GET /icons/{hash}` | the PNG, cached for good |
+| `WS /me/stream` | `patch` (for this session only), `pong`, `session.closed`, `{type: resync}`, `{type: server, server}`; the browser sends `ping` every 20 s; closes with 4401 (session gone) or 4403 (discontinued) |
 
 ## Layout
 
@@ -54,5 +55,5 @@ Packages below `de.eldoria.companies.web.gateway`:
 | `policy` | `VersionPolicy`, `PluginVersion` |
 | `session` | `Sessions` (create, login, end), `Turnstile`, `Devices` |
 | `snapshot` | `SnapshotCache` (snapshots, patches, sequence gaps), `PatchApplier`, `ReadRelay` |
-| `browser` | `BrowserApi`, `BrowserStreams`, `StreamEvent`, `Views` |
+| `browser` | `BrowserApi`, `BrowserStreams`, `GatewayEvent`, `Views`, `ApiError` |
 | `storage` | PostgreSQL through SADU: sessions, servers, tokens, icons |

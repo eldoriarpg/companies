@@ -13,7 +13,7 @@ import de.eldoria.companies.web.api.update.Patch;
 import de.eldoria.companies.web.api.update.Subscribe;
 import de.eldoria.companies.web.api.update.Unsubscribe;
 import de.eldoria.companies.web.gateway.browser.BrowserStreams;
-import de.eldoria.companies.web.gateway.browser.StreamEvent;
+import de.eldoria.companies.web.gateway.browser.GatewayEvent;
 import de.eldoria.companies.web.gateway.node.LiveServer;
 import de.eldoria.companies.web.gateway.node.NodeHub;
 import de.eldoria.companies.web.gateway.node.NodeLink;
@@ -22,6 +22,7 @@ import de.eldoria.companies.web.gateway.storage.StoredSession;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -29,7 +30,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,7 +45,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * its own events. Patches are applied in the order of their node's sequence; one at or below the sequence the
  * snapshot was built at is already in it. A gap in a node's sequence, a patch that does not fit, or a node that
  * connects again loads the snapshots of that server again; patches arriving meanwhile are kept and applied on top.
- * Browsers get each applied patch, or a reload when the snapshot was replaced, over their stream.
+ * <p>
+ * Browsers get each applied patch over their stream, addressed to their session only, and a {@code resync} when the
+ * snapshot was replaced. Patches only upsert, replace or remove by key, so a browser that applies a patch its fetched
+ * snapshot already holds ends in the same state.
  * <p>
  * A snapshot no browser used for the cache time is dropped and every node of the server is sent {@code unsubscribe};
  * the next access loads it again. The gateway never changes a snapshot on its own.
@@ -53,7 +56,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class SnapshotCache {
     private static final Logger log = LoggerFactory.getLogger(SnapshotCache.class);
     private static final JsonMapper MAPPER = Protocol.mapper();
-    private static final List<String> ENVELOPE = List.of("type", "id", "v", "session", "node", "seq");
     private final Map<String, Entry> entries = new ConcurrentHashMap<>();
     private final NodeHub hub;
     private final BrowserStreams streams;
@@ -68,8 +70,7 @@ public final class SnapshotCache {
         private final List<Patch> buffered = new ArrayList<>();
         private Map<UUID, Long> base = Map.of();
         private @Nullable ObjectNode snapshot;
-        private @Nullable CompletableFuture<SnapshotView> loading;
-        private long revision;
+        private @Nullable CompletableFuture<JsonNode> loading;
         private volatile Instant lastAccess;
 
         private Entry(StoredSession session, Instant now) {
@@ -99,33 +100,20 @@ public final class SnapshotCache {
      * Returns a session's snapshot, loading it from a node when it is not in memory.
      *
      * @param session the session
-     * @return the snapshot; fails with {@link NodeRequestException} when no node can provide it
+     * @return the {@code snapshot} message with every patch since applied; fails with {@link NodeRequestException}
+     * when no node can provide it
      */
-    public CompletableFuture<SnapshotView> snapshot(StoredSession session) {
+    public CompletableFuture<JsonNode> snapshot(StoredSession session) {
         Instant now = clock.instant();
         Entry entry = entries.computeIfAbsent(session.id(), id -> new Entry(session, now));
         entry.lastAccess = now;
         synchronized (entry) {
             ObjectNode snapshot = entry.snapshot;
             if (snapshot != null && entry.loading == null) {
-                return CompletableFuture.completedFuture(new SnapshotView(entry.revision, snapshot.deepCopy()));
+                return CompletableFuture.completedFuture(snapshot.deepCopy());
             }
         }
         return load(entry);
-    }
-
-    /**
-     * @param sessionId a session
-     * @return the session's snapshot while it is in memory and not being loaded
-     */
-    public Optional<SnapshotView> cached(String sessionId) {
-        Entry entry = entries.get(sessionId);
-        if (entry == null) return Optional.empty();
-        synchronized (entry) {
-            ObjectNode snapshot = entry.snapshot;
-            if (snapshot == null || entry.loading != null) return Optional.empty();
-            return Optional.of(new SnapshotView(entry.revision, snapshot.deepCopy()));
-        }
     }
 
     /**
@@ -205,9 +193,9 @@ public final class SnapshotCache {
         }
     }
 
-    private CompletableFuture<SnapshotView> load(Entry entry) {
+    private CompletableFuture<JsonNode> load(Entry entry) {
         synchronized (entry) {
-            CompletableFuture<SnapshotView> loading = entry.loading;
+            CompletableFuture<JsonNode> loading = entry.loading;
             if (loading != null) return loading;
             Optional<LiveServer> server = hub.server(entry.serverId);
             Optional<NodeLink> routed = server.flatMap(LiveServer::route);
@@ -217,12 +205,12 @@ public final class SnapshotCache {
             }
             NodeLink link = routed.get();
             boolean replacing = entry.snapshot != null;
-            CompletableFuture<SnapshotView> request = link.request(
+            CompletableFuture<JsonNode> request = link.request(
                             id -> new SnapshotRequest(id, link.agreed().protocol(), entry.sessionId, entry.player),
                             timeout)
                     .thenApply(answer -> loaded(entry, answer, replacing));
             entry.loading = request;
-            request.whenComplete((view, error) -> {
+            request.whenComplete((snapshot, error) -> {
                 if (error == null) return;
                 synchronized (entry) {
                     if (entry.loading == request) entry.loading = null;
@@ -238,21 +226,17 @@ public final class SnapshotCache {
         }
     }
 
-    private SnapshotView loaded(Entry entry, Message answer, boolean replacing) {
+    private JsonNode loaded(Entry entry, Message answer, boolean replacing) {
         if (!(answer instanceof Snapshot snapshot)) {
             throw new NodeRequestException(
                     null, "The server answered with a " + answer.getClass().getSimpleName());
         }
         ObjectNode tree = MAPPER.valueToTree(snapshot);
-        ENVELOPE.forEach(tree::remove);
-        SnapshotView view;
+        JsonNode copy;
         boolean stale = false;
         synchronized (entry) {
             entry.snapshot = tree;
-            Map<UUID, Long> base = new HashMap<>();
-            base.put(snapshot.node(), snapshot.seq());
-            entry.base = base;
-            entry.revision++;
+            entry.base = Map.of(snapshot.node(), snapshot.seq());
             for (Patch patch : entry.buffered) {
                 if (!applies(entry, patch)) continue;
                 try {
@@ -263,15 +247,14 @@ public final class SnapshotCache {
             }
             entry.buffered.clear();
             entry.loading = null;
-            view = new SnapshotView(entry.revision, tree.deepCopy());
+            copy = tree.deepCopy();
         }
-        if (replacing) streams.push(entry.sessionId, StreamEvent.reload(view.revision()));
+        if (replacing) streams.push(entry.sessionId, GatewayEvent.resync());
         if (stale) CompletableFuture.runAsync(() -> reload(entry));
-        return view;
+        return copy;
     }
 
     private void apply(Entry entry, Patch patch) {
-        StreamEvent event;
         synchronized (entry) {
             if (entry.loading != null) {
                 entry.buffered.add(patch);
@@ -286,10 +269,19 @@ public final class SnapshotCache {
                 reload(entry);
                 return;
             }
-            entry.revision++;
-            event = StreamEvent.patch(entry.revision, patch);
         }
-        streams.push(entry.sessionId, event);
+        streams.push(
+                entry.sessionId,
+                new Patch(
+                        null,
+                        patch.v(),
+                        List.of(entry.sessionId),
+                        patch.node(),
+                        patch.seq(),
+                        patch.path(),
+                        patch.op(),
+                        patch.key(),
+                        patch.value()));
     }
 
     private static boolean applies(Entry entry, Patch patch) {

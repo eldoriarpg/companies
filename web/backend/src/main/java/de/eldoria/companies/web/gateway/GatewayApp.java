@@ -14,7 +14,7 @@ import de.eldoria.companies.web.api.update.Patch;
 import de.eldoria.companies.web.gateway.browser.ApiError;
 import de.eldoria.companies.web.gateway.browser.BrowserApi;
 import de.eldoria.companies.web.gateway.browser.BrowserStreams;
-import de.eldoria.companies.web.gateway.browser.StreamEvent;
+import de.eldoria.companies.web.gateway.browser.GatewayEvent;
 import de.eldoria.companies.web.gateway.node.LiveServer;
 import de.eldoria.companies.web.gateway.node.NodeEvents;
 import de.eldoria.companies.web.gateway.node.NodeHub;
@@ -109,17 +109,17 @@ public final class GatewayApp {
                         icons,
                         new Turnstile(config.turnstile(), http),
                         clientAddress),
-                new BrowserApi.Limits(
+                new BrowserApi.Limiters(
                         new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock),
                         new RateLimiter(60, Duration.ofMinutes(1), clock),
                         new RateLimiter(config.readsPerSession(), Duration.ofSeconds(10), clock)),
                 new BrowserApi.Settings(
-                        config.mode().kind(),
                         config.publicUrl(),
                         config.turnstile().siteKey(),
                         config.secureCookie(),
                         config.sessionMaxAge(),
-                        config.requestTimeout()));
+                        config.requestTimeout(),
+                        clock));
         hub.listen(new Relay());
     }
 
@@ -135,14 +135,12 @@ public final class GatewayApp {
             javalin.routes.exception(
                     ApiError.class, (error, ctx) -> ctx.status(error.status()).json(error.view()));
             javalin.routes.ws(Routes.CONNECT, this::nodes);
-            javalin.routes.get(Routes.CONFIG, browser::config);
             javalin.routes.get(Routes.PENDING, browser::pending);
             javalin.routes.post(Routes.LOGIN, browser::login);
-            javalin.routes.get(Routes.ME, browser::me);
+            javalin.routes.get(Routes.SERVER, browser::server);
             javalin.routes.post(Routes.LOGOUT, browser::logout);
             javalin.routes.get(Routes.SNAPSHOT, browser::snapshot);
-            javalin.routes.get(Routes.MEMBERS, browser::members);
-            javalin.routes.post(Routes.ACTION, browser::action);
+            javalin.routes.post(Routes.ACTIONS, browser::action);
             javalin.routes.get(Routes.ICON, browser::icon);
             javalin.routes.ws(Routes.STREAM, browser::stream);
         });
@@ -227,12 +225,17 @@ public final class GatewayApp {
         @Override
         public void nodeReady(LiveServer server, NodeLink link) {
             snapshots.nodeReady(server, link);
-            streams.pushServer(server.id(), StreamEvent.server(true));
+            serverChanged(server);
+        }
+
+        @Override
+        public void serverChanged(LiveServer server) {
+            streams.pushServer(server.id(), GatewayEvent.server(browser.serverInfo(server.id())));
         }
 
         @Override
         public void serverOffline(LiveServer server) {
-            streams.pushServer(server.id(), StreamEvent.server(false));
+            serverChanged(server);
         }
     }
 }

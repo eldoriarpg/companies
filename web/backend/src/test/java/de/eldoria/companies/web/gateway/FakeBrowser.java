@@ -137,7 +137,8 @@ final class FakeBrowser {
         }
 
         void ping() {
-            socket.sendText("{\"type\":\"ping\"}", true).join();
+            socket.sendText("{\"type\":\"ping\",\"id\":\"b-1\",\"v\":1,\"time\":\"2026-10-24T12:00:00Z\"}", true)
+                    .join();
         }
 
         int awaitClose() {

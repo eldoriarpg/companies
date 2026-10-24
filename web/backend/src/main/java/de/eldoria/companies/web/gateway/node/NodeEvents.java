@@ -60,6 +60,13 @@ public interface NodeEvents {
     void nodeReady(LiveServer server, NodeLink link);
 
     /**
+     * A node changed the server's branding, or connected on a discontinued version.
+     *
+     * @param server the server
+     */
+    void serverChanged(LiveServer server);
+
+    /**
      * The last node of a server went away.
      *
      * @param server the server
