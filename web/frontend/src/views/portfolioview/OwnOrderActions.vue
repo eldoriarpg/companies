@@ -10,8 +10,8 @@ import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import NoticeBanner from '@/components/feedback/NoticeBanner.vue'
-import AmountInput from '@/components/input/AmountInput.vue'
-import {money, parseAmount} from '~/util/format'
+import DecimalInput from '@/components/input/DecimalInput.vue'
+import {money} from '~/util/format'
 
 /**
  * What the owner can do with an order nobody accepted yet: give it more time, raise what it pays, or cancel it. Raising
@@ -37,7 +37,7 @@ interface RaiseQuote {
 const {t, locale} = useI18n()
 const action = useAction()
 const step = ref<'idle' | 'raise' | 'raise-confirm' | 'cancel-confirm'>('idle')
-const increase = ref('')
+const increase = ref<number>()
 const quote = ref<RaiseQuote | null>(null)
 const repeating = ref(false)
 const done = ref('')
@@ -52,7 +52,9 @@ async function extend(): Promise<void> {
 
 /** Asks the plugin what raising by the entered amount costs. */
 async function quoteRaise(): Promise<void> {
-  const result = await action.run('orders.own.raise', {order: props.order.id, increase: parseAmount(increase.value), quote: true})
+  const by = increase.value
+  if (by === undefined) return
+  const result = await action.run('orders.own.raise', {order: props.order.id, increase: by, quote: true})
   if (!result) return
   quote.value = {fee: result.fee, total: result.total}
   await ask('raise-confirm')
@@ -60,7 +62,9 @@ async function quoteRaise(): Promise<void> {
 
 /** Raises the order by the quoted amount. */
 async function raise(): Promise<void> {
-  const result = await action.run('orders.own.raise', {order: props.order.id, increase: parseAmount(increase.value)})
+  const by = increase.value
+  if (by === undefined) return
+  const result = await action.run('orders.own.raise', {order: props.order.id, increase: by})
   if (result) finish(t('own.raised', {total: money(result.total, locale.value)}))
 }
 
@@ -100,7 +104,7 @@ function finish(text: string): void {
   done.value = text
   step.value = 'idle'
   quote.value = null
-  increase.value = ''
+  increase.value = undefined
 }
 </script>
 
@@ -115,8 +119,8 @@ function finish(text: string): void {
     </ButtonRow>
     <div v-else ref="confirm" class="flex flex-col gap-2">
       <form v-if="step === 'raise'" class="flex flex-wrap items-end gap-2" @submit.prevent="quoteRaise">
-        <AmountInput v-model="increase" :label="t('own.raiseBy')"/>
-        <PrimaryButton type="submit" :disabled="action.busy.value || increase.trim() === ''">{{ t('own.quote') }}</PrimaryButton>
+        <DecimalInput v-model="increase" :label="t('own.raiseBy')" :min="0"/>
+        <PrimaryButton type="submit" :disabled="action.busy.value || increase === undefined">{{ t('own.quote') }}</PrimaryButton>
         <SecondaryButton @click="step = 'idle'">{{ t('common.back') }}</SecondaryButton>
       </form>
       <template v-else-if="step === 'raise-confirm' && quote">

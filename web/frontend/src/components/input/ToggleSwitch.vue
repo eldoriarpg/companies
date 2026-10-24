@@ -5,6 +5,7 @@
  */
 <script lang="ts" setup>
 import AppIcon from '@/components/display/AppIcon.vue'
+import SwitchKnob from './SwitchKnob.vue'
 import type {IconName} from '~/util/icons'
 
 /** A setting that is on or off, read by a screen reader as a switch, with its label beside it. */
@@ -28,8 +29,6 @@ defineProps<{
   >
     <AppIcon v-if="icon" :name="icon" :size="16"/>
     <span>{{ label }}</span>
-    <span :class="model ? 'border-accent bg-accent' : 'border-line bg-surface'" class="relative h-4 w-7 border" aria-hidden="true">
-      <span :class="model ? 'left-3.5 bg-accent-contrast' : 'left-0.5 bg-ink-muted'" class="absolute top-0.5 size-2.5 transition-all"/>
-    </span>
+    <SwitchKnob :on="model"/>
   </button>
 </template>
