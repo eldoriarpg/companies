@@ -57,12 +57,13 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The browser's side of the gateway: the login with short id and code, the session cookie, the server's info, the
- * snapshot, read actions and the stream. See {@link de.eldoria.companies.web.gateway.Routes} for the paths.
+ * snapshot, actions that read or change something, and the stream. See {@link de.eldoria.companies.web.gateway.Routes} for the paths.
  * <p>
  * The cookie {@value #COOKIE} is {@code HttpOnly}, {@code Secure} and {@code SameSite=Strict}; the web app never reads
  * it. Without {@code Secure} (only for local tests over plain HTTP) it is named {@value #PLAIN_COOKIE}, as the
  * {@code __Host-} prefix needs it. Requests the cookie authorises that change something must come from the gateway's
- * own origin. Logins are limited per client address, read actions per session. The stream accepts only the gateway's own
+ * own origin. Logins are limited per client address, read actions and actions that change something
+ * each per session. The stream accepts only the gateway's own
  * origin and closes with {@value BrowserStreams#CLOSE_SESSION_ENDED} when the session is gone and
  * {@value BrowserStreams#CLOSE_DISCONTINUED} when the server's plugin version is discontinued.
  */
@@ -441,6 +442,9 @@ public final class BrowserApi {
         } catch (TimeoutException e) {
             throw new ApiError(504, ApiError.Code.SERVER_OFFLINE, "The server did not answer in time");
         } catch (ExecutionException e) {
+            if (e.getCause() instanceof TimeoutException) {
+                throw new ApiError(504, ApiError.Code.SERVER_OFFLINE, "The server did not answer in time");
+            }
             NodeRequestException failure = NodeRequestException.of(e);
             if (failure.code() == ErrorCode.UNKNOWN_SESSION) {
                 sessions.unknownToPlugin(session);

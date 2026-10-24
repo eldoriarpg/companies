@@ -126,7 +126,8 @@ public final class ReadRelay {
 
     /**
      * Forwards an action that changes something. The answer is not cached, and the session's cached answers are
-     * dropped once the node answered, whether the action was performed or refused.
+     * dropped once the request ends: performed, refused, failed or timed out, since a node may have performed an action
+     * whose answer came too late.
      *
      * @param session the session asking
      * @param link the node to ask
@@ -140,8 +141,8 @@ public final class ReadRelay {
                         id -> new ActionRequest(
                                 id, link.agreed().protocol(), session.id(), session.player(), name, args),
                         timeout)
+                .whenComplete((reply, failure) -> drop(session.id()))
                 .thenApply(reply -> {
-                    drop(session.id());
                     if (!(reply.message() instanceof ActionResult)) {
                         throw new NodeRequestException(null, "The server answered with something else");
                     }

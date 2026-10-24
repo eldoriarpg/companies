@@ -502,6 +502,44 @@ class HostedGatewayTest {
         }
     }
 
+    @Test
+    void limitsWritesSeparatelyFromReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.72");
+            login(node, browser, create(node, uid));
+
+            String readAll = "{\"name\":\"inbox.read-all\",\"args\":{}}";
+            for (int i = 0; i < 5; i++) {
+                CompletableFuture<HttpResponse<String>> write = browser.postAsync("/api/v1/me/actions", readAll);
+                answer(node, node.expect(ActionRequest.class), i);
+                assertEquals(200, write.join().statusCode());
+            }
+            HttpResponse<String> sixth = browser.post("/api/v1/me/actions", readAll);
+            assertEquals(429, sixth.statusCode());
+            node.assertQuiet();
+
+            assertEquals(9, readFromNode(node, browser, INBOX_PAGE, 9));
+        }
+    }
+
+    @Test
+    void aWriteThatTimesOutStillDropsTheCachedReads() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.73");
+            login(node, browser, create(node, uid));
+            assertEquals(1, readFromNode(node, browser, INBOX_PAGE, 1));
+
+            HttpResponse<String> write =
+                    browser.post("/api/v1/me/actions", "{\"name\":\"inbox.read-all\",\"args\":{}}");
+            node.expect(ActionRequest.class);
+            assertEquals(504, write.statusCode());
+
+            assertEquals(2, readFromNode(node, browser, INBOX_PAGE, 2));
+        }
+    }
+
     private static final String TREASURY_LOG = "{\"name\":\"company.treasury.log\",\"args\":{\"page\":1}}";
     private static final String INBOX_PAGE = "{\"name\":\"inbox.page\",\"args\":{\"page\":1}}";
     private static final String RANKINGS_PAGE = "{\"name\":\"rankings.page\",\"args\":{\"page\":1}}";
