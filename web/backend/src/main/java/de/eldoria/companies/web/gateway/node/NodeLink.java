@@ -91,6 +91,7 @@ public final class NodeLink {
      * What the gateway agreed on with the node.
      *
      * @param serverId the server the node belongs to
+     * @param keyKind the kind of the server's Lyna key, none on a self-hosted gateway
      * @param hello the node's hello
      * @param protocol the protocol version used
      * @param features the features both the node and the gateway support
@@ -99,6 +100,7 @@ public final class NodeLink {
      */
     public record Handshake(
             String serverId,
+            @Nullable String keyKind,
             Hello hello,
             int protocol,
             Set<String> features,
@@ -195,6 +197,21 @@ public final class NodeLink {
      * @return whether the connection is still open and now has the handshake
      */
     synchronized boolean welcomed(Handshake agreed, State state) {
+        return agree(agreed, state);
+    }
+
+    /**
+     * Replaces the handshake after the version policy moved on, unless the connection closed.
+     *
+     * @param agreed the new handshake
+     * @param state {@link State#READY} or {@link State#DISCONTINUED}
+     * @return whether the connection is still open and now has the handshake
+     */
+    synchronized boolean reagreed(Handshake agreed, State state) {
+        return agree(agreed, state);
+    }
+
+    private boolean agree(Handshake agreed, State state) {
         if (this.state == State.CLOSED) return false;
         this.handshake = agreed;
         this.state = state;

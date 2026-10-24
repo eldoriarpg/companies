@@ -110,6 +110,7 @@ public final class NodeHub {
     private final RateLimiter connects;
     private final Clock clock;
     private volatile NodeEvents events = new Unlistened();
+    private volatile @Nullable LocalDate evaluated;
 
     /**
      * @param authenticator checks keys or tokens
@@ -253,6 +254,11 @@ public final class NodeHub {
      */
     public void sweep() {
         Instant now = clock.instant();
+        LocalDate today = today();
+        if (!today.equals(evaluated)) {
+            evaluated = today;
+            reevaluate(today);
+        }
         for (NodeLink link : List.copyOf(links.values())) {
             try {
                 sweep(link, now);
@@ -319,17 +325,56 @@ public final class NodeHub {
         }
     }
 
-    private void welcome(NodeLink link, Hello hello, Authentication.Accepted accepted) {
-        Instant now = clock.instant();
-        LocalDate today = today();
+    private NodeLink.Handshake agree(String serverId, @Nullable String keyKind, Hello hello, LocalDate today) {
         int protocol = Math.min(hello.v(), Protocol.VERSION);
         List<String> offered = features();
         List<String> listed = hello.features() == null ? List.of() : hello.features();
         Set<String> features = listed.stream().filter(offered::contains).collect(Collectors.toUnmodifiableSet());
-        VersionStatus status = policy.status(hello.plugin(), accepted.keyKind(), today);
+        VersionStatus status = policy.status(hello.plugin(), keyKind, today);
         List<DeprecatedPart> deprecated = policy.inUse(hello.plugin(), listed, protocol, today);
-        NodeLink.Handshake agreed =
-                new NodeLink.Handshake(accepted.serverId(), hello, protocol, features, status, deprecated);
+        return new NodeLink.Handshake(serverId, keyKind, hello, protocol, features, status, deprecated);
+    }
+
+    /**
+     * Applies the version policy again to every welcomed node, as its dates pass: a node whose state, features or
+     * deprecated parts changed gets a new {@code welcome}, and a node whose version is now discontinued takes only
+     * status from then on.
+     */
+    private void reevaluate(LocalDate today) {
+        for (NodeLink link : List.copyOf(links.values())) {
+            NodeLink.Handshake before = link.handshake();
+            if (before == null || link.state() == NodeLink.State.CLOSED) continue;
+            NodeLink.Handshake after = agree(before.serverId(), before.keyKind(), before.hello(), today);
+            if (after.equals(before)) continue;
+            boolean discontinued = after.status().status() == VersionState.DISCONTINUED;
+            if (!link.reagreed(after, discontinued ? NodeLink.State.DISCONTINUED : NodeLink.State.READY)) continue;
+            Branding branding = before.hello().branding();
+            String iconHash = branding == null ? null : branding.iconHash();
+            link.send(new Welcome(
+                    null,
+                    after.protocol(),
+                    after.protocol(),
+                    kind,
+                    features(),
+                    after.status(),
+                    after.deprecated(),
+                    iconHash != null && icons.exists(iconHash)));
+            log.info(
+                    "The version policy moved node {} of {} to {}",
+                    after.uid(),
+                    after.serverId(),
+                    after.status().status());
+            server(after.serverId()).ifPresent(events::serverChanged);
+        }
+    }
+
+    private void welcome(NodeLink link, Hello hello, Authentication.Accepted accepted) {
+        Instant now = clock.instant();
+        NodeLink.Handshake agreed = agree(accepted.serverId(), accepted.keyKind(), hello, today());
+        int protocol = agreed.protocol();
+        List<String> offered = features();
+        VersionStatus status = agreed.status();
+        List<DeprecatedPart> deprecated = agreed.deprecated();
         boolean discontinued = status.status() == VersionState.DISCONTINUED;
         LiveServer server;
         NodeLink replaced;
