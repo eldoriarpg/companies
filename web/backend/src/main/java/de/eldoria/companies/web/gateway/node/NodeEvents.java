@@ -60,6 +60,14 @@ public interface NodeEvents {
     void nodeReady(LiveServer server, NodeLink link);
 
     /**
+     * The version policy discontinued a connected node's version; it no longer takes requests.
+     *
+     * @param server the server
+     * @param link the node
+     */
+    void nodeDiscontinued(LiveServer server, NodeLink link);
+
+    /**
      * A node changed the server's branding, or connected on a discontinued version.
      *
      * @param server the server

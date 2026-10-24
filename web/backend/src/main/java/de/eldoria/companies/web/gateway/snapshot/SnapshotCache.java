@@ -177,6 +177,20 @@ public final class SnapshotCache {
     }
 
     /**
+     * A node's version was discontinued while it was connected: it is sent {@code unsubscribe} for the server's cached
+     * sessions, as it takes no requests and pushes no patches any more.
+     *
+     * @param server the server
+     * @param link the node
+     */
+    public void nodeDiscontinued(LiveServer server, NodeLink link) {
+        for (Entry entry : List.copyOf(entries.values())) {
+            if (!entry.serverId.equals(server.id())) continue;
+            link.send(new Unsubscribe(link.nextId(), link.agreed().protocol(), entry.sessionId));
+        }
+    }
+
+    /**
      * Drops the snapshot of a session that ended and sends {@code unsubscribe} to every ready node of its server, as
      * each node pushes the patches of its own events.
      *

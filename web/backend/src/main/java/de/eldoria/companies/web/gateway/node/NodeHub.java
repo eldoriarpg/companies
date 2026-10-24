@@ -359,6 +359,8 @@ public final class NodeHub {
                     after.status(),
                     after.deprecated(),
                     iconHash != null && icons.exists(iconHash)));
+            boolean newlyDiscontinued = discontinued && before.status().status() != VersionState.DISCONTINUED;
+            if (newlyDiscontinued) server(after.serverId()).ifPresent(server -> events.nodeDiscontinued(server, link));
             log.info(
                     "The version policy moved node {} of {} to {}",
                     after.uid(),
@@ -504,6 +506,9 @@ public final class NodeHub {
 
         @Override
         public void nodeReady(LiveServer server, NodeLink link) {}
+
+        @Override
+        public void nodeDiscontinued(LiveServer server, NodeLink link) {}
 
         @Override
         public void serverChanged(LiveServer server) {}

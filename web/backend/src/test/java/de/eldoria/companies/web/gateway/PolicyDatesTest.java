@@ -14,17 +14,22 @@ import de.eldoria.companies.web.api.link.Ping;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.PlayerRef;
+import de.eldoria.companies.web.api.session.SessionCreated;
+import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
+import de.eldoria.companies.web.api.update.Unsubscribe;
 import de.eldoria.companies.web.gateway.policy.VersionPolicy;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -70,6 +75,15 @@ class PolicyDatesTest {
             gateway.app().sweep();
             node.assertQuiet();
 
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.50");
+            node.send(new CreateSession("c", 1, new PlayerRef(UUID.randomUUID(), "Steve"), UUID.randomUUID()));
+            SessionCreated created = node.expect(SessionCreated.class);
+            HostedGatewayTest.login(node, browser, created);
+            CompletableFuture<HttpResponse<String>> loading = browser.getAsync("/api/v1/me/snapshot");
+            SnapshotRequest request = node.expect(SnapshotRequest.class);
+            node.sendRaw(Recorded.snapshot(request.id(), request.session(), UUID.randomUUID(), 1));
+            assertEquals(200, loading.join().statusCode());
+
             CLOCK.advance(Duration.ofMinutes(3));
             node.send(new Ping("p", 1, CLOCK.instant()));
             node.expect(Pong.class);
@@ -77,6 +91,7 @@ class PolicyDatesTest {
             Welcome again = node.expect(Welcome.class);
             assertNull(again.id());
             assertEquals(VersionState.DISCONTINUED, again.version().status());
+            assertEquals(created.session(), node.expect(Unsubscribe.class).session());
 
             node.send(new CreateSession("c", 1, new PlayerRef(UUID.randomUUID(), "Steve"), UUID.randomUUID()));
             assertEquals(ErrorCode.DISCONTINUED, node.expect(ErrorMessage.class).code());
