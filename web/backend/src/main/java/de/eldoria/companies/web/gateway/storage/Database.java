@@ -13,35 +13,37 @@ import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.web.gateway.ServiceConfig;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.SQLException;
 
 import javax.sql.DataSource;
-
-import static de.chojo.sadu.queries.api.query.Query.query;
 
 /**
  * Connects to PostgreSQL through a HikariCP pool, migrates the schema and installs the default query configuration.
  */
 public final class Database {
     private static final Logger log = LoggerFactory.getLogger(Database.class);
+    private static volatile @Nullable DataSource opened;
 
     private Database() {}
 
     /**
-     * @return whether the database answers a query
+     * Asks the database whether it answers, without the query configuration, so a failure is not logged as a failed
+     * query.
+     *
+     * @return whether the database of the last {@link #open(ServiceConfig.DatabaseConfig)} answers
      */
     public static boolean ping() {
-        try {
-            return query("SELECT 1 AS one;")
-                    .single()
-                    .map(row -> row.getInt("one"))
-                    .first()
-                    .isPresent();
-        } catch (RuntimeException e) {
+        DataSource current = opened;
+        if (current == null) return false;
+        try (Connection connection = current.getConnection()) {
+            return connection.isValid(2);
+        } catch (SQLException | RuntimeException e) {
             return false;
         }
     }
@@ -74,6 +76,7 @@ public final class Database {
                 .setThrowExceptions(true)
                 .setRowMapperRegistry(new RowMapperRegistry().register(PostgresqlMapper.getDefaultMapper()))
                 .build());
+        opened = source;
         return source;
     }
 }

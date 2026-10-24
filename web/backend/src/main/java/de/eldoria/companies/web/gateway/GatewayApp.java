@@ -60,6 +60,7 @@ public final class GatewayApp {
     private final BrowserApi browser;
     private final ClientAddress clientAddress;
     private final List<RateLimiter> limiters;
+    private final Health health;
 
     /**
      * @param config the settings
@@ -81,6 +82,7 @@ public final class GatewayApp {
         RateLimiter logins = new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock);
         RateLimiter lookups = new RateLimiter(60, Duration.ofMinutes(1), clock);
         RateLimiter readLimit = new RateLimiter(config.readsPerSession(), Duration.ofSeconds(10), clock);
+        this.health = new Health(Database::ping, clock);
         this.limiters = List.of(connects, logins, lookups, readLimit);
         this.clientAddress = ClientAddress.trusting(config.trustedProxies(), config.cloudflare());
         this.hub = new NodeHub(authenticator, policy, config.mode().kind(), servers, icons, connects, clock);
@@ -133,7 +135,7 @@ public final class GatewayApp {
             javalin.routes.before("/api/*", ctx -> ctx.header("Cache-Control", "no-store"));
             javalin.routes.exception(
                     ApiError.class, (error, ctx) -> ctx.status(error.status()).json(error.view()));
-            javalin.routes.get(Routes.HEALTH, GatewayApp::health);
+            javalin.routes.get(Routes.HEALTH, this::health);
             javalin.routes.ws(Routes.CONNECT, this::nodes);
             javalin.routes.get(Routes.PENDING, browser::pending);
             javalin.routes.post(Routes.LOGIN, browser::login);
@@ -190,8 +192,8 @@ public final class GatewayApp {
         ws.onError(ctx -> log.debug("Node connection failed", ctx.error()));
     }
 
-    private static void health(Context ctx) {
-        boolean up = Database.ping();
+    private void health(Context ctx) {
+        boolean up = health.up();
         ctx.status(up ? 200 : 503).json(Map.of("status", up ? "up" : "down"));
     }
 
