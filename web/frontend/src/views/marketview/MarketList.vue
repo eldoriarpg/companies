@@ -14,8 +14,8 @@ import CapsLabel from '@/components/typography/CapsLabel.vue'
 import {compact, money, percentChange, trendOf} from '~/util/format'
 
 /**
- * The materials of the market as ticker rows: the average price per item, the lowest and highest, the volume and,
- * once the plugin keeps price history, the change. A row opens the material's figures.
+ * The materials of the market as ticker rows: the average price per item, the lowest and highest, the volume and the
+ * change against the week before where both weeks have enough orders. A row opens the material's figures.
  */
 defineProps<{
   items: readonly MarketItemView[]

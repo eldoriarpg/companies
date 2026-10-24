@@ -7,8 +7,8 @@ import {randomUUID} from 'node:crypto'
 import {createServer} from 'node:http'
 import {WebSocketServer} from 'ws'
 import {
-    applications, BOOK, CODE, DISCONTINUED, FEATURES, INBOX, MARKET, member, NODE, OTHER_NODE, positions, SESSIONS, snapshot,
-    TREASURY_LOG,
+    applications, BOOK, CODE, DISCONTINUED, FEATURES, history, INBOX, MARKET, member, NODE, OTHER_NODE, positions, SESSIONS,
+    snapshot, TREASURY_LOG,
 } from './data.mjs'
 
 /** Where the mock listens, unless `MOCK_PORT` says otherwise. */
@@ -253,6 +253,13 @@ function action(name, args, state) {
             return {type: 'action.result', v: 1, ok: true, data: BOOK.find(order => order.id === args.order)}
         case 'market.top':
             return page({items: MARKET})
+        case 'market.movers':
+            return page({items: MARKET.filter(entry => entry.change !== undefined).sort((a, b) => Math.abs(b.change) - Math.abs(a.change))})
+        case 'market.item': {
+            const entry = MARKET.find(candidate => candidate.item.material === args.material)
+            if (!entry) return {type: 'action.result', v: 1, ok: false, reason: 'dashboard.invalid', message: 'Unknown item'}
+            return done({...entry, days: args.days, history: history(entry, args.days)})
+        }
         case 'market.search':
             return page({items: MARKET.filter(entry => entry.item.name.toLowerCase().includes(String(args.query).toLowerCase()))})
         case 'inbox.page':
