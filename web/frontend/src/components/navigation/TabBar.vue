@@ -23,6 +23,10 @@ const modelValue = defineModel<string>({required: true})
 
 const props = defineProps<{
   tabs: Tab[]
+  /** What the tabs choose between, for a screen reader. */
+  label: string
+  /** The id of the panel the selected tab shows. */
+  panelId?: string
 }>()
 
 const tabElements: HTMLButtonElement[] = []
@@ -72,12 +76,13 @@ function onKeydown(event: KeyboardEvent, index: number) {
 
 <template>
   <div class="border-b border-line">
-    <div class="-mb-px flex flex-wrap gap-x-2" role="tablist">
+    <div class="-mb-px flex flex-wrap gap-x-2" role="tablist" :aria-label="label">
       <TabButton
           v-for="(tab, index) in tabs"
           :key="tab.key"
           :ref="element => rememberTab(index, element)"
           :selected="modelValue === tab.key"
+          :aria-controls="modelValue === tab.key ? panelId : undefined"
           :tabindex="index === focusableIndex ? 0 : -1"
           @click="activate(index)"
           @keydown="onKeydown($event, index)"

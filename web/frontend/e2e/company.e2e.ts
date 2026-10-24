@@ -101,8 +101,8 @@ test.describe('company management', () => {
         await expect(page.getByText('The treasury does not hold that much.')).toBeVisible()
 
         await page.getByLabel(/Share of payouts/).fill('30')
-        await page.getByRole('button', {name: 'Set share'}).click()
-        await expect(page.getByText('The share may be at most 25%.')).toBeVisible()
+        await expect(page.getByText('Enter at most 25.')).toBeVisible()
+        await expect(page.getByRole('button', {name: 'Set share'})).toBeDisabled()
         await page.getByLabel(/Share of payouts/).fill('12')
         await page.getByRole('button', {name: 'Set share'}).click()
         await expect(page.getByText('The company now keeps 12% of every payout.')).toBeVisible()

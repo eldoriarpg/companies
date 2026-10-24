@@ -21,6 +21,8 @@ defineProps<{
   placeholder?: string
   disabled?: boolean
 }>()
+
+const {t} = useI18n()
 </script>
 
 <template>
@@ -32,6 +34,7 @@ defineProps<{
       :max="max"
       :placeholder="placeholder"
       :disabled="disabled"
+      :unreadable="t('input.amount')"
       :parse="parseAmount"
       inputmode="decimal"
   />

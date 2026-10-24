@@ -18,6 +18,8 @@ defineProps<{
   disabled?: boolean
 }>()
 
+const {t} = useI18n()
+
 /**
  * Reads a whole number.
  *
@@ -39,6 +41,7 @@ function whole(text: string): number {
       :max="max"
       :placeholder="placeholder"
       :disabled="disabled"
+      :unreadable="t('input.wholeNumber')"
       :parse="whole"
       inputmode="numeric"
   />

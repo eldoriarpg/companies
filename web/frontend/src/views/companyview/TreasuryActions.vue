@@ -27,10 +27,11 @@ const {t, locale} = useI18n()
 const action = useAction()
 const amount = ref<number>()
 const share = ref(props.treasury.share)
+const shareEdited = ref(false)
 const done = ref('')
 
-watch(() => props.treasury.share, (now, before) => {
-  if (share.value === before) share.value = now
+watch(() => props.treasury.share, now => {
+  if (!shareEdited.value) share.value = now
 })
 
 /**
@@ -55,7 +56,9 @@ async function saveShare(): Promise<void> {
   if (percent === undefined) return
   done.value = ''
   const result = await action.run('company.treasury.share', {percent})
-  if (result) done.value = t('company.shareSaved', {share: result.share})
+  if (!result) return
+  done.value = t('company.shareSaved', {share: result.share})
+  shareEdited.value = false
 }
 </script>
 
@@ -73,7 +76,7 @@ async function saveShare(): Promise<void> {
     <MutedText v-if="treasury.minTransaction !== undefined" tag="p">{{ t('company.minTransaction', {amount: money(treasury.minTransaction, locale)}) }}</MutedText>
     <form v-if="treasury.maxShare !== undefined" class="flex flex-wrap items-end gap-2" @submit.prevent="saveShare">
       <div class="w-40">
-        <NumberInput v-model="share" :label="t('company.share', {max: treasury.maxShare})" :min="0"/>
+        <NumberInput v-model="share" :label="t('company.share', {max: treasury.maxShare})" :min="0" :max="treasury.maxShare" @input="shareEdited = true"/>
       </div>
       <SecondaryButton type="submit" :disabled="action.busy.value || share === undefined">{{ t('company.saveShare') }}</SecondaryButton>
     </form>

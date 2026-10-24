@@ -8,7 +8,7 @@ import {useId} from 'vue'
 
 /**
  * One field with its label above it and, where there is one, a line underneath saying what it is for. The slot is
- * handed the `id` the label points at and the `hintId` the field is described by; binding both on the field is what
+ * handed the `id` the label points at, the label's own `labelId` and the `hintId` the field is described by; binding both on the field is what
  * ties the three together for a screen reader.
  */
 defineProps<{
@@ -17,13 +17,14 @@ defineProps<{
 }>()
 
 const id = useId()
+const labelId = useId()
 const hintId = useId()
 </script>
 
 <template>
   <div class="flex min-w-0 flex-col gap-1">
-    <label :for="id" class="text-xs font-semibold text-ink">{{ label }}</label>
-    <slot :id="id" :hint-id="hint ? hintId : undefined"/>
+    <label :id="labelId" :for="id" class="text-xs font-semibold text-ink">{{ label }}</label>
+    <slot :id="id" :label-id="labelId" :hint-id="hint ? hintId : undefined"/>
     <span v-if="hint" :id="hintId" class="text-xs text-ink-muted">{{ hint }}</span>
   </div>
 </template>

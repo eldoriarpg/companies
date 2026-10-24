@@ -16,6 +16,12 @@ export default {
         noMatch: 'Nothing matches the search.',
         narrowSearch: 'Showing the first {shown} of {total}. Type to narrow the list.',
     },
+    input: {
+        wholeNumber: 'Enter a whole number.',
+        amount: 'Enter an amount, such as 12.50.',
+        atLeast: 'Enter at least {min}.',
+        atMost: 'Enter at most {max}.',
+    },
     failure: {
         offline: {
             message: 'The dashboard could not reach the server.',

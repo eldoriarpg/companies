@@ -22,31 +22,31 @@ tester.run('view-content-title', rule, {
     valid: [
         {
             name: 'a view titled through its ViewContent',
-            filename: 'CatalogView.vue',
-            code: '<template><ViewContent :title="catalog.name"><p>{{ catalog.intro }}</p></ViewContent></template>',
+            filename: 'OrdersView.vue',
+            code: '<template><ViewContent :title="order.name"><p>{{ order.intro }}</p></ViewContent></template>',
         },
         {
             name: 'a section header introducing a part further down',
-            filename: 'CatalogView.vue',
-            code: '<template><ViewContent title="Katalog"><p>{{ intro }}</p><SectionHeader>Fragen</SectionHeader></ViewContent></template>',
+            filename: 'OrdersView.vue',
+            code: '<template><ViewContent title="Orders"><p>{{ intro }}</p><SectionHeader>Lines</SectionHeader></ViewContent></template>',
         },
         {
             name: 'a component without a ViewContent of its own',
-            filename: 'CatalogCard.vue',
-            code: '<template><div><SectionHeader>Fragen</SectionHeader></div></template>',
+            filename: 'OrderCard.vue',
+            code: '<template><div><SectionHeader>Lines</SectionHeader></div></template>',
         },
     ],
     invalid: [
         {
             name: 'a ViewContent without a title',
-            filename: 'CatalogView.vue',
+            filename: 'OrdersView.vue',
             code: '<template><ViewContent><p>{{ intro }}</p></ViewContent></template>',
             errors: [{messageId: 'missingTitle'}],
         },
         {
             name: 'a view opening with a header of its own',
-            filename: 'CatalogView.vue',
-            code: '<template><ViewContent title="Katalog"><div><PageHeader>Katalog</PageHeader></div></ViewContent></template>',
+            filename: 'OrdersView.vue',
+            code: '<template><ViewContent title="Orders"><div><PageHeader>Orders</PageHeader></div></ViewContent></template>',
             errors: [{messageId: 'ownTitle'}],
         },
     ],

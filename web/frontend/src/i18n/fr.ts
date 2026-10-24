@@ -16,6 +16,12 @@ export default {
         noMatch: 'Rien ne correspond à la recherche.',
         narrowSearch: 'Les {shown} premiers sur {total}. Tape pour affiner la liste.',
     },
+    input: {
+        wholeNumber: 'Saisis un nombre entier.',
+        amount: 'Saisis un montant, par exemple 12,50.',
+        atLeast: 'Saisis au moins {min}.',
+        atMost: 'Saisis au plus {max}.',
+    },
     failure: {
         offline: {
             message: 'Le tableau de bord n’a pas pu joindre le serveur.',

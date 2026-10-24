@@ -14,14 +14,13 @@ import {useDismiss, type DismissedBy} from '~/composables/useDismiss'
  * is open.
  *
  * <p>Rendering it at the body is what keeps it whole: a panel positioned beside its trigger is cut
- * off by every ancestor with `overflow`, a text field, a block of the page editor or the body of a
- * dialog alike. It is placed against the element this component renders around the trigger, which
- * may also be an empty point, such as the cursor of a text editor.
+ * off by every ancestor with `overflow`, a scrolling list or the body of a dialog alike. It is placed
+ * against the element this component renders around the trigger.
  *
  * <p>A press outside the trigger and the panel, and the escape key, close it and are reported as
  * `dismissed`; a press inside leaves it alone. Focus leaving both is reported as `focusLeft`.
  *
- * <p>It works inside a dialog as well. The panel paints above every dialog layer and takes the
+ * <p>It works inside a dialog or a bottom sheet as well. The panel paints above every dialog layer and takes the
  * pointer although a dialog has switched it off for the rest of the page. While it is open it
  * holds a focus scope of its own, which pauses the dialog's trap, so its fields can take the focus.
  * `opened` is emitted once that scope stands and the panel is placed, which is the moment a caller

@@ -4,7 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 import {describe, expect, it} from 'vitest'
-import {filterOptions, groupOptions} from './groupOptions'
+import {groupOptions} from './groupOptions'
 
 /**
  * Entries sort under their headings in the order the headings first appear, and a list without headings stays one.
@@ -25,9 +25,5 @@ describe('groupOptions', () => {
         ])
         expect(groups.map(group => group.group)).toEqual(['Materials', 'Saved'])
         expect(groups[0]?.options.map(option => option.value)).toEqual(['stone', 'dirt'])
-    })
-
-    it('filters by label, ignoring case', () => {
-        expect(filterOptions([{label: 'Oak Log'}, {label: 'Stone'}], ' oak ')).toEqual([{label: 'Oak Log'}])
     })
 })

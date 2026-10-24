@@ -5,7 +5,7 @@
  */
 import {AxiosError, AxiosHeaders} from 'axios'
 import {describe, expect, it} from 'vitest'
-import {describeFailure, FailureKind, kindOf} from './failure'
+import {describeKind, FailureKind, kindOf} from './failure'
 
 /**
  * An answer of the gateway with a status.
@@ -22,7 +22,9 @@ function answered(status: number): AxiosError {
 /** Describing failed calls to the gateway. */
 describe('a failure', () => {
     it('is told apart by what the reader can do about it', () => {
-        expect(kindOf(new Error('network'))).toBe(FailureKind.OFFLINE)
+        expect(kindOf(new AxiosError('network', AxiosError.ERR_NETWORK))).toBe(FailureKind.OFFLINE)
+        expect(kindOf(new AxiosError('slow', AxiosError.ECONNABORTED))).toBe(FailureKind.TIMEOUT)
+        expect(kindOf(new Error('broken'))).toBe(FailureKind.UNKNOWN)
         expect(kindOf(answered(401))).toBe(FailureKind.SIGNED_OUT)
         expect(kindOf(answered(429))).toBe(FailureKind.TOO_OFTEN)
         expect(kindOf(answered(504))).toBe(FailureKind.TIMEOUT)
@@ -32,7 +34,7 @@ describe('a failure', () => {
     })
 
     it('names what happened and what to do', () => {
-        expect(describeFailure(answered(429), key => key)).toEqual({
+        expect(describeKind(kindOf(answered(429)), key => key)).toEqual({
             kind: FailureKind.TOO_OFTEN,
             message: 'failure.tooOften.message',
             guidance: 'failure.tooOften.guidance',

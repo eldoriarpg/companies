@@ -72,11 +72,11 @@ function select(value: AcceptableValue | AcceptableValue[] | undefined): void {
 </script>
 
 <template>
-  <LabelledField v-slot="{id}" :label="label">
+  <LabelledField v-slot="{id, labelId}" :label="label">
     <DropdownPanel v-model:open="open" match-width panel-class="max-h-80">
       <template #trigger>
-        <DropdownTrigger :id="id" :open="open" :disabled="disabled">
-          <span :class="selectedLabel ? '' : 'text-ink-faint'">{{ selectedLabel || placeholder || '' }}</span>
+        <DropdownTrigger :id="id" :aria-labelledby="`${labelId} ${id}-value`" :open="open" :disabled="disabled">
+          <span :id="`${id}-value`" :class="selectedLabel ? '' : 'text-ink-faint'">{{ selectedLabel || placeholder || '' }}</span>
         </DropdownTrigger>
       </template>
       <DropdownListbox :model-value="model" :label="label" @update:model-value="select">

@@ -125,7 +125,7 @@ describe('FloatingPanel', () => {
 })
 
 describe('FloatingPanel inside a dialog', () => {
-    /** A dialog holding a field and a panel, the way the text dialog of the page editor holds its editor. */
+    /** A dialog holding a field and a panel, the way an order form holds its item picker. */
     async function mountInDialog() {
         const dialogOpen = ref(true)
         const panelOpen = ref(false)

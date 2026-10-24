@@ -29,13 +29,13 @@ tester.run('rows-open-pages-as-links', rule, {
             code: `
 <script setup lang="ts">
 async function saveAndOpen() {
-  const created = await quiz.createCatalog(draft.value)
-  router.push({name: 'quiz-catalog', params: {id: created.id}})
+  const created = await orders.create(draft.value)
+  router.push({name: 'order', params: {id: created.id}})
 }
 </script>
 
 <template>
-  <NeutralContainer @click="saveAndOpen">{{ draft.name }}</NeutralContainer>
+  <PanelBox @click="saveAndOpen">{{ draft.name }}</PanelBox>
 </template>
 `,
         },
@@ -45,7 +45,7 @@ async function saveAndOpen() {
             code: `
 <script setup lang="ts">
 function goBack() {
-  router.push({name: 'quiz-catalogs'})
+  router.push({name: 'orders'})
 }
 </script>
 
@@ -60,12 +60,12 @@ function goBack() {
             code: `
 <script setup lang="ts">
 function openResults() {
-  router.push({name: 'quiz-test-results'})
+  router.push({name: 'order-history'})
 }
 </script>
 
 <template>
-  <DropdownMenuItem @click="openResults">{{ t('quiz.results') }}</DropdownMenuItem>
+  <DropdownMenuItem @click="openResults">{{ t('orders.history') }}</DropdownMenuItem>
 </template>
 `,
         },
@@ -74,9 +74,9 @@ function openResults() {
             filename: 'Row.vue',
             code: `
 <template>
-  <RowLink :to="{name: 'quiz-catalog'}" @click="router.push({name: 'quiz-catalog'})">
-    {{ catalog.name }}
-  </RowLink>
+  <NuxtLink :to="{name: 'order'}" @click="router.push({name: 'order'})">
+    {{ order.name }}
+  </NuxtLink>
 </template>
 `,
         },
@@ -91,7 +91,7 @@ function expand() {
 </script>
 
 <template>
-  <NeutralContainer @click="expand">{{ catalog.name }}</NeutralContainer>
+  <PanelBox @click="expand">{{ order.name }}</PanelBox>
 </template>
 `,
         },
@@ -102,23 +102,23 @@ function expand() {
             filename: 'Row.vue',
             code: `
 <script setup lang="ts">
-function openCatalog() {
-  router.push({name: 'quiz-catalog', params: {id: props.catalog.id}})
+function openOrder() {
+  router.push({name: 'order', params: {id: props.order.id}})
 }
 </script>
 
 <template>
-  <NeutralContainer @click="openCatalog">{{ catalog.name }}</NeutralContainer>
+  <PanelBox @click="openOrder">{{ order.name }}</PanelBox>
 </template>
 `,
-            errors: [{messageId: 'link', data: {element: 'NeutralContainer'}}],
+            errors: [{messageId: 'link', data: {element: 'PanelBox'}}],
         },
         {
             name: 'a push written in the template',
             filename: 'Row.vue',
             code: `
 <template>
-  <div @click="router.push({name: 'quiz-catalog'})">{{ catalog.name }}</div>
+  <div @click="router.push({name: 'order'})">{{ order.name }}</div>
 </template>
 `,
             errors: [{messageId: 'link', data: {element: 'div'}}],

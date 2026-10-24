@@ -1,3 +1,8 @@
+/*
+ *     SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *     Copyright (C) EldoriaRPG Team and Contributor
+ */
 /**
  * Finds rows, cards and names that open a page without being links.
  *
@@ -14,7 +19,7 @@
  * and turning it into a link is a design decision, so buttons and menu entries are left alone too.
  */
 
-const NOT_REPORTED = /^(a|button|NuxtLink|RouterLink|router-link|RowLink|AppLink|SidebarLink|HelpCenterLink|IconButton|[A-Za-z]*Button|[A-Za-z]*MenuItem)$/
+const NOT_REPORTED = /^(a|button|NuxtLink|RouterLink|router-link|IconButton|[A-Za-z]*Button|[A-Za-z]*MenuItem)$/
 
 /**
  * The identifier a call or member chain starts from, such as `router` in `router.push(…)`.
@@ -104,7 +109,7 @@ export default {
         docs: {description: 'A row, card or name that opens a page is a link, not a click handler.'},
         schema: [],
         messages: {
-            link: '<{{element}}> opens a page from a click handler. A row that opens a page is a link: wrap it in RowLink (components/navigation/RowLink.vue).',
+            link: '<{{element}}> opens a page from a click handler. A row that opens a page is a link: make it a NuxtLink to that page.',
         },
     },
     create(context) {

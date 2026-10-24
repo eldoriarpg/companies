@@ -16,6 +16,12 @@ export default {
         noMatch: 'Nichts passt zur Suche.',
         narrowSearch: 'Die ersten {shown} von {total}. Tippe weiter, um die Liste einzugrenzen.',
     },
+    input: {
+        wholeNumber: 'Gib eine ganze Zahl ein.',
+        amount: 'Gib einen Betrag ein, etwa 12,50.',
+        atLeast: 'Gib mindestens {min} ein.',
+        atMost: 'Gib höchstens {max} ein.',
+    },
     failure: {
         offline: {
             message: 'Das Dashboard hat den Server nicht erreicht.',

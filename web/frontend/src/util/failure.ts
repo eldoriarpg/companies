@@ -3,6 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
+import {AxiosError, isAxiosError} from 'axios'
 import {gatewayFailure} from '~/api/gateway'
 
 /**
@@ -41,17 +42,6 @@ export interface Failure {
 export type Translate = (key: string) => string
 
 /**
- * Says what a failed call to the gateway means for the reader.
- *
- * @param error what the call threw
- * @param t the translator
- * @returns the failure
- */
-export function describeFailure(error: unknown, t: Translate): Failure {
-    return describeKind(kindOf(error), t)
-}
-
-/**
  * Words a kind of failure.
  *
  * @param kind the kind
@@ -64,12 +54,15 @@ export function describeKind(kind: FailureKindName, t: Translate): Failure {
 }
 
 /**
- * The kind of a failed call.
+ * The kind of a failed call. Only a request that got no answer at all means the reader is offline, and one the browser
+ * gave up waiting for timed out; anything thrown that is no request at all, such as a refusal without text, is unknown.
  *
  * @param error what the call threw
  * @returns the kind
  */
 export function kindOf(error: unknown): FailureKindName {
+    if (!isAxiosError(error)) return FailureKind.UNKNOWN
+    if (error.code === AxiosError.ECONNABORTED || error.code === AxiosError.ETIMEDOUT) return FailureKind.TIMEOUT
     const {status} = gatewayFailure(error)
     if (status === 0) return FailureKind.OFFLINE
     if (status === 401) return FailureKind.SIGNED_OUT

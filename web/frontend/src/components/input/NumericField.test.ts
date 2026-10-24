@@ -75,4 +75,13 @@ describe('numeric fields', () => {
         expect(wrapper.find('label').attributes('for')).toBe(input.attributes('id'))
         expect(wrapper.find(`#${input.attributes('aria-describedby')}`).text()).toBe('Up to a stack')
     })
+
+    it('says underneath what it expects', async () => {
+        const wrapper = mount(NumberInput, {props: {label: 'Share', modelValue: undefined, max: 25}})
+        const input = wrapper.find('input')
+        await input.setValue('30')
+        expect(wrapper.find(`#${input.attributes('aria-errormessage')}`).text()).toBe('Enter at most 25.')
+        await input.setValue('abc')
+        expect(wrapper.text()).toContain('Enter a whole number.')
+    })
 })

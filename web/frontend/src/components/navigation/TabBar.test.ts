@@ -32,6 +32,8 @@ describe('TabBar', () => {
         wrapper = mount(defineComponent({
             setup: () => () => h(TabBar, {
                 tabs: TABS,
+                label: 'Company',
+                panelId: 'company-panel',
                 modelValue: selected.value,
                 'onUpdate:modelValue': (key: string) => {
                     selected.value = key
@@ -108,5 +110,12 @@ describe('TabBar', () => {
         await tab(0).trigger('keydown', {key: 'ArrowDown'})
 
         expect(selected.value).toBe('general')
+    })
+
+    it('names the list and points the selected tab at its panel', () => {
+        mountBar('members')
+        expect(wrapper!.get('[role="tablist"]').attributes('aria-label')).toBe('Company')
+        expect(tabs()[1]?.attributes('aria-controls')).toBe('company-panel')
+        expect(tabs()[0]?.attributes('aria-controls')).toBeUndefined()
     })
 })

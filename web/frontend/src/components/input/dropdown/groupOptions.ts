@@ -31,10 +31,3 @@ export function groupOptions(options: SelectOption[]): OptionGroup[] {
     }
     return [...groups].map(([group, members]) => ({group, options: members}))
 }
-
-/** The entries whose label holds what was typed, ignoring case. Nothing typed keeps them all. */
-export function filterOptions<T extends { label: string }>(options: T[], query: string): T[] {
-    const typed = query.trim().toLowerCase()
-    if (!typed) return options
-    return options.filter(option => option.label.toLowerCase().includes(typed))
-}
