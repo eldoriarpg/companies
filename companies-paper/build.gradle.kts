@@ -15,6 +15,9 @@ dependencies {
         exclude("*")
     }
     implementation(project(":companies-api"))
+    implementation(project(":web-api")) {
+        exclude("*")
+    }
     implementation(project(":companies-hooks")) {
         exclude("*")
     }
@@ -107,6 +110,7 @@ bukkit {
                 "companies.orders.*",
                 "companies.company.*",
                 "companies.boards.use",
+                "companies.dashboard.use",
                 "companies.admin.*",
                 "companies.updates"
             )
@@ -153,12 +157,18 @@ bukkit {
             default = Default.TRUE
         }
 
+        register("companies.dashboard.use") {
+            description = "Allows opening the web dashboard with /company dashboard while it is enabled"
+            default = Default.TRUE
+        }
+
         register("companies.admin.*") {
             description = "Gives access to all admin commands"
             children = listOf(
                 "companies.admin",
                 "companies.admin.boards",
                 "companies.admin.calcLevel",
+                "companies.admin.dashboard",
                 "companies.admin.debug",
                 "companies.admin.delete",
                 "companies.admin.grant",
@@ -180,6 +190,9 @@ bukkit {
         }
         register("companies.admin.calcLevel") {
             description = "Allows recalculating company levels"
+        }
+        register("companies.admin.dashboard") {
+            description = "Allows showing the dashboard connection, ending a player's dashboard sessions and entering the dashboard key"
         }
         register("companies.admin.debug") {
             description = "Allows creating debug reports"

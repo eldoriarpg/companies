@@ -26,6 +26,7 @@ Every player has these by default. Take one away to block a feature.
 | `companies.company.create` | everyone | Found a company with `/company create`. |
 | `companies.company.join` | everyone | Join a company: `/company join`, `/company apply`, `/company apply withdraw` and `/company invites accept`. An online player without it cannot be invited. |
 | `companies.boards.use` | everyone | Open order boards through signs, NPCs and `/company board`. |
+| `companies.dashboard.use` | everyone | Open the [web dashboard](../players/dashboard.md) with `/company dashboard` while the server enabled it. Taking it away ends the player's logins. New in 2.1. |
 
 ### Order limit
 
@@ -48,6 +49,7 @@ Only operators have these by default.
 | `companies.admin` | op | See `/companyadmin`. Use `/companyadmin syncconfiguration`. |
 | `companies.admin.boards` | op | Create and break board signs, list presets, rewrite board signs and bind NPCs to boards (`/companyadmin board`). |
 | `companies.admin.calcLevel` | op | Recalculate company levels with `/companyadmin calclevel`. |
+| `companies.admin.dashboard` | op | Show the dashboard connection, enter the dashboard key and log players out of the dashboard with `/companyadmin dashboard`. New in 2.1. |
 | `companies.admin.debug` | op | Create debug reports with `/companyadmin debug`. |
 | `companies.admin.delete` | op | Delete companies with `/companyadmin delete`. |
 | `companies.admin.grant` | op | Give items and money to players with `/companyadmin grant`. |
@@ -69,10 +71,10 @@ These give every permission listed below them. On their own, they do nothing.
 
 | Permission | Default | Gives |
 |---|---|---|
-| `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.admin.*`, `companies.updates` |
+| `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.dashboard.use`, `companies.admin.*`, `companies.updates` |
 | `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat`, `companies.orders.solo` |
 | `companies.company.*` | op | `companies.company.create`, `companies.company.join` |
-| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.grant`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
+| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.grant`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
 
 :::note
 The player permissions have the default "everyone". So players have them even without `companies.*`. To block a feature, set the permission to `false` for that player or group.

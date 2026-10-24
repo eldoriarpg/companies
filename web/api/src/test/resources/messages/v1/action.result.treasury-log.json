@@ -1,0 +1,32 @@
+{
+  "type": "action.result",
+  "id": "g-24",
+  "v": 1,
+  "ok": true,
+  "data": {
+    "page": 1,
+    "pages": 1,
+    "total": 2,
+    "entries": [
+      {
+        "id": 88,
+        "time": "2026-10-24T09:40:00Z",
+        "kind": "DEPOSIT",
+        "amount": 250.0,
+        "balance": 2500.0,
+        "actor": {
+          "uuid": "a3b1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+          "name": "Steve"
+        }
+      },
+      {
+        "id": 87,
+        "time": "2026-10-24T09:00:00Z",
+        "kind": "PAYOUT_SHARE",
+        "amount": 12.8,
+        "balance": 2250.0,
+        "order": 101
+      }
+    ]
+  }
+}

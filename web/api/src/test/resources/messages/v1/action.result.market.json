@@ -1,0 +1,36 @@
+{
+  "type": "action.result",
+  "id": "g-23",
+  "v": 1,
+  "ok": true,
+  "data": {
+    "page": 1,
+    "pages": 1,
+    "total": 2,
+    "items": [
+      {
+        "item": {
+          "material": "minecraft:spruce_planks",
+          "name": "Spruce Planks",
+          "amount": 1,
+          "icon": "spruce_planks"
+        },
+        "avg": 2.1,
+        "min": 1.5,
+        "max": 3.0,
+        "volume": 4096,
+        "orders": 18
+      },
+      {
+        "item": {
+          "material": "minecraft:beacon",
+          "name": "Beacon",
+          "amount": 1,
+          "icon": "beacon"
+        },
+        "volume": 1,
+        "orders": 1
+      }
+    ]
+  }
+}

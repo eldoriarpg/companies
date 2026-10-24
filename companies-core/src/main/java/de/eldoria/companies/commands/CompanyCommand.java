@@ -11,6 +11,7 @@ import de.eldoria.companies.commands.company.ApplyCommand;
 import de.eldoria.companies.commands.company.BankCommand;
 import de.eldoria.companies.commands.company.BoardCommand;
 import de.eldoria.companies.commands.company.Create;
+import de.eldoria.companies.commands.company.DashboardCommand;
 import de.eldoria.companies.commands.company.Disband;
 import de.eldoria.companies.commands.company.HistoryCommand;
 import de.eldoria.companies.commands.company.InboxCommand;
@@ -115,6 +116,9 @@ final class CompanyCommand {
     @Subcommand
     final AlertsCommand alerts;
 
+    @Subcommand
+    final DashboardCommand dashboard;
+
     CompanyCommand(CommandDependencies deps) {
         order = new CompanyOrderCommand(deps);
         permission = new Permission(deps);
@@ -139,6 +143,7 @@ final class CompanyCommand {
         board = new BoardCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
         bank = new BankCommand(deps);
         alerts = new AlertsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
+        dashboard = new DashboardCommand(deps);
     }
 
     /**

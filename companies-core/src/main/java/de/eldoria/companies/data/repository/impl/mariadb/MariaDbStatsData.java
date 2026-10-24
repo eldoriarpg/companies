@@ -159,6 +159,15 @@ public class MariaDbStatsData extends AStatsData {
     }
 
     @Override
+    protected int countRanked(TimeRange range, LocalDateTime now) {
+        return query("SELECT COUNT(1) AS count FROM (" + ranked(TopOrder.ORDERS, range) + ") counted")
+                .single(sourceCall(range, now))
+                .map(row -> row.getInt("count"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
     protected Optional<CompanyRank> getRank(int company, TopOrder order, TimeRange range, LocalDateTime now) {
         var call = sourceCall(range, now).bind(company);
         return query(ranked(order, range) + " WHERE id = ?")

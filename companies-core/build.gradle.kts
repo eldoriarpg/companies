@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     api(project(":companies-api"))
+    implementation(project(":web-api"))
     implementation(libs.bundles.sadu)
 
     api(libs.bundles.eldoria.utilities) {
@@ -17,6 +18,7 @@ dependencies {
     compileOnly(libs.bundles.jackson)
     compileOnly(libs.bundles.database)
     compileOnly(libs.jedis)
+    compileOnly(libs.log4j.core)
     compileOnly(libs.strokkcommands.annotations)
     annotationProcessor(libs.strokkcommands.processor)
 
@@ -25,6 +27,7 @@ dependencies {
     testImplementation(platform(libs.jackson.bom))
     testImplementation(libs.bundles.jackson)
     testImplementation(libs.jedis)
+    testImplementation(libs.log4j.core)
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.mariadb)

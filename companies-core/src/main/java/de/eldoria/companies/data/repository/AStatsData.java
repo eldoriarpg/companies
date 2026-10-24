@@ -81,6 +81,19 @@ public abstract class AStatsData {
             TopOrder order, TimeRange range, LocalDateTime now, int page, int size);
 
     /**
+     * How many companies a ranking holds in a time range.
+     *
+     * @param range time range of the ranked values
+     * @param now   current time, the end of ranged windows
+     * @return the number of ranked companies
+     */
+    public CompletableFuture<Integer> retrieveRankedCount(TimeRange range, LocalDateTime now) {
+        return CompletableFuture.supplyAsync(() -> countRanked(range, now), executor);
+    }
+
+    protected abstract int countRanked(TimeRange range, LocalDateTime now);
+
+    /**
      * The place of one company in the ranking.
      *
      * @param company id of the company
