@@ -39,7 +39,9 @@ export const FEED_LENGTH = 50
  *
  * <p>The protocol has no feed of its own, so the feed is what the patches show: a member whose delivered items rose
  * delivered them, an order whose lines rose was delivered to, a new order was accepted, a gone one is done or dropped,
- * a higher level was reached, a member came or went, the treasury moved.
+ * a higher level was reached, a member came or went, the treasury moved. The plugin sends a changed level, and other
+ * changes of the profile, as the whole `company` replaced; such a patch, and a whole list replaced, is compared part
+ * by part.
  *
  * @param before the company before the patch
  * @param after the company after it
@@ -50,12 +52,19 @@ export const FEED_LENGTH = 50
 export function activityOf(before: CompanyView | undefined, after: CompanyView | undefined, patch: Patch, time: string): Omit<ActivityEntry, 'id'>[] {
     if (!before || !after) return []
     switch (patch.path) {
+        case 'company':
+            return [
+                ...levelActivity(before, after, time),
+                ...treasuryActivity(before, after, time),
+                ...memberKeys(before, after).flatMap(key => memberActivity(before, after, key, time)),
+                ...orderKeys(before, after).flatMap(key => orderActivity(before, after, key, time)),
+            ]
         case 'company.members':
-            return memberActivity(before, after, patch, time)
+            return (patch.key === undefined ? memberKeys(before, after) : [patch.key]).flatMap(key => memberActivity(before, after, key, time))
         case 'company.orders':
-            return orderActivity(before, after, patch, time)
+            return (patch.key === undefined ? orderKeys(before, after) : [patch.key]).flatMap(key => orderActivity(before, after, key, time))
         case 'company.level':
-            return after.level.level > before.level.level ? [{kind: 'level', time, level: after.level.name}] : []
+            return levelActivity(before, after, time)
         case 'company.treasury':
             return treasuryActivity(before, after, time)
         default:
@@ -64,17 +73,51 @@ export function activityOf(before: CompanyView | undefined, after: CompanyView |
 }
 
 /**
- * The lines of a member patch: joined, left, or delivered items.
+ * The members of the company before and after, by their key.
  *
  * @param before the company before
  * @param after the company after
- * @param patch the patch
+ * @returns the keys of both
+ */
+function memberKeys(before: CompanyView, after: CompanyView): string[] {
+    return [...new Set([...before.members, ...after.members].map(member => member.uuid))]
+}
+
+/**
+ * The orders of the company before and after, by their key.
+ *
+ * @param before the company before
+ * @param after the company after
+ * @returns the keys of both
+ */
+function orderKeys(before: CompanyView, after: CompanyView): string[] {
+    return [...new Set([...before.orders, ...after.orders].map(order => String(order.id)))]
+}
+
+/**
+ * The line of a higher level.
+ *
+ * @param before the company before
+ * @param after the company after
+ * @param time when it arrived
+ * @returns the line
+ */
+function levelActivity(before: CompanyView, after: CompanyView, time: string): Omit<ActivityEntry, 'id'>[] {
+    return after.level.level > before.level.level ? [{kind: 'level', time, level: after.level.name}] : []
+}
+
+/**
+ * The lines of one member: joined, left, or delivered items.
+ *
+ * @param before the company before
+ * @param after the company after
+ * @param key the member's id
  * @param time when it arrived
  * @returns the lines
  */
-function memberActivity(before: CompanyView, after: CompanyView, patch: Patch, time: string): Omit<ActivityEntry, 'id'>[] {
-    const old = before.members.find(entry => entry.uuid === patch.key)
-    const now = after.members.find(entry => entry.uuid === patch.key)
+function memberActivity(before: CompanyView, after: CompanyView, key: string, time: string): Omit<ActivityEntry, 'id'>[] {
+    const old = before.members.find(entry => entry.uuid === key)
+    const now = after.members.find(entry => entry.uuid === key)
     if (!old && now) return [{kind: 'joined', time, actor: now.name}]
     if (old && !now) return [{kind: 'left', time, actor: old.name}]
     const delivered = (now?.stats.items ?? 0) - (old?.stats.items ?? 0)
@@ -82,17 +125,17 @@ function memberActivity(before: CompanyView, after: CompanyView, patch: Patch, t
 }
 
 /**
- * The lines of an order patch: accepted, delivered to, done or dropped.
+ * The lines of one order: accepted, delivered to, done or dropped.
  *
  * @param before the company before
  * @param after the company after
- * @param patch the patch
+ * @param key the order's id
  * @param time when it arrived
  * @returns the lines
  */
-function orderActivity(before: CompanyView, after: CompanyView, patch: Patch, time: string): Omit<ActivityEntry, 'id'>[] {
-    const old = before.orders.find(order => String(order.id) === patch.key)
-    const now = after.orders.find(order => String(order.id) === patch.key)
+function orderActivity(before: CompanyView, after: CompanyView, key: string, time: string): Omit<ActivityEntry, 'id'>[] {
+    const old = before.orders.find(order => String(order.id) === key)
+    const now = after.orders.find(order => String(order.id) === key)
     if (!old && now) return [{kind: 'accepted', time, order: now.name}]
     if (old && !now) return [{kind: complete(old) ? 'done' : 'dropped', time, order: old.name}]
     if (!old || !now) return []

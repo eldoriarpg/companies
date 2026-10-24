@@ -49,6 +49,19 @@ describe('company activity', () => {
             .toEqual({kind: 'withdrawal', time: TIME, amount: 500})
     })
 
+    it('reads a new level from the whole company replaced', () => {
+        const company = snapshot().company
+        expect(linesOf(patch(42, {path: 'company', op: 'REPLACE', value: {...company, level: {level: 4, name: 'Corporation', progress: 0}}})))
+            .toEqual([{kind: 'level', time: TIME, level: 'Corporation'}])
+        expect(linesOf(patch(42, {path: 'company', op: 'REPLACE', value: {...company, description: 'New text'}}))).toEqual([])
+    })
+
+    it('reads a whole list replaced entry by entry', () => {
+        const members = [member(ALEX, 'Alex', 2274), ...(snapshot().company?.members.filter(entry => entry.uuid !== ALEX) ?? [])]
+        expect(linesOf(patch(42, {path: 'company.members', op: 'REPLACE', value: members})))
+            .toEqual([{kind: 'delivered', time: TIME, actor: 'Alex', amount: 64}])
+    })
+
     it('joins the two halves of one delivery into one line', () => {
         const byMember: ActivityEntry = {id: 'a', kind: 'delivered', time: TIME, actor: 'Alex', amount: 64}
         const byOrder: ActivityEntry = {id: 'b', kind: 'delivered', time: TIME, order: 'Beacon', item: 'Diamond', amount: 64}
