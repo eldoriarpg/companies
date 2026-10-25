@@ -427,6 +427,26 @@ class NetworkIntegrationTest {
     }
 
     @Test
+    void aSecondaryKeepsItsOwnEditAsBackupAndAnUnchangedSyncChangesNothing() throws Exception {
+        var a = primary();
+        var b = secondary();
+        assertFalse(b.configuration.syncConfigurations(b.nodeData).join());
+
+        var file = folder.resolve("B").resolve("user.yml");
+        Files.writeString(file, Files.readString(file) + "edited: here\n");
+        assertTrue(b.configuration.syncConfigurations(b.nodeData).join());
+        try (var files = Files.list(folder.resolve("B"))) {
+            var backups = files.filter(path -> path.getFileName().toString().matches("backup_.*_user\\.yml"))
+                    .toList();
+            assertEquals(1, backups.size());
+            assertTrue(Files.readString(backups.getFirst()).contains("edited: here"));
+        }
+        assertFalse(Files.readString(file).contains("edited: here"));
+        assertFalse(b.configuration.syncConfigurations(b.nodeData).join());
+        assertEquals(0, a.reloads.get());
+    }
+
+    @Test
     void changedLevelsReachTheSecondaryWithoutAReload() throws Exception {
         var a = primary();
         var b = secondary();

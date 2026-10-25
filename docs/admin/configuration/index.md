@@ -32,7 +32,7 @@ The messages live in the plugin's language files. Pick the language with `genera
 - **restart** means you have to restart the server.
 
 :::info
-`/companyadmin reload` works for players only. The console cannot run it. It needs `companies.admin.reload`.
+`/companyadmin reload` works in game and from the console. It needs `companies.admin.reload`.
 :::
 
 These need a restart:
@@ -48,8 +48,15 @@ These need a restart:
 - A key that Companies does not know is ignored without a warning. Check the spelling when a setting seems to do nothing.
 - A missing key or section uses its default value. Companies does not write it into the file. Add it yourself when you want to change it.
 
-:::danger A broken file is replaced
-If a file cannot be read, for example because of a YAML error, a wrong type or an unknown value in a fixed list, Companies moves it aside as `backup_<timestamp>_<file name>` and creates a new file with default values. Your changes are then in the backup file. Check the server log after editing a file.
+:::danger A broken file
+If a file cannot be read, for example because of a YAML error, a wrong type or an unknown value in a fixed list, the
+server log says so. Check it after editing a file.
+
+- `config.yml`, `company.yml`, `user.yml` and `order.yml` stay as they are, so you can fix them. Until then Companies
+  keeps their last values, or uses their defaults right after a start, does not save them and does not share them
+  with the other servers of a network. Run `/companyadmin reload` once you fixed the file.
+- Any other file is moved aside as `backup_<timestamp>_<file name>` and replaced with a new file with default
+  values. Your changes are then in the backup file.
 :::
 
 ## Secrets from the environment

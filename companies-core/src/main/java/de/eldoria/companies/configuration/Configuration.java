@@ -23,19 +23,32 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
+import dev.chojo.ocular.exceptions.ConfigurationException;
 import dev.chojo.ocular.key.Key;
 import org.bukkit.plugin.Plugin;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.MapperBuilder;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.MissingNode;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public class Configuration extends JacksonConfig<ConfigFile> {
     public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::fresh)
             .name("Main config")
+            .strict()
             .build();
     public static final Key<DatabaseSettings> DATABASE = Key.builder(Path.of("database.yml"), DatabaseSettings::new)
             .name("Database config")
@@ -45,40 +58,108 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .build();
     public static final Key<OrderSettings> ORDER_SETTINGS = Key.builder(Path.of("order.yml"), OrderSettings::new)
             .name("Order config")
+            .strict()
             .build();
     public static final Key<UserSettings> USER_SETTINGS = Key.builder(Path.of("user.yml"), UserSettings::new)
             .name("User config")
+            .strict()
             .build();
     public static final Key<CompanySettings> COMPANY_SETTINGS = Key.builder(
                     Path.of("company.yml"), CompanySettings::new)
             .name("Company config")
+            .strict()
             .build();
     public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
             .name("Board bindings")
             .build();
 
+    private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+    private static final YAMLMapper YAML = YAMLMapper.builder().build();
+
+    private final Set<Key<?>> unreadable = ConcurrentHashMap.newKeySet();
+
     public Configuration(Plugin plugin) {
         super(plugin, CONFIG_YML);
     }
 
+    /**
+     * Reads a file the first time it is needed. A shared file that cannot be read, see {@link #unreadable(Key)}, stays
+     * as it is on disk and its defaults are used meanwhile.
+     */
     @Override
     public synchronized <V> V secondary(Key<V> key) {
         var first = !loaded(key);
-        var value = super.secondary(key);
+        V value;
+        try {
+            value = super.secondary(key);
+        } catch (ConfigurationException e) {
+            markUnreadable(key, e);
+            var defaults = key.initValue().get();
+            super.replace(key, defaults);
+            return defaults;
+        }
         if (first && loaded(key)) afterRead(key, value);
         return value;
     }
 
+    /**
+     * Reads a file again. A shared file that cannot be read keeps the values it had and stays unreadable, see
+     * {@link #unreadable(Key)}, until a reload reads it.
+     */
     @Override
     public void reload(Key<?> key) {
-        super.reload(key);
+        try {
+            super.reload(key);
+        } catch (ConfigurationException e) {
+            markUnreadable(key, e);
+            return;
+        }
+        if (unreadable.remove(key)) plugin().getLogger().info(key.path() + " can be read again.");
         afterRead(key, secondary(key));
     }
 
     @Override
     public <V> void replace(Key<V> key, V newValue) {
         if (newValue instanceof CompanySettings settings) settings.renumberLevels();
+        unreadable.remove(key);
         super.replace(key, newValue);
+    }
+
+    /**
+     * Writes a file, unless it could not be read: its values in use are then defaults or older ones, and writing them
+     * would overwrite what the admin is fixing.
+     */
+    @Override
+    public void save(Key<?> key) {
+        if (unreadable.contains(key)) {
+            plugin().getLogger()
+                    .warning("Not saving " + key.path() + ", since it could not be read. Fix it and reload.");
+            return;
+        }
+        super.save(key);
+    }
+
+    /**
+     * Whether a file the network shares ({@code config.yml}, {@code company.yml}, {@code user.yml}, {@code order.yml})
+     * could not be read the last time. Such a file is left as it is instead of being replaced with defaults, is not
+     * saved and is not shared with the other nodes, until a reload reads it again.
+     *
+     * @param key the file
+     * @return true while it cannot be read
+     */
+    public boolean unreadable(Key<?> key) {
+        return unreadable.contains(key);
+    }
+
+    private void markUnreadable(Key<?> key, ConfigurationException e) {
+        unreadable.add(key);
+        plugin().getLogger()
+                .log(
+                        Level.SEVERE,
+                        key.path() + " cannot be read and is left as it is. Its last values are used, or its defaults"
+                                + " right after a start, and it is neither saved nor shared with other servers until"
+                                + " it is fixed and reloaded.",
+                        e);
     }
 
     /**
@@ -192,8 +273,14 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         return secondary(NODE_SETTINGS);
     }
 
-    public CompletableFuture<Void> syncConfigurations(ANodeData nodeData) {
-        return CompletableFuture.runAsync(() -> {
+    /**
+     * Writes the shared files into the database on the primary, or takes the primary's copies on a secondary.
+     *
+     * @param nodeData the node repository holding the copies
+     * @return whether a secondary's files changed, false on the primary and when every copy matched
+     */
+    public CompletableFuture<Boolean> syncConfigurations(ANodeData nodeData) {
+        return CompletableFuture.supplyAsync(() -> {
             var nodeSettings = nodeSettings();
             save(NODE_SETTINGS);
             nodeData.updateNode(plugin());
@@ -205,10 +292,11 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             }
 
             plugin().getLogger().info("Plugin is running as " + nodeData.nodeType() + " node.");
-            sync(nodeData, COMPANY_SETTINGS);
-            sync(nodeData, USER_SETTINGS);
-            sync(nodeData, ORDER_SETTINGS);
-            sync(nodeData, CONFIG_YML);
+            var changed = sync(nodeData, COMPANY_SETTINGS);
+            changed |= sync(nodeData, USER_SETTINGS);
+            changed |= sync(nodeData, ORDER_SETTINGS);
+            changed |= sync(nodeData, CONFIG_YML);
+            return changed;
         });
     }
 
@@ -231,15 +319,63 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param configKey the file
      * @param <V>       type of the file's content
      */
-    private <V> void sync(ANodeData nodeData, Key<V> configKey) {
+    private <V> boolean sync(ANodeData nodeData, Key<V> configKey) {
         if (nodeSettings().nodeType() == NodeType.PRIMARY) {
+            if (unreadable(configKey)) {
+                plugin().getLogger()
+                        .warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
+                return false;
+            }
             plugin().getLogger().info("Syncing " + configKey.path() + " to database.");
             nodeData.savePrimaryConfiguration(configKey, this);
-        } else {
-            plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
-            replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
-            save(configKey);
-            reload(configKey);
+            return false;
+        }
+        var copy = nodeData.primaryContent(configKey)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No configuration present. Did you start the main node once already?"));
+        var file = plugin().getDataFolder().toPath().resolve(configKey.path());
+        var onDisk = tree(file);
+        var copied = tree(copy);
+        if (copied.equals(onDisk)) return false;
+        if (Files.exists(file)) keepBackup(file);
+        plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
+        replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
+        save(configKey);
+        reload(configKey);
+        return true;
+    }
+
+    /**
+     * Keeps a copy of a file before the primary's copy replaces it, so a change made on this node is not lost.
+     *
+     * @param file the file
+     */
+    private void keepBackup(Path file) {
+        var backup = file.resolveSibling(
+                "backup_" + BACKUP_TIME.format(Times.local(Times.now())) + "_" + file.getFileName());
+        try {
+            Files.copy(file, backup);
+            plugin().getLogger()
+                    .warning(file.getFileName() + " differs from the primary's copy, which replaces it now. This"
+                            + " server's version is kept as " + backup.getFileName() + ".");
+        } catch (IOException e) {
+            plugin().getLogger().log(Level.WARNING, "Could not keep a backup of " + file.getFileName() + ".", e);
+        }
+    }
+
+    private JsonNode tree(Path file) {
+        try {
+            return Files.exists(file) ? YAML.readTree(Files.readString(file)) : MissingNode.getInstance();
+        } catch (IOException | JacksonException e) {
+            return MissingNode.getInstance();
+        }
+    }
+
+    private JsonNode tree(String content) {
+        try {
+            return YAML.readTree(content);
+        } catch (JacksonException e) {
+            return MissingNode.getInstance();
         }
     }
 

@@ -84,7 +84,8 @@ public final class NodeConnection {
 
     /**
      * Loads the configuration the primary synced to the database and applies it, as
-     * {@code /companyadmin syncconfiguration} does on a secondary.
+     * {@code /companyadmin syncconfiguration} does on a secondary. When every file matches what this server has, as
+     * after a restart of the primary, the reload hooks do not run.
      *
      * @param configuration the configuration of this node
      * @param nodeData      the node repository
@@ -96,7 +97,10 @@ public final class NodeConnection {
     public static Runnable configSync(
             Configuration configuration, ANodeData nodeData, Executor mainThread, Runnable reloaded, Logger logger) {
         return () -> {
-            configuration.syncConfigurations(nodeData).join();
+            if (!configuration.syncConfigurations(nodeData).join()) {
+                logger.info("The configuration the primary node synced matches this server's.");
+                return;
+            }
             logger.info("Loaded the configuration the primary node synced.");
             mainThread.execute(reloaded);
         };
