@@ -67,6 +67,21 @@ class ConfigurationTest {
     }
 
     @Test
+    void everySettingReloadWorkOrARestartDependsOnExists() {
+        var settings = new ArrayList<ChangeTracker.Setting>();
+        settings.addAll(ChangeTracker.HOOKED);
+        settings.addAll(ChangeTracker.RESTART);
+
+        for (var setting : settings) {
+            var tree = configuration.currentTree(setting.path()).orElseThrow();
+            var node = tree;
+            for (var part : setting.key().split("\\.")) node = node.path(part);
+            assertFalse(node.isMissingNode(), setting + " is no setting");
+        }
+        assertTrue(ChangeTracker.RESTART.containsAll(ChangeTracker.PRIMARY_ONLY));
+    }
+
+    @Test
     void changesAreNamedByTheirDottedKeys() {
         var before = MAPPER.readTree("economy:\n  fee: 2\n  tax: 1\nlevel: [1, 2]\nname: a\n");
         var after = MAPPER.readTree("economy:\n  fee: 3\n  tax: 1\nlevel: [1]\nextra: true\n");

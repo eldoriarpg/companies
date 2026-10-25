@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  * A shared file changed on this server against the revision it last applied is offered to every server: in a network
  * the reload names the changed keys and {@code reload confirm}, within 30 seconds, stores them as the next revision; on
  * a single server they are stored at once. A file another server changed meanwhile is not stored; this server's version
- * is kept as a conflict file and the newer revision is used, applied like a reload when it is {@code config.yml}. The
+ * is kept as a conflict file and the newer revision is used, running the reload work its changed settings need. The
  * reload already warns when another server stored a newer revision of an edited file.
  */
 @Subcommand("reload")
@@ -126,9 +126,7 @@ public final class Reload {
     }
 
     private void report(CommandSender sender, List<Configuration.EditOutcome> outcomes) {
-        var configYml = Configuration.CONFIG_YML.path().toString();
-        if (outcomes.stream()
-                .anyMatch(outcome -> outcome.replaced() && outcome.path().equals(configYml))) {
+        if (outcomes.stream().anyMatch(Configuration.EditOutcome::replaced)) {
             deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
         }
         var stored = outcomes.stream()

@@ -51,12 +51,12 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
-import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Clock;
 import java.util.List;
@@ -92,6 +92,9 @@ public final class CommandDependencies {
     private final NpcBoards npcBoards;
     private final List<Hook> reloadHooks = new CopyOnWriteArrayList<>();
     private List<ChangeTracker.Setting> reportedRestart = List.of();
+    private volatile @Nullable List<ChangeTracker.Setting> storedRestart = List.of();
+    private final ExecutorService restartWrites =
+            Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private final ExecutorService levelShares =
             Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private volatile NodeCaches caches = new NodeCaches(Logger.getLogger(CommandDependencies.class.getName()));
@@ -257,11 +260,11 @@ public final class CommandDependencies {
 
     /**
      * Logs the settings read only at start that changed since the last report, and stores them with this server's node
-     * so the other servers see the restart is pending.
+     * so the other servers see the restart is pending. The writes run one after another, so the latest one wins, and a
+     * write that failed is made again with the next report.
      */
     private synchronized void reportRestartPending() {
         var pending = configuration.restartPending();
-        if (pending.equals(reportedRestart)) return;
         var added = pending.stream()
                 .filter(setting -> !reportedRestart.contains(setting))
                 .toList();
@@ -275,15 +278,16 @@ public final class CommandDependencies {
                             + ".");
         }
         var node = nodeData;
-        if (node != null) {
-            Threading.VIRTUAL.execute(() -> {
-                try {
-                    node.restartPending(pending);
-                } catch (RuntimeException e) {
-                    plugin.getLogger().log(Level.WARNING, "Could not store the pending restart.", e);
-                }
-            });
-        }
+        if (node == null || pending.equals(storedRestart)) return;
+        restartWrites.execute(() -> {
+            try {
+                node.restartPending(pending);
+                storedRestart = pending;
+            } catch (RuntimeException e) {
+                storedRestart = null;
+                plugin.getLogger().log(Level.WARNING, "Could not store the pending restart.", e);
+            }
+        });
     }
 
     /**

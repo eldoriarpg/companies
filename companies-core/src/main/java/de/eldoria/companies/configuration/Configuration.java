@@ -105,8 +105,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     private final Object copying = new Object();
     private final Set<Path> backupFailed = ConcurrentHashMap.newKeySet();
     private final Map<String, Integer> applied = new ConcurrentHashMap<>();
-    private final ChangeTracker tracker =
-            new ChangeTracker(SHARED.stream().map(key -> key.path().toString()).toList(), this::currentTree);
+    private final ChangeTracker tracker = new ChangeTracker(
+            SHARED.stream().map(key -> key.path().toString()).toList(), this::currentTree, this::primary);
+    private volatile @Nullable ObjectMapper writer;
     private volatile @Nullable BiConsumer<String, Integer> announcer;
 
     public Configuration(Plugin plugin) {
@@ -622,14 +623,28 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         return tracker.restartPending();
     }
 
-    private JsonNode currentTree(String path) {
+    /**
+     * @param path a shared file
+     * @return the tree its current content serializes to, empty when it cannot be written now, for example while it
+     *     is being changed
+     */
+    Optional<JsonNode> currentTree(String path) {
         var key = sharedKey(path).orElseThrow();
         try {
-            return YAML.readTree(
-                    new Format<>(new YamlDataFormat(), this).writer().writeValueAsString(secondary(key)));
-        } catch (JacksonException e) {
-            return MissingNode.getInstance();
+            return Optional.of(YAML.readTree(writer().writeValueAsString(secondary(key))));
+        } catch (RuntimeException e) {
+            plugin().getLogger().log(Level.FINE, "Could not compare " + path + " now.", e);
+            return Optional.empty();
         }
+    }
+
+    private ObjectMapper writer() {
+        var current = writer;
+        if (current == null) {
+            current = new Format<>(new YamlDataFormat(), this).writer();
+            writer = current;
+        }
+        return current;
     }
 
     /**

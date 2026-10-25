@@ -13,6 +13,7 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,13 +23,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ChangeTrackerTest {
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
 
+    private boolean primary = true;
     private final Map<String, String> files = new HashMap<>(Map.of(
             "config.yml", "discord:\n  url: a\nboards:\n  enabled: true\ntop:\n  cache: 5\n",
             "order.yml", "repeating:\n  checkMinutes: 5\nmaxItems: 3\n"));
-    private final ChangeTracker tracker = new ChangeTracker(List.of("config.yml", "order.yml"), this::tree);
+    private final ChangeTracker tracker =
+            new ChangeTracker(List.of("config.yml", "order.yml"), this::tree, () -> primary);
 
-    private JsonNode tree(String path) {
-        return YAML.readTree(files.get(path));
+    private Optional<JsonNode> tree(String path) {
+        var content = files.get(path);
+        return content == null ? Optional.empty() : Optional.of(YAML.readTree(content));
     }
 
     @Test
@@ -65,6 +69,27 @@ class ChangeTrackerTest {
         files.put("config.yml", "discord:\n  url: a\nboards:\n  enabled: true\ntop:\n  cache: 5\n");
         files.put("order.yml", "repeating:\n  checkMinutes: 5\nmaxItems: 3\n");
         assertEquals(List.of(), tracker.restartPending());
+    }
+
+    @Test
+    void aSecondaryNeedsNoRestartForWhatOnlyThePrimaryUses() {
+        primary = false;
+        tracker.start();
+        files.put("config.yml", "discord:\n  url: a\nboards:\n  enabled: false\ntop:\n  cache: 5\n");
+        files.put("order.yml", "repeating:\n  checkMinutes: 9\nmaxItems: 3\n");
+
+        assertEquals(List.of(Setting.of("config.yml", "boards.enabled")), tracker.restartPending());
+    }
+
+    @Test
+    void aFileThatCannotBeWrittenNowIsComparedLater() {
+        tracker.start();
+        var config = files.remove("config.yml");
+
+        assertEquals(Set.of(), tracker.changes());
+
+        files.put("config.yml", config.replace("url: a", "url: b"));
+        assertEquals(Set.of(Setting.of("config.yml", "discord.url")), tracker.changes());
     }
 
     @Test

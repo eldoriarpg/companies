@@ -29,7 +29,7 @@ import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
-import de.eldoria.companies.configuration.ChangeTracker.Setting;
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.Dashboard;
@@ -189,7 +189,6 @@ public class Companies extends EldoPlugin {
     private ANodeMessageData nodeMessages;
     private ADashboardData dashboardData;
     private Dashboard dashboard;
-    private static final String CONFIG = "config.yml";
     private Updates updates;
     private CommandDependencies commands;
     private OrderDraftService drafts;
@@ -223,9 +222,9 @@ public class Companies extends EldoPlugin {
             throw e;
         }
 
+        nodeData.restartPending(List.of());
         configuration.syncConfigurations(nodeData).join();
         configuration.started();
-        nodeData.restartPending(List.of());
     }
 
     @Override
@@ -312,7 +311,7 @@ public class Companies extends EldoPlugin {
 
         updates = new Updates(this, configuration);
         updates.apply();
-        if (commands != null) commands.onChange(updates::apply, Setting.of(CONFIG, "generalSettings.updates"));
+        if (commands != null) commands.onChange(updates::apply, ChangeTracker.UPDATES);
 
         var itemReturnService = new ItemReturnService(this, orderData);
 
@@ -448,11 +447,10 @@ public class Companies extends EldoPlugin {
                     .start(workerPool);
         }
         warnAboutTimezone();
-        if (commands != null)
-            commands.onChange(this::warnAboutTimezone, Setting.of(CONFIG, "generalSettings.timezone"));
+        if (commands != null) commands.onChange(this::warnAboutTimezone, ChangeTracker.TIMEZONE);
         var inboxPoller = new InboxPoller(information.inbox(), notificationService, getLogger());
         inboxPoller.start(workerPool, configuration::notificationSettings, bus::realtime);
-        if (commands != null) commands.onChange(inboxPoller::reschedule, Setting.of(CONFIG, "notifications"));
+        if (commands != null) commands.onChange(inboxPoller::reschedule, ChangeTracker.NOTIFICATIONS);
         registerListener(expiringService);
         registerListener(levelService);
         registerListener(itemReturnService);
@@ -478,7 +476,7 @@ public class Companies extends EldoPlugin {
         discord = DiscordWebhook.start(
                 this, configuration::discordSettings, economy, ILocalizer.getPluginLocalizer(this));
         registerListener(discord.listener());
-        if (commands != null) commands.onChange(discord::restart, Setting.of(CONFIG, "discord"));
+        if (commands != null) commands.onChange(discord::restart, ChangeTracker.DISCORD);
         registerListener(seriesService);
         registerListener(new AlertMatcher(
                 this.economy.alerts(),
@@ -606,7 +604,7 @@ public class Companies extends EldoPlugin {
             if (key.filter(NodeCaches.DASHBOARD_KEY::equals).isPresent()) started.keyChangedElsewhere();
         });
         commands.useDashboard(started);
-        commands.onChange(started::restartLater, Setting.of(CONFIG, "dashboard"));
+        commands.onChange(started::restartLater, ChangeTracker.DASHBOARD);
     }
 
     /**

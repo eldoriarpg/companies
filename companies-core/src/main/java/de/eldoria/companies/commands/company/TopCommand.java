@@ -15,7 +15,7 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
-import de.eldoria.companies.configuration.ChangeTracker.Setting;
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.menus.company.TopMenu;
@@ -67,7 +67,7 @@ public final class TopCommand {
         this.deps = deps;
         this.profiles = profiles;
         createCaches();
-        deps.onChange(this::createCaches, Setting.of("config.yml", "top"));
+        deps.onChange(this::createCaches, ChangeTracker.TOP);
         deps.caches().register(NodeCaches.RANKING, key -> clearCaches());
     }
 

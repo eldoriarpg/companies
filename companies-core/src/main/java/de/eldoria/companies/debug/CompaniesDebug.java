@@ -26,9 +26,8 @@ import javax.sql.DataSource;
 
 /**
  * Adds the state of the storage, the economy, the node setup, the node bus and the settings waiting for a restart to
- * debug reports. The bus is described
- * by how messages travel (Redis, low latency or database polling), its state and the Redis address, never by
- * credentials.
+ * debug reports. The bus is described by how messages travel (Redis, low latency or database polling), its state and
+ * the Redis address, never by credentials.
  */
 public class CompaniesDebug implements DebugDataProvider {
     private static final int CONNECTION_TIMEOUT_SECONDS = 5;
