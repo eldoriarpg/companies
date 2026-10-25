@@ -17,6 +17,7 @@ public class NodeSettings {
     private UUID nodeUid = UUID.randomUUID();
     private String name = "";
     private NodeDashboardSettings dashboard = new NodeDashboardSettings();
+    private NodeOverrides overrides = new NodeOverrides();
 
     public NodeType nodeType() {
         return nodeType;
@@ -44,5 +45,12 @@ public class NodeSettings {
      */
     public String dashboardKey() {
         return dashboard == null ? "" : dashboard.serverKey();
+    }
+
+    /**
+     * @return the shared settings this server sets for itself
+     */
+    public NodeOverrides overrides() {
+        return overrides == null ? new NodeOverrides() : overrides;
     }
 }

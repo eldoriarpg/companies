@@ -24,11 +24,12 @@ class ChangeTrackerTest {
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
 
     private boolean primary = true;
+    private List<Setting> overridden = List.of();
     private final Map<String, String> files = new HashMap<>(Map.of(
             "config.yml", "discord:\n  url: a\nboards:\n  enabled: true\ntop:\n  cache: 5\n",
             "order.yml", "repeating:\n  checkMinutes: 5\nmaxItems: 3\n"));
     private final ChangeTracker tracker =
-            new ChangeTracker(List.of("config.yml", "order.yml"), this::tree, () -> primary);
+            new ChangeTracker(List.of("config.yml", "order.yml"), this::tree, () -> primary, () -> overridden);
 
     private Optional<JsonNode> tree(String path) {
         var content = files.get(path);
@@ -79,6 +80,15 @@ class ChangeTrackerTest {
         files.put("order.yml", "repeating:\n  checkMinutes: 9\nmaxItems: 3\n");
 
         assertEquals(List.of(Setting.of("config.yml", "boards.enabled")), tracker.restartPending());
+    }
+
+    @Test
+    void aSettingThisServerSetsForItselfNeedsNoRestart() {
+        overridden = List.of(Setting.of("config.yml", "boards.enabled"));
+        tracker.start();
+        files.put("config.yml", "discord:\n  url: a\nboards:\n  enabled: false\ntop:\n  cache: 5\n");
+
+        assertEquals(List.of(), tracker.restartPending());
     }
 
     @Test

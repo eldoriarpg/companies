@@ -22,6 +22,8 @@ import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
+import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
+import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
@@ -106,7 +108,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     private final Set<Path> backupFailed = ConcurrentHashMap.newKeySet();
     private final Map<String, Integer> applied = new ConcurrentHashMap<>();
     private final ChangeTracker tracker = new ChangeTracker(
-            SHARED.stream().map(key -> key.path().toString()).toList(), this::currentTree, this::primary);
+            SHARED.stream().map(key -> key.path().toString()).toList(),
+            this::currentTree,
+            this::primary,
+            () -> nodeSettings().overrides().overridden());
     private volatile @Nullable ObjectMapper writer;
     private volatile @Nullable BiConsumer<String, Integer> announcer;
 
@@ -600,6 +605,34 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             statuses.add(new FileStatus(path, latest, appliedRevision(path), edited.contains(path), behind));
         }
         return statuses;
+    }
+
+    /**
+     * @return whether chat is held back while a chat menu is open on this server
+     */
+    public boolean messageBlocking() {
+        return nodeSettings().overrides().messageBlocking(generalSettings().messageBlocking());
+    }
+
+    /**
+     * @return whether order boards are on on this server
+     */
+    public boolean boardsEnabled() {
+        return nodeSettings().overrides().boardsEnabled(boardSettings().enabled());
+    }
+
+    /**
+     * @return the plugin hook switches of this server
+     */
+    public Hooks hooks() {
+        return nodeSettings().overrides().hooks(generalSettings().hooks());
+    }
+
+    /**
+     * @return the dashboard name and icon of this server
+     */
+    public BrandingSettings branding() {
+        return nodeSettings().overrides().branding(dashboardSettings().branding());
     }
 
     /**

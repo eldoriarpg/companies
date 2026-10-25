@@ -88,6 +88,7 @@ When several servers share one database, one server is the primary and the other
 - They are stored in the database as numbered revisions. A new revision comes from `/companyadmin reload` followed by `/companyadmin reload confirm` on any server, from the primary when it starts or runs `/companyadmin syncconfiguration`, and from level changes.
 - Every server takes a new revision on its own, at once with a realtime bus or within 30 seconds without one, and when it starts. It saves it over its own file; a change made on that server is kept as a backup first, see [Several servers](../multiserver.md#when-the-configuration-is-copied).
 - `database.yml`, `node.yml`, `boards.yml` and `base_configuration.yml` belong to each server and are never shared.
+- A few shared settings can be set per server in `node.yml`, see [Settings for this server only](./node-yml.md#settings-for-this-server-only).
 
 To change a shared setting in a network:
 

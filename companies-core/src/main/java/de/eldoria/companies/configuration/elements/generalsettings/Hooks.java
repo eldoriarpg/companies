@@ -18,6 +18,17 @@ public class Hooks {
 
     public Hooks() {}
 
+    /**
+     * @param placeholderapi whether the placeholders are registered
+     * @param citizens       whether NPCs of Citizens can be bound to boards
+     * @param fancynpcs      whether NPCs of FancyNpcs can be bound to boards
+     */
+    public Hooks(boolean placeholderapi, boolean citizens, boolean fancynpcs) {
+        this.placeholderapi = placeholderapi;
+        this.citizens = citizens;
+        this.fancynpcs = fancynpcs;
+    }
+
     public boolean placeholderapi() {
         return placeholderapi;
     }

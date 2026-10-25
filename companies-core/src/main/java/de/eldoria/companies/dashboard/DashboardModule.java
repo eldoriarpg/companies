@@ -214,7 +214,7 @@ public final class DashboardModule {
                         .filter(settings.get()::feature)
                         .toList(),
                 new BrandingSource(
-                        () -> settings.get().branding(),
+                        configuration::branding,
                         () -> PlainText.of(plugin.getServer().motd()),
                         List.of(plugin.getDataFolder().toPath(), Path.of("").toAbsolutePath()),
                         logger)::read);

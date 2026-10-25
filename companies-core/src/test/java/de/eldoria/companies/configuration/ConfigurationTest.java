@@ -82,6 +82,49 @@ class ConfigurationTest {
     }
 
     @Test
+    void aServerUsesItsOverridesWithoutChangingTheSharedFile() throws IOException {
+        Files.writeString(folder.resolve("node.yml"), """
+                nodeType: PRIMARY
+                overrides:
+                  messageBlocking: false
+                  hooks:
+                    citizens: false
+                  branding:
+                    name: Lobby
+                """);
+        configuration = new Configuration(plugin(folder, Logger.getAnonymousLogger()));
+
+        assertFalse(configuration.messageBlocking());
+        assertFalse(configuration.hooks().citizens());
+        assertTrue(configuration.hooks().fancynpcs());
+        assertEquals("Lobby", configuration.branding().name());
+        assertEquals(
+                configuration.dashboardSettings().branding().icon(),
+                configuration.branding().icon());
+        assertTrue(configuration.generalSettings().messageBlocking());
+        var shared = configuration.currentTree("config.yml").orElseThrow();
+        assertTrue(shared.path("generalSettings").path("messageBlocking").asBoolean());
+        assertTrue(shared.path("generalSettings").path("hooks").path("citizens").asBoolean());
+        assertEquals(
+                List.of(
+                        ChangeTracker.MESSAGE_BLOCKING,
+                        ChangeTracker.HOOKS.child("citizens"),
+                        ChangeTracker.DASHBOARD.child("branding.name")),
+                configuration.nodeSettings().overrides().overridden());
+    }
+
+    @Test
+    void unsetOverridesAreNotWrittenToNodeYml() throws IOException {
+        configuration.nodeSettings();
+        configuration.save(Configuration.NODE_SETTINGS);
+
+        var written = Files.readString(folder.resolve("node.yml"));
+        assertFalse(written.contains("null"), written);
+        assertFalse(configuration.messageBlocking()
+                != configuration.generalSettings().messageBlocking());
+    }
+
+    @Test
     void changesAreNamedByTheirDottedKeys() {
         var before = MAPPER.readTree("economy:\n  fee: 2\n  tax: 1\nlevel: [1, 2]\nname: a\n");
         var after = MAPPER.readTree("economy:\n  fee: 3\n  tax: 1\nlevel: [1]\nextra: true\n");

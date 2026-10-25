@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Tells which settings of the shared files changed: since they were last applied, so only the work that depends on
@@ -43,6 +44,12 @@ public final class ChangeTracker {
      */
     public static final List<Setting> HOOKED = List.of(TIMEZONE, UPDATES, NOTIFICATIONS, DISCORD, DASHBOARD, TOP);
 
+    /** Whether chat is held back while a chat menu is open. */
+    public static final Setting MESSAGE_BLOCKING = Setting.of(CONFIG, "generalSettings.messageBlocking");
+    /** The switches of the plugin hooks. */
+    public static final Setting HOOKS = Setting.of(CONFIG, "generalSettings.hooks");
+    /** Whether order boards are on. */
+    public static final Setting BOARDS_ENABLED = Setting.of(CONFIG, "boards.enabled");
     /** How often the primary looks for expired orders. */
     public static final Setting ORDER_CHECK = Setting.of(CONFIG, "generalSettings.orderCheckInterval");
     /** How often the primary posts due repeating orders. */
@@ -53,10 +60,10 @@ public final class ChangeTracker {
      */
     public static final List<Setting> RESTART = List.of(
             ORDER_CHECK,
-            Setting.of(CONFIG, "generalSettings.messageBlocking"),
-            Setting.of(CONFIG, "generalSettings.hooks"),
+            MESSAGE_BLOCKING,
+            HOOKS,
             Setting.of(CONFIG, "placeholders.offlineCacheSize"),
-            Setting.of(CONFIG, "boards.enabled"),
+            BOARDS_ENABLED,
             REPEATING_CHECK);
 
     /**
@@ -67,6 +74,7 @@ public final class ChangeTracker {
     private final List<String> paths;
     private final Function<String, Optional<JsonNode>> current;
     private final BooleanSupplier primary;
+    private final Supplier<List<Setting>> overridden;
     private final Map<String, JsonNode> applied = new HashMap<>();
     private final Map<String, JsonNode> started = new HashMap<>();
     private boolean running;
@@ -74,12 +82,18 @@ public final class ChangeTracker {
     /**
      * @param paths   the shared files
      * @param current the tree of a file's current content, by its path, empty when it cannot be written now
-     * @param primary whether this server is the primary
+     * @param primary    whether this server is the primary
+     * @param overridden the shared settings this server sets for itself, which need no restart when shared ones change
      */
-    public ChangeTracker(List<String> paths, Function<String, Optional<JsonNode>> current, BooleanSupplier primary) {
+    public ChangeTracker(
+            List<String> paths,
+            Function<String, Optional<JsonNode>> current,
+            BooleanSupplier primary,
+            Supplier<List<Setting>> overridden) {
         this.paths = List.copyOf(paths);
         this.current = current;
         this.primary = primary;
+        this.overridden = overridden;
     }
 
     /**
@@ -117,19 +131,21 @@ public final class ChangeTracker {
 
     /**
      * @return the settings read only at start that differ from what the server started with, without those only the
-     *     primary uses when this server is a secondary
+     *     primary uses when this server is a secondary and those this server sets for itself
      */
     public synchronized List<Setting> restartPending() {
         if (!running) return List.of();
         var relevant = RESTART.stream()
                 .filter(setting -> primary.getAsBoolean() || !PRIMARY_ONLY.contains(setting))
                 .toList();
+        var own = overridden.get();
         var found = new LinkedHashSet<Setting>();
         for (var path : paths) {
             var start = started.get(path);
             var tree = current.apply(path);
             if (start == null || tree.isEmpty()) continue;
             for (var key : Configuration.changes(start, tree.get())) {
+                if (own.stream().anyMatch(setting -> setting.holds(path, key))) continue;
                 relevant.stream().filter(setting -> setting.covers(path, key)).forEach(found::add);
             }
         }
@@ -182,6 +198,23 @@ public final class ChangeTracker {
          */
         public boolean covers(Setting changed) {
             return covers(changed.path(), changed.key());
+        }
+
+        /**
+         * @param path       a file
+         * @param changedKey a dotted key in it
+         * @return whether that key is this setting or lies in it
+         */
+        public boolean holds(String path, String changedKey) {
+            return this.path.equals(path) && (changedKey.equals(key) || changedKey.startsWith(key + "."));
+        }
+
+        /**
+         * @param dotted a dotted key below this setting
+         * @return that setting
+         */
+        public Setting child(String dotted) {
+            return new Setting(path, key + "." + dotted);
         }
 
         @Override

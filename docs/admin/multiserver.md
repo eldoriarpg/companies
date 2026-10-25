@@ -101,6 +101,10 @@ connects on its own.
 The four shared files are stored in the database as revisions. Edit them on any server and share the change with
 `/companyadmin reload` and `/companyadmin reload confirm`, see below.
 
+A few settings, such as the plugin hooks, `boards.enabled` and the dashboard name and icon, can be set for one server
+only in its `node.yml`, see [Settings for this server only](./configuration/node-yml.md#settings-for-this-server-only).
+The dashboard icon file is not copied between servers; put it on each server that shows it.
+
 ### When the configuration is copied
 
 Each shared file is stored in the database as a numbered revision, together with who changed it and when. A new
