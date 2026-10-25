@@ -328,7 +328,8 @@ never the password.
 | Load on the database | none | one waiting connection per server | one query per second per server |
 | Works with | MariaDB, PostgreSQL | PostgreSQL, not through PgBouncer in transaction mode | MariaDB, PostgreSQL |
 
-- **Choose Redis**, together with PostgreSQL. This is the highly recommended setup for every network.
+- **Choose Redis** for the lowest delay, with either database. Together with PostgreSQL, it is the highly recommended
+  setup for every network.
 - **Choose PostgreSQL notify** when you cannot run Redis. It is as fast as Redis and adds nothing to run.
 - **Choose low latency mode** on MariaDB without Redis, when a second of delay is fine.
 

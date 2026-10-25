@@ -104,7 +104,8 @@ Companies has an API to read companies and orders, place orders and react to eve
 - Java 25.
 - [Vault](https://github.com/MilkBowl/Vault) and an economy plugin that works with Vault.
 - A database. SQLite is built in and needs no setup. For larger servers or a network, use MariaDB 10.5 or newer
-  (MySQL does not work) or PostgreSQL 13 or newer. See [Installation](./getting-started/installation.md).
+  (MySQL does not work) or PostgreSQL 13 or newer. For a network, PostgreSQL with an additional Redis server is highly
+  recommended. See [Installation](./getting-started/installation.md).
 
 ## Optional plugins
 

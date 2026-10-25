@@ -73,6 +73,7 @@ Set `language` in `config.yml` to `en_US`, `de_DE` or `fr_FR`, then run `/compan
 - `database.yml` and `node.yml` are read only at startup; changing them needs a restart.
 - Keep secrets such as the dashboard key or the Redis password in environment variables, not in the files. See
   [Secrets from the environment](../admin/configuration/index.md#secrets-from-the-environment).
-- Back up the database before you update the plugin. See [Upgrading](../admin/upgrading.md).
+- Back up your database regularly, and always before a major update. A major update can change the database for good;
+  see [Upgrading from 1.x](../admin/upgrading.md).
 
 Then take the [first steps](./first-steps.md) to see the whole loop of ordering, claiming and delivering once.
