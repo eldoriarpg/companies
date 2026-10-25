@@ -16,6 +16,7 @@ import de.eldoria.companies.web.api.link.ErrorCode;
 import de.eldoria.companies.web.api.link.ErrorMessage;
 import de.eldoria.companies.web.api.link.Pong;
 import de.eldoria.companies.web.api.link.UnknownMessage;
+import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionCreated;
 import de.eldoria.companies.web.api.update.Unsubscribe;
 import de.eldoria.companies.web.gateway.node.NodeHub;
@@ -49,7 +50,7 @@ class RecordedMessagesReplayTest {
     private static final Set<String> SILENT =
             Set.of("branding.update", "patch", "session.closed", "session.revoked", "player.presence", "pong", "error");
     private static final Map<String, Class<? extends Message>> ANSWERED =
-            Map.of("ping", Pong.class, "session.create", SessionCreated.class);
+            Map.of("ping", Pong.class, "session.create", SessionCreated.class, "session.list", SessionClosed.class);
     private static TestGateway gateway;
     private static String token;
 

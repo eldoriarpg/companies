@@ -76,6 +76,7 @@ public final class GatewayService {
         HttpClient http =
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         GatewayApp gateway = new GatewayApp(config, authenticator(config, http, clock, out), policy, http, clock);
+        gateway.resume();
         Javalin app = gateway.create().start(config.port());
         log.info(
                 "Gateway started in {} mode on port {}, links start with {}",

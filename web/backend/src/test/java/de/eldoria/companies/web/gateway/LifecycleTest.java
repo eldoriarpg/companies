@@ -6,6 +6,7 @@
 package de.eldoria.companies.web.gateway;
 
 import de.eldoria.companies.web.api.Features;
+import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.handshake.KeyKind;
 import de.eldoria.companies.web.api.handshake.NodeRole;
 import de.eldoria.companies.web.api.handshake.PartKind;
@@ -21,6 +22,8 @@ import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionCreated;
 import de.eldoria.companies.web.api.session.SessionOpened;
+import de.eldoria.companies.web.api.session.SessionsOpen;
+import de.eldoria.companies.web.api.update.Unsubscribe;
 import de.eldoria.companies.web.gateway.policy.VersionPolicy;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
@@ -43,6 +46,7 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -183,6 +187,21 @@ class LifecycleTest {
     }
 
     @Test
+    void theTimeTheGatewayWasDownDoesNotCountAsIdle() {
+        try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {
+            node.expect(Welcome.class);
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.44");
+            login(node, browser, create(node));
+            gateway.app().sweep();
+            CLOCK.advance(Duration.ofMinutes(90));
+            gateway.app().resume();
+            keepAlive(node);
+            gateway.app().sweep();
+            assertEquals(200, browser.get("/api/v1/me/server").statusCode());
+        }
+    }
+
+    @Test
     void sessionsSurviveTheServerUntilTheGracePeriodEnds() {
         FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.41");
         try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {
@@ -198,6 +217,36 @@ class LifecycleTest {
         CLOCK.advance(Duration.ofMinutes(6));
         gateway.app().sweep();
         assertEquals(401, browser.get("/api/v1/me/server").statusCode());
+    }
+
+    @Test
+    void aServerThatComesBackListsItsSessionsAndBothSidesForgetTheRest() {
+        FakeBrowser kept = new FakeBrowser(gateway, "203.0.113.42");
+        FakeBrowser dropped = new FakeBrowser(gateway, "203.0.113.43");
+        SessionCreated keep;
+        try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {
+            node.expect(Welcome.class);
+            keep = create(node);
+            login(node, kept, keep);
+            login(node, dropped, create(node));
+        }
+        CLOCK.advance(Duration.ofMinutes(2));
+        try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {
+            node.expect(Welcome.class);
+            node.send(new SessionsOpen(
+                    null,
+                    1,
+                    List.of(
+                            new SessionsOpen.Entry(keep.session(), PLAYER),
+                            new SessionsOpen.Entry("s-ended-here", PLAYER))));
+            Message answer = node.next();
+            while (answer instanceof Unsubscribe) answer = node.next();
+            SessionClosed closed = assertInstanceOf(SessionClosed.class, answer);
+            assertEquals("s-ended-here", closed.session());
+            assertEquals(CloseReason.EXPIRED, closed.reason());
+            assertEquals(401, dropped.get("/api/v1/me/server").statusCode());
+            assertEquals(200, kept.get("/api/v1/me/server").statusCode());
+        }
     }
 
     private static SessionCreated create(FakeNode node) {

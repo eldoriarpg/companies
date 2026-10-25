@@ -17,6 +17,7 @@ import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionCreated;
 import de.eldoria.companies.web.api.session.SessionOpened;
+import de.eldoria.companies.web.api.session.SessionsOpen;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.gateway.Secrets;
 import de.eldoria.companies.web.gateway.browser.BrowserStreams;
@@ -37,8 +38,12 @@ import org.slf4j.LoggerFactory;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 
@@ -65,6 +70,11 @@ public final class Sessions {
      * How many codes may be tried per session.
      */
     public static final int MAX_ATTEMPTS = 5;
+
+    /**
+     * How old a session must be before a plugin's list that lacks it ends it.
+     */
+    public static final long LIST_MARGIN_SECONDS = 60;
 
     /**
      * How long a code works.
@@ -307,6 +317,31 @@ public final class Sessions {
     public void revokedByPlugin(LiveServer server, SessionsRevoked message) {
         CloseReason reason = message.reason() == null ? CloseReason.REVOKED : message.reason();
         for (StoredSession gone : repository.deleteOfPlayer(server.id(), message.player())) end(gone, reason, false);
+    }
+
+    /**
+     * The plugin listed the sessions it knows after a welcome. Sessions of the server it does not list end here, unless
+     * they were created within the last {@value #LIST_MARGIN_SECONDS} seconds and may not be stored by the plugin yet;
+     * listed sessions this gateway no longer holds are reported back as ended, so the plugin forgets them too.
+     *
+     * @param server the server
+     * @param link the node that listed them
+     * @param message the list
+     */
+    public void listedByPlugin(LiveServer server, NodeLink link, SessionsOpen message) {
+        Map<String, UUID> known = new HashMap<>();
+        for (SessionsOpen.Entry entry : message.sessions()) known.put(entry.session(), entry.player());
+        Instant settled = clock.instant().minusSeconds(LIST_MARGIN_SECONDS);
+        Set<String> held = new HashSet<>();
+        for (StoredSession session : repository.ofServer(server.id())) {
+            held.add(session.id());
+            if (known.containsKey(session.id()) || session.created().isAfter(settled)) continue;
+            repository.delete(session.id()).ifPresent(gone -> end(gone, CloseReason.UNKNOWN, false));
+        }
+        known.forEach((session, player) -> {
+            if (held.contains(session)) return;
+            link.send(new SessionClosed(link.nextId(), link.agreed().protocol(), session, player, CloseReason.EXPIRED));
+        });
     }
 
     /**

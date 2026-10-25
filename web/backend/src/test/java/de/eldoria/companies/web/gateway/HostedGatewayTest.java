@@ -11,6 +11,7 @@ import de.eldoria.companies.web.api.action.ActionResult;
 import de.eldoria.companies.web.api.handshake.Branding;
 import de.eldoria.companies.web.api.handshake.BrandingUpdate;
 import de.eldoria.companies.web.api.handshake.GatewayKind;
+import de.eldoria.companies.web.api.handshake.Hello;
 import de.eldoria.companies.web.api.handshake.KeyKind;
 import de.eldoria.companies.web.api.handshake.NodeRole;
 import de.eldoria.companies.web.api.handshake.VersionState;
@@ -867,6 +868,9 @@ class HostedGatewayTest {
                     second.expect(Subscribe.class);
                     SnapshotRequest reload = second.expect(SnapshotRequest.class);
                     second.sendRaw(Recorded.snapshot(reload.id(), reload.session(), uid, 0));
+                    JsonNode forgotten = stream.next();
+                    assertEquals("presence", forgotten.path("type").asString());
+                    assertFalse(forgotten.path("online").asBoolean());
                     assertEquals("server", stream.next().path("type").asString());
                     assertEquals("resync", stream.next().path("type").asString());
                     second.send(new Patch(
@@ -1261,6 +1265,31 @@ class HostedGatewayTest {
             assertTrue(adminView.path("admin").asBoolean());
             assertTrue(adminView.path("features").valueStream().anyMatch(feature -> feature.asString()
                     .equals(Features.ADMIN_ORDERS)));
+        }
+    }
+
+    @Test
+    void forgetsThePlayersOfANodeThatConnectsAgainWithoutClosing() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        try (FakeNode primary = node(key, primaryId)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.27");
+            Hello hello = FakeNode.hello(
+                    KeyKind.DASHBOARD_KEY, key, secondaryId, NodeRole.SECONDARY, PLUGIN, FakeNode.FEATURES, null);
+            FakeNode crashed = FakeNode.welcomed(gateway, hello);
+            login(crashed, browser, create(crashed, secondaryId));
+            assertTrue(snapshot(primary, browser, primaryId, 1)
+                    .at("/player/online")
+                    .asBoolean());
+            crashed.expect(Subscribe.class);
+            try (FakeBrowser.Stream stream = browser.stream();
+                    FakeNode restarted = FakeNode.welcomed(gateway, hello)) {
+                assertEquals("server", stream.next().path("type").asString());
+                JsonNode presence = stream.next();
+                while (!"presence".equals(presence.path("type").asString())) presence = stream.next();
+                assertFalse(presence.path("online").asBoolean());
+            }
         }
     }
 

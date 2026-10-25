@@ -58,6 +58,18 @@ public final class RateLimiter {
     }
 
     /**
+     * Takes back the latest action of a key, for one that turned out to deserve no limit.
+     *
+     * @param key the address or session
+     */
+    public void refund(String key) {
+        actions.computeIfPresent(key, (ignored, bucket) -> {
+            bucket.pollLast();
+            return bucket;
+        });
+    }
+
+    /**
      * Drops the buckets of keys without an action in the window. Called every few seconds.
      */
     public void sweep() {
