@@ -118,7 +118,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`; the other parts arrive with later versions. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players` and `admin.companies`; the other parts arrive with later versions. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is your `server-icon.png`. |
 
@@ -152,8 +152,14 @@ it.
 | Tab | What it does | Permission | Same as |
 |---|---|---|---|
 | Orders | Open any order by id or find the orders of a player or company; take a claimed order from its company, mark it delivered, delete it with or without refund, give it more time. Every change but more time asks once more and names the money it moves. | `companies.admin.orders` | `/companyadmin order …` |
+| Players | Look a player up: company and role, own orders, waiting items, latest messages | `companies.admin.player` | `/companyadmin player` |
+| Players | Grant a player money, or items of a material to collect with `/order collect` | `companies.admin.grant` | `/companyadmin grant money`, `grant items` |
+| Companies | Show a company's treasury with its latest movements; give or take money | `companies.admin.treasury` | `/companyadmin treasury`, `give`, `take` |
+| Companies | Rename a company for free | `companies.admin.rename` | `/companyadmin rename` |
+| Companies | Make a member the owner | `companies.admin.transferOwner` | `/companyadmin transferowner` |
+| Companies | Dissolve a company after asking once more | `companies.admin.delete` | `/companyadmin delete` |
 
-Switch a tool off with `dashboard.features` like any other part, for example `admin.orders: false`.
+Switch a tab off with `dashboard.features` like any other part: `admin.orders`, `admin.players` or `admin.companies` set to `false`.
 
 ## Several servers
 
