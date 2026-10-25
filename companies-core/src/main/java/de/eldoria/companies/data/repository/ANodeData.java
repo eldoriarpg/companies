@@ -121,6 +121,16 @@ public abstract class ANodeData {
      */
     public abstract List<Node> getPrimaryNodes();
 
+    /**
+     * The primary's copy of a configuration file as the database holds it.
+     *
+     * @param key the file
+     * @return the file's content, empty before the primary wrote it
+     */
+    public Optional<String> primaryContent(Key<?> key) {
+        return loadPrimaryConfiguration(key.path().toString());
+    }
+
     public final <T> T loadPrimaryConfiguration(Key<T> key, JacksonConfig<?> config) {
         var content = loadPrimaryConfiguration(key.path().toString())
                 .orElseThrow(() -> new IllegalStateException(

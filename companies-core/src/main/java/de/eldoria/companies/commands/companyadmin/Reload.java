@@ -6,8 +6,7 @@
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.commands.CommandDependencies;
-import de.eldoria.companies.commands.support.PlayerOnly;
-import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Permission.Admin;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -16,11 +15,10 @@ import org.bukkit.command.CommandSender;
 
 /**
  * {@code /companyadmin reload}: reloads the configuration and applies the update settings and everything registered
- * with {@link CommandDependencies#onReload(Runnable)}.
+ * with {@link CommandDependencies#onReload(Runnable)}. Works from the console too.
  */
 @Subcommand("reload")
 @Permission(Admin.RELOAD)
-@PlayerOnly
 public final class Reload {
     private final CommandDependencies deps;
 
@@ -36,12 +34,18 @@ public final class Reload {
      */
     @Executes
     public void reload(CommandSender sender) {
-        var player = Senders.player(sender);
         var updates = deps.services().updates();
         deps.configuration().reload();
         updates.apply();
         deps.reloaded();
-        deps.adminLog().entry(player, "reload").write();
-        deps.messages().sendMessage(player, "companyadmin.reload.done");
+        deps.adminLog().entry(sender, "reload").write();
+        var unreadable = deps.configuration().unreadableFiles();
+        if (unreadable.isEmpty()) {
+            deps.messages().sendMessage(sender, "companyadmin.reload.done");
+            return;
+        }
+        deps.messages()
+                .sendError(
+                        sender, "companyadmin.reload.unreadable", Values.text("files", String.join(", ", unreadable)));
     }
 }

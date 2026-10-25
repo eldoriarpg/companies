@@ -183,6 +183,7 @@ export default {
         levels: {
             title: 'Niveaux des entreprises',
             secondary: 'Ce serveur n’est pas le serveur principal, les niveaux ne peuvent qu’être consultés ici.',
+            unreadable: 'Les niveaux ne peuvent pas être modifiés tant que company.yml ne peut pas être lu. Corrige le fichier et recharge.',
             summary: '{orders} commandes, {members} membres, {money} gagnés, {items} objets livrés',
             add: 'Ajouter un niveau',
             recalculate: 'Recalculer toutes les entreprises',

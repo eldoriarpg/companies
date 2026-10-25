@@ -489,8 +489,10 @@ export interface AdminLevel {
 
 /** The company levels for an admin. */
 export interface AdminLevels {
-    /** Whether the answering server may change them, which only the primary does. */
+    /** Whether the answering server may change them, which only the primary does while it can read `company.yml`. */
     editable: boolean
+    /** Why it may not: the server is a secondary, or `company.yml` cannot be read; none when it may. */
+    blocked?: 'secondary' | 'unreadable' | null
     levels: AdminLevel[]
 }
 

@@ -115,6 +115,15 @@ secondary also copies the files whenever the primary writes them: when the prima
 [level editor](./levels.md#the-level-editor) or on the dashboard, a secondary takes `company.yml` only, without a
 reload.
 
+A secondary only replaces a file whose content differs from the primary's copy, and runs the reload work, such as
+reconnecting the dashboard and the Discord webhook, only then. A restart of the primary that changed nothing therefore
+changes nothing on the secondaries. When a secondary's file was changed on that server since it last took a copy, for
+example because you edited it there, the secondary keeps its version as `backup_<timestamp>_<file name>` before it
+takes the copy, and its log says so. To tell, it notes each copy it took in the hidden folder `.synced`; the first sync
+after updating Companies has no such notes yet, so it keeps a backup of every file that differs once. When a backup
+cannot be written, the file stays as it is and the copy is not taken. The primary never writes a file it cannot read
+to the database.
+
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
 To change the configuration of a running network:

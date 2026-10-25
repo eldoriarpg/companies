@@ -111,6 +111,7 @@ public final class AdminLevelWrites {
                 request,
                 new Payloads.AdminLevels(
                         levels().editable(),
+                        levels().blocked().orElse(null),
                         levels().levels().stream()
                                 .map(AdminLevelWrites::payload)
                                 .toList()));

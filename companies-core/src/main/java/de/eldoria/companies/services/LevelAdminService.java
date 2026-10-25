@@ -183,10 +183,19 @@ public final class LevelAdminService {
     }
 
     /**
-     * @return whether levels can be changed on this node, which is the primary
+     * @return why levels cannot be changed on this node: {@code secondary} or {@code unreadable}, none when they can
+     */
+    public Optional<String> blocked() {
+        if (configuration.nodeSettings().nodeType() != NodeType.PRIMARY) return Optional.of("secondary");
+        if (configuration.unreadable(Configuration.COMPANY_SETTINGS)) return Optional.of("unreadable");
+        return Optional.empty();
+    }
+
+    /**
+     * @return whether levels can be changed on this node, which is the primary while it can read {@code company.yml}
      */
     public boolean editable() {
-        return configuration.nodeSettings().nodeType() == NodeType.PRIMARY;
+        return blocked().isEmpty();
     }
 
     private static List<String> inputs(CompanyLevel level) {
@@ -210,7 +219,8 @@ public final class LevelAdminService {
     }
 
     private void requirePrimary() {
-        Checks.isTrue(editable(), "error.secondarynode");
+        Checks.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
+        Checks.isTrue(!configuration.unreadable(Configuration.COMPANY_SETTINGS), "companyadmin.level.unreadable");
     }
 
     private CompanySettings settings() {

@@ -183,6 +183,7 @@ export default {
         levels: {
             title: 'Unternehmensstufen',
             secondary: 'Dieser Server ist nicht der Hauptserver, die Stufen lassen sich hier nur ansehen.',
+            unreadable: 'Stufen lassen sich nicht ändern, solange company.yml nicht gelesen werden kann. Korrigiere die Datei und lade neu.',
             summary: '{orders} Aufträge, {members} Mitglieder, {money} verdient, {items} Gegenstände geliefert',
             add: 'Stufe hinzufügen',
             recalculate: 'Alle Unternehmen neu berechnen',

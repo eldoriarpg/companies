@@ -109,7 +109,7 @@ function open(level: number): void {
       <ActionNotice :problem="loading.problem.value" class="mx-3 mt-3 md:mx-4"/>
       <Spinner v-if="!levels && loading.busy.value" class="m-4"/>
       <template v-if="levels">
-        <Alert v-if="!levels.editable" variant="notice" class="mx-3 mt-3 md:mx-4">{{ t('admin.levels.secondary') }}</Alert>
+        <Alert v-if="!levels.editable" variant="notice" class="mx-3 mt-3 md:mx-4">{{ t(levels.blocked === 'unreadable' ? 'admin.levels.unreadable' : 'admin.levels.secondary') }}</Alert>
         <PlainList data-testid="admin-levels">
           <li v-for="level in levels.levels" :key="level.level" class="flex flex-col gap-0.5 border-t border-line-soft px-3 py-2.5 md:px-4">
             <LinkButton class="truncate text-sm" @click="open(level.level)">{{ level.level }} · {{ level.name }}</LinkButton>

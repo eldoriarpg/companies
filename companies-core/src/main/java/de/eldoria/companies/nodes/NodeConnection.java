@@ -84,7 +84,8 @@ public final class NodeConnection {
 
     /**
      * Loads the configuration the primary synced to the database and applies it, as
-     * {@code /companyadmin syncconfiguration} does on a secondary.
+     * {@code /companyadmin syncconfiguration} does on a secondary. When every file matches what this server has, as
+     * after a restart of the primary, the reload hooks do not run.
      *
      * @param configuration the configuration of this node
      * @param nodeData      the node repository
@@ -96,33 +97,32 @@ public final class NodeConnection {
     public static Runnable configSync(
             Configuration configuration, ANodeData nodeData, Executor mainThread, Runnable reloaded, Logger logger) {
         return () -> {
-            configuration.syncConfigurations(nodeData).join();
+            if (!configuration.syncConfigurations(nodeData).join()) {
+                logger.info("The configuration the primary node synced matches this server's.");
+                return;
+            }
             logger.info("Loaded the configuration the primary node synced.");
             mainThread.execute(reloaded);
         };
     }
 
     /**
-     * The task a secondary runs when the primary changed the levels: it reads {@code company.yml} from the database
-     * one change after the other and puts it in place on the main thread, without the reload hooks, since the levels
-     * are read where they are used.
+     * The task a secondary runs when the primary changed the levels: it takes {@code company.yml} from the database one
+     * change after the other, see {@link Configuration#takePrimaryCopy}, without the reload hooks, since the levels are
+     * read where they are used.
      *
      * @param configuration the configuration of this node
      * @param nodeData      the node repository
      * @param serial        reads one change after the other
-     * @param mainThread    puts the levels in place
      * @param logger        reports the load and its failures
      * @return the task, which returns at once
      */
-    public static Runnable levelsSync(
-            Configuration configuration, ANodeData nodeData, Executor serial, Executor mainThread, Logger logger) {
+    public static Runnable levelsSync(Configuration configuration, ANodeData nodeData, Executor serial, Logger logger) {
         return () -> serial.execute(() -> {
             try {
-                var settings = nodeData.loadPrimaryConfiguration(Configuration.COMPANY_SETTINGS, configuration);
-                mainThread.execute(() -> {
-                    configuration.useCompanySettings(settings);
+                if (configuration.takePrimaryCopy(nodeData, Configuration.COMPANY_SETTINGS)) {
                     logger.info("Took the levels the primary node changed.");
-                });
+                }
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not take the levels the primary node changed.", e);
             }

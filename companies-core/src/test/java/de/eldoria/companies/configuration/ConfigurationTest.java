@@ -26,6 +26,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConfigurationTest {
@@ -63,6 +64,39 @@ class ConfigurationTest {
             public void close() {}
         });
         configuration = new Configuration(plugin(folder, logger));
+    }
+
+    @Test
+    void anUnreadableSharedFileIsLeftAsItIsAndNeitherSavedNorReplaced() throws IOException {
+        var broken = "level: [ {levelName: First";
+        Files.writeString(folder.resolve("company.yml"), broken);
+
+        var settings = configuration.companySettings();
+
+        assertTrue(configuration.unreadable(Configuration.COMPANY_SETTINGS));
+        assertEquals(new CompanySettings().level().size(), settings.level().size());
+        configuration.save(Configuration.COMPANY_SETTINGS);
+        assertEquals(broken, Files.readString(folder.resolve("company.yml")));
+        try (var files = Files.list(folder)) {
+            assertTrue(files.noneMatch(file -> file.getFileName().toString().startsWith("backup_")));
+        }
+
+        Files.writeString(folder.resolve("company.yml"), SHUFFLED);
+        configuration.reload(Configuration.COMPANY_SETTINGS);
+        assertFalse(configuration.unreadable(Configuration.COMPANY_SETTINGS));
+        assertEquals(List.of("First", "Second"), names(configuration.companySettings()));
+    }
+
+    @Test
+    void aFileThatBreaksLaterKeepsItsLastValuesOnReload() throws IOException {
+        Files.writeString(folder.resolve("company.yml"), SHUFFLED);
+        configuration.companySettings();
+
+        Files.writeString(folder.resolve("company.yml"), "level: [ {levelName: First");
+        configuration.reload(Configuration.COMPANY_SETTINGS);
+
+        assertTrue(configuration.unreadable(Configuration.COMPANY_SETTINGS));
+        assertEquals(List.of("First", "Second"), names(configuration.companySettings()));
     }
 
     @Test
