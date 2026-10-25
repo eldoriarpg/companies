@@ -619,7 +619,7 @@ export interface WriteActions {
     'admin.boards.npc.link': {args: NodeChoice & {hook: string, npc: string, board: string}, result: AdminNpcBinding}
     'admin.boards.npc.unlink': {args: NodeChoice & {hook: string, npc: string}, result: AdminNpcBinding}
     'admin.nodes.list': {args: Record<string, never>, result: {nodes: AdminNode[]}}
-    'admin.nodes.remove': {args: {node: string}, result: {nodes: AdminNode[]}}
+    'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}

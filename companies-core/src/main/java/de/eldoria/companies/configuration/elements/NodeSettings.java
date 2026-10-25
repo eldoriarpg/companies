@@ -13,6 +13,8 @@ import java.util.UUID;
 public class NodeSettings {
     private NodeType nodeType = NodeType.PRIMARY;
     private UUID nodeUid = UUID.randomUUID();
+    private static final int MAX_NAME = 32;
+
     private String name = "";
     private NodeDashboardSettings dashboard = new NodeDashboardSettings();
 
@@ -27,10 +29,12 @@ public class NodeSettings {
     /**
      * The name admins gave this node, shown where the dashboard lets them pick a server.
      *
-     * @return the name, empty for none
+     * @return the name, at most {@value #MAX_NAME} characters, empty for none
      */
     public String name() {
-        return name == null ? "" : name.strip();
+        if (name == null) return "";
+        var stripped = name.strip();
+        return stripped.length() > MAX_NAME ? stripped.substring(0, MAX_NAME) : stripped;
     }
 
     /**

@@ -373,7 +373,7 @@ function action(name, args, state) {
         case 'admin.nodes.list':
             return done({nodes: servers(state)})
         case 'admin.nodes.remove':
-            state.servers = servers(state).filter(entry => entry.uid !== args.node)
+            state.servers = servers(state).filter(entry => entry.uid !== args.uid)
             return done({nodes: state.servers})
         case 'admin.config.sync':
             return done({})

@@ -143,6 +143,12 @@ public final class ReadRelay {
             Actions.ADMIN_BOARDS_NPC_UNLINK);
 
     /**
+     * The admin actions only the primary performs, as they push its files to the others. Without a ready primary
+     * they reach no node.
+     */
+    public static final Set<String> PRIMARY_ACTIONS = Set.of(Actions.ADMIN_CONFIG_SYNC);
+
+    /**
      * The actions that move items and so run with the player's inventory, on the node the player is online on.
      */
     public static final Set<String> PLAYER_ACTIONS = Set.of(

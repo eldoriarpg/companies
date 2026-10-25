@@ -146,7 +146,9 @@ import de.eldoria.messageblocker.blocker.MessageBlocker;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -169,6 +171,7 @@ public class Companies extends EldoPlugin {
             .log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
     private static final long SYNC_APPLY_DELAY_TICKS = 40L;
+    private @Nullable BukkitTask pendingApply;
     private final ExecutorService levelSyncs =
             Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private final ScheduledExecutorService workerPool =
@@ -614,12 +617,13 @@ public class Companies extends EldoPlugin {
     /**
      * Does what {@code /companyadmin syncconfiguration} does, for the dashboard: syncs the files, tells the secondaries
      * on the primary, and applies the files a few seconds later on the main thread, since applying them reconnects the
-     * dashboard and the answer has to reach the gateway first.
+     * dashboard and the answer has to reach the gateway first. Syncs in quick succession share one later apply.
      */
-    private void syncConfigurationFromDashboard() {
+    private synchronized void syncConfigurationFromDashboard() {
         configuration.syncConfigurations(nodeData).join();
         if (nodeData.nodeType() == NodeType.PRIMARY) commands.bus().publish(new NodeMessage.ConfigSynced());
-        getServer().getScheduler().runTaskLater(this, commands::reloaded, SYNC_APPLY_DELAY_TICKS);
+        if (pendingApply != null) pendingApply.cancel();
+        pendingApply = getServer().getScheduler().runTaskLater(this, commands::reloaded, SYNC_APPLY_DELAY_TICKS);
     }
 
     /**

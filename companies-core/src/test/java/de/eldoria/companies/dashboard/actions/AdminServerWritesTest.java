@@ -5,7 +5,9 @@
  */
 package de.eldoria.companies.dashboard.actions;
 
+import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.dashboard.DashboardWorld;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
@@ -122,6 +124,10 @@ class AdminServerWritesTest {
                 boards(Actions.ADMIN_BOARDS_NPC_LINK, "{\"hook\":\"Citizens\",\"npc\":\"9\"}")
                         .reason());
         assertEquals(
+                "dashboard.invalid",
+                boards(Actions.ADMIN_BOARDS_NPC_LINK, "{\"hook\":\"Citizens\",\"npc\":\"Selected\"}")
+                        .reason());
+        assertEquals(
                 "boards.error.unknownHook",
                 boards(Actions.ADMIN_BOARDS_NPC_LINK, "{\"hook\":\"FancyNpcs\",\"npc\":\"guide\"}")
                         .reason());
@@ -147,17 +153,24 @@ class AdminServerWritesTest {
                 "companyadmin.node.error.current",
                 perform(
                                 Actions.ADMIN_NODES_REMOVE,
-                                "{\"node\":\"%s\"}"
-                                        .formatted(current.path("uid").asString()),
+                                "{\"uid\":\"%s\"}".formatted(current.path("uid").asString()),
                                 Permission.Admin.NODES)
                         .reason());
         assertEquals(
                 "companyadmin.node.error.unknown",
                 perform(
                                 Actions.ADMIN_NODES_REMOVE,
-                                "{\"node\":\"%s\"}".formatted(UUID.randomUUID()),
+                                "{\"uid\":\"%s\"}".formatted(UUID.randomUUID()),
                                 Permission.Admin.NODES)
                         .reason());
+
+        var old = new SqLiteNodeData(new NodeSettings());
+        old.updateNode(world.plugin);
+        var removed = perform(
+                Actions.ADMIN_NODES_REMOVE, "{\"uid\":\"%s\"}".formatted(old.nodeUid()), Permission.Admin.NODES);
+        assertTrue(removed.ok(), removed.reason());
+        assertEquals(1, removed.data().path("nodes").size());
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("node remove")));
     }
 
     @Test

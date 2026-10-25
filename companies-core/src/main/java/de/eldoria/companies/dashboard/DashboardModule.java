@@ -330,6 +330,7 @@ public final class DashboardModule {
                         views::instant,
                         Threading.mainThread(plugin),
                         data.admin().log(),
+                        plugin.getLogger(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()

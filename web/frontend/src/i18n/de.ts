@@ -235,6 +235,7 @@ export default {
         },
         servers: {
             title: 'Server in der Datenbank',
+            never: 'nie',
             current: 'dieser Server',
             facts: '{role} · Version {version} · zuletzt gesehen {seen} · {bus}',
             role: {

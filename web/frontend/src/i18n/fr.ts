@@ -235,8 +235,9 @@ export default {
         },
         servers: {
             title: 'Serveurs dans la base de données',
+            never: 'jamais',
             current: 'ce serveur',
-            facts: '{role} · version {version} · vu le {seen} · {bus}',
+            facts: '{role} · version {version} · vu : {seen} · {bus}',
             role: {
                 PRIMARY: 'Principal',
                 SECONDARY: 'Secondaire',

@@ -79,7 +79,7 @@ public interface NodeEvents {
     void nodeDiscontinued(LiveServer server, NodeLink link);
 
     /**
-     * A node changed the server's branding, or connected on a discontinued version.
+     * A node changed the server's branding, connected on a discontinued version, or left while others stay.
      *
      * @param server the server
      */

@@ -35,7 +35,7 @@ const target = computed(() => (nodes.value.length > 1 && node.value ? {node: nod
 watch(nodes, list => {
   if (!list.some(entry => entry.uid === node.value)) node.value = list[0]?.uid ?? ''
 }, {immediate: true})
-watch(target, load, {immediate: true})
+watch(() => target.value.node ?? '', load, {immediate: true})
 
 /** Loads the presets of the chosen server. */
 async function load(): Promise<void> {

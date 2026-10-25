@@ -257,7 +257,11 @@ public final class NodeHub {
         if (left != null) {
             for (UUID player : gone) events.presence(left, player, false);
         }
-        if (offline != null) events.serverOffline(offline);
+        if (offline != null) {
+            events.serverOffline(offline);
+        } else if (left != null) {
+            events.serverChanged(left);
+        }
     }
 
     /**

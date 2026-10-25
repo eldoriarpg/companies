@@ -28,6 +28,7 @@ const changing = useAction()
 const syncing = useAction()
 const nodes = ref<AdminNode[] | null>(null)
 const done = ref('')
+const syncRun = ref(0)
 const names = computed(() => new Map((server.value?.nodes ?? []).map(node => [node.uid, node.name])))
 
 onMounted(() => {
@@ -55,7 +56,7 @@ function label(node: AdminNode): string {
  */
 async function remove(node: AdminNode): Promise<void> {
   done.value = ''
-  const result = await changing.run('admin.nodes.remove', {node: node.uid})
+  const result = await changing.run('admin.nodes.remove', {uid: node.uid})
   if (!result) return
   nodes.value = result.nodes
   done.value = t('admin.servers.removed', {server: label(node)})
@@ -64,7 +65,9 @@ async function remove(node: AdminNode): Promise<void> {
 /** Syncs the configuration. */
 async function sync(): Promise<void> {
   done.value = ''
-  if (await syncing.run('admin.config.sync', {})) done.value = t('admin.servers.synced')
+  if (!await syncing.run('admin.config.sync', {})) return
+  syncRun.value++
+  done.value = t('admin.servers.synced')
 }
 </script>
 
@@ -79,7 +82,7 @@ async function sync(): Promise<void> {
       <PlainList v-if="nodes" data-testid="admin-servers">
         <li v-for="node in nodes" :key="node.uid" class="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 text-sm md:px-4">
           <span class="flex flex-wrap items-center gap-2 font-semibold">{{ label(node) }}<InfoBadge v-if="node.current">{{ t('admin.servers.current') }}</InfoBadge></span>
-          <span class="text-xs text-ink-muted">{{ t('admin.servers.facts', {role: t(`admin.servers.role.${node.role}`), version: node.version, seen: node.lastSeen ? dateTime(node.lastSeen, locale) : '-', bus: node.bus}) }}</span>
+          <span class="text-xs text-ink-muted">{{ t('admin.servers.facts', {role: t(`admin.servers.role.${node.role}`), version: node.version, seen: node.lastSeen ? dateTime(node.lastSeen, locale) : t('admin.servers.never'), bus: node.bus}) }}</span>
           <ConfirmStep
               v-if="!node.current"
               :trigger="t('admin.servers.remove')"
@@ -94,7 +97,7 @@ async function sync(): Promise<void> {
     </PanelBox>
     <PanelBox v-if="supports(Feature['admin.config'])" padded :aria-label="t('admin.servers.config')">
       <SectionHeader>{{ t('admin.servers.config') }}</SectionHeader>
-      <ConfirmStep :trigger="t('admin.servers.sync')" :question="t('admin.servers.syncQuestion')" :confirm="t('admin.servers.syncConfirm')" :busy="syncing.busy.value" @confirmed="sync"/>
+      <ConfirmStep :key="syncRun" :trigger="t('admin.servers.sync')" :question="t('admin.servers.syncQuestion')" :confirm="t('admin.servers.syncConfirm')" :busy="syncing.busy.value" @confirmed="sync"/>
       <ActionNotice :problem="syncing.problem.value"/>
     </PanelBox>
   </div>

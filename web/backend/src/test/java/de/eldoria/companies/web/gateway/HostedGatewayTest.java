@@ -1208,6 +1208,7 @@ class HostedGatewayTest {
             login(node, player, create(node, uid));
             JsonNode playerView = FakeBrowser.json(player.get("/api/v1/me/server"));
             assertFalse(playerView.path("admin").asBoolean());
+            assertTrue(playerView.path("nodes").isEmpty());
             assertEquals(
                     403,
                     player.post("/api/v1/me/actions", "{\"name\":\"admin.orders.info\",\"args\":{\"order\":1}}")

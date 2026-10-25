@@ -79,6 +79,15 @@ public final class LiveServer {
     }
 
     /**
+     * @return the primary node when it is ready, nothing otherwise
+     */
+    public Optional<NodeLink> primary() {
+        return ready().stream()
+                .filter(link -> link.agreed().role() == NodeRole.PRIMARY)
+                .findFirst();
+    }
+
+    /**
      * @param node a node's uid
      * @return that node when it is ready, nothing otherwise
      */

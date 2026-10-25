@@ -527,8 +527,8 @@ public final class BrowserApi {
     }
 
     /**
-     * The node an action goes to: the player's node for what moves items, the named node for what a node keeps for
-     * itself (none when that node is not connected or not a node id, so nothing reaches another one), the primary
+     * The node an action goes to: the player's node for what moves items, the primary alone for what only it does,
+     * the named node for what a node keeps for itself (none when that node is not connected or not a node id, so nothing reaches another one), the primary
      * otherwise.
      *
      * @param server  the player's server
@@ -540,6 +540,7 @@ public final class BrowserApi {
     private static Optional<NodeLink> route(
             LiveServer server, StoredSession session, String name, @Nullable ObjectNode args) {
         if (ReadRelay.PLAYER_ACTIONS.contains(name)) return server.routeFor(session.player());
+        if (ReadRelay.PRIMARY_ACTIONS.contains(name)) return server.primary();
         String node = args == null ? "" : args.path("node").asString("");
         if (!ReadRelay.NODE_ACTIONS.contains(name) || node.isEmpty()) return server.route();
         try {

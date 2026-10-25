@@ -9,6 +9,7 @@ import de.eldoria.companies.boards.BoardTarget;
 import de.eldoria.companies.boards.Boards;
 import de.eldoria.companies.boards.npc.NpcBoards;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.boardbindings.NpcBinding;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -34,6 +35,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The dashboard's tools for the servers of a network, as {@code /companyadmin board}, {@code node} and
@@ -43,7 +46,8 @@ import java.util.function.Supplier;
  * Board signs and NPC bindings belong to the node, so the gateway sends those actions to the node the admin picked.
  * Boards need the permission of {@code /companyadmin board}, nodes the one of {@code node}, syncing the general admin
  * permission, as the commands do. An NPC is named as in its plugin: a Citizens id or a FancyNpcs name; {@code selected}
- * only exists in the game. The methods block and are called off the main thread.
+ * is refused, since the console's selection is not the admin's. A node to remove is named by {@code uid}. Syncing is
+ * refused on a secondary, which would pull instead of push. The methods block and are called off the main thread.
  */
 public final class AdminServerWrites {
     /**
@@ -70,6 +74,7 @@ public final class AdminServerWrites {
             Actions.ADMIN_CONFIG_SYNC, Permission.Admin.ADMIN);
 
     private static final String INVALID = "dashboard.invalid";
+    private static final String SELECTED = "selected";
 
     private final Sources sources;
     private final Answers answers;
@@ -150,7 +155,7 @@ public final class AdminServerWrites {
 
     private ActionResult link(ActionRequest request, String admin, JsonNode args) {
         var hook = text(args, "hook");
-        var npc = text(args, "npc");
+        var npc = npc(args);
         var board = args.path("board").asString("").strip();
         var binding = onMainThread(() -> sources.npcBoards().link(sources.console(), hook, npc, board));
         sources.log()
@@ -164,7 +169,7 @@ public final class AdminServerWrites {
 
     private ActionResult unlink(ActionRequest request, String admin, JsonNode args) {
         var hook = text(args, "hook");
-        var npc = text(args, "npc");
+        var npc = npc(args);
         var binding = onMainThread(() -> sources.npcBoards().unlink(sources.console(), hook, npc))
                 .orElseThrow(() -> CommandFailure.of(
                         "boards.error.notLinked",
@@ -196,7 +201,7 @@ public final class AdminServerWrites {
     private ActionResult remove(ActionRequest request, String admin, JsonNode args) {
         UUID uid;
         try {
-            uid = UUID.fromString(text(args, "node"));
+            uid = UUID.fromString(text(args, "uid"));
         } catch (IllegalArgumentException e) {
             return answers.refused(request, INVALID);
         }
@@ -211,7 +216,15 @@ public final class AdminServerWrites {
     }
 
     private ActionResult sync(ActionRequest request, String admin) {
-        sources.syncConfiguration().run();
+        if (sources.nodeData().get().nodeType() != NodeType.PRIMARY) {
+            return answers.refused(request, "error.secondarynode");
+        }
+        try {
+            sources.syncConfiguration().run();
+        } catch (RuntimeException e) {
+            sources.logger().log(Level.SEVERE, "Could not sync the configuration from the dashboard.", e);
+            return answers.refused(request, "companyadmin.syncconfiguration.failed");
+        }
         sources.log().entry(admin, "syncconfiguration").write();
         return answers.data(request, answers.empty());
     }
@@ -222,6 +235,12 @@ public final class AdminServerWrites {
 
     private static Payloads.AdminNpcBinding binding(NpcBinding binding) {
         return new Payloads.AdminNpcBinding(binding.hook(), binding.npc(), binding.board());
+    }
+
+    private static String npc(JsonNode args) {
+        var npc = text(args, "npc");
+        if (npc.equalsIgnoreCase(SELECTED)) throw CommandFailure.of(INVALID);
+        return npc;
     }
 
     private static String text(JsonNode args, String field) {
@@ -252,6 +271,7 @@ public final class AdminServerWrites {
      * @param instant           turns a stored time into an instant
      * @param mainThread        runs tasks on the main thread
      * @param log               the admin log
+     * @param logger            where a failed sync is reported
      * @param render            renders a refusal as plain text
      */
     public record Sources(
@@ -264,5 +284,6 @@ public final class AdminServerWrites {
             Function<LocalDateTime, Instant> instant,
             Executor mainThread,
             AdminLog log,
+            Logger logger,
             Function<CommandFailure, String> render) {}
 }
