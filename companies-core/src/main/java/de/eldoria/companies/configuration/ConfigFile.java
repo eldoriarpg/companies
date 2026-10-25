@@ -51,7 +51,7 @@ public class ConfigFile {
     }
 
     public GeneralSettings generalSettings() {
-        return generalSettings;
+        return generalSettings == null ? new GeneralSettings() : generalSettings;
     }
 
     public StyleSettings style() {
@@ -80,7 +80,7 @@ public class ConfigFile {
      * @return how the PlaceholderAPI values are cached
      */
     public PlaceholderSettings placeholders() {
-        return placeholders;
+        return placeholders == null ? new PlaceholderSettings() : placeholders;
     }
 
     /**
@@ -94,7 +94,7 @@ public class ConfigFile {
      * @return the order boards on signs and NPCs
      */
     public BoardSettings boards() {
-        return boards;
+        return boards == null ? new BoardSettings() : boards;
     }
 
     /**

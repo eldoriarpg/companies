@@ -8,6 +8,7 @@ package de.eldoria.companies.configuration;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -159,6 +160,20 @@ class ConfigurationTest {
         Files.writeString(folder.resolve("node.yml"), "nodeType: PRIMARY\noverrides:\n  messageBlocking: false\n");
         configuration.reload();
         assertTrue(configuration.restartPending().contains(ChangeTracker.MESSAGE_BLOCKING));
+    }
+
+    @Test
+    void emptySectionsUseTheirDefaults() throws IOException {
+        Files.writeString(folder.resolve("config.yml"), "generalSettings:\n  hooks:\nplaceholders:\nboards:\n");
+        configuration = new Configuration(plugin(folder, logger()));
+        configuration.started();
+
+        assertTrue(configuration.hooks().citizens());
+        assertTrue(configuration.messageBlocking());
+        assertEquals(
+                new PlaceholderSettings().offlineCacheSize(),
+                configuration.placeholderSettings().offlineCacheSize());
+        assertEquals(List.of(), configuration.restartPending());
     }
 
     @Test
