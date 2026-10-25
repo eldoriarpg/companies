@@ -405,6 +405,21 @@ public final class Actions {
     public static final String ADMIN_CONFIG_SYNC = "admin.config.sync";
 
     /**
+     * Reads a shared settings file as its latest revision, with how the servers stand on it.
+     */
+    public static final String ADMIN_SETTINGS_GET = "admin.settings.get";
+
+    /**
+     * Lists a page of the revisions of a shared settings file, newest first.
+     */
+    public static final String ADMIN_SETTINGS_HISTORY = "admin.settings.history";
+
+    /**
+     * Reads what one revision of a shared settings file changed against the one before.
+     */
+    public static final String ADMIN_SETTINGS_REVISION = "admin.settings.revision";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -484,7 +499,10 @@ public final class Actions {
             ADMIN_BOARDS_NPC_UNLINK,
             ADMIN_NODES_LIST,
             ADMIN_NODES_REMOVE,
-            ADMIN_CONFIG_SYNC);
+            ADMIN_CONFIG_SYNC,
+            ADMIN_SETTINGS_GET,
+            ADMIN_SETTINGS_HISTORY,
+            ADMIN_SETTINGS_REVISION);
 
     private Actions() {}
 

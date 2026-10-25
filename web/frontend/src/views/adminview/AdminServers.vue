@@ -6,6 +6,7 @@
 <script lang="ts" setup>
 import type {AdminNode} from '~/api/gateway'
 import InfoBadge from '@/components/badge/InfoBadge.vue'
+import NoticeBadge from '@/components/badge/NoticeBadge.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import PlainList from '@/components/container/PlainList.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
@@ -83,6 +84,10 @@ async function sync(): Promise<void> {
         <li v-for="node in nodes" :key="node.uid" class="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 text-sm md:px-4">
           <span class="flex flex-wrap items-center gap-2 font-semibold">{{ label(node) }}<InfoBadge v-if="node.current">{{ t('admin.servers.current') }}</InfoBadge></span>
           <span class="text-xs text-ink-muted">{{ t('admin.servers.facts', {role: t(`admin.servers.role.${node.role}`), version: node.version, seen: node.lastSeen ? dateTime(node.lastSeen, locale) : t('admin.servers.never'), bus: node.bus}) }}</span>
+          <span v-if="node.behind || node.restart" class="flex flex-wrap gap-2 text-xs">
+            <NoticeBadge v-if="node.behind">{{ t('admin.servers.behind') }}</NoticeBadge>
+            <NoticeBadge v-if="node.restart">{{ t('admin.servers.restart', {settings: node.restart}) }}</NoticeBadge>
+          </span>
           <ConfirmStep
               v-if="!node.current"
               :trigger="t('admin.servers.remove')"

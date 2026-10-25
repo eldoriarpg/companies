@@ -532,6 +532,78 @@ export interface AdminNode {
     bus: string
     /** Whether it is the server answering, which cannot be removed. */
     current: boolean
+    /** Whether it uses an older revision of a shared settings file than the latest. */
+    behind?: boolean
+    /** The changed settings it applies only after a restart, none when no restart is pending. */
+    restart?: string | null
+}
+
+/** A shared settings file. */
+export type SettingsFileName = 'config.yml' | 'company.yml' | 'order.yml' | 'user.yml'
+
+/** How a shared setting is entered. */
+export type SettingType = 'FLAG' | 'WHOLE' | 'DECIMAL' | 'TEXT' | 'CHOICE' | 'CHOICES' | 'TEXT_LIST' | 'FLAG_MAP' | 'SECRET'
+
+/** Whether a secret setting is set, never its value. */
+export interface AdminSecret {
+    set: boolean
+    source: 'environment' | 'file' | 'none'
+}
+
+/** One shared setting as its latest revision holds it. */
+export interface AdminSetting {
+    section: string
+    key: string
+    type: SettingType
+    choices: string[]
+    /** Whether it applies only after a restart. */
+    restart: boolean
+    /** Its value, none for a secret. */
+    value?: unknown
+    secret?: AdminSecret | null
+    /** Whether the answering server sets it for itself in its node.yml. */
+    overridden: boolean
+}
+
+/** A shared settings file with how the servers stand on it. */
+export interface AdminSettingsFile {
+    file: SettingsFileName
+    revision: number
+    /** The server that answered, whose the revision used, the unshared edits, the overrides and the secrets' sources are. */
+    node: string
+    /** The revision the answering server uses. */
+    applied: number
+    /** Whether the answering server changed it without sharing the change. */
+    editedHere: boolean
+    /** The servers on an older revision. */
+    behind: string[]
+    settings: AdminSetting[]
+}
+
+/** One revision of a shared settings file. */
+export interface AdminSettingsChange {
+    revision: number
+    actor: string
+    node: string
+    changed: string
+}
+
+/** One setting a revision changed; values are absent for secrets and settings edited in the file only. */
+export interface AdminSettingDiff {
+    key: string
+    before?: unknown
+    after?: unknown
+    secret: boolean
+    /** Whether it is edited in the file only, whose values are not shown. */
+    fileOnly: boolean
+}
+
+/** What one revision changed against the one before. */
+export interface AdminSettingsRevision extends AdminSettingsChange {
+    file: SettingsFileName
+    /** Whether it is the first revision, which holds the file as it was first stored and changed nothing. */
+    first: boolean
+    changes: AdminSettingDiff[]
 }
 
 /** The server a per-server admin action goes to; none for the primary. */
@@ -623,6 +695,9 @@ export interface WriteActions {
     'admin.nodes.list': {args: Record<string, never>, result: {nodes: AdminNode[]}}
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}
+    'admin.settings.get': {args: {file: SettingsFileName}, result: AdminSettingsFile}
+    'admin.settings.history': {args: {file: SettingsFileName, page: number}, result: {revisions: AdminSettingsChange[], pageSize: number}}
+    'admin.settings.revision': {args: {file: SettingsFileName, revision: number}, result: AdminSettingsRevision}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

@@ -61,6 +61,13 @@ public class DiscordSettings {
     }
 
     /**
+     * @return whether the url comes from the environment variable {@code COMPANIES_DISCORD_WEBHOOK}
+     */
+    public boolean urlFromEnvironment() {
+        return present(urlOverride).isPresent();
+    }
+
+    /**
      * Whether the event is posted.
      *
      * @param event the event

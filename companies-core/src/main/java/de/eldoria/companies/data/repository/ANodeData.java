@@ -217,6 +217,13 @@ public abstract class ANodeData {
     public abstract List<AppliedSettings> settingsApplied();
 
     /**
+     * @param path     a shared file
+     * @param revision one of its revisions
+     * @return who stored that revision, where and when, empty when there is no such revision
+     */
+    public abstract Optional<SettingsChange> settingsChange(String path, int revision);
+
+    /**
      * Stores the settings this node reads only at start that changed since it started.
      *
      * @param settings the settings, none when no restart is pending

@@ -11,6 +11,7 @@ import de.eldoria.companies.web.api.snapshot.OrderLineView;
 import de.eldoria.companies.web.api.snapshot.OrderState;
 import de.eldoria.companies.web.api.snapshot.RankingEntry;
 import org.jetbrains.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.util.List;
@@ -561,7 +562,109 @@ public final class Payloads {
      * @param lastSeen when it last started or synced its configuration, none before this was recorded
      * @param bus      how it exchanges messages with the others, as the admin reads it
      * @param current  whether it is the node answering, which cannot be removed
+     * @param behind   whether it uses an older revision of a shared settings file than the latest
+     * @param restart  the changed settings it applies only after a restart, none when no restart is pending
      */
     public record AdminNode(
-            UUID uid, String role, String version, @Nullable Instant lastSeen, String bus, boolean current) {}
+            UUID uid,
+            String role,
+            String version,
+            @Nullable Instant lastSeen,
+            String bus,
+            boolean current,
+            boolean behind,
+            @Nullable String restart) {}
+
+    /**
+     * A shared settings file as the dashboard's settings editor shows it.
+     *
+     * @param file       the file, such as {@code config.yml}
+     * @param revision   its latest revision, 0 before one was stored
+     * @param node       the answering node, to which the next three and the sources of the secrets belong
+     * @param applied    the revision the answering node uses
+     * @param editedHere whether the answering node changed it without sharing the change
+     * @param behind     the nodes that use an older revision
+     * @param settings   its settings, in the order they are shown
+     */
+    public record AdminSettingsFile(
+            String file,
+            int revision,
+            UUID node,
+            int applied,
+            boolean editedHere,
+            List<UUID> behind,
+            List<AdminSetting> settings) {}
+
+    /**
+     * One shared setting.
+     *
+     * @param section    the section it is shown in
+     * @param key        its dotted key
+     * @param type       how it is entered: {@code FLAG}, {@code WHOLE}, {@code DECIMAL}, {@code TEXT}, {@code CHOICE},
+     *                   {@code CHOICES}, {@code TEXT_LIST}, {@code FLAG_MAP} or {@code SECRET}
+     * @param choices    the values to choose from, empty unless a choice
+     * @param restart    whether it applies only after a restart
+     * @param value      its value in the latest revision, none for a secret
+     * @param secret     whether a secret is set and where from, none unless a secret
+     * @param overridden whether the answering node sets it for itself in its {@code node.yml}
+     */
+    public record AdminSetting(
+            String section,
+            String key,
+            String type,
+            List<String> choices,
+            boolean restart,
+            @Nullable JsonNode value,
+            @Nullable AdminSecret secret,
+            boolean overridden) {}
+
+    /**
+     * Whether a secret setting is set, never its value.
+     *
+     * @param set    whether it has a value
+     * @param source {@code environment}, {@code file} or {@code none}
+     */
+    public record AdminSecret(boolean set, String source) {}
+
+    /**
+     * One revision of a shared settings file.
+     *
+     * @param revision its number
+     * @param actor    who stored it, such as an admin's name or {@code startup}
+     * @param node     the node it was stored on
+     * @param changed  when it was stored
+     */
+    public record AdminSettingsChange(int revision, String actor, UUID node, Instant changed) {}
+
+    /**
+     * What one revision changed against the one before.
+     *
+     * @param file     the file
+     * @param revision the revision
+     * @param actor    who stored it
+     * @param node     the node it was stored on
+     * @param changed  when it was stored
+     * @param first    whether it is the first revision, which holds the file as it was first stored
+     * @param changes  the settings it changed, empty for the first revision
+     */
+    public record AdminSettingsRevision(
+            String file,
+            int revision,
+            String actor,
+            UUID node,
+            Instant changed,
+            boolean first,
+            List<AdminSettingDiff> changes) {}
+
+    /**
+     * One setting a revision changed.
+     *
+     * @param key      the dotted key of the setting, or of the part edited in the file only, such as {@code level}
+     * @param before   its value before, none for a secret, a setting edited in the file only or one that was missing
+     * @param after    its value after, none as for {@code before}
+     * @param secret   whether it is a secret, whose values are never shown
+     * @param fileOnly whether it is edited in the file only, whose values are not shown here
+     */
+    public record AdminSettingDiff(
+            String key, @Nullable JsonNode before, @Nullable JsonNode after, boolean secret, boolean fileOnly) {}
 }

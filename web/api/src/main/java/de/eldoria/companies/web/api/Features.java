@@ -137,6 +137,11 @@ public final class Features {
     public static final String ADMIN_CONFIG = "admin.config";
 
     /**
+     * Read the shared settings, their history and how every server stands on them. Needs {@code companies.admin}.
+     */
+    public static final String ADMIN_SETTINGS = "admin.settings";
+
+    /**
      * Every feature name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -161,7 +166,8 @@ public final class Features {
             ADMIN_LEVELS,
             ADMIN_BOARDS,
             ADMIN_NODES,
-            ADMIN_CONFIG);
+            ADMIN_CONFIG,
+            ADMIN_SETTINGS);
 
     private Features() {}
 }

@@ -156,6 +156,25 @@ public final class NodeOverrides {
     }
 
     /**
+     * @return the keys of {@code config.yml} this server sets for itself, sorted
+     */
+    public List<String> sharedKeys() {
+        return set().stream().map(NodeOverrides::sharedKey).sorted().toList();
+    }
+
+    private static String sharedKey(String key) {
+        return switch (key) {
+            case MESSAGE_BLOCKING -> "generalSettings.messageBlocking";
+            case BOARDS_ENABLED -> "boards.enabled";
+            default -> {
+                if (key.startsWith(HOOKS + ".")) yield "generalSettings." + key;
+                if (key.startsWith(BRANDING + ".")) yield "dashboard." + key;
+                throw new IllegalStateException("No shared setting for override " + key);
+            }
+        };
+    }
+
+    /**
      * @return what was ignored and why, empty when the section was read as written
      */
     public List<String> problems() {

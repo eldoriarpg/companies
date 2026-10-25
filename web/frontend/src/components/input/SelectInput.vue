@@ -13,6 +13,8 @@ defineProps<{
   label: string
   options: readonly {value: string, label: string}[]
   hideLabel?: boolean
+  /** Whether the choice is locked, such as while what it chooses is loading. */
+  disabled?: boolean
 }>()
 
 const id = useId()
@@ -24,6 +26,7 @@ const id = useId()
     <select
         :id="id"
         v-model="model"
+        :disabled="disabled"
         class="h-11 min-w-0 border border-line bg-ground px-2 text-sm text-ink outline-none focus:border-accent"
     >
       <option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option>

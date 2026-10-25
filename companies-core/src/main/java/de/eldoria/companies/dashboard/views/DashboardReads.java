@@ -105,6 +105,7 @@ public final class DashboardReads {
             Features.ADMIN_BOARDS,
             Features.ADMIN_NODES,
             Features.ADMIN_CONFIG,
+            Features.ADMIN_SETTINGS,
             Features.COMPANY_DISBAND,
             Features.INBOX,
             Features.RANKINGS,

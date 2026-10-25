@@ -1149,7 +1149,8 @@
     "admin.levels" : { },
     "admin.boards" : { },
     "admin.nodes" : { },
-    "admin.config" : { }
+    "admin.config" : { },
+    "admin.settings" : { }
   },
   "x-actions" : {
     "orders.browse.search" : {
@@ -1382,6 +1383,15 @@
     },
     "admin.config.sync" : {
       "feature" : "admin.config"
+    },
+    "admin.settings.get" : {
+      "feature" : "admin.settings"
+    },
+    "admin.settings.history" : {
+      "feature" : "admin.settings"
+    },
+    "admin.settings.revision" : {
+      "feature" : "admin.settings"
     }
   }
 }

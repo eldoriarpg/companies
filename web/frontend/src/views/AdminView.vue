@@ -14,6 +14,7 @@ import AdminLevels from './adminview/AdminLevels.vue'
 import AdminOrders from './adminview/AdminOrders.vue'
 import AdminPlayers from './adminview/AdminPlayers.vue'
 import AdminServers from './adminview/AdminServers.vue'
+import AdminSettings from './adminview/AdminSettings.vue'
 
 /**
  * The admin tools of the server, for players with admin rights: one tab per area the server offers, each checked by
@@ -28,6 +29,7 @@ const tabs = computed(() => [
   {key: 'levels', label: t('admin.tabs.levels'), features: [Feature['admin.levels']]},
   {key: 'boards', label: t('admin.tabs.boards'), features: [Feature['admin.boards']]},
   {key: 'servers', label: t('admin.tabs.servers'), features: [Feature['admin.nodes'], Feature['admin.config']]},
+  {key: 'settings', label: t('admin.tabs.settings'), features: [Feature['admin.settings']]},
 ].filter(tab => tab.features.some(feature => supports(feature))))
 const tab = ref('')
 
@@ -48,6 +50,7 @@ watchEffect(() => {
         <AdminLevels v-else-if="tab === 'levels'"/>
         <AdminBoards v-else-if="tab === 'boards'"/>
         <AdminServers v-else-if="tab === 'servers'"/>
+        <AdminSettings v-else-if="tab === 'settings'"/>
       </div>
     </template>
   </ViewContent>

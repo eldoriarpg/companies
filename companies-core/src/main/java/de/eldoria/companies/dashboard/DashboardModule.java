@@ -17,6 +17,7 @@ import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminServerWrites;
+import de.eldoria.companies.dashboard.actions.AdminSettingsWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
@@ -331,6 +332,11 @@ public final class DashboardModule {
                         Threading.mainThread(plugin),
                         data.admin().log(),
                         plugin.getLogger(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminSettingsWrites(new AdminSettingsWrites.Sources(
+                        configuration,
+                        data.admin().nodeData(),
+                        views::instant,
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()

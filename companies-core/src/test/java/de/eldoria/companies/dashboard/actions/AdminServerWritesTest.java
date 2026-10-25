@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.dashboard.actions;
 
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.DashboardWorld;
@@ -22,10 +23,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -149,6 +152,18 @@ class AdminServerWritesTest {
         var current = listed.data().path("nodes").get(0);
         assertTrue(current.path("current").asBoolean());
         assertEquals("Redis", current.path("bus").asString());
+        assertFalse(current.path("behind").asBoolean());
+        assertTrue(current.path("restart").isNull() || current.path("restart").isMissingNode());
+
+        world.nodeData.publishSettings("user.yml", "maxOrders: 3", "Ada");
+        world.nodeData.appliedSettings("user.yml", 0);
+        world.nodeData.restartPending(List.of(ChangeTracker.BOARDS_ENABLED));
+        var marked = perform(Actions.ADMIN_NODES_LIST, "{}", Permission.Admin.NODES)
+                .data()
+                .path("nodes")
+                .get(0);
+        assertTrue(marked.path("behind").asBoolean());
+        assertEquals("config.yml boards.enabled", marked.path("restart").asString());
 
         assertEquals(
                 "companyadmin.node.error.current",

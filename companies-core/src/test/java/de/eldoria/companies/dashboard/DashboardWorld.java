@@ -31,6 +31,7 @@ import de.eldoria.companies.configuration.elements.companysettings.ProfileSettin
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminServerWrites;
+import de.eldoria.companies.dashboard.actions.AdminSettingsWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
@@ -152,6 +153,8 @@ public final class DashboardWorld implements AutoCloseable {
     public final BoardBindings boardBindings = new BoardBindings();
     public final FakeHook citizens = new FakeHook("Citizens", Set.of("4", "5"));
     public SqLiteNodeData nodeData;
+    public Configuration settings;
+    private final Path directory;
     public AdminLog adminLog;
     public final ExecutorService executor = Executors.newFixedThreadPool(4);
     public final Map<UUID, String> names = new ConcurrentHashMap<>();
@@ -182,6 +185,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final OrderSettings orderSettings = new OrderSettings();
 
     private DashboardWorld(Path directory) throws Exception {
+        this.directory = directory;
         server = MockBukkit.mock();
         SqLiteTestDatabase.create(directory);
         companies = new SqLiteCompanyData(executor);
@@ -563,7 +567,9 @@ public final class DashboardWorld implements AutoCloseable {
                         Runnable::run,
                         adminLog,
                         failure -> "text of " + failure.localeKey())),
-                adminServers(orders));
+                adminServers(orders),
+                new AdminSettingsWrites(new AdminSettingsWrites.Sources(
+                        settings, () -> nodeData, views::instant, failure -> "text of " + failure.localeKey())));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {
@@ -574,6 +580,7 @@ public final class DashboardWorld implements AutoCloseable {
             }
         });
         nodeData.updateNode(plugin);
+        settings = new Configuration(configPlugin(directory.resolve("settings")));
         var boardSettings = new BoardSettings();
         var boards = Boards.create(() -> boardSettings, orders);
         var npcBoards = new NpcBoards(plugin, boards, () -> boardBindings, () -> {}, (sender, failure) -> {});
@@ -594,6 +601,18 @@ public final class DashboardWorld implements AutoCloseable {
                 adminLog,
                 Logger.getAnonymousLogger(),
                 failure -> "text of " + failure.localeKey()));
+    }
+
+    private static Plugin configPlugin(Path folder) {
+        return (Plugin) Proxy.newProxyInstance(
+                DashboardWorld.class.getClassLoader(), new Class<?>[] {Plugin.class}, (proxy, method, args) -> {
+                    return switch (method.getName()) {
+                        case "getDataFolder" -> folder.toFile();
+                        case "getLogger" -> Logger.getAnonymousLogger();
+                        case "getName" -> "Companies";
+                        default -> null;
+                    };
+                });
     }
 
     /**

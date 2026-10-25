@@ -129,7 +129,10 @@ public final class ReadRelay {
             Actions.ADMIN_BOARDS_NPC_UNLINK,
             Actions.ADMIN_NODES_LIST,
             Actions.ADMIN_NODES_REMOVE,
-            Actions.ADMIN_CONFIG_SYNC);
+            Actions.ADMIN_CONFIG_SYNC,
+            Actions.ADMIN_SETTINGS_GET,
+            Actions.ADMIN_SETTINGS_HISTORY,
+            Actions.ADMIN_SETTINGS_REVISION);
 
     /**
      * The admin actions on what each node keeps for itself, its board signs and NPC links. They go to the node named

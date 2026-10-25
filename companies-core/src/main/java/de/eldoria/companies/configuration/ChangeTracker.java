@@ -131,7 +131,7 @@ public final class ChangeTracker {
             if (tree.isEmpty()) continue;
             var before = applied.put(path, tree.get());
             if (before == null) continue;
-            Configuration.changes(before, tree.get()).forEach(key -> found.add(new Setting(path, key)));
+            Configuration.changedKeys(before, tree.get()).forEach(key -> found.add(new Setting(path, key)));
         }
         return found;
     }
