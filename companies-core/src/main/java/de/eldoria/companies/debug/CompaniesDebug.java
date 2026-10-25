@@ -52,7 +52,6 @@ public class CompaniesDebug implements DebugDataProvider {
     @Override
     public @NotNull EntryData[] getDebugInformations() {
         var nodeSettings = configuration.nodeSettings();
-        var generalSettings = configuration.generalSettings();
         return new EntryData[] {
             new EntryData(
                     "Setup",
@@ -64,12 +63,18 @@ public class CompaniesDebug implements DebugDataProvider {
                                             .name(),
                             "Node type", nodeSettings.nodeType().name(),
                             "Node id", nodeSettings.nodeUid().toString(),
-                            "Message blocking", String.valueOf(generalSettings.messageBlocking()),
+                            "Message blocking", String.valueOf(configuration.messageBlocking()),
                             "Node bus", bus(),
                             "PlaceholderAPI hook",
-                                    String.valueOf(generalSettings.hooks().placeholderapi()),
-                            "Restart pending", restartPending()))
+                                    String.valueOf(configuration.hooks().placeholderapi()),
+                            "Restart pending", restartPending(),
+                            "Overrides", overrides()))
         };
+    }
+
+    private String overrides() {
+        var set = configuration.nodeSettings().overrides().set();
+        return set.isEmpty() ? "none" : String.join(", ", set);
     }
 
     private String restartPending() {

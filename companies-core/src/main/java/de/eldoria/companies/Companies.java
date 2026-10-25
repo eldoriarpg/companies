@@ -224,7 +224,6 @@ public class Companies extends EldoPlugin {
 
         nodeData.restartPending(List.of());
         configuration.syncConfigurations(nodeData).join();
-        configuration.started();
     }
 
     @Override
@@ -292,6 +291,7 @@ public class Companies extends EldoPlugin {
      */
     @Override
     public void onPostStart(boolean reload) {
+        configuration.started();
         var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
         if (economyProvider == null) {
             throw new IllegalStateException(
@@ -300,7 +300,7 @@ public class Companies extends EldoPlugin {
         var economy = economyProvider.getProvider();
 
         MessageBlocker messageBlocker;
-        if (configuration.main().generalSettings().messageBlocking()) {
+        if (configuration.messageBlocking()) {
             messageBlocker =
                     MessageBlockerAPI.builder(this).executor(workerPool).build();
         } else {
@@ -455,7 +455,7 @@ public class Companies extends EldoPlugin {
         registerListener(levelService);
         registerListener(itemReturnService);
         registerListener(notificationService);
-        if (commands != null && configuration.boardSettings().enabled()) {
+        if (commands != null && configuration.boardsEnabled()) {
             var signBoards = new SignBoards(
                     this,
                     commands.boards(),
@@ -468,9 +468,7 @@ public class Companies extends EldoPlugin {
         }
         if (commands != null) {
             commands.npcBoards()
-                    .start(NpcHooks.create(
-                            this,
-                            name -> configuration.generalSettings().hooks().npc(name)));
+                    .start(NpcHooks.create(this, name -> configuration.hooks().npc(name)));
         }
 
         discord = DiscordWebhook.start(
@@ -488,7 +486,7 @@ public class Companies extends EldoPlugin {
                 getLogger()));
 
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")
-                && configuration.generalSettings().hooks().placeholderapi()) {
+                && configuration.hooks().placeholderapi()) {
             var placeholders = Placeholders.create(
                     this,
                     configuration,

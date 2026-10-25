@@ -38,7 +38,7 @@ public class GeneralSettings {
     }
 
     public Hooks hooks() {
-        return hooks;
+        return hooks == null ? new Hooks() : hooks;
     }
 
     public boolean messageBlocking() {

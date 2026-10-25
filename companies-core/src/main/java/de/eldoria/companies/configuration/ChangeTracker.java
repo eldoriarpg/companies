@@ -5,22 +5,27 @@
  */
 package de.eldoria.companies.configuration;
 
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
- * Tells which settings of the shared files changed: since they were last applied, so only the work that depends on
- * them runs, and since the server started, for the settings that are only read at start.
+ * Tells which settings of the shared files changed since they were last applied, so only the work that depends on them
+ * runs, and which settings read only at start this server now uses with another value than it started with.
  * <p>
- * Each file is kept as the tree its content serializes to. Until {@link #start()} ran, nothing counts as changed.
+ * Each file is kept as the tree its content serializes to; the start values are kept as this server uses them, its
+ * own overrides included. Until {@link #start()} ran, nothing counts as changed. When the start values cannot be read
+ * at start, the first ones read later count as the start values.
  */
 public final class ChangeTracker {
     private static final String CONFIG = "config.yml";
@@ -43,6 +48,14 @@ public final class ChangeTracker {
      */
     public static final List<Setting> HOOKED = List.of(TIMEZONE, UPDATES, NOTIFICATIONS, DISCORD, DASHBOARD, TOP);
 
+    /** Whether chat is held back while a chat menu is open. */
+    public static final Setting MESSAGE_BLOCKING = Setting.of(CONFIG, "generalSettings.messageBlocking");
+    /** The switches of the plugin hooks. */
+    public static final Setting HOOKS = Setting.of(CONFIG, "generalSettings.hooks");
+    /** Whether order boards are on. */
+    public static final Setting BOARDS_ENABLED = Setting.of(CONFIG, "boards.enabled");
+    /** How many offline players the placeholders keep. */
+    public static final Setting OFFLINE_CACHE = Setting.of(CONFIG, "placeholders.offlineCacheSize");
     /** How often the primary looks for expired orders. */
     public static final Setting ORDER_CHECK = Setting.of(CONFIG, "generalSettings.orderCheckInterval");
     /** How often the primary posts due repeating orders. */
@@ -51,13 +64,8 @@ public final class ChangeTracker {
     /**
      * The settings that are only read when the server starts.
      */
-    public static final List<Setting> RESTART = List.of(
-            ORDER_CHECK,
-            Setting.of(CONFIG, "generalSettings.messageBlocking"),
-            Setting.of(CONFIG, "generalSettings.hooks"),
-            Setting.of(CONFIG, "placeholders.offlineCacheSize"),
-            Setting.of(CONFIG, "boards.enabled"),
-            REPEATING_CHECK);
+    public static final List<Setting> RESTART =
+            List.of(ORDER_CHECK, MESSAGE_BLOCKING, HOOKS, OFFLINE_CACHE, BOARDS_ENABLED, REPEATING_CHECK);
 
     /**
      * The settings of {@link #RESTART} only the primary uses, so a secondary needs no restart for them.
@@ -67,31 +75,45 @@ public final class ChangeTracker {
     private final List<String> paths;
     private final Function<String, Optional<JsonNode>> current;
     private final BooleanSupplier primary;
+    private final Supplier<Map<Setting, Object>> restartValues;
+    private @Nullable Map<Setting, Object> startValues;
+    private List<Setting> lastPending = List.of();
     private final Map<String, JsonNode> applied = new HashMap<>();
-    private final Map<String, JsonNode> started = new HashMap<>();
     private boolean running;
 
     /**
-     * @param paths   the shared files
-     * @param current the tree of a file's current content, by its path, empty when it cannot be written now
-     * @param primary whether this server is the primary
+     * @param paths         the shared files
+     * @param current       the tree of a file's current content, by its path, empty when it cannot be written now
+     * @param primary       whether this server is the primary
+     * @param restartValues the value of each setting of {@link #RESTART} on this server, with its own overrides
      */
-    public ChangeTracker(List<String> paths, Function<String, Optional<JsonNode>> current, BooleanSupplier primary) {
+    public ChangeTracker(
+            List<String> paths,
+            Function<String, Optional<JsonNode>> current,
+            BooleanSupplier primary,
+            Supplier<Map<Setting, Object>> restartValues) {
         this.paths = List.copyOf(paths);
         this.current = current;
         this.primary = primary;
+        this.restartValues = restartValues;
     }
 
     /**
-     * Takes the files as they are now as both started and applied.
+     * Takes the files as they are now as applied and the values of the settings read only at start as the start values.
      */
     public synchronized void start() {
         running = true;
+        startValues = readRestartValues().orElse(null);
         for (var path : paths) {
-            current.apply(path).ifPresent(tree -> {
-                started.put(path, tree);
-                applied.put(path, tree);
-            });
+            current.apply(path).ifPresent(tree -> applied.put(path, tree));
+        }
+    }
+
+    private Optional<Map<Setting, Object>> readRestartValues() {
+        try {
+            return Optional.of(Map.copyOf(restartValues.get()));
+        } catch (RuntimeException e) {
+            return Optional.empty();
         }
     }
 
@@ -108,7 +130,6 @@ public final class ChangeTracker {
             var tree = current.apply(path);
             if (tree.isEmpty()) continue;
             var before = applied.put(path, tree.get());
-            started.putIfAbsent(path, tree.get());
             if (before == null) continue;
             Configuration.changes(before, tree.get()).forEach(key -> found.add(new Setting(path, key)));
         }
@@ -116,24 +137,21 @@ public final class ChangeTracker {
     }
 
     /**
-     * @return the settings read only at start that differ from what the server started with, without those only the
-     *     primary uses when this server is a secondary
+     * @return the settings read only at start whose value on this server differs from the one it started with, its
+     *     own overrides included, without those only the primary uses when this server is a secondary; the last answer
+     *     while the values cannot be read, for example while a section is empty
      */
     public synchronized List<Setting> restartPending() {
         if (!running) return List.of();
-        var relevant = RESTART.stream()
+        var now = readRestartValues();
+        if (now.isEmpty()) return lastPending;
+        if (startValues == null) startValues = now.get();
+        var start = startValues;
+        lastPending = RESTART.stream()
                 .filter(setting -> primary.getAsBoolean() || !PRIMARY_ONLY.contains(setting))
+                .filter(setting -> !Objects.equals(start.get(setting), now.get().get(setting)))
                 .toList();
-        var found = new LinkedHashSet<Setting>();
-        for (var path : paths) {
-            var start = started.get(path);
-            var tree = current.apply(path);
-            if (start == null || tree.isEmpty()) continue;
-            for (var key : Configuration.changes(start, tree.get())) {
-                relevant.stream().filter(setting -> setting.covers(path, key)).forEach(found::add);
-            }
-        }
-        return List.copyOf(found);
+        return lastPending;
     }
 
     /**

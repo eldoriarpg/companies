@@ -7,6 +7,8 @@ package de.eldoria.companies.configuration;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import de.eldoria.companies.configuration.elements.CompanySettings;
+import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -49,6 +52,10 @@ class ConfigurationTest {
 
     @BeforeEach
     void setUp() {
+        configuration = new Configuration(plugin(folder, logger()));
+    }
+
+    private Logger logger() {
         var logger = Logger.getAnonymousLogger();
         logger.setUseParentHandlers(false);
         logger.addHandler(new Handler() {
@@ -63,7 +70,7 @@ class ConfigurationTest {
             @Override
             public void close() {}
         });
-        configuration = new Configuration(plugin(folder, logger));
+        return logger;
     }
 
     @Test
@@ -79,6 +86,108 @@ class ConfigurationTest {
             assertFalse(node.isMissingNode(), setting + " is no setting");
         }
         assertTrue(ChangeTracker.RESTART.containsAll(ChangeTracker.PRIMARY_ONLY));
+    }
+
+    @Test
+    void aServerUsesItsOverridesWithoutChangingTheSharedFile() throws IOException {
+        Files.writeString(folder.resolve("node.yml"), """
+                nodeType: PRIMARY
+                overrides:
+                  messageBlocking: false
+                  hooks:
+                    citizens: false
+                  branding:
+                    name: Lobby
+                """);
+        configuration = new Configuration(plugin(folder, logger()));
+
+        assertFalse(configuration.messageBlocking());
+        assertFalse(configuration.hooks().citizens());
+        assertTrue(configuration.hooks().fancynpcs());
+        assertEquals("Lobby", configuration.branding().name());
+        assertEquals(
+                configuration.dashboardSettings().branding().icon(),
+                configuration.branding().icon());
+        assertTrue(configuration.generalSettings().messageBlocking());
+        var shared = configuration.currentTree("config.yml").orElseThrow();
+        assertTrue(shared.path("generalSettings").path("messageBlocking").asBoolean());
+        assertTrue(shared.path("generalSettings").path("hooks").path("citizens").asBoolean());
+        assertEquals(
+                List.of("branding.name", "hooks.citizens", "messageBlocking"),
+                configuration.nodeSettings().overrides().set());
+    }
+
+    @Test
+    void aTypoInAnOverrideIsNamedAndKeepsTheServersRole() throws IOException {
+        var uid = UUID.randomUUID();
+        Files.writeString(folder.resolve("node.yml"), """
+                nodeType: SECONDARY
+                nodeUid: %s
+                overrides:
+                  messageBlocking: maybe
+                  boardEnabled: false
+                  hooks:
+                    citizens: false
+                """.formatted(uid));
+        configuration = new Configuration(plugin(folder, logger()));
+
+        assertEquals(NodeType.SECONDARY, configuration.nodeSettings().nodeType());
+        assertEquals(uid, configuration.nodeSettings().nodeUid());
+        assertTrue(configuration.messageBlocking());
+        assertFalse(configuration.hooks().citizens());
+        assertTrue(warnings.stream().anyMatch(warning -> warning.contains("overrides.messageBlocking")));
+        assertTrue(warnings.stream().anyMatch(warning -> warning.contains("overrides.boardEnabled")));
+
+        configuration.save(Configuration.NODE_SETTINGS);
+        var written = Files.readString(folder.resolve("node.yml"));
+        assertTrue(written.contains("maybe"), written);
+        assertTrue(written.contains("boardEnabled"), written);
+    }
+
+    @Test
+    void changingAnOverrideNeedsARestartButAnOverriddenSharedChangeDoesNot() throws IOException {
+        Files.writeString(folder.resolve("node.yml"), "nodeType: PRIMARY\noverrides:\n  boardsEnabled: true\n");
+        configuration = new Configuration(plugin(folder, logger()));
+        configuration.started();
+
+        var config = folder.resolve("config.yml");
+        configuration.save(Configuration.CONFIG_YML);
+        Files.writeString(config, Files.readString(config).replace("enabled: true", "enabled: false"));
+        configuration.reload();
+        assertFalse(configuration.boardSettings().enabled());
+        assertEquals(List.of(), configuration.restartPending());
+
+        Files.writeString(folder.resolve("node.yml"), "nodeType: PRIMARY\noverrides:\n  messageBlocking: false\n");
+        configuration.reload();
+        assertTrue(configuration.restartPending().contains(ChangeTracker.MESSAGE_BLOCKING));
+    }
+
+    @Test
+    void emptySectionsUseTheirDefaults() throws IOException {
+        Files.writeString(folder.resolve("config.yml"), "generalSettings:\n  hooks:\nplaceholders:\nboards:\n");
+        configuration = new Configuration(plugin(folder, logger()));
+        configuration.started();
+
+        assertTrue(configuration.hooks().citizens());
+        assertTrue(configuration.messageBlocking());
+        assertEquals(
+                new PlaceholderSettings().offlineCacheSize(),
+                configuration.placeholderSettings().offlineCacheSize());
+        assertEquals(List.of(), configuration.restartPending());
+    }
+
+    @Test
+    void unsetOverridesAreNotWrittenToNodeYml() throws IOException {
+        Files.writeString(folder.resolve("node.yml"), "nodeType: PRIMARY\noverrides:\n");
+        configuration = new Configuration(plugin(folder, logger()));
+        configuration.nodeSettings().overrides();
+        configuration.save(Configuration.NODE_SETTINGS);
+
+        var written = Files.readString(folder.resolve("node.yml"));
+        assertFalse(written.contains("null"), written);
+        assertFalse(written.contains("overrides"), written);
+        assertFalse(configuration.messageBlocking()
+                != configuration.generalSettings().messageBlocking());
     }
 
     @Test

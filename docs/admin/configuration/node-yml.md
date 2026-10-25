@@ -32,6 +32,42 @@ The `nodeUid` in your file is different. It is made at random when the file is c
 
 A server with a new `nodeUid` leaves its old entry in the database. Remove old entries with `/companyadmin node`, see [Several servers](../multiserver.md#old-server-entries).
 
+## Settings for this server only
+
+:::info New in 2.1
+:::
+
+A few settings of [config.yml](./config-yml.md) depend on what one server has, such as its plugins. A server can set
+them for itself under `overrides`. Anything left out uses the shared value from `config.yml`. Overrides are never
+shared. The branding applies on `/companyadmin reload`, the others on restart.
+
+| Key | Instead of `config.yml` |
+|---|---|
+| `overrides.messageBlocking` | `generalSettings.messageBlocking` |
+| `overrides.boardsEnabled` | `boards.enabled` |
+| `overrides.hooks.placeholderapi` | `generalSettings.hooks.placeholderapi` |
+| `overrides.hooks.citizens` | `generalSettings.hooks.citizens` |
+| `overrides.hooks.fancynpcs` | `generalSettings.hooks.fancynpcs` |
+| `overrides.branding.name` | `dashboard.branding.name` |
+| `overrides.branding.icon` | `dashboard.branding.icon` |
+
+A lobby without Citizens and without order board signs:
+
+```yaml
+overrides:
+  boardsEnabled: false
+  hooks:
+    citizens: false
+  branding:
+    name: Lobby
+```
+
+A shared change to an overridden setting does not mark the server as waiting for a restart; changing the override
+itself and reloading does.
+
+A value of the wrong type, such as `messageBlocking: maybe`, or a key not in the table is named in the server log and
+ignored; the shared value is used. It stays in the file so you can fix it.
+
 ## Primary and secondary
 
 A network has exactly one primary server. All other servers are secondaries.
