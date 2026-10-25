@@ -80,7 +80,7 @@ public final class DiscordWebhook {
 
     private static Optional<WebhookClient> connect(DiscordSettings settings, Logger logger) {
         if (!settings.enabled()) return Optional.empty();
-        var resolved = WebhookUrl.resolve(settings.url(), System::getenv, logger::warning);
+        var resolved = WebhookUrl.resolve(settings.url(), logger::warning);
         if (resolved.isEmpty()) return Optional.empty();
         var uri = resolved.get();
         return Optional.of(new WebhookClient(

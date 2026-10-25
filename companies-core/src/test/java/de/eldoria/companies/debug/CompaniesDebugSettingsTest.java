@@ -62,9 +62,7 @@ class CompaniesDebugSettingsTest {
     }
 
     @Test
-    void environmentReferenceAndEmptyUrlStayVisible() {
-        assertTrue(settings.applyFilter("discord:\n  url: env:COMPANIES_DISCORD_WEBHOOK\n")
-                .contains("url: env:COMPANIES_DISCORD_WEBHOOK"));
+    void anEmptyUrlStaysVisible() {
         assertTrue(settings.applyFilter("discord:\n  url: \"\"\n").contains("url: \"\""));
         assertTrue(settings.applyFilter("discord:\n  url: ''\n").contains("url: ''"));
     }
@@ -78,8 +76,6 @@ class CompaniesDebugSettingsTest {
         assertEquals("token cst_*****", settings.applyFilter("token cst_Self-Hosted_9"));
         assertFalse(node.contains("self-hosted-token"), node);
         assertTrue(node.contains("nodeType: PRIMARY"));
-        assertTrue(settings.applyFilter("dashboard:\n  serverKey: env:COMPANIES_DASHBOARD_KEY\n")
-                .contains("serverKey: env:COMPANIES_DASHBOARD_KEY"));
     }
 
     @Test

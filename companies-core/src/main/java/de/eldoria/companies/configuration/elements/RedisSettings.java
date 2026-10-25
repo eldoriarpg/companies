@@ -5,13 +5,17 @@
  */
 package de.eldoria.companies.configuration.elements;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import dev.chojo.ocular.override.Env;
+import dev.chojo.ocular.override.Overwrite;
 
 /**
  * The optional Redis (or Valkey, KeyDB) server the nodes of a network send each other messages through, the
  * {@code redis} section of {@code database.yml}. Read at start only and never synced.
  * <p>
- * The password may be written as {@code env:NAME} to read it from an environment variable. All nodes of a network
+ * The password can come from the environment variable {@code COMPANIES_REDIS_PASSWORD} instead of the file; it is kept
+ * apart from the file's value and never written. All nodes of a network
  * use the same server, database and channel prefix. The channel prefix moved to {@code messaging.channelPrefix};
  * {@code channelPrefix} in this section is still read from files that set it, and not written into new files.
  */
@@ -24,7 +28,12 @@ public class RedisSettings {
     private String host = "localhost";
     private int port = DEFAULT_PORT;
     private String user = "";
-    private String password = "env:COMPANIES_REDIS_PASSWORD";
+    private String password = "";
+
+    @JsonIgnore
+    @Overwrite(env = @Env("COMPANIES_REDIS_PASSWORD"))
+    private String passwordOverride;
+
     private boolean ssl = false;
     private int database = 0;
 
@@ -62,11 +71,13 @@ public class RedisSettings {
     }
 
     /**
-     * The password as configured: the password itself, {@code env:NAME} or empty for none. Never log it.
+     * The password: the environment variable {@code COMPANIES_REDIS_PASSWORD} where it is set, otherwise the file's,
+     * empty for none. Never log it.
      *
-     * @return the configured password
+     * @return the password
      */
     public String password() {
+        if (passwordOverride != null && !passwordOverride.isEmpty()) return passwordOverride;
         return password == null ? "" : password;
     }
 

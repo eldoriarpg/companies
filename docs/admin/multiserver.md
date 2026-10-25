@@ -121,8 +121,9 @@ Some settings are only read when the server starts, for example `boards.enabled`
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.
 
 :::tip
-Put secrets such as the Discord webhook URL in an environment variable with `env:`. Then only the variable name is
-stored in the database. See [Discord webhook](./discord-webhook.md#the-url).
+Set secrets such as the Discord webhook URL as environment variables on each server, see
+[Secrets from the environment](./configuration/index.md#secrets-from-the-environment). Their values are never
+stored in the database.
 :::
 
 ## Jobs that run on the primary only

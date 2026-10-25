@@ -52,14 +52,8 @@ The console says "Connected to the dashboard gateway" once the server is connect
 
 ### The key from the environment
 
-Instead of the command, you can give the key in `node.yml` of the primary server, usually as an environment variable:
-
-```yaml
-dashboard:
-  serverKey: env:COMPANIES_DASHBOARD_KEY
-```
-
-This is the default, so setting `COMPANIES_DASHBOARD_KEY` for the primary server's process is enough. The primary
+Instead of the command, you can set the environment variable `COMPANIES_DASHBOARD_KEY` for the primary server's
+process (or write the key into `dashboard.serverKey` of its `node.yml`; the variable wins). The primary
 reads it when it starts and on every reload, and stores the key in the database only when the variable
 changed. An unchanged variable never replaces a key that was rotated since, or one you entered
 with `/companyadmin dashboard key`. The secondary servers ignore this setting; they read the key from the database.

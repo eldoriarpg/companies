@@ -30,7 +30,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BooleanSupplier;
-import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -209,17 +208,13 @@ class RedisBusTest {
     }
 
     @Test
-    void theFactoryUsesTheDatabaseBusWithoutRedisOrPassword() {
-        var disabled = create(new DatabaseSettings(), name -> null);
-        var missing = create(settings("redis:\n  enabled: true\n  password: env:UNSET_VARIABLE"), name -> null);
-
-        assertInstanceOf(DatabaseBus.class, disabled);
-        assertInstanceOf(DatabaseBus.class, missing);
+    void theFactoryUsesTheDatabaseBusWithoutRedis() {
+        assertInstanceOf(DatabaseBus.class, create(new DatabaseSettings()));
     }
 
     @Test
-    void theFactoryConnectsWithAnEnvironmentPassword() {
-        var bus = create(settings(redisYaml()), name -> name.equals("COMPANIES_REDIS_PASSWORD") ? PASSWORD : null);
+    void theFactoryConnectsWithThePassword() {
+        var bus = create(settings(redisYaml()));
         buses.add(bus);
 
         assertInstanceOf(RedisBus.class, bus);
@@ -229,7 +224,7 @@ class RedisBusTest {
     @Test
     void theFactoryPrefersRedisOverLowLatencyMode() {
         var yaml = redisYaml() + "messaging:\n  lowLatency: true\n";
-        var bus = create(settings(yaml), name -> name.equals("COMPANIES_REDIS_PASSWORD") ? PASSWORD : null);
+        var bus = create(settings(yaml));
         buses.add(bus);
 
         assertInstanceOf(RedisBus.class, bus);
@@ -243,13 +238,12 @@ class RedisBusTest {
                   enabled: true
                   host: %s
                   port: %d
-                  password: env:COMPANIES_REDIS_PASSWORD
-                """.formatted(redis.getHost(), redis.getMappedPort(6379));
+                  password: %s
+                """.formatted(redis.getHost(), redis.getMappedPort(6379), PASSWORD);
     }
 
-    private NodeBus create(DatabaseSettings settings, UnaryOperator<String> environment) {
-        return NodeBuses.create(
-                settings, UUID.randomUUID(), false, new MemoryMessageTable(), handlers, environment, LOGGER);
+    private NodeBus create(DatabaseSettings settings) {
+        return NodeBuses.create(settings, UUID.randomUUID(), false, new MemoryMessageTable(), handlers, LOGGER);
     }
 
     @Test

@@ -52,7 +52,7 @@ class NodeBusesTest {
 
     private NodeBus create(String yaml) {
         return NodeBuses.create(
-                settings(yaml), UUID.randomUUID(), true, new MemoryMessageTable(), Runnable::run, name -> null, logger);
+                settings(yaml), UUID.randomUUID(), true, new MemoryMessageTable(), Runnable::run, logger);
     }
 
     @Test
@@ -80,13 +80,13 @@ class NodeBusesTest {
         try (var bus = create("""
                 redis:
                   enabled: true
-                  password: env:COMPANIES_TEST_UNSET
+                  host: 127.0.0.1
+                  port: 1
                 messaging:
                   lowLatency: true
                 """)) {
-            assertInstanceOf(DatabaseBus.class, bus);
+            assertEquals(NodeBus.Transport.REDIS, bus.transport());
             assertTrue(logs.stream().anyMatch(log -> log.contains("Low latency mode is ignored")), logs.toString());
-            assertTrue(logs.stream().anyMatch(log -> log.contains("COMPANIES_TEST_UNSET")), logs.toString());
             assertTrue(logs.stream().noneMatch(log -> log.contains("Low latency mode is on")), logs.toString());
         }
     }

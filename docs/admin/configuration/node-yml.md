@@ -15,7 +15,7 @@ This file belongs to one server and is never shared. Every change needs a restar
 nodeType: PRIMARY
 nodeUid: 5f0c2b9e-8a5d-4c1e-9f3a-2d7b6e4a1c08
 dashboard:
-  serverKey: env:COMPANIES_DASHBOARD_KEY
+  serverKey: ''
 ```
 
 The `nodeUid` in your file is different. It is made at random when the file is created.
@@ -26,7 +26,7 @@ The `nodeUid` in your file is different. It is made at random when the file is c
 |---|---|---|---|
 | `nodeType` | `PRIMARY` or `SECONDARY` | `PRIMARY` | The role of this server. |
 | `nodeUid` | UUID | random | The id of this server in the database. Do not change it, and do not copy it to another server. |
-| `dashboard.serverKey` | text | `env:COMPANIES_DASHBOARD_KEY` | The key of the [web dashboard](../dashboard.md), or the token of a self-hosted gateway, or `env:NAME` to read it from the environment variable `NAME`. Only the primary reads it: it moves the key into the database, which all servers share, and stores it again only when it changes, so it never undoes a rotation or a key entered with `/companyadmin dashboard key`. New in 2.1. |
+| `dashboard.serverKey` | text | `''` | The key of the [web dashboard](../dashboard.md), or the token of a self-hosted gateway. The environment variable `COMPANIES_DASHBOARD_KEY` wins over it, see [Secrets from the environment](./index.md#secrets-from-the-environment). Only the primary reads it: it moves the key into the database, which all servers share, and stores it again only when it changes, so it never undoes a rotation or a key entered with `/companyadmin dashboard key`. New in 2.1. |
 
 A server with a new `nodeUid` leaves its old entry in the database. Remove old entries with `/companyadmin node`, see [Several servers](../multiserver.md#old-server-entries).
 

@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.dashboard;
 
-import de.eldoria.companies.configuration.EnvReference;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
 import de.eldoria.companies.dashboard.gateway.Backoff;
@@ -167,8 +166,7 @@ public final class Dashboard implements GatewayLink {
     }
 
     private Optional<String> configuredKey() {
-        return EnvReference.resolve(parts.configuredKey().get(), System::getenv, missing -> parts.logger()
-                .fine("The environment variable " + missing + " named in node.yml dashboard.serverKey is unset."));
+        return Optional.of(parts.configuredKey().get().trim());
     }
 
     /**

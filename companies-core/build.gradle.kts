@@ -21,6 +21,7 @@ dependencies {
     compileOnly(libs.log4j.core)
     compileOnly(libs.strokkcommands.annotations)
     annotationProcessor(libs.strokkcommands.processor)
+    annotationProcessor(libs.ocular)
 
     testImplementation(libs.sqlite)
     testImplementation(libs.vault)

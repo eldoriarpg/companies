@@ -5,7 +5,10 @@
  */
 package de.eldoria.companies.configuration.elements;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import de.eldoria.companies.integrations.discord.WebhookEvent;
+import dev.chojo.ocular.override.Env;
+import dev.chojo.ocular.override.Overwrite;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +17,9 @@ import java.util.Optional;
 /**
  * The Discord webhook, the {@code discord} section of the config.
  * <p>
- * The url may be written as {@code env:NAME} to read it from an environment variable instead of the file.
+ * The url can come from the environment variable {@code COMPANIES_DISCORD_WEBHOOK} instead of the file. It is kept
+ * apart from the file's value and never written, so it stays out of the file, the database that copies the file to the
+ * other servers, and debug reports.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class DiscordSettings {
@@ -23,6 +28,11 @@ public class DiscordSettings {
 
     private boolean enabled = false;
     private String url = "";
+
+    @JsonIgnore
+    @Overwrite(env = @Env("COMPANIES_DISCORD_WEBHOOK"))
+    private String urlOverride;
+
     private List<WebhookEvent> events =
             new ArrayList<>(List.of(WebhookEvent.ORDER_CREATED, WebhookEvent.ORDER_COMPLETED, WebhookEvent.LEVEL_UP));
     private String username = "Companies";
@@ -42,12 +52,12 @@ public class DiscordSettings {
     }
 
     /**
-     * The configured url as written, either the webhook url or {@code env:NAME}.
+     * The webhook url: the environment variable {@code COMPANIES_DISCORD_WEBHOOK} where it is set, otherwise the file's.
      *
-     * @return the configured url, empty when unset
+     * @return the url, empty when unset
      */
     public String url() {
-        return url == null ? "" : url.trim();
+        return present(urlOverride).orElseGet(() -> url == null ? "" : url.trim());
     }
 
     /**
@@ -94,6 +104,10 @@ public class DiscordSettings {
      */
     public int queueSize() {
         return Math.clamp(queueSize, 1, MAX_QUEUE);
+    }
+
+    private static Optional<String> present(String value) {
+        return value == null || value.isBlank() ? Optional.empty() : Optional.of(value.trim());
     }
 
     private static Optional<String> blankToEmpty(String value) {

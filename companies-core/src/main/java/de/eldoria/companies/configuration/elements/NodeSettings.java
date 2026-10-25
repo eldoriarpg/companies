@@ -26,7 +26,7 @@ public class NodeSettings {
     /**
      * The dashboard key or server token as configured for this node, see {@link NodeDashboardSettings#serverKey()}.
      *
-     * @return the configured key, {@code env:NAME} or empty
+     * @return the key, empty for none
      */
     public String dashboardKey() {
         return dashboard == null ? "" : dashboard.serverKey();

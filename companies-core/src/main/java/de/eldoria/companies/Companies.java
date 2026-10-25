@@ -231,7 +231,6 @@ public class Companies extends EldoPlugin {
                 configuration.nodeSettings().nodeType() == NodeType.PRIMARY,
                 nodeMessages,
                 Threading.VIRTUAL,
-                System::getenv,
                 getLogger());
         registerCommands();
         api = CompaniesApiImpl.create(

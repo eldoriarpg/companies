@@ -57,6 +57,8 @@ class DiscordSettingsTest {
         assertEquals(60, read("maxPerMinute: 500").maxPerMinute());
         assertEquals(1, read("queueSize: -3").queueSize());
         assertEquals(Optional.empty(), read("username: ' '").username());
-        assertEquals("env:HOOK", read("url: ' env:HOOK '").url());
+        assertEquals(
+                "https://discord.com/api/webhooks/1/t",
+                read("url: ' https://discord.com/api/webhooks/1/t '").url());
     }
 }

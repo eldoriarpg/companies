@@ -5,30 +5,35 @@
  */
 package de.eldoria.companies.configuration.elements.dashboard;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import dev.chojo.ocular.override.Env;
+import dev.chojo.ocular.override.Overwrite;
+
 /**
  * The {@code dashboard} section of {@code node.yml}, which is never synced.
  * <p>
- * It can hand the network its first dashboard key or the token of a self-hosted gateway, usually as
- * {@code env:NAME}. The key is moved into the database, where it rotates; the configured value is read again only when
- * it changes.
+ * It can hand the network its first dashboard key or the token of a self-hosted gateway, usually through the
+ * environment variable {@code COMPANIES_DASHBOARD_KEY}, which is kept apart from the file's value and never written.
+ * The key is moved into the database, where it rotates; the configured value is read again only when it changes.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class NodeDashboardSettings {
-    /**
-     * The value of a new {@code node.yml}: the environment variable {@code COMPANIES_DASHBOARD_KEY}.
-     */
-    public static final String DEFAULT_KEY = "env:COMPANIES_DASHBOARD_KEY";
+    private String serverKey = "";
 
-    private String serverKey = DEFAULT_KEY;
+    @JsonIgnore
+    @Overwrite(env = @Env("COMPANIES_DASHBOARD_KEY"))
+    private String serverKeyOverride;
 
     public NodeDashboardSettings() {}
 
     /**
-     * The key as configured: the key itself, {@code env:NAME} or empty for none. Never log it.
+     * The key: the environment variable {@code COMPANIES_DASHBOARD_KEY} where it is set, otherwise the file's, empty for
+     * none. Never log it.
      *
-     * @return the configured key
+     * @return the key
      */
     public String serverKey() {
-        return serverKey == null ? "" : serverKey;
+        if (serverKeyOverride != null && !serverKeyOverride.isBlank()) return serverKeyOverride.trim();
+        return serverKey == null ? "" : serverKey.trim();
     }
 }
