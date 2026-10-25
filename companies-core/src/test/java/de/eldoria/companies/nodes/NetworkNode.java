@@ -6,6 +6,7 @@
 package de.eldoria.companies.nodes;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
@@ -85,6 +86,7 @@ final class NetworkNode implements AutoCloseable {
     final Set<UUID> online = ConcurrentHashMap.newKeySet();
     final List<Shown> shown = new CopyOnWriteArrayList<>();
     final AtomicInteger reloads = new AtomicInteger();
+    final List<ChangeTracker.Setting> changed = new CopyOnWriteArrayList<>();
     final AtomicInteger cacheDrops = new AtomicInteger();
     final List<String> probes = new CopyOnWriteArrayList<>();
 
@@ -99,6 +101,15 @@ final class NetworkNode implements AutoCloseable {
      * @param type   kind of notification
      */
     record Shown(UUID player, NotificationType type) {}
+
+    /**
+     * Records the settings a taken file changed, counting a change of {@code config.yml} as a reload.
+     */
+    private void applyChanges() {
+        var changes = configuration.changes();
+        changed.addAll(changes);
+        if (changes.stream().anyMatch(change -> change.path().equals("config.yml"))) reloads.incrementAndGet();
+    }
 
     private NetworkNode(Setup setup) throws IOException {
         name = setup.name();
@@ -115,6 +126,7 @@ final class NetworkNode implements AutoCloseable {
         configuration = new Configuration(configPlugin(setup.folder(), logger));
         nodeData = setup.dialect().nodeData(configuration);
         configuration.syncConfigurations(nodeData).join();
+        configuration.started();
 
         inbox = setup.dialect().inbox(handlers);
         orders = setup.dialect().orders(handlers);
@@ -155,7 +167,7 @@ final class NetworkNode implements AutoCloseable {
                                 nodeData,
                                 Runnable::run,
                                 Runnable::run,
-                                reloads::incrementAndGet,
+                                this::applyChanges,
                                 bus::realtime,
                                 logger),
                         nodeData::settingsRevisions,

@@ -54,9 +54,7 @@ public final class Reload {
      */
     @Executes
     public void reload(CommandSender sender) {
-        var updates = deps.services().updates();
         deps.configuration().reload();
-        updates.apply();
         deps.reloaded();
         deps.adminLog().entry(sender, "reload").write();
         var unreadable = deps.configuration().unreadableFiles();
@@ -131,10 +129,7 @@ public final class Reload {
         var configYml = Configuration.CONFIG_YML.path().toString();
         if (outcomes.stream()
                 .anyMatch(outcome -> outcome.replaced() && outcome.path().equals(configYml))) {
-            deps.plugin().getServer().getScheduler().runTask(deps.plugin(), () -> {
-                deps.services().updates().apply();
-                deps.reloaded();
-            });
+            deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
         }
         var stored = outcomes.stream()
                 .filter(outcome -> outcome.revision().isPresent())

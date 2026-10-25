@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository.impl.sqlite;
 
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -100,6 +101,15 @@ class SqLiteNodeDataTest {
         nodeData.appliedSettings("company.yml", 1);
 
         assertEquals(List.of(new AppliedSettings(nodeData.nodeUid(), "company.yml", 1)), nodeData.settingsApplied());
+    }
+
+    @Test
+    void aPendingRestartIsStoredAndCleared() {
+        nodeData.restartPending(List.of(ChangeTracker.Setting.of("config.yml", "boards.enabled")));
+        assertEquals(Map.of(nodeData.nodeUid(), "config.yml boards.enabled"), nodeData.pendingRestarts());
+
+        nodeData.restartPending(List.of());
+        assertEquals(Map.of(), nodeData.pendingRestarts());
     }
 
     private SqLiteNodeData staleAt(int revision) {

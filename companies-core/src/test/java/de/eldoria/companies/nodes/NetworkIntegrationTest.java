@@ -11,6 +11,7 @@ import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.commands.suggest.SuggestionCache;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
@@ -43,6 +44,8 @@ import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -56,6 +59,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -74,6 +78,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * notification service, inbox poller and Redis bus, sharing one PostgreSQL database and one Redis server.
  */
 class NetworkIntegrationTest {
+    private static final YAMLMapper YAML = YAMLMapper.builder().build();
     private static final UUID PRIMARY = UUID.fromString("00000000-0000-0000-0000-00000000000a");
     private static final UUID SECONDARY = UUID.fromString("00000000-0000-0000-0000-00000000000b");
     private static final UUID OTHER_NETWORK = UUID.fromString("00000000-0000-0000-0000-00000000000c");
@@ -500,14 +505,14 @@ class NetworkIntegrationTest {
         a.configuration.companySettings().level(1).orElseThrow().levelName("Polled");
         var copy = a.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, a.configuration);
         var revision = a.nodeData.publishSettings("company.yml", copy, "Ada").orElseThrow();
-        var reloads = new AtomicInteger();
+        var applies = new AtomicInteger();
 
         new SettingsSync(
                         b.configuration,
                         b.nodeData,
                         Runnable::run,
                         Runnable::run,
-                        reloads::incrementAndGet,
+                        applies::incrementAndGet,
                         () -> false,
                         Logger.getAnonymousLogger())
                 .poll();
@@ -516,7 +521,7 @@ class NetworkIntegrationTest {
                 "Polled",
                 b.configuration.companySettings().level(1).orElseThrow().levelName());
         assertEquals(revision, b.configuration.appliedRevisions().get("company.yml"));
-        assertEquals(0, reloads.get());
+        assertEquals(1, applies.get());
         assertFalse(b.configuration.takeIfNewer(b.nodeData, "company.yml", revision - 1));
     }
 
@@ -686,6 +691,46 @@ class NetworkIntegrationTest {
                 WAIT,
                 "the secondary to take and save the levels");
         assertEquals(0, b.reloads.get());
+    }
+
+    @Test
+    void aTakenFileNamesOnlyTheSettingsThatChangedAndThoseWaitingForARestart() throws Exception {
+        var a = primary();
+        var b = secondary();
+        var file = folder.resolve("A").resolve("config.yml");
+        var tree = (ObjectNode) YAML.readTree(Files.readString(file));
+        var boardsEnabled = tree.path("boards").path("enabled").asBoolean();
+        ((ObjectNode) tree.path("boards")).put("enabled", !boardsEnabled);
+        ((ObjectNode) tree.path("top"))
+                .put("cacheSeconds", tree.path("top").path("cacheSeconds").asInt() + 1);
+        Files.writeString(file, YAML.writeValueAsString(tree));
+        a.configuration.reload();
+        a.configuration.syncConfigurations(a.nodeData).join();
+
+        await(() -> b.reloads.get() > 0, WAIT, "the secondary to take config.yml");
+
+        assertEquals(
+                Set.of(
+                        ChangeTracker.Setting.of("config.yml", "boards.enabled"),
+                        ChangeTracker.Setting.of("config.yml", "top.cacheSeconds")),
+                Set.copyOf(b.changed));
+        assertEquals(
+                List.of(ChangeTracker.Setting.of("config.yml", "boards.enabled")), b.configuration.restartPending());
+    }
+
+    @Test
+    void takenLevelsNameOnlyCompanyYml() throws Exception {
+        var a = primary();
+        var b = secondary();
+        a.configuration.companySettings().level(1).orElseThrow().levelName("Guildhall");
+        var copy = a.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, a.configuration);
+        a.configuration.publish(a.nodeData, Configuration.COMPANY_SETTINGS, copy, "Ada");
+
+        await(() -> !b.changed.isEmpty(), WAIT, "the secondary to take the levels");
+
+        assertTrue(b.changed.stream().allMatch(change -> change.path().equals("company.yml")));
+        assertEquals(0, b.reloads.get());
+        assertTrue(b.configuration.restartPending().isEmpty());
     }
 
     @Test

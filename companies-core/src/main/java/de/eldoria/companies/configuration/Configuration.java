@@ -27,6 +27,8 @@ import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
+import dev.chojo.ocular.components.Format;
+import dev.chojo.ocular.dataformats.YamlDataFormat;
 import dev.chojo.ocular.exceptions.ConfigurationException;
 import dev.chojo.ocular.key.Key;
 import org.bukkit.plugin.Plugin;
@@ -103,6 +105,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     private final Object copying = new Object();
     private final Set<Path> backupFailed = ConcurrentHashMap.newKeySet();
     private final Map<String, Integer> applied = new ConcurrentHashMap<>();
+    private final ChangeTracker tracker =
+            new ChangeTracker(SHARED.stream().map(key -> key.path().toString()).toList(), this::currentTree);
     private volatile @Nullable BiConsumer<String, Integer> announcer;
 
     public Configuration(Plugin plugin) {
@@ -595,6 +599,37 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             statuses.add(new FileStatus(path, latest, appliedRevision(path), edited.contains(path), behind));
         }
         return statuses;
+    }
+
+    /**
+     * Takes the shared files as they are now as the ones this server started with, once the start sync is done.
+     */
+    public void started() {
+        tracker.start();
+    }
+
+    /**
+     * @return the settings of the shared files that changed since they were last applied; they count as applied now
+     */
+    public Set<ChangeTracker.Setting> changes() {
+        return tracker.changes();
+    }
+
+    /**
+     * @return the settings read only at start that changed since this server started
+     */
+    public List<ChangeTracker.Setting> restartPending() {
+        return tracker.restartPending();
+    }
+
+    private JsonNode currentTree(String path) {
+        var key = sharedKey(path).orElseThrow();
+        try {
+            return YAML.readTree(
+                    new Format<>(new YamlDataFormat(), this).writer().writeValueAsString(secondary(key)));
+        } catch (JacksonException e) {
+            return MissingNode.getInstance();
+        }
     }
 
     /**

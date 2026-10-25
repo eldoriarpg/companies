@@ -10,6 +10,7 @@ import de.eldoria.companies.boards.npc.NpcBoards;
 import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.dashboard.Dashboard;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -50,6 +51,7 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -59,11 +61,13 @@ import org.bukkit.plugin.Plugin;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Everything the commands need, handed to every command class through its constructor.
@@ -86,7 +90,8 @@ public final class CommandDependencies {
     private final SearchSessions searches = new SearchSessions();
     private final Boards boards;
     private final NpcBoards npcBoards;
-    private final List<Runnable> reloadHooks = new CopyOnWriteArrayList<>();
+    private final List<Hook> reloadHooks = new CopyOnWriteArrayList<>();
+    private List<ChangeTracker.Setting> reportedRestart = List.of();
     private final ExecutorService levelShares =
             Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private volatile NodeCaches caches = new NodeCaches(Logger.getLogger(CommandDependencies.class.getName()));
@@ -202,24 +207,94 @@ public final class CommandDependencies {
     }
 
     /**
-     * Runs the hook after every {@code /companyadmin reload}, once the configuration was read again.
+     * Runs the hook after every {@code /companyadmin reload}, once the configuration was read again, and whenever a
+     * shared file changed elsewhere.
      *
      * @param hook applies the reloaded configuration
      */
     public void onReload(Runnable hook) {
-        reloadHooks.add(hook);
+        reloadHooks.add(new Hook(List.of(), hook));
+    }
+
+    /**
+     * Runs the hook after every {@code /companyadmin reload}, and when a shared file changed elsewhere only when one of
+     * the settings changed.
+     *
+     * @param hook     applies those settings
+     * @param settings the settings or sections the hook depends on
+     */
+    public void onChange(Runnable hook, ChangeTracker.Setting... settings) {
+        reloadHooks.add(new Hook(List.of(settings), hook));
     }
 
     /**
      * Applies a reloaded configuration through every hook. A failing hook is logged and does not stop the others.
      */
     public void reloaded() {
-        for (var hook : reloadHooks) {
-            try {
-                hook.run();
-            } catch (RuntimeException e) {
-                plugin.getLogger().log(Level.SEVERE, "Could not apply the reloaded configuration.", e);
-            }
+        configuration.changes();
+        reloadHooks.forEach(this::run);
+        reportRestartPending();
+    }
+
+    /**
+     * Applies shared files changed elsewhere: runs only the hooks that depend on a changed setting.
+     */
+    public void applyChanges() {
+        var changes = configuration.changes();
+        if (!changes.isEmpty()) {
+            reloadHooks.stream().filter(hook -> hook.needed(changes)).forEach(this::run);
+        }
+        reportRestartPending();
+    }
+
+    private void run(Hook hook) {
+        try {
+            hook.run().run();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not apply the reloaded configuration.", e);
+        }
+    }
+
+    /**
+     * Logs the settings read only at start that changed since the last report, and stores them with this server's node
+     * so the other servers see the restart is pending.
+     */
+    private synchronized void reportRestartPending() {
+        var pending = configuration.restartPending();
+        if (pending.equals(reportedRestart)) return;
+        var added = pending.stream()
+                .filter(setting -> !reportedRestart.contains(setting))
+                .toList();
+        reportedRestart = pending;
+        if (!added.isEmpty()) {
+            plugin.getLogger()
+                    .warning("These settings changed and apply after a restart of this server: "
+                            + added.stream()
+                                    .map(ChangeTracker.Setting::toString)
+                                    .collect(Collectors.joining(", "))
+                            + ".");
+        }
+        var node = nodeData;
+        if (node != null) {
+            Threading.VIRTUAL.execute(() -> {
+                try {
+                    node.restartPending(pending);
+                } catch (RuntimeException e) {
+                    plugin.getLogger().log(Level.WARNING, "Could not store the pending restart.", e);
+                }
+            });
+        }
+    }
+
+    /**
+     * A reload hook.
+     *
+     * @param settings the settings it depends on; none when it runs on every change
+     * @param run      the hook
+     */
+    private record Hook(List<ChangeTracker.Setting> settings, Runnable run) {
+        boolean needed(Set<ChangeTracker.Setting> changes) {
+            return ChangeTracker.touches(settings, changes);
         }
     }
 

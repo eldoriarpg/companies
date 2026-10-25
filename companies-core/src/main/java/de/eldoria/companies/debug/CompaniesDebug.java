@@ -20,11 +20,13 @@ import org.jetbrains.annotations.NotNull;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
 /**
- * Adds the state of the storage, the economy, the node setup and the node bus to debug reports. The bus is described
+ * Adds the state of the storage, the economy, the node setup, the node bus and the settings waiting for a restart to
+ * debug reports. The bus is described
  * by how messages travel (Redis, low latency or database polling), its state and the Redis address, never by
  * credentials.
  */
@@ -66,8 +68,15 @@ public class CompaniesDebug implements DebugDataProvider {
                             "Message blocking", String.valueOf(generalSettings.messageBlocking()),
                             "Node bus", bus(),
                             "PlaceholderAPI hook",
-                                    String.valueOf(generalSettings.hooks().placeholderapi())))
+                                    String.valueOf(generalSettings.hooks().placeholderapi()),
+                            "Restart pending", restartPending()))
         };
+    }
+
+    private String restartPending() {
+        var pending = configuration.restartPending();
+        if (pending.isEmpty()) return "no";
+        return pending.stream().map(Object::toString).collect(Collectors.joining(", "));
     }
 
     @Override

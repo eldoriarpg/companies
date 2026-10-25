@@ -78,6 +78,16 @@ public final class SettingsCommand {
             deps.messages()
                     .sendMessage(sender, MenuText.create().text("<heading>").locale("companyadmin.settings.title"));
             statusRows(statuses).forEach(row -> deps.messages().sendMessage(sender, row));
+            var restart = deps.configuration().restartPending();
+            if (!restart.isEmpty()) {
+                deps.messages()
+                        .sendMessage(
+                                sender,
+                                "companyadmin.settings.restartPending",
+                                Values.text(
+                                        "settings",
+                                        restart.stream().map(Object::toString).collect(Collectors.joining(", "))));
+            }
         });
     }
 
@@ -250,13 +260,8 @@ public final class SettingsCommand {
                         .with("revision", rollback.revision())
                         .with("new", done.revision())
                         .write();
-                if (done.replaced()
-                        && rollback.path()
-                                .equals(Configuration.CONFIG_YML.path().toString())) {
-                    deps.plugin().getServer().getScheduler().runTask(deps.plugin(), () -> {
-                        deps.services().updates().apply();
-                        deps.reloaded();
-                    });
+                if (done.replaced()) {
+                    deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
                 }
                 deps.messages()
                         .sendMessage(
