@@ -10,10 +10,8 @@ import de.eldoria.companies.commands.suggest.KnownPlayers;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.data.wrapper.order.ReturnKind;
-import de.eldoria.companies.events.player.ItemsReturnedEvent;
-import de.eldoria.companies.services.notifications.NotificationArgs;
-import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.strokkur.commands.Executes;
@@ -84,49 +82,40 @@ public final class GrantCommand {
     public void money(
             CommandSender sender, @KnownPlayers String player, @DoubleArg(min = 0.01, max = 1.0E12) double amount) {
         var admin = Senders.player(sender);
-        var economy = deps.services().economy();
         var target = target(player);
-        var response = economy.depositPlayer(target, amount);
-        if (!response.transactionSuccess()) {
-            throw CommandFailure.of(
-                    "companyadmin.grant.error.failed",
-                    Replacement.create("reason", String.valueOf(response.errorMessage)));
+        switch (grants().money(target, amount)) {
+            case ActionResult.Refused<String> refused -> throw refused.failure();
+            case ActionResult.Done<String> done -> {
+                deps.adminLog()
+                        .entry(admin, "grant money")
+                        .with("player", target.getName())
+                        .with("uuid", target.getUniqueId())
+                        .with("amount", amount)
+                        .write();
+                deps.messages()
+                        .sendMessage(
+                                admin,
+                                "companyadmin.grant.money",
+                                Replacement.create("amount", done.value()),
+                                Replacement.create("player_name", String.valueOf(target.getName())));
+            }
         }
-        var formatted = economy.format(amount);
-        deps.adminLog()
-                .entry(admin, "grant money")
-                .with("player", target.getName())
-                .with("uuid", target.getUniqueId())
-                .with("amount", amount)
-                .write();
-        deps.services()
-                .notificationService()
-                .send(
-                        target.getUniqueId(),
-                        NotificationType.MONEY_GRANTED,
-                        NotificationArgs.create().money("amount", formatted));
-        deps.messages()
-                .sendMessage(
-                        admin,
-                        "companyadmin.grant.money",
-                        Replacement.create("amount", formatted),
-                        Replacement.create("player_name", String.valueOf(target.getName())));
+    }
+
+    private AdminGrantService grants() {
+        var services = deps.services();
+        return new AdminGrantService(
+                AdminGrantService.Bank.of(services.economy()),
+                services.itemReturnService(),
+                services.notificationService()::send);
     }
 
     private void items(Player admin, String player, int amount) {
-        var services = deps.services();
         var held = admin.getInventory().getItemInMainHand();
         if (held.isEmpty()) throw CommandFailure.of("companyadmin.grant.error.emptyHand");
         var target = target(player);
         var stack = held.asOne();
-        services.itemReturnService()
-                .store(
-                        target.getUniqueId(),
-                        ReturnKind.OWNER,
-                        stack,
-                        amount,
-                        ItemsReturnedEvent.Reason.ADMIN_GRANT,
-                        null)
+        grants().items(target.getUniqueId(), stack, amount)
                 .thenAccept(stored -> {
                     if (!Boolean.TRUE.equals(stored)) {
                         deps.messages().sendError(admin, "error.saveFailed");
@@ -139,11 +128,6 @@ public final class GrantCommand {
                             .with("item", stack.getType().getKey())
                             .with("amount", amount)
                             .write();
-                    services.notificationService()
-                            .send(
-                                    target.getUniqueId(),
-                                    NotificationType.ITEMS_GRANTED,
-                                    NotificationArgs.create().number("amount", amount));
                     deps.messages()
                             .sendMessage(
                                     admin,

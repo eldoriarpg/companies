@@ -64,14 +64,15 @@ public final class DashboardWrites {
 
     /**
      * Every action this version performs, including those of {@link CompanyWrites}, {@link ItemWrites},
-     * {@link OrderCreateWrites} and {@link AdminOrderWrites}.
+     * {@link OrderCreateWrites}, {@link AdminOrderWrites} and {@link AdminSupportWrites}.
      */
     public static final Set<String> ACTIONS = Stream.of(
                     OWN_ACTIONS,
                     CompanyWrites.ACTIONS,
                     ItemWrites.ACTIONS,
                     OrderCreateWrites.ACTIONS,
-                    AdminOrderWrites.ACTIONS)
+                    AdminOrderWrites.ACTIONS,
+                    AdminSupportWrites.ACTIONS)
             .flatMap(Set::stream)
             .collect(Collectors.toUnmodifiableSet());
 
@@ -79,6 +80,7 @@ public final class DashboardWrites {
     private final CompanyWrites company;
     private final ItemWrites items;
     private final AdminOrderWrites adminOrders;
+    private final AdminSupportWrites adminSupport;
     private final OrderCreateWrites create;
     private final Answers answers;
 
@@ -88,17 +90,20 @@ public final class DashboardWrites {
      * @param items   moves items with the player's inventory
      * @param create  places orders
      * @param adminOrders the admin tools for orders
+     * @param adminSupport the admin tools for players and companies
      */
     public DashboardWrites(
             Sources sources,
             CompanyWrites company,
             ItemWrites items,
             OrderCreateWrites create,
-            AdminOrderWrites adminOrders) {
+            AdminOrderWrites adminOrders,
+            AdminSupportWrites adminSupport) {
         this.sources = sources;
         this.company = company;
         this.items = items;
         this.adminOrders = adminOrders;
+        this.adminSupport = adminSupport;
         this.create = create;
         answers = new Answers(sources.render());
     }
@@ -130,6 +135,7 @@ public final class DashboardWrites {
         if (OrderCreateWrites.ACTIONS.contains(request.name())) return create.perform(request, session, args);
         if (ItemWrites.ACTIONS.contains(request.name())) return items.perform(request, player, args);
         if (AdminOrderWrites.ACTIONS.contains(request.name())) return adminOrders.perform(request, session, args);
+        if (AdminSupportWrites.ACTIONS.contains(request.name())) return adminSupport.perform(request, session, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));

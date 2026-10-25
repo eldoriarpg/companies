@@ -15,6 +15,8 @@ export interface Section {
     feature?: Feature
     /** Whether the phone's tab bar carries it; the others are in the menu. */
     tab: boolean
+    /** Shown while the server lists any admin feature, which it does for players with admin rights only. */
+    adminOnly?: boolean
 }
 
 /** Every section, in the order the navigation lists them. */
@@ -25,17 +27,20 @@ export const SECTIONS: readonly Section[] = [
     {id: 'company', path: '/app/company', icon: 'company', tab: true},
     {id: 'inbox', path: '/app/inbox', icon: 'inbox', feature: Feature.inbox, tab: true},
     {id: 'rankings', path: '/app/rankings', icon: 'rankings', feature: Feature.rankings, tab: false},
-    {id: 'admin', path: '/app/admin', icon: 'admin', feature: Feature['admin.orders'], tab: false},
+    {id: 'admin', path: '/app/admin', icon: 'admin', adminOnly: true, tab: false},
 ]
 
 /**
- * The sections a server shows: those whose feature its plugin lists, and those that need none.
+ * The sections a server shows: those whose feature its plugin lists, those that need none, and the admin section while
+ * any admin feature is listed.
  *
  * @param features the server's features
  * @returns the sections
  */
 export function sectionsFor(features: readonly string[]): Section[] {
-    return SECTIONS.filter(section => !section.feature || features.includes(section.feature))
+    return SECTIONS.filter(section => (section.adminOnly
+        ? features.some(feature => feature.startsWith('admin.'))
+        : !section.feature || features.includes(section.feature)))
 }
 
 /**

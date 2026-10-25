@@ -440,6 +440,41 @@ export interface AdminOrderPage {
     orders: AdminOrderRow[]
 }
 
+/** A player as an admin looks them up. */
+export interface AdminPlayer {
+    player: PlayerRef
+    /** The player's company, none without one. */
+    company?: string | null
+    owner: boolean
+    permissions: string[]
+    orders: AdminOrderRow[]
+    /** Items waiting for the player as a worker. */
+    workerItems: number
+    /** Items waiting for the player as an owner. */
+    ownerItems: number
+    unread: number
+    latest: InboxEntryView[]
+}
+
+/** A company's treasury as an admin sees it. */
+export interface AdminTreasury {
+    company: string
+    balance: number
+    /** The share of payouts the company keeps, in percent. */
+    share: number
+    entries: TreasuryLogEntry[]
+}
+
+/** A player an admin action names. */
+export interface PlayerName {
+    player: string
+}
+
+/** A company an admin action names. */
+export interface CompanyName {
+    company: string
+}
+
 /** The read actions of the dashboard with their arguments and the `data` of their answer. */
 export interface ReadActions {
     'orders.browse.search': {args: OrderSearchArgs, result: OrderSearchPage}
@@ -485,6 +520,15 @@ export interface WriteActions {
     'admin.orders.cancel': {args: OrderRef & {refund: boolean}, result: OrderRef & {refunded: number, collected: number}}
     'admin.orders.deliver': {args: OrderRef, result: OrderRef & {refund: number}}
     'admin.orders.extend': {args: OrderRef & {hours: number}, result: OrderRef & {hours: number}}
+    'admin.players.lookup': {args: PlayerName, result: AdminPlayer}
+    'admin.players.grant-items': {args: PlayerName & {material: string, amount: number}, result: PlayerName & {amount: number}}
+    'admin.players.grant-money': {args: PlayerName & {amount: number}, result: PlayerName & {amount: string}}
+    'admin.companies.treasury': {args: CompanyName, result: AdminTreasury}
+    'admin.companies.treasury.give': {args: CompanyName & {amount: number}, result: CompanyName & {balance: number}}
+    'admin.companies.treasury.take': {args: CompanyName & {amount: number}, result: CompanyName & {balance: number}}
+    'admin.companies.rename': {args: CompanyName & {name: string}, result: CompanyName}
+    'admin.companies.transfer-owner': {args: CompanyName & PlayerName, result: CompanyName & {owner: string}}
+    'admin.companies.delete': {args: CompanyName, result: CompanyName}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

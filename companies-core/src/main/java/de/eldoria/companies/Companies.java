@@ -106,6 +106,8 @@ import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
+import de.eldoria.companies.services.AdminCompanyService;
+import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
@@ -568,7 +570,14 @@ public class Companies extends EldoPlugin {
                                                         .getName())
                                                 .orElse(uuid.toString())),
                                 commands.adminLog(),
-                                name -> companyData.retrieveCompanyByName(name).asFuture())),
+                                name -> companyData.retrieveCompanyByName(name).asFuture(),
+                                new AdminCompanyService(companyData, commands.companyChanges()),
+                                companyData,
+                                new AdminGrantService(
+                                        AdminGrantService.Bank.of(
+                                                commands.services().economy()),
+                                        commands.services().itemReturnService(),
+                                        commands.services().notificationService()::send))),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

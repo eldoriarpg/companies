@@ -21,6 +21,7 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
+import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
@@ -62,6 +63,8 @@ import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.services.AdminCompanyService;
+import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
@@ -269,6 +272,20 @@ public final class DashboardWorld implements AutoCloseable {
                 Runnable::run,
                 Clock.systemDefaultZone(),
                 Logger.getAnonymousLogger());
+        var disband = new DisbandService(
+                plugin,
+                companies,
+                orders,
+                itemReturns,
+                new NotificationService(
+                        plugin,
+                        inbox,
+                        orders,
+                        null,
+                        NotificationSettings::new,
+                        (player, type, args) -> {},
+                        Runnable::run),
+                treasuryService);
         var company = new CompanyWrites(new CompanyWrites.Sources(
                 player -> companies
                         .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
@@ -302,20 +319,7 @@ public final class DashboardWorld implements AutoCloseable {
                         Runnable::run,
                         executor,
                         Logger.getAnonymousLogger()),
-                new DisbandService(
-                        plugin,
-                        companies,
-                        orders,
-                        itemReturns,
-                        new NotificationService(
-                                plugin,
-                                inbox,
-                                orders,
-                                null,
-                                NotificationSettings::new,
-                                (player, type, args) -> {},
-                                Runnable::run),
-                        treasuryService),
+                disband,
                 treasuryService,
                 () -> "coins",
                 failure -> "text of " + failure.localeKey(),
@@ -466,6 +470,40 @@ public final class DashboardWorld implements AutoCloseable {
                                 .map(entry -> new PlayerRef(entry.getKey(), entry.getValue())),
                         name -> companies.retrieveCompanyByName(name).asFuture(),
                         this::name,
+                        views,
+                        adminLog,
+                        failure -> "text of " + failure.localeKey())),
+                new AdminSupportWrites(new AdminSupportWrites.Sources(
+                        name -> names.entrySet().stream()
+                                .filter(entry -> entry.getValue().equalsIgnoreCase(name))
+                                .findFirst()
+                                .map(entry -> new PlayerRef(entry.getKey(), entry.getValue())),
+                        this::offline,
+                        this::name,
+                        new AdminCompanyService(companies, changes),
+                        companies,
+                        orders,
+                        inbox,
+                        entry -> entry.type().name(),
+                        new AdminGrantService(
+                                new AdminGrantService.Bank() {
+                                    @Override
+                                    public String deposit(OfflinePlayer player, double amount) {
+                                        wallets.merge(player.getUniqueId(), amount, Double::sum);
+                                        return null;
+                                    }
+
+                                    @Override
+                                    public String format(double amount) {
+                                        return String.format(java.util.Locale.ROOT, "%.2f", amount);
+                                    }
+                                },
+                                itemReturns,
+                                (recipient, type, args) -> {}),
+                        treasuryService,
+                        treasury,
+                        disband,
+                        Runnable::run,
                         views,
                         adminLog,
                         failure -> "text of " + failure.localeKey())));

@@ -13,6 +13,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
+import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
@@ -31,6 +32,7 @@ import de.eldoria.companies.dashboard.views.OrderCatalogue;
 import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.AAlertData;
+import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.repository.AInboxData;
@@ -50,6 +52,8 @@ import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.services.AdminCompanyService;
+import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyService;
@@ -273,6 +277,32 @@ public final class DashboardModule {
                                 .orElse(uuid.toString()),
                         views,
                         data.admin().log(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminSupportWrites(new AdminSupportWrites.Sources(
+                        name -> CompletableFuture.supplyAsync(
+                                        () -> Optional.ofNullable(
+                                                        plugin.getServer().getOfflinePlayerIfCached(name))
+                                                .map(found -> new PlayerRef(
+                                                        found.getUniqueId(), String.valueOf(found.getName()))),
+                                        Threading.mainThread(plugin))
+                                .join(),
+                        Bukkit::getOfflinePlayer,
+                        uuid -> Optional.ofNullable(plugin.getServer()
+                                        .getOfflinePlayer(uuid)
+                                        .getName())
+                                .orElse(uuid.toString()),
+                        data.admin().companies(),
+                        data.admin().companyData(),
+                        data.items().orders(),
+                        data.inbox(),
+                        entry -> inboxText(renderer, messages, entry),
+                        data.admin().grants(),
+                        data.company().treasury(),
+                        data.treasury(),
+                        data.company().disband(),
+                        Threading.mainThread(plugin),
+                        views,
+                        data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()
@@ -413,12 +443,18 @@ public final class DashboardModule {
      * @param lookup looks orders up for admins
      * @param log    the admin log
      * @param companyByName a company by its name
+     * @param companies     renames companies and changes their owner as an admin
+     * @param companyData   the company repository
+     * @param grants        grants players money and items
      */
     public record AdminServices(
             AdminOrderService orders,
             AdminOrderLookup lookup,
             AdminLog log,
-            Function<String, CompletableFuture<Optional<SimpleCompany>>> companyByName) {}
+            Function<String, CompletableFuture<Optional<SimpleCompany>>> companyByName,
+            AdminCompanyService companies,
+            ACompanyData companyData,
+            AdminGrantService grants) {}
 
     /**
      * The services the dashboard moves items through, with the inventory of a player online on this node.

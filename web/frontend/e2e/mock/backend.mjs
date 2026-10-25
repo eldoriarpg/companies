@@ -142,7 +142,9 @@ function route(method, path, body, session) {
 function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
-    const features = admin ? [...(session.story.features ?? FEATURES), 'admin.orders'] : session.story.features ?? FEATURES
+    const features = admin
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies']
+        : session.story.features ?? FEATURES
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin}
 }
 
@@ -256,6 +258,29 @@ function action(name, args, state) {
             return done({order: args.order, refund: 300})
         case 'admin.orders.extend':
             return done({order: args.order, hours: args.hours})
+        case 'admin.players.lookup':
+            if (String(args.player).toLowerCase() !== 'orla') return refused('This player is not known.')
+            return done({player: ADMIN_ORDER.owner, company: 'Stonebridge Builders', owner: false, permissions: ['MANAGE_ORDERS'], orders: [], workerItems: 3, ownerItems: 0, unread: 2, latest: []})
+        case 'admin.players.grant-money':
+            return done({player: 'Orla', amount: `${Number(args.amount).toFixed(2)} coins`})
+        case 'admin.players.grant-items':
+            return done({player: 'Orla', amount: args.amount})
+        case 'admin.companies.treasury':
+            state.adminBalance ??= 18450
+            return done({company: 'Stonebridge Builders', balance: state.adminBalance, share: 10, entries: []})
+        case 'admin.companies.treasury.give':
+            state.adminBalance = (state.adminBalance ?? 18450) + args.amount
+            return done({company: 'Stonebridge Builders', balance: state.adminBalance})
+        case 'admin.companies.treasury.take':
+            if (args.amount > (state.adminBalance ?? 18450)) return refused('The treasury does not hold that much.')
+            state.adminBalance = (state.adminBalance ?? 18450) - args.amount
+            return done({company: 'Stonebridge Builders', balance: state.adminBalance})
+        case 'admin.companies.rename':
+            return done({company: args.name})
+        case 'admin.companies.transfer-owner':
+            return done({company: args.company, owner: args.player})
+        case 'admin.companies.delete':
+            return done({company: args.company})
         case 'company.create':
             if (args.name === 'Taken') return refused('A company with this name already exists.')
             return done(args.quote ? {name: args.name, price: 5000} : {company: 8, price: 5000})
