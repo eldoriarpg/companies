@@ -8,11 +8,15 @@ package de.eldoria.companies.configuration;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.integrations.discord.WebhookEvent;
 import de.eldoria.companies.menus.MenuMode;
+import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.TreeSet;
+import java.util.stream.Stream;
 
 /**
  * The shared settings the dashboard shows and edits, in the order it shows them: per file, sections of fields with
@@ -59,6 +63,43 @@ public final class SettingsCatalogue {
         return FIELDS.stream()
                 .filter(field -> field.file().equals(file) && field.key().equals(key))
                 .findFirst();
+    }
+
+    /**
+     * @param file   a shared file
+     * @param before its content before
+     * @param after  its content after
+     * @return the keys of the settings that changed, each once, as the catalogue or {@link #FILE_ONLY} names them; a
+     *     section only one side has counts as all of its settings
+     */
+    public static List<String> changed(String file, JsonNode before, JsonNode after) {
+        var leaves = new ArrayList<String>();
+        leaves("", before, after, leaves);
+        var keys = new LinkedHashSet<String>();
+        for (var leaf : leaves) keys.add(owner(file, leaf));
+        return List.copyOf(keys);
+    }
+
+    private static void leaves(String prefix, JsonNode before, JsonNode after, List<String> found) {
+        if (before.isObject() || after.isObject()) {
+            var names = new TreeSet<String>();
+            before.properties().forEach(entry -> names.add(entry.getKey()));
+            after.properties().forEach(entry -> names.add(entry.getKey()));
+            for (var name : names) {
+                leaves(prefix.isEmpty() ? name : prefix + "." + name, before.path(name), after.path(name), found);
+            }
+            return;
+        }
+        if (!before.equals(after)) found.add(prefix);
+    }
+
+    private static String owner(String file, String leaf) {
+        return Stream.concat(FIELDS.stream(), FILE_ONLY.stream())
+                .filter(field -> field.file().equals(file))
+                .map(Field::key)
+                .filter(key -> leaf.equals(key) || leaf.startsWith(key + "."))
+                .findFirst()
+                .orElse(leaf);
     }
 
     private static List<Field> build() {
@@ -242,6 +283,16 @@ public final class SettingsCatalogue {
          */
         public List<String> path() {
             return List.of(key.split("\\."));
+        }
+
+        /**
+         * @param tree a file's content
+         * @return this setting's node in it, missing when it is not set
+         */
+        public JsonNode at(JsonNode tree) {
+            var node = tree;
+            for (var part : path()) node = node.path(part);
+            return node;
         }
     }
 

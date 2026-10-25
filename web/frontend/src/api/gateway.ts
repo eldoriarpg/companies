@@ -598,6 +598,24 @@ export interface AdminSettingDiff {
     fileOnly: boolean
 }
 
+/** What saving settings or rolling a file back did. */
+export interface AdminSettingsSaved {
+    /** `unchanged`: nothing differed from the latest revision; `newer`: another revision was saved after the one shown. */
+    status: 'saved' | 'unchanged' | 'invalid' | 'newer'
+    /** The stored revision, or the latest one when unchanged or newer. */
+    revision: number
+    /** Why each refused value was refused, by key. */
+    fields: Record<string, string>
+    /** The submitted settings as the newer revision holds them, without secrets. */
+    values: Record<string, unknown>
+    /** The settings the newer revisions changed. */
+    changed: string[]
+    /** The saved settings that apply only after a restart. */
+    restart: string[]
+    /** Whether the answering server uses the stored revision. */
+    applied: boolean
+}
+
 /** What one revision changed against the one before. */
 export interface AdminSettingsRevision extends AdminSettingsChange {
     file: SettingsFileName
@@ -698,6 +716,8 @@ export interface WriteActions {
     'admin.settings.get': {args: {file: SettingsFileName}, result: AdminSettingsFile}
     'admin.settings.history': {args: {file: SettingsFileName, page: number}, result: {revisions: AdminSettingsChange[], pageSize: number}}
     'admin.settings.revision': {args: {file: SettingsFileName, revision: number}, result: AdminSettingsRevision}
+    'admin.settings.save': {args: {file: SettingsFileName, base: number, values: Record<string, unknown>}, result: AdminSettingsSaved}
+    'admin.settings.rollback': {args: {file: SettingsFileName, revision: number, base: number}, result: AdminSettingsSaved}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

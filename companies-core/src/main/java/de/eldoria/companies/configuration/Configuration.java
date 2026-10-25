@@ -526,57 +526,75 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param actor    who rolled back
      * @return what happened, empty when the file is not shared or has no such revision
      */
-    public Optional<RollbackOutcome> rollback(ANodeData nodeData, String path, int revision, int base, String actor) {
-        var key = sharedKey(path);
+    public Optional<StoreOutcome> rollback(ANodeData nodeData, String path, int revision, int base, String actor) {
         var earlier = nodeData.settingsAt(path, revision);
-        if (key.isEmpty() || earlier.isEmpty()) return Optional.empty();
+        if (earlier.isEmpty()) return Optional.empty();
+        return store(nodeData, path, base, earlier.get().content(), actor);
+    }
+
+    /**
+     * Stores a shared file's content as the revision after {@code base} and applies it on this node; the other nodes
+     * take it as any new revision. When a revision newer than {@code base} was stored meanwhile, nothing is stored and
+     * no conflict file is kept, since the caller still holds the content. When this node cannot take it, because a file
+     * changed here could not be backed up, its applied revision is set back, so it counts as behind.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param path     the file
+     * @param base     the revision the content was made on
+     * @param content  the file's content
+     * @param actor    who stored it
+     * @return what happened, empty when the file is not shared
+     */
+    public Optional<StoreOutcome> store(ANodeData nodeData, String path, int base, String content, String actor) {
+        var key = sharedKey(path);
+        if (key.isEmpty()) return Optional.empty();
         synchronized (copying) {
             return Optional.of(
-                    switch (nodeData.publishSettingsOn(path, base, earlier.get().content(), actor)) {
+                    switch (nodeData.publishSettingsOn(path, base, content, actor)) {
                         case ANodeData.PublishOutcome.Published published -> {
                             plugin().getLogger()
-                                    .info("Stored revision " + revision + " of " + path + " as revision "
-                                            + published.revision() + ".");
+                                    .info("Stored " + path + " as revision " + published.revision() + " for " + actor
+                                            + ".");
                             var announce = announcer;
                             if (announce != null) announce.accept(path, published.revision());
                             var replaced = take(nodeData, key.get(), true);
                             var applied = appliedRevision(path) >= published.revision();
                             if (!applied) nodeData.appliedSettings(path, appliedRevision(path));
-                            yield new RollbackOutcome.RolledBack(published.revision(), replaced, applied);
+                            yield new StoreOutcome.Stored(published.revision(), replaced, applied);
                         }
                         case ANodeData.PublishOutcome.Unchanged unchanged ->
-                            new RollbackOutcome.Unchanged(unchanged.revision());
-                        case ANodeData.PublishOutcome.Conflict conflict -> new RollbackOutcome.Newer(conflict.latest());
+                            new StoreOutcome.Unchanged(unchanged.revision());
+                        case ANodeData.PublishOutcome.Conflict conflict -> new StoreOutcome.Newer(conflict.latest());
                     });
         }
     }
 
     /**
-     * What a rollback did.
+     * What storing a file's content as a new revision did.
      */
-    public sealed interface RollbackOutcome {
+    public sealed interface StoreOutcome {
         /**
-         * The earlier content was stored as a new revision.
+         * The content was stored as a new revision.
          *
          * @param revision the new revision
          * @param replaced whether this node's file changed
          * @param applied  whether this node uses the new revision; not when a file changed here could not be backed up
          */
-        record RolledBack(int revision, boolean replaced, boolean applied) implements RollbackOutcome {}
+        record Stored(int revision, boolean replaced, boolean applied) implements StoreOutcome {}
 
         /**
-         * The earlier content equals the latest revision, so nothing was stored.
+         * The content equals the latest revision, so nothing was stored.
          *
          * @param latest the latest revision
          */
-        record Unchanged(int latest) implements RollbackOutcome {}
+        record Unchanged(int latest) implements StoreOutcome {}
 
         /**
-         * A revision newer than the one the rollback was asked on was stored meanwhile, so nothing was stored.
+         * A revision newer than the base was stored meanwhile, so nothing was stored.
          *
          * @param latest the newer revision
          */
-        record Newer(int latest) implements RollbackOutcome {}
+        record Newer(int latest) implements StoreOutcome {}
     }
 
     /**

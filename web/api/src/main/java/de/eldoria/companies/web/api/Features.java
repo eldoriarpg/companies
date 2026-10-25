@@ -137,7 +137,8 @@ public final class Features {
     public static final String ADMIN_CONFIG = "admin.config";
 
     /**
-     * Read the shared settings, their history and how every server stands on them. Needs {@code companies.admin}.
+     * Read the shared settings, their history and how every server stands on them, which needs
+     * {@code companies.admin}; change them and roll a file back, which needs {@code companies.admin.reload} too.
      */
     public static final String ADMIN_SETTINGS = "admin.settings";
 

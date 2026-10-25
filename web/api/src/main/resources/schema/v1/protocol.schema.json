@@ -1392,6 +1392,12 @@
     },
     "admin.settings.revision" : {
       "feature" : "admin.settings"
+    },
+    "admin.settings.save" : {
+      "feature" : "admin.settings"
+    },
+    "admin.settings.rollback" : {
+      "feature" : "admin.settings"
     }
   }
 }

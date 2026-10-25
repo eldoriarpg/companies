@@ -667,4 +667,26 @@ public final class Payloads {
      */
     public record AdminSettingDiff(
             String key, @Nullable JsonNode before, @Nullable JsonNode after, boolean secret, boolean fileOnly) {}
+
+    /**
+     * What saving settings or rolling a file back did.
+     *
+     * @param status   {@code saved}, {@code unchanged} (nothing differed from the latest revision), {@code invalid} or
+     *                 {@code newer} (another revision was stored after the one the admin saw; nothing was stored)
+     * @param revision the stored revision, the latest one when unchanged or newer, 0 when invalid
+     * @param fields   why each refused value was refused, by dotted key, when invalid
+     * @param values   the submitted settings as the newer revision holds them, without secrets, when newer
+     * @param changed  the settings the newer revisions changed, when newer
+     * @param restart  the saved settings that apply only after a restart, when saved
+     * @param applied  whether the answering node uses the stored revision; not when a file changed there could not be
+     *                 backed up
+     */
+    public record AdminSettingsSaved(
+            String status,
+            int revision,
+            Map<String, String> fields,
+            Map<String, JsonNode> values,
+            List<String> changed,
+            List<String> restart,
+            boolean applied) {}
 }

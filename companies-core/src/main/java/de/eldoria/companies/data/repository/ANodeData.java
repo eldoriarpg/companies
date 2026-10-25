@@ -326,6 +326,23 @@ public abstract class ANodeData {
     }
 
     /**
+     * Writes a shared file's settings as the database copy holds them.
+     *
+     * @param key      the file
+     * @param config   the configuration whose mapper writes it
+     * @param settings the file's settings
+     * @param <T>      type of the file
+     * @return the file's content
+     */
+    public final <T> String writeSettings(Key<T> key, JacksonConfig<?> config, T settings) {
+        try {
+            return yaml(config).writer().writeValueAsString(settings);
+        } catch (JacksonException e) {
+            throw new ConfigurationException("Could not write configuration " + key.path(), e);
+        }
+    }
+
+    /**
      * Load the configuration of the path from the node marked as main.
      *
      * @param path path

@@ -154,6 +154,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final FakeHook citizens = new FakeHook("Citizens", Set.of("4", "5"));
     public SqLiteNodeData nodeData;
     public Configuration settings;
+    public final AtomicInteger settingsApplied = new AtomicInteger();
     private final Path directory;
     public AdminLog adminLog;
     public final ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -569,7 +570,12 @@ public final class DashboardWorld implements AutoCloseable {
                         failure -> "text of " + failure.localeKey())),
                 adminServers(orders),
                 new AdminSettingsWrites(new AdminSettingsWrites.Sources(
-                        settings, () -> nodeData, views::instant, failure -> "text of " + failure.localeKey())));
+                        settings,
+                        () -> nodeData,
+                        settingsApplied::incrementAndGet,
+                        adminLog,
+                        views::instant,
+                        failure -> "text of " + failure.localeKey())));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

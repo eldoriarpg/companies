@@ -420,6 +420,16 @@ public final class Actions {
     public static final String ADMIN_SETTINGS_REVISION = "admin.settings.revision";
 
     /**
+     * Stores changed settings of a shared settings file as its next revision.
+     */
+    public static final String ADMIN_SETTINGS_SAVE = "admin.settings.save";
+
+    /**
+     * Makes an earlier revision of a shared settings file the newest again.
+     */
+    public static final String ADMIN_SETTINGS_ROLLBACK = "admin.settings.rollback";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -502,7 +512,9 @@ public final class Actions {
             ADMIN_CONFIG_SYNC,
             ADMIN_SETTINGS_GET,
             ADMIN_SETTINGS_HISTORY,
-            ADMIN_SETTINGS_REVISION);
+            ADMIN_SETTINGS_REVISION,
+            ADMIN_SETTINGS_SAVE,
+            ADMIN_SETTINGS_ROLLBACK);
 
     private Actions() {}
 
