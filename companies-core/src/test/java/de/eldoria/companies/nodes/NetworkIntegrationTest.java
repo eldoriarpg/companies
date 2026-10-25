@@ -61,6 +61,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -416,7 +417,6 @@ class NetworkIntegrationTest {
         a.configuration.reload();
 
         a.configuration.syncConfigurations(a.nodeData).join();
-        a.bus.publish(new NodeMessage.ConfigSynced());
 
         await(
                 () -> b.configuration.notificationSettings().retentionDays() == 45 && b.reloads.get() > 0,
@@ -477,13 +477,45 @@ class NetworkIntegrationTest {
         a.configuration.save(Configuration.COMPANY_SETTINGS);
         a.configuration.syncConfigurations(a.nodeData).join();
 
-        assertTrue(b.configuration.syncConfigurations(b.nodeData).join());
-        assertEquals(
-                "Renamed",
-                b.configuration.companySettings().level(1).orElseThrow().levelName());
+        await(
+                () -> "Renamed"
+                        .equals(b.configuration
+                                .companySettings()
+                                .level(1)
+                                .orElseThrow()
+                                .levelName()),
+                WAIT,
+                "the secondary to take the new revision");
         try (var files = Files.list(folder.resolve("B"))) {
             assertTrue(files.noneMatch(path -> path.getFileName().toString().startsWith("backup_")));
         }
+    }
+
+    @Test
+    void aSecondaryFindsAnUnannouncedRevisionByPollingAndIgnoresOlderOnes() throws Exception {
+        var a = primary();
+        var b = secondary();
+        a.configuration.companySettings().level(1).orElseThrow().levelName("Polled");
+        var copy = a.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, a.configuration);
+        var revision = a.nodeData.publishSettings("company.yml", copy, "Ada").orElseThrow();
+        var reloads = new AtomicInteger();
+
+        new SettingsSync(
+                        b.configuration,
+                        b.nodeData,
+                        Runnable::run,
+                        Runnable::run,
+                        reloads::incrementAndGet,
+                        () -> false,
+                        Logger.getAnonymousLogger())
+                .poll();
+
+        assertEquals(
+                "Polled",
+                b.configuration.companySettings().level(1).orElseThrow().levelName());
+        assertEquals(revision, b.configuration.appliedRevisions().get("company.yml"));
+        assertEquals(0, reloads.get());
+        assertFalse(b.configuration.takeIfNewer(b.nodeData, "company.yml", revision - 1));
     }
 
     @Test
@@ -494,8 +526,7 @@ class NetworkIntegrationTest {
         var copy = a.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, a.configuration);
         a.configuration.companySettings().level(1).orElseThrow().levelName("Later");
 
-        a.nodeData.savePrimaryCopy(Configuration.COMPANY_SETTINGS, copy);
-        a.bus.publish(new NodeMessage.LevelsChanged());
+        a.configuration.publish(a.nodeData, Configuration.COMPANY_SETTINGS, copy, "Ada");
 
         var file = folder.resolve("B").resolve("company.yml");
         await(

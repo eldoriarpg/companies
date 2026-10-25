@@ -7,13 +7,12 @@ package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
-import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
-import de.eldoria.companies.nodes.NodeMessage.LevelsChanged;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
+import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -46,8 +45,7 @@ class NodeMessagingTest {
     private final List<UUID> delivered = new CopyOnWriteArrayList<>();
     private final List<String> dropped = new CopyOnWriteArrayList<>();
     private final List<String> warnings = new CopyOnWriteArrayList<>();
-    private final AtomicInteger synced = new AtomicInteger();
-    private final AtomicInteger levels = new AtomicInteger();
+    private final List<SettingsChanged> revisions = new CopyOnWriteArrayList<>();
     private final AtomicInteger stateChanges = new AtomicInteger();
     private final AtomicInteger lookups = new AtomicInteger();
 
@@ -78,8 +76,7 @@ class NodeMessagingTest {
                 new NodeMessaging.Node(
                         primary,
                         delivered::add,
-                        synced::incrementAndGet,
-                        levels::incrementAndGet,
+                        revisions::add,
                         stateChanges::incrementAndGet,
                         () -> List.of(PLAYER),
                         () -> {
@@ -113,32 +110,17 @@ class NodeMessagingTest {
     }
 
     @Test
-    void onlySecondariesLoadASyncedConfiguration() {
+    void onlySecondariesTakeANewRevision() {
         start(false);
-        bus.receive(OTHER, new ConfigSynced());
-        assertEquals(1, synced.get());
+        bus.receive(OTHER, new SettingsChanged("company.yml", 4));
+        assertEquals(List.of(new SettingsChanged("company.yml", 4)), revisions);
     }
 
     @Test
-    void thePrimaryIgnoresASyncedConfiguration() {
+    void thePrimaryIgnoresANewRevision() {
         start(true);
-        bus.receive(OTHER, new ConfigSynced());
-        assertEquals(0, synced.get());
-    }
-
-    @Test
-    void secondariesTakeChangedLevelsWithoutAFullSync() {
-        start(false);
-        bus.receive(OTHER, new LevelsChanged());
-        assertEquals(1, levels.get());
-        assertEquals(0, synced.get());
-    }
-
-    @Test
-    void thePrimaryIgnoresChangedLevels() {
-        start(true);
-        bus.receive(OTHER, new LevelsChanged());
-        assertEquals(0, levels.get());
+        bus.receive(OTHER, new SettingsChanged("company.yml", 4));
+        assertTrue(revisions.isEmpty());
     }
 
     @Test

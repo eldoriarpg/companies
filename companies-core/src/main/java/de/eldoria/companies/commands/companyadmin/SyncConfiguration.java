@@ -6,8 +6,6 @@
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.commands.CommandDependencies;
-import de.eldoria.companies.configuration.elements.NodeType;
-import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.util.Permission.Admin;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -15,10 +13,10 @@ import net.strokkur.commands.permission.Permission;
 import org.bukkit.command.CommandSender;
 
 /**
- * {@code /companyadmin syncconfiguration}: writes the configuration of this node to the database or reads it from
- * there, depending on the node type. Afterwards everything registered with
- * {@link CommandDependencies#onReload(Runnable)} applies the configuration, as after a reload. On the primary, the
- * secondaries are told over the node bus and load the configuration as well while the bus is realtime.
+ * {@code /companyadmin syncconfiguration}: stores the shared files of this node as their next revisions, each only
+ * when it changed, or takes the latest revisions, depending on the node type. Afterwards everything registered with
+ * {@link CommandDependencies#onReload(Runnable)} applies the configuration, as after a reload. The secondaries hear of
+ * a new revision over the node bus, or find it within half a minute without a realtime bus.
  */
 @Subcommand("syncconfiguration")
 @Permission(Admin.ADMIN)
@@ -38,13 +36,14 @@ public final class SyncConfiguration {
     @Executes
     public void sync(CommandSender sender) {
         deps.requireReady();
-        deps.configuration().syncConfigurations(deps.nodeData()).whenComplete((res, err) -> {
-            if (err == null) {
-                deps.adminLog().entry(sender, "syncconfiguration").write();
-                if (deps.nodeData().nodeType() == NodeType.PRIMARY) deps.bus().publish(new ConfigSynced());
-                deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::reloaded);
-            }
-            deps.messages().sendMessage(sender, "companyadmin.syncconfiguration.done");
-        });
+        deps.configuration()
+                .syncConfigurations(deps.nodeData(), sender.getName())
+                .whenComplete((res, err) -> {
+                    if (err == null) {
+                        deps.adminLog().entry(sender, "syncconfiguration").write();
+                        deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::reloaded);
+                    }
+                    deps.messages().sendMessage(sender, "companyadmin.syncconfiguration.done");
+                });
     }
 }

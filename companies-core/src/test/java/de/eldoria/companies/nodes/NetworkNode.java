@@ -134,6 +134,7 @@ final class NetworkNode implements AutoCloseable {
         poller = new InboxPoller(inbox, notifications, logger);
 
         bus = setup.bus().create(this, handlers, logger);
+        configuration.announceWith((path, revision) -> bus.publish(new NodeMessage.SettingsChanged(path, revision)));
         caches = new NodeCaches(logger);
         caches.register("probe", key -> key.ifPresentOrElse(probes::add, cacheDrops::incrementAndGet));
         presence = new NetworkPresence(setup.clock());
@@ -148,9 +149,15 @@ final class NetworkNode implements AutoCloseable {
                         notifications,
                         poller,
                         orders,
-                        NodeConnection.configSync(
-                                configuration, nodeData, Runnable::run, reloads::incrementAndGet, logger),
-                        NodeConnection.levelsSync(configuration, nodeData, Runnable::run, logger),
+                        new SettingsSync(
+                                configuration,
+                                nodeData,
+                                Runnable::run,
+                                Runnable::run,
+                                reloads::incrementAndGet,
+                                bus::realtime,
+                                logger),
+                        nodeData::settingsRevisions,
                         () -> List.copyOf(online),
                         () -> nodeData.nodes().stream().map(Node::uid).toList()),
                 pool);

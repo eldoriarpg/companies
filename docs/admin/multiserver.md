@@ -104,25 +104,29 @@ at the next copy.
 
 ### When the configuration is copied
 
-The copy happens at two moments only:
+The primary stores each shared file in the database as a numbered revision, together with who changed it and when. It
+stores a new revision only when the file changed: when it starts, when you run `/companyadmin syncconfiguration` on
+it, and when a level is changed in the [level editor](./levels.md#the-level-editor) or on the dashboard. Earlier
+revisions stay in the database.
 
-- when a server starts,
-- when you run `/companyadmin syncconfiguration` on that server.
+Each secondary takes a new revision on its own:
 
-With [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode), a
-secondary also copies the files whenever the primary writes them: when the primary starts or when you run
-`/companyadmin syncconfiguration` on the primary. When a level is changed in the
-[level editor](./levels.md#the-level-editor) or on the dashboard, a secondary takes `company.yml` only, without a
-reload.
+- at once with [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode);
+  should a message be lost, within 5 minutes,
+- within 30 seconds without them, since every secondary looks for new revisions that often,
+- when it starts, and when you run `/companyadmin syncconfiguration` on it.
+
+A new `config.yml` is applied like a reload. The other files are read where they are used, without a reload.
 
 A secondary only replaces a file whose content differs from the primary's copy, and runs the reload work, such as
 reconnecting the dashboard and the Discord webhook, only then. A restart of the primary that changed nothing therefore
 changes nothing on the secondaries. When a secondary's file was changed on that server since it last took a copy, for
-example because you edited it there, the secondary keeps its version as `backup_<timestamp>_<file name>` before it
-takes the copy, and its log says so. To tell, it notes each copy it took in the hidden folder `.synced`; the first sync
-after updating Companies has no such notes yet, so it keeps a backup of every file that differs once. When a backup
-cannot be written, the file stays as it is and the copy is not taken. The primary never writes a file it cannot read
-to the database.
+example because you edited it there, the secondary keeps its version as `backup_<timestamp>_<file name>` before it takes
+the copy, and its log says so. To tell, it notes each copy it took in the hidden folder `.synced`; the first sync after
+updating Companies has no such notes yet, so it keeps a backup of every file that differs once. When a backup cannot be
+written, the file stays as it is and the copy is not taken. The primary never writes a file it cannot read to the
+database. A file edited on a secondary stays until a new revision of it arrives, the server restarts, or you run
+`/companyadmin syncconfiguration` on it.
 
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
@@ -130,9 +134,8 @@ To change the configuration of a running network:
 
 1. Edit the files on the primary server.
 2. Run `/companyadmin reload` on the primary, so it reads your changes.
-3. Run `/companyadmin syncconfiguration` on the primary. It writes the files to the database.
-4. Run `/companyadmin syncconfiguration` on each secondary. They copy the files from the database. With Redis,
-   PostgreSQL notify or in low latency mode, skip this step: every connected secondary copies and applies the files on its own.
+3. Run `/companyadmin syncconfiguration` on the primary. It stores each changed file as a new revision, and the
+   secondaries take it on their own.
 
 Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.
@@ -208,7 +211,7 @@ lost message only costs a short delay.
 | `/company top` | after up to `top.cacheSeconds` | at once |
 | Open order counts on board signs | after up to `boards.refreshSeconds` | a few seconds after the change |
 | Order details, market prices and tab completions | when their cache runs out | at once |
-| Configuration from the primary | `/companyadmin syncconfiguration` on every server | `/companyadmin syncconfiguration` on the primary only |
+| Configuration from the primary | within 30 seconds | at once |
 
 The inbox is still checked with Redis, in case a message was missed, but only every 5 minutes (or every
 `notifications.pollSeconds`, if that is longer). The other timers keep running as before.

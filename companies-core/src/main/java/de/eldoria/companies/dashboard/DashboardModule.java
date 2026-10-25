@@ -500,7 +500,7 @@ public final class DashboardModule {
             NpcBoards npcBoards,
             Supplier<ANodeData> nodeData,
             Function<Node, String> bus,
-            Runnable syncConfiguration) {}
+            Consumer<String> syncConfiguration) {}
 
     /**
      * The services the dashboard moves items through, with the inventory of a player online on this node.

@@ -6,20 +6,21 @@
 package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.commands.suggest.SuggestionCache;
-import de.eldoria.companies.configuration.Configuration;
-import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
-import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
+import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Times;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,11 +37,13 @@ public final class NodeConnection {
     private final NodeBus bus;
     private final NodeMessaging messaging;
     private final NodeSignals signals;
+    private final @Nullable ScheduledFuture<?> settingsPoll;
 
-    private NodeConnection(NodeBus bus, NodeMessaging messaging) {
+    private NodeConnection(NodeBus bus, NodeMessaging messaging, @Nullable ScheduledFuture<?> settingsPoll) {
         this.bus = bus;
         this.messaging = messaging;
         this.signals = new NodeSignals(bus);
+        this.settingsPoll = settingsPoll;
     }
 
     /**
@@ -69,64 +72,36 @@ public final class NodeConnection {
                 new NodeMessaging.Node(
                         parts.primary(),
                         player -> inbox.deliver(player, Times.now()),
-                        parts.configSynced(),
-                        parts.levelsChanged(),
+                        parts.settings()::changed,
                         () -> {
                             inbox.reschedule();
                             inbox.pollNow();
+                            if (!parts.primary()) parts.settings().pollNow();
                         },
                         parts.onlineHere(),
                         parts.knownNodes()),
                 timer);
-        if (parts.primary()) bus.publish(new ConfigSynced());
-        return new NodeConnection(bus, messaging);
+        ScheduledFuture<?> settingsPoll = null;
+        if (parts.primary()) {
+            announceRevisions(parts, bus);
+        } else {
+            settingsPoll = timer.scheduleWithFixedDelay(
+                    parts.settings()::poll, SettingsSync.POLL_SECONDS, SettingsSync.POLL_SECONDS, TimeUnit.SECONDS);
+        }
+        return new NodeConnection(bus, messaging, settingsPoll);
     }
 
-    /**
-     * Loads the configuration the primary synced to the database and applies it, as
-     * {@code /companyadmin syncconfiguration} does on a secondary. When every file matches what this server has, as
-     * after a restart of the primary, the reload hooks do not run.
-     *
-     * @param configuration the configuration of this node
-     * @param nodeData      the node repository
-     * @param mainThread    runs the reload hooks
-     * @param reloaded      runs the reload hooks
-     * @param logger        reports the load
-     * @return the task, which blocks until the configuration is loaded
-     */
-    public static Runnable configSync(
-            Configuration configuration, ANodeData nodeData, Executor mainThread, Runnable reloaded, Logger logger) {
-        return () -> {
-            if (!configuration.syncConfigurations(nodeData).join()) {
-                logger.info("The configuration the primary node synced matches this server's.");
-                return;
-            }
-            logger.info("Loaded the configuration the primary node synced.");
-            mainThread.execute(reloaded);
-        };
-    }
-
-    /**
-     * The task a secondary runs when the primary changed the levels: it takes {@code company.yml} from the database one
-     * change after the other, see {@link Configuration#takePrimaryCopy}, without the reload hooks, since the levels are
-     * read where they are used.
-     *
-     * @param configuration the configuration of this node
-     * @param nodeData      the node repository
-     * @param serial        reads one change after the other
-     * @param logger        reports the load and its failures
-     * @return the task, which returns at once
-     */
-    public static Runnable levelsSync(Configuration configuration, ANodeData nodeData, Executor serial, Logger logger) {
-        return () -> serial.execute(() -> {
-            try {
-                if (configuration.takePrimaryCopy(nodeData, Configuration.COMPANY_SETTINGS)) {
-                    logger.info("Took the levels the primary node changed.");
-                }
-            } catch (RuntimeException e) {
-                logger.log(Level.SEVERE, "Could not take the levels the primary node changed.", e);
-            }
-        });
+    private static void announceRevisions(Parts parts, NodeBus bus) {
+        try {
+            parts.revisions().get().forEach((path, revision) -> bus.publish(new SettingsChanged(path, revision)));
+        } catch (RuntimeException e) {
+            parts.logger()
+                    .log(
+                            Level.WARNING,
+                            "Could not announce the revisions of the shared files; the other nodes find them by"
+                                    + " polling.",
+                            e);
+        }
     }
 
     /**
@@ -147,6 +122,7 @@ public final class NodeConnection {
      * Tells the other nodes that this one stops, and closes the bus.
      */
     public void stop() {
+        if (settingsPoll != null) settingsPoll.cancel(false);
         messaging.stop();
     }
 
@@ -161,8 +137,8 @@ public final class NodeConnection {
      * @param notifications sends notifications
      * @param inbox         shows notifications sent from other nodes
      * @param orders        the order repository and its caches
-     * @param configSynced  loads and applies the synced configuration, see {@link #configSync}
-     * @param levelsChanged takes the levels the primary changed, see {@link #levelsSync}
+     * @param settings      follows the shared files the primary stores, on a secondary
+     * @param revisions     the latest revision of each shared file; the primary announces them when it connects
      * @param onlineHere    the players online on this node; blocks
      * @param knownNodes    the uids of the nodes registered in the database; blocks
      */
@@ -175,8 +151,8 @@ public final class NodeConnection {
             NotificationService notifications,
             InboxPoller inbox,
             AOrderData orders,
-            Runnable configSynced,
-            Runnable levelsChanged,
+            SettingsSync settings,
+            Supplier<Map<String, Integer>> revisions,
             Supplier<List<UUID>> onlineHere,
             Supplier<List<UUID>> knownNodes) {}
 }

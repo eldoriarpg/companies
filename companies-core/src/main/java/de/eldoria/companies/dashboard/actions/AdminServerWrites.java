@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -220,7 +221,7 @@ public final class AdminServerWrites {
             return answers.refused(request, "error.secondarynode");
         }
         try {
-            sources.syncConfiguration().run();
+            sources.syncConfiguration().accept(admin);
         } catch (RuntimeException e) {
             sources.logger().log(Level.SEVERE, "Could not sync the configuration from the dashboard.", e);
             return answers.refused(request, "companyadmin.syncconfiguration.failed");
@@ -266,8 +267,8 @@ public final class AdminServerWrites {
      * @param console           the sender NPC plugins resolve a typed NPC for
      * @param nodeData          the node repository, once it exists
      * @param bus               how a node exchanges messages, as the admin reads it, {@code -} when unknown
-     * @param syncConfiguration does what {@code /companyadmin syncconfiguration} does; blocks until the files are
-     *                          synced and applies them a moment later
+     * @param syncConfiguration does what {@code /companyadmin syncconfiguration} does for the named admin; blocks until
+     *                          the files are synced and applies them a moment later
      * @param instant           turns a stored time into an instant
      * @param mainThread        runs tasks on the main thread
      * @param log               the admin log
@@ -280,7 +281,7 @@ public final class AdminServerWrites {
             CommandSender console,
             Supplier<ANodeData> nodeData,
             Function<Node, String> bus,
-            Runnable syncConfiguration,
+            Consumer<String> syncConfiguration,
             Function<LocalDateTime, Instant> instant,
             Executor mainThread,
             AdminLog log,

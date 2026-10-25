@@ -7,12 +7,12 @@ package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
-import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
+import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -39,7 +39,7 @@ class NodeMessageCodecTest {
                 new CacheInvalidate(NodeCaches.PRICES, null),
                 new RankingChanged(),
                 new BoardsChanged(),
-                new ConfigSynced(),
+                new SettingsChanged("company.yml", 3),
                 new Heartbeat(List.of(PLAYER)),
                 new Heartbeat(List.of(PLAYER), "redis"),
                 new NodeStopped());

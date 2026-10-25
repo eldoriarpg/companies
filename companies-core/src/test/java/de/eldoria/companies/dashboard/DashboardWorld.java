@@ -552,7 +552,7 @@ public final class DashboardWorld implements AutoCloseable {
                 new AdminLevelWrites(new AdminLevelWrites.Sources(
                         new LevelAdminService(
                                 adminConfiguration,
-                                () -> levelShares::incrementAndGet,
+                                admin -> levelShares::incrementAndGet,
                                 adminLog,
                                 Runnable::run,
                                 Logger.getAnonymousLogger()),
@@ -585,7 +585,7 @@ public final class DashboardWorld implements AutoCloseable {
                 server.getConsoleSender(),
                 () -> nodeData,
                 node -> "Redis",
-                () -> {
+                admin -> {
                     if (failSync) throw new IllegalStateException("the database is away");
                     configSyncs.incrementAndGet();
                 },

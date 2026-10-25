@@ -261,7 +261,7 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 |---|---|---|---|
 | `/companyadmin debug` | `companies.admin.debug` | yes | Creates a debug report. The Discord webhook URL is masked in it. |
 | `/companyadmin reload` | `companies.admin.reload` | yes | Reloads the configuration files and applies them, including the update settings and the Discord webhook. See [Configuration](../admin/configuration/index.md) for what needs a restart. |
-| `/companyadmin syncconfiguration` | `companies.admin` | yes | Primary server: writes the shared configuration to the database. Secondary server: reads it from the database and applies it like a reload. |
+| `/companyadmin syncconfiguration` | `companies.admin` | yes | Primary server: stores each changed shared file as a new revision. Secondary server: takes the latest revisions and applies them like a reload. |
 | `/companyadmin calclevel` | `companies.admin.calcLevel` | yes | Recalculates the level of every company. |
 | `/companyadmin delete <name>` | `companies.admin.delete` | no | Dissolves a company. Shows its members, the orders it works on and its treasury, and asks you to confirm. |
 | `/companyadmin delete confirm` | `companies.admin.delete` | no | Confirms the delete. |

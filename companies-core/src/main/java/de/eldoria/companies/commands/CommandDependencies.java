@@ -23,7 +23,6 @@ import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeCaches;
-import de.eldoria.companies.nodes.NodeMessage;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -360,12 +359,9 @@ public final class CommandDependencies {
      * @return changes the company levels and shares them with the other nodes
      */
     public LevelAdminService levels() {
-        LevelAdminService.Share share = () -> {
+        LevelAdminService.Share share = admin -> {
             var copy = nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, configuration);
-            return () -> {
-                nodeData.savePrimaryCopy(Configuration.COMPANY_SETTINGS, copy);
-                bus().publish(new NodeMessage.LevelsChanged());
-            };
+            return () -> configuration.publish(nodeData, Configuration.COMPANY_SETTINGS, copy, admin);
         };
         return new LevelAdminService(configuration, share, adminLog(), levelShares, plugin.getLogger());
     }

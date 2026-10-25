@@ -85,16 +85,14 @@ export COMPANIES_DISCORD_WEBHOOK='https://discord.com/api/webhooks/...'
 When several servers share one database, one server is the primary and the others are secondaries. See [node.yml](./node-yml.md) and [Several servers](../multiserver.md).
 
 - `config.yml`, `company.yml`, `order.yml` and `user.yml` are shared. Edit them on the **primary** server.
-- When the primary starts, it writes these four files into the database.
-- When a secondary starts, it reads them from the database and saves them over its own files. Local changes on a secondary are lost then.
-- `/companyadmin syncconfiguration` does the same without a restart: on the primary it writes the files to the database, on a secondary it reads them.
+- The primary stores each of these four files in the database as a new revision when it changed: when it starts and when you run `/companyadmin syncconfiguration` on it.
+- Each secondary takes a new revision on its own, at once with a realtime bus or within 30 seconds without one, and when it starts. It saves it over its own file; a change made on the secondary is kept as a backup first, see [Several servers](../multiserver.md#when-the-configuration-is-copied).
 - `/companyadmin reload` does not touch the database. It only reads the files of the server it runs on.
 - `database.yml`, `node.yml`, `boards.yml` and `base_configuration.yml` belong to each server and are never shared.
 
 To change a shared setting in a network:
 
 1. Edit the file on the primary server.
-2. Run `/companyadmin reload` on the primary, then `/companyadmin syncconfiguration` on the primary.
-3. Run `/companyadmin syncconfiguration` on every secondary. It saves the new files and applies them at once, like a reload. With [Redis](../multiserver.md#redis), [PostgreSQL notify](../multiserver.md#postgresql-notify) or [low latency mode](../multiserver.md#low-latency-mode), the secondaries do this on their own after step 2.
+2. Run `/companyadmin reload` on the primary, then `/companyadmin syncconfiguration` on the primary. The secondaries take the new revision on their own.
 
 The reload in step 2 matters: `syncconfiguration` writes what the primary has loaded, not what is in its files. Settings marked **restart** need a restart of each server that should pick them up.

@@ -7,13 +7,12 @@ package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
-import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
-import de.eldoria.companies.nodes.NodeMessage.LevelsChanged;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
+import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.SerializationFeature;
@@ -50,8 +49,7 @@ public final class NodeMessageCodec {
             CacheInvalidate.class, "cache.invalidate",
             RankingChanged.class, "ranking.changed",
             BoardsChanged.class, "boards.changed",
-            ConfigSynced.class, "config.synced",
-            LevelsChanged.class, "levels.changed",
+            SettingsChanged.class, "settings.changed",
             Heartbeat.class, "node.heartbeat",
             NodeStopped.class, "node.stopped");
     private static final Map<String, Class<? extends NodeMessage>> CLASSES =

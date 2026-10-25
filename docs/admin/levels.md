@@ -146,10 +146,9 @@ Every change is saved to `company.yml` straight away and written to the [admin l
 The [web dashboard](./dashboard.md#admin-tools) has the same editor in its *Levels* tab.
 
 :::info Several servers
-The level editor only works on the primary server. Every change also writes `company.yml` to the database, as
-`/companyadmin syncconfiguration` on the primary would, so you do not need to run it there. With Redis, PostgreSQL
-notify or low latency mode the secondaries take the new levels at once. Without them, each secondary takes them when it
-starts or when you run `/companyadmin syncconfiguration` on it. See
+The level editor only works on the primary server. Every change also stores `company.yml` as a new revision, as
+`/companyadmin syncconfiguration` on the primary would, so you do not need to run it. With Redis, PostgreSQL notify or
+low latency mode the secondaries take the new levels at once, otherwise within 30 seconds. See
 [when the configuration is copied](./multiserver.md#when-the-configuration-is-copied).
 :::
 

@@ -9,6 +9,7 @@ import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import io.papermc.paper.plugin.configuration.PluginMeta;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -43,6 +47,43 @@ class SqLiteNodeDataTest {
         SqLiteTestDatabase.create(directory);
         nodeData = new SqLiteNodeData(new NodeSettings());
         nodeData.updateNode(plugin);
+    }
+
+    @Test
+    void aSharedFileGetsANewRevisionOnlyWhenItChanged() {
+        assertEquals(OptionalInt.of(1), nodeData.publishSettings("company.yml", "level: []", "startup"));
+        assertEquals(OptionalInt.empty(), nodeData.publishSettings("company.yml", "level: []", "Ada"));
+        assertEquals(OptionalInt.of(2), nodeData.publishSettings("company.yml", "level: [1]", "Ada"));
+        assertEquals(OptionalInt.of(1), nodeData.publishSettings("user.yml", "maxOrders: 3", "Ada"));
+
+        var latest = nodeData.latestSettings("company.yml").orElseThrow();
+        assertEquals(2, latest.revision());
+        assertEquals("level: [1]", latest.content());
+        assertEquals(Map.of("company.yml", 2, "user.yml", 1), nodeData.settingsRevisions());
+        assertTrue(nodeData.latestSettings("order.yml").isEmpty());
+    }
+
+    @Test
+    void aNodeThatReadAStaleRevisionRetriesOnTopOfTheNewerOne() {
+        nodeData.publishSettings("company.yml", "first", "Ada");
+        nodeData.publishSettings("company.yml", "second", "Ada");
+
+        assertEquals(OptionalInt.of(3), staleAt(1).publishSettings("company.yml", "third", "Bo"));
+        assertEquals(OptionalInt.empty(), staleAt(1).publishSettings("company.yml", "third", "Bo"));
+        assertEquals(3, nodeData.latestSettings("company.yml").orElseThrow().revision());
+    }
+
+    private SqLiteNodeData staleAt(int revision) {
+        return new SqLiteNodeData(new NodeSettings()) {
+            private boolean answered;
+
+            @Override
+            public Optional<SettingsRevision> latestSettings(String path) {
+                if (answered) return super.latestSettings(path);
+                answered = true;
+                return Optional.of(new SettingsRevision(path, revision, "first", SettingsRevision.hash("first")));
+            }
+        };
     }
 
     @Test
