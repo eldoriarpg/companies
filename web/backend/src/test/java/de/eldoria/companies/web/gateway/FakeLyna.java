@@ -14,18 +14,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Lyna's dashboard key verification as recorded in its contract: {@code POST /api/v1/dashboard/key/verify} with the
+ * Lyna's key verification as recorded in its contract: {@code POST /api/v1/keys/verify} with the key type's
  * gateway secret as bearer token; 401 for a wrong secret, 400 without a key, otherwise 200 with {@code valid}.
  */
 final class FakeLyna implements AutoCloseable {
-    static final String SECRET = "fake-gateway-secret";
+    static final String SECRET = "lyg_fake-gateway-secret";
     private final Map<String, String> answers = new ConcurrentHashMap<>();
     private final Set<String> failing = ConcurrentHashMap.newKeySet();
     private final AtomicInteger calls = new AtomicInteger();
     private final Javalin app;
 
     FakeLyna() {
-        app = Javalin.create(config -> config.routes.post("/api/v1/dashboard/key/verify", ctx -> {
+        app = Javalin.create(config -> config.routes.post("/api/v1/keys/verify", ctx -> {
                     calls.incrementAndGet();
                     if (!("Bearer " + SECRET).equals(ctx.header("Authorization"))) {
                         ctx.status(401).result("{\"reason\":\"UNAUTHORIZED\"}");
@@ -48,17 +48,21 @@ final class FakeLyna implements AutoCloseable {
     }
 
     void valid(String key, String keyId, int product, String kind) {
-        answer(key, keyId, product, kind, false);
+        answer(key, keyId, product, "dashboard", kind, false);
+    }
+
+    void ofType(String key, String keyId, String type) {
+        answer(key, keyId, 2, type, "BOUGHT", false);
     }
 
     void rotated(String key, String keyId) {
-        answer(key, keyId, 2, "BOUGHT", true);
+        answer(key, keyId, 2, "dashboard", "BOUGHT", true);
     }
 
-    private void answer(String key, String keyId, int product, String kind, boolean rotated) {
+    private void answer(String key, String keyId, int product, String type, String kind, boolean rotated) {
         answers.put(key, """
-                {"valid":true,"product":%d,"kind":"%s","keyId":"%s","name":"Test key",
-                 "refreshAt":"2026-10-31T00:00:00Z","rotated":%s}""".formatted(product, kind, keyId, rotated));
+                {"valid":true,"product":%d,"type":"%s","kind":"%s","keyId":"%s","name":"Test key",
+                 "refreshAt":"2026-10-31T00:00:00Z","rotated":%s}""".formatted(product, type, kind, keyId, rotated));
     }
 
     void invalid(String key, String reason) {

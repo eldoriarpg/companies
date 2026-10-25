@@ -30,9 +30,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Verifies Lyna dashboard keys for the hosted gateway: {@code POST {LYNA_URL}/api/v1/dashboard/key/verify} with the
+ * Verifies Lyna dashboard keys for the hosted gateway: {@code POST {LYNA_URL}/api/v1/keys/verify} with the key type's
  * gateway secret as bearer token and {@code {key}} as body. Lyna answers 200 with {@code valid}, and for a valid key
- * the product, the licence kind and the {@code keyId} that stays the same across rotations.
+ * the product, the key type, the licence kind and the {@code keyId} that stays the same across rotations. Lyna only
+ * answers about keys of the secret's own key type; product and key type are checked here once more.
  * <p>
  * Every new connection is verified with Lyna. A positive answer is remembered for the cache time and used only when
  * Lyna cannot be reached, so a short Lyna outage does not lock out servers that just reconnect. The key is never
@@ -58,6 +59,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
      *
      * @param valid whether the key may be used
      * @param product the product the key is for
+     * @param type the slug of the key's key type
      * @param kind {@code BOUGHT} or {@code TRIAL}
      * @param keyId the key's id, stable across rotations
      * @param rotated whether the key was already traded for its successor and is inside the grace period
@@ -66,6 +68,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
     record Verification(
             boolean valid,
             @Nullable Integer product,
+            @Nullable String type,
             @Nullable String kind,
             @Nullable String keyId,
             boolean rotated,
@@ -115,7 +118,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
             return new Authentication.Refused(ErrorCode.UNAUTHORIZED, reason == null ? "UNKNOWN" : reason);
         }
         Integer product = verification.product();
-        if (product == null || product != config.product()) {
+        if (product == null || product != config.product() || !config.keyType().equals(verification.type())) {
             remembered.remove(hash);
             return new Authentication.Refused(ErrorCode.UNAUTHORIZED, "The key is not a Companies dashboard key");
         }
@@ -143,7 +146,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
     }
 
     private Verification verify(String key) throws Unavailable {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(config.url() + "/api/v1/dashboard/key/verify"))
+        HttpRequest request = HttpRequest.newBuilder(URI.create(config.url() + "/api/v1/keys/verify"))
                 .timeout(TIMEOUT)
                 .header("Authorization", "Bearer " + config.secret())
                 .header("Content-Type", "application/json")
@@ -160,7 +163,7 @@ public final class LynaAuthenticator implements ServerAuthenticator {
             throw new Unavailable("interrupted");
         }
         if (response.statusCode() == 401) {
-            log.error("Lyna refused the gateway secret; check DASHBOARD_GATEWAYSECRET");
+            log.error("Lyna refused the gateway secret; check LYNA_GATEWAY_SECRET");
             throw new Unavailable("Lyna refused the gateway secret");
         }
         if (response.statusCode() != 200) throw new Unavailable("Lyna answered " + response.statusCode());

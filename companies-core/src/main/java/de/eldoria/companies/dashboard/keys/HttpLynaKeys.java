@@ -33,7 +33,7 @@ public final class HttpLynaKeys implements LynaKeys {
     /**
      * The path of the refresh endpoint below Lyna's address.
      */
-    public static final String REFRESH_PATH = "/api/v1/dashboard/key/refresh";
+    public static final String REFRESH_PATH = "/api/v1/keys/refresh";
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
