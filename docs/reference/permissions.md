@@ -46,7 +46,7 @@ Only operators have these by default.
 
 | Permission | Default | What it covers |
 |---|---|---|
-| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin syncconfiguration`. |
+| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin syncconfiguration` and `/companyadmin settings`. |
 | `companies.admin.boards` | op | Create and break board signs, list presets, rewrite board signs and bind NPCs to boards (`/companyadmin board`). |
 | `companies.admin.calcLevel` | op | Recalculate company levels with `/companyadmin calclevel`. |
 | `companies.admin.dashboard` | op | Show the dashboard connection, enter the dashboard key and log players out of the dashboard with `/companyadmin dashboard`. New in 2.1. |

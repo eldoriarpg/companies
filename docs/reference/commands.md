@@ -263,6 +263,10 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin reload` | `companies.admin.reload` | yes | Reloads the configuration files and applies them, including the update settings and the Discord webhook. See [Configuration](../admin/configuration/index.md) for what needs a restart. In a network it names the shared settings changed on this server. |
 | `/companyadmin reload confirm` | `companies.admin.reload` | yes | Shares the settings the last `reload` named with every server, as the next revision. |
 | `/companyadmin syncconfiguration` | `companies.admin` | yes | Primary server: stores each changed shared file as a new revision. Secondary server: takes the latest revisions and applies them like a reload. |
+| `/companyadmin settings status` | `companies.admin` | yes | Lists each shared file with its latest revision, the revision this server uses, whether it was changed here without being shared, and the servers still on an older revision. |
+| `/companyadmin settings history <file> [page]` | `companies.admin` | yes | Lists the revisions of a shared file, newest first, with who stored them, on which server and when. 10 per page. |
+| `/companyadmin settings rollback <file> <revision>` | `companies.admin` | yes | Stores the content of an earlier revision as the next revision, so every server takes it. Asks you to confirm. |
+| `/companyadmin settings rollback confirm` | `companies.admin` | yes | Confirms the rollback. |
 | `/companyadmin calclevel` | `companies.admin.calcLevel` | yes | Recalculates the level of every company. |
 | `/companyadmin delete <name>` | `companies.admin.delete` | no | Dissolves a company. Shows its members, the orders it works on and its treasury, and asks you to confirm. |
 | `/companyadmin delete confirm` | `companies.admin.delete` | no | Confirms the delete. |
@@ -328,7 +332,7 @@ Put the company name in quotes if it has spaces.
 
 | Command | Permission | Console | What it does |
 |---|---|---|---|
-| `/companyadmin node list` | `companies.admin.nodes` | yes | Lists the servers registered in the database with their uid, role, version and when they were last seen. |
+| `/companyadmin node list` | `companies.admin.nodes` | yes | Lists the servers registered in the database with their uid, role, version and when they were last seen, and marks the servers whose shared settings are behind. |
 | `/companyadmin node remove <uid>` | `companies.admin.nodes` | yes | Removes the entry of a server that no longer runs. Asks you to confirm. The server you run it on can not be removed. |
 | `/companyadmin node remove confirm` | `companies.admin.nodes` | yes | Confirms the remove. |
 

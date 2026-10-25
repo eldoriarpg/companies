@@ -7,7 +7,9 @@ package de.eldoria.companies.data.repository;
 
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.nodes.SettingsChange;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
@@ -199,6 +201,19 @@ public abstract class ANodeData {
          */
         record Conflict(int latest) implements PublishOutcome {}
     }
+
+    /**
+     * @param path   the file
+     * @param offset how many of the newest revisions to skip
+     * @param limit  how many to return
+     * @return the file's revisions, newest first
+     */
+    public abstract List<SettingsChange> settingsHistory(String path, int offset, int limit);
+
+    /**
+     * @return the revision every node applied of every shared file
+     */
+    public abstract List<AppliedSettings> settingsApplied();
 
     /**
      * @param path     the file

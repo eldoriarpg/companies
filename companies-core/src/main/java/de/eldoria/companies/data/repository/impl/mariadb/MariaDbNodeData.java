@@ -11,7 +11,9 @@ import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
+import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.nodes.SettingsChange;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import de.eldoria.companies.util.Times;
 import org.intellij.lang.annotations.Language;
@@ -178,6 +180,51 @@ public class MariaDbNodeData extends ANodeData {
                 .map(row -> new SettingsRevision(
                         row.getString("path"), row.getInt("revision"), row.getString("content"), row.getString("hash")))
                 .first();
+    }
+
+    @Override
+    public List<SettingsChange> settingsHistory(String path, int offset, int limit) {
+        @Language("mariadb")
+        var select = """
+                SELECT revision, actor, node_uid, changed_at
+                FROM settings
+                WHERE path = ?
+                ORDER BY revision DESC
+                LIMIT ? OFFSET ?""";
+
+        return query(select)
+                .single(call().bind(path).bind(limit).bind(offset))
+                .map(row -> new SettingsChange(
+                        row.getInt("revision"),
+                        row.getString("actor"),
+                        row.get("node_uid", UUID_BYTES),
+                        changedAt(row)))
+                .all();
+    }
+
+    @Override
+    public List<AppliedSettings> settingsApplied() {
+        @Language("mariadb")
+        var select = """
+                SELECT node_uid, path, revision
+                FROM settings_applied""";
+
+        return query(select)
+                .single()
+                .map(row -> new AppliedSettings(
+                        row.get("node_uid", UUID_BYTES), row.getString("path"), row.getInt("revision")))
+                .all();
+    }
+
+    /**
+     * Reads when a revision was stored.
+     *
+     * @param row row of the revision
+     * @return the time in UTC
+     * @throws SQLException when the column can not be read
+     */
+    protected LocalDateTime changedAt(Row row) throws SQLException {
+        return row.getObject("changed_at", LocalDateTime.class);
     }
 
     @Override

@@ -8,7 +8,9 @@ package de.eldoria.companies.data.repository.impl.sqlite;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.nodes.SettingsChange;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import io.papermc.paper.plugin.configuration.PluginMeta;
 import org.bukkit.plugin.Plugin;
@@ -71,6 +73,33 @@ class SqLiteNodeDataTest {
         assertEquals(OptionalInt.of(3), staleAt(1).publishSettings("company.yml", "third", "Bo"));
         assertEquals(OptionalInt.empty(), staleAt(1).publishSettings("company.yml", "third", "Bo"));
         assertEquals(3, nodeData.latestSettings("company.yml").orElseThrow().revision());
+    }
+
+    @Test
+    void theHistoryListsRevisionsNewestFirstInPages() {
+        nodeData.publishSettings("company.yml", "first", "Ada");
+        nodeData.publishSettings("company.yml", "second", "Bo");
+        nodeData.publishSettings("company.yml", "third", "Cy");
+
+        var page = nodeData.settingsHistory("company.yml", 0, 2);
+        assertEquals(List.of(3, 2), page.stream().map(SettingsChange::revision).toList());
+        assertEquals("Cy", page.getFirst().actor());
+        assertEquals(nodeData.nodeUid(), page.getFirst().node());
+        assertEquals(
+                List.of(1),
+                nodeData.settingsHistory("company.yml", 2, 2).stream()
+                        .map(SettingsChange::revision)
+                        .toList());
+        assertTrue(nodeData.settingsHistory("user.yml", 0, 2).isEmpty());
+    }
+
+    @Test
+    void appliedRevisionsAreListedPerNodeAndFile() {
+        nodeData.publishSettings("company.yml", "first", "Ada");
+        nodeData.publishSettings("company.yml", "second", "Ada");
+        nodeData.appliedSettings("company.yml", 1);
+
+        assertEquals(List.of(new AppliedSettings(nodeData.nodeUid(), "company.yml", 1)), nodeData.settingsApplied());
     }
 
     private SqLiteNodeData staleAt(int revision) {

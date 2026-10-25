@@ -8,6 +8,7 @@ package de.eldoria.companies.commands.companyadmin;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
@@ -25,11 +26,14 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * {@code /companyadmin node}: the servers registered in the database.
@@ -71,10 +75,11 @@ public final class NodeCommand {
     @Executes("list")
     public void list(CommandSender sender) {
         var nodeData = nodeData();
-        run(sender, nodeData::nodes, nodes -> {
+        run(sender, () -> new Listing(nodeData.nodes(), behind(nodeData)), listing -> {
             var text = MenuText.create().text("<heading>").locale("companyadmin.node.title");
-            for (var node : nodes) {
+            for (var node : listing.nodes()) {
                 text.newLine().append(entry(nodeData, node));
+                if (listing.behind().contains(node.uid())) text.locale("companyadmin.node.behind");
             }
             deps.messages().sendMessage(sender, text);
         });
@@ -137,6 +142,26 @@ public final class NodeCommand {
             }
         });
     }
+
+    /**
+     * @param nodeData the node repository
+     * @return the nodes that applied an older revision of a shared file than the latest
+     */
+    private static Set<UUID> behind(ANodeData nodeData) {
+        var latest = nodeData.settingsRevisions();
+        return nodeData.settingsApplied().stream()
+                .filter(row -> row.revision() < latest.getOrDefault(row.path(), 0))
+                .map(AppliedSettings::node)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * The nodes and those behind on the shared files.
+     *
+     * @param nodes  the nodes
+     * @param behind the uids of the nodes behind
+     */
+    private record Listing(List<Node> nodes, Set<UUID> behind) {}
 
     private ANodeData nodeData() {
         var nodeData = deps.nodeData();

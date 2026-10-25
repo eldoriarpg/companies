@@ -23,6 +23,7 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
@@ -53,10 +54,12 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public class Configuration extends JacksonConfig<ConfigFile> {
     public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::fresh)
@@ -486,6 +489,63 @@ public class Configuration extends JacksonConfig<ConfigFile> {
                 }
             };
         }
+    }
+
+    /**
+     * Makes an earlier revision of a shared file the newest again: stores its content as the next revision and applies
+     * it on this node. The other nodes take it as any new revision.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param path     the file
+     * @param revision the earlier revision
+     * @param actor    who rolled back
+     * @return what happened, empty when the file is not shared or has no such revision
+     */
+    public Optional<EditOutcome> rollback(ANodeData nodeData, String path, int revision, String actor) {
+        var key = sharedKey(path);
+        var earlier = nodeData.settingsAt(path, revision);
+        if (key.isEmpty() || earlier.isEmpty()) return Optional.empty();
+        synchronized (copying) {
+            var latest = nodeData.latestSettings(path)
+                    .map(SettingsRevision::revision)
+                    .orElse(0);
+            var outcome = publishEdit(nodeData, key.get(), latest, earlier.get().content(), actor);
+            if (outcome.revision().isEmpty()) return Optional.of(outcome);
+            var replaced = take(nodeData, key.get(), true);
+            return Optional.of(new EditOutcome(path, outcome.revision(), null, replaced));
+        }
+    }
+
+    /**
+     * How one shared file stands across the network.
+     *
+     * @param path    the file
+     * @param latest  its latest revision, 0 before one was stored
+     * @param applied the revision this node applied, 0 before it applied one
+     * @param edited  whether this node changed it without sharing the change
+     * @param behind  the nodes that applied an older revision than the latest
+     */
+    public record FileStatus(String path, int latest, int applied, boolean edited, List<UUID> behind) {}
+
+    /**
+     * @param nodeData the node repository holding the revisions
+     * @return how each shared file stands, in the order they are synced
+     */
+    public List<FileStatus> status(ANodeData nodeData) {
+        var revisions = nodeData.settingsRevisions();
+        var appliedRows = nodeData.settingsApplied();
+        var edited = edits(nodeData).stream().map(Edit::path).collect(Collectors.toSet());
+        var statuses = new ArrayList<FileStatus>();
+        for (var key : SHARED) {
+            var path = key.path().toString();
+            var latest = revisions.getOrDefault(path, 0);
+            var behind = appliedRows.stream()
+                    .filter(row -> row.path().equals(path) && row.revision() < latest)
+                    .map(AppliedSettings::node)
+                    .toList();
+            statuses.add(new FileStatus(path, latest, appliedRevision(path), edited.contains(path), behind));
+        }
+        return statuses;
     }
 
     /**

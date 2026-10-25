@@ -142,6 +142,17 @@ stored: this server keeps your version as `conflict_<revision>_<file name>`, use
 Merge your change into the file by hand and run the steps again. On a single server, `reload` stores the change
 without asking.
 
+### Looking back and undoing a change
+
+- `/companyadmin settings status` lists each shared file with its latest revision and the one this server uses. It
+  marks a file changed here and not shared yet, and names the servers still on an older revision. `/companyadmin node
+  list` marks those servers as well.
+- `/companyadmin settings history <file>` lists the revisions of a file, newest first: who stored them, on which server
+  and when.
+- `/companyadmin settings rollback <file> <revision>` brings back an earlier revision. Its content is stored as the
+  next revision, so the history keeps every step, and every server takes it like any other change. Run
+  `/companyadmin settings rollback confirm` within 30 seconds to do it.
+
 Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.
 
