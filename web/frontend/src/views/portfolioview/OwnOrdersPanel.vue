@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import PlainList from '@/components/container/PlainList.vue'
 import {useNow} from '@vueuse/core'
 import {Feature, OrderState, type OwnOrderView} from '~/api/generated/protocol'
 import ButtonLink from '@/components/button/ButtonLink.vue'
@@ -75,7 +76,7 @@ const rows = computed(() => found.value.map(order => ({
     <Alert v-if="done" variant="success" class="m-3 md:mx-4">{{ done }}</Alert>
     <ActionNotice :problem="collecting.problem.value" class="m-3 md:mx-4"/>
     <EmptyState v-if="rows.length === 0">{{ orders.length === 0 ? t('portfolio.noOwn') : t('common.noMatch') }}</EmptyState>
-    <ul v-else class="m-0 list-none p-0">
+    <PlainList v-else>
       <li v-for="row in rows" :key="row.order.id" class="flex flex-col gap-2 border-b border-line-soft px-3 py-3 last:border-b-0 md:px-4">
         <div class="flex justify-between gap-2">
           <span class="truncate text-sm font-semibold">{{ row.order.name }}</span>
@@ -90,6 +91,6 @@ const rows = computed(() => found.value.map(order => ({
         <OwnOrderReceive v-if="delivers && row.order.state === OrderState.DELIVERED" :order="row.order.id" :name="row.order.name" @received="text => done = text"/>
         <OwnOrderActions v-if="manageable && row.order.state === OrderState.UNCLAIMED" :order="row.order" @cancelled="name => done = t('own.cancelled', {name})"/>
       </li>
-    </ul>
+    </PlainList>
   </PanelBox>
 </template>

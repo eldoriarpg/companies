@@ -143,7 +143,7 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels']
         : session.story.features ?? FEATURES
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin}
 }
@@ -232,6 +232,28 @@ const LIMITED_ORDER = 3
  * @param state the session's state, which keeps the muted inbox categories
  * @returns the action result
  */
+/**
+ * A company level as the admin level editor shows it.
+ *
+ * @param level the level's number
+ * @param name its name
+ * @returns the level
+ */
+function adminLevel(level, name) {
+    return {level, name, orderCount: level * 10, memberCount: level, earnedMoney: level * 1000, deliveredItems: level * 500, maxMembers: 5 + level * 5, maxOrders: level + 2, maxOrderSize: 0, deliveryHoursBonus: 0, taxPercent: null, maxAlerts: null}
+}
+
+/**
+ * The levels of a session, made on first use.
+ *
+ * @param state the session's state
+ * @returns the levels
+ */
+function levels(state) {
+    state.levels ??= [adminLevel(1, 'Workshop'), adminLevel(2, 'Guild')]
+    return state.levels
+}
+
 function action(name, args, state) {
     const page = data => ({type: 'action.result', v: 1, ok: true, data: {page: args.page ?? 1, pages: 1, ...data}})
     const done = data => ({type: 'action.result', v: 1, ok: true, data})
@@ -281,6 +303,25 @@ function action(name, args, state) {
             return done({company: args.company, owner: args.player})
         case 'admin.companies.delete':
             return done({company: args.company})
+        case 'admin.levels.list':
+            return done({editable: true, levels: levels(state)})
+        case 'admin.levels.create': {
+            const created = adminLevel(levels(state).length + 1, 'New level')
+            state.levels.push(created)
+            return done(created)
+        }
+        case 'admin.levels.edit': {
+            const level = levels(state).find(entry => entry.level === args.level)
+            if (!level) return refused('There is no such level.')
+            if (Number.isNaN(Number(args.values.order_count))) return refused('Orders done: That is not a number.')
+            Object.assign(level, {name: args.values.name ?? level.name, orderCount: Number(args.values.order_count ?? level.orderCount)})
+            return done(level)
+        }
+        case 'admin.levels.remove':
+            state.levels = levels(state).filter(entry => entry.level !== args.level).map((entry, index) => ({...entry, level: index + 1}))
+            return done({editable: true, levels: state.levels})
+        case 'admin.levels.recalculate':
+            return done({})
         case 'company.create':
             if (args.name === 'Taken') return refused('A company with this name already exists.')
             return done(args.quote ? {name: args.name, price: 5000} : {company: 8, price: 5000})

@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import PlainList from '@/components/container/PlainList.vue'
 import {Feature, MemberPermission, type MemberView} from '~/api/generated/protocol'
 import LinkButton from '@/components/button/LinkButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
@@ -91,7 +92,7 @@ const {query, found} = useListSearch(sorted, row => [row.member.name, row.role])
     </div>
     <Alert v-if="done" variant="success" class="m-3 md:mx-4">{{ done }}</Alert>
     <EmptyState v-if="found.length === 0">{{ t('common.noMatch') }}</EmptyState>
-    <ul v-else class="m-0 list-none p-0" data-testid="members">
+    <PlainList v-else data-testid="members">
       <li v-for="row in found" :key="row.member.uuid" :class="COLUMNS" class="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-3 py-2.5 last:border-b-0 md:px-4">
         <span class="flex min-w-0 flex-col gap-0.5 md:contents">
           <LinkButton
@@ -117,7 +118,7 @@ const {query, found} = useListSearch(sorted, row => [row.member.name, row.role])
             @transferred="name => finish(t('company.transferred', {name}))"
         />
       </li>
-    </ul>
+    </PlainList>
     <MutedText tag="p" class="border-t border-line-soft px-3 py-2.5 md:px-4">{{ t('company.inviteInGame') }}</MutedText>
     <LeaveCompany v-if="manages && !owns" :company="company" @left="emit('left')"/>
     <DisbandCompany v-if="dissolves" :company="company" @disbanded="emit('disbanded')"/>

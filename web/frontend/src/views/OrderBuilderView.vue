@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import PlainList from '@/components/container/PlainList.vue'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
@@ -95,7 +96,7 @@ async function place(): Promise<void> {
           <SecondaryButton icon="plus" @click="openDialog(null)">{{ t('builder.addLine') }}</SecondaryButton>
         </template>
         <EmptyState v-if="builder.lines.value.length === 0">{{ t('builder.noLines') }}</EmptyState>
-        <ul v-else class="m-0 list-none p-0">
+        <PlainList v-else>
           <BuilderLine
               v-for="(line, index) in builder.lines.value"
               :key="line.id"
@@ -105,7 +106,7 @@ async function place(): Promise<void> {
               @remove="builder.removeLine(line.id)"
               @edit="openDialog(line.id)"
           />
-        </ul>
+        </PlainList>
       </PanelBox>
       <PanelBox padded>
         <RepetitionFields v-model="builder.repetition.value"/>

@@ -9,6 +9,7 @@ import ViewContent from '@/components/layout/ViewContent.vue'
 import TabBar from '@/components/navigation/TabBar.vue'
 import {Feature} from '~/api/generated/protocol'
 import AdminCompanies from './adminview/AdminCompanies.vue'
+import AdminLevels from './adminview/AdminLevels.vue'
 import AdminOrders from './adminview/AdminOrders.vue'
 import AdminPlayers from './adminview/AdminPlayers.vue'
 
@@ -22,6 +23,7 @@ const tabs = computed(() => [
   {key: 'orders', label: t('admin.tabs.orders'), feature: Feature['admin.orders']},
   {key: 'players', label: t('admin.tabs.players'), feature: Feature['admin.players']},
   {key: 'companies', label: t('admin.tabs.companies'), feature: Feature['admin.companies']},
+  {key: 'levels', label: t('admin.tabs.levels'), feature: Feature['admin.levels']},
 ].filter(tab => supports(tab.feature)))
 const tab = ref('')
 
@@ -39,6 +41,7 @@ watchEffect(() => {
         <AdminOrders v-if="tab === 'orders'"/>
         <AdminPlayers v-else-if="tab === 'players'"/>
         <AdminCompanies v-else-if="tab === 'companies'"/>
+        <AdminLevels v-else-if="tab === 'levels'"/>
       </div>
     </template>
   </ViewContent>
