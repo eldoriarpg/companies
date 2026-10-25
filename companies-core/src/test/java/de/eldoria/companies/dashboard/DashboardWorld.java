@@ -16,6 +16,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.configuration.elements.NodeSettings;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
@@ -132,7 +133,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final RecordedDeliveries deliveries = new RecordedDeliveries();
     public final List<UUID> moved = new CopyOnWriteArrayList<>();
     public final List<String> adminActions = new CopyOnWriteArrayList<>();
-    public final NodeSettings nodeSettings = new NodeSettings();
+    public volatile NodeType nodeType = NodeType.PRIMARY;
     public final AtomicInteger levelShares = new AtomicInteger();
     public final AtomicInteger recalculations = new AtomicInteger();
     public AdminLog adminLog;
@@ -344,7 +345,12 @@ public final class DashboardWorld implements AutoCloseable {
 
             @Override
             public NodeSettings nodeSettings() {
-                return nodeSettings;
+                return new NodeSettings() {
+                    @Override
+                    public NodeType nodeType() {
+                        return nodeType;
+                    }
+                };
             }
 
             @Override
@@ -525,7 +531,7 @@ public final class DashboardWorld implements AutoCloseable {
                 new AdminLevelWrites(new AdminLevelWrites.Sources(
                         new LevelAdminService(
                                 adminConfiguration,
-                                levelShares::incrementAndGet,
+                                () -> levelShares::incrementAndGet,
                                 adminLog,
                                 Runnable::run,
                                 Logger.getAnonymousLogger()),

@@ -38,8 +38,9 @@ import java.util.function.Supplier;
  * <p>
  * A level is named by its number in {@code level}. Creating takes an optional {@code position}, moving the target
  * position in {@code to}, and saving the entered text of each field by its key in {@code values} (as
- * {@code /companyadmin level edit} names them) with an optional {@code position}. One invalid value changes nothing and
- * is refused with the field's label in front of the reason. The methods block and are called off the main thread.
+ * {@code /companyadmin level edit} names them) with an optional {@code position}; {@code null} or an empty text clears
+ * the tax and the alert limit, and the name must not be empty. One invalid value changes nothing and is refused with
+ * the field's label in front of the reason. The methods block and are called off the main thread.
  */
 public final class AdminLevelWrites {
     /**
@@ -151,6 +152,9 @@ public final class AdminLevelWrites {
             var field = LevelField.byKey(entry.getKey()).orElseThrow(() -> CommandFailure.of("error.unkownField"));
             var value = entry.getValue();
             if (!value.isValueNode()) throw CommandFailure.of(INVALID);
+            if (field == LevelField.NAME && (value.isNull() || value.asString().isBlank())) {
+                throw CommandFailure.of(INVALID);
+            }
             entered.put(field, value.isNull() ? "" : value.asString());
         }
         return entered;

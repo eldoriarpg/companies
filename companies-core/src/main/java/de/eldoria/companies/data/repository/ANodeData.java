@@ -141,12 +141,32 @@ public abstract class ANodeData {
     protected abstract Optional<String> loadPrimaryConfiguration(String path);
 
     public void savePrimaryConfiguration(Key<?> key, JacksonConfig<?> config) {
+        savePrimaryCopy(key, primaryCopy(key, config));
+    }
+
+    /**
+     * Writes a configuration file as the database copy holds it, so it can be taken now and saved later.
+     *
+     * @param key    the file
+     * @param config the configuration holding it
+     * @return the file's content
+     */
+    public String primaryCopy(Key<?> key, JacksonConfig<?> config) {
         try {
-            String content = yaml(config).writer().writeValueAsString(config.secondary(key));
-            savePrimaryConfiguration(key.path().toString(), content);
+            return yaml(config).writer().writeValueAsString(config.secondary(key));
         } catch (JacksonException e) {
             throw new ConfigurationException("Could not parse configuration " + key.path(), e);
         }
+    }
+
+    /**
+     * Saves the database copy of a configuration file taken with {@link #primaryCopy(Key, JacksonConfig)}.
+     *
+     * @param key     the file
+     * @param content the file's content
+     */
+    public void savePrimaryCopy(Key<?> key, String content) {
+        savePrimaryConfiguration(key.path().toString(), content);
     }
 
     private static Format<?, ?> yaml(JacksonConfig<?> config) {

@@ -213,6 +213,16 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
+     * Puts the primary's {@code company.yml} in place and saves it, as a sync does, without reading any other file.
+     *
+     * @param settings the primary's company settings
+     */
+    public void useCompanySettings(CompanySettings settings) {
+        replace(COMPANY_SETTINGS, settings);
+        save(COMPANY_SETTINGS);
+    }
+
+    /**
      * Writes a file into the database on the primary, or takes the primary's copy on a secondary, saves it and reads it
      * again, which applies the environment overrides of this node. A value set through an environment variable is part
      * of neither copy.

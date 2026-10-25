@@ -66,6 +66,12 @@ public sealed interface NodeMessage {
     record ConfigSynced() implements NodeMessage {}
 
     /**
+     * The primary changed the company levels and wrote {@code company.yml} to the database. Secondaries take that file
+     * only, without a reload.
+     */
+    record LevelsChanged() implements NodeMessage {}
+
+    /**
      * The sending node is alive, with every player online on it. Sent regularly; replaces what was known about the
      * players of that node.
      *

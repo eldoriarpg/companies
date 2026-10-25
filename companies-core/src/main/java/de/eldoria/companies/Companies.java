@@ -622,6 +622,13 @@ public class Companies extends EldoPlugin {
                         orderData,
                         NodeConnection.configSync(
                                 configuration, nodeData, Threading.mainThread(this), commands::reloaded, getLogger()),
+                        NodeConnection.levelsSync(
+                                configuration,
+                                nodeData,
+                                Executors.newSingleThreadExecutor(
+                                        Thread.ofVirtual().factory()),
+                                Threading.mainThread(this),
+                                getLogger()),
                         this::onlineHere,
                         () -> nodeData.nodes().stream().map(Node::uid).toList()),
                 workerPool);

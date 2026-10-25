@@ -152,6 +152,14 @@ class NetworkIntegrationTest {
         return node("B", SECONDARY, false, redisServer(redis, "companies"), 1);
     }
 
+    private static boolean contains(Path file, String text) {
+        try {
+            return Files.exists(file) && Files.readString(file).contains(text);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private static void await(BooleanSupplier condition, Duration limit, String what) throws InterruptedException {
         var deadline = System.nanoTime() + limit.toNanos();
         while (!condition.getAsBoolean()) {
@@ -416,6 +424,31 @@ class NetworkIntegrationTest {
                 "the secondary to load and apply the configuration");
         assertTrue(Files.readString(folder.resolve("B").resolve("config.yml")).contains("retentionDays: 45"));
         assertEquals(0, a.reloads.get());
+    }
+
+    @Test
+    void changedLevelsReachTheSecondaryWithoutAReload() throws Exception {
+        var a = primary();
+        var b = secondary();
+        a.configuration.companySettings().level(1).orElseThrow().levelName("Workshop");
+        var copy = a.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, a.configuration);
+        a.configuration.companySettings().level(1).orElseThrow().levelName("Later");
+
+        a.nodeData.savePrimaryCopy(Configuration.COMPANY_SETTINGS, copy);
+        a.bus.publish(new NodeMessage.LevelsChanged());
+
+        var file = folder.resolve("B").resolve("company.yml");
+        await(
+                () -> "Workshop"
+                                .equals(b.configuration
+                                        .companySettings()
+                                        .level(1)
+                                        .orElseThrow()
+                                        .levelName())
+                        && contains(file, "Workshop"),
+                WAIT,
+                "the secondary to take and save the levels");
+        assertEquals(0, b.reloads.get());
     }
 
     @Test

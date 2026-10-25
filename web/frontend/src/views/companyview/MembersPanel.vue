@@ -4,10 +4,10 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import PlainList from '@/components/container/PlainList.vue'
 import {Feature, MemberPermission, type MemberView} from '~/api/generated/protocol'
 import LinkButton from '@/components/button/LinkButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import Alert from '@/components/feedback/Alert.vue'
 import SearchInput from '@/components/input/SearchInput.vue'

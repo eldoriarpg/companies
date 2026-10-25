@@ -122,7 +122,7 @@ const FIELDS: Field[] = [
       <PrimaryButton v-if="editable" type="submit" :disabled="missing || name.trim() === '' || position === undefined || action.busy.value">{{ t('admin.levels.save') }}</PrimaryButton>
     </form>
     <ConfirmStep
-        v-if="editable"
+        v-if="editable && count > 1"
         :trigger="t('admin.levels.remove')"
         :question="t('admin.levels.removeQuestion', {level: level.level})"
         :confirm="t('admin.levels.removeConfirm')"

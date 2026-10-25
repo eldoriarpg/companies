@@ -106,8 +106,9 @@ The copy happens at two moments only:
 
 With [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode), a
 secondary also copies the files whenever the primary writes them: when the primary starts, when you run
-`/companyadmin syncconfiguration` on the primary, and when a level is changed in the
-[level editor](./levels.md#the-level-editor) or on the dashboard.
+`/companyadmin syncconfiguration` on the primary. When a level is changed in the
+[level editor](./levels.md#the-level-editor) or on the dashboard, a secondary takes `company.yml` only, without a
+reload.
 
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 

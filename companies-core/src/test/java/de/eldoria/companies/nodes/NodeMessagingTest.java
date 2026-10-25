@@ -10,6 +10,7 @@ import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
+import de.eldoria.companies.nodes.NodeMessage.LevelsChanged;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
@@ -46,6 +47,7 @@ class NodeMessagingTest {
     private final List<String> dropped = new CopyOnWriteArrayList<>();
     private final List<String> warnings = new CopyOnWriteArrayList<>();
     private final AtomicInteger synced = new AtomicInteger();
+    private final AtomicInteger levels = new AtomicInteger();
     private final AtomicInteger stateChanges = new AtomicInteger();
     private final AtomicInteger lookups = new AtomicInteger();
 
@@ -77,6 +79,7 @@ class NodeMessagingTest {
                         primary,
                         delivered::add,
                         synced::incrementAndGet,
+                        levels::incrementAndGet,
                         stateChanges::incrementAndGet,
                         () -> List.of(PLAYER),
                         () -> {
@@ -121,6 +124,21 @@ class NodeMessagingTest {
         start(true);
         bus.receive(OTHER, new ConfigSynced());
         assertEquals(0, synced.get());
+    }
+
+    @Test
+    void secondariesTakeChangedLevelsWithoutAFullSync() {
+        start(false);
+        bus.receive(OTHER, new LevelsChanged());
+        assertEquals(1, levels.get());
+        assertEquals(0, synced.get());
+    }
+
+    @Test
+    void thePrimaryIgnoresChangedLevels() {
+        start(true);
+        bus.receive(OTHER, new LevelsChanged());
+        assertEquals(0, levels.get());
     }
 
     @Test

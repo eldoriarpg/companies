@@ -51,7 +51,6 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
-import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -62,6 +61,8 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -87,6 +88,8 @@ public final class CommandDependencies {
     private final Boards boards;
     private final NpcBoards npcBoards;
     private final List<Runnable> reloadHooks = new CopyOnWriteArrayList<>();
+    private final ExecutorService levelShares =
+            Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private volatile NodeCaches caches = new NodeCaches(Logger.getLogger(CommandDependencies.class.getName()));
     private volatile NodeBus bus = new DatabaseBus();
     private volatile NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
@@ -347,11 +350,14 @@ public final class CommandDependencies {
      * @return changes the company levels and shares them with the other nodes
      */
     public LevelAdminService levels() {
-        Runnable share = () -> {
-            nodeData.savePrimaryConfiguration(Configuration.COMPANY_SETTINGS, configuration);
-            bus().publish(new NodeMessage.ConfigSynced());
+        LevelAdminService.Share share = () -> {
+            var copy = nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, configuration);
+            return () -> {
+                nodeData.savePrimaryCopy(Configuration.COMPANY_SETTINGS, copy);
+                bus().publish(new NodeMessage.LevelsChanged());
+            };
         };
-        return new LevelAdminService(configuration, share, adminLog(), Threading.VIRTUAL, plugin.getLogger());
+        return new LevelAdminService(configuration, share, adminLog(), levelShares, plugin.getLogger());
     }
 
     /**

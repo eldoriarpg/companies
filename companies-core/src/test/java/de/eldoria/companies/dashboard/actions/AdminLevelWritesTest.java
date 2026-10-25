@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.dashboard.actions;
 
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.util.Permission;
@@ -137,6 +138,39 @@ class AdminLevelWritesTest {
 
         assertEquals(5, world.levelShares.get());
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("Ada@dashboard")));
+    }
+
+    @Test
+    void aSecondaryShowsTheLevelsButRefusesChanges() {
+        world.nodeType = NodeType.SECONDARY;
+
+        assertFalse(
+                level(Actions.ADMIN_LEVELS_LIST, "{}").data().path("editable").asBoolean());
+        assertEquals(
+                "error.secondarynode", level(Actions.ADMIN_LEVELS_CREATE, "{}").reason());
+        assertEquals(starterLevels, world.companySettings.level().size());
+        assertEquals(0, world.levelShares.get());
+    }
+
+    @Test
+    void theLastLevelStaysAndChangesThatChangeNothingAreNotShared() {
+        assertTrue(
+                level(Actions.ADMIN_LEVELS_EDIT, "{\"level\":1,\"values\":{}}").ok());
+        assertTrue(level(Actions.ADMIN_LEVELS_MOVE, "{\"level\":1,\"to\":1}").ok());
+        assertEquals(
+                "dashboard.invalid",
+                level(Actions.ADMIN_LEVELS_EDIT, "{\"level\":1,\"values\":{\"name\":\" \"}}")
+                        .reason());
+        while (world.companySettings.level().size() > 1) {
+            assertTrue(level(Actions.ADMIN_LEVELS_REMOVE, "{\"level\":1}").ok());
+        }
+        var shared = world.levelShares.get();
+
+        assertEquals(
+                "companyadmin.level.lastLevel",
+                level(Actions.ADMIN_LEVELS_REMOVE, "{\"level\":1}").reason());
+        assertEquals(1, world.companySettings.level().size());
+        assertEquals(starterLevels - 1, shared);
     }
 
     @Test

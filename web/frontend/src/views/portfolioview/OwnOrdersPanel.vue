@@ -4,11 +4,11 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import PlainList from '@/components/container/PlainList.vue'
 import {useNow} from '@vueuse/core'
 import {Feature, OrderState, type OwnOrderView} from '~/api/generated/protocol'
 import ButtonLink from '@/components/button/ButtonLink.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import Alert from '@/components/feedback/Alert.vue'

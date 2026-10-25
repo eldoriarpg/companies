@@ -4,10 +4,10 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import PlainList from '@/components/container/PlainList.vue'
 import type {MarketItemView} from '~/api/gateway'
 import RowButton from '@/components/button/RowButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import ItemMark from '@/components/display/ItemMark.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'

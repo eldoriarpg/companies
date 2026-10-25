@@ -28,25 +28,26 @@ import java.util.logging.Logger;
  * The company levels as admins change them, from the level menus, {@code /companyadmin level} and the dashboard alike.
  * <p>
  * Levels change on the primary node only; a secondary refuses with {@code error.secondarynode}. Every change saves
- * {@code company.yml}, writes the admin log and then, off the calling thread, writes the database copy and tells the
- * secondaries to take it, so no manual {@code /companyadmin syncconfiguration} is needed.
+ * {@code company.yml}, takes its database copy on the calling thread and writes the admin log; the copy is then
+ * written and the secondaries told, one change after the other, so a later change never lands before an earlier one.
+ * A change that changes nothing is neither saved nor logged. The last level stays.
  */
 public final class LevelAdminService {
     private final Configuration configuration;
-    private final Runnable share;
+    private final Share share;
     private final AdminLog log;
     private final Executor background;
     private final Logger logger;
 
     /**
      * @param configuration the configuration holding the levels
-     * @param share         writes the database copy of the levels and tells the secondaries to take it
+     * @param share         takes the database copy of the levels and returns the task writing it
      * @param log           the admin log
-     * @param background    where the database copy is written
+     * @param background    writes the database copies one after the other
      * @param logger        where a failed copy is reported
      */
     public LevelAdminService(
-            Configuration configuration, Runnable share, AdminLog log, Executor background, Logger logger) {
+            Configuration configuration, Share share, AdminLog log, Executor background, Logger logger) {
         this.configuration = configuration;
         this.share = share;
         this.log = log;
@@ -99,13 +100,13 @@ public final class LevelAdminService {
             String admin, CompanyLevel level, Map<LevelField, String> entered, OptionalInt position) {
         requireExisting(level);
         requirePrimary();
+        var moves = position.isPresent() && position.getAsInt() != level.level();
+        if (entered.isEmpty() && !moves) return Optional.empty();
         return switch (LevelForm.parse(entered)) {
             case LevelForm.Invalid invalid -> Optional.of(invalid);
             case LevelForm.Valid valid -> {
                 valid.changes().accept(level);
-                position.ifPresent(target -> {
-                    if (target != level.level()) settings().moveLevel(level.level(), target);
-                });
+                if (moves) settings().moveLevel(level.level(), position.getAsInt());
                 changed();
                 log.entry(admin, "level save")
                         .with("level", level.level())
@@ -146,10 +147,14 @@ public final class LevelAdminService {
      */
     public void move(String admin, int source, int target) {
         requirePrimary();
-        level(source);
+        var level = level(source);
         settings().moveLevel(source, target);
+        if (level.level() == source) return;
         changed();
-        log.entry(admin, "level move").with("level", source).with("to", target).write();
+        log.entry(admin, "level move")
+                .with("level", source)
+                .with("to", level.level())
+                .write();
     }
 
     /**
@@ -160,7 +165,9 @@ public final class LevelAdminService {
      */
     public void remove(String admin, int level) {
         requirePrimary();
-        Checks.isTrue(settings().deleteLevel(level), "error.invalidLevel");
+        level(level);
+        Checks.isTrue(settings().level().size() > 1, "companyadmin.level.lastLevel");
+        settings().deleteLevel(level);
         changed();
         log.entry(admin, "level remove").with("level", level).write();
     }
@@ -182,10 +189,16 @@ public final class LevelAdminService {
 
     private void changed() {
         configuration.save();
-        CompletableFuture.runAsync(share, background).exceptionally(failure -> {
-            logger.log(Level.SEVERE, "Could not share the changed levels with the other nodes.", failure);
-            return null;
-        });
+        try {
+            CompletableFuture.runAsync(share.prepare(), background).exceptionally(this::notShared);
+        } catch (RuntimeException e) {
+            notShared(e);
+        }
+    }
+
+    private Void notShared(Throwable failure) {
+        logger.log(Level.SEVERE, "Could not share the changed levels with the other nodes.", failure);
+        return null;
     }
 
     private void requirePrimary() {
@@ -194,5 +207,18 @@ public final class LevelAdminService {
 
     private CompanySettings settings() {
         return configuration.companySettings();
+    }
+
+    /**
+     * Shares changed levels with the other nodes.
+     */
+    @FunctionalInterface
+    public interface Share {
+        /**
+         * Takes the database copy of the levels as they are now; called on the thread that changed them.
+         *
+         * @return writes the copy and tells the secondaries; runs off that thread
+         */
+        Runnable prepare();
     }
 }

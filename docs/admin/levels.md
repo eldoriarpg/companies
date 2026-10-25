@@ -147,8 +147,10 @@ The [web dashboard](./dashboard.md#admin-tools) has the same editor in its *Leve
 
 :::info Several servers
 The level editor only works on the primary server. Every change also writes `company.yml` to the database, as
-`/companyadmin syncconfiguration` on the primary would, so you do not need to run it. See
-[when the configuration is copied](./multiserver.md#when-the-configuration-is-copied) for when the secondaries take it.
+`/companyadmin syncconfiguration` on the primary would, so you do not need to run it there. With Redis, PostgreSQL
+notify or low latency mode the secondaries take the new levels at once. Without them, each secondary takes them when it
+starts or when you run `/companyadmin syncconfiguration` on it. See
+[when the configuration is copied](./multiserver.md#when-the-configuration-is-copied).
 :::
 
 For all `company.yml` settings, see [company.yml](./configuration/company-yml.md).

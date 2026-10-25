@@ -225,14 +225,6 @@ function quoteOf(args) {
 const LIMITED_ORDER = 3
 
 /**
- * The answer to an action. Accepting order 3 is refused as the plugin words it; every other action succeeds.
- *
- * @param name the action
- * @param args its arguments
- * @param state the session's state, which keeps the muted inbox categories
- * @returns the action result
- */
-/**
  * A company level as the admin level editor shows it.
  *
  * @param level the level's number
@@ -254,6 +246,14 @@ function levels(state) {
     return state.levels
 }
 
+/**
+ * The answer to an action. Accepting order 3 is refused as the plugin words it; every other action succeeds.
+ *
+ * @param name the action
+ * @param args its arguments
+ * @param state the session's state, which keeps the muted inbox categories
+ * @returns the action result
+ */
 function action(name, args, state) {
     const page = data => ({type: 'action.result', v: 1, ok: true, data: {page: args.page ?? 1, pages: 1, ...data}})
     const done = data => ({type: 'action.result', v: 1, ok: true, data})

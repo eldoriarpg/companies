@@ -4,12 +4,12 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import PlainList from '@/components/container/PlainList.vue'
 import type {AdminLevel, AdminLevels} from '~/api/gateway'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import LinkButton from '@/components/button/LinkButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import Alert from '@/components/feedback/Alert.vue'
 import Spinner from '@/components/feedback/Spinner.vue'
@@ -29,6 +29,7 @@ const levels = ref<AdminLevels | null>(null)
 const selected = ref<number | null>(null)
 const done = ref('')
 const revision = ref(0)
+const notice = useTemplateRef<HTMLElement>('notice')
 const shown = computed(() => levels.value?.levels.find(level => level.level === selected.value) ?? null)
 
 onMounted(load)
@@ -55,26 +56,37 @@ async function recalculate(): Promise<void> {
 }
 
 /**
- * Follows a saved level, which may have moved.
+ * Follows a saved level, which may have moved. The form is rebuilt, so the focus moves to what happened.
  *
  * @param level the level as saved
  */
 async function saved(level: AdminLevel): Promise<void> {
-  done.value = t('admin.levels.saved', {level: level.level})
   await load()
   revision.value++
   selected.value = level.level
+  await tell(t('admin.levels.saved', {level: level.level}))
 }
 
 /**
- * Shows the levels left after a removal.
+ * Shows the levels left after a removal. The form is gone, so the focus moves to what happened.
  *
  * @param remaining the levels left
  */
-function removed(remaining: AdminLevels): void {
-  done.value = t('admin.levels.removed')
+async function removed(remaining: AdminLevels): Promise<void> {
   levels.value = remaining
   selected.value = null
+  await tell(t('admin.levels.removed'))
+}
+
+/**
+ * Shows what happened and hands it the focus.
+ *
+ * @param text what happened
+ */
+async function tell(text: string): Promise<void> {
+  done.value = text
+  await nextTick()
+  notice.value?.focus()
 }
 
 /**
@@ -104,15 +116,17 @@ function open(level: number): void {
             <span class="text-xs text-ink-muted">{{ t('admin.levels.summary', {orders: level.orderCount, members: level.memberCount, money: money(level.earnedMoney, locale), items: level.deliveredItems}) }}</span>
           </li>
         </PlainList>
-        <ButtonRow class="border-t border-line-soft px-3 py-2.5 md:px-4">
-          <SecondaryButton v-if="levels.editable" :disabled="changing.busy.value" @click="add">{{ t('admin.levels.add') }}</SecondaryButton>
-          <SecondaryButton :disabled="changing.busy.value" @click="recalculate">{{ t('admin.levels.recalculate') }}</SecondaryButton>
-        </ButtonRow>
-        <ActionNotice :problem="changing.problem.value" class="mx-3 mb-3 md:mx-4"/>
       </template>
+      <ButtonRow class="border-t border-line-soft px-3 py-2.5 md:px-4">
+        <SecondaryButton v-if="levels?.editable" :disabled="changing.busy.value" @click="add">{{ t('admin.levels.add') }}</SecondaryButton>
+        <SecondaryButton :disabled="changing.busy.value" @click="recalculate">{{ t('admin.levels.recalculate') }}</SecondaryButton>
+      </ButtonRow>
+      <ActionNotice :problem="changing.problem.value" class="mx-3 mb-3 md:mx-4"/>
     </PanelBox>
     <div class="flex min-w-0 flex-col gap-4">
-      <Alert v-if="done" variant="success">{{ done }}</Alert>
+      <div v-if="done" ref="notice" tabindex="-1" data-testid="admin-levels-done">
+        <Alert variant="success">{{ done }}</Alert>
+      </div>
       <AdminLevelForm
           v-if="shown && levels"
           :key="`${shown.level}-${revision}`"
