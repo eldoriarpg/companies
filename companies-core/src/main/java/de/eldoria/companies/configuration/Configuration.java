@@ -94,6 +94,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     private final Set<Key<?>> unreadable = ConcurrentHashMap.newKeySet();
     private final Object copying = new Object();
+    private final Set<Path> backupFailed = ConcurrentHashMap.newKeySet();
     private final Map<String, Integer> applied = new ConcurrentHashMap<>();
     private volatile @Nullable BiConsumer<String, Integer> announcer;
 
@@ -498,7 +499,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Keeps a copy of a file before the primary's copy replaces it, so a change made on this node is not lost.
+     * Keeps a copy of a file before the primary's copy replaces it, so a change made on this node is not lost. A backup
+     * that keeps failing is reported once, until one is written again.
      *
      * @param file the file
      * @return whether the backup was written
@@ -511,6 +513,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         }
         try {
             Files.copy(file, backup);
+            backupFailed.remove(file);
             plugin().getLogger()
                     .warning(file.getFileName() + " was changed on this server and differs from the primary's copy,"
                             + " which replaces it now. This server's version is kept as " + backup.getFileName()
@@ -519,7 +522,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         } catch (IOException e) {
             plugin().getLogger()
                     .log(
-                            Level.SEVERE,
+                            backupFailed.add(file) ? Level.SEVERE : Level.FINE,
                             "Could not keep a backup of " + file.getFileName()
                                     + ", so the primary's copy does not replace it.",
                             e);

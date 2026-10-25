@@ -67,18 +67,8 @@ class SqLiteNodeDataTest {
     void aNodeThatReadAStaleRevisionRetriesOnTopOfTheNewerOne() {
         nodeData.publishSettings("company.yml", "first", "Ada");
         nodeData.publishSettings("company.yml", "second", "Ada");
-        var stale = new SqLiteNodeData(new NodeSettings()) {
-            private boolean answered;
 
-            @Override
-            public Optional<SettingsRevision> latestSettings(String path) {
-                if (answered) return super.latestSettings(path);
-                answered = true;
-                return Optional.of(new SettingsRevision(path, 1, "first", SettingsRevision.hash("first")));
-            }
-        };
-
-        assertEquals(OptionalInt.of(3), stale.publishSettings("company.yml", "third", "Bo"));
+        assertEquals(OptionalInt.of(3), staleAt(1).publishSettings("company.yml", "third", "Bo"));
         assertEquals(OptionalInt.empty(), staleAt(1).publishSettings("company.yml", "third", "Bo"));
         assertEquals(3, nodeData.latestSettings("company.yml").orElseThrow().revision());
     }
