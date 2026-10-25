@@ -50,7 +50,6 @@ notes it at start.
 
 If something is wrong, the webhook does not start and the console tells you why, without showing the URL:
 
-- "The environment variable NAME for the Discord webhook is not set."
 - "No Discord webhook url is configured."
 - "The Discord webhook url is not a valid url."
 - "The Discord webhook url has to start with https://."

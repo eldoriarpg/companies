@@ -15,8 +15,8 @@ import dev.chojo.ocular.override.Overwrite;
  * {@code redis} section of {@code database.yml}. Read at start only and never synced.
  * <p>
  * The password can come from the environment variable {@code COMPANIES_REDIS_PASSWORD} instead of the file; it is kept
- * apart from the file's value and never written. All nodes of a network
- * use the same server, database and channel prefix. The channel prefix moved to {@code messaging.channelPrefix};
+ * apart from the file's value and never written. All nodes of a network use the same server, database and channel
+ * prefix. The channel prefix moved to {@code messaging.channelPrefix};
  * {@code channelPrefix} in this section is still read from files that set it, and not written into new files.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})

@@ -202,7 +202,7 @@ The inbox is still checked with Redis, in case a message was missed, but only ev
    reach of the internet.
 2. Set the `redis` section in `database.yml` on **every** server, with the same server and `database`, and the same
    `messaging.channelPrefix`. See [database.yml](./configuration/database-yml.md#redis).
-3. Put the password into an environment variable, by default `COMPANIES_REDIS_PASSWORD`, so it is not in the file.
+3. Put the password into the environment variable `COMPANIES_REDIS_PASSWORD`, so it is not in the file.
 4. Restart the servers.
 
 Each server logs `Connected to Redis at <host>:<port>.` when it starts. `/companyadmin node list` shows `messages

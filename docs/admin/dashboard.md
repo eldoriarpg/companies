@@ -182,7 +182,7 @@ token starting with `cst_` on its first start; enter that token like a key:
 /companyadmin dashboard key <token>
 ```
 
-or set it in `node.yml` as `dashboard.serverKey`. Then point `dashboard.gateway` at your gateway, for example
+or set it in `node.yml` as `dashboard.serverKey`, or in the environment variable `COMPANIES_DASHBOARD_KEY`. Then point `dashboard.gateway` at your gateway, for example
 `wss://dashboard.example.org/api/v1/servers/connect`, and reload. A server token never rotates.
 
 :::warning A Lyna key goes to Eldoria's gateway only

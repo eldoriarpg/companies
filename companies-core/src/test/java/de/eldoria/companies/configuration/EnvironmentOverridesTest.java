@@ -10,6 +10,7 @@ import de.eldoria.companies.configuration.elements.DiscordSettings;
 import de.eldoria.companies.configuration.elements.RedisSettings;
 import de.eldoria.companies.configuration.elements.dashboard.NodeDashboardSettings;
 import dev.chojo.ocular.override.OverrideApplier;
+import dev.chojo.ocular.override.Overwrite;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
@@ -69,9 +70,20 @@ class EnvironmentOverridesTest {
     }
 
     @Test
-    void ocularGeneratedTheOverridesOfEverySecret() {
-        for (var type : new Class<?>[] {DiscordSettings.class, RedisSettings.class, NodeDashboardSettings.class}) {
-            assertDoesNotThrow(() -> Class.forName(type.getName() + "_OcularOverride"), type.getName());
-        }
+    void everySecretIsReadFromItsDocumentedVariable() throws NoSuchFieldException {
+        assertVariable(DiscordSettings.class, "urlOverride", "COMPANIES_DISCORD_WEBHOOK");
+        assertVariable(RedisSettings.class, "passwordOverride", "COMPANIES_REDIS_PASSWORD");
+        assertVariable(NodeDashboardSettings.class, "serverKeyOverride", "COMPANIES_DASHBOARD_KEY");
+    }
+
+    /**
+     * Asserts that ocular reads the field from the variable: the field names it, the generated supplier exists, and
+     * the settings sit below the configuration package, the root ocular applies overrides within.
+     */
+    private static void assertVariable(Class<?> type, String field, String variable) throws NoSuchFieldException {
+        var overwrite = type.getDeclaredField(field).getAnnotation(Overwrite.class);
+        assertEquals(variable, overwrite.env()[0].value());
+        assertDoesNotThrow(() -> Class.forName(type.getName() + "_OcularOverride"), type.getName());
+        assertTrue(type.getPackageName().startsWith(Configuration.class.getPackageName()), type.getName());
     }
 }
