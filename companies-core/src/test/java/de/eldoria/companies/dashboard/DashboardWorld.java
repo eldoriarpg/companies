@@ -97,6 +97,7 @@ import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.eldoutilities.localization.ILocalizer;
+import dev.chojo.ocular.key.Key;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -147,6 +148,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final AtomicInteger recalculations = new AtomicInteger();
     public final AtomicInteger configSyncs = new AtomicInteger();
     public volatile boolean failSync;
+    public volatile boolean companyUnreadable;
     public final BoardBindings boardBindings = new BoardBindings();
     public final FakeHook citizens = new FakeHook("Citizens", Set.of("4", "5"));
     public SqLiteNodeData nodeData;
@@ -369,6 +371,11 @@ public final class DashboardWorld implements AutoCloseable {
 
             @Override
             public void save() {}
+
+            @Override
+            public boolean unreadable(Key<?> key) {
+                return key == COMPANY_SETTINGS && companyUnreadable;
+            }
         };
         var adminOrderService = new AdminOrderService(
                 orders,

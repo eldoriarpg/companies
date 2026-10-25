@@ -185,9 +185,17 @@ public final class LevelAdminService {
     /**
      * @return whether levels can be changed on this node, which is the primary
      */
+    /**
+     * @return why levels cannot be changed on this node: {@code secondary} or {@code unreadable}, none when they can
+     */
+    public Optional<String> blocked() {
+        if (configuration.nodeSettings().nodeType() != NodeType.PRIMARY) return Optional.of("secondary");
+        if (configuration.unreadable(Configuration.COMPANY_SETTINGS)) return Optional.of("unreadable");
+        return Optional.empty();
+    }
+
     public boolean editable() {
-        return configuration.nodeSettings().nodeType() == NodeType.PRIMARY
-                && !configuration.unreadable(Configuration.COMPANY_SETTINGS);
+        return blocked().isEmpty();
     }
 
     private static List<String> inputs(CompanyLevel level) {

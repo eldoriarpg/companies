@@ -519,10 +519,12 @@ public final class Payloads {
     /**
      * The company levels for an admin.
      *
-     * @param editable whether this node may change them, which only the primary does
+     * @param editable whether this node may change them, which only the primary does while it can read
+     *                 {@code company.yml}
+     * @param blocked  why it may not: {@code secondary} or {@code unreadable}, none when it may
      * @param levels   the levels, lowest first
      */
-    public record AdminLevels(boolean editable, List<AdminLevel> levels) {}
+    public record AdminLevels(boolean editable, @Nullable String blocked, List<AdminLevel> levels) {}
 
     /**
      * A board preset with its open orders.

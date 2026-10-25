@@ -153,6 +153,19 @@ class AdminLevelWritesTest {
     }
 
     @Test
+    void levelsCannotChangeWhileCompanyYmlCannotBeRead() {
+        world.companyUnreadable = true;
+
+        var listed = level(Actions.ADMIN_LEVELS_LIST, "{}");
+        assertFalse(listed.data().path("editable").asBoolean());
+        assertEquals("unreadable", listed.data().path("blocked").asString());
+        assertEquals(
+                "companyadmin.level.unreadable",
+                level(Actions.ADMIN_LEVELS_CREATE, "{}").reason());
+        assertEquals(0, world.levelShares.get());
+    }
+
+    @Test
     void theLastLevelStaysAndChangesThatChangeNothingAreNotShared() {
         assertTrue(
                 level(Actions.ADMIN_LEVELS_EDIT, "{\"level\":1,\"values\":{}}").ok());

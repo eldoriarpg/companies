@@ -183,6 +183,7 @@ export default {
         levels: {
             title: 'Company levels',
             secondary: 'This server is not the primary server, so the levels can only be looked at here.',
+            unreadable: 'Levels cannot be changed while company.yml cannot be read. Fix the file and reload.',
             summary: '{orders} orders, {members} members, {money} earned, {items} items delivered',
             add: 'Add a level',
             recalculate: 'Recalculate all companies',

@@ -82,6 +82,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     private static final String APPLIED_FOLDER = ".synced";
 
     private final Set<Key<?>> unreadable = ConcurrentHashMap.newKeySet();
+    private final Object copying = new Object();
 
     public Configuration(Plugin plugin) {
         super(plugin, CONFIG_YML);
@@ -339,7 +340,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * Takes the primary's copy of a shared file on a secondary: saves it, reads it again, which applies this node's
      * environment overrides, and remembers what was written. A file that matches the copy is left alone. A file that
      * changed on this node since it last took a copy, or one never taken, is kept as
-     * {@code backup_<time>_<file>} first; when that backup cannot be written, the file stays and nothing is taken.
+     * {@code backup_<time>_<file>} first; when that backup cannot be written, the file stays and nothing is taken. One
+     * copy is taken at a time, so a full sync and a level change do not write a file at once.
      *
      * @param nodeData  the node repository holding the copies
      * @param configKey the file
@@ -347,21 +349,23 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @return whether the file changed
      */
     public <V> boolean takePrimaryCopy(ANodeData nodeData, Key<V> configKey) {
-        var copy = nodeData.primaryContent(configKey)
-                .orElseThrow(() -> new IllegalStateException(
-                        "No configuration present. Did you start the main node once already?"));
-        var file = plugin().getDataFolder().toPath().resolve(configKey.path());
-        if (tree(copy).equals(tree(file))) {
+        synchronized (copying) {
+            var copy = nodeData.primaryContent(configKey)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "No configuration present. Did you start the main node once already?"));
+            var file = plugin().getDataFolder().toPath().resolve(configKey.path());
+            if (tree(copy).equals(tree(file))) {
+                rememberApplied(file);
+                return false;
+            }
+            if (Files.exists(file) && editedHere(file) && !keepBackup(file)) return false;
+            plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
+            replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
+            save(configKey);
+            reload(configKey);
             rememberApplied(file);
-            return false;
+            return true;
         }
-        if (Files.exists(file) && editedHere(file) && !keepBackup(file)) return false;
-        plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
-        replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
-        save(configKey);
-        reload(configKey);
-        rememberApplied(file);
-        return true;
     }
 
     private boolean editedHere(Path file) {
