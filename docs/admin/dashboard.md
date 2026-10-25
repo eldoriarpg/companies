@@ -127,10 +127,9 @@ Changes apply on `/companyadmin reload`, which also reconnects.
 
 ## Logins
 
-A player runs `/company dashboard`, opens the short link on any device and enters the six-letter code shown in a dialog or in
-chat.
-The code works for five minutes. The chat tells the player when a browser logged in, so a login they did not do does
-not go unnoticed. See [Dashboard](../players/dashboard.md) for the player's side.
+A player runs `/company dashboard`, opens the short link on any device and enters the six-letter code shown in a dialog
+or in chat. The code works for five minutes. The chat tells the player when a browser logged in, so a login they did not
+do does not go unnoticed. See [Dashboard](../players/dashboard.md) for the player's side.
 
 A player stays logged in until they run `/company dashboard logout`, the login is unused for `sessionIdleMinutes`, it
 is older than `sessionMaxHours`, or you end it with `/companyadmin dashboard revoke <player>`.
