@@ -27,7 +27,8 @@ import java.util.stream.Collectors;
  * How a player logs in to the web dashboard: the short link, clickable and spelled out, and the six-letter code in
  * spaced capitals, so a player on a console can type both on a phone. As a dialog it adds a button opening the link;
  * Geyser shows the dialog to Bedrock players as a form, where the spelled out link and code are what counts, since a
- * Bedrock form cannot open a link.
+ * Bedrock form cannot open a link. The dialog stays open after the link was opened, so the code is still there to
+ * type into the browser.
  */
 public final class DashboardLoginMenu implements Menu<DashboardLoginMenu.Login> {
     private static final int BUTTON_WIDTH = 200;
@@ -63,7 +64,7 @@ public final class DashboardLoginMenu implements Menu<DashboardLoginMenu.Login> 
                 DialogAction.staticAction(ClickEvent.openUrl(model.link())));
         var base = DialogBase.builder(title)
                 .body(List.of(DialogBody.plainMessage(body)))
-                .afterAction(DialogBase.DialogAfterAction.CLOSE)
+                .afterAction(DialogBase.DialogAfterAction.NONE)
                 .build();
         return Optional.of(Dialog.create(factory -> factory.empty().base(base).type(DialogType.notice(open))));
     }

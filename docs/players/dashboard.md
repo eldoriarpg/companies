@@ -25,7 +25,7 @@ Keep it open on your phone next to the game: it updates while things happen on t
 
    Press **Open the dashboard**, or type the link into any browser, for example on your phone. On servers that show
    menus in chat, the link and the code appear in chat instead, and you click the link there. On Bedrock (through
-   Geyser) the window is a form; type the link on your phone, since a form cannot open it.
+   Geyser) the window is a form, and the button shows the link to type on your phone.
 3. Enter the six letters of the code.
 
 The chat says "The dashboard was opened on a browser" when you are logged in. If you see that message without having

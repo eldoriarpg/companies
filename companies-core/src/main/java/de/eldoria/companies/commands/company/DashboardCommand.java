@@ -35,8 +35,8 @@ import java.util.logging.Level;
  * {@code /company dashboard}: opens the web dashboard.
  * <p>
  * Without a subcommand it asks the gateway for a session and shows how to log in with {@link DashboardLoginMenu}: in a
- * dialog where the player sees dialogs, which Geyser shows Bedrock players as a form, and in chat otherwise. {@code logout} ends
- * every session of the player, {@code sessions} lists them.
+ * dialog where the player sees dialogs, which Geyser shows Bedrock players as a form, and in chat otherwise.
+ * {@code logout} ends every session of the player, {@code sessions} lists them.
  */
 @Subcommand("dashboard")
 @Permission(de.eldoria.companies.util.Permission.Dashboard.USE)
