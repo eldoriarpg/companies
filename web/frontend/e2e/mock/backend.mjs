@@ -143,9 +143,10 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config']
         : session.story.features ?? FEATURES
-    return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin}
+    const nodes = admin ? [{uid: PRIMARY_NODE, role: 'PRIMARY', name: 'survival'}, {uid: SECONDARY_NODE, role: 'SECONDARY'}] : []
+    return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin, nodes}
 }
 
 /**
@@ -223,6 +224,40 @@ function quoteOf(args) {
 
 /** The order the mock refuses to accept, as a company at its limit would hear it. */
 const LIMITED_ORDER = 3
+
+/** The primary node of the mock network. */
+const PRIMARY_NODE = '4f6c1f0e-2b7a-4c39-9a51-0d6f2c7e9b10'
+
+/** The secondary node of the mock network. */
+const SECONDARY_NODE = '9a2d7c41-6b0e-4f3a-8c15-2e7b9d0f4a63'
+
+/**
+ * The NPCs bound to boards on a node of a session, made on first use.
+ *
+ * @param state the session's state
+ * @param node the node, none for the primary
+ * @returns the bindings
+ */
+function npcs(state, node) {
+    state.npcs ??= {}
+    state.npcs[node ?? PRIMARY_NODE] ??= []
+    return state.npcs[node ?? PRIMARY_NODE]
+}
+
+/**
+ * The servers in the database of a session, made on first use: both nodes and an old one.
+ *
+ * @param state the session's state
+ * @returns the servers
+ */
+function servers(state) {
+    state.servers ??= [
+        {uid: PRIMARY_NODE, role: 'PRIMARY', version: '2.1.0', lastSeen: '2026-10-25T08:00:00Z', bus: 'Redis', current: true},
+        {uid: SECONDARY_NODE, role: 'SECONDARY', version: '2.1.0', lastSeen: '2026-10-25T08:01:00Z', bus: 'Redis', current: false},
+        {uid: '0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9', role: 'SECONDARY', version: '2.0.0', lastSeen: '2026-09-01T10:00:00Z', bus: '-', current: false},
+    ]
+    return state.servers
+}
 
 /**
  * A company level as the admin level editor shows it.
@@ -321,6 +356,26 @@ function action(name, args, state) {
             state.levels = levels(state).filter(entry => entry.level !== args.level).map((entry, index) => ({...entry, level: index + 1}))
             return done({editable: true, levels: state.levels})
         case 'admin.levels.recalculate':
+            return done({})
+        case 'admin.boards.presets':
+            return done({presets: [{name: 'iron', label: 'Iron', open: args.node === SECONDARY_NODE ? 1 : 4}]})
+        case 'admin.boards.reload':
+            return done({})
+        case 'admin.boards.npc.list':
+            return done({hooks: ['Citizens'], bindings: npcs(state, args.node)})
+        case 'admin.boards.npc.link':
+            if (args.npc === '99') return refused('Citizens has no NPC 99.')
+            npcs(state, args.node).push({hook: args.hook, npc: args.npc, board: args.board})
+            return done({hook: args.hook, npc: args.npc, board: args.board})
+        case 'admin.boards.npc.unlink':
+            state.npcs[args.node ?? PRIMARY_NODE] = npcs(state, args.node).filter(entry => entry.npc !== args.npc)
+            return done({hook: args.hook, npc: args.npc, board: ''})
+        case 'admin.nodes.list':
+            return done({nodes: servers(state)})
+        case 'admin.nodes.remove':
+            state.servers = servers(state).filter(entry => entry.uid !== args.node)
+            return done({nodes: state.servers})
+        case 'admin.config.sync':
             return done({})
         case 'company.create':
             if (args.name === 'Taken') return refused('A company with this name already exists.')

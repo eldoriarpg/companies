@@ -116,4 +116,44 @@ test.describe('admin', () => {
         await expect(page.getByTestId('admin-levels-done')).toBeFocused()
         await expect(page.getByTestId('admin-levels').getByRole('listitem')).toHaveCount(2)
     })
+
+    test('binds an NPC on the server the admin picks', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Boards'}).click()
+
+        await expect(page.getByTestId('admin-presets').getByText('4 open')).toBeVisible()
+        await page.getByLabel('Server').selectOption({label: 'Secondary 9a2d7c41'})
+        await expect(page.getByTestId('admin-presets').getByText('1 open')).toBeVisible()
+
+        const npcs = page.getByTestId('admin-npcs')
+        await npcs.getByLabel('NPC (Citizens id or FancyNpcs name)').fill('99')
+        await npcs.getByRole('button', {name: 'Bind'}).click()
+        await expect(npcs.getByText('Citizens has no NPC 99.')).toBeVisible()
+        await npcs.getByLabel('NPC (Citizens id or FancyNpcs name)').fill('4')
+        await npcs.getByLabel('Board', {exact: true}).fill('iron')
+        await npcs.getByRole('button', {name: 'Bind'}).click()
+        await expect(npcs.getByText('Citizens NPC 4 now opens its board.')).toBeVisible()
+        await expect(npcs.getByText('Citizens 4 → iron')).toBeVisible()
+        await npcs.getByRole('button', {name: 'Unbind'}).click()
+        await expect(npcs.getByText('No NPC opens a board on this server.')).toBeVisible()
+    })
+
+    test('removes an old server and syncs the configuration', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Servers'}).click()
+
+        const servers = page.getByTestId('admin-servers')
+        await expect(servers.getByText('survival')).toBeVisible()
+        await expect(servers.getByRole('listitem')).toHaveCount(3)
+        await servers.getByRole('listitem').filter({hasText: 'Secondary 0b1c2d3e'}).getByRole('button', {name: 'Remove'}).click()
+        await servers.getByRole('listitem').filter({hasText: 'Secondary 0b1c2d3e'}).getByRole('button', {name: 'Remove', exact: true}).last().click()
+        await expect(page.getByText('Secondary 0b1c2d3e is removed.')).toBeVisible()
+        await expect(servers.getByRole('listitem')).toHaveCount(2)
+
+        await page.getByRole('button', {name: 'Sync the configuration'}).click()
+        await page.getByRole('button', {name: 'Sync', exact: true}).click()
+        await expect(page.getByText('The configuration is synced.')).toBeVisible()
+    })
 })

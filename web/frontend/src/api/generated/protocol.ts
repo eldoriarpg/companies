@@ -65,6 +65,7 @@ export interface Hello {
 export interface NodeInfo {
   uid: string;
   role: NodeRole;
+  name?: string;
 }
 export interface Limits {
   maxPageSize: number;
