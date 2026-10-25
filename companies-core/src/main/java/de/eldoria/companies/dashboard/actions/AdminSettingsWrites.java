@@ -219,7 +219,7 @@ public final class AdminSettingsWrites {
     }
 
     private static void leaves(String prefix, JsonNode before, JsonNode after, List<String> found) {
-        if (section(before) && section(after) && (before.isObject() || after.isObject())) {
+        if (before.isObject() || after.isObject()) {
             var names = new TreeSet<String>();
             before.properties().forEach(entry -> names.add(entry.getKey()));
             after.properties().forEach(entry -> names.add(entry.getKey()));
@@ -229,10 +229,6 @@ public final class AdminSettingsWrites {
             return;
         }
         if (!before.equals(after)) found.add(prefix);
-    }
-
-    private static boolean section(JsonNode node) {
-        return node.isObject() || node.isMissingNode();
     }
 
     private static String owner(String file, String leaf) {

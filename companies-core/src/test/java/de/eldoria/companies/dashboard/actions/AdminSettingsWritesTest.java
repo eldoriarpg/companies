@@ -7,6 +7,7 @@ package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.dashboard.DashboardWorld;
+import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
@@ -20,9 +21,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AdminSettingsWritesTest {
+    private static final YAMLMapper YAML = YAMLMapper.builder().build();
+
     @TempDir
     Path directory;
 
@@ -201,5 +206,25 @@ class AdminSettingsWritesTest {
         assertFalse(setting(result, "generalSettings.messageBlocking")
                 .path("overridden")
                 .asBoolean());
+    }
+
+    private static List<String> keys(String file, String before, String after) {
+        return AdminSettingsWrites.diff(file, YAML.readTree(before), YAML.readTree(after)).stream()
+                .map(Payloads.AdminSettingDiff::key)
+                .toList();
+    }
+
+    @Test
+    void emptyOrReplacedSectionsAreDiffedSettingBySetting() {
+        assertEquals(
+                List.of("alerts.enabled", "alerts.maxPerCompany"),
+                keys("company.yml", "alerts:\n", "alerts:\n  enabled: true\n  maxPerCompany: 3\n"));
+        assertEquals(List.of("alerts.enabled"), keys("company.yml", "alerts: 5\n", "alerts:\n  enabled: true\n"));
+        assertEquals(
+                List.of("dashboard.features"),
+                keys(
+                        "config.yml",
+                        "dashboard:\n  features:\n    orders.browse: true\n",
+                        "dashboard:\n  features:\n    orders.browse: false\n    market: false\n"));
     }
 }
