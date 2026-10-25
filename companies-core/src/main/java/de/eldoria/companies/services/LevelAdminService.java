@@ -15,6 +15,7 @@ import de.eldoria.companies.menus.admin.LevelField;
 import de.eldoria.companies.menus.admin.LevelForm;
 import de.eldoria.companies.util.AdminLog;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -100,13 +101,14 @@ public final class LevelAdminService {
             String admin, CompanyLevel level, Map<LevelField, String> entered, OptionalInt position) {
         requireExisting(level);
         requirePrimary();
-        var moves = position.isPresent() && position.getAsInt() != level.level();
-        if (entered.isEmpty() && !moves) return Optional.empty();
         return switch (LevelForm.parse(entered)) {
             case LevelForm.Invalid invalid -> Optional.of(invalid);
             case LevelForm.Valid valid -> {
+                var number = level.level();
+                var before = inputs(level);
                 valid.changes().accept(level);
-                if (moves) settings().moveLevel(level.level(), position.getAsInt());
+                position.ifPresent(target -> settings().moveLevel(level.level(), target));
+                if (level.level() == number && inputs(level).equals(before)) yield Optional.empty();
                 changed();
                 log.entry(admin, "level save")
                         .with("level", level.level())
@@ -185,6 +187,12 @@ public final class LevelAdminService {
      */
     public boolean editable() {
         return configuration.nodeSettings().nodeType() == NodeType.PRIMARY;
+    }
+
+    private static List<String> inputs(CompanyLevel level) {
+        return Arrays.stream(LevelField.values())
+                .map(field -> field.input(level))
+                .toList();
     }
 
     private void changed() {

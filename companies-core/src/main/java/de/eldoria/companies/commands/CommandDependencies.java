@@ -347,6 +347,16 @@ public final class CommandDependencies {
     }
 
     /**
+     * Stops sharing level changes once the ones already made are written; called before the database closes.
+     *
+     * @return the executor writing the shared levels, shut down, to await
+     */
+    public ExecutorService stopLevelShares() {
+        levelShares.shutdown();
+        return levelShares;
+    }
+
+    /**
      * @return changes the company levels and shares them with the other nodes
      */
     public LevelAdminService levels() {

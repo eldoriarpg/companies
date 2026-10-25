@@ -19,8 +19,8 @@ import {money} from '~/util/format'
 
 /**
  * The company levels for an admin, as `/companyadmin level` and `calclevel` offer them: every level with what it
- * takes, one level edited in a form, levels added and removed, and every company's level recalculated. Changes are
- * shared with every server of the network right away; only the primary server makes them.
+ * takes, one level edited in a form, levels added and removed, and every company's level recalculated. Only the
+ * primary server makes changes; it writes them to the database for the other servers.
  */
 const {t, locale} = useI18n()
 const loading = useAction()

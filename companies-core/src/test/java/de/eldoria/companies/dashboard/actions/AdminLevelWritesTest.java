@@ -157,6 +157,14 @@ class AdminLevelWritesTest {
         assertTrue(
                 level(Actions.ADMIN_LEVELS_EDIT, "{\"level\":1,\"values\":{}}").ok());
         assertTrue(level(Actions.ADMIN_LEVELS_MOVE, "{\"level\":1,\"to\":1}").ok());
+        var unchanged = world.companySettings.level(1).orElseThrow();
+        assertTrue(level(
+                        Actions.ADMIN_LEVELS_EDIT,
+                        "{\"level\":1,\"values\":{\"name\":\"%s\",\"order_count\":\"%d\"},\"position\":1}"
+                                .formatted(
+                                        unchanged.levelName(),
+                                        unchanged.requirement().orderCount()))
+                .ok());
         assertEquals(
                 "dashboard.invalid",
                 level(Actions.ADMIN_LEVELS_EDIT, "{\"level\":1,\"values\":{\"name\":\" \"}}")
