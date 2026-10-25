@@ -5,36 +5,119 @@
  */
 package de.eldoria.companies.configuration.elements;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
 import org.jetbrains.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * The {@code overrides} section of {@code node.yml}: the few shared settings one server may set for itself, because
  * they depend on what that server has, such as its plugins. A setting left out uses the shared value. They are never
- * shared and are read at start, as all of {@code node.yml}.
+ * shared.
+ * <p>
+ * The section is read leniently: a value of the wrong type or an unknown key is named in {@link #problems()} and
+ * ignored, so a typo never makes {@code node.yml} unreadable, which would reset the server's role and id.
  */
-@SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class NodeOverrides {
-    private @Nullable Boolean messageBlocking;
-    private @Nullable Boolean boardsEnabled;
-    private @Nullable HookOverrides hooks;
-    private @Nullable BrandingOverrides branding;
+public final class NodeOverrides {
+    /**
+     * No overrides.
+     */
+    public static final NodeOverrides NONE = new NodeOverrides(Map.of(), List.of());
 
-    public NodeOverrides() {}
+    private static final String MESSAGE_BLOCKING = "messageBlocking";
+    private static final String BOARDS_ENABLED = "boardsEnabled";
+    private static final String HOOKS = "hooks";
+    private static final String BRANDING = "branding";
+    private static final Set<String> HOOK_KEYS = Set.of("placeholderapi", "citizens", "fancynpcs");
+    private static final Set<String> BRANDING_KEYS = Set.of("name", "icon");
+
+    private final Map<String, Object> values;
+    private final List<String> problems;
+
+    private NodeOverrides(Map<String, Object> values, List<String> problems) {
+        this.values = Map.copyOf(values);
+        this.problems = List.copyOf(problems);
+    }
+
+    /**
+     * @param section the {@code overrides} section as written, null when there is none
+     * @return the overrides it sets
+     */
+    public static NodeOverrides parse(@Nullable JsonNode section) {
+        if (section == null || section.isNull() || section.isMissingNode()) return NONE;
+        var values = new HashMap<String, Object>();
+        var problems = new ArrayList<String>();
+        if (!section.isObject()) {
+            problems.add("overrides must be a section of settings");
+            return new NodeOverrides(values, problems);
+        }
+        for (var entry : section.properties()) {
+            var key = entry.getKey();
+            var value = entry.getValue();
+            switch (key) {
+                case MESSAGE_BLOCKING, BOARDS_ENABLED -> flag(key, value, values, problems);
+                case HOOKS -> group(key, value, HOOK_KEYS, true, values, problems);
+                case BRANDING -> group(key, value, BRANDING_KEYS, false, values, problems);
+                default -> problems.add("overrides." + key + " is no setting a server can override");
+            }
+        }
+        return new NodeOverrides(values, problems);
+    }
+
+    private static void group(
+            String group,
+            JsonNode section,
+            Set<String> keys,
+            boolean flags,
+            Map<String, Object> values,
+            List<String> problems) {
+        if (section.isNull()) return;
+        if (!section.isObject()) {
+            problems.add("overrides." + group + " must be a section of settings");
+            return;
+        }
+        for (var entry : section.properties()) {
+            var key = group + "." + entry.getKey();
+            if (!keys.contains(entry.getKey())) {
+                problems.add("overrides." + key + " is no setting a server can override");
+            } else if (flags) {
+                flag(key, entry.getValue(), values, problems);
+            } else {
+                text(key, entry.getValue(), values, problems);
+            }
+        }
+    }
+
+    private static void flag(String key, JsonNode value, Map<String, Object> values, List<String> problems) {
+        if (value.isNull()) return;
+        if (value.isBoolean()) {
+            values.put(key, value.booleanValue());
+        } else {
+            problems.add("overrides." + key + " must be true or false");
+        }
+    }
+
+    private static void text(String key, JsonNode value, Map<String, Object> values, List<String> problems) {
+        if (value.isNull()) return;
+        if (value.isValueNode() && !value.isBinary()) {
+            values.put(key, value.asString());
+        } else {
+            problems.add("overrides." + key + " must be a text");
+        }
+    }
 
     /**
      * @param shared {@code generalSettings.messageBlocking} of {@code config.yml}
      * @return the value on this server
      */
     public boolean messageBlocking(boolean shared) {
-        return messageBlocking == null ? shared : messageBlocking;
+        return flag(MESSAGE_BLOCKING, shared);
     }
 
     /**
@@ -42,7 +125,7 @@ public class NodeOverrides {
      * @return the value on this server
      */
     public boolean boardsEnabled(boolean shared) {
-        return boardsEnabled == null ? shared : boardsEnabled;
+        return flag(BOARDS_ENABLED, shared);
     }
 
     /**
@@ -50,11 +133,10 @@ public class NodeOverrides {
      * @return the switches on this server
      */
     public Hooks hooks(Hooks shared) {
-        if (hooks == null) return shared;
         return new Hooks(
-                pick(hooks.placeholderapi, shared.placeholderapi()),
-                pick(hooks.citizens, shared.citizens()),
-                pick(hooks.fancynpcs, shared.fancynpcs()));
+                flag("hooks.placeholderapi", shared.placeholderapi()),
+                flag("hooks.citizens", shared.citizens()),
+                flag("hooks.fancynpcs", shared.fancynpcs()));
     }
 
     /**
@@ -62,57 +144,25 @@ public class NodeOverrides {
      * @return the name and icon of this server
      */
     public BrandingSettings branding(BrandingSettings shared) {
-        if (branding == null) return shared;
-        return new BrandingSettings(
-                branding.name == null ? shared.name() : branding.name,
-                branding.icon == null ? shared.icon() : branding.icon);
+        return new BrandingSettings((String) values.getOrDefault("branding.name", shared.name()), (String)
+                values.getOrDefault("branding.icon", shared.icon()));
     }
 
     /**
-     * @return the shared settings this server sets for itself
+     * @return the keys below {@code overrides} this server sets, sorted
      */
-    public List<ChangeTracker.Setting> overridden() {
-        var found = new ArrayList<ChangeTracker.Setting>();
-        if (messageBlocking != null) found.add(ChangeTracker.MESSAGE_BLOCKING);
-        if (boardsEnabled != null) found.add(ChangeTracker.BOARDS_ENABLED);
-        if (hooks != null) {
-            if (hooks.placeholderapi != null) found.add(ChangeTracker.HOOKS.child("placeholderapi"));
-            if (hooks.citizens != null) found.add(ChangeTracker.HOOKS.child("citizens"));
-            if (hooks.fancynpcs != null) found.add(ChangeTracker.HOOKS.child("fancynpcs"));
-        }
-        if (branding != null) {
-            if (branding.name != null) found.add(ChangeTracker.DASHBOARD.child("branding.name"));
-            if (branding.icon != null) found.add(ChangeTracker.DASHBOARD.child("branding.icon"));
-        }
-        return found;
-    }
-
-    private static boolean pick(@Nullable Boolean override, boolean shared) {
-        return override == null ? shared : override;
+    public List<String> set() {
+        return values.keySet().stream().sorted().toList();
     }
 
     /**
-     * The plugin hooks this server switches for itself.
+     * @return what was ignored and why, empty when the section was read as written
      */
-    @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public static class HookOverrides {
-        private @Nullable Boolean placeholderapi;
-        private @Nullable Boolean citizens;
-        private @Nullable Boolean fancynpcs;
-
-        public HookOverrides() {}
+    public List<String> problems() {
+        return problems;
     }
 
-    /**
-     * The dashboard name and icon of this server.
-     */
-    @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public static class BrandingOverrides {
-        private @Nullable String name;
-        private @Nullable String icon;
-
-        public BrandingOverrides() {}
+    private boolean flag(String key, boolean shared) {
+        return (Boolean) values.getOrDefault(key, shared);
     }
 }

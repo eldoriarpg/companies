@@ -111,7 +111,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             SHARED.stream().map(key -> key.path().toString()).toList(),
             this::currentTree,
             this::primary,
-            () -> nodeSettings().overrides().overridden());
+            this::restartValues);
     private volatile @Nullable ObjectMapper writer;
     private volatile @Nullable BiConsumer<String, Integer> announcer;
 
@@ -216,6 +216,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param value the content read
      */
     private void afterRead(Key<?> key, Object value) {
+        if (value instanceof NodeSettings node) {
+            node.overrides().problems().forEach(problem -> plugin().getLogger()
+                    .warning(key.path() + ": " + problem + ". It is ignored and the shared value is used."));
+        }
         if (!(value instanceof CompanySettings settings) || !settings.renumberLevels()) return;
         plugin().getLogger()
                 .warning("The levels in " + key.path() + " were not numbered 1 to "
@@ -633,6 +637,21 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public BrandingSettings branding() {
         return nodeSettings().overrides().branding(dashboardSettings().branding());
+    }
+
+    /**
+     * @return the value of each setting read only at start, as this server uses it
+     */
+    private Map<ChangeTracker.Setting, Object> restartValues() {
+        var general = generalSettings();
+        var hooks = hooks();
+        return Map.of(
+                ChangeTracker.ORDER_CHECK, general.orderCheckInterval(),
+                ChangeTracker.MESSAGE_BLOCKING, messageBlocking(),
+                ChangeTracker.HOOKS, List.of(hooks.placeholderapi(), hooks.citizens(), hooks.fancynpcs()),
+                ChangeTracker.OFFLINE_CACHE, placeholderSettings().offlineCacheSize(),
+                ChangeTracker.BOARDS_ENABLED, boardsEnabled(),
+                ChangeTracker.REPEATING_CHECK, orderSetting().repeating().checkMinutes());
     }
 
     /**

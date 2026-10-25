@@ -39,7 +39,7 @@ A server with a new `nodeUid` leaves its old entry in the database. Remove old e
 
 A few settings of [config.yml](./config-yml.md) depend on what one server has, such as its plugins. A server can set
 them for itself under `overrides`. Anything left out uses the shared value from `config.yml`. Overrides are never
-shared, and like the rest of `node.yml` they apply on restart.
+shared. The branding applies on `/companyadmin reload`, the others on restart.
 
 | Key | Instead of `config.yml` |
 |---|---|
@@ -51,7 +51,7 @@ shared, and like the rest of `node.yml` they apply on restart.
 | `overrides.branding.name` | `dashboard.branding.name` |
 | `overrides.branding.icon` | `dashboard.branding.icon` |
 
-A lobby without Citizens and without order boards:
+A lobby without Citizens and without order board signs:
 
 ```yaml
 overrides:
@@ -62,7 +62,11 @@ overrides:
     name: Lobby
 ```
 
-A shared change to an overridden setting does not mark the server as waiting for a restart.
+A shared change to an overridden setting does not mark the server as waiting for a restart; changing the override
+itself and reloading does.
+
+A value of the wrong type, such as `messageBlocking: maybe`, or a key not in the table is named in the server log and
+ignored; the shared value is used. It stays in the file so you can fix it.
 
 ## Primary and secondary
 

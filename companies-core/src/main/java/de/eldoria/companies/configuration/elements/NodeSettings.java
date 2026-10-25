@@ -5,7 +5,11 @@
  */
 package de.eldoria.companies.configuration.elements;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import de.eldoria.companies.configuration.elements.dashboard.NodeDashboardSettings;
+import org.jetbrains.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
 
 import java.util.UUID;
 
@@ -17,7 +21,12 @@ public class NodeSettings {
     private UUID nodeUid = UUID.randomUUID();
     private String name = "";
     private NodeDashboardSettings dashboard = new NodeDashboardSettings();
-    private NodeOverrides overrides = new NodeOverrides();
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private @Nullable JsonNode overrides;
+
+    @JsonIgnore
+    private transient @Nullable NodeOverrides parsedOverrides;
 
     public NodeType nodeType() {
         return nodeType;
@@ -48,9 +57,17 @@ public class NodeSettings {
     }
 
     /**
+     * The {@code overrides} section, read leniently, so a typo in it is reported instead of making the file unreadable.
+     * It is written back as it was.
+     *
      * @return the shared settings this server sets for itself
      */
     public NodeOverrides overrides() {
-        return overrides == null ? new NodeOverrides() : overrides;
+        var parsed = parsedOverrides;
+        if (parsed == null) {
+            parsed = NodeOverrides.parse(overrides);
+            parsedOverrides = parsed;
+        }
+        return parsed;
     }
 }

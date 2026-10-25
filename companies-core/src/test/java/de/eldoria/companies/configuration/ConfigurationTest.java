@@ -7,6 +7,7 @@ package de.eldoria.companies.configuration;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import de.eldoria.companies.configuration.elements.CompanySettings;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -49,6 +51,10 @@ class ConfigurationTest {
 
     @BeforeEach
     void setUp() {
+        configuration = new Configuration(plugin(folder, logger()));
+    }
+
+    private Logger logger() {
         var logger = Logger.getAnonymousLogger();
         logger.setUseParentHandlers(false);
         logger.addHandler(new Handler() {
@@ -63,7 +69,7 @@ class ConfigurationTest {
             @Override
             public void close() {}
         });
-        configuration = new Configuration(plugin(folder, logger));
+        return logger;
     }
 
     @Test
@@ -92,7 +98,7 @@ class ConfigurationTest {
                   branding:
                     name: Lobby
                 """);
-        configuration = new Configuration(plugin(folder, Logger.getAnonymousLogger()));
+        configuration = new Configuration(plugin(folder, logger()));
 
         assertFalse(configuration.messageBlocking());
         assertFalse(configuration.hooks().citizens());
@@ -106,11 +112,53 @@ class ConfigurationTest {
         assertTrue(shared.path("generalSettings").path("messageBlocking").asBoolean());
         assertTrue(shared.path("generalSettings").path("hooks").path("citizens").asBoolean());
         assertEquals(
-                List.of(
-                        ChangeTracker.MESSAGE_BLOCKING,
-                        ChangeTracker.HOOKS.child("citizens"),
-                        ChangeTracker.DASHBOARD.child("branding.name")),
-                configuration.nodeSettings().overrides().overridden());
+                List.of("branding.name", "hooks.citizens", "messageBlocking"),
+                configuration.nodeSettings().overrides().set());
+    }
+
+    @Test
+    void aTypoInAnOverrideIsNamedAndKeepsTheServersRole() throws IOException {
+        var uid = UUID.randomUUID();
+        Files.writeString(folder.resolve("node.yml"), """
+                nodeType: SECONDARY
+                nodeUid: %s
+                overrides:
+                  messageBlocking: maybe
+                  boardEnabled: false
+                  hooks:
+                    citizens: false
+                """.formatted(uid));
+        configuration = new Configuration(plugin(folder, logger()));
+
+        assertEquals(NodeType.SECONDARY, configuration.nodeSettings().nodeType());
+        assertEquals(uid, configuration.nodeSettings().nodeUid());
+        assertTrue(configuration.messageBlocking());
+        assertFalse(configuration.hooks().citizens());
+        assertTrue(warnings.stream().anyMatch(warning -> warning.contains("overrides.messageBlocking")));
+        assertTrue(warnings.stream().anyMatch(warning -> warning.contains("overrides.boardEnabled")));
+
+        configuration.save(Configuration.NODE_SETTINGS);
+        var written = Files.readString(folder.resolve("node.yml"));
+        assertTrue(written.contains("maybe"), written);
+        assertTrue(written.contains("boardEnabled"), written);
+    }
+
+    @Test
+    void changingAnOverrideNeedsARestartButAnOverriddenSharedChangeDoesNot() throws IOException {
+        Files.writeString(folder.resolve("node.yml"), "nodeType: PRIMARY\noverrides:\n  boardsEnabled: true\n");
+        configuration = new Configuration(plugin(folder, logger()));
+        configuration.started();
+
+        var config = folder.resolve("config.yml");
+        configuration.save(Configuration.CONFIG_YML);
+        Files.writeString(config, Files.readString(config).replace("enabled: true", "enabled: false"));
+        configuration.reload();
+        assertFalse(configuration.boardSettings().enabled());
+        assertEquals(List.of(), configuration.restartPending());
+
+        Files.writeString(folder.resolve("node.yml"), "nodeType: PRIMARY\noverrides:\n  messageBlocking: false\n");
+        configuration.reload();
+        assertTrue(configuration.restartPending().contains(ChangeTracker.MESSAGE_BLOCKING));
     }
 
     @Test

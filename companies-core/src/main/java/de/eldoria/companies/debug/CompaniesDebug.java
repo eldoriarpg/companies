@@ -67,8 +67,14 @@ public class CompaniesDebug implements DebugDataProvider {
                             "Node bus", bus(),
                             "PlaceholderAPI hook",
                                     String.valueOf(configuration.hooks().placeholderapi()),
-                            "Restart pending", restartPending()))
+                            "Restart pending", restartPending(),
+                            "Overrides", overrides()))
         };
+    }
+
+    private String overrides() {
+        var set = configuration.nodeSettings().overrides().set();
+        return set.isEmpty() ? "none" : String.join(", ", set);
     }
 
     private String restartPending() {

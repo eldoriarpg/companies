@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
@@ -50,6 +51,8 @@ public final class ChangeTracker {
     public static final Setting HOOKS = Setting.of(CONFIG, "generalSettings.hooks");
     /** Whether order boards are on. */
     public static final Setting BOARDS_ENABLED = Setting.of(CONFIG, "boards.enabled");
+    /** How many offline players the placeholders keep. */
+    public static final Setting OFFLINE_CACHE = Setting.of(CONFIG, "placeholders.offlineCacheSize");
     /** How often the primary looks for expired orders. */
     public static final Setting ORDER_CHECK = Setting.of(CONFIG, "generalSettings.orderCheckInterval");
     /** How often the primary posts due repeating orders. */
@@ -58,13 +61,8 @@ public final class ChangeTracker {
     /**
      * The settings that are only read when the server starts.
      */
-    public static final List<Setting> RESTART = List.of(
-            ORDER_CHECK,
-            MESSAGE_BLOCKING,
-            HOOKS,
-            Setting.of(CONFIG, "placeholders.offlineCacheSize"),
-            BOARDS_ENABLED,
-            REPEATING_CHECK);
+    public static final List<Setting> RESTART =
+            List.of(ORDER_CHECK, MESSAGE_BLOCKING, HOOKS, OFFLINE_CACHE, BOARDS_ENABLED, REPEATING_CHECK);
 
     /**
      * The settings of {@link #RESTART} only the primary uses, so a secondary needs no restart for them.
@@ -74,7 +72,8 @@ public final class ChangeTracker {
     private final List<String> paths;
     private final Function<String, Optional<JsonNode>> current;
     private final BooleanSupplier primary;
-    private final Supplier<List<Setting>> overridden;
+    private final Supplier<Map<Setting, Object>> restartValues;
+    private Map<Setting, Object> startValues = Map.of();
     private final Map<String, JsonNode> applied = new HashMap<>();
     private final Map<String, JsonNode> started = new HashMap<>();
     private boolean running;
@@ -83,17 +82,17 @@ public final class ChangeTracker {
      * @param paths   the shared files
      * @param current the tree of a file's current content, by its path, empty when it cannot be written now
      * @param primary    whether this server is the primary
-     * @param overridden the shared settings this server sets for itself, which need no restart when shared ones change
+     * @param restartValues the value of each setting of {@link #RESTART} on this server, with its own overrides
      */
     public ChangeTracker(
             List<String> paths,
             Function<String, Optional<JsonNode>> current,
             BooleanSupplier primary,
-            Supplier<List<Setting>> overridden) {
+            Supplier<Map<Setting, Object>> restartValues) {
         this.paths = List.copyOf(paths);
         this.current = current;
         this.primary = primary;
-        this.overridden = overridden;
+        this.restartValues = restartValues;
     }
 
     /**
@@ -101,6 +100,7 @@ public final class ChangeTracker {
      */
     public synchronized void start() {
         running = true;
+        startValues = Map.copyOf(restartValues.get());
         for (var path : paths) {
             current.apply(path).ifPresent(tree -> {
                 started.put(path, tree);
@@ -130,26 +130,16 @@ public final class ChangeTracker {
     }
 
     /**
-     * @return the settings read only at start that differ from what the server started with, without those only the
-     *     primary uses when this server is a secondary and those this server sets for itself
+     * @return the settings read only at start whose value on this server differs from the one it started with, its
+     *     own overrides included, without those only the primary uses when this server is a secondary
      */
     public synchronized List<Setting> restartPending() {
         if (!running) return List.of();
-        var relevant = RESTART.stream()
+        var now = restartValues.get();
+        return RESTART.stream()
                 .filter(setting -> primary.getAsBoolean() || !PRIMARY_ONLY.contains(setting))
+                .filter(setting -> !Objects.equals(startValues.get(setting), now.get(setting)))
                 .toList();
-        var own = overridden.get();
-        var found = new LinkedHashSet<Setting>();
-        for (var path : paths) {
-            var start = started.get(path);
-            var tree = current.apply(path);
-            if (start == null || tree.isEmpty()) continue;
-            for (var key : Configuration.changes(start, tree.get())) {
-                if (own.stream().anyMatch(setting -> setting.holds(path, key))) continue;
-                relevant.stream().filter(setting -> setting.covers(path, key)).forEach(found::add);
-            }
-        }
-        return List.copyOf(found);
     }
 
     /**
@@ -198,15 +188,6 @@ public final class ChangeTracker {
          */
         public boolean covers(Setting changed) {
             return covers(changed.path(), changed.key());
-        }
-
-        /**
-         * @param path       a file
-         * @param changedKey a dotted key in it
-         * @return whether that key is this setting or lies in it
-         */
-        public boolean holds(String path, String changedKey) {
-            return this.path.equals(path) && (changedKey.equals(key) || changedKey.startsWith(key + "."));
         }
 
         /**
