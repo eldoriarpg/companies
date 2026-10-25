@@ -149,9 +149,9 @@ dashboard key, and `/companyadmin dashboard revoke <player>` logs a player out o
 | `/companyadmin reload` | `companies.admin.reload` | Reads the configuration files again and applies them; in a network it names the shared settings changed here |
 | `/companyadmin reload confirm` | `companies.admin.reload` | Shares those settings with every server |
 | `/companyadmin syncconfiguration` | `companies.admin` | Copies the configuration between the primary server and the database |
-| `/companyadmin settings status` | `companies.admin` | Shows which revision of each shared file every server uses |
+| `/companyadmin settings status` | `companies.admin` | Shows the latest revision of each shared file, the one this server uses, and the servers still on an older one |
 | `/companyadmin settings history <file> [page]` | `companies.admin` | Lists who changed a shared file, where and when |
-| `/companyadmin settings rollback <file> <revision>` | `companies.admin` | Makes an earlier revision of a shared file the newest again, after you confirm |
+| `/companyadmin settings rollback <file> <revision>` | `companies.admin.reload` | Makes an earlier revision of a shared file the newest again, after you confirm |
 | `/companyadmin debug` | `companies.admin.debug` | Creates a debug report for support |
 | `/companyadmin node list` | `companies.admin.nodes` | Lists the servers registered in the database and how they send each other messages (Redis, PostgreSQL notify, low latency or none) |
 | `/companyadmin node remove <uid>` | `companies.admin.nodes` | Removes the entry of a server that no longer runs, after you confirm |

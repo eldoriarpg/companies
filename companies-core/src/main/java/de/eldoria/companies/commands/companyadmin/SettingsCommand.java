@@ -23,6 +23,7 @@ import org.bukkit.entity.Player;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -38,7 +39,9 @@ import java.util.stream.Collectors;
  *     <li>{@code history <file> [page]} lists the revisions of a file, newest first, with who stored them, where and
  *     when;</li>
  *     <li>{@code rollback <file> <revision>} asks to make an earlier revision the newest again;
- *     {@code rollback confirm}, within 30 seconds, stores it as the next revision, which every server then takes.</li>
+ *     {@code rollback confirm}, within 30 seconds, stores it as the next revision, which every server then takes. It is
+ *     refused when another revision was stored after the ask. Rolling back needs the reload permission, as sharing an
+ *     edit does.</li>
  * </ul>
  * They need only the database and work from the console.
  */
@@ -46,6 +49,7 @@ import java.util.stream.Collectors;
 @Permission(Admin.ADMIN)
 public final class SettingsCommand {
     private static final int PAGE_SIZE = 10;
+    private static final int MAX_PAGE = Integer.MAX_VALUE / PAGE_SIZE;
     private static final int SHORT_UID = 8;
     private static final UUID CONSOLE = new UUID(0, 0);
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -69,20 +73,22 @@ public final class SettingsCommand {
     public void status(CommandSender sender) {
         var nodeData = nodeData();
         run(sender, () -> deps.configuration().status(nodeData), statuses -> {
-            var text = MenuText.create().text("<heading>").locale("companyadmin.settings.title");
+            deps.messages()
+                    .sendMessage(sender, MenuText.create().text("<heading>").locale("companyadmin.settings.title"));
             for (var status : statuses) {
-                text.newLine()
+                var text = MenuText.create()
                         .locale(
                                 "companyadmin.settings.file",
                                 Values.text("file", status.path()),
                                 Values.number("latest", status.latest()),
                                 Values.number("applied", status.applied()));
-                if (status.edited()) text.locale("companyadmin.settings.edited");
+                if (status.edited()) text.space().locale("companyadmin.settings.edited");
                 if (!status.behind().isEmpty()) {
-                    text.locale("companyadmin.settings.behind", Values.text("nodes", shortUids(status.behind())));
+                    text.space()
+                            .locale("companyadmin.settings.behind", Values.text("nodes", shortUids(status.behind())));
                 }
+                deps.messages().sendMessage(sender, text);
             }
-            deps.messages().sendMessage(sender, text);
         });
     }
 
@@ -108,25 +114,28 @@ public final class SettingsCommand {
     public void history(CommandSender sender, String file, int page) {
         var path = sharedPath(file);
         var nodeData = nodeData();
-        var shown = Math.max(1, page);
+        var shown = Math.clamp(page, 1, MAX_PAGE);
         run(sender, () -> nodeData.settingsHistory(path, (shown - 1) * PAGE_SIZE, PAGE_SIZE), changes -> {
-            var text = MenuText.create()
-                    .text("<heading>")
-                    .locale(
-                            "companyadmin.settings.history.title",
-                            Values.text("file", path),
-                            Values.number("page", shown));
-            if (changes.isEmpty()) text.newLine().locale("companyadmin.settings.history.none");
+            deps.messages()
+                    .sendMessage(
+                            sender,
+                            MenuText.create()
+                                    .text("<heading>")
+                                    .locale(
+                                            "companyadmin.settings.history.title",
+                                            Values.text("file", path),
+                                            Values.number("page", shown)));
+            if (changes.isEmpty()) deps.messages().sendMessage(sender, "companyadmin.settings.history.none");
             for (var change : changes) {
-                text.newLine()
+                var text = MenuText.create()
                         .locale(
                                 "companyadmin.settings.history.entry",
                                 Values.number("revision", change.revision()),
                                 Values.text("time", TIME.format(Times.local(change.changed()))),
                                 Values.text("actor", change.actor()),
                                 Values.text("node", shortUid(change.node())));
+                deps.messages().sendMessage(sender, text);
             }
-            deps.messages().sendMessage(sender, text);
         });
     }
 
@@ -138,11 +147,12 @@ public final class SettingsCommand {
      * @param revision the earlier revision
      */
     @Executes("rollback")
+    @Permission(Admin.RELOAD)
     public void rollback(CommandSender sender, String file, int revision) {
         var path = sharedPath(file);
         var nodeData = nodeData();
-        run(sender, () -> nodeData.settingsAt(path, revision).isPresent(), exists -> {
-            if (!exists) {
+        run(sender, () -> latestIfStored(nodeData, path, revision), latest -> {
+            if (latest.isEmpty()) {
                 deps.messages()
                         .sendError(
                                 sender,
@@ -151,7 +161,16 @@ public final class SettingsCommand {
                                 Values.number("revision", revision));
                 return;
             }
-            rollbacks.request(senderId(sender), new Rollback(path, revision));
+            if (revision >= latest.getAsInt()) {
+                deps.messages()
+                        .sendError(
+                                sender,
+                                "companyadmin.settings.rollback.latest",
+                                Values.text("file", path),
+                                Values.number("revision", latest.getAsInt()));
+                return;
+            }
+            rollbacks.request(senderId(sender), new Rollback(path, revision, latest.getAsInt()));
             deps.messages()
                     .sendMessage(
                             sender,
@@ -167,6 +186,7 @@ public final class SettingsCommand {
      * @param sender sender of the command
      */
     @Executes("rollback confirm")
+    @Permission(Admin.RELOAD)
     public void confirm(CommandSender sender) {
         var rollback =
                 rollbacks.confirm(senderId(sender)).orElseThrow(() -> CommandFailure.of("error.confirmationExpired"));
@@ -174,41 +194,61 @@ public final class SettingsCommand {
         run(
                 sender,
                 () -> deps.configuration()
-                        .rollback(nodeData, rollback.path(), rollback.revision(), sender.getName())
+                        .rollback(nodeData, rollback.path(), rollback.revision(), rollback.base(), sender.getName())
                         .orElseThrow(() -> CommandFailure.of("companyadmin.settings.error.unknownRevision")),
                 outcome -> rolledBack(sender, rollback, outcome));
     }
 
-    private void rolledBack(CommandSender sender, Rollback rollback, Configuration.EditOutcome outcome) {
-        if (outcome.revision().isEmpty()) {
-            deps.messages()
-                    .sendError(
-                            sender,
-                            "companyadmin.reload.conflict",
-                            Values.text("file", outcome.path()),
-                            Values.text("kept", String.valueOf(outcome.conflictFile())));
-            return;
+    private static OptionalInt latestIfStored(ANodeData nodeData, String path, int revision) {
+        if (nodeData.settingsAt(path, revision).isEmpty()) return OptionalInt.empty();
+        return OptionalInt.of(nodeData.settingsRevisions().getOrDefault(path, 0));
+    }
+
+    private void rolledBack(CommandSender sender, Rollback rollback, Configuration.RollbackOutcome outcome) {
+        var file = Values.text("file", rollback.path());
+        switch (outcome) {
+            case Configuration.RollbackOutcome.Newer newer ->
+                deps.messages()
+                        .sendError(
+                                sender,
+                                "companyadmin.settings.rollback.newer",
+                                file,
+                                Values.number("latest", newer.latest()));
+            case Configuration.RollbackOutcome.Unchanged unchanged ->
+                deps.messages()
+                        .sendMessage(
+                                sender,
+                                "companyadmin.settings.rollback.unchanged",
+                                file,
+                                Values.number("revision", rollback.revision()),
+                                Values.number("latest", unchanged.latest()));
+            case Configuration.RollbackOutcome.RolledBack done -> {
+                deps.adminLog()
+                        .entry(sender, "settings rollback")
+                        .with("file", rollback.path())
+                        .with("revision", rollback.revision())
+                        .with("new", done.revision())
+                        .write();
+                if (done.replaced()
+                        && rollback.path()
+                                .equals(Configuration.CONFIG_YML.path().toString())) {
+                    deps.plugin().getServer().getScheduler().runTask(deps.plugin(), () -> {
+                        deps.services().updates().apply();
+                        deps.reloaded();
+                    });
+                }
+                deps.messages()
+                        .sendMessage(
+                                sender,
+                                "companyadmin.settings.rollback.done",
+                                file,
+                                Values.number("revision", rollback.revision()),
+                                Values.number("new", done.revision()));
+                if (!done.applied()) {
+                    deps.messages().sendError(sender, "companyadmin.settings.rollback.notApplied", file);
+                }
+            }
         }
-        deps.adminLog()
-                .entry(sender, "settings rollback")
-                .with("file", rollback.path())
-                .with("revision", rollback.revision())
-                .with("new", outcome.revision().getAsInt())
-                .write();
-        if (outcome.replaced()
-                && rollback.path().equals(Configuration.CONFIG_YML.path().toString())) {
-            deps.plugin().getServer().getScheduler().runTask(deps.plugin(), () -> {
-                deps.services().updates().apply();
-                deps.reloaded();
-            });
-        }
-        deps.messages()
-                .sendMessage(
-                        sender,
-                        "companyadmin.settings.rollback.done",
-                        Values.text("file", rollback.path()),
-                        Values.number("revision", rollback.revision()),
-                        Values.number("new", outcome.revision().getAsInt()));
     }
 
     private String sharedPath(String file) {
@@ -247,7 +287,7 @@ public final class SettingsCommand {
                         return null;
                     }
                     deps.plugin().getLogger().log(Level.SEVERE, "Could not read or change the shared settings", err);
-                    deps.messages().sendError(sender, "companyadmin.reload.failed");
+                    deps.messages().sendError(sender, "companyadmin.settings.error.failed");
                     return null;
                 });
     }
@@ -257,6 +297,7 @@ public final class SettingsCommand {
      *
      * @param path     the file
      * @param revision the earlier revision
+     * @param base     the latest revision when it was asked for
      */
-    private record Rollback(String path, int revision) {}
+    private record Rollback(String path, int revision, int base) {}
 }

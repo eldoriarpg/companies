@@ -151,7 +151,9 @@ without asking.
   and when.
 - `/companyadmin settings rollback <file> <revision>` brings back an earlier revision. Its content is stored as the
   next revision, so the history keeps every step, and every server takes it like any other change. Run
-  `/companyadmin settings rollback confirm` within 30 seconds to do it.
+  `/companyadmin settings rollback confirm` within 30 seconds to do it. When another server stored a newer revision of
+  the file in between, nothing changes and you are told; look at the history and roll back again. Rolling back needs
+  `companies.admin.reload`.
 
 Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.

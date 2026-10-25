@@ -57,7 +57,7 @@ Only operators have these by default.
 | `companies.admin.nodes` | op | List and remove the servers registered in the database with `/companyadmin node`. |
 | `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. |
 | `companies.admin.player` | op | Look up the company, orders, items and notifications of a player with `/companyadmin player`. |
-| `companies.admin.reload` | op | Reload the configuration with `/companyadmin reload`. |
+| `companies.admin.reload` | op | Reload and share the configuration with `/companyadmin reload`, and roll back a shared file with `/companyadmin settings rollback`. |
 | `companies.admin.rename` | op | Rename companies with `/companyadmin rename`. |
 | `companies.admin.transferOwner` | op | Make another member the owner of a company with `/companyadmin transferowner`. |
 | `companies.admin.treasury` | op | Look at company treasuries and add or remove money with `/companyadmin treasury`. |

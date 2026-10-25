@@ -76,12 +76,13 @@ public final class NodeCommand {
     public void list(CommandSender sender) {
         var nodeData = nodeData();
         run(sender, () -> new Listing(nodeData.nodes(), behind(nodeData)), listing -> {
-            var text = MenuText.create().text("<heading>").locale("companyadmin.node.title");
+            deps.messages()
+                    .sendMessage(sender, MenuText.create().text("<heading>").locale("companyadmin.node.title"));
             for (var node : listing.nodes()) {
-                text.newLine().append(entry(nodeData, node));
-                if (listing.behind().contains(node.uid())) text.locale("companyadmin.node.behind");
+                var entry = entry(nodeData, node);
+                if (listing.behind().contains(node.uid())) entry.space().locale("companyadmin.node.behind");
+                deps.messages().sendMessage(sender, entry);
             }
-            deps.messages().sendMessage(sender, text);
         });
     }
 

@@ -265,8 +265,8 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin syncconfiguration` | `companies.admin` | yes | Primary server: stores each changed shared file as a new revision. Secondary server: takes the latest revisions and applies them like a reload. |
 | `/companyadmin settings status` | `companies.admin` | yes | Lists each shared file with its latest revision, the revision this server uses, whether it was changed here without being shared, and the servers still on an older revision. |
 | `/companyadmin settings history <file> [page]` | `companies.admin` | yes | Lists the revisions of a shared file, newest first, with who stored them, on which server and when. 10 per page. |
-| `/companyadmin settings rollback <file> <revision>` | `companies.admin` | yes | Stores the content of an earlier revision as the next revision, so every server takes it. Asks you to confirm. |
-| `/companyadmin settings rollback confirm` | `companies.admin` | yes | Confirms the rollback. |
+| `/companyadmin settings rollback <file> <revision>` | `companies.admin.reload` | yes | Stores the content of an earlier revision as the next revision, so every server takes it. Asks you to confirm. |
+| `/companyadmin settings rollback confirm` | `companies.admin.reload` | yes | Confirms the rollback. Refused when the file got a newer revision since you asked. |
 | `/companyadmin calclevel` | `companies.admin.calcLevel` | yes | Recalculates the level of every company. |
 | `/companyadmin delete <name>` | `companies.admin.delete` | no | Dissolves a company. Shows its members, the orders it works on and its treasury, and asks you to confirm. |
 | `/companyadmin delete confirm` | `companies.admin.delete` | no | Confirms the delete. |

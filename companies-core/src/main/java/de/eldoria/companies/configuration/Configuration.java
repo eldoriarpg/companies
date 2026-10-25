@@ -492,28 +492,68 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Makes an earlier revision of a shared file the newest again: stores its content as the next revision and applies
-     * it on this node. The other nodes take it as any new revision.
+     * Makes an earlier revision of a shared file the newest again: stores its content as the revision after
+     * {@code base} and applies it on this node. The other nodes take it as any new revision. When a revision newer than
+     * {@code base} was stored meanwhile, nothing is stored, so a rollback never silently replaces a change it was not
+     * asked about.
      *
      * @param nodeData the node repository holding the revisions
      * @param path     the file
      * @param revision the earlier revision
+     * @param base     the latest revision when the rollback was asked for
      * @param actor    who rolled back
      * @return what happened, empty when the file is not shared or has no such revision
      */
-    public Optional<EditOutcome> rollback(ANodeData nodeData, String path, int revision, String actor) {
+    public Optional<RollbackOutcome> rollback(ANodeData nodeData, String path, int revision, int base, String actor) {
         var key = sharedKey(path);
         var earlier = nodeData.settingsAt(path, revision);
         if (key.isEmpty() || earlier.isEmpty()) return Optional.empty();
         synchronized (copying) {
-            var latest = nodeData.latestSettings(path)
-                    .map(SettingsRevision::revision)
-                    .orElse(0);
-            var outcome = publishEdit(nodeData, key.get(), latest, earlier.get().content(), actor);
-            if (outcome.revision().isEmpty()) return Optional.of(outcome);
-            var replaced = take(nodeData, key.get(), true);
-            return Optional.of(new EditOutcome(path, outcome.revision(), null, replaced));
+            return Optional.of(
+                    switch (nodeData.publishSettingsOn(path, base, earlier.get().content(), actor)) {
+                        case ANodeData.PublishOutcome.Published published -> {
+                            plugin().getLogger()
+                                    .info("Stored revision " + revision + " of " + path + " as revision "
+                                            + published.revision() + ".");
+                            var replaced = take(nodeData, key.get(), true);
+                            var announce = announcer;
+                            if (announce != null) announce.accept(path, published.revision());
+                            yield new RollbackOutcome.RolledBack(
+                                    published.revision(), replaced, appliedRevision(path) >= published.revision());
+                        }
+                        case ANodeData.PublishOutcome.Unchanged unchanged ->
+                            new RollbackOutcome.Unchanged(unchanged.revision());
+                        case ANodeData.PublishOutcome.Conflict conflict -> new RollbackOutcome.Newer(conflict.latest());
+                    });
         }
+    }
+
+    /**
+     * What a rollback did.
+     */
+    public sealed interface RollbackOutcome {
+        /**
+         * The earlier content was stored as a new revision.
+         *
+         * @param revision the new revision
+         * @param replaced whether this node's file changed
+         * @param applied  whether this node uses the new revision; not when a file changed here could not be backed up
+         */
+        record RolledBack(int revision, boolean replaced, boolean applied) implements RollbackOutcome {}
+
+        /**
+         * The earlier content equals the latest revision, so nothing was stored.
+         *
+         * @param latest the latest revision
+         */
+        record Unchanged(int latest) implements RollbackOutcome {}
+
+        /**
+         * A revision newer than the one the rollback was asked on was stored meanwhile, so nothing was stored.
+         *
+         * @param latest the newer revision
+         */
+        record Newer(int latest) implements RollbackOutcome {}
     }
 
     /**
