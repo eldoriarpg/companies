@@ -61,8 +61,8 @@ public sealed interface NodeMessage {
     record BoardsChanged() implements NodeMessage {}
 
     /**
-     * The primary stored a revision of a shared file. Secondaries that applied an older one take it; a change of
-     * {@code config.yml} is applied like a reload, the others are read where they are used.
+     * A node stored a revision of a shared file. Nodes that applied an older one take it and run only the reload work
+     * its changed settings need.
      *
      * @param path     the file, such as {@code company.yml}
      * @param revision its revision

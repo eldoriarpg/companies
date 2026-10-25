@@ -117,7 +117,12 @@ Every server takes a new revision on its own:
 - within 30 seconds without them, since every server looks for new revisions that often,
 - when it starts, and when you run `/companyadmin syncconfiguration` on it.
 
-A new `config.yml` is applied like a reload. The other files are read where they are used, without a reload.
+A server that takes a new revision applies only what changed: a new Discord webhook restarts the webhook, a changed
+`dashboard` section reconnects the dashboard, changed `notifications` reschedule the inbox check, and so on. Settings
+that are read where they are used, such as prices, levels and messages, need nothing. A setting that is only read at
+start, such as `boards.enabled`, is not applied: the server's log says so, and `/companyadmin node list` and
+`/companyadmin settings status` show **restart pending** until the server restarts. `/companyadmin reload` on a server
+still applies everything there.
 
 A server only replaces a file whose content differs from the latest revision, and runs the reload work, such as
 reconnecting the dashboard and the Discord webhook, only then. A restart of the primary that changed nothing therefore

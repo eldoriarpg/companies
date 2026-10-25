@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
@@ -214,6 +215,28 @@ public abstract class ANodeData {
      * @return the revision every node applied of every shared file
      */
     public abstract List<AppliedSettings> settingsApplied();
+
+    /**
+     * Stores the settings this node reads only at start that changed since it started.
+     *
+     * @param settings the settings, none when no restart is pending
+     */
+    public void restartPending(List<ChangeTracker.Setting> settings) {
+        restartPending(
+                nodeUid(),
+                settings.stream().map(ChangeTracker.Setting::toString).collect(Collectors.joining(", ")));
+    }
+
+    /**
+     * @param node     the node
+     * @param settings the settings, joined, empty when no restart is pending
+     */
+    protected abstract void restartPending(UUID node, String settings);
+
+    /**
+     * @return the settings each node waits to restart for, by node, only nodes that wait
+     */
+    public abstract Map<UUID, String> pendingRestarts();
 
     /**
      * @param path     the file

@@ -20,9 +20,9 @@ import java.util.logging.Logger;
 /**
  * How a node follows the shared files: it takes a revision another node announces over the bus, and it looks for
  * new revisions every {@value #POLL_SECONDS} seconds, or only every {@value #REALTIME_POLL_TICKS}th time while the bus
- * delivers messages at once, as a safety net. One revision is taken after the other. A new {@code config.yml} is
- * applied like a reload; the other files are read where they are used. A revision that cannot be taken is tried again
- * on every look and reported once.
+ * delivers messages at once, as a safety net. One revision is taken after the other. Only the reload work that depends
+ * on a changed setting runs; the other settings are read where they are used. A revision that cannot be taken is tried
+ * again on every look and reported once.
  */
 public final class SettingsSync {
     /**
@@ -39,7 +39,7 @@ public final class SettingsSync {
     private final ANodeData nodeData;
     private final Executor serial;
     private final Executor mainThread;
-    private final Runnable reloaded;
+    private final Runnable changed;
     private final BooleanSupplier realtime;
     private final Logger logger;
     private final AtomicInteger ticks = new AtomicInteger();
@@ -50,7 +50,7 @@ public final class SettingsSync {
      * @param nodeData      the node repository holding the revisions
      * @param serial        takes one revision after the other
      * @param mainThread    runs the reload hooks
-     * @param reloaded      applies a new {@code config.yml} like a reload
+     * @param changed       applies the settings that changed in a file taken
      * @param realtime      whether the bus delivers messages at once now
      * @param logger        reports what was taken and failures
      */
@@ -59,14 +59,14 @@ public final class SettingsSync {
             ANodeData nodeData,
             Executor serial,
             Executor mainThread,
-            Runnable reloaded,
+            Runnable changed,
             BooleanSupplier realtime,
             Logger logger) {
         this.configuration = configuration;
         this.nodeData = nodeData;
         this.serial = serial;
         this.mainThread = mainThread;
-        this.reloaded = reloaded;
+        this.changed = changed;
         this.realtime = realtime;
         this.logger = logger;
     }
@@ -106,7 +106,7 @@ public final class SettingsSync {
         try {
             if (!configuration.takeIfNewer(nodeData, path, revision)) return;
             logger.info("Took revision " + revision + " of " + path + " from another node.");
-            if (path.equals(Configuration.CONFIG_YML.path().toString())) mainThread.execute(reloaded);
+            mainThread.execute(changed);
         } catch (RuntimeException e) {
             var known = failed.put(path, revision);
             var level = known != null && known == revision ? Level.FINE : Level.SEVERE;

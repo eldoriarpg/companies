@@ -27,6 +27,7 @@ import org.bukkit.entity.Player;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -75,12 +76,16 @@ public final class NodeCommand {
     @Executes("list")
     public void list(CommandSender sender) {
         var nodeData = nodeData();
-        run(sender, () -> new Listing(nodeData.nodes(), behind(nodeData)), listing -> {
+        run(sender, () -> new Listing(nodeData.nodes(), behind(nodeData), nodeData.pendingRestarts()), listing -> {
             deps.messages()
                     .sendMessage(sender, MenuText.create().text("<heading>").locale("companyadmin.node.title"));
             for (var node : listing.nodes()) {
                 var entry = entry(nodeData, node);
                 if (listing.behind().contains(node.uid())) entry.space().locale("companyadmin.node.behind");
+                var restart = listing.restarts().get(node.uid());
+                if (restart != null) {
+                    entry.space().locale("companyadmin.node.restartPending", Values.text("settings", restart));
+                }
                 deps.messages().sendMessage(sender, entry);
             }
         });
@@ -157,12 +162,13 @@ public final class NodeCommand {
     }
 
     /**
-     * The nodes and those behind on the shared files.
+     * The nodes, those behind on the shared files and those waiting for a restart.
      *
      * @param nodes  the nodes
-     * @param behind the uids of the nodes behind
+     * @param behind   the uids of the nodes behind
+     * @param restarts the settings each node waits to restart for
      */
-    private record Listing(List<Node> nodes, Set<UUID> behind) {}
+    private record Listing(List<Node> nodes, Set<UUID> behind, Map<UUID, String> restarts) {}
 
     private ANodeData nodeData() {
         var nodeData = deps.nodeData();

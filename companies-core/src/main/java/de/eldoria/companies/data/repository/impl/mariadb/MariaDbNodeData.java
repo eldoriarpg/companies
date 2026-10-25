@@ -53,6 +53,35 @@ public class MariaDbNodeData extends ANodeData {
     }
 
     @Override
+    protected void restartPending(UUID node, String settings) {
+        @Language("mariadb")
+        var update = """
+                UPDATE node
+                SET restart_pending = ?
+                WHERE uid = ?""";
+
+        query(update).single(call().bind(settings).bind(node, UUID_BYTES)).update();
+    }
+
+    @Override
+    public Map<UUID, String> pendingRestarts() {
+        @Language("mariadb")
+        var select = """
+                SELECT uid, restart_pending
+                FROM node
+                WHERE restart_pending IS NOT NULL
+                  AND restart_pending <> ''""";
+
+        var pending = new HashMap<UUID, String>();
+        query(select)
+                .single()
+                .map(row -> Map.entry(row.get("uid", UUID_BYTES), row.getString("restart_pending")))
+                .all()
+                .forEach(entry -> pending.put(entry.getKey(), entry.getValue()));
+        return pending;
+    }
+
+    @Override
     public List<Node> getPrimaryNodes() {
         @Language("mariadb")
         var select = """

@@ -93,6 +93,6 @@ To change a shared setting in a network:
 
 1. Edit the file on any server.
 2. Run `/companyadmin reload` there. It names the keys you changed.
-3. Run `/companyadmin reload confirm` within 30 seconds. The change becomes the next revision and the other servers take it on their own. If another server changed the same file meanwhile, your version is kept as a `conflict_` file instead, see [Several servers](../multiserver.md#when-the-configuration-is-copied). Settings marked **restart** need a restart of each server that should pick them up.
+3. Run `/companyadmin reload confirm` within 30 seconds. The change becomes the next revision and the other servers take it on their own. If another server changed the same file meanwhile, your version is kept as a `conflict_` file instead, see [Several servers](../multiserver.md#when-the-configuration-is-copied). Settings marked **restart** need a restart of each server that should pick them up; until then `/companyadmin node list` marks those servers with **restart pending**.
 
 `/companyadmin settings history <file>` lists the earlier revisions and `/companyadmin settings rollback <file> <revision>` brings one back, see [Looking back and undoing a change](../multiserver.md#looking-back-and-undoing-a-change).
