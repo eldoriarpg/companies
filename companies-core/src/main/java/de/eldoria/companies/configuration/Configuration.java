@@ -496,6 +496,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * {@code base} and applies it on this node. The other nodes take it as any new revision. When a revision newer than
      * {@code base} was stored meanwhile, nothing is stored, so a rollback never silently replaces a change it was not
      * asked about.
+     * <p>
+     * When this node cannot take it, because a file changed here could not be backed up, its applied revision is set
+     * back, so it counts as behind and a later sync does not store its own file over the rollback.
      *
      * @param nodeData the node repository holding the revisions
      * @param path     the file
@@ -515,11 +518,12 @@ public class Configuration extends JacksonConfig<ConfigFile> {
                             plugin().getLogger()
                                     .info("Stored revision " + revision + " of " + path + " as revision "
                                             + published.revision() + ".");
-                            var replaced = take(nodeData, key.get(), true);
                             var announce = announcer;
                             if (announce != null) announce.accept(path, published.revision());
-                            yield new RollbackOutcome.RolledBack(
-                                    published.revision(), replaced, appliedRevision(path) >= published.revision());
+                            var replaced = take(nodeData, key.get(), true);
+                            var applied = appliedRevision(path) >= published.revision();
+                            if (!applied) nodeData.appliedSettings(path, appliedRevision(path));
+                            yield new RollbackOutcome.RolledBack(published.revision(), replaced, applied);
                         }
                         case ANodeData.PublishOutcome.Unchanged unchanged ->
                             new RollbackOutcome.Unchanged(unchanged.revision());

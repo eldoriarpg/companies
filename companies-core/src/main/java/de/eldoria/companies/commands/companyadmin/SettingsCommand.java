@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.wrapper.nodes.SettingsChange;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Confirmations;
@@ -22,6 +23,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -75,20 +77,7 @@ public final class SettingsCommand {
         run(sender, () -> deps.configuration().status(nodeData), statuses -> {
             deps.messages()
                     .sendMessage(sender, MenuText.create().text("<heading>").locale("companyadmin.settings.title"));
-            for (var status : statuses) {
-                var text = MenuText.create()
-                        .locale(
-                                "companyadmin.settings.file",
-                                Values.text("file", status.path()),
-                                Values.number("latest", status.latest()),
-                                Values.number("applied", status.applied()));
-                if (status.edited()) text.space().locale("companyadmin.settings.edited");
-                if (!status.behind().isEmpty()) {
-                    text.space()
-                            .locale("companyadmin.settings.behind", Values.text("nodes", shortUids(status.behind())));
-                }
-                deps.messages().sendMessage(sender, text);
-            }
+            statusRows(statuses).forEach(row -> deps.messages().sendMessage(sender, row));
         });
     }
 
@@ -126,17 +115,49 @@ public final class SettingsCommand {
                                             Values.text("file", path),
                                             Values.number("page", shown)));
             if (changes.isEmpty()) deps.messages().sendMessage(sender, "companyadmin.settings.history.none");
-            for (var change : changes) {
-                var text = MenuText.create()
-                        .locale(
-                                "companyadmin.settings.history.entry",
-                                Values.number("revision", change.revision()),
-                                Values.text("time", TIME.format(Times.local(change.changed()))),
-                                Values.text("actor", change.actor()),
-                                Values.text("node", shortUid(change.node())));
-                deps.messages().sendMessage(sender, text);
-            }
+            historyRows(changes).forEach(row -> deps.messages().sendMessage(sender, row));
         });
+    }
+
+    /**
+     * @param statuses how the shared files stand
+     * @return one row per file, each sent as its own message, since a text holds each placeholder once
+     */
+    static List<MenuText> statusRows(List<Configuration.FileStatus> statuses) {
+        var rows = new ArrayList<MenuText>();
+        for (var status : statuses) {
+            var text = MenuText.create()
+                    .locale(
+                            "companyadmin.settings.file",
+                            Values.text("file", status.path()),
+                            Values.number("latest", status.latest()),
+                            Values.number("applied", status.applied()));
+            if (status.edited()) text.space().locale("companyadmin.settings.edited");
+            if (!status.behind().isEmpty()) {
+                text.space().locale("companyadmin.settings.behind", Values.text("nodes", shortUids(status.behind())));
+            }
+            rows.add(text);
+        }
+        return rows;
+    }
+
+    /**
+     * @param changes revisions of a shared file
+     * @return one row per revision, each sent as its own message, since a text holds each placeholder once
+     */
+    static List<MenuText> historyRows(List<SettingsChange> changes) {
+        var rows = new ArrayList<MenuText>();
+        for (var change : changes) {
+            var text = MenuText.create()
+                    .locale(
+                            "companyadmin.settings.history.entry",
+                            Values.number("revision", change.revision()),
+                            Values.text("time", TIME.format(Times.local(change.changed()))),
+                            Values.text("actor", change.actor()),
+                            Values.text("node", shortUid(change.node())));
+            rows.add(text);
+        }
+        return rows;
     }
 
     /**
