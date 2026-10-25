@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Permission.Admin;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -38,6 +39,13 @@ public final class Reload {
         updates.apply();
         deps.reloaded();
         deps.adminLog().entry(sender, "reload").write();
-        deps.messages().sendMessage(sender, "companyadmin.reload.done");
+        var unreadable = deps.configuration().unreadableFiles();
+        if (unreadable.isEmpty()) {
+            deps.messages().sendMessage(sender, "companyadmin.reload.done");
+            return;
+        }
+        deps.messages()
+                .sendError(
+                        sender, "companyadmin.reload.unreadable", Values.text("files", String.join(", ", unreadable)));
     }
 }

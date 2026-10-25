@@ -361,11 +361,6 @@ public final class CommandDependencies {
      */
     public LevelAdminService levels() {
         LevelAdminService.Share share = () -> {
-            if (configuration.unreadable(Configuration.COMPANY_SETTINGS)) {
-                return () -> plugin.getLogger()
-                        .warning(
-                                "Not sharing the changed levels, since company.yml cannot be read. Fix it and reload.");
-            }
             var copy = nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, configuration);
             return () -> {
                 nodeData.savePrimaryCopy(Configuration.COMPANY_SETTINGS, copy);

@@ -447,6 +447,46 @@ class NetworkIntegrationTest {
     }
 
     @Test
+    void aPrimaryStartingWithABrokenFileDoesNotShareItsDefaults() throws Exception {
+        var a = primary();
+        a.configuration.companySettings().level(1).orElseThrow().levelName("CustomOne");
+        a.configuration.save(Configuration.COMPANY_SETTINGS);
+        a.configuration.syncConfigurations(a.nodeData).join();
+        assertTrue(a.nodeData
+                .primaryContent(Configuration.COMPANY_SETTINGS)
+                .orElseThrow()
+                .contains("CustomOne"));
+
+        Files.writeString(folder.resolve("A").resolve("company.yml"), "level: [ {levelName: Broken");
+        var restarted = primary();
+
+        assertTrue(restarted.configuration.unreadable(Configuration.COMPANY_SETTINGS));
+        assertTrue(restarted
+                .nodeData
+                .primaryContent(Configuration.COMPANY_SETTINGS)
+                .orElseThrow()
+                .contains("CustomOne"));
+        assertTrue(Files.readString(folder.resolve("A").resolve("company.yml")).contains("Broken"));
+    }
+
+    @Test
+    void aSecondaryKeepsNoBackupWhenOnlyThePrimaryChanged() throws Exception {
+        var a = primary();
+        var b = secondary();
+        a.configuration.companySettings().level(1).orElseThrow().levelName("Renamed");
+        a.configuration.save(Configuration.COMPANY_SETTINGS);
+        a.configuration.syncConfigurations(a.nodeData).join();
+
+        assertTrue(b.configuration.syncConfigurations(b.nodeData).join());
+        assertEquals(
+                "Renamed",
+                b.configuration.companySettings().level(1).orElseThrow().levelName());
+        try (var files = Files.list(folder.resolve("B"))) {
+            assertTrue(files.noneMatch(path -> path.getFileName().toString().startsWith("backup_")));
+        }
+    }
+
+    @Test
     void changedLevelsReachTheSecondaryWithoutAReload() throws Exception {
         var a = primary();
         var b = secondary();

@@ -39,7 +39,11 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.format.DateTimeFormatter;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -75,6 +79,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
+    private static final String APPLIED_FOLDER = ".synced";
 
     private final Set<Key<?>> unreadable = ConcurrentHashMap.newKeySet();
 
@@ -93,6 +98,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         try {
             value = super.secondary(key);
         } catch (ConfigurationException e) {
+            if (!key.strict()) throw e;
             markUnreadable(key, e);
             var defaults = key.initValue().get();
             super.replace(key, defaults);
@@ -111,6 +117,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         try {
             super.reload(key);
         } catch (ConfigurationException e) {
+            if (!key.strict()) throw e;
             markUnreadable(key, e);
             return;
         }
@@ -149,6 +156,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public boolean unreadable(Key<?> key) {
         return unreadable.contains(key);
+    }
+
+    /**
+     * @return the files that cannot be read now, see {@link #unreadable(Key)}
+     */
+    public List<String> unreadableFiles() {
+        return unreadable.stream().map(key -> key.path().toString()).sorted().toList();
     }
 
     private void markUnreadable(Key<?> key, ConfigurationException e) {
@@ -301,16 +315,6 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Puts the primary's {@code company.yml} in place and saves it, as a sync does, without reading any other file.
-     *
-     * @param settings the primary's company settings
-     */
-    public void useCompanySettings(CompanySettings settings) {
-        replace(COMPANY_SETTINGS, settings);
-        save(COMPANY_SETTINGS);
-    }
-
-    /**
      * Writes a file into the database on the primary, or takes the primary's copy on a secondary, saves it and reads it
      * again, which applies the environment overrides of this node. A value set through an environment variable is part
      * of neither copy.
@@ -320,46 +324,103 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param <V>       type of the file's content
      */
     private <V> boolean sync(ANodeData nodeData, Key<V> configKey) {
-        if (nodeSettings().nodeType() == NodeType.PRIMARY) {
-            if (unreadable(configKey)) {
-                plugin().getLogger()
-                        .warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
-                return false;
-            }
-            plugin().getLogger().info("Syncing " + configKey.path() + " to database.");
-            nodeData.savePrimaryConfiguration(configKey, this);
+        if (nodeSettings().nodeType() != NodeType.PRIMARY) return takePrimaryCopy(nodeData, configKey);
+        secondary(configKey);
+        if (unreadable(configKey)) {
+            plugin().getLogger().warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
             return false;
         }
+        plugin().getLogger().info("Syncing " + configKey.path() + " to database.");
+        nodeData.savePrimaryConfiguration(configKey, this);
+        return false;
+    }
+
+    /**
+     * Takes the primary's copy of a shared file on a secondary: saves it, reads it again, which applies this node's
+     * environment overrides, and remembers what was written. A file that matches the copy is left alone. A file that
+     * changed on this node since it last took a copy, or one never taken, is kept as
+     * {@code backup_<time>_<file>} first; when that backup cannot be written, the file stays and nothing is taken.
+     *
+     * @param nodeData  the node repository holding the copies
+     * @param configKey the file
+     * @param <V>       type of the file's content
+     * @return whether the file changed
+     */
+    public <V> boolean takePrimaryCopy(ANodeData nodeData, Key<V> configKey) {
         var copy = nodeData.primaryContent(configKey)
                 .orElseThrow(() -> new IllegalStateException(
                         "No configuration present. Did you start the main node once already?"));
         var file = plugin().getDataFolder().toPath().resolve(configKey.path());
-        var onDisk = tree(file);
-        var copied = tree(copy);
-        if (copied.equals(onDisk)) return false;
-        if (Files.exists(file)) keepBackup(file);
+        if (tree(copy).equals(tree(file))) {
+            rememberApplied(file);
+            return false;
+        }
+        if (Files.exists(file) && editedHere(file) && !keepBackup(file)) return false;
         plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
         replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
         save(configKey);
         reload(configKey);
+        rememberApplied(file);
         return true;
+    }
+
+    private boolean editedHere(Path file) {
+        var applied = appliedRecord(file);
+        try {
+            return !Files.exists(applied) || !Files.readString(applied).equals(fingerprint(file));
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    private void rememberApplied(Path file) {
+        try {
+            Files.createDirectories(file.resolveSibling(APPLIED_FOLDER));
+            Files.writeString(appliedRecord(file), fingerprint(file));
+        } catch (IOException e) {
+            plugin().getLogger().log(Level.WARNING, "Could not note the synced " + file.getFileName() + ".", e);
+        }
+    }
+
+    private Path appliedRecord(Path file) {
+        return file.resolveSibling(APPLIED_FOLDER).resolve(file.getFileName() + ".sha256");
+    }
+
+    private static String fingerprint(Path file) throws IOException {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is part of every Java runtime", e);
+        }
     }
 
     /**
      * Keeps a copy of a file before the primary's copy replaces it, so a change made on this node is not lost.
      *
      * @param file the file
+     * @return whether the backup was written
      */
-    private void keepBackup(Path file) {
-        var backup = file.resolveSibling(
-                "backup_" + BACKUP_TIME.format(Times.local(Times.now())) + "_" + file.getFileName());
+    private boolean keepBackup(Path file) {
+        var stamp = BACKUP_TIME.format(Times.local(Times.now()));
+        var backup = file.resolveSibling("backup_" + stamp + "_" + file.getFileName());
+        for (var attempt = 2; Files.exists(backup); attempt++) {
+            backup = file.resolveSibling("backup_" + stamp + "-" + attempt + "_" + file.getFileName());
+        }
         try {
             Files.copy(file, backup);
             plugin().getLogger()
-                    .warning(file.getFileName() + " differs from the primary's copy, which replaces it now. This"
-                            + " server's version is kept as " + backup.getFileName() + ".");
+                    .warning(file.getFileName() + " was changed on this server and differs from the primary's copy,"
+                            + " which replaces it now. This server's version is kept as " + backup.getFileName()
+                            + ".");
+            return true;
         } catch (IOException e) {
-            plugin().getLogger().log(Level.WARNING, "Could not keep a backup of " + file.getFileName() + ".", e);
+            plugin().getLogger()
+                    .log(
+                            Level.SEVERE,
+                            "Could not keep a backup of " + file.getFileName()
+                                    + ", so the primary's copy does not replace it.",
+                            e);
+            return false;
         }
     }
 

@@ -186,7 +186,8 @@ public final class LevelAdminService {
      * @return whether levels can be changed on this node, which is the primary
      */
     public boolean editable() {
-        return configuration.nodeSettings().nodeType() == NodeType.PRIMARY;
+        return configuration.nodeSettings().nodeType() == NodeType.PRIMARY
+                && !configuration.unreadable(Configuration.COMPANY_SETTINGS);
     }
 
     private static List<String> inputs(CompanyLevel level) {
@@ -210,7 +211,8 @@ public final class LevelAdminService {
     }
 
     private void requirePrimary() {
-        Checks.isTrue(editable(), "error.secondarynode");
+        Checks.isTrue(configuration.nodeSettings().nodeType() == NodeType.PRIMARY, "error.secondarynode");
+        Checks.isTrue(!configuration.unreadable(Configuration.COMPANY_SETTINGS), "companyadmin.level.unreadable");
     }
 
     private CompanySettings settings() {

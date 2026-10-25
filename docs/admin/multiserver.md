@@ -117,9 +117,10 @@ reload.
 
 A secondary only replaces a file whose content differs from the primary's copy, and runs the reload work, such as
 reconnecting the dashboard and the Discord webhook, only then. A restart of the primary that changed nothing therefore
-changes nothing on the secondaries. When a secondary's file differs, for example because you edited it there, the
-secondary keeps its version as `backup_<timestamp>_<file name>` before it takes the copy, and its log says so. The
-primary never writes a file it cannot read to the database.
+changes nothing on the secondaries. When a secondary's file was changed on that server since it last took a copy, for
+example because you edited it there, the secondary keeps its version as `backup_<timestamp>_<file name>` before it
+takes the copy, and its log says so. To tell, it notes each copy it took in the hidden folder `.synced`. The primary
+never writes a file it cannot read to the database.
 
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 

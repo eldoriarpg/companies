@@ -54,7 +54,9 @@ server log says so. Check it after editing a file.
 
 - `config.yml`, `company.yml`, `user.yml` and `order.yml` stay as they are, so you can fix them. Until then Companies
   keeps their last values, or uses their defaults right after a start, does not save them and does not share them
-  with the other servers of a network. Run `/companyadmin reload` once you fixed the file.
+  with the other servers of a network. Run `/companyadmin reload` once you fixed the file; it names the files that
+  still cannot be read. While `company.yml` cannot be read, the level editor refuses changes. Running on defaults
+  can still affect play, for example companies checked against the default levels, so fix the file soon.
 - Any other file is moved aside as `backup_<timestamp>_<file name>` and replaced with a new file with default
   values. Your changes are then in the backup file.
 :::
