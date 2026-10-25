@@ -183,9 +183,6 @@ public final class LevelAdminService {
     }
 
     /**
-     * @return whether levels can be changed on this node, which is the primary
-     */
-    /**
      * @return why levels cannot be changed on this node: {@code secondary} or {@code unreadable}, none when they can
      */
     public Optional<String> blocked() {
@@ -194,6 +191,9 @@ public final class LevelAdminService {
         return Optional.empty();
     }
 
+    /**
+     * @return whether levels can be changed on this node, which is the primary while it can read {@code company.yml}
+     */
     public boolean editable() {
         return blocked().isEmpty();
     }
