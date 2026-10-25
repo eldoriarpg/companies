@@ -350,6 +350,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * Stores a file as a revision on the primary, checked against its base, or takes the latest revision on a
      * secondary, saving it and reading it again, which applies the environment overrides of this node. A value set
      * through an environment variable is part of no revision.
+     * <p>
+     * The primary compares and stores under the copy lock, so a rollback or edit on this node that is stored and not yet
+     * taken is never read as its base.
      *
      * @param nodeData  the node repository holding the copies
      * @param configKey the file
@@ -362,24 +365,26 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             plugin().getLogger().warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
             return false;
         }
-        var path = configKey.path().toString();
-        var content = nodeData.primaryCopy(configKey, this);
-        var latest = nodeData.latestSettings(path);
-        var base = nodeData.appliedRevision(path);
-        if (latest.isEmpty() || base.isEmpty()) {
-            publish(nodeData, configKey, content, actor);
-            return false;
+        synchronized (copying) {
+            var path = configKey.path().toString();
+            var content = nodeData.primaryCopy(configKey, this);
+            var latest = nodeData.latestSettings(path);
+            var base = nodeData.appliedRevision(path);
+            if (latest.isEmpty() || base.isEmpty()) {
+                publish(nodeData, configKey, content, actor);
+                return false;
+            }
+            if (latest.get().revision() == base.getAsInt()) {
+                publishEdit(nodeData, configKey, base.getAsInt(), content, actor);
+                return false;
+            }
+            var unchangedHere = nodeData.settingsAt(path, base.getAsInt())
+                    .map(stored -> tree(stored.content()).equals(tree(content)))
+                    .orElse(false);
+            if (unchangedHere) return takePrimaryCopy(nodeData, configKey);
+            conflict(nodeData, configKey, latest.get().revision(), content);
+            return true;
         }
-        if (latest.get().revision() == base.getAsInt()) {
-            publishEdit(nodeData, configKey, base.getAsInt(), content, actor);
-            return false;
-        }
-        var unchangedHere = nodeData.settingsAt(path, base.getAsInt())
-                .map(stored -> tree(stored.content()).equals(tree(content)))
-                .orElse(false);
-        if (unchangedHere) return takePrimaryCopy(nodeData, configKey);
-        conflict(nodeData, configKey, latest.get().revision(), content);
-        return true;
     }
 
     /**
