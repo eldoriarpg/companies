@@ -6,6 +6,7 @@
 package de.eldoria.companies.web.gateway.browser;
 
 import de.eldoria.companies.web.api.Actions;
+import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.handshake.Limits;
@@ -288,6 +289,9 @@ public final class BrowserApi {
         if (name == null || !(write || ReadRelay.READ_ACTIONS.contains(name))) {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is not available on the dashboard");
         }
+        if (name.startsWith(Features.ADMIN_PREFIX) && !session.admin()) {
+            throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is for admins only");
+        }
         if (!(write ? limits.writes() : limits.reads()).tryAcquire(session.id())) throw tooMany();
         LiveServer server = online(session);
         NodeLink link = (ReadRelay.PLAYER_ACTIONS.contains(name) ? server.routeFor(session.player()) : server.route())
@@ -390,12 +394,16 @@ public final class BrowserApi {
                 live.flatMap(LiveServer::representative).map(NodeLink::agreed);
         return new Views.ServerInfo(
                 brand(serverId),
-                routed.map(link -> link.agreed().features().stream().sorted().toList())
+                routed.map(link -> link.agreed().features().stream()
+                                .filter(feature -> admin || !feature.startsWith(Features.ADMIN_PREFIX))
+                                .sorted()
+                                .toList())
                         .orElse(List.of()),
                 routed.map(link -> new Limits(link.maxPageSize())).orElse(DEFAULT_LIMITS),
                 agreed.map(NodeLink.Handshake::status).orElse(UNKNOWN_VERSION),
                 admin ? agreed.map(NodeLink.Handshake::deprecated).orElse(List.of()) : List.of(),
-                routed.isPresent());
+                routed.isPresent(),
+                admin);
     }
 
     /**

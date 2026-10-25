@@ -135,6 +135,18 @@ export function when(time: string, now: Date, locale: string): string {
 }
 
 /**
+ * A moment in full: the date and the 24 hour clock time, for times that may lie far ahead or behind.
+ *
+ * @param time the moment
+ * @param locale the reader's language
+ * @returns the moment as text
+ */
+export function dateTime(time: string, locale: string): string {
+    return new Intl.DateTimeFormat(locale, {day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'})
+        .format(new Date(time))
+}
+
+/**
  * Reads an amount of money a player typed, in either decimal style: `20`, `20.5`, `20,5`, `1,000.50` and `1.000,50`
  * all work. With both separators the last one is the decimal point; a single comma is one too.
  *

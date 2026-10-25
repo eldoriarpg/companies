@@ -63,17 +63,22 @@ public final class DashboardWrites {
             Actions.INBOX_MUTE);
 
     /**
-     * Every action this version performs, including those of {@link CompanyWrites}, {@link ItemWrites} and
-     * {@link OrderCreateWrites}.
+     * Every action this version performs, including those of {@link CompanyWrites}, {@link ItemWrites},
+     * {@link OrderCreateWrites} and {@link AdminOrderWrites}.
      */
     public static final Set<String> ACTIONS = Stream.of(
-                    OWN_ACTIONS, CompanyWrites.ACTIONS, ItemWrites.ACTIONS, OrderCreateWrites.ACTIONS)
+                    OWN_ACTIONS,
+                    CompanyWrites.ACTIONS,
+                    ItemWrites.ACTIONS,
+                    OrderCreateWrites.ACTIONS,
+                    AdminOrderWrites.ACTIONS)
             .flatMap(Set::stream)
             .collect(Collectors.toUnmodifiableSet());
 
     private final Sources sources;
     private final CompanyWrites company;
     private final ItemWrites items;
+    private final AdminOrderWrites adminOrders;
     private final OrderCreateWrites create;
     private final Answers answers;
 
@@ -82,11 +87,18 @@ public final class DashboardWrites {
      * @param company performs the actions on the player's company
      * @param items   moves items with the player's inventory
      * @param create  places orders
+     * @param adminOrders the admin tools for orders
      */
-    public DashboardWrites(Sources sources, CompanyWrites company, ItemWrites items, OrderCreateWrites create) {
+    public DashboardWrites(
+            Sources sources,
+            CompanyWrites company,
+            ItemWrites items,
+            OrderCreateWrites create,
+            AdminOrderWrites adminOrders) {
         this.sources = sources;
         this.company = company;
         this.items = items;
+        this.adminOrders = adminOrders;
         this.create = create;
         answers = new Answers(sources.render());
     }
@@ -117,6 +129,7 @@ public final class DashboardWrites {
         if (CompanyWrites.ACTIONS.contains(request.name())) return company.perform(request, player, args);
         if (OrderCreateWrites.ACTIONS.contains(request.name())) return create.perform(request, session, args);
         if (ItemWrites.ACTIONS.contains(request.name())) return items.perform(request, player, args);
+        if (AdminOrderWrites.ACTIONS.contains(request.name())) return adminOrders.perform(request, session, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));

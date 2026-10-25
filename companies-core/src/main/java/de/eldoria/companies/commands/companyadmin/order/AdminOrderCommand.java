@@ -12,7 +12,6 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
-import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.menus.ConfirmFlow;
@@ -21,6 +20,7 @@ import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.menus.admin.AdminOrderActions;
 import de.eldoria.companies.menus.admin.AdminOrderListMenu;
 import de.eldoria.companies.menus.admin.AdminOrderMenu;
+import de.eldoria.companies.services.AdminOrderLookup;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.AdminOrderService.Result;
 import de.eldoria.companies.util.AdminLog;
@@ -38,10 +38,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -446,72 +442,40 @@ public final class AdminOrderCommand implements AdminOrderActions {
     }
 
     private Optional<AdminOrderMenu.Model> model(int id) {
-        var found = deps.orderData().retrieveOrderById(id).join();
-        if (found == null || found.isEmpty()) return Optional.empty();
-        var order = deps.orderData().toFullOrder(found.get());
-        Map<UUID, String> names = new HashMap<>();
-        for (var content : order.contents()) {
-            for (var worker : content.workerAmount().keySet()) names.computeIfAbsent(worker, this::playerName);
-        }
-        order.soloWorker().ifPresent(worker -> names.computeIfAbsent(worker, this::playerName));
-        var history = deps.information().history().retrieveByOrder(id).join();
-        return Optional.of(new AdminOrderMenu.Model(
-                order,
-                playerName(order.owner()),
-                companyName(order),
-                deadline(order),
-                names,
-                history,
-                Optional.empty()));
+        return lookup().details(id)
+                .map(details -> new AdminOrderMenu.Model(
+                        details.order(),
+                        details.ownerName(),
+                        details.companyName(),
+                        details.deadline()
+                                .map(deadline -> new AdminOrderMenu.Deadline(deadline.at(), deadline.removal())),
+                        details.names(),
+                        details.history(),
+                        Optional.empty()));
     }
 
-    private Optional<AdminOrderMenu.Deadline> deadline(SimpleOrder order) {
-        var configuration = deps.configuration();
-        return switch (order.state()) {
-            case CLAIMED ->
-                Optional.of(new AdminOrderMenu.Deadline(
-                        order.claimed().plus(order.deliveryHours(configuration), ChronoUnit.HOURS), false));
-            case UNCLAIMED ->
-                Optional.of(new AdminOrderMenu.Deadline(
-                        order.claimed().plus(configuration.orderSetting().maxUnclaimedHours(), ChronoUnit.HOURS),
-                        true));
-            case DELIVERED, RECEIVED -> Optional.empty();
-        };
-    }
-
-    private Optional<String> companyName(SimpleOrder order) {
-        if (order.state() == OrderState.UNCLAIMED || order.isSolo()) return Optional.empty();
-        var company = deps.companyData().retrieveCompanyById(order.company()).join();
-        if (company == null) return Optional.empty();
-        return Optional.of(company.map(SimpleCompany::name).orElse("#" + order.company()));
+    private AdminOrderLookup lookup() {
+        return new AdminOrderLookup(
+                deps.orderData(),
+                deps.companyData(),
+                deps.information().history(),
+                deps.configuration(),
+                this::playerName);
     }
 
     private void page(Player viewer, Search search, int page) {
         var number = Math.max(1, page);
         var services = deps.services();
         var menu = new AdminOrderListMenu(deps.messages(), this, (clicker, target) -> page(clicker, search, target));
-        deps.orderData()
-                .retrieveOrdersForAdmin(search.owner(), search.company(), number, PAGE_SIZE)
-                .asFuture()
-                .thenApplyAsync(this::rows, Threading.VIRTUAL)
+        CompletableFuture.supplyAsync(
+                        () -> lookup().page(search.owner(), search.company(), number, PAGE_SIZE).stream()
+                                .map(row ->
+                                        new AdminOrderListMenu.Row(row.order(), row.ownerName(), row.claimantName()))
+                                .toList(),
+                        Threading.VIRTUAL)
                 .thenAccept(rows -> services.menus()
                         .show(viewer, menu, AdminOrderListMenu.Model.of(search.label(), number, rows, PAGE_SIZE)))
                 .exceptionally(this::logged);
-    }
-
-    private List<AdminOrderListMenu.Row> rows(List<SimpleOrder> orders) {
-        Map<Integer, Optional<String>> companies = new HashMap<>();
-        return orders.stream()
-                .map(order ->
-                        new AdminOrderListMenu.Row(order, playerName(order.owner()), claimantName(order, companies)))
-                .toList();
-    }
-
-    private Optional<String> claimantName(SimpleOrder order, Map<Integer, Optional<String>> companies) {
-        if (order.state() == OrderState.UNCLAIMED) return Optional.empty();
-        var soloWorker = order.soloWorker();
-        if (soloWorker.isPresent()) return Optional.of(playerName(soloWorker.get()));
-        return companies.computeIfAbsent(order.company(), id -> companyName(order));
     }
 
     private String playerName(UUID player) {

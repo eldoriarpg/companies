@@ -44,6 +44,17 @@ public final class AdminLog {
     }
 
     /**
+     * Starts the line of an action an admin performed outside the game, such as on the dashboard.
+     *
+     * @param admin  name of the admin, with where the action came from
+     * @param action what was done, such as {@code order cancel}
+     * @return the line, written by {@link Entry#write()}
+     */
+    public Entry entry(String admin, String action) {
+        return new Entry(admin, action);
+    }
+
+    /**
      * Formats one log line.
      *
      * @param admin   name of the admin

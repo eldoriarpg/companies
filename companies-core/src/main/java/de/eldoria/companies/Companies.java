@@ -106,6 +106,7 @@ import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
+import de.eldoria.companies.services.AdminOrderLookup;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ExpiringService;
@@ -554,7 +555,20 @@ public class Companies extends EldoPlugin {
                                             .invalidate(player.getUniqueId()));
                                     if (player.isOnline())
                                         commands.services().menus().close(player);
-                                })),
+                                }),
+                        new DashboardModule.AdminServices(
+                                commands.adminOrders(),
+                                new AdminOrderLookup(
+                                        commands.orderData(),
+                                        companyData,
+                                        information.history(),
+                                        configuration,
+                                        uuid -> Optional.ofNullable(getServer()
+                                                        .getOfflinePlayer(uuid)
+                                                        .getName())
+                                                .orElse(uuid.toString())),
+                                commands.adminLog(),
+                                name -> companyData.retrieveCompanyByName(name).asFuture())),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
