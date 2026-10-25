@@ -119,15 +119,15 @@ Every server takes a new revision on its own:
 
 A new `config.yml` is applied like a reload. The other files are read where they are used, without a reload.
 
-A secondary only replaces a file whose content differs from the primary's copy, and runs the reload work, such as
+A server only replaces a file whose content differs from the latest revision, and runs the reload work, such as
 reconnecting the dashboard and the Discord webhook, only then. A restart of the primary that changed nothing therefore
-changes nothing on the secondaries. When a secondary's file was changed on that server since it last took a copy, for
-example because you edited it there, the secondary keeps its version as `backup_<timestamp>_<file name>` before it takes
+changes nothing on the secondaries. When a server's file was changed on that server since it last took a revision, for
+example because you edited it there, the server keeps its version as `backup_<timestamp>_<file name>` before it takes
 the copy, and its log says so. To tell, it notes each copy it took in the hidden folder `.synced`; the first sync after
 updating Companies has no such notes yet, so it keeps a backup of every file that differs once. When a backup cannot be
 written, the file stays as it is and the copy is not taken. The primary never writes a file it cannot read to the
-database. A file edited on a secondary stays until a new revision of it arrives, the server restarts, or you run
-`/companyadmin syncconfiguration` on it.
+database. A file edited on a server and not shared stays until a new revision of it arrives, the server restarts, or you
+run `/companyadmin syncconfiguration` on it.
 
 To change the configuration of a running network, on **any** server:
 

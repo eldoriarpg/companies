@@ -344,9 +344,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Writes a file into the database on the primary, or takes the primary's copy on a secondary, saves it and reads it
-     * again, which applies the environment overrides of this node. A value set through an environment variable is part
-     * of neither copy.
+     * Stores a file as a revision on the primary, checked against its base, or takes the latest revision on a
+     * secondary, saving it and reading it again, which applies the environment overrides of this node. A value set
+     * through an environment variable is part of no revision.
      *
      * @param nodeData  the node repository holding the copies
      * @param configKey the file
@@ -417,6 +417,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public List<Edit> edits(ANodeData nodeData) {
         var edits = new ArrayList<Edit>();
+        var revisions = nodeData.settingsRevisions();
         for (var key : SHARED) {
             if (unreadable(key)) continue;
             var path = key.path().toString();
@@ -428,7 +429,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             var before = tree(stored.get().content());
             var after = tree(content);
             if (before.equals(after)) continue;
-            var latest = nodeData.settingsRevisions().getOrDefault(path, base.getAsInt());
+            var latest = revisions.getOrDefault(path, base.getAsInt());
             edits.add(new Edit(key, base.getAsInt(), content, changes(before, after), latest > base.getAsInt()));
         }
         return edits;
@@ -472,13 +473,16 @@ public class Configuration extends JacksonConfig<ConfigFile> {
                     yield new EditOutcome(path, OptionalInt.of(published.revision()), null, false);
                 }
                 case ANodeData.PublishOutcome.Unchanged unchanged -> {
+                    if (primary()) nodeData.savePrimaryCopy(key, content);
                     noteApplied(nodeData, path, unchanged.revision());
                     rememberIfMatches(key, content);
                     yield new EditOutcome(path, OptionalInt.of(unchanged.revision()), null, false);
                 }
                 case ANodeData.PublishOutcome.Conflict conflict -> {
                     var kept = conflict(nodeData, key, conflict.latest(), content);
-                    yield new EditOutcome(path, OptionalInt.empty(), kept, kept != null);
+                    yield kept == null
+                            ? new EditOutcome(path, OptionalInt.empty(), null, false)
+                            : new EditOutcome(path, OptionalInt.empty(), kept.file(), kept.replaced());
                 }
             };
         }
@@ -493,22 +497,37 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Keeps this node's version of a file another server changed meanwhile and takes the newer revision.
+     * Keeps this node's version of a file another server changed meanwhile and takes the newer revision. A file on disk
+     * that holds neither this version nor the newer revision, changed again after the reload, is backed up first.
      *
      * @param content this node's version, kept as {@code conflict_<revision>_<file>}
-     * @return the name of the kept file, none when it could not be kept and the file stays as it is
+     * @return where it was kept and whether the newer revision replaced the file, none when nothing could be kept and
+     *     the file stays as it is
      */
-    private @Nullable String conflict(ANodeData nodeData, Key<?> key, int latest, String content) {
+    private @Nullable Kept conflict(ANodeData nodeData, Key<?> key, int latest, String content) {
         var file = plugin().getDataFolder().toPath().resolve(key.path());
+        var newer = nodeData.settingsAt(key.path().toString(), latest)
+                .map(stored -> tree(stored.content()))
+                .orElse(MissingNode.getInstance());
+        var onDisk = tree(file);
+        if (Files.exists(file) && !onDisk.equals(tree(content)) && !onDisk.equals(newer)) {
+            if (keepBackup(file, latest) == null) return null;
+        }
         var kept = keepContent(file, "conflict_" + latest, content);
         if (kept == null) return null;
-        if (Files.exists(file) && !tree(file).equals(tree(content)) && keepBackup(file, latest) == null) return null;
         plugin().getLogger()
                 .warning(file.getFileName() + " was changed on this server and on another one (revision " + latest
                         + "). This server's version is kept as " + kept + " and revision " + latest + " is used.");
-        take(nodeData, key, false);
-        return kept;
+        return new Kept(kept, take(nodeData, key, false));
     }
+
+    /**
+     * Where a conflicting version was kept.
+     *
+     * @param file     the kept file's name
+     * @param replaced whether taking the newer revision changed the file
+     */
+    private record Kept(String file, boolean replaced) {}
 
     private boolean primary() {
         return nodeSettings().nodeType() == NodeType.PRIMARY;
@@ -655,6 +674,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             if (tree(copy).equals(tree(file))) {
                 rememberApplied(file);
                 if (revision > 0) noteApplied(nodeData, path, revision);
+                if (primary() && revision > 0) nodeData.savePrimaryCopy(configKey, copy);
                 return false;
             }
             if (backupEdits && Files.exists(file) && editedHere(file) && keepBackup(file, revision) == null) {
@@ -703,7 +723,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Keeps a copy of a file before the primary's copy replaces it, so a change made on this node is not lost. A backup
+     * Keeps a copy of a file before a newer revision replaces it, so a change made on this node is not lost. A backup
      * that keeps failing is reported once, until one is written again.
      *
      * @param file the file
