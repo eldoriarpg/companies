@@ -8,6 +8,7 @@ package de.eldoria.companies.configuration;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.integrations.discord.WebhookEvent;
 import de.eldoria.companies.menus.MenuMode;
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
@@ -31,18 +33,55 @@ public final class SettingsCatalogue {
      * The settings edited in the file only, as dotted keys per file.
      */
     public static final List<Field> FILE_ONLY = List.of(
-            new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false),
-            new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false));
+            new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false, null, null),
+            new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false, null, null));
 
-    private static final String CONFIG = "config.yml";
-    private static final String COMPANY = "company.yml";
-    private static final String ORDER = "order.yml";
-    private static final String USER = "user.yml";
+    private static final Set<String> AT_LEAST_ONE = Set.of(
+            "generalSettings.historyDays",
+            "generalSettings.orderCheckInterval",
+            "notifications.pollSeconds",
+            "notifications.retentionDays",
+            "notifications.pageSize",
+            "placeholders.refreshSeconds",
+            "placeholders.leaderboardSize",
+            "placeholders.offlineCacheSize",
+            "boards.refreshSeconds",
+            "discord.maxPerMinute",
+            "discord.queueSize",
+            "dashboard.sessionMaxHours",
+            "inviteHours",
+            "deliveryHours",
+            "joining.maxApplicationLength",
+            "profile.tagLength.min",
+            "profile.tagLength.max",
+            "profile.maxDescriptionLength",
+            "treasury.logPageSize",
+            "treasury.logRetentionDays",
+            "alerts.maxPerCompany",
+            "maxItems",
+            "maxMaterials",
+            "maxUnclaimedHours",
+            "market.historyDays",
+            "market.minOrders",
+            "repeating.maxCopies",
+            "repeating.maxDays",
+            "repeating.checkMinutes",
+            "solo.maxActive",
+            "solo.maxOrderSize",
+            "solo.deliveryHours");
+
+    private static final Set<String> PERCENT =
+            Set.of("tax.percent", "fee.percent", "solo.taxPercent", "treasury.maxPayoutShare");
 
     /**
      * Every field, grouped by file and section in the order they are shown.
      */
     public static final List<Field> FIELDS = build();
+
+    private static final String CONFIG = "config.yml";
+    private static final String COMPANY = "company.yml";
+    private static final String ORDER = "order.yml";
+    private static final String USER = "user.yml";
 
     private SettingsCatalogue() {}
 
@@ -275,9 +314,19 @@ public final class SettingsCatalogue {
      * @param choices the values of a {@link Type#CHOICE} or {@link Type#CHOICES}
      * @param restart whether it applies only after a restart
      * @param secret  whether its value is never shown
+     * @param min     the smallest number allowed, none unless a number
+     * @param max     the largest number allowed, none when unbounded
      */
     public record Field(
-            String file, String section, String key, Type type, List<String> choices, boolean restart, boolean secret) {
+            String file,
+            String section,
+            String key,
+            Type type,
+            List<String> choices,
+            boolean restart,
+            boolean secret,
+            @Nullable Double min,
+            @Nullable Double max) {
         /**
          * @return the key split into the names of the nested sections and the setting
          */
@@ -298,7 +347,15 @@ public final class SettingsCatalogue {
 
     private record Section(List<Field> fields, String file, String name) {
         void add(Type type, String key, List<String> choices, boolean restart) {
-            fields.add(new Field(file, name, key, type, List.copyOf(choices), restart, type == Type.SECRET));
+            var number = type == Type.WHOLE || type == Type.DECIMAL;
+            var min = number ? (AT_LEAST_ONE.contains(key) ? 1.0 : 0.0) : null;
+            var max = PERCENT.contains(key) ? Double.valueOf(100) : null;
+            if (key.equals("dashboard.sessionIdleMinutes")) {
+                min = 5.0;
+                max = 10080.0;
+            }
+            if (key.equals("dashboard.sessionMaxHours")) max = 720.0;
+            fields.add(new Field(file, name, key, type, List.copyOf(choices), restart, type == Type.SECRET, min, max));
         }
 
         void flag(String key) {

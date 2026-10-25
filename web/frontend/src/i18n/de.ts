@@ -257,6 +257,9 @@ export default {
             synced: 'Die Konfiguration ist abgeglichen.',
         },
         settings: {
+            readOnly: 'Zum Ändern der Einstellungen braucht es companies.admin.reload.',
+            discard: 'Änderungen verwerfen',
+            otherErrors: 'Abgelehnt: {settings}',
             onePerLine: 'Ein Eintrag pro Zeile.',
             secretEnvironment: 'Über eine Umgebungsvariable des Servers gesetzt; dort ändern.',
             secretHint: 'Wird nie angezeigt. Neuen Wert eingeben, um ihn zu ersetzen.',
@@ -278,6 +281,9 @@ export default {
             rollbackConfirm: 'Zurücksetzen',
             rollbackNewer: 'Inzwischen wurde Revision {revision} gespeichert; nichts wurde geändert.',
             problem: {
+                atLeast: 'Muss mindestens {min} sein.',
+                range: 'Muss zwischen {min} und {max} liegen.',
+                timezone: 'Muss eine Zeitzone wie Europe/Berlin sein, oder leer.',
                 flag: 'Muss an oder aus sein.',
                 whole: 'Muss eine ganze Zahl sein.',
                 decimal: 'Muss eine Zahl sein.',

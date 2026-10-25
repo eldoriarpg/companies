@@ -257,6 +257,9 @@ export default {
             synced: 'The configuration is synced.',
         },
         settings: {
+            readOnly: 'Changing the settings needs companies.admin.reload.',
+            discard: 'Discard changes',
+            otherErrors: 'Refused: {settings}',
             onePerLine: 'One entry per line.',
             secretEnvironment: 'Set by an environment variable on the server; change it there.',
             secretHint: 'Never shown. Enter a new value to replace it.',
@@ -278,6 +281,9 @@ export default {
             rollbackConfirm: 'Roll back',
             rollbackNewer: 'Revision {revision} was saved meanwhile; nothing was changed.',
             problem: {
+                atLeast: 'Must be at least {min}.',
+                range: 'Must be between {min} and {max}.',
+                timezone: 'Must be a time zone such as Europe/Berlin, or empty.',
                 flag: 'Must be on or off.',
                 whole: 'Must be a whole number.',
                 decimal: 'Must be a number.',

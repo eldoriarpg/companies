@@ -32,7 +32,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.IntConsumer;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The dashboard's view of the shared settings, as {@code /companyadmin settings} shows them in game: a file as its
@@ -95,7 +98,8 @@ public final class AdminSettingsWrites {
         try {
             var file = file(args);
             return switch (request.name()) {
-                case Actions.ADMIN_SETTINGS_GET -> answers.data(request, get(file));
+                case Actions.ADMIN_SETTINGS_GET ->
+                    answers.data(request, get(file, session.permissions().contains(Permission.Admin.RELOAD)));
                 case Actions.ADMIN_SETTINGS_HISTORY ->
                     answers.data(request, Map.of("revisions", history(file, args), "pageSize", PAGE_SIZE));
                 case Actions.ADMIN_SETTINGS_REVISION -> revision(request, file, args);
@@ -126,7 +130,12 @@ public final class AdminSettingsWrites {
                         new Payloads.AdminSettingsSaved(
                                 "newer", newer.latest(), Map.of(), newer.values(), newer.changed(), List.of(), true));
             case SettingsEditor.Result.Done done ->
-                stored(request, admin, file, done.outcome(), values.keySet(), done.restart());
+                stored(request, done.outcome(), done.restart(), revision -> sources.log()
+                        .entry(admin, "settings save")
+                        .with("file", file)
+                        .with("revision", revision)
+                        .with("keys", String.join(",", values.keySet()))
+                        .write());
         };
     }
 
@@ -143,25 +152,20 @@ public final class AdminSettingsWrites {
                     new Payloads.AdminSettingsSaved(
                             "newer", newer.latest(), Map.of(), Map.of(), List.of(), List.of(), true));
         }
-        return stored(request, admin, file, outcome, List.of("revision " + revision), List.of());
+        return stored(request, outcome, List.of(), stored -> sources.log()
+                .entry(admin, "settings rollback")
+                .with("file", file)
+                .with("revision", revision)
+                .with("new", stored)
+                .write());
     }
 
     private ActionResult stored(
-            ActionRequest request,
-            String admin,
-            String file,
-            Configuration.StoreOutcome outcome,
-            Iterable<String> keys,
-            List<String> restart) {
+            ActionRequest request, Configuration.StoreOutcome outcome, List<String> restart, IntConsumer log) {
         return switch (outcome) {
             case Configuration.StoreOutcome.Stored stored -> {
-                if (stored.replaced()) sources.applyChanges().run();
-                sources.log()
-                        .entry(admin, "settings save")
-                        .with("file", file)
-                        .with("revision", stored.revision())
-                        .with("keys", String.join(",", keys))
-                        .write();
+                log.accept(stored.revision());
+                if (stored.replaced()) apply();
                 yield answers.data(
                         request,
                         new Payloads.AdminSettingsSaved(
@@ -180,7 +184,15 @@ public final class AdminSettingsWrites {
         };
     }
 
-    private Payloads.AdminSettingsFile get(String file) {
+    private void apply() {
+        try {
+            sources.applyChanges().run();
+        } catch (RuntimeException e) {
+            sources.logger().log(Level.WARNING, "Could not schedule applying the saved settings.", e);
+        }
+    }
+
+    private Payloads.AdminSettingsFile get(String file, boolean editable) {
         var nodeData = sources.nodeData().get();
         var configuration = sources.configuration();
         var latest = nodeData.latestSettings(file);
@@ -203,7 +215,8 @@ public final class AdminSettingsWrites {
                 status.applied(),
                 status.edited(),
                 status.behind(),
-                settings);
+                settings,
+                editable);
     }
 
     private Payloads.AdminSetting setting(SettingsCatalogue.Field field, JsonNode tree, boolean overridden) {
@@ -217,7 +230,9 @@ public final class AdminSettingsWrites {
                     field.restart(),
                     null,
                     secret(value),
-                    overridden);
+                    overridden,
+                    field.min(),
+                    field.max());
         }
         return new Payloads.AdminSetting(
                 field.section(),
@@ -227,7 +242,9 @@ public final class AdminSettingsWrites {
                 field.restart(),
                 value.isMissingNode() ? null : value,
                 null,
-                overridden);
+                overridden,
+                field.min(),
+                field.max());
     }
 
     private Payloads.AdminSecret secret(JsonNode stored) {
@@ -328,6 +345,7 @@ public final class AdminSettingsWrites {
      * @param nodeData      the node repository holding the revisions, once it exists
      * @param applyChanges  applies the settings changed on this node a few seconds later on the main thread
      * @param log           the admin log
+     * @param logger        where a failed apply is reported
      * @param instant       turns a stored time into an instant
      * @param render        renders a refusal as plain text
      */
@@ -336,6 +354,7 @@ public final class AdminSettingsWrites {
             Supplier<ANodeData> nodeData,
             Runnable applyChanges,
             AdminLog log,
+            Logger logger,
             Function<LocalDateTime, Instant> instant,
             Function<CommandFailure, String> render) {}
 }

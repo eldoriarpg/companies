@@ -197,7 +197,7 @@ test.describe('admin', () => {
         await page.getByTestId('admin-setting-generalSettings.timezone').getByRole('textbox').fill('Mars/Base')
         await save.getByRole('button', {name: 'Save'}).click()
         await save.getByRole('button', {name: 'Save', exact: true}).last().click()
-        await expect(page.getByTestId('admin-setting-generalSettings.timezone')).toContainText('Must be a text.')
+        await expect(page.getByTestId('admin-setting-generalSettings.timezone')).toContainText('Must be a time zone such as Europe/Berlin, or empty.')
 
         await page.getByTestId('admin-setting-generalSettings.timezone').getByRole('textbox').fill('')
         await page.getByTestId('admin-setting-generalSettings.language').getByRole('combobox').selectOption('de_DE')
@@ -228,5 +228,24 @@ test.describe('admin', () => {
         await page.getByRole('button', {name: 'Roll back'}).click()
         await expect(page.getByTestId('admin-settings-done')).toHaveText('Saved as revision 3.')
         await expect(page.getByTestId('admin-settings-status')).toContainText('Revision 3')
+    })
+
+    test('refuses an emptied number at its field and discards changes', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Settings'}).click()
+        await page.getByLabel('File', {exact: true}).selectOption('user.yml')
+        const save = page.getByTestId('admin-settings-save')
+        const orders = page.getByTestId('admin-setting-maxOrders')
+
+        await orders.getByRole('textbox').fill('')
+        await save.getByRole('button', {name: 'Save'}).click()
+        await save.getByRole('button', {name: 'Save', exact: true}).last().click()
+        await expect(orders).toContainText('Must be a whole number.')
+        await expect(page.getByLabel('File', {exact: true})).toBeDisabled()
+
+        await save.getByRole('button', {name: 'Discard changes'}).click()
+        await expect(save).toContainText('No changes to save.')
+        await expect(orders.getByRole('textbox')).toHaveValue('7')
     })
 })

@@ -563,6 +563,10 @@ export interface AdminSetting {
     secret?: AdminSecret | null
     /** Whether the answering server sets it for itself in its node.yml. */
     overridden: boolean
+    /** The smallest number allowed, none unless a number. */
+    min?: number | null
+    /** The largest number allowed, none when unbounded. */
+    max?: number | null
 }
 
 /** A shared settings file with how the servers stand on it. */
@@ -578,6 +582,8 @@ export interface AdminSettingsFile {
     /** The servers on an older revision. */
     behind: string[]
     settings: AdminSetting[]
+    /** Whether the admin may change it, which needs companies.admin.reload. */
+    editable: boolean
 }
 
 /** One revision of a shared settings file. */

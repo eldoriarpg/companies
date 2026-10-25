@@ -26,6 +26,8 @@ const props = defineProps<{
   label: string
   /** The key and what to know about it, shown under the input. */
   hint: string
+  /** Whether the admin may only look. */
+  disabled?: boolean
 }>()
 
 const {t} = useI18n()
@@ -69,8 +71,10 @@ function picked(choice: string): boolean {
  * @param on whether it is picked
  */
 function pick(choice: string, on: boolean): void {
-  const current = Array.isArray(model.value) ? model.value as string[] : []
-  model.value = on ? [...current.filter(entry => entry !== choice), choice] : current.filter(entry => entry !== choice)
+  const current = new Set(Array.isArray(model.value) ? model.value as string[] : [])
+  if (on) current.add(choice)
+  else current.delete(choice)
+  model.value = props.setting.choices.filter(entry => current.has(entry))
 }
 
 /**
@@ -80,24 +84,26 @@ function pick(choice: string, on: boolean): void {
  * @param on whether it is on
  */
 function toggle(name: string, on: boolean): void {
-  model.value = {...switches.value, [name]: on}
+  const stored = (props.setting.value ?? {}) as Record<string, boolean>
+  const next = {...switches.value, [name]: on}
+  model.value = Object.fromEntries(Object.entries(next).filter(([key, value]) => key in stored || !value))
 }
 </script>
 
 <template>
   <div class="flex min-w-0 flex-col gap-1">
-    <ToggleSwitch v-if="setting.type === 'FLAG'" v-model="flag" :label="label"/>
-    <NumberInput v-else-if="setting.type === 'WHOLE'" v-model="number" :label="label" :hint="hint"/>
-    <DecimalInput v-else-if="setting.type === 'DECIMAL'" v-model="number" :label="label" :hint="hint"/>
-    <SelectInput v-else-if="setting.type === 'CHOICE'" v-model="text" :label="label" :options="options"/>
-    <TextAreaInput v-else-if="setting.type === 'TEXT_LIST'" v-model="lines" :label="label" :hint="t('admin.settings.onePerLine')" :rows="4"/>
+    <ToggleSwitch v-if="setting.type === 'FLAG'" v-model="flag" :label="label" :disabled="disabled"/>
+    <NumberInput v-else-if="setting.type === 'WHOLE'" v-model="number" :label="label" :hint="hint" :min="setting.min ?? undefined" :max="setting.max ?? undefined" :disabled="disabled"/>
+    <DecimalInput v-else-if="setting.type === 'DECIMAL'" v-model="number" :label="label" :hint="hint" :min="setting.min ?? undefined" :max="setting.max ?? undefined" :disabled="disabled"/>
+    <SelectInput v-else-if="setting.type === 'CHOICE'" v-model="text" :label="label" :options="options" :disabled="disabled"/>
+    <TextAreaInput v-else-if="setting.type === 'TEXT_LIST'" v-model="lines" :label="label" :hint="t('admin.settings.onePerLine')" :rows="4" :disabled="disabled"/>
     <fieldset v-else-if="setting.type === 'CHOICES'" class="flex flex-col gap-1">
       <legend class="text-xs font-semibold text-ink-muted">{{ label }}</legend>
-      <CheckboxInput v-for="choice in setting.choices" :key="choice" :model-value="picked(choice)" :label="choice" @update:model-value="pick(choice, $event)"/>
+      <CheckboxInput v-for="choice in setting.choices" :key="choice" :model-value="picked(choice)" :label="choice" :disabled="disabled" @update:model-value="pick(choice, $event)"/>
     </fieldset>
     <fieldset v-else-if="setting.type === 'FLAG_MAP'" class="flex flex-col gap-1">
       <legend class="text-xs font-semibold text-ink-muted">{{ label }}</legend>
-      <CheckboxInput v-for="name in Object.values(Feature)" :key="name" :model-value="switches[name] !== false" :label="name" @update:model-value="toggle(name, $event)"/>
+      <CheckboxInput v-for="name in Object.values(Feature)" :key="name" :model-value="switches[name] !== false" :label="name" :disabled="disabled" @update:model-value="toggle(name, $event)"/>
     </fieldset>
     <template v-else-if="setting.type === 'SECRET'">
       <TextInput
@@ -105,12 +111,12 @@ function toggle(name: string, on: boolean): void {
           :label="label"
           :hint="fromEnvironment ? t('admin.settings.secretEnvironment') : t('admin.settings.secretHint')"
           :placeholder="setting.secret?.set ? t('admin.settings.secretKept') : ''"
-          :disabled="fromEnvironment || clearing"
+          :disabled="disabled || fromEnvironment || clearing"
           @update:model-value="model = $event === '' ? undefined : $event"
       />
-      <CheckboxInput v-if="setting.secret?.set && !fromEnvironment" v-model="clearing" :label="t('admin.settings.secretClear')"/>
+      <CheckboxInput v-if="setting.secret?.set && !fromEnvironment && !disabled" v-model="clearing" :label="t('admin.settings.secretClear')"/>
     </template>
-    <TextInput v-else v-model="text" :label="label" :hint="hint"/>
+    <TextInput v-else v-model="text" :label="label" :hint="hint" :disabled="disabled"/>
     <span v-if="setting.type === 'FLAG' || setting.type === 'CHOICE' || setting.type === 'CHOICES' || setting.type === 'FLAG_MAP' || setting.type === 'SECRET'" class="text-xs text-ink-muted">{{ hint }}</span>
   </div>
 </template>

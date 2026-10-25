@@ -338,6 +338,7 @@ public final class DashboardModule {
                         data.admin().nodeData(),
                         data.admin().applyChanges(),
                         data.admin().log(),
+                        plugin.getLogger(),
                         views::instant,
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);

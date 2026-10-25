@@ -58,6 +58,9 @@ const opened = ref<AdminSettingsRevision | null>(null)
 const choices = computed(() => FILES.map(name => ({value: name, label: name})))
 const busy = computed(() => loading.busy.value || listing.busy.value || opening.busy.value || saving.busy.value || rolling.busy.value)
 const fileId = computed(() => file.value.replace('.yml', ''))
+const editable = computed(() => settings.value?.editable === true)
+const shownKeys = computed(() => new Set((settings.value?.settings ?? []).map(setting => setting.key)))
+const unshownErrors = computed(() => Object.keys(errors.value).filter(key => key !== '' && !shownKeys.value.has(key)))
 const changed = computed(() => (settings.value?.settings ?? []).filter(setting => JSON.stringify(draft.value[setting.key]) !== JSON.stringify(original(setting))))
 const answering = computed(() => (settings.value ? serverName(settings.value.node) : ''))
 const nodes = computed(() => new Map((server.value?.nodes ?? []).map(node => [node.uid, node])))
@@ -120,7 +123,7 @@ async function save(): Promise<void> {
   if (!current || changed.value.length === 0) return
   done.value = ''
   errors.value = {}
-  const values = Object.fromEntries(changed.value.map(setting => [setting.key, draft.value[setting.key]]))
+  const values = Object.fromEntries(changed.value.map(setting => [setting.key, draft.value[setting.key] ?? (setting.type === 'SECRET' ? undefined : null)]))
   const result = await saving.run('admin.settings.save', {file: file.value, base: current.revision, values})
   saveRun.value++
   if (!result) return
@@ -151,6 +154,25 @@ function saved(status: string, revision: number, restart: string[], applied: boo
   if (restart.length > 0) parts.push(t('admin.settings.savedRestart', {settings: restart.join(', ')}))
   if (!applied) parts.push(t('admin.settings.notApplied', {server: answering.value}))
   return parts.join(' ')
+}
+
+/** Drops the changes not saved yet. */
+function discard(): void {
+  const current = settings.value
+  if (!current) return
+  errors.value = {}
+  newer.value = null
+  draft.value = Object.fromEntries(current.settings.map(setting => [setting.key, structuredClone(original(setting))]))
+}
+
+/**
+ * @param setting a setting
+ * @param reason why its value was refused
+ * @returns the reason for the admin
+ */
+function problem(setting: AdminSetting, reason: string): string {
+  if (reason !== 'range') return t(`admin.settings.problem.${reason}`)
+  return setting.max == null ? t('admin.settings.problem.atLeast', {min: setting.min ?? 0}) : t('admin.settings.problem.range', {min: setting.min ?? 0, max: setting.max})
 }
 
 /**
@@ -235,7 +257,8 @@ function value(raw: unknown): string {
 
 <template>
   <div class="flex min-w-0 flex-col gap-4">
-    <SelectInput v-model="file" :label="t('admin.settings.file')" :options="choices" :disabled="busy"/>
+    <SelectInput v-model="file" :label="t('admin.settings.file')" :options="choices" :disabled="busy || changed.length > 0"/>
+    <Alert v-if="settings && !editable" variant="notice">{{ t('admin.settings.readOnly') }}</Alert>
     <ActionNotice :problem="loading.problem.value"/>
     <PanelBox v-if="settings" padded :aria-label="t('admin.settings.status')" data-testid="admin-settings-status">
       <SectionHeader>{{ t('admin.settings.status') }}</SectionHeader>
@@ -249,16 +272,17 @@ function value(raw: unknown): string {
       </template>
       <PlainList :data-testid="`admin-settings-${section.name}`">
         <li v-for="setting in section.entries" :key="setting.key" class="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 text-sm md:px-4" :data-testid="`admin-setting-${setting.key}`">
-          <AdminSettingField v-model="draft[setting.key]" :setting="setting" :label="label(setting)" :hint="hint(setting)"/>
+          <AdminSettingField v-model="draft[setting.key]" :setting="setting" :label="label(setting)" :hint="hint(setting)" :disabled="!editable"/>
           <span v-if="setting.type === 'SECRET'" class="text-xs text-ink-muted" data-testid="admin-setting-secret">{{ shown(setting) }}</span>
-          <span v-if="errors[setting.key]" class="text-xs font-semibold text-problem-ink" role="alert">{{ t(`admin.settings.problem.${errors[setting.key]}`) }}</span>
+          <span v-if="errors[setting.key]" class="text-xs font-semibold text-problem-ink" role="alert">{{ problem(setting, errors[setting.key] ?? '') }}</span>
           <span v-if="newer && newer.changed.includes(setting.key)" class="text-xs font-semibold" data-testid="admin-setting-newer">{{ t('admin.settings.newerValue', {revision: newer.revision, value: setting.type === 'SECRET' ? t('admin.settings.secretChanged') : value(newer.values[setting.key] ?? setting.value)}) }}</span>
         </li>
       </PlainList>
     </PanelBox>
-    <PanelBox v-if="settings" padded :aria-label="t('admin.settings.save')" data-testid="admin-settings-save">
+    <PanelBox v-if="settings && editable" padded :aria-label="t('admin.settings.save')" data-testid="admin-settings-save">
       <Alert v-if="newer" variant="notice">{{ t('admin.settings.newer', {revision: newer.revision, settings: newer.changed.join(', ') || '–'}) }}</Alert>
       <Alert v-if="errors['']" variant="problem">{{ t('admin.settings.problem.invalid') }}</Alert>
+      <Alert v-if="unshownErrors.length > 0" variant="problem">{{ t('admin.settings.otherErrors', {settings: unshownErrors.join(', ')}) }}</Alert>
       <p class="text-sm">{{ changed.length === 0 ? t('admin.settings.noChange') : t('admin.settings.changes', {settings: changed.map(label).join(', ')}) }}</p>
       <ConfirmStep
           v-if="changed.length > 0"
@@ -269,6 +293,7 @@ function value(raw: unknown): string {
           :busy="saving.busy.value"
           @confirmed="save"
       />
+      <SecondaryButton v-if="changed.length > 0" :disabled="busy" @click="discard">{{ t('admin.settings.discard') }}</SecondaryButton>
       <ActionNotice :problem="saving.problem.value"/>
     </PanelBox>
     <Alert v-if="done" variant="success" data-testid="admin-settings-done">{{ done }}</Alert>
@@ -292,7 +317,7 @@ function value(raw: unknown): string {
               <span v-else> · {{ value(change.before) }} → {{ value(change.after) }}</span>
             </li>
           </ul>
-          <div v-if="opened?.revision === revision.revision && settings && revision.revision < settings.revision" class="border-b border-line-soft px-3 py-2 md:px-4">
+          <div v-if="opened?.revision === revision.revision && settings && editable && changed.length === 0 && revision.revision < settings.revision" class="border-b border-line-soft px-3 py-2 md:px-4">
             <ConfirmStep
                 :trigger="t('admin.settings.rollback')"
                 :question="t('admin.settings.rollbackQuestion', {revision: revision.revision})"

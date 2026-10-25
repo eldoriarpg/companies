@@ -258,11 +258,11 @@ const SETTINGS_HISTORY = [
  */
 function settingsFile(file) {
     if (file !== 'config.yml') {
-        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, behind: [], settings: [
+        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, editable: true, behind: [], settings: [
             {section: 'orders', key: 'maxOrders', type: 'WHOLE', choices: [], restart: false, value: 7, overridden: false},
         ]}
     }
-    return {file, revision: 2, node: PRIMARY_NODE, applied: 2, editedHere: false, behind: [SECONDARY_NODE], settings: [
+    return {file, revision: 2, node: PRIMARY_NODE, applied: 2, editedHere: false, editable: true, behind: [SECONDARY_NODE], settings: [
         {section: 'general', key: 'generalSettings.language', type: 'CHOICE', choices: ['en_US', 'de_DE', 'fr_FR'], restart: false, value: 'en_US', overridden: false},
         {section: 'general', key: 'generalSettings.timezone', type: 'TEXT', choices: [], restart: false, value: '', overridden: false},
         {section: 'general', key: 'generalSettings.messageBlocking', type: 'FLAG', choices: [], restart: true, value: true, overridden: true},
@@ -299,7 +299,7 @@ function settingsAnswer(status, revision, extra = {}) {
 }
 
 /**
- * Saves settings: a timezone on Mars is refused, and the first save of the Discord username meets a revision another
+ * Saves settings: a timezone on Mars and an emptied number are refused, and the first save of the Discord username meets a revision another
  * admin saved meanwhile.
  *
  * @param state the session's state
@@ -309,8 +309,10 @@ function settingsAnswer(status, revision, extra = {}) {
 function saveSettings(state, args) {
     const stored = storedSettings(state, args.file)
     if (args.values['generalSettings.timezone'] === 'Mars/Base') {
-        return settingsAnswer('invalid', 0, {fields: {'generalSettings.timezone': 'text'}})
+        return settingsAnswer('invalid', 0, {fields: {'generalSettings.timezone': 'timezone'}})
     }
+    const empty = Object.keys(args.values).filter(key => args.values[key] === null)
+    if (empty.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(empty.map(key => [key, 'whole']))})
     if ('discord.username' in args.values && !state.settingsRaced) {
         state.settingsRaced = true
         stored.revision++

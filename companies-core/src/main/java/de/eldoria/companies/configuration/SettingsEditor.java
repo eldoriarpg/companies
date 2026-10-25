@@ -14,6 +14,8 @@ import tools.jackson.databind.node.MissingNode;
 import tools.jackson.databind.node.ObjectNode;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -26,7 +28,7 @@ import java.util.Optional;
  * the next revision when nobody stored one meanwhile.
  * <p>
  * Every bad value is named at once and nothing is stored then. A secret is written only when a value is given; none
- * keeps it, an empty one clears it, and one set by an environment variable cannot be changed here. When another
+ * keeps it, an empty one clears it, one of only spaces is refused, and one set by an environment variable cannot be changed here. When another
  * revision was stored after the one the admin saw, nothing is stored; the answer carries the newer values of the
  * submitted settings and which settings that revision changed, so the admin can save again on top of it.
  */
@@ -57,6 +59,7 @@ public final class SettingsEditor {
                 problem(configuration, file, name, value).ifPresent(problem -> errors.put(name, problem)));
         if (!errors.isEmpty()) return new Result.Invalid(errors);
         var latest = nodeData.settingsRevisions().getOrDefault(file, 0);
+        if (base < 0 || base > latest) return new Result.Invalid(Map.of("", "invalid"));
         if (latest != base) return newer(nodeData, file, base, latest, values.keySet());
         var tree = nodeData.settingsAt(file, base)
                 .map(revision -> tree(revision.content()))
@@ -124,12 +127,37 @@ public final class SettingsEditor {
                     case SECRET -> value.isNull() || value.isString();
                 };
         if (!valid) return Optional.of(field.get().type().name().toLowerCase(Locale.ROOT));
+        if (value.isNumber()) {
+            var number = value.asDouble();
+            if (!Double.isFinite(number)) return Optional.of("decimal");
+            var min = field.get().min();
+            var max = field.get().max();
+            if (min != null && number < min) return Optional.of("range");
+            if (max != null && number > max) return Optional.of("range");
+        }
+        if (field.get().secret()
+                && value.isString()
+                && value.asString().isBlank()
+                && !value.asString().isEmpty()) {
+            return Optional.of("secret");
+        }
+        if (name.equals("generalSettings.timezone") && !zone(value.asString())) return Optional.of("timezone");
         if (field.get().secret()
                 && value.isString()
                 && configuration.discordSettings().urlFromEnvironment()) {
             return Optional.of("environment");
         }
         return Optional.empty();
+    }
+
+    private static boolean zone(String name) {
+        if (name.isBlank()) return true;
+        try {
+            ZoneId.of(name.strip());
+            return true;
+        } catch (DateTimeException e) {
+            return false;
+        }
     }
 
     private static void put(ObjectNode tree, SettingsCatalogue.Field field, JsonNode value) {
@@ -144,7 +172,7 @@ public final class SettingsEditor {
         }
         node.set(
                 path.getLast(),
-                value.isString()
+                field.secret()
                         ? JsonNodeFactory.instance.stringNode(value.asString().strip())
                         : value);
     }
@@ -166,8 +194,10 @@ public final class SettingsEditor {
          *
          * @param fields the reason by dotted key: the type the value should have ({@code flag}, {@code whole},
          *               {@code decimal}, {@code text}, {@code choice}, {@code choices}, {@code text_list},
-         *               {@code flag_map}, {@code secret}), {@code unknown}, {@code environment}, or {@code invalid}
-         *               under the empty key when the file as a whole could not be read
+         *               {@code flag_map}, {@code secret}), {@code range} outside its bounds,
+         *               {@code timezone} for a zone that does not exist, {@code unknown}, {@code environment}, or
+         *               {@code invalid} under the empty key when the file as a whole could not be read or the
+         *               revision edited does not exist
          */
         record Invalid(Map<String, String> fields) implements Result {}
 

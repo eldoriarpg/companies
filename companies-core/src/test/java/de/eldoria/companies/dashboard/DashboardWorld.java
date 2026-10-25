@@ -574,6 +574,7 @@ public final class DashboardWorld implements AutoCloseable {
                         () -> nodeData,
                         settingsApplied::incrementAndGet,
                         adminLog,
+                        Logger.getAnonymousLogger(),
                         views::instant,
                         failure -> "text of " + failure.localeKey())));
     }

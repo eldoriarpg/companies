@@ -338,4 +338,57 @@ class AdminSettingsWritesTest {
         assertEquals(3, result.data().path("revision").asInt());
         assertFalse(latest("user.yml").contains("maxOrders: 11"));
     }
+
+    @Test
+    void numbersOutsideTheirBoundsUnknownZonesAndBlankSecretsAreRefused() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+
+        var result = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":1,\"values\":{\"generalSettings.orderCheckInterval\":0,"
+                        + "\"generalSettings.timezone\":\"Mars/Base\",\"discord.url\":\"  \","
+                        + "\"notifications.pageSize\":null}}");
+
+        var fields = result.data().path("fields");
+        assertEquals("range", fields.path("generalSettings.orderCheckInterval").asString());
+        assertEquals("timezone", fields.path("generalSettings.timezone").asString());
+        assertEquals("secret", fields.path("discord.url").asString());
+        assertEquals("whole", fields.path("notifications.pageSize").asString());
+        assertEquals(
+                "range",
+                change(
+                                Actions.ADMIN_SETTINGS_SAVE,
+                                "{\"file\":\"company.yml\",\"base\":0,\"values\":{\"tax.percent\":101}}")
+                        .data()
+                        .path("fields")
+                        .path("tax.percent")
+                        .asString());
+        assertEquals(
+                "invalid",
+                change(
+                                Actions.ADMIN_SETTINGS_SAVE,
+                                "{\"file\":\"config.yml\",\"base\":7,\"values\":{\"top.cacheSeconds\":5}}")
+                        .data()
+                        .path("fields")
+                        .path("")
+                        .asString());
+    }
+
+    @Test
+    void theFileSaysWhetherTheAdminMayChangeItAndARollbackIsLoggedAsOne() {
+        var content = copy(Configuration.USER_SETTINGS);
+        world.nodeData.publishSettings("user.yml", content, "startup");
+        world.nodeData.publishSettings("user.yml", content.replaceFirst("maxOrders: \\d+", "maxOrders: 11"), "Bo");
+
+        assertFalse(read(Actions.ADMIN_SETTINGS_GET, "{\"file\":\"user.yml\"}")
+                .data()
+                .path("editable")
+                .asBoolean());
+        var editable = change(Actions.ADMIN_SETTINGS_GET, "{\"file\":\"user.yml\"}");
+        assertTrue(editable.data().path("editable").asBoolean());
+        assertEquals(0.0, setting(editable, "maxOrders").path("min").asDouble());
+
+        change(Actions.ADMIN_SETTINGS_ROLLBACK, "{\"file\":\"user.yml\",\"revision\":1,\"base\":2}");
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("settings rollback")));
+    }
 }
