@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
@@ -59,6 +60,7 @@ import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.LevelAdminService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
@@ -303,6 +305,12 @@ public final class DashboardModule {
                         Threading.mainThread(plugin),
                         views,
                         data.admin().log(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminLevelWrites(new AdminLevelWrites.Sources(
+                        data.admin().levels(),
+                        data.admin().recalculate(),
+                        Threading.mainThread(plugin),
+                        data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()
@@ -446,6 +454,8 @@ public final class DashboardModule {
      * @param companies     renames companies and changes their owner as an admin
      * @param companyData   the company repository
      * @param grants        grants players money and items
+     * @param levels        changes the company levels
+     * @param recalculate   recalculates the level of every company, then runs the given task
      */
     public record AdminServices(
             AdminOrderService orders,
@@ -454,7 +464,9 @@ public final class DashboardModule {
             Function<String, CompletableFuture<Optional<SimpleCompany>>> companyByName,
             AdminCompanyService companies,
             ACompanyData companyData,
-            AdminGrantService grants) {}
+            AdminGrantService grants,
+            LevelAdminService levels,
+            Consumer<Runnable> recalculate) {}
 
     /**
      * The services the dashboard moves items through, with the inventory of a player online on this node.

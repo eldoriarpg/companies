@@ -23,6 +23,7 @@ import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeCaches;
+import de.eldoria.companies.nodes.NodeMessage;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -40,6 +41,7 @@ import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.LevelAdminService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
@@ -49,6 +51,7 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -338,6 +341,17 @@ public final class CommandDependencies {
                 ready.notificationService(),
                 ready.itemReturnService(),
                 ready.series());
+    }
+
+    /**
+     * @return changes the company levels and shares them with the other nodes
+     */
+    public LevelAdminService levels() {
+        Runnable share = () -> {
+            nodeData.savePrimaryConfiguration(Configuration.COMPANY_SETTINGS, configuration);
+            bus().publish(new NodeMessage.ConfigSynced());
+        };
+        return new LevelAdminService(configuration, share, adminLog(), Threading.VIRTUAL, plugin.getLogger());
     }
 
     /**

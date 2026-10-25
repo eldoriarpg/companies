@@ -143,10 +143,12 @@ A new level starts with the name `none`, the requirements 1 order, 1000 money, 1
 20 members and 5 orders. Change these before you run `/companyadmin calclevel`.
 
 Every change is saved to `company.yml` straight away and written to the [admin log](./admin-commands.md#the-admin-log).
+The [web dashboard](./dashboard.md#admin-tools) has the same editor in its *Levels* tab.
 
 :::info Several servers
-The level editor only works on the primary server. Secondary servers get the levels from it. See
-[Several servers](./multiserver.md) for how to pass the change on.
+The level editor only works on the primary server. Every change also writes `company.yml` to the database, as
+`/companyadmin syncconfiguration` on the primary would, so you do not need to run it. See
+[when the configuration is copied](./multiserver.md#when-the-configuration-is-copied) for when the secondaries take it.
 :::
 
 For all `company.yml` settings, see [company.yml](./configuration/company-yml.md).

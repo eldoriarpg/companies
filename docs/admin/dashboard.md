@@ -112,7 +112,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players` and `admin.companies`; the other parts arrive with later versions. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players`, `admin.companies` and `admin.levels`; the other parts arrive with later versions. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is your `server-icon.png`. |
 
@@ -152,8 +152,11 @@ it.
 | Companies | Rename a company for free | `companies.admin.rename` | `/companyadmin rename` |
 | Companies | Make a member the owner | `companies.admin.transferOwner` | `/companyadmin transferowner` |
 | Companies | Dissolve a company after asking once more | `companies.admin.delete` | `/companyadmin delete` |
+| Levels | Show every level; edit one in a form, add, move and remove levels. Changes are made on the primary server and passed on like the in-game editor does. | `companies.admin.level` | `/companyadmin level …` |
+| Levels | Recalculate the level of every company | `companies.admin.calcLevel` | `/companyadmin calclevel` |
 
-Switch a tab off with `dashboard.features` like any other part: `admin.orders`, `admin.players` or `admin.companies` set to `false`.
+Switch a tab off with `dashboard.features` like any other part: `admin.orders`, `admin.players`, `admin.companies` or
+`admin.levels` set to `false`.
 
 ## Several servers
 

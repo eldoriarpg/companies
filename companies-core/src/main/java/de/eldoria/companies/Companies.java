@@ -576,7 +576,9 @@ public class Companies extends EldoPlugin {
                                         AdminGrantService.Bank.of(
                                                 commands.services().economy()),
                                         commands.services().itemReturnService(),
-                                        commands.services().notificationService()::send))),
+                                        commands.services().notificationService()::send),
+                                commands.levels(),
+                                commands.services().levelService()::updateAllCompanies)),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

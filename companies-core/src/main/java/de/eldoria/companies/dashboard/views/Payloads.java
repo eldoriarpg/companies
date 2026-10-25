@@ -484,4 +484,42 @@ public final class Payloads {
      * @param entries the latest movements, newest first
      */
     public record AdminTreasury(String company, double balance, int share, List<TreasuryEntry> entries) {}
+
+    /**
+     * A company level as an admin edits it. The name is the MiniMessage text as written in {@code company.yml}.
+     *
+     * @param level              the level number, from one
+     * @param name               the name
+     * @param orderCount         orders a company must have done
+     * @param memberCount        members a company must have
+     * @param earnedMoney        money a company must have earned
+     * @param deliveredItems     items a company must have delivered
+     * @param maxMembers         the most members
+     * @param maxOrders          the most orders at once
+     * @param maxOrderSize       the most items an accepted order may have, 0 for no limit
+     * @param deliveryHoursBonus extra hours to deliver
+     * @param taxPercent         the tax on payouts, none for the global tax
+     * @param maxAlerts          the most order alerts, none for the global limit
+     */
+    public record AdminLevel(
+            int level,
+            String name,
+            int orderCount,
+            int memberCount,
+            double earnedMoney,
+            int deliveredItems,
+            int maxMembers,
+            int maxOrders,
+            int maxOrderSize,
+            int deliveryHoursBonus,
+            @Nullable Double taxPercent,
+            @Nullable Integer maxAlerts) {}
+
+    /**
+     * The company levels for an admin.
+     *
+     * @param editable whether this node may change them, which only the primary does
+     * @param levels   the levels, lowest first
+     */
+    public record AdminLevels(boolean editable, List<AdminLevel> levels) {}
 }

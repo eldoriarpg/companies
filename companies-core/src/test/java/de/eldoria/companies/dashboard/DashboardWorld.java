@@ -15,11 +15,13 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
+import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NotificationSettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
+import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
@@ -71,6 +73,7 @@ import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.LevelAdminService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
@@ -109,6 +112,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -128,6 +132,9 @@ public final class DashboardWorld implements AutoCloseable {
     public final RecordedDeliveries deliveries = new RecordedDeliveries();
     public final List<UUID> moved = new CopyOnWriteArrayList<>();
     public final List<String> adminActions = new CopyOnWriteArrayList<>();
+    public final NodeSettings nodeSettings = new NodeSettings();
+    public final AtomicInteger levelShares = new AtomicInteger();
+    public final AtomicInteger recalculations = new AtomicInteger();
     public AdminLog adminLog;
     public final ExecutorService executor = Executors.newFixedThreadPool(4);
     public final Map<UUID, String> names = new ConcurrentHashMap<>();
@@ -334,6 +341,14 @@ public final class DashboardWorld implements AutoCloseable {
             public OrderSettings orderSetting() {
                 return orderSettings;
             }
+
+            @Override
+            public NodeSettings nodeSettings() {
+                return nodeSettings;
+            }
+
+            @Override
+            public void save() {}
         };
         var adminOrderService = new AdminOrderService(
                 orders,
@@ -505,6 +520,20 @@ public final class DashboardWorld implements AutoCloseable {
                         disband,
                         Runnable::run,
                         views,
+                        adminLog,
+                        failure -> "text of " + failure.localeKey())),
+                new AdminLevelWrites(new AdminLevelWrites.Sources(
+                        new LevelAdminService(
+                                adminConfiguration,
+                                levelShares::incrementAndGet,
+                                adminLog,
+                                Runnable::run,
+                                Logger.getAnonymousLogger()),
+                        done -> {
+                            recalculations.incrementAndGet();
+                            done.run();
+                        },
+                        Runnable::run,
                         adminLog,
                         failure -> "text of " + failure.localeKey())));
     }
