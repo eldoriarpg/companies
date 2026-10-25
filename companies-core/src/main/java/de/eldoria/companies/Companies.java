@@ -615,13 +615,13 @@ public class Companies extends EldoPlugin {
     }
 
     /**
-     * Does what {@code /companyadmin syncconfiguration} does, for the dashboard: syncs the files, tells the secondaries
-     * on the primary, and applies the files a few seconds later on the main thread, since applying them reconnects the
+     * Does what {@code /companyadmin syncconfiguration} does on the primary, for the dashboard, which asks only the
+     * primary: syncs the files, tells the secondaries, and applies the files a few seconds later on the main thread, since applying them reconnects the
      * dashboard and the answer has to reach the gateway first. Syncs in quick succession share one later apply.
      */
     private synchronized void syncConfigurationFromDashboard() {
         configuration.syncConfigurations(nodeData).join();
-        if (nodeData.nodeType() == NodeType.PRIMARY) commands.bus().publish(new NodeMessage.ConfigSynced());
+        commands.bus().publish(new NodeMessage.ConfigSynced());
         if (pendingApply != null) pendingApply.cancel();
         pendingApply = getServer().getScheduler().runTaskLater(this, commands::reloaded, SYNC_APPLY_DELAY_TICKS);
     }

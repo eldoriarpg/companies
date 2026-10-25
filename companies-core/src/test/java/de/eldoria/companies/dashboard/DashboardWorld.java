@@ -146,6 +146,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final AtomicInteger levelShares = new AtomicInteger();
     public final AtomicInteger recalculations = new AtomicInteger();
     public final AtomicInteger configSyncs = new AtomicInteger();
+    public volatile boolean failSync;
     public final BoardBindings boardBindings = new BoardBindings();
     public final FakeHook citizens = new FakeHook("Citizens", Set.of("4", "5"));
     public SqLiteNodeData nodeData;
@@ -559,7 +560,12 @@ public final class DashboardWorld implements AutoCloseable {
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {
-        nodeData = new SqLiteNodeData(new NodeSettings());
+        nodeData = new SqLiteNodeData(new NodeSettings() {
+            @Override
+            public NodeType nodeType() {
+                return nodeType;
+            }
+        });
         nodeData.updateNode(plugin);
         var boardSettings = new BoardSettings();
         var boards = Boards.create(() -> boardSettings, orders);
@@ -572,7 +578,10 @@ public final class DashboardWorld implements AutoCloseable {
                 server.getConsoleSender(),
                 () -> nodeData,
                 node -> "Redis",
-                configSyncs::incrementAndGet,
+                () -> {
+                    if (failSync) throw new IllegalStateException("the database is away");
+                    configSyncs.incrementAndGet();
+                },
                 views::instant,
                 Runnable::run,
                 adminLog,

@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.configuration.elements.NodeSettings;
+import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
@@ -171,6 +172,22 @@ class AdminServerWritesTest {
         assertTrue(removed.ok(), removed.reason());
         assertEquals(1, removed.data().path("nodes").size());
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("node remove")));
+    }
+
+    @Test
+    void syncingIsRefusedOnASecondaryAndWhenItFails() {
+        world.nodeType = NodeType.SECONDARY;
+        assertEquals(
+                "error.secondarynode",
+                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.ADMIN).reason());
+
+        world.nodeType = NodeType.PRIMARY;
+        world.failSync = true;
+        assertEquals(
+                "companyadmin.syncconfiguration.failed",
+                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.ADMIN).reason());
+        assertEquals(0, world.configSyncs.get());
+        assertTrue(world.adminActions.stream().noneMatch(line -> line.contains("syncconfiguration")));
     }
 
     @Test

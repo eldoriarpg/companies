@@ -1198,6 +1198,40 @@ class HostedGatewayTest {
     }
 
     @Test
+    void sendsTheSyncToThePrimaryOnlyAndTellsAdminsWhenANodeLeaves() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        List<String> features = List.of(Features.ORDERS_BROWSE, Features.ADMIN_CONFIG);
+        try (FakeNode secondary = FakeNode.welcomed(
+                gateway,
+                FakeNode.hello(KeyKind.DASHBOARD_KEY, key, secondaryId, NodeRole.SECONDARY, PLUGIN, features, null))) {
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.26");
+            login(secondary, admin, create(secondary, secondaryId), true);
+            String sync = "{\"name\":\"admin.config.sync\",\"args\":{}}";
+            assertEquals(503, admin.post("/api/v1/me/actions", sync).statusCode());
+            secondary.assertQuietBut(SnapshotRequest.class);
+
+            try (FakeNode primary = FakeNode.welcomed(
+                    gateway,
+                    FakeNode.hello(KeyKind.DASHBOARD_KEY, key, primaryId, NodeRole.PRIMARY, PLUGIN, features, null))) {
+                CompletableFuture<HttpResponse<String>> synced = admin.postAsync("/api/v1/me/actions", sync);
+                answer(primary, primary.expect(ActionRequest.class), 1);
+                assertEquals(1, content(synced.join()));
+                secondary.assertQuietBut(SnapshotRequest.class);
+
+                try (FakeBrowser.Stream stream = admin.stream()) {
+                    assertEquals(2, stream.next().path("server").path("nodes").size());
+                    primary.close();
+                    JsonNode left = stream.next();
+                    assertEquals("server", left.path("type").asString());
+                    assertEquals(1, left.path("server").path("nodes").size());
+                }
+            }
+        }
+    }
+
+    @Test
     void listsTheAdminFeaturesToAdminsOnly() {
         String key = key();
         UUID uid = UUID.randomUUID();

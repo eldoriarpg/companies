@@ -528,8 +528,8 @@ public final class BrowserApi {
 
     /**
      * The node an action goes to: the player's node for what moves items, the primary alone for what only it does,
-     * the named node for what a node keeps for itself (none when that node is not connected or not a node id, so nothing reaches another one), the primary
-     * otherwise.
+     * the named node for what a node keeps for itself (none when that node is not connected or not a node id, so
+     * nothing reaches another one), the primary otherwise.
      *
      * @param server  the player's server
      * @param session the browser session

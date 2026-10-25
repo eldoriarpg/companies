@@ -11,10 +11,10 @@ import java.util.UUID;
 
 @SuppressWarnings("FieldMayBeFinal")
 public class NodeSettings {
-    private NodeType nodeType = NodeType.PRIMARY;
-    private UUID nodeUid = UUID.randomUUID();
     private static final int MAX_NAME = 32;
 
+    private NodeType nodeType = NodeType.PRIMARY;
+    private UUID nodeUid = UUID.randomUUID();
     private String name = "";
     private NodeDashboardSettings dashboard = new NodeDashboardSettings();
 
