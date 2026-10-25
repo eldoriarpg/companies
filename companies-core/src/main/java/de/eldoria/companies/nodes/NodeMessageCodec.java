@@ -10,6 +10,7 @@ import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
+import de.eldoria.companies.nodes.NodeMessage.LevelsChanged;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
@@ -50,6 +51,7 @@ public final class NodeMessageCodec {
             RankingChanged.class, "ranking.changed",
             BoardsChanged.class, "boards.changed",
             ConfigSynced.class, "config.synced",
+            LevelsChanged.class, "levels.changed",
             Heartbeat.class, "node.heartbeat",
             NodeStopped.class, "node.stopped");
     private static final Map<String, Class<? extends NodeMessage>> CLASSES =

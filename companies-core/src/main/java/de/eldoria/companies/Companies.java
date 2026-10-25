@@ -167,6 +167,8 @@ public class Companies extends EldoPlugin {
     private final Thread.UncaughtExceptionHandler exceptionHandler = (t, e) -> getLogger()
             .log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
+    private final ExecutorService levelSyncs =
+            Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private final ScheduledExecutorService workerPool =
             Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
     private final Configuration configuration;
@@ -576,7 +578,9 @@ public class Companies extends EldoPlugin {
                                         AdminGrantService.Bank.of(
                                                 commands.services().economy()),
                                         commands.services().itemReturnService(),
-                                        commands.services().notificationService()::send))),
+                                        commands.services().notificationService()::send),
+                                commands.levels(),
+                                commands.services().levelService()::updateAllCompanies)),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
@@ -620,6 +624,8 @@ public class Companies extends EldoPlugin {
                         orderData,
                         NodeConnection.configSync(
                                 configuration, nodeData, Threading.mainThread(this), commands::reloaded, getLogger()),
+                        NodeConnection.levelsSync(
+                                configuration, nodeData, levelSyncs, Threading.mainThread(this), getLogger()),
                         this::onlineHere,
                         () -> nodeData.nodes().stream().map(Node::uid).toList()),
                 workerPool);
@@ -666,6 +672,9 @@ public class Companies extends EldoPlugin {
         }
         workerPool.shutdown();
         Threading.VIRTUAL.shutdown();
+        levelSyncs.shutdown();
+        if (commands != null) awaitTermination(commands.stopLevelShares());
+        awaitTermination(levelSyncs);
         awaitTermination(workerPool);
         awaitTermination(Threading.VIRTUAL);
         if (dataSource != null) dataSource.close();

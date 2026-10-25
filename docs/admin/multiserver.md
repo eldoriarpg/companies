@@ -105,7 +105,10 @@ The copy happens at two moments only:
 - when you run `/companyadmin syncconfiguration` on that server.
 
 With [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode), a
-secondary also copies the files whenever the primary writes them: when the primary starts and when you run `/companyadmin syncconfiguration` on the primary.
+secondary also copies the files whenever the primary writes them: when the primary starts or when you run
+`/companyadmin syncconfiguration` on the primary. When a level is changed in the
+[level editor](./levels.md#the-level-editor) or on the dashboard, a secondary takes `company.yml` only, without a
+reload.
 
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
@@ -333,6 +336,7 @@ switches to another one while it runs: when its own way breaks, it polls until t
 ## Admin tools on a network
 
 - The [level editor](./levels.md#the-level-editor) only works on the primary server. On a secondary it answers "This
-  can be only used on the primary node."
+  can be only used on the primary node." A change writes the levels to the database right away, see
+  [when the configuration is copied](#when-the-configuration-is-copied).
 - `/companyadmin calclevel` works on any server, since all servers share the data.
 - Each server writes its own [admin log](./admin-commands.md#the-admin-log) to its own console.

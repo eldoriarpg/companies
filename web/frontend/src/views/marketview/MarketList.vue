@@ -7,6 +7,7 @@
 import type {MarketItemView} from '~/api/gateway'
 import RowButton from '@/components/button/RowButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import ItemMark from '@/components/display/ItemMark.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
@@ -54,7 +55,7 @@ function price(value: number | undefined): string {
       <CapsLabel class="text-right">{{ t('market.columnChange') }}</CapsLabel>
     </div>
     <EmptyState v-if="items.length === 0" :loading="loading">{{ empty ?? t('market.none') }}</EmptyState>
-    <ul v-else :aria-busy="loading" class="m-0 list-none p-0" data-testid="market">
+    <PlainList v-else :aria-busy="loading" data-testid="market">
       <li v-for="entry in items" :key="entry.item.material">
         <RowButton :selected="selected === entry.item.material" :class="COLUMNS" @click="$emit('open', entry.item.material)">
           <span class="flex min-w-0 grow items-center gap-2.5">
@@ -74,6 +75,6 @@ function price(value: number | undefined): string {
           <span v-else class="tabular w-16 shrink-0 text-right text-xs text-ink-muted md:w-auto">-</span>
         </RowButton>
       </li>
-    </ul>
+    </PlainList>
   </PanelBox>
 </template>

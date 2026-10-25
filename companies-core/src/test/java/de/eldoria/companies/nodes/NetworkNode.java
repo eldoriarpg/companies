@@ -150,6 +150,7 @@ final class NetworkNode implements AutoCloseable {
                         orders,
                         NodeConnection.configSync(
                                 configuration, nodeData, Runnable::run, reloads::incrementAndGet, logger),
+                        NodeConnection.levelsSync(configuration, nodeData, Runnable::run, Runnable::run, logger),
                         () -> List.copyOf(online),
                         () -> nodeData.nodes().stream().map(Node::uid).toList()),
                 pool);

@@ -10,6 +10,7 @@ import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
+import de.eldoria.companies.nodes.NodeMessage.LevelsChanged;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
@@ -90,6 +91,9 @@ public final class NodeMessaging {
         bus.subscribe(ConfigSynced.class, (sender, message) -> {
             if (!node.primary()) node.configSynced().run();
         });
+        bus.subscribe(LevelsChanged.class, (sender, message) -> {
+            if (!node.primary()) node.levelsChanged().run();
+        });
         bus.onStateChange(state -> stateChanged(state, node));
         heartbeat = timer.scheduleWithFixedDelay(
                 () -> beat(node), 0, NetworkPresence.HEARTBEAT.toSeconds(), TimeUnit.SECONDS);
@@ -141,6 +145,7 @@ public final class NodeMessaging {
      * @param primary      true on the primary node, which ignores {@code config.synced}
      * @param inbox        claims and shows the pending entries of a player when the player is online here; blocks
      * @param configSynced loads the configuration from the database and applies it; blocks
+     * @param levelsChanged takes the levels the primary changed from the database
      * @param stateChanged runs whenever the bus changes its state, to change the poll interval and poll once
      * @param onlineHere   the players online on this node; blocks
      * @param knownNodes   the uids of the nodes registered in the database; blocks
@@ -149,6 +154,7 @@ public final class NodeMessaging {
             boolean primary,
             Consumer<UUID> inbox,
             Runnable configSynced,
+            Runnable levelsChanged,
             Runnable stateChanged,
             Supplier<List<UUID>> onlineHere,
             Supplier<List<UUID>> knownNodes) {}

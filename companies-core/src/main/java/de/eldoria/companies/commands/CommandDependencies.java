@@ -23,6 +23,7 @@ import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeCaches;
+import de.eldoria.companies.nodes.NodeMessage;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -40,6 +41,7 @@ import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
+import de.eldoria.companies.services.LevelAdminService;
 import de.eldoria.companies.services.LevelService;
 import de.eldoria.companies.services.MemberService;
 import de.eldoria.companies.services.MembershipService;
@@ -59,6 +61,8 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -84,6 +88,8 @@ public final class CommandDependencies {
     private final Boards boards;
     private final NpcBoards npcBoards;
     private final List<Runnable> reloadHooks = new CopyOnWriteArrayList<>();
+    private final ExecutorService levelShares =
+            Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private volatile NodeCaches caches = new NodeCaches(Logger.getLogger(CommandDependencies.class.getName()));
     private volatile NodeBus bus = new DatabaseBus();
     private volatile NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
@@ -338,6 +344,30 @@ public final class CommandDependencies {
                 ready.notificationService(),
                 ready.itemReturnService(),
                 ready.series());
+    }
+
+    /**
+     * Stops sharing level changes once the ones already made are written; called before the database closes.
+     *
+     * @return the executor writing the shared levels, shut down, to await
+     */
+    public ExecutorService stopLevelShares() {
+        levelShares.shutdown();
+        return levelShares;
+    }
+
+    /**
+     * @return changes the company levels and shares them with the other nodes
+     */
+    public LevelAdminService levels() {
+        LevelAdminService.Share share = () -> {
+            var copy = nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, configuration);
+            return () -> {
+                nodeData.savePrimaryCopy(Configuration.COMPANY_SETTINGS, copy);
+                bus().publish(new NodeMessage.LevelsChanged());
+            };
+        };
+        return new LevelAdminService(configuration, share, adminLog(), levelShares, plugin.getLogger());
     }
 
     /**

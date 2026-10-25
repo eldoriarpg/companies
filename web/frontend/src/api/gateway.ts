@@ -465,6 +465,41 @@ export interface AdminTreasury {
     entries: TreasuryLogEntry[]
 }
 
+/** A company level as an admin edits it. The name is MiniMessage text as written in `company.yml`. */
+export interface AdminLevel {
+    level: number
+    name: string
+    orderCount: number
+    memberCount: number
+    earnedMoney: number
+    deliveredItems: number
+    maxMembers: number
+    maxOrders: number
+    /** The most items an accepted order may have, 0 for no limit. */
+    maxOrderSize: number
+    deliveryHoursBonus: number
+    /** The tax on payouts in percent, none for the global tax. */
+    taxPercent?: number | null
+    /** The most order alerts, none for the global limit. */
+    maxAlerts?: number | null
+}
+
+/** The company levels for an admin. */
+export interface AdminLevels {
+    /** Whether the answering server may change them, which only the primary does. */
+    editable: boolean
+    levels: AdminLevel[]
+}
+
+/** The editable fields of a level, by the names `/companyadmin level edit` uses. */
+export type LevelFieldKey = 'name' | 'order_count' | 'member_count' | 'earned_money' | 'delivered_items' | 'max_members'
+    | 'max_orders' | 'max_order_size' | 'delivery_hours_bonus' | 'tax_percent' | 'max_alerts'
+
+/** A level an admin action names. */
+export interface LevelRef {
+    level: number
+}
+
 /** A player an admin action names. */
 export interface PlayerName {
     player: string
@@ -529,6 +564,13 @@ export interface WriteActions {
     'admin.companies.rename': {args: CompanyName & {name: string}, result: CompanyName}
     'admin.companies.transfer-owner': {args: CompanyName & PlayerName, result: CompanyName & {owner: string}}
     'admin.companies.delete': {args: CompanyName, result: CompanyName}
+    'admin.levels.list': {args: Record<string, never>, result: AdminLevels}
+    'admin.levels.info': {args: LevelRef, result: AdminLevel}
+    'admin.levels.create': {args: {position?: number}, result: AdminLevel}
+    'admin.levels.edit': {args: LevelRef & {values: Partial<Record<LevelFieldKey, string>>, position?: number}, result: AdminLevel}
+    'admin.levels.move': {args: LevelRef & {to: number}, result: AdminLevels}
+    'admin.levels.remove': {args: LevelRef, result: AdminLevels}
+    'admin.levels.recalculate': {args: Record<string, never>, result: Record<string, never>}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

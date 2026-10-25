@@ -7,6 +7,7 @@
 import type {OrderListing} from '~/api/gateway'
 import RowButton from '@/components/button/RowButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import ItemMark from '@/components/display/ItemMark.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
@@ -57,7 +58,7 @@ const rows = computed(() => props.orders.map(order => {
       <CapsLabel class="text-right">{{ t('orders.columnPayout') }}</CapsLabel>
     </div>
     <EmptyState v-if="rows.length === 0" :loading="loading">{{ t('orders.none') }}</EmptyState>
-    <ul v-else :aria-busy="loading" class="m-0 list-none p-0" data-testid="order-book">
+    <PlainList v-else :aria-busy="loading" data-testid="order-book">
       <li v-for="row in rows" :key="row.order.id">
         <RowButton :selected="selected === row.order.id" :class="COLUMNS" @click="$emit('open', row.order.id)">
           <span class="flex min-w-0 grow items-center gap-2.5">
@@ -78,6 +79,6 @@ const rows = computed(() => props.orders.map(order => {
           <span class="tabular hidden text-right text-sm font-semibold md:block">{{ money(row.totals.payout, locale) }}</span>
         </RowButton>
       </li>
-    </ul>
+    </PlainList>
   </PanelBox>
 </template>

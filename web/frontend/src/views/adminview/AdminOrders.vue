@@ -9,6 +9,7 @@ import ButtonRow from '@/components/button/ButtonRow.vue'
 import LinkButton from '@/components/button/LinkButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import Alert from '@/components/feedback/Alert.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
@@ -152,14 +153,14 @@ interface OrderSearch {
         <ActionNotice :problem="finding.problem.value" class="mx-3 mb-3 md:mx-4"/>
         <template v-if="page">
           <EmptyState v-if="page.orders.length === 0">{{ t('admin.orders.none', {target: page.target}) }}</EmptyState>
-          <ul v-else class="m-0 list-none p-0" data-testid="admin-orders">
+          <PlainList v-else data-testid="admin-orders">
             <li v-for="row in page.orders" :key="row.id" class="flex flex-col gap-0.5 border-t border-line-soft px-3 py-2.5 md:px-4">
               <LinkButton class="truncate text-sm" @click="open(row.id)">#{{ row.id }} {{ row.name }}</LinkButton>
               <span class="text-xs text-ink-muted">
                 {{ openLabel({t, te}, `orderState.${row.state}`, row.state) }} · {{ row.owner }}<template v-if="row.claimant"> · {{ row.claimant }}</template> · {{ dateTime(row.created, locale) }}
               </span>
             </li>
-          </ul>
+          </PlainList>
           <ButtonRow v-if="page.page > 1 || page.hasNext" pair class="border-t border-line-soft px-3 py-2.5 md:px-4">
             <SecondaryButton :disabled="page.page <= 1 || finding.busy.value" @click="turn(page.page - 1)">{{ t('paging.previous') }}</SecondaryButton>
             <SecondaryButton :disabled="!page.hasNext || finding.busy.value" @click="turn(page.page + 1)">{{ t('paging.next') }}</SecondaryButton>

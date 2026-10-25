@@ -93,4 +93,27 @@ test.describe('admin', () => {
         await expect(dissolved).toBeVisible()
         await expect(page.getByTestId('admin-company-done')).toBeFocused()
     })
+
+    test('saves a level from one form, adds one and removes it', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Levels'}).click()
+
+        await page.getByTestId('admin-levels').getByRole('button', {name: '2 · Guild'}).click()
+        const level = page.getByTestId('admin-level')
+        await level.getByLabel('Name').fill('Grand guild')
+        await level.getByLabel('Orders done').fill('45')
+        await level.getByRole('button', {name: 'Save the level'}).click()
+        await expect(page.getByText('Level 2 is saved.')).toBeVisible()
+        await expect(page.getByTestId('admin-levels-done')).toBeFocused()
+        await expect(page.getByTestId('admin-levels').getByRole('button', {name: '2 · Grand guild'})).toBeVisible()
+
+        await page.getByRole('button', {name: 'Add a level'}).click()
+        await expect(page.getByTestId('admin-level').getByLabel('Name')).toHaveValue('New level')
+        await page.getByTestId('admin-level').getByRole('button', {name: 'Remove the level'}).click()
+        await page.getByTestId('admin-level').getByRole('button', {name: 'Remove', exact: true}).click()
+        await expect(page.getByText('The level is removed.')).toBeVisible()
+        await expect(page.getByTestId('admin-levels-done')).toBeFocused()
+        await expect(page.getByTestId('admin-levels').getByRole('listitem')).toHaveCount(2)
+    })
 })

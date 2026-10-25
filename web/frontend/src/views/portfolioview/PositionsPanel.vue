@@ -7,6 +7,7 @@
 import {useNow} from '@vueuse/core'
 import {Feature, MemberPermission, type ClaimedOrderView} from '~/api/generated/protocol'
 import PanelBox from '@/components/container/PanelBox.vue'
+import PlainList from '@/components/container/PlainList.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import Alert from '@/components/feedback/Alert.vue'
@@ -64,7 +65,7 @@ const rows = computed(() => found.value.map(order => ({
       <CapsLabel class="text-right">{{ t('portfolio.columnDue') }}</CapsLabel>
     </div>
     <EmptyState v-if="rows.length === 0">{{ orders.length === 0 ? t('portfolio.noPositions') : t('common.noMatch') }}</EmptyState>
-    <ul v-else class="m-0 list-none p-0" data-testid="positions">
+    <PlainList v-else data-testid="positions">
       <li v-for="row in rows" :key="row.order.id" class="flex flex-col gap-2 border-b border-line-soft px-3 py-3 last:border-b-0 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_7rem_5rem] md:items-center md:gap-4 md:px-4">
         <div class="flex min-w-0 justify-between gap-2 md:flex-col md:justify-start md:gap-0.5">
           <span class="truncate text-sm font-semibold">{{ row.order.name }}</span>
@@ -84,6 +85,6 @@ const rows = computed(() => found.value.map(order => ({
         <PositionDeliver v-if="delivers" :order="row.order" @delivered="text => done = text"/>
         <PositionAbort v-if="manages" :order="row.order.id" :name="row.order.name" @aborted="name => done = t('positions.aborted', {name})"/>
       </li>
-    </ul>
+    </PlainList>
   </PanelBox>
 </template>
