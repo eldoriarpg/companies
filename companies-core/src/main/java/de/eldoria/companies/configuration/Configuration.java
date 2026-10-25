@@ -212,6 +212,15 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         });
     }
 
+    /**
+     * Writes a file into the database on the primary, or takes the primary's copy on a secondary, saves it and reads it
+     * again, which applies the environment overrides of this node. A value set through an environment variable is part
+     * of neither copy.
+     *
+     * @param nodeData  the node repository holding the copies
+     * @param configKey the file
+     * @param <V>       type of the file's content
+     */
     private <V> void sync(ANodeData nodeData, Key<V> configKey) {
         if (nodeSettings().nodeType() == NodeType.PRIMARY) {
             plugin().getLogger().info("Syncing " + configKey.path() + " to database.");
@@ -220,6 +229,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
             replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
             save(configKey);
+            reload(configKey);
         }
     }
 

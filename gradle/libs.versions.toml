@@ -20,6 +20,7 @@ jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations
 
 messageblocker = "de.eldoria:messageblocker:2.0.0"
 jackson-configuration = { module = "de.eldoria.util:jackson-configuration", version.ref = "eldoutil" }
+ocular = { module = "dev.chojo:ocular", version = "2.3.1" }
 plugin = { module = "de.eldoria.util:plugin", version.ref = "eldoutil" }
 threading = { module = "de.eldoria.util:threading", version.ref = "eldoutil" }
 updater = { module = "de.eldoria.util:updater", version.ref = "eldoutil" }

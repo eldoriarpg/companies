@@ -52,6 +52,25 @@ These need a restart:
 If a file cannot be read, for example because of a YAML error, a wrong type or an unknown value in a fixed list, Companies moves it aside as `backup_<timestamp>_<file name>` and creates a new file with default values. Your changes are then in the backup file. Check the server log after editing a file.
 :::
 
+## Secrets from the environment
+
+Three secrets can come from environment variables of the server process instead of the files:
+
+| Variable | Setting |
+|---|---|
+| `COMPANIES_DISCORD_WEBHOOK` | `discord.url` in [config.yml](./config-yml.md#discord) |
+| `COMPANIES_REDIS_PASSWORD` | `redis.password` in [database.yml](./database-yml.md#redis) |
+| `COMPANIES_DASHBOARD_KEY` | `dashboard.serverKey` in [node.yml](./node-yml.md) |
+
+A variable that is set wins over the file. Companies never writes its value anywhere: not into the file, not into the
+database copy of a shared file, not into a debug report. Leave the setting in the file empty when you use the
+variable. Set the variable on every server that needs it; in a network that means each server, since the variable is
+not copied.
+
+```bash
+export COMPANIES_DISCORD_WEBHOOK='https://discord.com/api/webhooks/...'
+```
+
 ## In a network
 
 When several servers share one database, one server is the primary and the others are secondaries. See [node.yml](./node-yml.md) and [Several servers](../multiserver.md).

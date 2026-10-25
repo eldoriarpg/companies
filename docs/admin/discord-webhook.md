@@ -17,7 +17,7 @@ reaches a higher level. It uses a Discord webhook, so you need no bot.
    ```yaml
    discord:
      enabled: true
-     url: env:COMPANIES_DISCORD_WEBHOOK
+     url: ''
      events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP]
      username: Companies
      avatarUrl: ''
@@ -25,30 +25,24 @@ reaches a higher level. It uses a Discord webhook, so you need no bot.
      queueSize: 100
    ```
 
-4. Put the URL where the `url` setting points (see below).
+4. Set the URL as the environment variable `COMPANIES_DISCORD_WEBHOOK`, or write it into `url` (see below).
 5. Run `/companyadmin reload`.
 
 The webhook is off by default (`enabled: false`). When it starts, the console says "Posting to the Discord webhook."
 
 ## The URL
 
-`url` takes the webhook URL itself, or `env:NAME` to read it from the environment variable `NAME` of the server
-process.
-
-```yaml
-discord:
-  url: env:COMPANIES_DISCORD_WEBHOOK
-```
+`url` takes the webhook URL. The environment variable `COMPANIES_DISCORD_WEBHOOK` of the server process wins over it:
 
 ```bash
 export COMPANIES_DISCORD_WEBHOOK='https://discord.com/api/webhooks/...'
 ```
 
-:::tip Use env: if you can
-The webhook URL contains a secret. Anyone who has it can post to your channel. With `env:`, the secret stays out of
-your config files. This matters even more on [several servers](./multiserver.md): the primary server stores
-`config.yml` in the database and the other servers copy it. With `env:`, only the variable name is copied, and you
-set the variable on each server.
+:::tip Use the variable if you can
+The webhook URL contains a secret. Anyone who has it can post to your channel. Set through the variable, the secret
+stays out of your config files: Companies never writes it into a file, the database or a debug report. This matters
+even more on [several servers](./multiserver.md): the primary server stores `config.yml` in the database and the
+other servers copy it. Set the variable on each server and leave `url` empty.
 :::
 
 The URL has to start with `https://`. A host other than Discord is allowed, for example a relay, and the console
@@ -56,7 +50,6 @@ notes it at start.
 
 If something is wrong, the webhook does not start and the console tells you why, without showing the URL:
 
-- "The environment variable NAME for the Discord webhook is not set."
 - "No Discord webhook url is configured."
 - "The Discord webhook url is not a valid url."
 - "The Discord webhook url has to start with https://."
@@ -112,7 +105,7 @@ are sent to the old webhook first.
 The webhook URL is never written to the log.
 
 `/companyadmin debug` creates a debug report you can share for support. Before it is uploaded, the report masks the
-token of every webhook URL it contains, and the `url` of the `discord` section as a whole. An `env:` reference stays
-visible, because it only names a variable and holds no secret.
+token of every webhook URL it contains, and the `url` of the `discord` section as a whole. A URL set through the
+variable is not in the report at all.
 
 All `discord` keys are also listed on the [config.yml](./configuration/config-yml.md) page.

@@ -24,7 +24,7 @@ redis:
   host: localhost
   port: 6379
   user: ''
-  password: env:COMPANIES_REDIS_PASSWORD
+  password: ''
   ssl: false
   database: 0
 messaging:
@@ -72,7 +72,7 @@ A single server does not need it. See [Several servers](../multiserver.md#redis)
 | `host` | text | `localhost` | Address of the Redis server. |
 | `port` | number | `6379` | Port of the Redis server. |
 | `user` | text | `''` | User for servers with access control lists. Leave it empty for the default user. |
-| `password` | text | `env:COMPANIES_REDIS_PASSWORD` | Password of the Redis server. `env:NAME` reads it from the environment variable `NAME`. Leave it empty for a server without password. |
+| `password` | text | `''` | Password of the Redis server. Leave it empty for a server without password, or set the environment variable `COMPANIES_REDIS_PASSWORD` instead, see [Secrets from the environment](./index.md#secrets-from-the-environment). |
 | `ssl` | true/false | `false` | Connect with TLS. |
 | `database` | number | `0` | Number of the Redis database. |
 
@@ -81,8 +81,8 @@ All servers of a network need the same `host`, `port`, `database` and [`messagin
 Older files may still have `channelPrefix` in this section. It keeps working as long as `messaging.channelPrefix` is
 left at `companies`; once you set `messaging.channelPrefix`, that one counts. New files no longer contain it.
 
-With `env:`, the password never appears in the file or the logs. If the variable is not set, Companies logs a warning
-and runs without Redis. The debug report masks the password either way.
+With `COMPANIES_REDIS_PASSWORD`, the password never appears in the file or the logs. The debug report masks a
+password written in the file.
 
 ## messaging
 

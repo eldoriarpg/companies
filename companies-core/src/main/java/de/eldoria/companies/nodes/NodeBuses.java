@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.nodes;
 
-import de.eldoria.companies.configuration.EnvReference;
 import de.eldoria.companies.configuration.elements.DatabaseSettings;
 import de.eldoria.companies.data.repository.ANodeMessageData;
 
@@ -14,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 
 /**
@@ -22,8 +20,7 @@ import java.util.logging.Logger;
  * while it runs; when several are enabled, the first of this list is used and one warning names the others:
  * <ol>
  *     <li>Redis, when it is enabled. The {@link RedisBus} falls back to polling by itself while the server cannot be
- *     reached and keeps retrying. When the Redis password names an environment variable that is not set, Redis is not
- *     used and the node polls.</li>
+ *     reached and keeps retrying.</li>
  *     <li>PostgreSQL notify, the {@link PostgresNotifyBus}, when {@code messaging.postgresNotify} is on and the storage
  *     type is {@code POSTGRES}. It falls back to polling by itself while it cannot listen. With another storage type
  *     the setting is ignored with a warning.</li>
@@ -47,7 +44,6 @@ public final class NodeBuses {
      * @param primary     true on the primary node, which deletes old rows of the message table
      * @param messages    the message table
      * @param handlers    runs the handlers of received messages
-     * @param environment reads an environment variable for an {@code env:} password
      * @param logger      reports the choice and connection problems
      * @return the bus, connected, retrying or the database bus
      */
@@ -57,11 +53,10 @@ public final class NodeBuses {
             boolean primary,
             ANodeMessageData messages,
             Executor handlers,
-            UnaryOperator<String> environment,
             Logger logger) {
         var transport = choose(settings, logger);
         return switch (transport) {
-            case REDIS -> redis(settings, node, handlers, environment, logger);
+            case REDIS -> redis(settings, node, handlers, logger);
             case POSTGRES_NOTIFY -> postgresNotify(settings, node, handlers, logger);
             case LOW_LATENCY -> {
                 logger.info("Low latency mode is on: the servers exchange messages through the database every"
@@ -122,20 +117,13 @@ public final class NodeBuses {
         return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
-    private static NodeBus redis(
-            DatabaseSettings database, UUID node, Executor handlers, UnaryOperator<String> environment, Logger logger) {
+    private static NodeBus redis(DatabaseSettings database, UUID node, Executor handlers, Logger logger) {
         var settings = database.redis();
-        var password = EnvReference.resolve(
-                settings.password(),
-                environment,
-                name -> logger.warning(
-                        "The environment variable " + name + " for the Redis password is not set. Redis is not used."));
-        if (password.isEmpty()) return new DatabaseBus();
         var server = new RedisBus.Server(
                 settings.host(),
                 settings.port(),
                 settings.user(),
-                password.get(),
+                settings.password(),
                 settings.ssl(),
                 settings.database(),
                 database.channelPrefix());

@@ -52,14 +52,8 @@ The console says "Connected to the dashboard gateway" once the server is connect
 
 ### The key from the environment
 
-Instead of the command, you can give the key in `node.yml` of the primary server, usually as an environment variable:
-
-```yaml
-dashboard:
-  serverKey: env:COMPANIES_DASHBOARD_KEY
-```
-
-This is the default, so setting `COMPANIES_DASHBOARD_KEY` for the primary server's process is enough. The primary
+Instead of the command, you can set the environment variable `COMPANIES_DASHBOARD_KEY` for the primary server's
+process (or write the key into `dashboard.serverKey` of its `node.yml`; the variable wins). The primary
 reads it when it starts and on every reload, and stores the key in the database only when the variable
 changed. An unchanged variable never replaces a key that was rotated since, or one you entered
 with `/companyadmin dashboard key`. The secondary servers ignore this setting; they read the key from the database.
@@ -194,8 +188,9 @@ token starting with `cst_` on its first start; enter that token like a key:
 /companyadmin dashboard key <token>
 ```
 
-or set it in `node.yml` as `dashboard.serverKey`. Then point `dashboard.gateway` at your gateway, for example
-`wss://dashboard.example.org/api/v1/servers/connect`, and reload. A server token never rotates.
+or set it in `node.yml` as `dashboard.serverKey`, or in the environment variable `COMPANIES_DASHBOARD_KEY`. Then
+point `dashboard.gateway` at your gateway, for example `wss://dashboard.example.org/api/v1/servers/connect`, and
+reload. A server token never rotates.
 
 :::warning A Lyna key goes to Eldoria's gateway only
 A Lyna dashboard key is sent only over `wss://` to `companies.eldoria.de`. With another `dashboard.gateway`, or with

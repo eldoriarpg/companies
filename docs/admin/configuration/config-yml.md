@@ -222,7 +222,7 @@ Posts new orders, completed orders and level ups to a Discord channel. See [Disc
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
 | `enabled` | true/false | `false` | Post to the webhook. | reload |
-| `url` | text | `''` | The webhook URL, or `env:NAME` to read it from the environment variable `NAME`. It must start with `https://`. | reload |
+| `url` | text | `''` | The webhook URL. It must start with `https://`. The environment variable `COMPANIES_DISCORD_WEBHOOK` wins over it, see [Secrets from the environment](./index.md#secrets-from-the-environment). | reload |
 | `events` | list | `[ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP]` | What is posted. `ORDER_CREATED`: a new order. `ORDER_COMPLETED`: an order was fully delivered. `LEVEL_UP`: a company reached a higher level. | reload |
 | `username` | text | `Companies` | Name of the posts. When empty, the webhook's own name is used. | reload |
 | `avatarUrl` | text | `''` | Picture of the posts. When empty, the webhook's own picture is used. | reload |
@@ -230,7 +230,7 @@ Posts new orders, completed orders and level ups to a Discord channel. See [Disc
 | `queueSize` | number | `100` | Messages that may wait to be sent. From 1 to 1000. When the queue is full, the oldest message is dropped. | reload |
 
 :::tip
-The webhook URL is a secret. In a network this file is copied to every server through the database. Use `env:NAME` there and set the variable on each server.
+The webhook URL is a secret. In a network this file is copied to every server through the database. Set `COMPANIES_DISCORD_WEBHOOK` on each server instead and leave `url` empty.
 :::
 
 ## dashboard

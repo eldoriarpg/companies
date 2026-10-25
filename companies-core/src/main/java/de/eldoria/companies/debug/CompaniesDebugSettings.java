@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
  * They add filters to the defaults, which already hide passwords, tokens and credentials in urls. A Discord webhook
  * url keeps its secret in the path, so the token of every webhook path is masked, and the {@code url} of the
  * {@code discord} section is masked as a whole in case it points at a relay with another path. Lyna dashboard keys
- * and self-hosted gateway tokens are masked wherever they appear, and so is the {@code serverKey} of {@code node.yml}. An {@code env:} reference
- * stays visible, since it names a variable and holds no secret.
+ * and self-hosted gateway tokens are masked wherever they appear, and so is the {@code serverKey} of {@code node.yml}.
+ * Values set through environment variables never reach a report, since they are not part of the written configuration.
  */
 public final class CompaniesDebugSettings {
     /**
@@ -32,7 +32,7 @@ public final class CompaniesDebugSettings {
      */
     public static final Filter DISCORD_URL = new Filter(
             Pattern.compile("(?m)^(discord:[ \\t]*\\R(?:(?:[ \\t]+.*)?\\R)*?[ \\t]+url:[ \\t]*)"
-                    + "(?![\"']?env:)(?![\"']{2}[ \\t]*$)\\S[^\\r\\n]*$"),
+                    + "(?![\"']{2}[ \\t]*$)\\S[^\\r\\n]*$"),
             "$1*****");
 
     /**
@@ -43,9 +43,8 @@ public final class CompaniesDebugSettings {
     /**
      * Masks the {@code serverKey} of {@code node.yml} in YAML.
      */
-    public static final Filter SERVER_KEY = new Filter(
-            Pattern.compile("(?m)^([ \\t]*serverKey:[ \\t]*)(?![\"']?env:)(?![\"']{2}[ \\t]*$)\\S[^\\r\\n]*$"),
-            "$1*****");
+    public static final Filter SERVER_KEY =
+            new Filter(Pattern.compile("(?m)^([ \\t]*serverKey:[ \\t]*)(?![\"']{2}[ \\t]*$)\\S[^\\r\\n]*$"), "$1*****");
 
     private CompaniesDebugSettings() {}
 
