@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.configuration;
 
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 import java.util.HashMap;
@@ -19,10 +20,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Tells which settings of the shared files changed: since they were last applied, so only the work that depends on
- * them runs, and since the server started, for the settings that are only read at start.
+ * Tells which settings of the shared files changed since they were last applied, so only the work that depends on them
+ * runs, and which settings read only at start this server now uses with another value than it started with.
  * <p>
- * Each file is kept as the tree its content serializes to. Until {@link #start()} ran, nothing counts as changed.
+ * Each file is kept as the tree its content serializes to; the start values are kept as this server uses them, its
+ * own overrides included. Until {@link #start()} ran, nothing counts as changed. When the start values cannot be read
+ * at start, the first ones read later count as the start values.
  */
 public final class ChangeTracker {
     private static final String CONFIG = "config.yml";
@@ -73,15 +76,15 @@ public final class ChangeTracker {
     private final Function<String, Optional<JsonNode>> current;
     private final BooleanSupplier primary;
     private final Supplier<Map<Setting, Object>> restartValues;
-    private Map<Setting, Object> startValues = Map.of();
+    private @Nullable Map<Setting, Object> startValues;
+    private List<Setting> lastPending = List.of();
     private final Map<String, JsonNode> applied = new HashMap<>();
-    private final Map<String, JsonNode> started = new HashMap<>();
     private boolean running;
 
     /**
-     * @param paths   the shared files
-     * @param current the tree of a file's current content, by its path, empty when it cannot be written now
-     * @param primary    whether this server is the primary
+     * @param paths         the shared files
+     * @param current       the tree of a file's current content, by its path, empty when it cannot be written now
+     * @param primary       whether this server is the primary
      * @param restartValues the value of each setting of {@link #RESTART} on this server, with its own overrides
      */
     public ChangeTracker(
@@ -96,16 +99,21 @@ public final class ChangeTracker {
     }
 
     /**
-     * Takes the files as they are now as both started and applied.
+     * Takes the files as they are now as applied and the values of the settings read only at start as the start values.
      */
     public synchronized void start() {
         running = true;
-        startValues = Map.copyOf(restartValues.get());
+        startValues = readRestartValues().orElse(null);
         for (var path : paths) {
-            current.apply(path).ifPresent(tree -> {
-                started.put(path, tree);
-                applied.put(path, tree);
-            });
+            current.apply(path).ifPresent(tree -> applied.put(path, tree));
+        }
+    }
+
+    private Optional<Map<Setting, Object>> readRestartValues() {
+        try {
+            return Optional.of(Map.copyOf(restartValues.get()));
+        } catch (RuntimeException e) {
+            return Optional.empty();
         }
     }
 
@@ -122,7 +130,6 @@ public final class ChangeTracker {
             var tree = current.apply(path);
             if (tree.isEmpty()) continue;
             var before = applied.put(path, tree.get());
-            started.putIfAbsent(path, tree.get());
             if (before == null) continue;
             Configuration.changes(before, tree.get()).forEach(key -> found.add(new Setting(path, key)));
         }
@@ -131,15 +138,20 @@ public final class ChangeTracker {
 
     /**
      * @return the settings read only at start whose value on this server differs from the one it started with, its
-     *     own overrides included, without those only the primary uses when this server is a secondary
+     *     own overrides included, without those only the primary uses when this server is a secondary; the last answer
+     *     while the values cannot be read, for example while a section is empty
      */
     public synchronized List<Setting> restartPending() {
         if (!running) return List.of();
-        var now = restartValues.get();
-        return RESTART.stream()
+        var now = readRestartValues();
+        if (now.isEmpty()) return lastPending;
+        if (startValues == null) startValues = now.get();
+        var start = startValues;
+        lastPending = RESTART.stream()
                 .filter(setting -> primary.getAsBoolean() || !PRIMARY_ONLY.contains(setting))
-                .filter(setting -> !Objects.equals(startValues.get(setting), now.get(setting)))
+                .filter(setting -> !Objects.equals(start.get(setting), now.get().get(setting)))
                 .toList();
+        return lastPending;
     }
 
     /**
@@ -188,14 +200,6 @@ public final class ChangeTracker {
          */
         public boolean covers(Setting changed) {
             return covers(changed.path(), changed.key());
-        }
-
-        /**
-         * @param dotted a dotted key below this setting
-         * @return that setting
-         */
-        public Setting child(String dotted) {
-            return new Setting(path, key + "." + dotted);
         }
 
         @Override

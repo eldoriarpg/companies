@@ -29,8 +29,15 @@ class ChangeTrackerTest {
     private final Map<String, String> files = new HashMap<>(Map.of(
             "config.yml", "discord:\n  url: a\nboards:\n  enabled: true\ntop:\n  cache: 5\n",
             "order.yml", "repeating:\n  checkMinutes: 5\nmaxItems: 3\n"));
-    private final ChangeTracker tracker = new ChangeTracker(
-            List.of("config.yml", "order.yml"), this::tree, () -> primary, () -> Map.copyOf(restartValues));
+    private final ChangeTracker tracker =
+            new ChangeTracker(List.of("config.yml", "order.yml"), this::tree, () -> primary, this::restartValues);
+
+    private boolean unreadable;
+
+    private Map<Setting, Object> restartValues() {
+        if (unreadable) throw new NullPointerException("an empty section");
+        return Map.copyOf(restartValues);
+    }
 
     private Optional<JsonNode> tree(String path) {
         var content = files.get(path);
@@ -68,6 +75,20 @@ class ChangeTrackerTest {
         restartValues.put(ChangeTracker.BOARDS_ENABLED, true);
         restartValues.put(ChangeTracker.REPEATING_CHECK, 5);
         assertEquals(List.of(), tracker.restartPending());
+    }
+
+    @Test
+    void valuesThatCannotBeReadKeepTheLastAnswer() {
+        unreadable = true;
+        tracker.start();
+        unreadable = false;
+        restartValues.put(ChangeTracker.BOARDS_ENABLED, false);
+        assertEquals(List.of(), tracker.restartPending());
+
+        restartValues.put(ChangeTracker.BOARDS_ENABLED, true);
+        assertEquals(List.of(ChangeTracker.BOARDS_ENABLED), tracker.restartPending());
+        unreadable = true;
+        assertEquals(List.of(ChangeTracker.BOARDS_ENABLED), tracker.restartPending());
     }
 
     @Test

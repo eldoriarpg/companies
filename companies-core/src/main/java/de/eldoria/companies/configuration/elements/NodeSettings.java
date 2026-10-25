@@ -65,6 +65,7 @@ public class NodeSettings {
     public NodeOverrides overrides() {
         var parsed = parsedOverrides;
         if (parsed == null) {
+            if (overrides != null && overrides.isNull()) overrides = null;
             parsed = NodeOverrides.parse(overrides);
             parsedOverrides = parsed;
         }

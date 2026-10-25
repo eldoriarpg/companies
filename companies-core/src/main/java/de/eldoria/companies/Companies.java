@@ -224,7 +224,6 @@ public class Companies extends EldoPlugin {
 
         nodeData.restartPending(List.of());
         configuration.syncConfigurations(nodeData).join();
-        configuration.started();
     }
 
     @Override
@@ -292,6 +291,7 @@ public class Companies extends EldoPlugin {
      */
     @Override
     public void onPostStart(boolean reload) {
+        configuration.started();
         var economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
         if (economyProvider == null) {
             throw new IllegalStateException(

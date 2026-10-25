@@ -163,11 +163,14 @@ class ConfigurationTest {
 
     @Test
     void unsetOverridesAreNotWrittenToNodeYml() throws IOException {
-        configuration.nodeSettings();
+        Files.writeString(folder.resolve("node.yml"), "nodeType: PRIMARY\noverrides:\n");
+        configuration = new Configuration(plugin(folder, logger()));
+        configuration.nodeSettings().overrides();
         configuration.save(Configuration.NODE_SETTINGS);
 
         var written = Files.readString(folder.resolve("node.yml"));
         assertFalse(written.contains("null"), written);
+        assertFalse(written.contains("overrides"), written);
         assertFalse(configuration.messageBlocking()
                 != configuration.generalSettings().messageBlocking());
     }
