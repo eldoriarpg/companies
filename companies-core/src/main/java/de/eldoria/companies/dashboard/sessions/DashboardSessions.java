@@ -37,6 +37,7 @@ import java.util.function.Supplier;
  * it. The methods block on the database.
  */
 public final class DashboardSessions {
+    private volatile boolean idleHeld;
     private static final Duration TOUCH_INTERVAL = Duration.ofMinutes(1);
 
     private final ADashboardData data;
@@ -102,7 +103,8 @@ public final class DashboardSessions {
     }
 
     /**
-     * Finds an open session of a player that has not ended, and records that it was used.
+     * Finds an open session of a player that has not ended, and records that it was used. While idle sessions are held,
+     * see {@link #holdIdle(boolean)}, an idle one still counts as open.
      *
      * @param id     the session id
      * @param player the player the gateway named
@@ -112,7 +114,9 @@ public final class DashboardSessions {
         var session = data.session(id)
                 .filter(found -> found.player().equals(player))
                 .filter(StoredSession::isOpen)
-                .filter(found -> endReason(found, now()).isEmpty());
+                .filter(found -> endReason(found, now())
+                        .filter(reason -> !(idleHeld && reason == CloseReason.IDLE))
+                        .isEmpty());
         session.ifPresent(this::touch);
         return session;
     }
@@ -243,6 +247,16 @@ public final class DashboardSessions {
      */
     public List<StoredSession> all() {
         return data.sessions();
+    }
+
+    /**
+     * Holds idle sessions open while the dashboard could not be reached and the time it could not be used is not yet
+     * excused, so a request right after a reconnect does not end a session the excuse would keep.
+     *
+     * @param held whether idle sessions are held
+     */
+    public void holdIdle(boolean held) {
+        idleHeld = held;
     }
 
     /**

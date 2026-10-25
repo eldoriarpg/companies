@@ -112,6 +112,19 @@ class DashboardSessionsTest {
     }
 
     @Test
+    void aHeldIdleSessionStaysUsableUntilReleased() {
+        create("one");
+        sessions.open("one", wren.uuid(), null);
+        clock.advance(Duration.ofMinutes(61));
+
+        sessions.holdIdle(true);
+        assertTrue(sessions.active("one", wren.uuid()).isPresent());
+        sessions.holdIdle(false);
+        clock.advance(Duration.ofMinutes(61));
+        assertTrue(sessions.active("one", wren.uuid()).isEmpty());
+    }
+
+    @Test
     void anExcuseNeverMovesTheLastUseIntoTheFuture() {
         create("one");
         sessions.open("one", wren.uuid(), null);
