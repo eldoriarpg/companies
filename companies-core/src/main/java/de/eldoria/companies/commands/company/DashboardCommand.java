@@ -11,6 +11,7 @@ import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.dashboard.Dashboard;
 import de.eldoria.companies.dashboard.sessions.SessionPermissions;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.menus.DashboardLoginMenu;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Times;
@@ -18,7 +19,6 @@ import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.companies.web.api.session.SessionCreated;
 import de.eldoria.eldoutilities.localization.ILocalizer;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.permission.Permission;
@@ -29,16 +29,14 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
  * {@code /company dashboard}: opens the web dashboard.
  * <p>
- * Without a subcommand it asks the gateway for a session and shows its short link, clickable and spelled out, and the
- * six-letter login code in spaced capitals, so a player on a console can type both on a phone. {@code logout} ends
- * every session of the player, {@code sessions} lists them.
+ * Without a subcommand it asks the gateway for a session and shows how to log in with {@link DashboardLoginMenu}: in a
+ * dialog where the player sees dialogs, which Geyser shows Bedrock players as a form, and in chat otherwise.
+ * {@code logout} ends every session of the player, {@code sessions} lists them.
  */
 @Subcommand("dashboard")
 @Permission(de.eldoria.companies.util.Permission.Dashboard.USE)
@@ -76,15 +74,12 @@ public final class DashboardCommand {
     }
 
     private void showLogin(Player player, SessionCreated session) {
-        var address = session.link().replaceFirst("^https?://", "");
-        var text = MenuText.create()
-                .locale(
-                        "dashboard.link",
-                        Values.click("act_open", ClickEvent.openUrl(session.link())),
-                        Values.text("address", address))
-                .newLine()
-                .locale("dashboard.code", Values.text("code", spaced(session.code())));
-        deps.messages().sendMessage(player, text);
+        deps.services()
+                .menus()
+                .show(
+                        player,
+                        new DashboardLoginMenu(deps.plugin()),
+                        new DashboardLoginMenu.Login(session.link(), session.code()));
     }
 
     private void refused(Player player, Dashboard.Opening.Refused refused) {
@@ -151,19 +146,6 @@ public final class DashboardCommand {
 
     private static String time(LocalDateTime utc) {
         return TIME.format(utc.atOffset(ZoneOffset.UTC).atZoneSameInstant(Times.zone()));
-    }
-
-    /**
-     * Spaces the letters of a login code, e.g. {@code K P M W Q R}.
-     *
-     * @param code the code
-     * @return the spaced code in capitals
-     */
-    static String spaced(String code) {
-        return code.toUpperCase(Locale.ROOT)
-                .chars()
-                .mapToObj(letter -> String.valueOf((char) letter))
-                .collect(Collectors.joining(" "));
     }
 
     private Void failed(Player player, Throwable error) {

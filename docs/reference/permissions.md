@@ -63,7 +63,9 @@ Only operators have these by default.
 | `companies.admin.treasury` | op | Look at company treasuries and add or remove money with `/companyadmin treasury`. |
 | `companies.updates` | op | Hear about new versions when joining, and download them. |
 
-Every admin permission also makes `/companyadmin` visible. Each subcommand then checks its own permission.
+Every admin permission also makes `/companyadmin` visible. Each subcommand then checks its own permission. The same
+permissions unlock the matching tools of the dashboard's [Admin section](../admin/dashboard.md#admin-tools);
+`companies.admin` also syncs the configuration from there.
 
 ## Wildcard permissions
 

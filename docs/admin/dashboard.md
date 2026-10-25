@@ -6,9 +6,10 @@ sidebar_position: 4.5
 # Web dashboard
 
 :::info New in 2.1
-The web dashboard comes with Companies 2.1. This version shows orders, the company, the inbox, rankings and market
-prices. Players accept orders, manage their own orders, their company and their inbox there. Placing and delivering
-orders from the browser follow in later versions.
+The web dashboard comes with Companies 2.1. It shows orders, the company, the inbox, rankings and market prices.
+Players place, accept, deliver and receive orders, manage their own orders, their company and their inbox there;
+inviting players still happens in game. Admins get an [Admin section](#admin-tools) with the tools of
+`/companyadmin`.
 :::
 
 Players open a dashboard in their browser, on a phone or a PC, and see their orders, their company and its orders,
@@ -49,6 +50,10 @@ the server connects again by itself when the gateway restarts or the connection 
 
 4. Run `/companyadmin reload`.
 5. Check the connection with `/companyadmin dashboard status`.
+
+Players log in with `/company dashboard`, which shows the link and the code in a dialog, or in chat where
+[menus](./configuration/config-yml.md#menus) are shown in chat. Geyser shows the dialog to Bedrock players as a form;
+no Floodgate hook is needed.
 
 The console says "Connected to the dashboard gateway" once the server is connected.
 
@@ -114,7 +119,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` and `admin.config`. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` and `admin.config`. `orders.receive` is listed for older dashboards and has no effect; receiving belongs to `orders.deliver`. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is your `server-icon.png`. |
 
@@ -122,9 +127,9 @@ Changes apply on `/companyadmin reload`, which also reconnects.
 
 ## Logins
 
-A player runs `/company dashboard`, opens the short link on any device and enters the six-letter code shown in chat.
-The code works for five minutes. The chat tells the player when a browser logged in, so a login they did not do does
-not go unnoticed. See [Dashboard](../players/dashboard.md) for the player's side.
+A player runs `/company dashboard`, opens the short link on any device and enters the six-letter code shown in a dialog
+or in chat. The code works for five minutes. The chat tells the player when a browser logged in, so a login they did not
+do does not go unnoticed. See [Dashboard](../players/dashboard.md) for the player's side.
 
 A player stays logged in until they run `/company dashboard logout`, the login is unused for `sessionIdleMinutes`, it
 is older than `sessionMaxHours`, or you end it with `/companyadmin dashboard revoke <player>`.
@@ -161,13 +166,14 @@ it.
 | Servers | Sync the configuration from the primary, after asking once more. Only the primary does it; while it is not connected, the button answers that the server is offline. The dashboard reconnects for a moment. | `companies.admin` | `/companyadmin syncconfiguration` |
 
 Switch a tab off with `dashboard.features` like any other part: set `admin.orders`, `admin.players`,
-`admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` or `admin.config` to `false`. The server picker shows the
-`name` from [node.yml](./configuration/node-yml.md), or the role and the start of the `nodeUid`.
+`admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` or `admin.config` to `false`. The server picker shows
+the `name` from [node.yml](./configuration/node-yml.md), or the role and the start of the `nodeUid`.
 
 ## Several servers
 
 Every server of a network connects to the gateway, because each server only sees what happens on it. Logins are kept
-in the database, so a player who logged in on one server is known to all of them. See [Several servers](./multiserver.md).
+in the database, so a player who logged in on one server is known to all of them. See
+[Several servers](./multiserver.md).
 
 ## Plugin versions
 

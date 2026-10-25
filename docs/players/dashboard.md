@@ -6,8 +6,8 @@ sidebar_position: 6
 # Dashboard
 
 :::info New in 2.1
-The web dashboard comes with Companies 2.1, on servers that switched it on. You can accept orders, manage your own
-orders, your company and your inbox there; placing and delivering orders and inviting players still happen in game.
+The web dashboard comes with Companies 2.1, on servers that switched it on. You can place, accept, deliver and receive
+orders, manage your company and your inbox there; inviting players still happens in game.
 :::
 
 The dashboard shows your orders, your company and its orders, your inbox, the rankings and market prices in a browser.
@@ -16,14 +16,16 @@ Keep it open on your phone next to the game: it updates while things happen on t
 ## Opening it
 
 1. Run `/company dashboard`.
-2. The chat shows a short link and a code, for example:
+2. A window shows a short link and a code, for example:
 
    ```
    Open companies.eldoria.de/AB12CD on any device and enter the code.
    Login code: K P M W Q R, valid for 5 minutes
    ```
 
-   Click the link, or type it into any browser, for example on your phone.
+   Press **Open the dashboard**, or type the link into any browser, for example on your phone. On servers that show
+   menus in chat, the link and the code appear in chat instead, and you click the link there. On Bedrock (through
+   Geyser) the window is a form, and the button shows the link to type on your phone.
 3. Enter the six letters of the code.
 
 The chat says "The dashboard was opened on a browser" when you are logged in. If you see that message without having

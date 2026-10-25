@@ -133,7 +133,7 @@ The keys from `heading` to `neutral` are the colours of the tags `<heading>`, `<
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `menus` | `DIALOG` or `CHAT` | `DIALOG` for a new file | How menus such as the order builder, the order search and confirmations are shown. | reload |
+| `menus` | `DIALOG` or `CHAT` | `DIALOG` for a new file | How menus such as the order builder, the order search, confirmations and the dashboard login are shown. | reload |
 
 | Value | Menus are shown as |
 |---|---|
