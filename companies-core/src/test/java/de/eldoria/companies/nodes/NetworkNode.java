@@ -53,6 +53,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
@@ -215,6 +216,12 @@ final class NetworkNode implements AutoCloseable {
         connection.stop();
         pool.shutdownNow();
         handlers.shutdownNow();
+        try {
+            pool.awaitTermination(5, TimeUnit.SECONDS);
+            handlers.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         MessageSender.unregister(plugin);
     }
 

@@ -110,17 +110,10 @@ class NodeMessagingTest {
     }
 
     @Test
-    void onlySecondariesTakeANewRevision() {
-        start(false);
-        bus.receive(OTHER, new SettingsChanged("company.yml", 4));
-        assertEquals(List.of(new SettingsChanged("company.yml", 4)), revisions);
-    }
-
-    @Test
-    void thePrimaryIgnoresANewRevision() {
+    void everyNodeTakesANewRevision() {
         start(true);
         bus.receive(OTHER, new SettingsChanged("company.yml", 4));
-        assertTrue(revisions.isEmpty());
+        assertEquals(List.of(new SettingsChanged("company.yml", 4)), revisions);
     }
 
     @Test

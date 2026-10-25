@@ -130,12 +130,18 @@ database. A file edited on a secondary stays until a new revision of it arrives,
 
 `/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
-To change the configuration of a running network:
+To change the configuration of a running network, on **any** server:
 
-1. Edit the files on the primary server.
-2. Run `/companyadmin reload` on the primary, so it reads your changes.
-3. Run `/companyadmin syncconfiguration` on the primary. It stores each changed file as a new revision, and the
-   secondaries take it on their own.
+1. Edit the file.
+2. Run `/companyadmin reload` there, in game or from the console. It names the keys you changed, for example
+   `user.yml (maxOrders)`.
+3. Run `/companyadmin reload confirm` within 30 seconds. Your change becomes the next revision, and every other server
+   takes it on its own.
+
+If another server stored a newer revision of the same file since this server took its last one, your change is not
+stored: this server keeps your version as `conflict_<revision>_<file name>`, uses the newer revision, and tells you.
+Merge your change into the file by hand and run the steps again. On a single server, `reload` stores the change
+without asking.
 
 Some settings are only read when the server starts, for example `boards.enabled`. For those, restart the servers
 instead. The [configuration pages](./configuration/index.md) say which settings need a restart.

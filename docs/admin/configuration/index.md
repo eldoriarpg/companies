@@ -84,7 +84,7 @@ export COMPANIES_DISCORD_WEBHOOK='https://discord.com/api/webhooks/...'
 
 When several servers share one database, one server is the primary and the others are secondaries. See [node.yml](./node-yml.md) and [Several servers](../multiserver.md).
 
-- `config.yml`, `company.yml`, `order.yml` and `user.yml` are shared. Edit them on the **primary** server.
+- `config.yml`, `company.yml`, `order.yml` and `user.yml` are shared. Edit them on any server, see below.
 - The primary stores each of these four files in the database as a new revision when it changed: when it starts and when you run `/companyadmin syncconfiguration` on it.
 - Each secondary takes a new revision on its own, at once with a realtime bus or within 30 seconds without one, and when it starts. It saves it over its own file; a change made on the secondary is kept as a backup first, see [Several servers](../multiserver.md#when-the-configuration-is-copied).
 - `/companyadmin reload` does not touch the database. It only reads the files of the server it runs on.
@@ -92,7 +92,6 @@ When several servers share one database, one server is the primary and the other
 
 To change a shared setting in a network:
 
-1. Edit the file on the primary server.
-2. Run `/companyadmin reload` on the primary, then `/companyadmin syncconfiguration` on the primary. The secondaries take the new revision on their own.
-
-The reload in step 2 matters: `syncconfiguration` writes what the primary has loaded, not what is in its files. Settings marked **restart** need a restart of each server that should pick them up.
+1. Edit the file on any server.
+2. Run `/companyadmin reload` there. It names the keys you changed.
+3. Run `/companyadmin reload confirm` within 30 seconds. The change becomes the next revision and the other servers take it on their own. If another server changed the same file meanwhile, your version is kept as a `conflict_` file instead, see [Several servers](../multiserver.md#when-the-configuration-is-copied). Settings marked **restart** need a restart of each server that should pick them up.

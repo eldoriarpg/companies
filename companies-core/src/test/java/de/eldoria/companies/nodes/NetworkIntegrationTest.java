@@ -519,6 +519,46 @@ class NetworkIntegrationTest {
     }
 
     @Test
+    void anEditOnASecondaryBecomesTheNextRevisionEverywhere() throws Exception {
+        var a = primary();
+        var b = secondary();
+        var file = folder.resolve("B").resolve("user.yml");
+        Files.writeString(file, Files.readString(file).replaceFirst("maxOrders: \\d+", "maxOrders: 42"));
+        b.configuration.reload();
+
+        var edits = b.configuration.edits(b.nodeData);
+        assertEquals(1, edits.size());
+        assertEquals(List.of("maxOrders"), edits.getFirst().changes());
+        var outcome = b.configuration.publishEdits(b.nodeData, edits, "Ada").getFirst();
+
+        assertTrue(outcome.revision().isPresent());
+        await(() -> a.configuration.userSettings().maxOrders() == 42, WAIT, "the primary to take the edit");
+        assertTrue(Files.readString(folder.resolve("A").resolve("user.yml")).contains("maxOrders: 42"));
+        assertTrue(b.configuration.edits(b.nodeData).isEmpty());
+    }
+
+    @Test
+    void anEditOnTopOfAnOutdatedRevisionIsKeptAsConflictAndTheNewerOneIsUsed() throws Exception {
+        var a = primary();
+        var b = secondary();
+        var fileB = folder.resolve("B").resolve("user.yml");
+        Files.writeString(fileB, Files.readString(fileB).replaceFirst("maxOrders: \\d+", "maxOrders: 8"));
+        b.configuration.reload();
+        var edits = b.configuration.edits(b.nodeData);
+
+        a.configuration.userSettings().maxOrders(9);
+        a.configuration.save(Configuration.USER_SETTINGS);
+        a.configuration.syncConfigurations(a.nodeData).join();
+        var outcome = b.configuration.publishEdits(b.nodeData, edits, "Bo").getFirst();
+
+        assertTrue(outcome.revision().isEmpty());
+        assertTrue(outcome.conflictFile().startsWith("conflict_"));
+        assertTrue(Files.readString(folder.resolve("B").resolve(outcome.conflictFile()))
+                .contains("maxOrders: 8"));
+        assertEquals(9, b.configuration.userSettings().maxOrders());
+    }
+
+    @Test
     void changedLevelsReachTheSecondaryWithoutAReload() throws Exception {
         var a = primary();
         var b = secondary();

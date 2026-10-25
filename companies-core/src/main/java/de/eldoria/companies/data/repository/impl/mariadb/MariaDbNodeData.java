@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -161,6 +162,39 @@ public class MariaDbNodeData extends ANodeData {
                 .map(row -> new SettingsRevision(
                         row.getString("path"), row.getInt("revision"), row.getString("content"), row.getString("hash")))
                 .first();
+    }
+
+    @Override
+    public Optional<SettingsRevision> settingsAt(String path, int revision) {
+        @Language("mariadb")
+        var select = """
+                SELECT path, revision, content, hash
+                FROM settings
+                WHERE path = ?
+                  AND revision = ?""";
+
+        return query(select)
+                .single(call().bind(path).bind(revision))
+                .map(row -> new SettingsRevision(
+                        row.getString("path"), row.getInt("revision"), row.getString("content"), row.getString("hash")))
+                .first();
+    }
+
+    @Override
+    public OptionalInt appliedRevision(String path) {
+        @Language("mariadb")
+        var select = """
+                SELECT revision
+                FROM settings_applied
+                WHERE node_uid = ?
+                  AND path = ?""";
+
+        return query(select)
+                .single(call().bind(nodeUid(), UUID_BYTES).bind(path))
+                .map(row -> row.getInt("revision"))
+                .first()
+                .map(OptionalInt::of)
+                .orElse(OptionalInt.empty());
     }
 
     @Override
