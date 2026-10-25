@@ -43,21 +43,26 @@ public final class ChangeTracker {
      */
     public static final List<Setting> HOOKED = List.of(TIMEZONE, UPDATES, NOTIFICATIONS, DISCORD, DASHBOARD, TOP);
 
+    /** How often the primary looks for expired orders. */
+    public static final Setting ORDER_CHECK = Setting.of(CONFIG, "generalSettings.orderCheckInterval");
+    /** How often the primary posts due repeating orders. */
+    public static final Setting REPEATING_CHECK = Setting.of("order.yml", "repeating.checkMinutes");
+
     /**
      * The settings that are only read when the server starts.
      */
     public static final List<Setting> RESTART = List.of(
-            Setting.of(CONFIG, "generalSettings.orderCheckInterval"),
+            ORDER_CHECK,
             Setting.of(CONFIG, "generalSettings.messageBlocking"),
             Setting.of(CONFIG, "generalSettings.hooks"),
             Setting.of(CONFIG, "placeholders.offlineCacheSize"),
             Setting.of(CONFIG, "boards.enabled"),
-            Setting.of("order.yml", "repeating.checkMinutes"));
+            REPEATING_CHECK);
 
     /**
      * The settings of {@link #RESTART} only the primary uses, so a secondary needs no restart for them.
      */
-    public static final List<Setting> PRIMARY_ONLY = List.of(RESTART.getFirst(), RESTART.getLast());
+    public static final List<Setting> PRIMARY_ONLY = List.of(ORDER_CHECK, REPEATING_CHECK);
 
     private final List<String> paths;
     private final Function<String, Optional<JsonNode>> current;

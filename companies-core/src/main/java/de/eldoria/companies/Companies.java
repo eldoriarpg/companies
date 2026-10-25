@@ -708,7 +708,10 @@ public class Companies extends EldoPlugin {
         workerPool.shutdown();
         Threading.VIRTUAL.shutdown();
         levelSyncs.shutdown();
-        if (commands != null) awaitTermination(commands.stopLevelShares());
+        if (commands != null) {
+            awaitTermination(commands.stopLevelShares());
+            awaitTermination(commands.stopRestartWrites());
+        }
         awaitTermination(levelSyncs);
         awaitTermination(workerPool);
         awaitTermination(Threading.VIRTUAL);

@@ -65,6 +65,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -260,8 +261,8 @@ public final class CommandDependencies {
 
     /**
      * Logs the settings read only at start that changed since the last report, and stores them with this server's node
-     * so the other servers see the restart is pending. The writes run one after another, so the latest one wins, and a
-     * write that failed is made again with the next report.
+     * so the other servers see the restart is pending. The writes run one after another and each compares with what the
+     * one before stored, so the latest one wins, and a write that failed is made again with the next report.
      */
     private synchronized void reportRestartPending() {
         var pending = configuration.restartPending();
@@ -278,16 +279,23 @@ public final class CommandDependencies {
                             + ".");
         }
         var node = nodeData;
-        if (node == null || pending.equals(storedRestart)) return;
-        restartWrites.execute(() -> {
-            try {
-                node.restartPending(pending);
-                storedRestart = pending;
-            } catch (RuntimeException e) {
-                storedRestart = null;
-                plugin.getLogger().log(Level.WARNING, "Could not store the pending restart.", e);
-            }
-        });
+        if (node == null) return;
+        try {
+            restartWrites.execute(() -> storeRestartPending(node, pending));
+        } catch (RejectedExecutionException e) {
+            plugin.getLogger().log(Level.FINE, "Not storing the pending restart while the plugin stops.", e);
+        }
+    }
+
+    private void storeRestartPending(ANodeData node, List<ChangeTracker.Setting> pending) {
+        if (pending.equals(storedRestart)) return;
+        try {
+            node.restartPending(pending);
+            storedRestart = pending;
+        } catch (RuntimeException e) {
+            storedRestart = null;
+            plugin.getLogger().log(Level.WARNING, "Could not store the pending restart.", e);
+        }
     }
 
     /**
@@ -432,6 +440,16 @@ public final class CommandDependencies {
     public ExecutorService stopLevelShares() {
         levelShares.shutdown();
         return levelShares;
+    }
+
+    /**
+     * Stops storing pending restarts once the ones already reported are written; called before the database closes.
+     *
+     * @return the executor storing them, shut down, to await
+     */
+    public ExecutorService stopRestartWrites() {
+        restartWrites.shutdown();
+        return restartWrites;
     }
 
     /**
