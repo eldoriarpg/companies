@@ -219,6 +219,21 @@ class LifecycleTest {
     }
 
     @Test
+    void afterACrashAServerThatNeverComesBackGetsOnlyItsGracePeriod() {
+        FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.46");
+        try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {
+            node.expect(Welcome.class);
+            login(node, browser, create(node));
+            gateway.app().sweep();
+            CLOCK.advance(Duration.ofMinutes(30));
+            gateway.app().resume();
+            CLOCK.advance(Duration.ofMinutes(11));
+            gateway.app().sweep();
+            assertEquals(401, browser.get("/api/v1/me/server").statusCode());
+        }
+    }
+
+    @Test
     void sessionsSurviveTheServerUntilTheGracePeriodEnds() {
         FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.41");
         try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {

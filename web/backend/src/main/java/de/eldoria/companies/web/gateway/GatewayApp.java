@@ -173,7 +173,8 @@ public final class GatewayApp {
 
     /**
      * Picks up after a restart: the time since the gateway last ran counts neither as idle time of the logins nor
-     * towards the grace period of the servers that were disconnected, so a long outage does not log everyone out. Called once at start, before the sweeps.
+     * towards the grace period of the servers that were disconnected, so a long outage does not log everyone out.
+     * Servers still marked connected, after a crash, count as disconnected from now on. Called once at start, before the sweeps.
      */
     public void resume() {
         Instant now = clock.instant();
@@ -184,6 +185,7 @@ public final class GatewayApp {
                     sessionData.excuseIdle(downtime);
                     serverData.excuseDisconnect(downtime);
                 });
+        serverData.allDisconnected(now);
         state.alive(now);
     }
 

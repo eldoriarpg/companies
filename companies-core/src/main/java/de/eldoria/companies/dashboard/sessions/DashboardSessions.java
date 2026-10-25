@@ -247,13 +247,17 @@ public final class DashboardSessions {
 
     /**
      * Moves the last use of every open session forward, so time the dashboard could not be used, because the gateway
-     * was not reachable, does not count as idle time.
+     * was not reachable, does not count as idle time. A last use never moves past now, so a session used on another
+     * node meanwhile gains nothing.
      *
      * @param downtime how long the dashboard could not be used
      */
     public void excuseIdle(Duration downtime) {
+        var now = now();
         for (var session : all()) {
-            if (session.isOpen()) data.touch(session.id(), session.lastActive().plus(downtime));
+            if (!session.isOpen()) continue;
+            var excused = session.lastActive().plus(downtime);
+            data.touch(session.id(), excused.isAfter(now) ? now : excused);
         }
     }
 

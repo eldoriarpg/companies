@@ -10,7 +10,6 @@ import de.eldoria.companies.web.gateway.node.ServerAuthenticator;
 import de.eldoria.companies.web.gateway.node.TokenAuthenticator;
 import de.eldoria.companies.web.gateway.policy.VersionPolicy;
 import de.eldoria.companies.web.gateway.storage.Database;
-import de.eldoria.companies.web.gateway.storage.ServerRepository;
 import de.eldoria.companies.web.gateway.storage.TokenRepository;
 import io.javalin.Javalin;
 import org.slf4j.Logger;
@@ -72,7 +71,6 @@ public final class GatewayService {
         VersionPolicy policy = policyFile == null ? VersionPolicy.bundled() : VersionPolicy.read(policyFile);
         Database.open(config.database());
         Clock clock = Clock.systemUTC();
-        new ServerRepository().allDisconnected(clock.instant());
         HttpClient http =
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         GatewayApp gateway = new GatewayApp(config, authenticator(config, http, clock, out), policy, http, clock);
