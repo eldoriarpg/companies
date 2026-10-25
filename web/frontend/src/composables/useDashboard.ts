@@ -57,8 +57,9 @@ export function serverToShow(before: ServerInfo | null, next: ServerInfo): Serve
  *
  * <p>A stream that is replaced is detached first, so its end is never taken for a lost stream. A lost stream is
  * opened again with a backoff from one second doubling to thirty, and the snapshot reloaded, since patches may have
- * been missed; the backoff starts over only once a stream opens, and waking the page tries at once. The gateway's close codes end the session (4401), show the server as
- * discontinued (4403), or refuse the dashboard for good (1008).
+ * been missed; the backoff starts over only once the stream is open and a snapshot loaded, since after a gateway
+ * restart the stream opens long before the server is back, and waking the page tries at once. The gateway's close codes end the session (4401),
+ * show the server as discontinued (4403), or refuse the dashboard for good (1008).
  *
  * <p>The snapshot is replaced as a whole on every patch and never changed in place, so it is kept out of Vue's deep
  * reactivity (`markRaw`).
@@ -79,7 +80,7 @@ export function useDashboard(wiring: DashboardWiring = {}) {
             opened: () => {
                 if (!current()) return
                 data.value.live = true
-                data.value.retries = 0
+                settleBackoff()
             },
             message: message => {
                 if (current()) receive(message)
@@ -111,8 +112,14 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         data.value.live = false
     }
 
+    /** Ends the backoff once the stream is live and a snapshot loaded, so the server answers as well as the gateway. */
+    function settleBackoff(): void {
+        if (data.value.live && machinery.value.loadedSinceOpen) data.value.retries = 0
+    }
+
     /** Opens the stream and loads the server and the snapshot. */
     async function open(): Promise<void> {
+        machinery.value.loadedSinceOpen = false
         connect()
         machinery.value.buffer = machinery.value.buffer ?? []
         try {
@@ -168,6 +175,8 @@ export function useDashboard(wiring: DashboardWiring = {}) {
         data.value.playerOnline = snapshot.player.online === true
         data.value.seqs = {[snapshot.node]: snapshot.seq}
         data.value.status = 'ready'
+        machinery.value.loadedSinceOpen = true
+        settleBackoff()
         noteBalance(snapshot)
         for (const patch of waiting) receivePatch(patch)
     }
