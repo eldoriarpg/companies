@@ -96,6 +96,18 @@ class DashboardSessionsTest {
     }
 
     @Test
+    void aWatchedSessionIsNotIdle() {
+        create("one");
+        sessions.open("one", wren.uuid(), null);
+        clock.advance(Duration.ofMinutes(40));
+        sessions.watched(Set.of("one", "unknown"));
+        clock.advance(Duration.ofMinutes(40));
+
+        assertTrue(sessions.sweep().isEmpty());
+        assertTrue(sessions.active("one", wren.uuid()).isPresent());
+    }
+
+    @Test
     void aUsedSessionEndsAtItsMaximumAge() {
         create("one");
         sessions.open("one", wren.uuid(), null);

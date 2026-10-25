@@ -33,9 +33,11 @@ import de.eldoria.companies.web.api.session.CloseReason;
 import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.PlayerRef;
+import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionCreated;
 import de.eldoria.companies.web.api.session.SessionOpened;
+import de.eldoria.companies.web.api.session.SessionsOpen;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
@@ -260,6 +262,25 @@ class DashboardIntegrationTest {
         assertNotNull(snapshot.company());
         assertEquals(miners, snapshot.company().id());
         assertEquals("Wren", snapshot.player().name());
+    }
+
+    @Test
+    void afterAReconnectThePluginListsItsSessionsAndForgetsTheOnesTheGatewayEnded() throws Exception {
+        connect(supported());
+        gateway.next(SessionsOpen.class, WAIT);
+        var session = login();
+
+        gateway.connections().getLast().close();
+        connect(supported());
+        var listed = gateway.next(SessionsOpen.class, WAIT);
+        assertEquals(List.of(new SessionsOpen.Entry(session, wren)), listed.sessions());
+
+        gateway.send(new SessionClosed(null, Protocol.VERSION, session, wren, CloseReason.EXPIRED));
+        var end = System.nanoTime() + WAIT.toNanos();
+        while (!world.dashboard.sessionsOf(wren).isEmpty() && System.nanoTime() < end) {
+            TimeUnit.MILLISECONDS.sleep(20);
+        }
+        assertTrue(world.dashboard.sessionsOf(wren).isEmpty());
     }
 
     @Test

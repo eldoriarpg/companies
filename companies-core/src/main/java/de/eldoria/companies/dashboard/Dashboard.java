@@ -371,6 +371,7 @@ public final class Dashboard implements GatewayLink {
             for (var session : parts.feed().subscribed()) {
                 if (!parts.sessions().exists(session)) parts.feed().unsubscribe(session);
             }
+            parts.sessions().watched(parts.feed().subscribed());
             for (var ended : parts.sessions().sweep()) {
                 parts.feed().unsubscribe(ended.session().id());
                 send(new SessionClosed(

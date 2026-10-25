@@ -116,6 +116,18 @@ public final class DashboardSessions {
         return session;
     }
 
+    /**
+     * Counts the sessions a browser watches as used, so one that only watches the live updates is not ended as idle.
+     * A browser stops watching when the gateway drops its snapshot, which happens a while after the browser went quiet.
+     *
+     * @param sessions the ids of the watched sessions
+     */
+    public void watched(Set<String> sessions) {
+        for (var id : sessions) {
+            data.session(id).filter(StoredSession::isOpen).ifPresent(this::touch);
+        }
+    }
+
     private void touch(StoredSession session) {
         var now = now();
         var last = touched.get(session.id());
@@ -206,6 +218,13 @@ public final class DashboardSessions {
      */
     public void permissions(UUID player, Set<String> permissions) {
         data.permissions(player, permissions);
+    }
+
+    /**
+     * @return every session of the network, waiting ones included
+     */
+    public List<StoredSession> all() {
+        return players().stream().flatMap(player -> of(player).stream()).toList();
     }
 
     /**
