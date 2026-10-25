@@ -46,7 +46,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -73,15 +72,16 @@ public final class Dashboard implements GatewayLink {
     private volatile @Nullable GatewayConnection connection;
     private volatile @Nullable URI gateway;
     private boolean stopped;
-    private final AtomicReference<@Nullable Instant> offlineSince = new AtomicReference<>();
-    private final AtomicReference<@Nullable Instant> excusing = new AtomicReference<>();
+    private final Object outage = new Object();
+    private @Nullable Instant offlineSince;
+    private @Nullable Instant excusing;
 
     /**
      * @param parts what the dashboard is made of
      */
     public Dashboard(Parts parts) {
         this.parts = parts;
-        this.offlineSince.set(parts.clock().instant());
+        this.offlineSince = parts.clock().instant();
         parts.sessions().holdIdle(true);
     }
 
@@ -89,27 +89,46 @@ public final class Dashboard implements GatewayLink {
      * The gateway welcomed this node. On the primary, the time the dashboard could not be reached is excused from the
      * sessions' idle time, as the gateway excuses its own downtime; only the primary does it, so it happens once. Idle
      * sessions end again only once that is done. A disconnect while the excuse runs starts a new outage, which the next
-     * welcome excuses in turn.
+     * welcome excuses in turn. The outage's start, the excuse under way and the hold on idle sessions change together
+     * under one lock.
      */
     public void welcomed() {
-        var since = offlineSince.get();
-        if (since == null) return;
-        var downtime = Duration.between(since, parts.clock().instant());
-        if (!parts.primary() || !downtime.isPositive()) {
-            if (offlineSince.compareAndSet(since, null)) parts.sessions().holdIdle(false);
-            return;
+        Instant since;
+        Duration downtime;
+        synchronized (outage) {
+            since = offlineSince;
+            if (since == null || excusing != null) return;
+            downtime = Duration.between(since, parts.clock().instant());
+            if (!parts.primary() || !downtime.isPositive()) {
+                endOutage(since);
+                return;
+            }
+            excusing = since;
         }
-        if (!excusing.compareAndSet(null, since)) return;
         parts.work().execute(() -> {
             try {
                 parts.sessions().excuseIdle(downtime);
             } catch (RuntimeException e) {
                 parts.logger().log(Level.WARNING, "Could not excuse the dashboard's downtime from the sessions.", e);
             } finally {
-                excusing.set(null);
-                if (offlineSince.compareAndSet(since, null)) parts.sessions().holdIdle(false);
+                synchronized (outage) {
+                    excusing = null;
+                    endOutage(since);
+                }
             }
         });
+    }
+
+    private boolean reachable() {
+        synchronized (outage) {
+            return offlineSince == null;
+        }
+    }
+
+    private void endOutage(Instant since) {
+        if (!since.equals(offlineSince)) return;
+        offlineSince = null;
+        parts.sessions().holdIdle(false);
     }
 
     /**
@@ -256,9 +275,11 @@ public final class Dashboard implements GatewayLink {
     }
 
     private void disconnected(GatewayConnection.Closed closed) {
-        var now = parts.clock().instant();
-        offlineSince.updateAndGet(since -> since == null || since == excusing.get() ? now : since);
-        parts.sessions().holdIdle(true);
+        synchronized (outage) {
+            if (offlineSince == null || offlineSince.equals(excusing))
+                offlineSince = parts.clock().instant();
+            parts.sessions().holdIdle(true);
+        }
         parts.status().disconnected(closed);
         parts.feed().clear();
     }
@@ -406,7 +427,7 @@ public final class Dashboard implements GatewayLink {
         try {
             for (var gone : parts.sessions().watched(parts.feed().subscribed()))
                 parts.feed().unsubscribe(gone);
-            for (var ended : parts.sessions().sweep(parts.primary() && offlineSince.get() == null)) {
+            for (var ended : parts.sessions().sweep(parts.primary() && reachable())) {
                 parts.feed().unsubscribe(ended.session().id());
                 send(new SessionClosed(
                         null,
