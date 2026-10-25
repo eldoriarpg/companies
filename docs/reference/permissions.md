@@ -46,7 +46,7 @@ Only operators have these by default.
 
 | Permission | Default | What it covers |
 |---|---|---|
-| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin syncconfiguration`. |
+| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin syncconfiguration` and `/companyadmin settings`. |
 | `companies.admin.boards` | op | Create and break board signs, list presets, rewrite board signs and bind NPCs to boards (`/companyadmin board`). |
 | `companies.admin.calcLevel` | op | Recalculate company levels with `/companyadmin calclevel`. |
 | `companies.admin.dashboard` | op | Show the dashboard connection, enter the dashboard key and log players out of the dashboard with `/companyadmin dashboard`. New in 2.1. |
@@ -57,7 +57,7 @@ Only operators have these by default.
 | `companies.admin.nodes` | op | List and remove the servers registered in the database with `/companyadmin node`. |
 | `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. |
 | `companies.admin.player` | op | Look up the company, orders, items and notifications of a player with `/companyadmin player`. |
-| `companies.admin.reload` | op | Reload the configuration with `/companyadmin reload`. |
+| `companies.admin.reload` | op | Reload and share the configuration with `/companyadmin reload`, and roll back a shared file with `/companyadmin settings rollback`, together with `companies.admin`. |
 | `companies.admin.rename` | op | Rename companies with `/companyadmin rename`. |
 | `companies.admin.transferOwner` | op | Make another member the owner of a company with `/companyadmin transferowner`. |
 | `companies.admin.treasury` | op | Look at company treasuries and add or remove money with `/companyadmin treasury`. |

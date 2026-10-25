@@ -29,6 +29,11 @@ public class SqLiteNodeData extends PostgresNodeData {
     }
 
     @Override
+    protected LocalDateTime changedAt(Row row) throws SQLException {
+        return SqLiteAdapter.getTimestamp(row, "changed_at");
+    }
+
+    @Override
     protected @Nullable LocalDateTime readLastSeen(Row row) throws SQLException {
         return row.getString("last_seen") == null ? null : SqLiteAdapter.getTimestamp(row, "last_seen");
     }

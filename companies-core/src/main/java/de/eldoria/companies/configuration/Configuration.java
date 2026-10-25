@@ -23,6 +23,7 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
@@ -53,10 +54,12 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 public class Configuration extends JacksonConfig<ConfigFile> {
     public static final Key<ConfigFile> CONFIG_YML = Key.builder(Path.of("config.yml"), ConfigFile::fresh)
@@ -347,6 +350,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * Stores a file as a revision on the primary, checked against its base, or takes the latest revision on a
      * secondary, saving it and reading it again, which applies the environment overrides of this node. A value set
      * through an environment variable is part of no revision.
+     * <p>
+     * The primary compares and stores under the copy lock, so a rollback or edit on this node that is stored and not yet
+     * taken is never read as its base.
      *
      * @param nodeData  the node repository holding the copies
      * @param configKey the file
@@ -359,24 +365,26 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             plugin().getLogger().warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
             return false;
         }
-        var path = configKey.path().toString();
-        var content = nodeData.primaryCopy(configKey, this);
-        var latest = nodeData.latestSettings(path);
-        var base = nodeData.appliedRevision(path);
-        if (latest.isEmpty() || base.isEmpty()) {
-            publish(nodeData, configKey, content, actor);
-            return false;
+        synchronized (copying) {
+            var path = configKey.path().toString();
+            var content = nodeData.primaryCopy(configKey, this);
+            var latest = nodeData.latestSettings(path);
+            var base = nodeData.appliedRevision(path);
+            if (latest.isEmpty() || base.isEmpty()) {
+                publish(nodeData, configKey, content, actor);
+                return false;
+            }
+            if (latest.get().revision() == base.getAsInt()) {
+                publishEdit(nodeData, configKey, base.getAsInt(), content, actor);
+                return false;
+            }
+            var unchangedHere = nodeData.settingsAt(path, base.getAsInt())
+                    .map(stored -> tree(stored.content()).equals(tree(content)))
+                    .orElse(false);
+            if (unchangedHere) return takePrimaryCopy(nodeData, configKey);
+            conflict(nodeData, configKey, latest.get().revision(), content);
+            return true;
         }
-        if (latest.get().revision() == base.getAsInt()) {
-            publishEdit(nodeData, configKey, base.getAsInt(), content, actor);
-            return false;
-        }
-        var unchangedHere = nodeData.settingsAt(path, base.getAsInt())
-                .map(stored -> tree(stored.content()).equals(tree(content)))
-                .orElse(false);
-        if (unchangedHere) return takePrimaryCopy(nodeData, configKey);
-        conflict(nodeData, configKey, latest.get().revision(), content);
-        return true;
     }
 
     /**
@@ -486,6 +494,107 @@ public class Configuration extends JacksonConfig<ConfigFile> {
                 }
             };
         }
+    }
+
+    /**
+     * Makes an earlier revision of a shared file the newest again: stores its content as the revision after
+     * {@code base} and applies it on this node. The other nodes take it as any new revision. When a revision newer than
+     * {@code base} was stored meanwhile, nothing is stored, so a rollback never silently replaces a change it was not
+     * asked about.
+     * <p>
+     * When this node cannot take it, because a file changed here could not be backed up, its applied revision is set
+     * back, so it counts as behind and a later sync does not store its own file over the rollback.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param path     the file
+     * @param revision the earlier revision
+     * @param base     the latest revision when the rollback was asked for
+     * @param actor    who rolled back
+     * @return what happened, empty when the file is not shared or has no such revision
+     */
+    public Optional<RollbackOutcome> rollback(ANodeData nodeData, String path, int revision, int base, String actor) {
+        var key = sharedKey(path);
+        var earlier = nodeData.settingsAt(path, revision);
+        if (key.isEmpty() || earlier.isEmpty()) return Optional.empty();
+        synchronized (copying) {
+            return Optional.of(
+                    switch (nodeData.publishSettingsOn(path, base, earlier.get().content(), actor)) {
+                        case ANodeData.PublishOutcome.Published published -> {
+                            plugin().getLogger()
+                                    .info("Stored revision " + revision + " of " + path + " as revision "
+                                            + published.revision() + ".");
+                            var announce = announcer;
+                            if (announce != null) announce.accept(path, published.revision());
+                            var replaced = take(nodeData, key.get(), true);
+                            var applied = appliedRevision(path) >= published.revision();
+                            if (!applied) nodeData.appliedSettings(path, appliedRevision(path));
+                            yield new RollbackOutcome.RolledBack(published.revision(), replaced, applied);
+                        }
+                        case ANodeData.PublishOutcome.Unchanged unchanged ->
+                            new RollbackOutcome.Unchanged(unchanged.revision());
+                        case ANodeData.PublishOutcome.Conflict conflict -> new RollbackOutcome.Newer(conflict.latest());
+                    });
+        }
+    }
+
+    /**
+     * What a rollback did.
+     */
+    public sealed interface RollbackOutcome {
+        /**
+         * The earlier content was stored as a new revision.
+         *
+         * @param revision the new revision
+         * @param replaced whether this node's file changed
+         * @param applied  whether this node uses the new revision; not when a file changed here could not be backed up
+         */
+        record RolledBack(int revision, boolean replaced, boolean applied) implements RollbackOutcome {}
+
+        /**
+         * The earlier content equals the latest revision, so nothing was stored.
+         *
+         * @param latest the latest revision
+         */
+        record Unchanged(int latest) implements RollbackOutcome {}
+
+        /**
+         * A revision newer than the one the rollback was asked on was stored meanwhile, so nothing was stored.
+         *
+         * @param latest the newer revision
+         */
+        record Newer(int latest) implements RollbackOutcome {}
+    }
+
+    /**
+     * How one shared file stands across the network.
+     *
+     * @param path    the file
+     * @param latest  its latest revision, 0 before one was stored
+     * @param applied the revision this node applied, 0 before it applied one
+     * @param edited  whether this node changed it without sharing the change
+     * @param behind  the nodes that applied an older revision than the latest
+     */
+    public record FileStatus(String path, int latest, int applied, boolean edited, List<UUID> behind) {}
+
+    /**
+     * @param nodeData the node repository holding the revisions
+     * @return how each shared file stands, in the order they are synced
+     */
+    public List<FileStatus> status(ANodeData nodeData) {
+        var revisions = nodeData.settingsRevisions();
+        var appliedRows = nodeData.settingsApplied();
+        var edited = edits(nodeData).stream().map(Edit::path).collect(Collectors.toSet());
+        var statuses = new ArrayList<FileStatus>();
+        for (var key : SHARED) {
+            var path = key.path().toString();
+            var latest = revisions.getOrDefault(path, 0);
+            var behind = appliedRows.stream()
+                    .filter(row -> row.path().equals(path) && row.revision() < latest)
+                    .map(AppliedSettings::node)
+                    .toList();
+            statuses.add(new FileStatus(path, latest, appliedRevision(path), edited.contains(path), behind));
+        }
+        return statuses;
     }
 
     /**

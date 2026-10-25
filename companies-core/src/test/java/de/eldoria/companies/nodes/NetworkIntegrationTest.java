@@ -61,7 +61,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -532,7 +534,12 @@ class NetworkIntegrationTest {
         var outcome = b.configuration.publishEdits(b.nodeData, edits, "Ada").getFirst();
 
         assertTrue(outcome.revision().isPresent());
-        await(() -> a.configuration.userSettings().maxOrders() == 42, WAIT, "the primary to take the edit");
+        await(
+                () -> a.configuration.appliedRevision("user.yml")
+                        == outcome.revision().getAsInt(),
+                WAIT,
+                "the primary to take the edit");
+        assertEquals(42, a.configuration.userSettings().maxOrders());
         assertTrue(Files.readString(folder.resolve("A").resolve("user.yml")).contains("maxOrders: 42"));
         assertTrue(b.configuration.edits(b.nodeData).isEmpty());
     }
@@ -580,6 +587,81 @@ class NetworkIntegrationTest {
                 a.configuration.companySettings().level(1).orElseThrow().levelName());
         assertTrue(
                 a.nodeData.latestSettings("company.yml").orElseThrow().content().contains("FromB"));
+    }
+
+    @Test
+    void aRollbackStoresTheEarlierContentAsTheNextRevisionEverywhere() throws Exception {
+        var a = primary();
+        var b = secondary();
+        var original = b.configuration.userSettings().maxOrders();
+        a.configuration.userSettings().maxOrders(original + 5);
+        a.configuration.save(Configuration.USER_SETTINGS);
+        a.configuration.syncConfigurations(a.nodeData).join();
+        await(() -> b.configuration.userSettings().maxOrders() == original + 5, WAIT, "the secondary to take it");
+        var latest = b.configuration.appliedRevision("user.yml");
+
+        var outcome = b.configuration
+                .rollback(b.nodeData, "user.yml", latest - 1, latest, "Bo")
+                .orElseThrow();
+
+        assertEquals(new Configuration.RollbackOutcome.RolledBack(latest + 1, true, true), outcome);
+        assertEquals(original, b.configuration.userSettings().maxOrders());
+        assertEquals(latest + 1, b.configuration.appliedRevision("user.yml"));
+        await(() -> a.configuration.appliedRevision("user.yml") == latest + 1, WAIT, "the primary to take it");
+        assertEquals(original, a.configuration.userSettings().maxOrders());
+        assertEquals(
+                "Bo", b.nodeData.settingsHistory("user.yml", 0, 1).getFirst().actor());
+        assertTrue(b.configuration
+                .rollback(b.nodeData, "user.yml", latest + 9, latest, "Bo")
+                .isEmpty());
+        assertTrue(b.configuration
+                .rollback(b.nodeData, "node.yml", 1, latest, "Bo")
+                .isEmpty());
+    }
+
+    @Test
+    void aRollbackAskedBeforeANewerRevisionChangesNothing() throws Exception {
+        var a = primary();
+        var b = secondary();
+        a.configuration.userSettings().maxOrders(a.configuration.userSettings().maxOrders() + 3);
+        a.configuration.save(Configuration.USER_SETTINGS);
+        a.configuration.syncConfigurations(a.nodeData).join();
+        var latest = a.configuration.appliedRevision("user.yml");
+        var current = a.configuration.userSettings().maxOrders();
+
+        var outcome = b.configuration
+                .rollback(b.nodeData, "user.yml", latest - 1, latest - 1, "Bo")
+                .orElseThrow();
+
+        assertEquals(new Configuration.RollbackOutcome.Newer(latest), outcome);
+        assertEquals(latest, b.nodeData.settingsRevisions().get("user.yml"));
+        assertEquals(current, a.configuration.userSettings().maxOrders());
+        try (var files = Files.list(folder.resolve("B"))) {
+            assertTrue(files.noneMatch(file -> file.getFileName().toString().startsWith("conflict_")));
+        }
+    }
+
+    @Test
+    void theStatusNamesEditsAndNodesBehind() throws Exception {
+        var a = primary();
+        var b = secondary();
+        var fileB = folder.resolve("B").resolve("user.yml");
+        Files.writeString(fileB, Files.readString(fileB).replaceFirst("maxOrders: \\d+", "maxOrders: 77"));
+        b.configuration.reload();
+        b.nodeData.appliedSettings("company.yml", 0);
+
+        var status = b.configuration.status(b.nodeData).stream()
+                .collect(Collectors.toMap(Configuration.FileStatus::path, Function.identity()));
+        b.nodeData.appliedSettings("company.yml", b.configuration.appliedRevision("company.yml"));
+
+        assertTrue(status.get("user.yml").edited());
+        assertFalse(status.get("company.yml").edited());
+        assertTrue(status.get("company.yml").behind().contains(b.nodeData.nodeUid()));
+        assertFalse(status.get("user.yml").behind().contains(b.nodeData.nodeUid()));
+        assertEquals(status.get("user.yml").latest(), status.get("user.yml").applied());
+        assertEquals(
+                a.configuration.appliedRevision("user.yml"),
+                status.get("user.yml").latest());
     }
 
     @Test
