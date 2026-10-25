@@ -13,6 +13,7 @@ import java.util.UUID;
 public class NodeSettings {
     private NodeType nodeType = NodeType.PRIMARY;
     private UUID nodeUid = UUID.randomUUID();
+    private String name = "";
     private NodeDashboardSettings dashboard = new NodeDashboardSettings();
 
     public NodeType nodeType() {
@@ -21,6 +22,15 @@ public class NodeSettings {
 
     public UUID nodeUid() {
         return nodeUid;
+    }
+
+    /**
+     * The name admins gave this node, shown where the dashboard lets them pick a server.
+     *
+     * @return the name, empty for none
+     */
+    public String name() {
+        return name == null ? "" : name.strip();
     }
 
     /**

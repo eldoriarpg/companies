@@ -153,7 +153,7 @@ public final class NodeCommand {
                         Values.text("role", node.type().name()),
                         Values.text("version", node.version()),
                         Values.text("last_seen", lastSeen(node)),
-                        Values.text("bus", bus(nodeData, node)));
+                        Values.text("bus", bus(deps, nodeData, node)));
         if (node.uid().equals(nodeData.nodeUid())) {
             return text.space().text("<neutral>").locale("companyadmin.node.current");
         }
@@ -162,13 +162,22 @@ public final class NodeCommand {
                 Values.click("act_remove", ClickEvent.suggestCommand("/companyadmin node remove " + uid)));
     }
 
-    private String bus(ANodeData nodeData, Node node) {
+    /**
+     * How a node exchanges messages with the others, as the admin reads it: for this node its own bus and its state,
+     * for another the bus named in the heartbeat this node heard lately, {@code -} when it heard none or polls itself.
+     *
+     * @param deps     what the commands need
+     * @param nodeData the node repository
+     * @param node     the node
+     * @return the localized description
+     */
+    public static String bus(CommandDependencies deps, ANodeData nodeData, Node node) {
         var bus = deps.bus();
-        if (node.uid().equals(nodeData.nodeUid())) return localize("companyadmin.node.bus." + key(bus));
+        if (node.uid().equals(nodeData.nodeUid())) return localize(deps, "companyadmin.node.bus." + key(bus));
         if (!bus.realtime()) return "-";
         return deps.presence()
                 .transport(node.uid())
-                .map(transport -> localize("companyadmin.node.bus." + transport.id() + ".connected"))
+                .map(transport -> localize(deps, "companyadmin.node.bus." + transport.id() + ".connected"))
                 .orElse("-");
     }
 
@@ -183,7 +192,7 @@ public final class NodeCommand {
         return bus.transport().id() + (bus.realtime() ? ".connected" : ".disconnected");
     }
 
-    private String localize(String key) {
+    private static String localize(CommandDependencies deps, String key) {
         return ILocalizer.getPluginLocalizer(deps.plugin()).localize(key);
     }
 

@@ -29,7 +29,11 @@ public final class FakeHook implements NpcHook {
         this("Citizens", Set.of());
     }
 
-    FakeHook(String name, Set<String> npcs) {
+    /**
+     * @param name the NPC plugin
+     * @param npcs the keys of its NPCs
+     */
+    public FakeHook(String name, Set<String> npcs) {
         this.name = name;
         this.npcs = npcs;
     }

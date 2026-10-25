@@ -6,6 +6,10 @@
 package de.eldoria.companies.dashboard;
 
 import de.eldoria.companies.api.CompaniesApiImpl;
+import de.eldoria.companies.boards.Boards;
+import de.eldoria.companies.boards.npc.FakeHook;
+import de.eldoria.companies.boards.npc.NpcBoards;
+import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ISimpleCompany;
@@ -13,6 +17,8 @@ import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.elements.BoardBindings;
+import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.configuration.elements.NodeSettings;
@@ -24,6 +30,7 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
+import de.eldoria.companies.dashboard.actions.AdminServerWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
@@ -40,6 +47,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
@@ -107,6 +115,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -136,6 +145,10 @@ public final class DashboardWorld implements AutoCloseable {
     public volatile NodeType nodeType = NodeType.PRIMARY;
     public final AtomicInteger levelShares = new AtomicInteger();
     public final AtomicInteger recalculations = new AtomicInteger();
+    public final AtomicInteger configSyncs = new AtomicInteger();
+    public final BoardBindings boardBindings = new BoardBindings();
+    public final FakeHook citizens = new FakeHook("Citizens", Set.of("4", "5"));
+    public SqLiteNodeData nodeData;
     public AdminLog adminLog;
     public final ExecutorService executor = Executors.newFixedThreadPool(4);
     public final Map<UUID, String> names = new ConcurrentHashMap<>();
@@ -541,7 +554,29 @@ public final class DashboardWorld implements AutoCloseable {
                         },
                         Runnable::run,
                         adminLog,
-                        failure -> "text of " + failure.localeKey())));
+                        failure -> "text of " + failure.localeKey())),
+                adminServers(orders));
+    }
+
+    private AdminServerWrites adminServers(SqLiteOrderData orders) {
+        nodeData = new SqLiteNodeData(new NodeSettings());
+        nodeData.updateNode(plugin);
+        var boardSettings = new BoardSettings();
+        var boards = Boards.create(() -> boardSettings, orders);
+        var npcBoards = new NpcBoards(plugin, boards, () -> boardBindings, () -> {}, (sender, failure) -> {});
+        npcBoards.start(
+                new NpcHooks(name -> name.equals("Citizens"), className -> citizens, Logger.getAnonymousLogger()));
+        return new AdminServerWrites(new AdminServerWrites.Sources(
+                boards,
+                npcBoards,
+                server.getConsoleSender(),
+                () -> nodeData,
+                node -> "Redis",
+                configSyncs::incrementAndGet,
+                views::instant,
+                Runnable::run,
+                adminLog,
+                failure -> "text of " + failure.localeKey()));
     }
 
     /**

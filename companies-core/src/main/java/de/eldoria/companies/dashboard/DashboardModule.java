@@ -7,6 +7,8 @@ package de.eldoria.companies.dashboard;
 
 import de.chojo.sadu.core.updater.SqlVersion;
 import de.eldoria.companies.api.CompaniesApi;
+import de.eldoria.companies.boards.Boards;
+import de.eldoria.companies.boards.npc.NpcBoards;
 import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
@@ -14,6 +16,7 @@ import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
+import de.eldoria.companies.dashboard.actions.AdminServerWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
@@ -38,12 +41,14 @@ import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
+import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
+import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -198,7 +203,10 @@ public final class DashboardModule {
                 new Handshake.Identity(
                         version,
                         schemaVersion(),
-                        new NodeInfo(node, primary ? NodeRole.PRIMARY : NodeRole.SECONDARY),
+                        new NodeInfo(
+                                node,
+                                primary ? NodeRole.PRIMARY : NodeRole.SECONDARY,
+                                nodeSettings.name().isEmpty() ? null : nodeSettings.name()),
                         userAgent,
                         DashboardReads.MAX_PAGE_SIZE),
                 primary ? keys::refreshIfDue : keys::current,
@@ -309,6 +317,17 @@ public final class DashboardModule {
                 new AdminLevelWrites(new AdminLevelWrites.Sources(
                         data.admin().levels(),
                         data.admin().recalculate(),
+                        Threading.mainThread(plugin),
+                        data.admin().log(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminServerWrites(new AdminServerWrites.Sources(
+                        data.admin().boards(),
+                        data.admin().npcBoards(),
+                        plugin.getServer().getConsoleSender(),
+                        data.admin().nodeData(),
+                        data.admin().bus(),
+                        data.admin().syncConfiguration(),
+                        views::instant,
                         Threading.mainThread(plugin),
                         data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))));
@@ -456,6 +475,11 @@ public final class DashboardModule {
      * @param grants        grants players money and items
      * @param levels        changes the company levels
      * @param recalculate   recalculates the level of every company, then runs the given task
+     * @param boards        the order boards of this node
+     * @param npcBoards     the NPCs bound to boards on this node
+     * @param nodeData      the node repository
+     * @param bus           how a node exchanges messages, as the admin reads it
+     * @param syncConfiguration does what {@code /companyadmin syncconfiguration} does; blocks until synced
      */
     public record AdminServices(
             AdminOrderService orders,
@@ -466,7 +490,12 @@ public final class DashboardModule {
             ACompanyData companyData,
             AdminGrantService grants,
             LevelAdminService levels,
-            Consumer<Runnable> recalculate) {}
+            Consumer<Runnable> recalculate,
+            Boards boards,
+            NpcBoards npcBoards,
+            Supplier<ANodeData> nodeData,
+            Function<Node, String> bus,
+            Runnable syncConfiguration) {}
 
     /**
      * The services the dashboard moves items through, with the inventory of a player online on this node.

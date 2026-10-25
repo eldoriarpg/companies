@@ -15,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The data of the read actions, which the protocol module does not model as records. It is written as JSON into
@@ -522,4 +523,43 @@ public final class Payloads {
      * @param levels   the levels, lowest first
      */
     public record AdminLevels(boolean editable, List<AdminLevel> levels) {}
+
+    /**
+     * A board preset with its open orders.
+     *
+     * @param name  the preset's name, as signs and NPCs name it
+     * @param label what a board of it shows as title
+     * @param open  the open orders it shows
+     */
+    public record AdminBoardPreset(String name, String label, int open) {}
+
+    /**
+     * An NPC bound to a board.
+     *
+     * @param hook  the NPC plugin
+     * @param npc   the NPC's key in that plugin
+     * @param board the preset or materials, empty for every open order
+     */
+    public record AdminNpcBinding(String hook, String npc, String board) {}
+
+    /**
+     * The NPCs bound to boards on a node.
+     *
+     * @param hooks    the NPC plugins loaded on the node
+     * @param bindings the bound NPCs
+     */
+    public record AdminNpcBoards(List<String> hooks, List<AdminNpcBinding> bindings) {}
+
+    /**
+     * A node registered in the database.
+     *
+     * @param uid      its {@code nodeUid}
+     * @param role     {@code PRIMARY} or {@code SECONDARY}
+     * @param version  the plugin version it last ran
+     * @param lastSeen when it last started or synced its configuration, none before this was recorded
+     * @param bus      how it exchanges messages with the others, as the admin reads it
+     * @param current  whether it is the node answering, which cannot be removed
+     */
+    public record AdminNode(
+            UUID uid, String role, String version, @Nullable Instant lastSeen, String bus, boolean current) {}
 }

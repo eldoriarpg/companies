@@ -1163,6 +1163,41 @@ class HostedGatewayTest {
     }
 
     @Test
+    void sendsBoardActionsToTheNodeTheAdminPicked() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        List<String> features = List.of(Features.ORDERS_BROWSE, Features.ADMIN_BOARDS);
+        try (FakeNode primary = FakeNode.welcomed(
+                        gateway,
+                        FakeNode.hello(
+                                KeyKind.DASHBOARD_KEY, key, primaryId, NodeRole.PRIMARY, PLUGIN, features, null));
+                FakeNode secondary = FakeNode.welcomed(
+                        gateway,
+                        FakeNode.hello(
+                                KeyKind.DASHBOARD_KEY, key, secondaryId, NodeRole.SECONDARY, PLUGIN, features, null))) {
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.25");
+            login(primary, admin, create(primary, primaryId), true);
+            JsonNode nodes = FakeBrowser.json(admin.get("/api/v1/me/server")).path("nodes");
+            assertEquals(primaryId.toString(), nodes.get(0).path("uid").asString());
+            assertEquals(secondaryId.toString(), nodes.get(1).path("uid").asString());
+
+            CompletableFuture<HttpResponse<String>> onSecondary = admin.postAsync(
+                    "/api/v1/me/actions",
+                    "{\"name\":\"admin.boards.npc.list\",\"args\":{\"node\":\"%s\"}}".formatted(secondaryId));
+            answer(secondary, secondary.expect(ActionRequest.class), 1);
+            assertEquals(1, content(onSecondary.join()));
+            primary.assertQuietBut(SnapshotRequest.class);
+
+            HttpResponse<String> gone = admin.post(
+                    "/api/v1/me/actions",
+                    "{\"name\":\"admin.boards.npc.list\",\"args\":{\"node\":\"%s\"}}".formatted(UUID.randomUUID()));
+            assertEquals(503, gone.statusCode());
+            primary.assertQuietBut(SnapshotRequest.class);
+        }
+    }
+
+    @Test
     void listsTheAdminFeaturesToAdminsOnly() {
         String key = key();
         UUID uid = UUID.randomUUID();

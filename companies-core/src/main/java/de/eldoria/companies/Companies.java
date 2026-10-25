@@ -20,6 +20,7 @@ import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.CommandRegistration;
 import de.eldoria.companies.commands.company.order.search.SearchExecutor;
+import de.eldoria.companies.commands.companyadmin.NodeCommand;
 import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.MembershipSources;
@@ -167,6 +168,7 @@ public class Companies extends EldoPlugin {
     private final Thread.UncaughtExceptionHandler exceptionHandler = (t, e) -> getLogger()
             .log(Level.SEVERE, "An uncaught exception occurred in " + t.getName() + "-" + t.threadId() + ".", e);
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
+    private static final long SYNC_APPLY_DELAY_TICKS = 40L;
     private final ExecutorService levelSyncs =
             Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private final ScheduledExecutorService workerPool =
@@ -580,7 +582,12 @@ public class Companies extends EldoPlugin {
                                         commands.services().itemReturnService(),
                                         commands.services().notificationService()::send),
                                 commands.levels(),
-                                commands.services().levelService()::updateAllCompanies)),
+                                commands.services().levelService()::updateAllCompanies,
+                                commands.boards(),
+                                commands.npcBoards(),
+                                () -> nodeData,
+                                node -> NodeCommand.bus(commands, nodeData, node),
+                                this::syncConfigurationFromDashboard)),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
@@ -602,6 +609,17 @@ public class Companies extends EldoPlugin {
         caches.register(NodeCaches.PLAYER, key -> key.map(UUID::fromString)
                 .ifPresentOrElse(placeholders::playerChanged, placeholders::refreshAll));
         caches.register(NodeCaches.RANKING, key -> placeholders.rankingChanged());
+    }
+
+    /**
+     * Does what {@code /companyadmin syncconfiguration} does, for the dashboard: syncs the files, tells the secondaries
+     * on the primary, and applies the files a few seconds later on the main thread, since applying them reconnects the
+     * dashboard and the answer has to reach the gateway first.
+     */
+    private void syncConfigurationFromDashboard() {
+        configuration.syncConfigurations(nodeData).join();
+        if (nodeData.nodeType() == NodeType.PRIMARY) commands.bus().publish(new NodeMessage.ConfigSynced());
+        getServer().getScheduler().runTaskLater(this, commands::reloaded, SYNC_APPLY_DELAY_TICKS);
     }
 
     /**

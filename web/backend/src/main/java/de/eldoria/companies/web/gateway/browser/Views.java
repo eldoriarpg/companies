@@ -7,6 +7,7 @@ package de.eldoria.companies.web.gateway.browser;
 
 import de.eldoria.companies.web.api.handshake.DeprecatedPart;
 import de.eldoria.companies.web.api.handshake.Limits;
+import de.eldoria.companies.web.api.handshake.NodeInfo;
 import de.eldoria.companies.web.api.handshake.VersionStatus;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.node.ObjectNode;
@@ -65,6 +66,8 @@ public final class Views {
      * @param online whether a node of the server takes requests
      * @param admin whether the player has admin rights, as the plugin confirmed with the login; the plugin still
      *              checks each admin action against its own permission
+     * @param nodes the connected nodes, primary first, for an admin to pick the one a per-server tool acts on; empty
+     *              for players without admin rights
      */
     public record ServerInfo(
             Brand server,
@@ -73,7 +76,8 @@ public final class Views {
             VersionStatus version,
             List<DeprecatedPart> deprecated,
             boolean online,
-            boolean admin) {}
+            boolean admin,
+            List<NodeInfo> nodes) {}
 
     /**
      * {@code POST /api/v1/me/actions}.
