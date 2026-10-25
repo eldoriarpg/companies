@@ -134,6 +134,10 @@ do does not go unnoticed. See [Dashboard](../players/dashboard.md) for the playe
 A player stays logged in until they run `/company dashboard logout`, the login is unused for `sessionIdleMinutes`, it
 is older than `sessionMaxHours`, or you end it with `/companyadmin dashboard revoke <player>`.
 
+A browser that keeps the dashboard open counts as using it, even without clicking. Logins survive a restart of the
+gateway, and the time it was down does not count as unused. A login that ended while a server was not connected to the
+gateway, for example through `/company dashboard logout`, ends in the browser too as soon as the server connects again.
+
 Players need `companies.dashboard.use`, which everyone has by default. Taking it away ends the player's logins the
 next time they are online.
 

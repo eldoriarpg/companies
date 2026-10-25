@@ -54,6 +54,8 @@ export interface DashboardMachinery {
     loading: boolean
     /** Whether the snapshot is to be loaded once more after the load under way, because a resync came meanwhile. */
     reloadAgain: boolean
+    /** Whether a snapshot loaded since the stream was last opened; with a live stream it ends the backoff. */
+    loadedSinceOpen: boolean
 }
 
 /**
@@ -69,6 +71,7 @@ export function dashboardState() {
     }))
     const machinery = useState<DashboardMachinery>('dashboardState.machinery', () => ({
         stream: null, generation: 0, retry: null, buffer: null, loading: false, reloadAgain: false,
+        loadedSinceOpen: false,
     }))
     return {
         data,
@@ -78,6 +81,7 @@ export function dashboardState() {
             if (machinery.value.retry) clearTimeout(machinery.value.retry)
             machinery.value = {
                 stream: null, generation: machinery.value.generation + 1, retry: null, buffer: null, loading: false, reloadAgain: false,
+                loadedSinceOpen: false,
             }
             data.value = {
                 status: 'idle', server: null, snapshot: null, seqs: {}, live: false, playerOnline: false, activity: [], nextActivity: 1, balances: [], retries: 0,

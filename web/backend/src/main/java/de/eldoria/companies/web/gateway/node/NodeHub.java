@@ -26,6 +26,7 @@ import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.PlayerPresence;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
+import de.eldoria.companies.web.api.session.SessionsOpen;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.update.Patch;
@@ -62,7 +63,7 @@ import java.util.stream.Collectors;
  * the {@link VersionPolicy}, stores the server's branding icon by hash and answers {@code welcome} with the protocol
  * version used, the gateway's kind and features, the version status and the deprecated parts the node still uses. A
  * node on a discontinued version gets its welcome and then only answers to pings. Every node of a server connects;
- * a node that connects again replaces its previous connection.
+ * a node that connects again replaces its previous connection and the players reported over it, which it reports anew.
  * <p>
  * The gateway pings a node it has not heard from for {@value #PING_SECONDS} seconds and closes a connection silent
  * for {@value #IDLE_SECONDS} seconds, or one that sends no hello within {@value #HELLO_SECONDS} seconds, or anything
@@ -120,7 +121,8 @@ public final class NodeHub {
      * @param kind hosted or self-hosted
      * @param serverRepository the stored servers
      * @param icons the stored icons
-     * @param connects limits connections per address
+     * @param connects limits connections per address; a connection that is welcomed does not count, so many servers
+     *                 behind one address reconnect after a gateway restart, while failed attempts stay limited
      * @param clock the time
      */
     public NodeHub(
@@ -396,6 +398,7 @@ public final class NodeHub {
         boolean discontinued = status.status() == VersionState.DISCONTINUED;
         LiveServer server;
         NodeLink replaced;
+        List<UUID> stale = List.of();
         synchronized (this) {
             if (!link.welcomed(agreed, discontinued ? NodeLink.State.DISCONTINUED : NodeLink.State.READY)) return;
             serverRepository.connected(accepted.serverId(), now);
@@ -403,8 +406,11 @@ public final class NodeHub {
                     accepted.serverId(), agreed.uid(), agreed.role().name(), hello.plugin(), protocol, now);
             server = servers.computeIfAbsent(accepted.serverId(), LiveServer::new);
             replaced = server.add(link);
+            if (replaced != null && replaced != link) stale = server.forget(agreed.uid());
         }
         if (replaced != null && replaced != link) replaced.close(CLOSE_REPLACED, "Replaced by a newer connection");
+        for (UUID player : stale) events.presence(server, player, false);
+        connects.refund(ClientAddress.bucket(link.address()));
         link.limit(MESSAGE_BYTES);
         boolean iconCached = branding(accepted.serverId(), hello.branding());
         link.send(new Welcome(hello.id(), protocol, protocol, kind, offered, status, deprecated, iconCached));
@@ -450,6 +456,7 @@ public final class NodeHub {
             }
             case SessionClosed closed -> events.sessionClosed(server, closed);
             case SessionsRevoked revoked -> events.sessionsRevoked(server, revoked);
+            case SessionsOpen open -> events.sessionsListed(server, link, open);
             case PlayerPresence presence -> {
                 UUID named = presence.node();
                 UUID node = named == null ? link.agreed().uid() : named;
@@ -528,6 +535,9 @@ public final class NodeHub {
 
         @Override
         public void sessionsRevoked(LiveServer server, SessionsRevoked message) {}
+
+        @Override
+        public void sessionsListed(LiveServer server, NodeLink link, SessionsOpen message) {}
 
         @Override
         public void presence(LiveServer server, UUID player, boolean online) {}

@@ -8,6 +8,7 @@ package de.eldoria.companies.web.gateway.storage;
 import org.jspecify.annotations.Nullable;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -105,6 +106,19 @@ public final class ServerRepository {
     public void allDisconnected(Instant now) {
         query("UPDATE server SET disconnected_at = :now WHERE disconnected_at IS NULL;")
                 .single(call().bind("now", Timestamp.from(now)))
+                .update();
+    }
+
+    /**
+     * Moves the disconnect time of every disconnected server forward, so time the gateway was down does not count
+     * towards the grace period after which their sessions end.
+     *
+     * @param downtime how long the gateway was down
+     */
+    public void excuseDisconnect(Duration downtime) {
+        query("UPDATE server SET disconnected_at = disconnected_at + make_interval(secs => :secs)"
+                        + " WHERE disconnected_at IS NOT NULL;")
+                .single(call().bind("secs", (double) downtime.toSeconds()))
                 .update();
     }
 

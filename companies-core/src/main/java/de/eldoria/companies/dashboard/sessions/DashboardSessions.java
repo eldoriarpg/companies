@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +37,7 @@ import java.util.function.Supplier;
  * it. The methods block on the database.
  */
 public final class DashboardSessions {
+    private volatile boolean idleHeld;
     private static final Duration TOUCH_INTERVAL = Duration.ofMinutes(1);
 
     private final ADashboardData data;
@@ -101,7 +103,8 @@ public final class DashboardSessions {
     }
 
     /**
-     * Finds an open session of a player that has not ended, and records that it was used.
+     * Finds an open session of a player that has not ended, and records that it was used. While idle sessions are held,
+     * see {@link #holdIdle(boolean)}, an idle one still counts as open.
      *
      * @param id     the session id
      * @param player the player the gateway named
@@ -111,9 +114,36 @@ public final class DashboardSessions {
         var session = data.session(id)
                 .filter(found -> found.player().equals(player))
                 .filter(StoredSession::isOpen)
-                .filter(found -> endReason(found, now()).isEmpty());
+                .filter(found -> endReason(found, now())
+                        .filter(reason -> !(idleHeld && reason == CloseReason.IDLE))
+                        .isEmpty());
         session.ifPresent(this::touch);
         return session;
+    }
+
+    /**
+     * Counts the sessions a browser watches as used, so one that only watches the live updates is not ended as idle.
+     * A session is touched once a quarter of the idle time passed since its last use, not on every call. A browser
+     * stops watching when the gateway drops its snapshot, a while after the browser went quiet, or when the connection
+     * to the gateway ends.
+     *
+     * @param sessions the ids of the watched sessions
+     * @return the ids of those that no longer exist
+     */
+    public Set<String> watched(Set<String> sessions) {
+        var now = now();
+        var quarter = Duration.ofMinutes(settings.get().sessionIdleMinutes()).dividedBy(4);
+        var gone = new HashSet<String>();
+        for (var id : sessions) {
+            var session = data.session(id);
+            if (session.isEmpty()) {
+                gone.add(id);
+                continue;
+            }
+            var found = session.get();
+            if (found.isOpen() && found.lastActive().plus(quarter).isBefore(now)) data.touch(id, now);
+        }
+        return gone;
     }
 
     private void touch(StoredSession session) {
@@ -170,17 +200,21 @@ public final class DashboardSessions {
     }
 
     /**
-     * Ends the sessions that were idle too long, got too old or whose code expired.
+     * Ends the sessions that got too old or whose code expired, and those that were idle too long when idle sessions
+     * are to end.
      *
+     * @param endIdle whether idle sessions end; not while the dashboard cannot be reached, so time it could not be
+     *                used does not count
      * @return the sessions this call ended with the reason
      */
-    public List<Ended> sweep() {
+    public List<Ended> sweep(boolean endIdle) {
         var now = now();
         var current = settings.get();
         List<Ended> ended = new ArrayList<>();
         for (var session : data.ended(
                 now.minusMinutes(current.sessionIdleMinutes()), now.minusHours(current.sessionMaxHours()), now)) {
             var reason = endReason(session, now).orElse(CloseReason.EXPIRED);
+            if (reason == CloseReason.IDLE && !endIdle) continue;
             if (forget(session.id())) ended.add(new Ended(session, reason));
         }
         return ended;
@@ -206,6 +240,39 @@ public final class DashboardSessions {
      */
     public void permissions(UUID player, Set<String> permissions) {
         data.permissions(player, permissions);
+    }
+
+    /**
+     * @return every session of the network, waiting ones included
+     */
+    public List<StoredSession> all() {
+        return data.sessions();
+    }
+
+    /**
+     * Holds idle sessions open while the dashboard could not be reached and the time it could not be used is not yet
+     * excused, so a request right after a reconnect does not end a session the excuse would keep.
+     *
+     * @param held whether idle sessions are held
+     */
+    public void holdIdle(boolean held) {
+        idleHeld = held;
+    }
+
+    /**
+     * Moves the last use of every open session forward, so time the dashboard could not be used, because the gateway
+     * was not reachable, does not count as idle time. A last use never moves past now, so a session used on another
+     * node meanwhile gains nothing.
+     *
+     * @param downtime how long the dashboard could not be used
+     */
+    public void excuseIdle(Duration downtime) {
+        var now = now();
+        for (var session : all()) {
+            if (!session.isOpen()) continue;
+            var excused = session.lastActive().plus(downtime);
+            data.touch(session.id(), excused.isAfter(now) ? now : excused);
+        }
     }
 
     /**

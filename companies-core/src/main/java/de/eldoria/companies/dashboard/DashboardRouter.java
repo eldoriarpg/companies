@@ -32,6 +32,7 @@ import de.eldoria.companies.web.api.link.UnknownMessage;
 import de.eldoria.companies.web.api.session.SessionClosed;
 import de.eldoria.companies.web.api.session.SessionConfirmed;
 import de.eldoria.companies.web.api.session.SessionOpened;
+import de.eldoria.companies.web.api.session.SessionsOpen;
 import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
 import de.eldoria.companies.web.api.update.Subscribe;
 import de.eldoria.companies.web.api.update.Unsubscribe;
@@ -122,6 +123,23 @@ public final class DashboardRouter {
         }
         parts.handshake().iconFor(welcome).ifPresent(parts.link()::send);
         parts.reportPresence().run();
+        parts.welcomed().run();
+        parts.work().execute(this::listSessions);
+    }
+
+    /**
+     * Tells the gateway every session this network knows, so sessions ended on either side while this node was
+     * disconnected end on the other one too.
+     */
+    private void listSessions() {
+        try {
+            var sessions = parts.sessions().all().stream()
+                    .map(session -> new SessionsOpen.ListedSession(session.id(), session.player()))
+                    .toList();
+            parts.link().send(new SessionsOpen(null, Protocol.VERSION, sessions));
+        } catch (RuntimeException e) {
+            parts.logger().log(Level.WARNING, "Could not tell the gateway the open dashboard sessions.", e);
+        }
     }
 
     private void opened(SessionOpened opened) {
@@ -241,6 +259,7 @@ public final class DashboardRouter {
      * @param disconnect  closes the connection without sending the key again
      * @param node      this node's uid
      * @param reportPresence tells the gateway which players with a session are online here
+     * @param welcomed  told about each welcome, after the presence was reported
      * @param work      builds snapshots and answers actions off the inbound thread
      * @param logger    logger of the plugin
      */
@@ -260,6 +279,7 @@ public final class DashboardRouter {
             Runnable disconnect,
             UUID node,
             Runnable reportPresence,
+            Runnable welcomed,
             Executor work,
             Logger logger) {}
 }

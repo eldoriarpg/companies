@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -217,6 +218,28 @@ public final class SessionRepository {
         query("UPDATE session SET last_access = :now WHERE id = :id AND last_access < :now;")
                 .single(call().bind("id", id).bind("now", Timestamp.from(now)))
                 .update();
+    }
+
+    /**
+     * Moves the last use of every bound session forward, so time the gateway was down does not count as idle time.
+     *
+     * @param downtime how long the gateway was down
+     */
+    public void excuseIdle(Duration downtime) {
+        query("UPDATE session SET last_access = last_access + make_interval(secs => :secs) WHERE state = :bound;")
+                .single(call().bind("secs", (double) downtime.toSeconds()).bind("bound", SessionState.BOUND.name()))
+                .update();
+    }
+
+    /**
+     * @param serverId the server
+     * @return every session of the server, waiting ones included
+     */
+    public List<StoredSession> ofServer(String serverId) {
+        return query("SELECT %s FROM session WHERE server_id = :server;", COLUMNS)
+                .single(call().bind("server", serverId))
+                .map(SessionRepository::map)
+                .all();
     }
 
     /**

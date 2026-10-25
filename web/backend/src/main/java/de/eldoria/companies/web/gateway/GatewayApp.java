@@ -9,6 +9,7 @@ import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.SessionClosed;
+import de.eldoria.companies.web.api.session.SessionsOpen;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.api.update.Patch;
 import de.eldoria.companies.web.gateway.browser.ApiError;
@@ -26,6 +27,7 @@ import de.eldoria.companies.web.gateway.session.Turnstile;
 import de.eldoria.companies.web.gateway.snapshot.ReadRelay;
 import de.eldoria.companies.web.gateway.snapshot.SnapshotCache;
 import de.eldoria.companies.web.gateway.storage.Database;
+import de.eldoria.companies.web.gateway.storage.GatewayStateRepository;
 import de.eldoria.companies.web.gateway.storage.IconRepository;
 import de.eldoria.companies.web.gateway.storage.ServerRepository;
 import de.eldoria.companies.web.gateway.storage.SessionRepository;
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -62,6 +65,10 @@ public final class GatewayApp {
     private final ClientAddress clientAddress;
     private final List<RateLimiter> limiters;
     private final Health health;
+    private final GatewayStateRepository state = new GatewayStateRepository();
+    private final SessionRepository sessionData = new SessionRepository();
+    private final ServerRepository serverData = new ServerRepository();
+    private final Clock clock;
 
     /**
      * @param config the settings
@@ -77,7 +84,8 @@ public final class GatewayApp {
             HttpClient http,
             Clock clock) {
         this.config = config;
-        ServerRepository servers = new ServerRepository();
+        this.clock = clock;
+        ServerRepository servers = serverData;
         IconRepository icons = new IconRepository();
         RateLimiter connects = new RateLimiter(config.connectsPerAddress(), Duration.ofMinutes(1), clock);
         RateLimiter logins = new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock);
@@ -92,7 +100,7 @@ public final class GatewayApp {
         this.reads = new ReadRelay(clock, config.requestTimeout());
         this.snapshots = new SnapshotCache(hub, streams, reads, clock, config.cacheIdle(), config.requestTimeout());
         this.sessions = new Sessions(
-                new SessionRepository(),
+                sessionData,
                 hub,
                 snapshots,
                 reads,
@@ -154,12 +162,32 @@ public final class GatewayApp {
      * Pings nodes, closes silent sockets, ends expired sessions and drops idle snapshots. Called every few seconds.
      */
     public void sweep() {
+        run("alive", () -> state.alive(clock.instant()));
         run("node", hub::sweep);
         run("session", sessions::sweep);
         run("snapshot", snapshots::sweep);
         run("read", reads::sweep);
         run("stream", streams::sweep);
         run("rate limit", () -> limiters.forEach(RateLimiter::sweep));
+    }
+
+    /**
+     * Picks up after a restart: the time since the gateway last ran counts neither as idle time of the logins nor
+     * towards the grace period of the servers that were disconnected, so a long outage does not log everyone out.
+     * Servers still marked connected, after a crash, count as disconnected from now on. Called once at start, before
+     * the sweeps.
+     */
+    public void resume() {
+        Instant now = clock.instant();
+        state.aliveAt()
+                .map(last -> Duration.between(last, now))
+                .filter(downtime -> downtime.isPositive())
+                .ifPresent(downtime -> {
+                    sessionData.excuseIdle(downtime);
+                    serverData.excuseDisconnect(downtime);
+                });
+        serverData.allDisconnected(now);
+        state.alive(now);
     }
 
     /**
@@ -224,6 +252,11 @@ public final class GatewayApp {
         @Override
         public void sessionsRevoked(LiveServer server, SessionsRevoked message) {
             sessions.revokedByPlugin(server, message);
+        }
+
+        @Override
+        public void sessionsListed(LiveServer server, NodeLink link, SessionsOpen message) {
+            sessions.listedByPlugin(server, link, message);
         }
 
         @Override

@@ -17,6 +17,7 @@ export type ProtocolMessage =
   | SessionConfirmed
   | SessionClosed
   | SessionsRevoked
+  | SessionsOpen
   | PlayerPresence
   | SnapshotRequest
   | Snapshot
@@ -161,6 +162,16 @@ export interface SessionsRevoked {
   v: number;
   player: string;
   reason: CloseReason;
+}
+export interface SessionsOpen {
+  type: 'session.list';
+  id?: string;
+  v: number;
+  sessions: ListedSession[];
+}
+export interface ListedSession {
+  session: string;
+  player: string;
 }
 export interface PlayerPresence {
   type: 'player.presence';

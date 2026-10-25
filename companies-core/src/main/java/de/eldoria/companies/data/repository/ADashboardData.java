@@ -92,6 +92,13 @@ public abstract class ADashboardData {
     public abstract List<StoredSession> sessionsOf(UUID player);
 
     /**
+     * Every session of the network, oldest first.
+     *
+     * @return the sessions
+     */
+    public abstract List<StoredSession> sessions();
+
+    /**
      * The players that have a session.
      *
      * @return the players

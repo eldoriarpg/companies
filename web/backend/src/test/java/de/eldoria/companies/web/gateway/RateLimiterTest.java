@@ -30,4 +30,14 @@ class RateLimiterTest {
         assertEquals(0, limiter.keys());
         assertTrue(limiter.tryAcquire("a"));
     }
+
+    @Test
+    void aRefundedActionFreesItsPlace() {
+        RateLimiter limiter =
+                new RateLimiter(1, Duration.ofMinutes(1), new MutableClock(Instant.parse("2026-10-24T12:00:00Z")));
+        assertTrue(limiter.tryAcquire("a"));
+        limiter.refund("a");
+        assertTrue(limiter.tryAcquire("a"));
+        assertFalse(limiter.tryAcquire("a"));
+    }
 }

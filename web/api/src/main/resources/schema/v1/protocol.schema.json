@@ -392,6 +392,19 @@
       },
       "required" : [ "maxPageSize" ]
     },
+    "ListedSession" : {
+      "type" : "object",
+      "properties" : {
+        "session" : {
+          "type" : "string"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        }
+      },
+      "required" : [ "session", "player" ]
+    },
     "MemberPermission" : {
       "type" : "string",
       "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY" ]
@@ -452,6 +465,8 @@
         "$ref" : "#/$defs/SessionClosed"
       }, {
         "$ref" : "#/$defs/SessionsRevoked"
+      }, {
+        "$ref" : "#/$defs/SessionsOpen"
       }, {
         "$ref" : "#/$defs/PlayerPresence"
       }, {
@@ -873,6 +888,28 @@
         }
       },
       "required" : [ "type", "v", "session", "player" ]
+    },
+    "SessionsOpen" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "type" : "string",
+          "const" : "session.list"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "v" : {
+          "type" : "integer"
+        },
+        "sessions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/ListedSession"
+          }
+        }
+      },
+      "required" : [ "type", "v", "sessions" ]
     },
     "SessionsRevoked" : {
       "type" : "object",

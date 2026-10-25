@@ -172,6 +172,24 @@ describe('the dashboard session', () => {
         expect(sockets).toHaveLength(3)
     })
 
+    it('backs off further while the stream opens but the server cannot answer, as after a gateway restart', async () => {
+        const {api, dashboard, sockets, socket} = wired()
+        api.snapshot.mockRejectedValue(gatewayError(503, {error: 'SERVER_OFFLINE'}))
+        dashboard.start()
+        socket().emit('open')
+        await settle()
+        for (const wait of [1000, 2000, 4000]) {
+            const before = sockets.length
+            await vi.advanceTimersByTimeAsync(wait - 1)
+            expect(sockets).toHaveLength(before)
+            await vi.advanceTimersByTimeAsync(1)
+            expect(sockets).toHaveLength(before + 1)
+            socket().emit('open')
+            await settle()
+        }
+        expect(dashboard.status.value).toBe('offline')
+    })
+
     it('backs off further while the stream fails though every request works', async () => {
         const {api, dashboard, sockets, socket} = wired()
         dashboard.start()

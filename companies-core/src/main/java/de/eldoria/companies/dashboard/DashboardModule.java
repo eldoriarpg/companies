@@ -360,6 +360,10 @@ public final class DashboardModule {
                 },
                 node,
                 presence::reportAll,
+                () -> {
+                    var current = started.get();
+                    if (current != null) current.welcomed();
+                },
                 Threading.VIRTUAL,
                 logger));
         var dashboard = new Dashboard(new Dashboard.Parts(

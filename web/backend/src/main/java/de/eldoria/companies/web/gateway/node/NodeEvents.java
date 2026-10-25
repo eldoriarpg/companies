@@ -8,6 +8,7 @@ package de.eldoria.companies.web.gateway.node;
 import de.eldoria.companies.web.api.Message;
 import de.eldoria.companies.web.api.session.CreateSession;
 import de.eldoria.companies.web.api.session.SessionClosed;
+import de.eldoria.companies.web.api.session.SessionsOpen;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
 import de.eldoria.companies.web.api.update.Patch;
 
@@ -43,6 +44,15 @@ public interface NodeEvents {
      * @param message the message
      */
     void sessionsRevoked(LiveServer server, SessionsRevoked message);
+
+    /**
+     * The plugin listed the sessions it knows, after a welcome.
+     *
+     * @param server the server
+     * @param link the node that listed them
+     * @param message the message
+     */
+    void sessionsListed(LiveServer server, NodeLink link, SessionsOpen message);
 
     /**
      * A player with a dashboard session came online on the server or went offline.

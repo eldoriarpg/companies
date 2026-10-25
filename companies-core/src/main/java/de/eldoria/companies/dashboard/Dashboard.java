@@ -34,6 +34,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,12 +72,86 @@ public final class Dashboard implements GatewayLink {
     private volatile @Nullable GatewayConnection connection;
     private volatile @Nullable URI gateway;
     private boolean stopped;
+    private final Object outage = new Object();
+    private @Nullable Instant offlineSince;
+    private @Nullable Instant excusing;
+    private boolean welcomedMeanwhile;
 
     /**
      * @param parts what the dashboard is made of
      */
     public Dashboard(Parts parts) {
         this.parts = parts;
+        this.offlineSince = parts.clock().instant();
+        parts.sessions().holdIdle(true);
+    }
+
+    /**
+     * The gateway welcomed this node. On the primary, the time the dashboard could not be reached is excused from the
+     * sessions' idle time, as the gateway excuses its own downtime; only the primary does it, so it happens once. Idle
+     * sessions end again only once that is done. A disconnect while the excuse runs starts a new outage, which the next
+     * welcome excuses in turn, also one that came while the excuse ran. The outage's start, the excuse under way and the
+     * hold on idle sessions change together under one lock.
+     */
+    public void welcomed() {
+        Runnable excuse;
+        synchronized (outage) {
+            excuse = excuseUnderLock();
+        }
+        if (excuse != null) parts.work().execute(excuse);
+    }
+
+    /**
+     * Decides, holding the lock, what a welcome does: nothing while connected, ends the outage at once where nothing is
+     * to be excused, notes a welcome that comes while an excuse runs, or starts the excuse.
+     *
+     * @return the excuse to run off the lock, none when nothing is to run
+     */
+    private @Nullable Runnable excuseUnderLock() {
+        var since = offlineSince;
+        if (since == null) return null;
+        if (excusing != null) {
+            welcomedMeanwhile = true;
+            return null;
+        }
+        var downtime = Duration.between(since, parts.clock().instant());
+        if (!parts.primary() || !downtime.isPositive()) {
+            endOutage(since);
+            return null;
+        }
+        excusing = since;
+        return () -> excuse(since, downtime);
+    }
+
+    private void excuse(Instant since, Duration downtime) {
+        Runnable next = null;
+        try {
+            parts.sessions().excuseIdle(downtime);
+        } catch (RuntimeException e) {
+            parts.logger().log(Level.WARNING, "Could not excuse the dashboard's downtime from the sessions.", e);
+        } finally {
+            synchronized (outage) {
+                excusing = null;
+                endOutage(since);
+                if (welcomedMeanwhile) {
+                    welcomedMeanwhile = false;
+                    next = excuseUnderLock();
+                }
+            }
+        }
+        if (next != null) parts.work().execute(next);
+    }
+
+    private boolean reachable() {
+        synchronized (outage) {
+            return offlineSince == null;
+        }
+    }
+
+    private void endOutage(Instant since) {
+        if (!since.equals(offlineSince)) return;
+        offlineSince = null;
+        parts.sessions().holdIdle(false);
     }
 
     /**
@@ -223,6 +298,13 @@ public final class Dashboard implements GatewayLink {
     }
 
     private void disconnected(GatewayConnection.Closed closed) {
+        synchronized (outage) {
+            if (offlineSince == null || offlineSince.equals(excusing)) {
+                offlineSince = parts.clock().instant();
+            }
+            welcomedMeanwhile = false;
+            parts.sessions().holdIdle(true);
+        }
         parts.status().disconnected(closed);
         parts.feed().clear();
     }
@@ -368,10 +450,9 @@ public final class Dashboard implements GatewayLink {
 
     private void sweep() {
         try {
-            for (var session : parts.feed().subscribed()) {
-                if (!parts.sessions().exists(session)) parts.feed().unsubscribe(session);
-            }
-            for (var ended : parts.sessions().sweep()) {
+            for (var gone : parts.sessions().watched(parts.feed().subscribed()))
+                parts.feed().unsubscribe(gone);
+            for (var ended : parts.sessions().sweep(parts.primary() && reachable())) {
                 parts.feed().unsubscribe(ended.session().id());
                 send(new SessionClosed(
                         null,
