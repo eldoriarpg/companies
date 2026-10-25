@@ -49,11 +49,11 @@ import java.util.function.Function;
  * `transferowner` and `delete` offer them: look a player up, grant a player money or items, show a company's treasury
  * and give or take money, rename a company free of charge, make another member its owner, and dissolve it. Each tool
  * needs the permission of its command, checked against the permissions remembered with the session as every
- * dashboard action is, and every action is written to the admin log as `<name>@dashboard`.
+ * dashboard action is, and every action is written to the admin log as {@code <name>@dashboard}.
  * <p>
  * A player is named by `player`, a company by `company`, both by name. Granting items takes a material key in
- * `material` and `amount` (1 to 100000), granting money `amount` (0.01 to a trillion), the treasury `amount` with
- * at most two decimals, renaming `name`. The methods block and are called off the main thread.
+ * `material` and `amount` (1 to 100000), granting money `amount` (0.01 to a trillion), the treasury `amount` up to
+ * a trillion with at most two decimals, renaming `name`. The methods block and are called off the main thread.
  */
 public final class AdminSupportWrites {
     /**
