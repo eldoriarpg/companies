@@ -559,6 +559,30 @@ class NetworkIntegrationTest {
     }
 
     @Test
+    void aLevelChangeOnTopOfAnOutdatedRevisionDoesNotReplaceIt() throws Exception {
+        var a = primary();
+        var b = secondary();
+        b.configuration.companySettings().level(1).orElseThrow().levelName("FromB");
+        var fromB = b.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, b.configuration);
+        b.nodeData.publishSettings("company.yml", fromB, "Bo");
+
+        var base = a.configuration.appliedRevision("company.yml");
+        a.configuration.companySettings().level(2).orElseThrow().levelName("FromA");
+        var fromA = a.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, a.configuration);
+        var outcome = a.configuration.publishEdit(a.nodeData, Configuration.COMPANY_SETTINGS, base, fromA, "Ada");
+
+        assertTrue(outcome.revision().isEmpty());
+        assertTrue(outcome.replaced());
+        assertTrue(Files.readString(folder.resolve("A").resolve(outcome.conflictFile()))
+                .contains("FromA"));
+        assertEquals(
+                "FromB",
+                a.configuration.companySettings().level(1).orElseThrow().levelName());
+        assertTrue(
+                a.nodeData.latestSettings("company.yml").orElseThrow().content().contains("FromB"));
+    }
+
+    @Test
     void changedLevelsReachTheSecondaryWithoutAReload() throws Exception {
         var a = primary();
         var b = secondary();

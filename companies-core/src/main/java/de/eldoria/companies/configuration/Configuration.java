@@ -386,8 +386,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param base    the revision the change started from
      * @param content the changed content, as {@link ANodeData#primaryCopy} writes it
      * @param changes the changed keys as dotted paths, such as {@code economy.fee.percent}
+     * @param behind  whether another server stored a newer revision already, so storing the edit will conflict
      */
-    public record Edit(Key<?> key, int base, String content, List<String> changes) {
+    public record Edit(Key<?> key, int base, String content, List<String> changes, boolean behind) {
         /**
          * @return the file's path
          */
@@ -402,9 +403,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param path         the file
      * @param revision     the revision it became, empty when it was not stored
      * @param conflictFile where this node's version was kept when another server changed the file meanwhile
+     * @param replaced     whether the newer revision replaced this node's version, so it has to be applied
      */
     public record EditOutcome(
-            String path, OptionalInt revision, @Nullable String conflictFile) {}
+            String path, OptionalInt revision, @Nullable String conflictFile, boolean replaced) {}
 
     /**
      * The shared files this node changed against the revisions it last applied, as read now. Unreadable files and files
@@ -426,7 +428,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             var before = tree(stored.get().content());
             var after = tree(content);
             if (before.equals(after)) continue;
-            edits.add(new Edit(key, base.getAsInt(), content, changes(before, after)));
+            var latest = nodeData.settingsRevisions().getOrDefault(path, base.getAsInt());
+            edits.add(new Edit(key, base.getAsInt(), content, changes(before, after), latest > base.getAsInt()));
         }
         return edits;
     }
@@ -448,21 +451,45 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         return outcomes;
     }
 
-    private EditOutcome publishEdit(ANodeData nodeData, Key<?> key, int base, String content, String actor) {
-        var path = key.path().toString();
-        return switch (nodeData.publishSettingsOn(path, base, content, actor)) {
-            case ANodeData.PublishOutcome.Published published -> {
-                if (primary()) nodeData.savePrimaryCopy(key, content);
-                stored(key, published.revision());
-                yield new EditOutcome(path, OptionalInt.of(published.revision()), null);
-            }
-            case ANodeData.PublishOutcome.Unchanged unchanged -> {
-                noteApplied(nodeData, path, unchanged.revision());
-                yield new EditOutcome(path, OptionalInt.of(unchanged.revision()), null);
-            }
-            case ANodeData.PublishOutcome.Conflict conflict ->
-                new EditOutcome(path, OptionalInt.empty(), conflict(nodeData, key, conflict.latest(), content));
-        };
+    /**
+     * Stores one edit as the revision after its base, as {@link #publishEdits} does for each. Level changes go through
+     * here too, so they never replace a revision another server stored meanwhile.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param key      the file
+     * @param base     the revision the edit started from
+     * @param content  the edited content
+     * @param actor    who made it
+     * @return what happened
+     */
+    public EditOutcome publishEdit(ANodeData nodeData, Key<?> key, int base, String content, String actor) {
+        synchronized (copying) {
+            var path = key.path().toString();
+            return switch (nodeData.publishSettingsOn(path, base, content, actor)) {
+                case ANodeData.PublishOutcome.Published published -> {
+                    if (primary()) nodeData.savePrimaryCopy(key, content);
+                    stored(key, published.revision(), content);
+                    yield new EditOutcome(path, OptionalInt.of(published.revision()), null, false);
+                }
+                case ANodeData.PublishOutcome.Unchanged unchanged -> {
+                    noteApplied(nodeData, path, unchanged.revision());
+                    rememberIfMatches(key, content);
+                    yield new EditOutcome(path, OptionalInt.of(unchanged.revision()), null, false);
+                }
+                case ANodeData.PublishOutcome.Conflict conflict -> {
+                    var kept = conflict(nodeData, key, conflict.latest(), content);
+                    yield new EditOutcome(path, OptionalInt.empty(), kept, kept != null);
+                }
+            };
+        }
+    }
+
+    /**
+     * @param path a shared file
+     * @return the revision this node applied of it, 0 before it applied one
+     */
+    public int appliedRevision(String path) {
+        return applied.getOrDefault(path, 0);
     }
 
     /**
@@ -475,6 +502,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         var file = plugin().getDataFolder().toPath().resolve(key.path());
         var kept = keepContent(file, "conflict_" + latest, content);
         if (kept == null) return null;
+        if (Files.exists(file) && !tree(file).equals(tree(content)) && keepBackup(file, latest) == null) return null;
         plugin().getLogger()
                 .warning(file.getFileName() + " was changed on this server and on another one (revision " + latest
                         + "). This server's version is kept as " + kept + " and revision " + latest + " is used.");
@@ -486,13 +514,22 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         return nodeSettings().nodeType() == NodeType.PRIMARY;
     }
 
-    private void stored(Key<?> key, int revision) {
+    private void stored(Key<?> key, int revision, String content) {
         var path = key.path().toString();
         plugin().getLogger().info("Stored " + path + " as revision " + revision + ".");
         applied.put(path, revision);
-        rememberApplied(plugin().getDataFolder().toPath().resolve(key.path()));
+        rememberIfMatches(key, content);
         var announce = announcer;
         if (announce != null) announce.accept(path, revision);
+    }
+
+    /**
+     * Notes the file as taken when it holds what was stored, so a later revision does not count it as edited here. A
+     * file changed again meanwhile is left as an edit.
+     */
+    private void rememberIfMatches(Key<?> key, String content) {
+        var file = plugin().getDataFolder().toPath().resolve(key.path());
+        if (tree(file).equals(tree(content))) rememberApplied(file);
     }
 
     /**
@@ -529,18 +566,21 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param actor     who changed it
      */
     public void publish(ANodeData nodeData, Key<?> configKey, String content, String actor) {
-        var path = configKey.path().toString();
-        nodeData.savePrimaryCopy(configKey, content);
-        var revision = nodeData.publishSettings(path, content, actor);
-        if (revision.isEmpty()) {
-            nodeData.latestSettings(path).ifPresent(latest -> noteApplied(nodeData, path, latest.revision()));
-            return;
+        synchronized (copying) {
+            var path = configKey.path().toString();
+            nodeData.savePrimaryCopy(configKey, content);
+            var revision = nodeData.publishSettings(path, content, actor);
+            if (revision.isEmpty()) {
+                nodeData.latestSettings(path).ifPresent(latest -> noteApplied(nodeData, path, latest.revision()));
+                rememberIfMatches(configKey, content);
+                return;
+            }
+            stored(configKey, revision.getAsInt(), content);
         }
-        stored(configKey, revision.getAsInt());
     }
 
     /**
-     * Takes a shared file's revision on a secondary, unless this node applied it or a later one already.
+     * Takes a shared file's revision another node stored, unless this node applied it or a later one already.
      *
      * @param nodeData the node repository holding the revisions
      * @param path     the file
@@ -586,7 +626,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Takes the primary's copy of a shared file on a secondary: saves it, reads it again, which applies this node's
+     * Takes the latest stored revision of a shared file: saves it, reads it again, which applies this node's
      * environment overrides, and remembers what was written. A file that matches the copy is left alone. A file that
      * changed on this node since it last took a copy, or one never taken, is kept as
      * {@code backup_<time>_<file>} first; when that backup cannot be written, the file stays and nothing is taken. One
@@ -617,7 +657,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
                 if (revision > 0) noteApplied(nodeData, path, revision);
                 return false;
             }
-            if (backupEdits && Files.exists(file) && editedHere(file) && !keepBackup(file)) return false;
+            if (backupEdits && Files.exists(file) && editedHere(file) && keepBackup(file, revision) == null) {
+                return false;
+            }
             plugin().getLogger()
                     .info("Taking " + path + (revision > 0 ? " revision " + revision : "") + " from the database.");
             replace(configKey, nodeData.readSettings(configKey, this, copy));
@@ -625,6 +667,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             reload(configKey);
             rememberApplied(file);
             if (revision > 0) noteApplied(nodeData, path, revision);
+            if (primary()) nodeData.savePrimaryCopy(configKey, copy);
             return true;
         }
     }
@@ -666,13 +709,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param file the file
      * @return whether the backup was written
      */
-    private boolean keepBackup(Path file) {
+    private @Nullable String keepBackup(Path file, int revision) {
         var kept = keepCopy(file, "backup_" + BACKUP_TIME.format(Times.local(Times.now())));
-        if (kept == null) return false;
+        if (kept == null) return null;
         plugin().getLogger()
-                .warning(file.getFileName() + " was changed on this server and differs from the primary's copy, which"
-                        + " replaces it now. This server's version is kept as " + kept + ".");
-        return true;
+                .warning(file.getFileName() + " was changed on this server and differs from revision " + revision
+                        + ", which replaces it now. This server's version is kept as " + kept + ".");
+        return kept;
     }
 
     /**

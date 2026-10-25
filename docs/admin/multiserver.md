@@ -86,34 +86,35 @@ moment.
 sees changes at once. So do the key and the logins of the [web dashboard](./dashboard.md), to which every server
 connects on its own.
 
-**The configuration** is copied from the primary server:
+**The configuration** is shared through the database:
 
 | File | Shared |
 |---|---|
-| `config.yml` | Yes, copied from the primary |
-| `company.yml` | Yes, copied from the primary |
-| `order.yml` | Yes, copied from the primary |
-| `user.yml` | Yes, copied from the primary |
+| `config.yml` | Yes, stored as revisions |
+| `company.yml` | Yes, stored as revisions |
+| `order.yml` | Yes, stored as revisions |
+| `user.yml` | Yes, stored as revisions |
 | `database.yml` | No, each server has its own |
 | `node.yml` | No, each server has its own |
 | `boards.yml` | No, each server has its own NPC bindings |
 
-The primary writes its four files to the database. A secondary replaces its own four files with the copies from the
-database and saves them. So edit these files on the primary only. Changes you make on a secondary are overwritten
-at the next copy.
+The four shared files are stored in the database as revisions. Edit them on any server and share the change with
+`/companyadmin reload` and `/companyadmin reload confirm`, see below.
 
 ### When the configuration is copied
 
-The primary stores each shared file in the database as a numbered revision, together with who changed it and when. It
-stores a new revision only when the file changed: when it starts, when you run `/companyadmin syncconfiguration` on
-it, and when a level is changed in the [level editor](./levels.md#the-level-editor) or on the dashboard. Earlier
-revisions stay in the database.
+Each shared file is stored in the database as a numbered revision, together with who changed it and when. A new
+revision is stored only when the file changed: by `/companyadmin reload confirm` on any server, by the primary when it
+starts or runs `/companyadmin syncconfiguration`, and when a level is changed in the
+[level editor](./levels.md#the-level-editor) or on the dashboard. Earlier revisions stay in the database. When the
+primary starts with a file you edited while it was off and another server stored a newer revision meanwhile, it keeps
+your version as a conflict file, as described below.
 
-Each secondary takes a new revision on its own:
+Every server takes a new revision on its own:
 
 - at once with [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode);
   should a message be lost, within 5 minutes,
-- within 30 seconds without them, since every secondary looks for new revisions that often,
+- within 30 seconds without them, since every server looks for new revisions that often,
 - when it starts, and when you run `/companyadmin syncconfiguration` on it.
 
 A new `config.yml` is applied like a reload. The other files are read where they are used, without a reload.
@@ -127,8 +128,6 @@ updating Companies has no such notes yet, so it keeps a backup of every file tha
 written, the file stays as it is and the copy is not taken. The primary never writes a file it cannot read to the
 database. A file edited on a secondary stays until a new revision of it arrives, the server restarts, or you run
 `/companyadmin syncconfiguration` on it.
-
-`/companyadmin reload` does **not** copy anything. It only reads the local files again.
 
 To change the configuration of a running network, on **any** server:
 

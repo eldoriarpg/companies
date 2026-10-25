@@ -72,7 +72,7 @@ public final class SettingsSync {
     }
 
     /**
-     * Takes a revision the primary announced.
+     * Takes a revision another node announced.
      *
      * @param changed the announcement
      */
