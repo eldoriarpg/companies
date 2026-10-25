@@ -50,6 +50,10 @@ the server connects again by itself when the gateway restarts or the connection 
 4. Run `/companyadmin reload`.
 5. Check the connection with `/companyadmin dashboard status`.
 
+Players log in with `/company dashboard`, which shows the link and a code in a dialog, or in chat when
+`menus` in [config.yml](./configuration/config-yml.md#menus) is `CHAT`. Bedrock players see the dialog as a form when the server runs Geyser 2.8.2 or newer;
+no Floodgate hook is needed.
+
 The console says "Connected to the dashboard gateway" once the server is connected.
 
 ### The key from the environment
