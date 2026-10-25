@@ -37,18 +37,20 @@ async function open(): Promise<void> {
 }
 
 /**
- * Shows what a change did, and follows a rename.
+ * Shows what a change did, and follows a rename. A rename rebuilds the change tools, so the focus moves to what
+ * happened.
  *
  * @param text what happened
  * @param renamed the company's new name, when it was renamed
  */
-function changed(text: string, renamed?: string): void {
+async function changed(text: string, renamed?: string): Promise<void> {
   done.value = text
-  if (renamed) {
-    company.value = renamed
-    name.value = renamed
-    if (treasury.value) treasury.value = {...treasury.value, company: renamed}
-  }
+  if (!renamed) return
+  company.value = renamed
+  name.value = renamed
+  if (treasury.value) treasury.value = {...treasury.value, company: renamed}
+  await nextTick()
+  notice.value?.focus()
 }
 
 /** Closes a dissolved company and hands the focus to what happened, as the tools it was on are gone. */
