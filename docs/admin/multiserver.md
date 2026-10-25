@@ -10,11 +10,16 @@ database, so players see the same orders and companies everywhere.
 
 ## What you need
 
-- **MariaDB or PostgreSQL.** All servers connect to the same database. SQLite does not work for this: a secondary
-  server with SQLite refuses to start with "Secondary nodes can not be used with SqLite."
+:::tip Recommended setup
+For several servers, **PostgreSQL is highly recommended** as the database, and **an additional Redis server is highly
+recommended** for the messages between the servers. This is the setup the rest of this page works best with.
+:::
+
+- **PostgreSQL (highly recommended) or MariaDB.** All servers connect to the same database. SQLite does not work for
+  this: a secondary server with SQLite refuses to start with "Secondary nodes can not be used with SqLite."
 - **The same Companies version** on every server.
 - **Exactly one primary server.** All other servers are secondary.
-- **Optional: a Redis server.** With Redis, the servers tell each other about changes at once. See
+- **A Redis server (highly recommended).** With Redis, the servers tell each other about changes at once. See
   [Redis](#redis). Without Redis, [PostgreSQL notify](#postgresql-notify) does the same on PostgreSQL, and
   [low latency mode](#low-latency-mode) nearly the same on any database. See [Which one to choose](#which-one-to-choose).
 
@@ -323,9 +328,8 @@ never the password.
 | Load on the database | none | one waiting connection per server | one query per second per server |
 | Works with | MariaDB, PostgreSQL | PostgreSQL, not through PgBouncer in transaction mode | MariaDB, PostgreSQL |
 
-- **Choose Redis** if you already run one, or for large networks.
-- **Choose PostgreSQL notify** when your network uses PostgreSQL without Redis. It is as fast as Redis and adds
-  nothing to run.
+- **Choose Redis**, together with PostgreSQL. This is the highly recommended setup for every network.
+- **Choose PostgreSQL notify** when you cannot run Redis. It is as fast as Redis and adds nothing to run.
 - **Choose low latency mode** on MariaDB without Redis, when a second of delay is fine.
 
 A network uses exactly one of them; set the same on every server. Each server picks one at start in this order:

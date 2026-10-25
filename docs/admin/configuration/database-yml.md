@@ -37,7 +37,7 @@ messaging:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `storageType` | `SQLITE`, `MARIADB` or `POSTGRES` | `SQLITE` | The kind of database. |
+| `storageType` | `SQLITE`, `MARIADB` or `POSTGRES` | `SQLITE` | The kind of database. For [several servers](../multiserver.md), `POSTGRES` is highly recommended, together with [Redis](#redis). |
 | `host` | text | `localhost` | Address of the database server. |
 | `port` | text | `3306` | Port of the database server. Use `5432` for a usual PostgreSQL server. |
 | `user` | text | `root` | Database user. |
@@ -58,13 +58,14 @@ The password is stored as plain text in this file. Give the database user only t
 :::
 
 :::info
-SQLite works for a single server only. A network of servers needs MariaDB or PostgreSQL. A secondary server refuses to start with SQLite. See [node.yml](./node-yml.md).
+SQLite works for a single server only. A network of servers needs MariaDB or PostgreSQL; PostgreSQL is highly
+recommended. A secondary server refuses to start with SQLite. See [node.yml](./node-yml.md).
 :::
 
 ## redis
 
-An optional Redis (or Valkey, KeyDB) server the servers of a network use to tell each other about changes at once.
-A single server does not need it. See [Several servers](../multiserver.md#redis) for what it changes.
+A Redis (or Valkey, KeyDB) server the servers of a network use to tell each other about changes at once. It is
+highly recommended for a network; a single server does not need it. See [Several servers](../multiserver.md#redis) for what it changes.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|

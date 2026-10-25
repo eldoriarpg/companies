@@ -81,7 +81,8 @@ Companies supports three databases. Set the one you want in [database.yml](../ad
 
 Pick SQLite if you run a single server and do not want to manage a database. Pick MariaDB or PostgreSQL if you already
 run one, or if several servers should share the same companies and orders. A network needs one of these two, because
-SQLite can only be used by one server. [Several servers](../admin/multiserver.md) explains how to set up a network.
+SQLite can only be used by one server. For a network, PostgreSQL is highly recommended, together with an additional
+Redis server. [Several servers](../admin/multiserver.md) explains how to set up a network.
 
 :::tip
 Choose the database before players start using the plugin. Companies has no tool to move data from one database to
