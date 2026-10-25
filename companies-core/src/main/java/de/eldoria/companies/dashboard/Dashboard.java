@@ -94,38 +94,52 @@ public final class Dashboard implements GatewayLink {
      * hold on idle sessions change together under one lock.
      */
     public void welcomed() {
-        Instant since;
-        Duration downtime;
+        Runnable excuse;
         synchronized (outage) {
-            since = offlineSince;
-            if (since == null) return;
-            if (excusing != null) {
-                welcomedMeanwhile = true;
-                return;
-            }
-            downtime = Duration.between(since, parts.clock().instant());
-            if (!parts.primary() || !downtime.isPositive()) {
-                endOutage(since);
-                return;
-            }
-            excusing = since;
+            excuse = excuseUnderLock();
         }
-        parts.work().execute(() -> {
-            try {
-                parts.sessions().excuseIdle(downtime);
-            } catch (RuntimeException e) {
-                parts.logger().log(Level.WARNING, "Could not excuse the dashboard's downtime from the sessions.", e);
-            } finally {
-                boolean again;
-                synchronized (outage) {
-                    excusing = null;
-                    endOutage(since);
-                    again = welcomedMeanwhile;
+        if (excuse != null) parts.work().execute(excuse);
+    }
+
+    /**
+     * Decides, holding the lock, what a welcome does: nothing while connected, ends the outage at once where nothing is
+     * to be excused, notes a welcome that comes while an excuse runs, or starts the excuse.
+     *
+     * @return the excuse to run off the lock, none when nothing is to run
+     */
+    private @Nullable Runnable excuseUnderLock() {
+        var since = offlineSince;
+        if (since == null) return null;
+        if (excusing != null) {
+            welcomedMeanwhile = true;
+            return null;
+        }
+        var downtime = Duration.between(since, parts.clock().instant());
+        if (!parts.primary() || !downtime.isPositive()) {
+            endOutage(since);
+            return null;
+        }
+        excusing = since;
+        return () -> excuse(since, downtime);
+    }
+
+    private void excuse(Instant since, Duration downtime) {
+        Runnable next = null;
+        try {
+            parts.sessions().excuseIdle(downtime);
+        } catch (RuntimeException e) {
+            parts.logger().log(Level.WARNING, "Could not excuse the dashboard's downtime from the sessions.", e);
+        } finally {
+            synchronized (outage) {
+                excusing = null;
+                endOutage(since);
+                if (welcomedMeanwhile) {
                     welcomedMeanwhile = false;
+                    next = excuseUnderLock();
                 }
-                if (again) welcomed();
             }
-        });
+        }
+        if (next != null) parts.work().execute(next);
     }
 
     private boolean reachable() {
