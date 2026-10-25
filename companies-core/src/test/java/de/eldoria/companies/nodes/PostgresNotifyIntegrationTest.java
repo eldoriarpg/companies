@@ -259,7 +259,6 @@ class PostgresNotifyIntegrationTest {
         a.configuration.reload();
 
         a.configuration.syncConfigurations(a.nodeData).join();
-        a.bus.publish(new NodeMessage.ConfigSynced());
 
         await(
                 () -> b.configuration.notificationSettings().retentionDays() == changed && b.reloads.get() > 0,

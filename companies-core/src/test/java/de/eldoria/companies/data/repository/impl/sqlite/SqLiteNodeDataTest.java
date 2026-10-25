@@ -18,6 +18,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -43,6 +45,20 @@ class SqLiteNodeDataTest {
         SqLiteTestDatabase.create(directory);
         nodeData = new SqLiteNodeData(new NodeSettings());
         nodeData.updateNode(plugin);
+    }
+
+    @Test
+    void aSharedFileGetsANewRevisionOnlyWhenItChanged() {
+        assertEquals(OptionalInt.of(1), nodeData.publishSettings("company.yml", "level: []", "startup"));
+        assertEquals(OptionalInt.empty(), nodeData.publishSettings("company.yml", "level: []", "Ada"));
+        assertEquals(OptionalInt.of(2), nodeData.publishSettings("company.yml", "level: [1]", "Ada"));
+        assertEquals(OptionalInt.of(1), nodeData.publishSettings("user.yml", "maxOrders: 3", "Ada"));
+
+        var latest = nodeData.latestSettings("company.yml").orElseThrow();
+        assertEquals(2, latest.revision());
+        assertEquals("level: [1]", latest.content());
+        assertEquals(Map.of("company.yml", 2, "user.yml", 1), nodeData.settingsRevisions());
+        assertTrue(nodeData.latestSettings("order.yml").isEmpty());
     }
 
     @Test

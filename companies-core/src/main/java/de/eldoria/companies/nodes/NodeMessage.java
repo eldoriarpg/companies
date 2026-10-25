@@ -61,15 +61,13 @@ public sealed interface NodeMessage {
     record BoardsChanged() implements NodeMessage {}
 
     /**
-     * The primary wrote its configuration to the database. Secondaries load it and apply it like a reload.
+     * The primary stored a revision of a shared file. Secondaries that applied an older one take it; a change of
+     * {@code config.yml} is applied like a reload, the others are read where they are used.
+     *
+     * @param path     the file, such as {@code company.yml}
+     * @param revision its revision
      */
-    record ConfigSynced() implements NodeMessage {}
-
-    /**
-     * The primary changed the company levels and wrote {@code company.yml} to the database. Secondaries take that file
-     * only, without a reload.
-     */
-    record LevelsChanged() implements NodeMessage {}
+    record SettingsChanged(String path, int revision) implements NodeMessage {}
 
     /**
      * The sending node is alive, with every player online on it. Sent regularly; replaces what was known about the

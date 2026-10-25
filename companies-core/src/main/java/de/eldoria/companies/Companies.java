@@ -94,6 +94,7 @@ import de.eldoria.companies.nodes.NodeBuses;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.nodes.NodeConnection;
 import de.eldoria.companies.nodes.NodeMessage;
+import de.eldoria.companies.nodes.SettingsSync;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -241,6 +242,7 @@ public class Companies extends EldoPlugin {
                 nodeMessages,
                 Threading.VIRTUAL,
                 getLogger());
+        configuration.announceWith((path, revision) -> bus.publish(new NodeMessage.SettingsChanged(path, revision)));
         registerCommands();
         api = CompaniesApiImpl.create(
                 this,
@@ -616,12 +618,14 @@ public class Companies extends EldoPlugin {
 
     /**
      * Does what {@code /companyadmin syncconfiguration} does on the primary, for the dashboard, which asks only the
-     * primary: syncs the files, tells the secondaries, and applies the files a few seconds later on the main thread, since applying them reconnects the
-     * dashboard and the answer has to reach the gateway first. Syncs in quick succession share one later apply.
+     * primary: stores the changed files as new revisions, which tells the secondaries, and applies the files a few
+     * seconds later on the main thread, since applying them reconnects the dashboard and the answer has to reach the
+     * gateway first. Syncs in quick succession share one later apply.
+     *
+     * @param admin who synced, stored with a new revision
      */
-    private synchronized void syncConfigurationFromDashboard() {
-        configuration.syncConfigurations(nodeData).join();
-        commands.bus().publish(new NodeMessage.ConfigSynced());
+    private synchronized void syncConfigurationFromDashboard(String admin) {
+        configuration.syncConfigurations(nodeData, admin).join();
         if (pendingApply != null) pendingApply.cancel();
         pendingApply = getServer().getScheduler().runTaskLater(this, commands::reloaded, SYNC_APPLY_DELAY_TICKS);
     }
@@ -644,9 +648,15 @@ public class Companies extends EldoPlugin {
                         notifications,
                         inboxPoller,
                         orderData,
-                        NodeConnection.configSync(
-                                configuration, nodeData, Threading.mainThread(this), commands::reloaded, getLogger()),
-                        NodeConnection.levelsSync(configuration, nodeData, levelSyncs, getLogger()),
+                        new SettingsSync(
+                                configuration,
+                                nodeData,
+                                levelSyncs,
+                                Threading.mainThread(this),
+                                commands::reloaded,
+                                bus::realtime,
+                                getLogger()),
+                        nodeData::settingsRevisions,
                         this::onlineHere,
                         () -> nodeData.nodes().stream().map(Node::uid).toList()),
                 workerPool);

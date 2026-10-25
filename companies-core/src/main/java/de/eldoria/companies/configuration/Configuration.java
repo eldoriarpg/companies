@@ -23,11 +23,13 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
 import dev.chojo.ocular.exceptions.ConfigurationException;
 import dev.chojo.ocular.key.Key;
 import org.bukkit.plugin.Plugin;
+import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -44,9 +46,12 @@ import java.security.NoSuchAlgorithmException;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.logging.Level;
 
 public class Configuration extends JacksonConfig<ConfigFile> {
@@ -77,12 +82,20 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .name("Board bindings")
             .build();
 
+    /**
+     * The files every node of a network shares, in the order they are synced.
+     */
+    public static final List<Key<?>> SHARED = List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, CONFIG_YML);
+
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
     private static final String APPLIED_FOLDER = ".synced";
+    private static final String ACTOR_SYNC = "sync";
 
     private final Set<Key<?>> unreadable = ConcurrentHashMap.newKeySet();
     private final Object copying = new Object();
+    private final Map<String, Integer> applied = new ConcurrentHashMap<>();
+    private volatile @Nullable BiConsumer<String, Integer> announcer;
 
     public Configuration(Plugin plugin) {
         super(plugin, CONFIG_YML);
@@ -295,6 +308,18 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @return whether a secondary's files changed, false on the primary and when every copy matched
      */
     public CompletableFuture<Boolean> syncConfigurations(ANodeData nodeData) {
+        return syncConfigurations(nodeData, ACTOR_SYNC);
+    }
+
+    /**
+     * Stores the shared files as their next revisions on the primary, each only when it changed, or takes the latest
+     * revisions on a secondary.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param actor    who caused the sync, stored with a new revision, such as an admin's name
+     * @return whether a secondary's files changed, false on the primary and when every file matched
+     */
+    public CompletableFuture<Boolean> syncConfigurations(ANodeData nodeData, String actor) {
         return CompletableFuture.supplyAsync(() -> {
             var nodeSettings = nodeSettings();
             save(NODE_SETTINGS);
@@ -307,10 +332,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             }
 
             plugin().getLogger().info("Plugin is running as " + nodeData.nodeType() + " node.");
-            var changed = sync(nodeData, COMPANY_SETTINGS);
-            changed |= sync(nodeData, USER_SETTINGS);
-            changed |= sync(nodeData, ORDER_SETTINGS);
-            changed |= sync(nodeData, CONFIG_YML);
+            var changed = false;
+            for (var key : SHARED) changed |= sync(nodeData, key, actor);
             return changed;
         });
     }
@@ -324,16 +347,84 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param configKey the file
      * @param <V>       type of the file's content
      */
-    private <V> boolean sync(ANodeData nodeData, Key<V> configKey) {
+    private <V> boolean sync(ANodeData nodeData, Key<V> configKey, String actor) {
         if (nodeSettings().nodeType() != NodeType.PRIMARY) return takePrimaryCopy(nodeData, configKey);
         secondary(configKey);
         if (unreadable(configKey)) {
             plugin().getLogger().warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
             return false;
         }
-        plugin().getLogger().info("Syncing " + configKey.path() + " to database.");
-        nodeData.savePrimaryConfiguration(configKey, this);
+        publish(nodeData, configKey, nodeData.primaryCopy(configKey, this), actor);
         return false;
+    }
+
+    /**
+     * Stores a shared file's content as its next revision when it changed, keeps the older single copy for a
+     * downgrade, and announces a new revision to the other nodes.
+     *
+     * @param nodeData  the node repository holding the revisions
+     * @param configKey the file
+     * @param content   its content, as {@link ANodeData#primaryCopy} wrote it
+     * @param actor     who changed it
+     */
+    public void publish(ANodeData nodeData, Key<?> configKey, String content, String actor) {
+        var path = configKey.path().toString();
+        nodeData.savePrimaryCopy(configKey, content);
+        var revision = nodeData.publishSettings(path, content, actor);
+        if (revision.isEmpty()) {
+            nodeData.latestSettings(path).ifPresent(latest -> noteApplied(nodeData, path, latest.revision()));
+            return;
+        }
+        plugin().getLogger().info("Stored " + path + " as revision " + revision.getAsInt() + ".");
+        applied.put(path, revision.getAsInt());
+        var announce = announcer;
+        if (announce != null) announce.accept(path, revision.getAsInt());
+    }
+
+    /**
+     * Takes a shared file's revision on a secondary, unless this node applied it or a later one already.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param path     the file
+     * @param revision the revision announced or seen
+     * @return whether the file changed
+     */
+    public boolean takeIfNewer(ANodeData nodeData, String path, int revision) {
+        var key = sharedKey(path);
+        if (key.isEmpty() || applied.getOrDefault(path, 0) >= revision) return false;
+        return takePrimaryCopy(nodeData, key.get());
+    }
+
+    /**
+     * @param path a file's path, such as {@code company.yml}
+     * @return the shared file of that path
+     */
+    public Optional<Key<?>> sharedKey(String path) {
+        return SHARED.stream()
+                .filter(key -> key.path().toString().equals(path))
+                .findFirst()
+                .map(key -> key);
+    }
+
+    /**
+     * Tells the other nodes about every new revision this node stores, from now on.
+     *
+     * @param announcer gets the file's path and its new revision
+     */
+    public void announceWith(BiConsumer<String, Integer> announcer) {
+        this.announcer = announcer;
+    }
+
+    /**
+     * @return the revision this node applied of each shared file, by path
+     */
+    public Map<String, Integer> appliedRevisions() {
+        return Map.copyOf(applied);
+    }
+
+    private void noteApplied(ANodeData nodeData, String path, int revision) {
+        applied.put(path, revision);
+        nodeData.appliedSettings(path, revision);
     }
 
     /**
@@ -341,7 +432,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * environment overrides, and remembers what was written. A file that matches the copy is left alone. A file that
      * changed on this node since it last took a copy, or one never taken, is kept as
      * {@code backup_<time>_<file>} first; when that backup cannot be written, the file stays and nothing is taken. One
-     * copy is taken at a time, so a full sync and a level change do not write a file at once.
+     * copy is taken at a time, so a full sync and a level change do not write a file at once. The latest stored
+     * revision is taken; before the primary stored one, the older single copy is.
      *
      * @param nodeData  the node repository holding the copies
      * @param configKey the file
@@ -350,20 +442,27 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public <V> boolean takePrimaryCopy(ANodeData nodeData, Key<V> configKey) {
         synchronized (copying) {
-            var copy = nodeData.primaryContent(configKey)
+            var path = configKey.path().toString();
+            var latest = nodeData.latestSettings(path);
+            var copy = latest.map(SettingsRevision::content)
+                    .or(() -> nodeData.primaryContent(configKey))
                     .orElseThrow(() -> new IllegalStateException(
                             "No configuration present. Did you start the main node once already?"));
+            var revision = latest.map(SettingsRevision::revision).orElse(0);
             var file = plugin().getDataFolder().toPath().resolve(configKey.path());
             if (tree(copy).equals(tree(file))) {
                 rememberApplied(file);
+                if (revision > 0) noteApplied(nodeData, path, revision);
                 return false;
             }
             if (Files.exists(file) && editedHere(file) && !keepBackup(file)) return false;
-            plugin().getLogger().info("Syncing " + configKey.path() + " from database.");
-            replace(configKey, nodeData.loadPrimaryConfiguration(configKey, this));
+            plugin().getLogger()
+                    .info("Taking " + path + (revision > 0 ? " revision " + revision : "") + " from the database.");
+            replace(configKey, nodeData.readSettings(configKey, this, copy));
             save(configKey);
             reload(configKey);
             rememberApplied(file);
+            if (revision > 0) noteApplied(nodeData, path, revision);
             return true;
         }
     }

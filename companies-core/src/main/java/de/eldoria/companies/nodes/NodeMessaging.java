@@ -7,13 +7,12 @@ package de.eldoria.companies.nodes;
 
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
-import de.eldoria.companies.nodes.NodeMessage.ConfigSynced;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
-import de.eldoria.companies.nodes.NodeMessage.LevelsChanged;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
+import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 
 import java.util.List;
 import java.util.Optional;
@@ -88,11 +87,8 @@ public final class NodeMessaging {
         bus.subscribe(
                 RankingChanged.class, (sender, message) -> caches.invalidate(NodeCaches.RANKING, Optional.empty()));
         bus.subscribe(BoardsChanged.class, (sender, message) -> caches.invalidate(NodeCaches.BOARDS, Optional.empty()));
-        bus.subscribe(ConfigSynced.class, (sender, message) -> {
-            if (!node.primary()) node.configSynced().run();
-        });
-        bus.subscribe(LevelsChanged.class, (sender, message) -> {
-            if (!node.primary()) node.levelsChanged().run();
+        bus.subscribe(SettingsChanged.class, (sender, message) -> {
+            if (!node.primary()) node.settingsChanged().accept(message);
         });
         bus.onStateChange(state -> stateChanged(state, node));
         heartbeat = timer.scheduleWithFixedDelay(
@@ -142,10 +138,9 @@ public final class NodeMessaging {
     /**
      * What this node does with the messages of the others.
      *
-     * @param primary      true on the primary node, which ignores {@code config.synced}
+     * @param primary      true on the primary node, which ignores {@code settings.changed}
      * @param inbox        claims and shows the pending entries of a player when the player is online here; blocks
-     * @param configSynced loads the configuration from the database and applies it; blocks
-     * @param levelsChanged takes the levels the primary changed from the database
+     * @param settingsChanged takes a shared file's revision the primary stored
      * @param stateChanged runs whenever the bus changes its state, to change the poll interval and poll once
      * @param onlineHere   the players online on this node; blocks
      * @param knownNodes   the uids of the nodes registered in the database; blocks
@@ -153,8 +148,7 @@ public final class NodeMessaging {
     public record Node(
             boolean primary,
             Consumer<UUID> inbox,
-            Runnable configSynced,
-            Runnable levelsChanged,
+            Consumer<SettingsChanged> settingsChanged,
             Runnable stateChanged,
             Supplier<List<UUID>> onlineHere,
             Supplier<List<UUID>> knownNodes) {}

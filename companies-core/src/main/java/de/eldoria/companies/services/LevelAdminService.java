@@ -82,7 +82,7 @@ public final class LevelAdminService {
     public CompanyLevel create(String admin, int position) {
         requirePrimary();
         var level = settings().createLevel(position);
-        changed();
+        changed(admin);
         log.entry(admin, "level create").with("level", level.level()).write();
         return level;
     }
@@ -109,7 +109,7 @@ public final class LevelAdminService {
                 valid.changes().accept(level);
                 position.ifPresent(target -> settings().moveLevel(level.level(), target));
                 if (level.level() == number && inputs(level).equals(before)) yield Optional.empty();
-                changed();
+                changed(admin);
                 log.entry(admin, "level save")
                         .with("level", level.level())
                         .with("name", level.levelName())
@@ -132,7 +132,7 @@ public final class LevelAdminService {
         LevelField.byKey(field)
                 .orElseThrow(() -> CommandFailure.actionBar("error.unkownField"))
                 .apply(level, value);
-        changed();
+        changed(admin);
         log.entry(admin, "level edit")
                 .with("level", level.level())
                 .with("field", field)
@@ -152,7 +152,7 @@ public final class LevelAdminService {
         var level = level(source);
         settings().moveLevel(source, target);
         if (level.level() == source) return;
-        changed();
+        changed(admin);
         log.entry(admin, "level move")
                 .with("level", source)
                 .with("to", level.level())
@@ -170,7 +170,7 @@ public final class LevelAdminService {
         level(level);
         Checks.isTrue(settings().level().size() > 1, "companyadmin.level.lastLevel");
         settings().deleteLevel(level);
-        changed();
+        changed(admin);
         log.entry(admin, "level remove").with("level", level).write();
     }
 
@@ -204,10 +204,10 @@ public final class LevelAdminService {
                 .toList();
     }
 
-    private void changed() {
+    private void changed(String admin) {
         configuration.save();
         try {
-            CompletableFuture.runAsync(share.prepare(), background).exceptionally(this::notShared);
+            CompletableFuture.runAsync(share.prepare(admin), background).exceptionally(this::notShared);
         } catch (RuntimeException e) {
             notShared(e);
         }
@@ -235,8 +235,9 @@ public final class LevelAdminService {
         /**
          * Takes the database copy of the levels as they are now; called on the thread that changed them.
          *
+         * @param admin who changed them, stored with the new revision
          * @return writes the copy and tells the secondaries; runs off that thread
          */
-        Runnable prepare();
+        Runnable prepare(String admin);
     }
 }

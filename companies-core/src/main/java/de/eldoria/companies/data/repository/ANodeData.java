@@ -8,6 +8,7 @@ package de.eldoria.companies.data.repository;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.JacksonConfig;
 import de.eldoria.eldoutilities.utils.Version;
@@ -20,11 +21,15 @@ import tools.jackson.core.JacksonException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 public abstract class ANodeData {
+    private static final int PUBLISH_ATTEMPTS = 5;
+
     protected final NodeSettings nodeSettings;
     private int nodeId = -1;
 
@@ -122,6 +127,62 @@ public abstract class ANodeData {
     public abstract List<Node> getPrimaryNodes();
 
     /**
+     * Stores a shared file as its next revision, unless its content equals the latest one. Two nodes publishing at once
+     * cannot take the same revision; the later one tries again on top of the earlier.
+     *
+     * @param path    the file, such as {@code company.yml}
+     * @param content the file's content
+     * @param actor   who changed it, such as an admin's name or {@code startup}
+     * @return the new revision, empty when the content equals the latest revision
+     */
+    public OptionalInt publishSettings(String path, String content, String actor) {
+        var hash = SettingsRevision.hash(content);
+        for (var attempt = 0; attempt < PUBLISH_ATTEMPTS; attempt++) {
+            var latest = latestSettings(path);
+            if (latest.isPresent() && latest.get().hash().equals(hash)) return OptionalInt.empty();
+            var next = latest.map(found -> found.revision() + 1).orElse(1);
+            if (insertSettings(path, next, content, hash, actor, Times.now())) {
+                appliedSettings(path, next);
+                return OptionalInt.of(next);
+            }
+        }
+        throw new IllegalStateException("Could not store a new revision of " + path + ".");
+    }
+
+    /**
+     * @param path the file
+     * @return its latest revision, empty before the primary stored one
+     */
+    public abstract Optional<SettingsRevision> latestSettings(String path);
+
+    /**
+     * @return the latest revision of every stored file, by path
+     */
+    public abstract Map<String, Integer> settingsRevisions();
+
+    /**
+     * Notes that this node applied a revision of a file.
+     *
+     * @param path     the file
+     * @param revision the revision
+     */
+    public abstract void appliedSettings(String path, int revision);
+
+    /**
+     * Stores a revision unless it exists already.
+     *
+     * @param path     the file
+     * @param revision the revision
+     * @param content  the content
+     * @param hash     the content's hash
+     * @param actor    who changed it
+     * @param changed  when
+     * @return whether it was stored, false when another node took that revision first
+     */
+    protected abstract boolean insertSettings(
+            String path, int revision, String content, String hash, String actor, LocalDateTime changed);
+
+    /**
      * The primary's copy of a configuration file as the database holds it.
      *
      * @param key the file
@@ -135,6 +196,19 @@ public abstract class ANodeData {
         var content = loadPrimaryConfiguration(key.path().toString())
                 .orElseThrow(() -> new IllegalStateException(
                         "No configuration present. Did you start the main node once already?"));
+        return readSettings(key, config, content);
+    }
+
+    /**
+     * Reads a shared file's content as the configuration does.
+     *
+     * @param key     the file
+     * @param config  the configuration whose mapper reads it
+     * @param content the content
+     * @param <T>     type of the file
+     * @return the file's settings
+     */
+    public final <T> T readSettings(Key<T> key, JacksonConfig<?> config, String content) {
         try {
             return yaml(config).reader().readValue(content, key.configClazz());
         } catch (JacksonException e) {
