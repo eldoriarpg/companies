@@ -485,6 +485,9 @@
         },
         "role" : {
           "$ref" : "#/$defs/NodeRole"
+        },
+        "name" : {
+          "type" : "string"
         }
       },
       "required" : [ "uid", "role" ]

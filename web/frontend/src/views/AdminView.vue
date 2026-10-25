@@ -8,10 +8,12 @@ import Alert from '@/components/feedback/Alert.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import TabBar from '@/components/navigation/TabBar.vue'
 import {Feature} from '~/api/generated/protocol'
+import AdminBoards from './adminview/AdminBoards.vue'
 import AdminCompanies from './adminview/AdminCompanies.vue'
 import AdminLevels from './adminview/AdminLevels.vue'
 import AdminOrders from './adminview/AdminOrders.vue'
 import AdminPlayers from './adminview/AdminPlayers.vue'
+import AdminServers from './adminview/AdminServers.vue'
 
 /**
  * The admin tools of the server, for players with admin rights: one tab per area the server offers, each checked by
@@ -20,11 +22,13 @@ import AdminPlayers from './adminview/AdminPlayers.vue'
 const {t} = useI18n()
 const {supports} = useDashboard()
 const tabs = computed(() => [
-  {key: 'orders', label: t('admin.tabs.orders'), feature: Feature['admin.orders']},
-  {key: 'players', label: t('admin.tabs.players'), feature: Feature['admin.players']},
-  {key: 'companies', label: t('admin.tabs.companies'), feature: Feature['admin.companies']},
-  {key: 'levels', label: t('admin.tabs.levels'), feature: Feature['admin.levels']},
-].filter(tab => supports(tab.feature)))
+  {key: 'orders', label: t('admin.tabs.orders'), features: [Feature['admin.orders']]},
+  {key: 'players', label: t('admin.tabs.players'), features: [Feature['admin.players']]},
+  {key: 'companies', label: t('admin.tabs.companies'), features: [Feature['admin.companies']]},
+  {key: 'levels', label: t('admin.tabs.levels'), features: [Feature['admin.levels']]},
+  {key: 'boards', label: t('admin.tabs.boards'), features: [Feature['admin.boards']]},
+  {key: 'servers', label: t('admin.tabs.servers'), features: [Feature['admin.nodes'], Feature['admin.config']]},
+].filter(tab => tab.features.some(feature => supports(feature))))
 const tab = ref('')
 
 watchEffect(() => {
@@ -42,6 +46,8 @@ watchEffect(() => {
         <AdminPlayers v-else-if="tab === 'players'"/>
         <AdminCompanies v-else-if="tab === 'companies'"/>
         <AdminLevels v-else-if="tab === 'levels'"/>
+        <AdminBoards v-else-if="tab === 'boards'"/>
+        <AdminServers v-else-if="tab === 'servers'"/>
       </div>
     </template>
   </ViewContent>

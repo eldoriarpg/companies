@@ -52,6 +52,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -294,8 +295,7 @@ public final class BrowserApi {
         }
         if (!(write ? limits.writes() : limits.reads()).tryAcquire(session.id())) throw tooMany();
         LiveServer server = online(session);
-        NodeLink link = (ReadRelay.PLAYER_ACTIONS.contains(name) ? server.routeFor(session.player()) : server.route())
-                .orElseThrow(BrowserApi::offline);
+        NodeLink link = route(server, session, name, call.args()).orElseThrow(BrowserApi::offline);
         String feature = Actions.feature(name);
         if (feature == null || !link.agreed().features().contains(feature)) {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "The server does not offer this");
@@ -403,7 +403,8 @@ public final class BrowserApi {
                 agreed.map(NodeLink.Handshake::status).orElse(UNKNOWN_VERSION),
                 admin ? agreed.map(NodeLink.Handshake::deprecated).orElse(List.of()) : List.of(),
                 routed.isPresent(),
-                admin);
+                admin,
+                admin ? live.map(LiveServer::nodeInfos).orElse(List.of()) : List.of());
     }
 
     /**
@@ -523,6 +524,30 @@ public final class BrowserApi {
 
     private static ApiError unknownSession() {
         return new ApiError(404, ApiError.Code.UNKNOWN_SESSION, "No session is waiting for this link");
+    }
+
+    /**
+     * The node an action goes to: the player's node for what moves items, the primary alone for what only it does,
+     * the named node for what a node keeps for itself (none when that node is not connected or not a node id, so
+     * nothing reaches another one), the primary otherwise.
+     *
+     * @param server  the player's server
+     * @param session the browser session
+     * @param name    the action
+     * @param args    its arguments
+     * @return the node, empty when none takes it
+     */
+    private static Optional<NodeLink> route(
+            LiveServer server, StoredSession session, String name, @Nullable ObjectNode args) {
+        if (ReadRelay.PLAYER_ACTIONS.contains(name)) return server.routeFor(session.player());
+        if (ReadRelay.PRIMARY_ACTIONS.contains(name)) return server.primary();
+        String node = args == null ? "" : args.path("node").asString("");
+        if (!ReadRelay.NODE_ACTIONS.contains(name) || node.isEmpty()) return server.route();
+        try {
+            return server.exactly(UUID.fromString(node));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     private static ApiError offline() {

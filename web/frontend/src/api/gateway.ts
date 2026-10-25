@@ -12,6 +12,7 @@ import type {
     JoinMode,
     Limits,
     MemberPermission,
+    NodeInfo,
     OrderLineView,
     OrderState,
     Patch,
@@ -71,6 +72,8 @@ export interface ServerInfo {
     online: boolean
     /** Whether the player has admin rights; the admin features are listed for them only. */
     admin?: boolean
+    /** The connected servers of the network, primary first; listed for players with admin rights only. */
+    nodes?: NodeInfo[]
 }
 
 /** Why a call failed, as the gateway names it in the body of every answer that is not 2xx. */
@@ -495,6 +498,45 @@ export interface AdminLevels {
 export type LevelFieldKey = 'name' | 'order_count' | 'member_count' | 'earned_money' | 'delivered_items' | 'max_members'
     | 'max_orders' | 'max_order_size' | 'delivery_hours_bonus' | 'tax_percent' | 'max_alerts'
 
+/** A board preset with its open orders. */
+export interface AdminBoardPreset {
+    /** The preset's name, as signs and NPCs name it. */
+    name: string
+    label: string
+    open: number
+}
+
+/** An NPC bound to a board. */
+export interface AdminNpcBinding {
+    hook: string
+    npc: string
+    /** The preset or materials, empty for every open order. */
+    board: string
+}
+
+/** The NPCs bound to boards on a server, with the NPC plugins loaded there. */
+export interface AdminNpcBoards {
+    hooks: string[]
+    bindings: AdminNpcBinding[]
+}
+
+/** A server registered in the database. */
+export interface AdminNode {
+    uid: string
+    role: string
+    version: string
+    lastSeen?: string | null
+    /** How it exchanges messages with the others, in the server's language. */
+    bus: string
+    /** Whether it is the server answering, which cannot be removed. */
+    current: boolean
+}
+
+/** The server a per-server admin action goes to; none for the primary. */
+export interface NodeChoice {
+    node?: string
+}
+
 /** A level an admin action names. */
 export interface LevelRef {
     level: number
@@ -571,6 +613,14 @@ export interface WriteActions {
     'admin.levels.move': {args: LevelRef & {to: number}, result: AdminLevels}
     'admin.levels.remove': {args: LevelRef, result: AdminLevels}
     'admin.levels.recalculate': {args: Record<string, never>, result: Record<string, never>}
+    'admin.boards.presets': {args: NodeChoice, result: {presets: AdminBoardPreset[]}}
+    'admin.boards.reload': {args: NodeChoice, result: Record<string, never>}
+    'admin.boards.npc.list': {args: NodeChoice, result: AdminNpcBoards}
+    'admin.boards.npc.link': {args: NodeChoice & {hook: string, npc: string, board: string}, result: AdminNpcBinding}
+    'admin.boards.npc.unlink': {args: NodeChoice & {hook: string, npc: string}, result: AdminNpcBinding}
+    'admin.nodes.list': {args: Record<string, never>, result: {nodes: AdminNode[]}}
+    'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
+    'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

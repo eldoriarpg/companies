@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.web.gateway.node;
 
+import de.eldoria.companies.web.api.handshake.NodeInfo;
 import de.eldoria.companies.web.api.handshake.NodeRole;
 import org.jspecify.annotations.Nullable;
 
@@ -64,6 +65,35 @@ public final class LiveServer {
         return ready().stream()
                 .min(Comparator.comparing((NodeLink link) -> link.agreed().role() != NodeRole.PRIMARY)
                         .thenComparing(NodeLink::connected));
+    }
+
+    /**
+     * @return the ready nodes as they introduced themselves, primary first, then by uid
+     */
+    public List<NodeInfo> nodeInfos() {
+        return ready().stream()
+                .map(link -> link.agreed().hello().node())
+                .sorted(Comparator.comparing((NodeInfo node) -> node.role() != NodeRole.PRIMARY)
+                        .thenComparing(NodeInfo::uid))
+                .toList();
+    }
+
+    /**
+     * @return the primary node when it is ready, nothing otherwise
+     */
+    public Optional<NodeLink> primary() {
+        return ready().stream()
+                .filter(link -> link.agreed().role() == NodeRole.PRIMARY)
+                .findFirst();
+    }
+
+    /**
+     * @param node a node's uid
+     * @return that node when it is ready, nothing otherwise
+     */
+    public Optional<NodeLink> exactly(UUID node) {
+        NodeLink link = nodes.get(node);
+        return link != null && link.state() == NodeLink.State.READY ? Optional.of(link) : Optional.empty();
     }
 
     /**

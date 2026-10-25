@@ -11,8 +11,11 @@ import java.util.UUID;
 
 @SuppressWarnings("FieldMayBeFinal")
 public class NodeSettings {
+    private static final int MAX_NAME = 32;
+
     private NodeType nodeType = NodeType.PRIMARY;
     private UUID nodeUid = UUID.randomUUID();
+    private String name = "";
     private NodeDashboardSettings dashboard = new NodeDashboardSettings();
 
     public NodeType nodeType() {
@@ -21,6 +24,17 @@ public class NodeSettings {
 
     public UUID nodeUid() {
         return nodeUid;
+    }
+
+    /**
+     * The name admins gave this node, shown where the dashboard lets them pick a server.
+     *
+     * @return the name, at most {@value #MAX_NAME} characters, empty for none
+     */
+    public String name() {
+        if (name == null) return "";
+        var stripped = name.strip();
+        return stripped.length() > MAX_NAME ? stripped.substring(0, MAX_NAME) : stripped;
     }
 
     /**

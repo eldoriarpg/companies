@@ -16,7 +16,9 @@ their inbox and the rankings. It updates live while things happen on the server.
 
 You host nothing for it. Each server opens one outgoing connection to a gateway run by Eldoria
 (`companies.eldoria.de`). The gateway serves the web page and relays between browsers and your server. Your server
-opens no port and needs no domain or certificate. You can also [run the gateway yourself](#self-hosted-gateway).
+opens no port and needs no domain or certificate. The connection stays open as long as the dashboard is enabled, and
+the server connects again by itself when the gateway restarts or the connection drops. You can also
+[run the gateway yourself](#self-hosted-gateway).
 
 ## Setup
 
@@ -112,7 +114,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players`, `admin.companies` and `admin.levels`; the other parts arrive with later versions. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` and `admin.config`. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is your `server-icon.png`. |
 
@@ -154,9 +156,13 @@ it.
 | Companies | Dissolve a company after asking once more | `companies.admin.delete` | `/companyadmin delete` |
 | Levels | Show every level; edit one in a form, add, move and remove levels. Changes are made on the primary server and passed on like the in-game editor does. | `companies.admin.level` | `/companyadmin level …` |
 | Levels | Recalculate the level of every company | `companies.admin.calcLevel` | `/companyadmin calclevel` |
+| Boards | Show the board presets with their open orders; write the board signs again; bind NPCs to boards and unbind them. On a network you pick the server first, since signs and NPCs belong to a server. An NPC is named by its Citizens id or FancyNpcs name. | `companies.admin.boards` | `/companyadmin board …` |
+| Servers | Show the servers in the database with role, version, last seen and how they exchange messages; remove an old one after asking once more | `companies.admin.nodes` | `/companyadmin node …` |
+| Servers | Sync the configuration from the primary, after asking once more. Only the primary does it; while it is not connected, the button answers that the server is offline. The dashboard reconnects for a moment. | `companies.admin` | `/companyadmin syncconfiguration` |
 
-Switch a tab off with `dashboard.features` like any other part: `admin.orders`, `admin.players`, `admin.companies` or
-`admin.levels` set to `false`.
+Switch a tab off with `dashboard.features` like any other part: set `admin.orders`, `admin.players`,
+`admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` or `admin.config` to `false`. The server picker shows the
+`name` from [node.yml](./configuration/node-yml.md), or the role and the start of the `nodeUid`.
 
 ## Several servers
 

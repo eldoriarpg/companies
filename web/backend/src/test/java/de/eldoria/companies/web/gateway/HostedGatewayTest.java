@@ -1163,6 +1163,75 @@ class HostedGatewayTest {
     }
 
     @Test
+    void sendsBoardActionsToTheNodeTheAdminPicked() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        List<String> features = List.of(Features.ORDERS_BROWSE, Features.ADMIN_BOARDS);
+        try (FakeNode primary = FakeNode.welcomed(
+                        gateway,
+                        FakeNode.hello(
+                                KeyKind.DASHBOARD_KEY, key, primaryId, NodeRole.PRIMARY, PLUGIN, features, null));
+                FakeNode secondary = FakeNode.welcomed(
+                        gateway,
+                        FakeNode.hello(
+                                KeyKind.DASHBOARD_KEY, key, secondaryId, NodeRole.SECONDARY, PLUGIN, features, null))) {
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.25");
+            login(primary, admin, create(primary, primaryId), true);
+            JsonNode nodes = FakeBrowser.json(admin.get("/api/v1/me/server")).path("nodes");
+            assertEquals(primaryId.toString(), nodes.get(0).path("uid").asString());
+            assertEquals(secondaryId.toString(), nodes.get(1).path("uid").asString());
+
+            CompletableFuture<HttpResponse<String>> onSecondary = admin.postAsync(
+                    "/api/v1/me/actions",
+                    "{\"name\":\"admin.boards.npc.list\",\"args\":{\"node\":\"%s\"}}".formatted(secondaryId));
+            answer(secondary, secondary.expect(ActionRequest.class), 1);
+            assertEquals(1, content(onSecondary.join()));
+            primary.assertQuietBut(SnapshotRequest.class);
+
+            HttpResponse<String> gone = admin.post(
+                    "/api/v1/me/actions",
+                    "{\"name\":\"admin.boards.npc.list\",\"args\":{\"node\":\"%s\"}}".formatted(UUID.randomUUID()));
+            assertEquals(503, gone.statusCode());
+            primary.assertQuietBut(SnapshotRequest.class);
+        }
+    }
+
+    @Test
+    void sendsTheSyncToThePrimaryOnlyAndTellsAdminsWhenANodeLeaves() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        List<String> features = List.of(Features.ORDERS_BROWSE, Features.ADMIN_CONFIG);
+        try (FakeNode secondary = FakeNode.welcomed(
+                gateway,
+                FakeNode.hello(KeyKind.DASHBOARD_KEY, key, secondaryId, NodeRole.SECONDARY, PLUGIN, features, null))) {
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.26");
+            login(secondary, admin, create(secondary, secondaryId), true);
+            String sync = "{\"name\":\"admin.config.sync\",\"args\":{}}";
+            assertEquals(503, admin.post("/api/v1/me/actions", sync).statusCode());
+            secondary.assertQuietBut(SnapshotRequest.class);
+
+            try (FakeNode primary = FakeNode.welcomed(
+                    gateway,
+                    FakeNode.hello(KeyKind.DASHBOARD_KEY, key, primaryId, NodeRole.PRIMARY, PLUGIN, features, null))) {
+                CompletableFuture<HttpResponse<String>> synced = admin.postAsync("/api/v1/me/actions", sync);
+                answer(primary, primary.expect(ActionRequest.class), 1);
+                assertEquals(1, content(synced.join()));
+                secondary.assertQuietBut(SnapshotRequest.class);
+
+                try (FakeBrowser.Stream stream = admin.stream()) {
+                    assertEquals(2, stream.next().path("server").path("nodes").size());
+                    primary.close();
+                    JsonNode left = stream.next();
+                    assertEquals("server", left.path("type").asString());
+                    assertEquals(1, left.path("server").path("nodes").size());
+                }
+            }
+        }
+    }
+
+    @Test
     void listsTheAdminFeaturesToAdminsOnly() {
         String key = key();
         UUID uid = UUID.randomUUID();
@@ -1173,6 +1242,7 @@ class HostedGatewayTest {
             login(node, player, create(node, uid));
             JsonNode playerView = FakeBrowser.json(player.get("/api/v1/me/server"));
             assertFalse(playerView.path("admin").asBoolean());
+            assertTrue(playerView.path("nodes").isEmpty());
             assertEquals(
                     403,
                     player.post("/api/v1/me/actions", "{\"name\":\"admin.orders.info\",\"args\":{\"order\":1}}")

@@ -121,7 +121,32 @@ public final class ReadRelay {
             Actions.ORDERS_DELIVER_LINE,
             Actions.ORDERS_DELIVER_ALL,
             Actions.ORDERS_DELIVER_RECEIVE,
-            Actions.ORDERS_DELIVER_COLLECT);
+            Actions.ORDERS_DELIVER_COLLECT,
+            Actions.ADMIN_BOARDS_PRESETS,
+            Actions.ADMIN_BOARDS_RELOAD,
+            Actions.ADMIN_BOARDS_NPC_LIST,
+            Actions.ADMIN_BOARDS_NPC_LINK,
+            Actions.ADMIN_BOARDS_NPC_UNLINK,
+            Actions.ADMIN_NODES_LIST,
+            Actions.ADMIN_NODES_REMOVE,
+            Actions.ADMIN_CONFIG_SYNC);
+
+    /**
+     * The admin actions on what each node keeps for itself, its board signs and NPC links. They go to the node named
+     * in {@code node}, and to the primary when none is named.
+     */
+    public static final Set<String> NODE_ACTIONS = Set.of(
+            Actions.ADMIN_BOARDS_PRESETS,
+            Actions.ADMIN_BOARDS_RELOAD,
+            Actions.ADMIN_BOARDS_NPC_LIST,
+            Actions.ADMIN_BOARDS_NPC_LINK,
+            Actions.ADMIN_BOARDS_NPC_UNLINK);
+
+    /**
+     * The admin actions only the primary performs, as they push its files to the others. Without a ready primary
+     * they reach no node.
+     */
+    public static final Set<String> PRIMARY_ACTIONS = Set.of(Actions.ADMIN_CONFIG_SYNC);
 
     /**
      * The actions that move items and so run with the player's inventory, on the node the player is online on.
