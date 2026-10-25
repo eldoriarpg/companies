@@ -25,6 +25,7 @@ const name = ref('')
 const company = ref('')
 const treasury = ref<AdminTreasury | null>(null)
 const done = ref('')
+const notice = useTemplateRef<HTMLElement>('notice')
 
 /** Picks the typed company and shows its treasury where the admin may see it. */
 async function open(): Promise<void> {
@@ -46,14 +47,17 @@ function changed(text: string, renamed?: string): void {
   if (renamed) {
     company.value = renamed
     name.value = renamed
+    if (treasury.value) treasury.value = {...treasury.value, company: renamed}
   }
 }
 
-/** Closes a dissolved company. */
-function deleted(text: string): void {
+/** Closes a dissolved company and hands the focus to what happened, as the tools it was on are gone. */
+async function deleted(text: string): Promise<void> {
   done.value = text
   company.value = ''
   treasury.value = null
+  await nextTick()
+  notice.value?.focus()
 }
 </script>
 
@@ -68,9 +72,11 @@ function deleted(text: string): void {
       <ActionNotice :problem="opening.problem.value"/>
     </PanelBox>
     <div v-if="company || done" class="flex min-w-0 flex-col gap-4">
-      <Alert v-if="done" variant="success">{{ done }}</Alert>
+      <div v-if="done" ref="notice" tabindex="-1" data-testid="admin-company-done">
+        <Alert variant="success">{{ done }}</Alert>
+      </div>
       <AdminTreasuryPanel v-if="treasury" v-model="treasury"/>
-      <AdminCompanyChanges v-if="company" :company="company" @changed="changed" @deleted="deleted"/>
+      <AdminCompanyChanges v-if="company" :key="company" :company="company" @changed="changed" @deleted="deleted"/>
     </div>
   </div>
 </template>

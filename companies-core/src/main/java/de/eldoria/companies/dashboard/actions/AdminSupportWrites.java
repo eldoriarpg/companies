@@ -279,7 +279,9 @@ public final class AdminSupportWrites {
     private ActionResult adjust(
             ActionRequest request, String admin, UUID actor, CompanyProfile company, JsonNode args, boolean give) {
         var amount = args.path("amount");
-        if (!amount.isNumber() || !Double.isFinite(amount.asDouble())) return answers.refused(request, INVALID);
+        if (!amount.isNumber() || !Double.isFinite(amount.asDouble()) || amount.asDouble() > MAX_MONEY) {
+            return answers.refused(request, INVALID);
+        }
         var value = BigDecimal.valueOf(amount.asDouble());
         var result = sources.treasury().adminAdjust(company, actor, give, value).join();
         return switch (result.outcome()) {

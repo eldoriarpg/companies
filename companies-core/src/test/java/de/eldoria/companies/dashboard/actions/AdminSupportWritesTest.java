@@ -155,6 +155,13 @@ class AdminSupportWritesTest {
                                 "{\"company\":\"Miners\",\"amount\":500}",
                                 Permission.Admin.TREASURY)
                         .reason());
+        assertEquals(
+                "dashboard.invalid",
+                perform(
+                                Actions.ADMIN_COMPANIES_TREASURY_GIVE,
+                                "{\"company\":\"Miners\",\"amount\":9e16}",
+                                Permission.Admin.TREASURY)
+                        .reason());
         var shown = perform(Actions.ADMIN_COMPANIES_TREASURY, "{\"company\":\"miners\"}", Permission.Admin.TREASURY);
         assertTrue(shown.ok(), shown.reason());
         assertEquals(100.0, shown.data().path("balance").asDouble());
@@ -169,6 +176,13 @@ class AdminSupportWritesTest {
                 perform(
                                 Actions.ADMIN_COMPANIES_RENAME,
                                 "{\"company\":\"Miners\",\"name\":\"Diggers\"}",
+                                Permission.Admin.RENAME)
+                        .reason());
+        assertEquals(
+                "error.invalidLength",
+                perform(
+                                Actions.ADMIN_COMPANIES_RENAME,
+                                "{\"company\":\"Miners\",\"name\":\"%s\"}".formatted("Q".repeat(40)),
                                 Permission.Admin.RENAME)
                         .reason());
         assertTrue(perform(

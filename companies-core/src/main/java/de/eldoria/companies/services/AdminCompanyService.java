@@ -45,7 +45,8 @@ public final class AdminCompanyService {
     }
 
     /**
-     * Renames a company free of charge. The new name must not be another company's.
+     * Renames a company free of charge. The new name must not be another company's and is held to the length players
+     * may choose.
      *
      * @param company the company
      * @param name    the new name
@@ -53,6 +54,7 @@ public final class AdminCompanyService {
      * @return the company's former name, or why it was not renamed
      */
     public ActionResult<String> rename(SimpleCompany company, String name, UUID admin) {
+        if (name.isBlank() || name.length() >= CompanyService.MAX_NAME_LENGTH) return CompanyService.invalidLength();
         var other = companies.retrieveCompanyByName(name).join();
         if (other == null) return ActionResult.refusedChat("error.saveFailed");
         if (other.isPresent() && other.get().id() != company.id())

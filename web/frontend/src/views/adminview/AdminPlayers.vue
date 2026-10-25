@@ -30,11 +30,18 @@ const material = ref('')
 const amount = ref<number>()
 const done = ref('')
 
-/** Looks the typed player up. */
+/** Looks the typed player up, leaving nobody shown when the lookup fails. */
 async function lookup(): Promise<void> {
   done.value = ''
   granting.reset()
-  const result = await looking.run('admin.players.lookup', {player: name.value.trim()})
+  player.value = null
+  player.value = await looking.run('admin.players.lookup', {player: name.value.trim()}) ?? null
+}
+
+/** Shows the player's facts again after a grant changed them. */
+async function refresh(): Promise<void> {
+  if (!player.value) return
+  const result = await looking.run('admin.players.lookup', {player: player.value.player.name})
   if (result) player.value = result
 }
 
@@ -54,6 +61,7 @@ async function grantItems(): Promise<void> {
   if (!result) return
   done.value = t('admin.players.grantedItems', {amount: result.amount, name: result.player})
   amount.value = undefined
+  await refresh()
 }
 </script>
 

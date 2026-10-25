@@ -13,7 +13,8 @@ import SectionHeader from '@/components/typography/SectionHeader.vue'
 
 /**
  * What an admin changes about a company: a free rename, a member made owner, and the company dissolved after asking
- * once more, with its orders released, delivered items back to the workers and the treasury paid to the owner.
+ * once more, with its orders released, delivered items back to the workers and the treasury paid to the owner. Names
+ * are shorter than {@link MAX_NAME} characters, as the plugin requires.
  */
 const props = defineProps<{
   company: string
@@ -23,6 +24,8 @@ const emit = defineEmits<{
   changed: [text: string, renamed?: string]
   deleted: [text: string]
 }>()
+
+const MAX_NAME = 31
 
 const {t} = useI18n()
 const action = useAction()
@@ -57,7 +60,7 @@ async function remove(): Promise<void> {
     <SectionHeader>{{ t('admin.companies.changes', {company}) }}</SectionHeader>
     <ActionNotice :problem="action.problem.value"/>
     <form class="flex flex-wrap items-end gap-2" @submit.prevent="rename">
-      <TextInput v-model="name" :label="t('admin.companies.newName')"/>
+      <TextInput v-model="name" :label="t('admin.companies.newName')" :maxlength="MAX_NAME"/>
       <SecondaryButton type="submit" :disabled="name.trim() === '' || action.busy.value">{{ t('admin.companies.rename') }}</SecondaryButton>
     </form>
     <form class="flex flex-wrap items-end gap-2" @submit.prevent="transfer">

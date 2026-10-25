@@ -343,7 +343,7 @@ public final class CompanyService {
                 Replacement.create("amount", price));
     }
 
-    private static <T> ActionResult<T> invalidLength() {
+    static <T> ActionResult<T> invalidLength() {
         return ActionResult.refusedChat(
                 "error.invalidLength", Placeholder.unparsed("max", String.valueOf(MAX_NAME_LENGTH)));
     }
