@@ -14,6 +14,7 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
@@ -71,6 +72,48 @@ class ConfigurationTest {
             public void close() {}
         });
         return logger;
+    }
+
+    @Test
+    void theCatalogueNamesEverySharedSettingExactlyOnce() {
+        var listed = new ArrayList<SettingsCatalogue.Field>();
+        listed.addAll(SettingsCatalogue.FIELDS);
+        listed.addAll(SettingsCatalogue.FILE_ONLY);
+        assertEquals(
+                listed.size(),
+                listed.stream()
+                        .map(field -> field.file() + " " + field.key())
+                        .distinct()
+                        .count());
+        for (var key : Configuration.SHARED) {
+            var file = key.path().toString();
+            var tree = configuration.currentTree(file).orElseThrow();
+            var keys = new ArrayList<String>();
+            leaves("", tree, keys);
+            for (var leaf : keys) {
+                assertTrue(
+                        listed.stream()
+                                .anyMatch(field -> field.file().equals(file)
+                                        && (leaf.equals(field.key()) || leaf.startsWith(field.key() + "."))),
+                        file + " " + leaf + " is neither in the catalogue nor edited in the file only");
+            }
+            for (var field :
+                    listed.stream().filter(field -> field.file().equals(file)).toList()) {
+                var node = tree;
+                for (var part : field.path()) node = node.path(part);
+                assertFalse(node.isMissingNode(), file + " " + field.key() + " is no setting");
+            }
+        }
+    }
+
+    private static void leaves(String prefix, JsonNode node, List<String> keys) {
+        if (!node.isObject()) {
+            keys.add(prefix);
+            return;
+        }
+        for (var entry : node.properties()) {
+            leaves(prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey(), entry.getValue(), keys);
+        }
     }
 
     @Test
@@ -195,7 +238,7 @@ class ConfigurationTest {
         var before = MAPPER.readTree("economy:\n  fee: 2\n  tax: 1\nlevel: [1, 2]\nname: a\n");
         var after = MAPPER.readTree("economy:\n  fee: 3\n  tax: 1\nlevel: [1]\nextra: true\n");
 
-        assertEquals(List.of("economy.fee", "extra", "level", "name"), Configuration.changes(before, after));
+        assertEquals(List.of("economy.fee", "extra", "level", "name"), Configuration.changedKeys(before, after));
     }
 
     @Test

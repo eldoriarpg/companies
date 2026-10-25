@@ -232,6 +232,25 @@ public class MariaDbNodeData extends ANodeData {
     }
 
     @Override
+    public Optional<SettingsChange> settingsChange(String path, int revision) {
+        @Language("mariadb")
+        var select = """
+                SELECT revision, actor, node_uid, changed_at
+                FROM settings
+                WHERE path = ?
+                  AND revision = ?""";
+
+        return query(select)
+                .single(call().bind(path).bind(revision))
+                .map(row -> new SettingsChange(
+                        row.getInt("revision"),
+                        row.getString("actor"),
+                        row.get("node_uid", UUID_BYTES),
+                        changedAt(row)))
+                .first();
+    }
+
+    @Override
     public List<AppliedSettings> settingsApplied() {
         @Language("mariadb")
         var select = """

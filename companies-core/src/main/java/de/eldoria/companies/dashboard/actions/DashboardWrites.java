@@ -64,8 +64,8 @@ public final class DashboardWrites {
 
     /**
      * Every action this version performs, including those of {@link CompanyWrites}, {@link ItemWrites},
-     * {@link OrderCreateWrites}, {@link AdminOrderWrites}, {@link AdminSupportWrites}, {@link AdminLevelWrites} and
-     * {@link AdminServerWrites}.
+     * {@link OrderCreateWrites}, {@link AdminOrderWrites}, {@link AdminSupportWrites}, {@link AdminLevelWrites},
+     * {@link AdminServerWrites} and {@link AdminSettingsWrites}.
      */
     public static final Set<String> ACTIONS = Stream.of(
                     OWN_ACTIONS,
@@ -75,7 +75,8 @@ public final class DashboardWrites {
                     AdminOrderWrites.ACTIONS,
                     AdminSupportWrites.ACTIONS,
                     AdminLevelWrites.ACTIONS,
-                    AdminServerWrites.ACTIONS)
+                    AdminServerWrites.ACTIONS,
+                    AdminSettingsWrites.ACTIONS)
             .flatMap(Set::stream)
             .collect(Collectors.toUnmodifiableSet());
 
@@ -86,6 +87,7 @@ public final class DashboardWrites {
     private final AdminSupportWrites adminSupport;
     private final AdminLevelWrites adminLevels;
     private final AdminServerWrites adminServers;
+    private final AdminSettingsWrites adminSettings;
     private final OrderCreateWrites create;
     private final Answers answers;
 
@@ -98,6 +100,7 @@ public final class DashboardWrites {
      * @param adminSupport the admin tools for players and companies
      * @param adminLevels the level editor
      * @param adminServers the tools for boards, nodes and the configuration
+     * @param adminSettings the view of the shared settings
      */
     public DashboardWrites(
             Sources sources,
@@ -107,7 +110,8 @@ public final class DashboardWrites {
             AdminOrderWrites adminOrders,
             AdminSupportWrites adminSupport,
             AdminLevelWrites adminLevels,
-            AdminServerWrites adminServers) {
+            AdminServerWrites adminServers,
+            AdminSettingsWrites adminSettings) {
         this.sources = sources;
         this.company = company;
         this.items = items;
@@ -115,6 +119,7 @@ public final class DashboardWrites {
         this.adminSupport = adminSupport;
         this.adminLevels = adminLevels;
         this.adminServers = adminServers;
+        this.adminSettings = adminSettings;
         this.create = create;
         answers = new Answers(sources.render());
     }
@@ -149,6 +154,9 @@ public final class DashboardWrites {
         if (AdminSupportWrites.ACTIONS.contains(request.name())) return adminSupport.perform(request, session, args);
         if (AdminLevelWrites.ACTIONS.contains(request.name())) return adminLevels.perform(request, session, args);
         if (AdminServerWrites.ACTIONS.contains(request.name())) return adminServers.perform(request, session, args);
+        if (AdminSettingsWrites.ACTIONS.contains(request.name())) {
+            return adminSettings.perform(request, session, args);
+        }
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));

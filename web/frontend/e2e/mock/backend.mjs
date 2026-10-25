@@ -143,7 +143,7 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings']
         : session.story.features ?? FEATURES
     const nodes = admin ? [{uid: PRIMARY_NODE, role: 'PRIMARY', name: 'survival'}, {uid: SECONDARY_NODE, role: 'SECONDARY'}] : []
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin, nodes}
@@ -250,10 +250,37 @@ function npcs(state, node) {
  * @param state the session's state
  * @returns the servers
  */
+/** Who stored the revisions of a settings file, newest first. */
+const SETTINGS_HISTORY = [
+    {revision: 2, actor: 'Ada', node: PRIMARY_NODE, changed: '2026-10-25T09:00:00Z'},
+    {revision: 1, actor: 'startup', node: PRIMARY_NODE, changed: '2026-10-24T08:00:00Z'},
+]
+
+/**
+ * A shared settings file as the settings view shows it.
+ *
+ * @param file the file
+ * @returns the file with a few settings
+ */
+function settingsFile(file) {
+    if (file !== 'config.yml') {
+        return {file, revision: 1, applied: 1, editedHere: false, behind: [], settings: [
+            {section: 'orders', key: 'maxOrders', type: 'WHOLE', choices: [], restart: false, value: 7, overridden: false},
+        ]}
+    }
+    return {file, revision: 2, applied: 2, editedHere: false, behind: [SECONDARY_NODE], settings: [
+        {section: 'general', key: 'generalSettings.language', type: 'CHOICE', choices: ['en_US', 'de_DE', 'fr_FR'], restart: false, value: 'en_US', overridden: false},
+        {section: 'general', key: 'generalSettings.messageBlocking', type: 'FLAG', choices: [], restart: true, value: true, overridden: true},
+        {section: 'discord', key: 'discord.enabled', type: 'FLAG', choices: [], restart: false, value: true, overridden: false},
+        {section: 'discord', key: 'discord.url', type: 'SECRET', choices: [], restart: false, secret: {set: true, source: 'environment'}, overridden: false},
+        {section: 'dashboard', key: 'dashboard.features', type: 'FLAG_MAP', choices: [], restart: false, value: {market: false, inbox: true}, overridden: false},
+    ]}
+}
+
 function servers(state) {
     state.servers ??= [
         {uid: PRIMARY_NODE, role: 'PRIMARY', version: '2.1.0', lastSeen: '2026-10-25T08:00:00Z', bus: 'Redis', current: true},
-        {uid: SECONDARY_NODE, role: 'SECONDARY', version: '2.1.0', lastSeen: '2026-10-25T08:01:00Z', bus: 'Redis', current: false},
+        {uid: SECONDARY_NODE, role: 'SECONDARY', version: '2.1.0', lastSeen: '2026-10-25T08:01:00Z', bus: 'Redis', current: false, behind: true, restart: 'config.yml boards.enabled'},
         {uid: '0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9', role: 'SECONDARY', version: '2.0.0', lastSeen: '2026-09-01T10:00:00Z', bus: '-', current: false},
     ]
     return state.servers
@@ -377,6 +404,16 @@ function action(name, args, state) {
             return done({nodes: state.servers})
         case 'admin.config.sync':
             return done({})
+        case 'admin.settings.get':
+            return done(settingsFile(args.file))
+        case 'admin.settings.history':
+            return done({revisions: args.page > 1 ? [] : SETTINGS_HISTORY})
+        case 'admin.settings.revision':
+            if (args.revision !== 2) return refused('This file has no such revision.')
+            return done({...SETTINGS_HISTORY[0], file: args.file, changes: [
+                {key: 'discord.enabled', before: false, after: true, secret: false},
+                {key: 'discord.url', before: null, after: null, secret: true},
+            ]})
         case 'company.create':
             if (args.name === 'Taken') return refused('A company with this name already exists.')
             return done(args.quote ? {name: args.name, price: 5000} : {company: 8, price: 5000})

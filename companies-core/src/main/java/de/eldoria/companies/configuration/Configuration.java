@@ -452,7 +452,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             var after = tree(content);
             if (before.equals(after)) continue;
             var latest = revisions.getOrDefault(path, base.getAsInt());
-            edits.add(new Edit(key, base.getAsInt(), content, changes(before, after), latest > base.getAsInt()));
+            edits.add(new Edit(key, base.getAsInt(), content, changedKeys(before, after), latest > base.getAsInt()));
         }
         return edits;
     }
@@ -680,7 +680,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @return the tree its current content serializes to, empty when it cannot be written now, for example while it
      *     is being changed
      */
-    Optional<JsonNode> currentTree(String path) {
+    public Optional<JsonNode> currentTree(String path) {
         var key = sharedKey(path).orElseThrow();
         try {
             return Optional.of(YAML.readTree(writer().writeValueAsString(secondary(key))));
@@ -767,7 +767,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param after  the file's content now
      * @return the keys that differ, as dotted paths, sorted
      */
-    static List<String> changes(JsonNode before, JsonNode after) {
+    public static List<String> changedKeys(JsonNode before, JsonNode after) {
         var found = new TreeSet<String>();
         diff("", before, after, found);
         return List.copyOf(found);

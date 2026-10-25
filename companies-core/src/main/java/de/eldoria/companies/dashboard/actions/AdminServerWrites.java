@@ -14,6 +14,7 @@ import de.eldoria.companies.configuration.elements.boardbindings.NpcBinding;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Permission;
@@ -38,6 +39,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * The dashboard's tools for the servers of a network, as {@code /companyadmin board}, {@code node} and
@@ -187,6 +189,12 @@ public final class AdminServerWrites {
     private ActionResult nodes(ActionRequest request) {
         var nodeData = sources.nodeData().get();
         var current = nodeData.nodeUid();
+        var latest = nodeData.settingsRevisions();
+        var behind = nodeData.settingsApplied().stream()
+                .filter(row -> row.revision() < latest.getOrDefault(row.path(), 0))
+                .map(AppliedSettings::node)
+                .collect(Collectors.toSet());
+        var restarts = nodeData.pendingRestarts();
         var nodes = nodeData.nodes().stream()
                 .map(node -> new Payloads.AdminNode(
                         node.uid(),
@@ -194,7 +202,9 @@ public final class AdminServerWrites {
                         node.version(),
                         node.seen().map(this::instant).orElse(null),
                         sources.bus().apply(node),
-                        node.uid().equals(current)))
+                        node.uid().equals(current),
+                        behind.contains(node.uid()),
+                        restarts.get(node.uid())))
                 .toList();
         return answers.data(request, Map.of("nodes", nodes));
     }

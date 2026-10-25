@@ -119,7 +119,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` and `admin.config`. `orders.receive` is listed for older dashboards and has no effect; receiving belongs to `orders.deliver`. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market` and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config` and `admin.settings`. `orders.receive` is listed for older dashboards and has no effect; receiving belongs to `orders.deliver`. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is your `server-icon.png`. |
 
@@ -167,10 +167,12 @@ it.
 | Levels | Recalculate the level of every company | `companies.admin.calcLevel` | `/companyadmin calclevel` |
 | Boards | Show the board presets with their open orders; write the board signs again; bind NPCs to boards and unbind them. On a network you pick the server first, since signs and NPCs belong to a server. An NPC is named by its Citizens id or FancyNpcs name. | `companies.admin.boards` | `/companyadmin board …` |
 | Servers | Show the servers in the database with role, version, last seen and how they exchange messages; remove an old one after asking once more | `companies.admin.nodes` | `/companyadmin node …` |
+| Servers | Mark the servers that use an older revision of the shared settings, and the changed settings each applies only after a restart | `companies.admin.nodes` | `/companyadmin node list` |
+| Settings | Show `config.yml`, `company.yml`, `order.yml` and `user.yml` as their latest revision, grouped in sections, marking the settings that need a restart and those a server sets for itself in its `node.yml`; which servers are behind; the history of each file and what each revision changed. Secrets such as the Discord webhook are never shown, only whether they are set. Read only. | `companies.admin` | `/companyadmin settings status`, `history` |
 | Servers | Sync the configuration from the primary, after asking once more. Only the primary does it; while it is not connected, the button answers that the server is offline. The dashboard reconnects for a moment. | `companies.admin` | `/companyadmin syncconfiguration` |
 
 Switch a tab off with `dashboard.features` like any other part: set `admin.orders`, `admin.players`,
-`admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes` or `admin.config` to `false`. The server picker shows
+`admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config` or `admin.settings` to `false`. The server picker shows
 the `name` from [node.yml](./configuration/node-yml.md), or the role and the start of the `nodeUid`.
 
 ## Several servers
