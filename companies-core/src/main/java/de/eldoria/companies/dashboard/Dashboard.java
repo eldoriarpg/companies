@@ -285,8 +285,10 @@ public final class Dashboard implements GatewayLink {
 
     private void disconnected(GatewayConnection.Closed closed) {
         synchronized (outage) {
-            if (offlineSince == null || offlineSince.equals(excusing))
+            if (offlineSince == null || offlineSince.equals(excusing)) {
                 offlineSince = parts.clock().instant();
+            }
+            welcomedMeanwhile = false;
             parts.sessions().holdIdle(true);
         }
         parts.status().disconnected(closed);
