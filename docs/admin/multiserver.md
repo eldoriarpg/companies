@@ -111,7 +111,8 @@ revisions stay in the database.
 
 Each secondary takes a new revision on its own:
 
-- at once with [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode),
+- at once with [Redis](#redis), [PostgreSQL notify](#postgresql-notify) or in [low latency mode](#low-latency-mode);
+  should a message be lost, within 5 minutes,
 - within 30 seconds without them, since every secondary looks for new revisions that often,
 - when it starts, and when you run `/companyadmin syncconfiguration` on it.
 
@@ -121,7 +122,8 @@ A secondary only replaces a file whose content differs from the primary's copy, 
 reconnecting the dashboard and the Discord webhook, only then. A restart of the primary that changed nothing therefore
 changes nothing on the secondaries. When a secondary's file was changed on that server since it last took a copy, for
 example because you edited it there, the secondary keeps its version as `backup_<timestamp>_<file name>` before it
-takes the copy, and its log says so. To tell, it notes each copy it took in the hidden folder `.synced`; the first sync
+takes the copy, and its log says so. A file edited on a secondary stays until a new revision of it arrives, the server
+restarts, or you run `/companyadmin syncconfiguration` on it. To tell, it notes each copy it took in the hidden folder `.synced`; the first sync
 after updating Companies has no such notes yet, so it keeps a backup of every file that differs once. When a backup
 cannot be written, the file stays as it is and the copy is not taken. The primary never writes a file it cannot read
 to the database.

@@ -9,6 +9,7 @@ import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
 import io.papermc.paper.plugin.configuration.PluginMeta;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 
@@ -59,6 +61,39 @@ class SqLiteNodeDataTest {
         assertEquals("level: [1]", latest.content());
         assertEquals(Map.of("company.yml", 2, "user.yml", 1), nodeData.settingsRevisions());
         assertTrue(nodeData.latestSettings("order.yml").isEmpty());
+    }
+
+    @Test
+    void aNodeThatReadAStaleRevisionRetriesOnTopOfTheNewerOne() {
+        nodeData.publishSettings("company.yml", "first", "Ada");
+        nodeData.publishSettings("company.yml", "second", "Ada");
+        var stale = new SqLiteNodeData(new NodeSettings()) {
+            private boolean answered;
+
+            @Override
+            public Optional<SettingsRevision> latestSettings(String path) {
+                if (answered) return super.latestSettings(path);
+                answered = true;
+                return Optional.of(new SettingsRevision(path, 1, "first", SettingsRevision.hash("first")));
+            }
+        };
+
+        assertEquals(OptionalInt.of(3), stale.publishSettings("company.yml", "third", "Bo"));
+        assertEquals(OptionalInt.empty(), staleAt(1).publishSettings("company.yml", "third", "Bo"));
+        assertEquals(3, nodeData.latestSettings("company.yml").orElseThrow().revision());
+    }
+
+    private SqLiteNodeData staleAt(int revision) {
+        return new SqLiteNodeData(new NodeSettings()) {
+            private boolean answered;
+
+            @Override
+            public Optional<SettingsRevision> latestSettings(String path) {
+                if (answered) return super.latestSettings(path);
+                answered = true;
+                return Optional.of(new SettingsRevision(path, revision, "first", SettingsRevision.hash("first")));
+            }
+        };
     }
 
     @Test

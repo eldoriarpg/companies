@@ -13,13 +13,16 @@ import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Times;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -34,11 +37,13 @@ public final class NodeConnection {
     private final NodeBus bus;
     private final NodeMessaging messaging;
     private final NodeSignals signals;
+    private final @Nullable ScheduledFuture<?> settingsPoll;
 
-    private NodeConnection(NodeBus bus, NodeMessaging messaging) {
+    private NodeConnection(NodeBus bus, NodeMessaging messaging, @Nullable ScheduledFuture<?> settingsPoll) {
         this.bus = bus;
         this.messaging = messaging;
         this.signals = new NodeSignals(bus);
+        this.settingsPoll = settingsPoll;
     }
 
     /**
@@ -71,17 +76,32 @@ public final class NodeConnection {
                         () -> {
                             inbox.reschedule();
                             inbox.pollNow();
+                            if (!parts.primary()) parts.settings().pollNow();
                         },
                         parts.onlineHere(),
                         parts.knownNodes()),
                 timer);
+        ScheduledFuture<?> settingsPoll = null;
         if (parts.primary()) {
-            parts.revisions().get().forEach((path, revision) -> bus.publish(new SettingsChanged(path, revision)));
+            announceRevisions(parts, bus);
         } else {
-            timer.scheduleWithFixedDelay(
+            settingsPoll = timer.scheduleWithFixedDelay(
                     parts.settings()::poll, SettingsSync.POLL_SECONDS, SettingsSync.POLL_SECONDS, TimeUnit.SECONDS);
         }
-        return new NodeConnection(bus, messaging);
+        return new NodeConnection(bus, messaging, settingsPoll);
+    }
+
+    private static void announceRevisions(Parts parts, NodeBus bus) {
+        try {
+            parts.revisions().get().forEach((path, revision) -> bus.publish(new SettingsChanged(path, revision)));
+        } catch (RuntimeException e) {
+            parts.logger()
+                    .log(
+                            Level.WARNING,
+                            "Could not announce the revisions of the shared files; the other nodes find them by"
+                                    + " polling.",
+                            e);
+        }
     }
 
     /**
@@ -102,6 +122,7 @@ public final class NodeConnection {
      * Tells the other nodes that this one stops, and closes the bus.
      */
     public void stop() {
+        if (settingsPoll != null) settingsPoll.cancel(false);
         messaging.stop();
     }
 
