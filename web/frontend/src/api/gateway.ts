@@ -569,6 +569,8 @@ export interface AdminSetting {
 export interface AdminSettingsFile {
     file: SettingsFileName
     revision: number
+    /** The server that answered, whose the revision used, the unshared edits, the overrides and the secrets' sources are. */
+    node: string
     /** The revision the answering server uses. */
     applied: number
     /** Whether the answering server changed it without sharing the change. */
@@ -592,11 +594,15 @@ export interface AdminSettingDiff {
     before?: unknown
     after?: unknown
     secret: boolean
+    /** Whether it is edited in the file only, whose values are not shown. */
+    fileOnly: boolean
 }
 
 /** What one revision changed against the one before. */
 export interface AdminSettingsRevision extends AdminSettingsChange {
     file: SettingsFileName
+    /** Whether it is the first revision, which holds the file as it was first stored and changed nothing. */
+    first: boolean
     changes: AdminSettingDiff[]
 }
 
@@ -690,7 +696,7 @@ export interface WriteActions {
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}
     'admin.settings.get': {args: {file: SettingsFileName}, result: AdminSettingsFile}
-    'admin.settings.history': {args: {file: SettingsFileName, page: number}, result: {revisions: AdminSettingsChange[]}}
+    'admin.settings.history': {args: {file: SettingsFileName, page: number}, result: {revisions: AdminSettingsChange[], pageSize: number}}
     'admin.settings.revision': {args: {file: SettingsFileName, revision: number}, result: AdminSettingsRevision}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}

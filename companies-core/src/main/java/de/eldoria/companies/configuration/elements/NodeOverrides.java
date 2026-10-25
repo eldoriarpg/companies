@@ -166,7 +166,11 @@ public final class NodeOverrides {
         return switch (key) {
             case MESSAGE_BLOCKING -> "generalSettings.messageBlocking";
             case BOARDS_ENABLED -> "boards.enabled";
-            default -> key.startsWith(HOOKS + ".") ? "generalSettings." + key : "dashboard." + key;
+            default -> {
+                if (key.startsWith(HOOKS + ".")) yield "generalSettings." + key;
+                if (key.startsWith(BRANDING + ".")) yield "dashboard." + key;
+                throw new IllegalStateException("No shared setting for override " + key);
+            }
         };
     }
 

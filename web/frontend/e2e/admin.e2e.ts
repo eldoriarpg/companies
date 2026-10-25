@@ -164,17 +164,21 @@ test.describe('admin', () => {
         await openAdmin(page, info)
         await page.getByRole('tab', {name: 'Settings'}).click()
 
-        await expect(page.getByTestId('admin-settings-status')).toContainText('Revision 2 · this server uses 2')
+        await expect(page.getByTestId('admin-settings-status')).toContainText('Revision 2 · survival uses 2')
         await expect(page.getByTestId('admin-settings-status')).toContainText('Still on an older revision: Secondary 9a2d7c41')
         await expect(page.getByTestId('admin-setting-generalSettings.language')).toHaveText('en_US')
-        await expect(page.getByTestId('admin-setting-discord.url')).toHaveText('set by the environment variable')
+        await expect(page.getByTestId('admin-setting-discord.url')).toHaveText('set by the environment variable on survival')
         await expect(page.getByTestId('admin-setting-dashboard.features')).toHaveText('off: market')
-        await expect(page.getByTestId('admin-settings-general').getByText('set on this server')).toBeVisible()
+        await expect(page.getByTestId('admin-settings-general').getByText('set on survival')).toBeVisible()
 
         await page.getByTestId('admin-settings-history').getByRole('button', {name: /#2 · Ada/}).click()
         const revision = page.getByTestId('admin-settings-revision-2')
         await expect(revision).toContainText('discord.enabled · off → on')
         await expect(revision).toContainText('discord.url · secret changed')
+        await expect(revision).toContainText('boards.presets · edited in the file only')
+
+        await page.getByTestId('admin-settings-history').getByRole('button', {name: /#1 · startup/}).click()
+        await expect(page.getByTestId('admin-settings-revision-1')).toContainText('The first revision')
 
         await page.getByLabel('File').selectOption('user.yml')
         await expect(page.getByTestId('admin-setting-maxOrders')).toHaveText('7')

@@ -244,12 +244,6 @@ function npcs(state, node) {
     return state.npcs[node ?? PRIMARY_NODE]
 }
 
-/**
- * The servers in the database of a session, made on first use: both nodes and an old one.
- *
- * @param state the session's state
- * @returns the servers
- */
 /** Who stored the revisions of a settings file, newest first. */
 const SETTINGS_HISTORY = [
     {revision: 2, actor: 'Ada', node: PRIMARY_NODE, changed: '2026-10-25T09:00:00Z'},
@@ -264,11 +258,11 @@ const SETTINGS_HISTORY = [
  */
 function settingsFile(file) {
     if (file !== 'config.yml') {
-        return {file, revision: 1, applied: 1, editedHere: false, behind: [], settings: [
+        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, behind: [], settings: [
             {section: 'orders', key: 'maxOrders', type: 'WHOLE', choices: [], restart: false, value: 7, overridden: false},
         ]}
     }
-    return {file, revision: 2, applied: 2, editedHere: false, behind: [SECONDARY_NODE], settings: [
+    return {file, revision: 2, node: PRIMARY_NODE, applied: 2, editedHere: false, behind: [SECONDARY_NODE], settings: [
         {section: 'general', key: 'generalSettings.language', type: 'CHOICE', choices: ['en_US', 'de_DE', 'fr_FR'], restart: false, value: 'en_US', overridden: false},
         {section: 'general', key: 'generalSettings.messageBlocking', type: 'FLAG', choices: [], restart: true, value: true, overridden: true},
         {section: 'discord', key: 'discord.enabled', type: 'FLAG', choices: [], restart: false, value: true, overridden: false},
@@ -277,6 +271,12 @@ function settingsFile(file) {
     ]}
 }
 
+/**
+ * The servers in the database of a session, made on first use: both nodes and an old one.
+ *
+ * @param state the session's state
+ * @returns the servers
+ */
 function servers(state) {
     state.servers ??= [
         {uid: PRIMARY_NODE, role: 'PRIMARY', version: '2.1.0', lastSeen: '2026-10-25T08:00:00Z', bus: 'Redis', current: true},
@@ -407,12 +407,14 @@ function action(name, args, state) {
         case 'admin.settings.get':
             return done(settingsFile(args.file))
         case 'admin.settings.history':
-            return done({revisions: args.page > 1 ? [] : SETTINGS_HISTORY})
+            return done({revisions: args.page > 1 ? [] : SETTINGS_HISTORY, pageSize: 20})
         case 'admin.settings.revision':
+            if (args.revision === 1) return done({...SETTINGS_HISTORY[1], file: args.file, first: true, changes: []})
             if (args.revision !== 2) return refused('This file has no such revision.')
-            return done({...SETTINGS_HISTORY[0], file: args.file, changes: [
-                {key: 'discord.enabled', before: false, after: true, secret: false},
-                {key: 'discord.url', before: null, after: null, secret: true},
+            return done({...SETTINGS_HISTORY[0], file: args.file, first: false, changes: [
+                {key: 'discord.enabled', before: false, after: true, secret: false, fileOnly: false},
+                {key: 'discord.url', before: null, after: null, secret: true, fileOnly: false},
+                {key: 'boards.presets', before: null, after: null, secret: false, fileOnly: true},
             ]})
         case 'company.create':
             if (args.name === 'Taken') return refused('A company with this name already exists.')

@@ -29,6 +29,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,9 +38,11 @@ import java.util.function.Supplier;
  * latest revision with every setting of the {@link SettingsCatalogue}, how the servers stand on it, its history and
  * what one revision changed.
  * <p>
- * Values are read from the latest revision in the database, not from the answering node's memory, so every node
- * answers the same. A secret is never sent, only whether it is set and where from. Every action needs the general
- * admin permission. The methods block and are called off the main thread.
+ * Values are read from the latest revision in the database, not from the answering node's memory, so every node sends
+ * the same values. What belongs to one server is the answering node's and named with its uid: the revision it uses,
+ * its unshared edits, its own overrides and whether a secret comes from its environment. A secret is never sent, only
+ * whether it is set and where from. Every action needs the general admin permission. The methods block and are called
+ * off the main thread.
  */
 public final class AdminSettingsWrites {
     /**
@@ -84,7 +87,8 @@ public final class AdminSettingsWrites {
             var file = file(args);
             return switch (request.name()) {
                 case Actions.ADMIN_SETTINGS_GET -> answers.data(request, get(file));
-                case Actions.ADMIN_SETTINGS_HISTORY -> answers.data(request, Map.of("revisions", history(file, args)));
+                case Actions.ADMIN_SETTINGS_HISTORY ->
+                    answers.data(request, Map.of("revisions", history(file, args), "pageSize", PAGE_SIZE));
                 case Actions.ADMIN_SETTINGS_REVISION -> revision(request, file, args);
                 default -> answers.refused(request, "dashboard.unsupported");
             };
@@ -110,7 +114,13 @@ public final class AdminSettingsWrites {
                 .map(field -> setting(field, tree, overridden.contains(field.key())))
                 .toList();
         return new Payloads.AdminSettingsFile(
-                file, status.latest(), status.applied(), status.edited(), status.behind(), settings);
+                file,
+                status.latest(),
+                nodeData.nodeUid(),
+                status.applied(),
+                status.edited(),
+                status.behind(),
+                settings);
     }
 
     private Payloads.AdminSetting setting(SettingsCatalogue.Field field, JsonNode tree, boolean overridden) {
@@ -167,36 +177,62 @@ public final class AdminSettingsWrites {
         var change = nodeData.settingsChange(file, number);
         if (stored.isEmpty() || change.isEmpty()) return answers.refused(request, UNKNOWN_REVISION);
         var after = tree(stored.get().content());
-        var before = nodeData.settingsAt(file, number - 1)
-                .map(previous -> tree(previous.content()))
-                .orElse(MissingNode.getInstance());
+        var before = nodeData.settingsAt(file, number - 1).map(previous -> tree(previous.content()));
         var entry = change(change.get());
         return answers.data(
                 request,
                 new Payloads.AdminSettingsRevision(
-                        file, number, entry.actor(), entry.node(), entry.changed(), diff(file, before, after)));
+                        file,
+                        number,
+                        entry.actor(),
+                        entry.node(),
+                        entry.changed(),
+                        before.isEmpty(),
+                        before.map(tree -> diff(file, tree, after)).orElse(List.of())));
     }
 
     /**
      * @param file   the file
      * @param before the content before
      * @param after  the content after
-     * @return the settings that changed, each once, as the catalogue names them
+     * @return the settings that changed, each once, as the catalogue names them; a section only one side has counts
+     *     as all of its settings
      */
     static List<Payloads.AdminSettingDiff> diff(String file, JsonNode before, JsonNode after) {
+        var leaves = new ArrayList<String>();
+        leaves("", before, after, leaves);
         var keys = new LinkedHashSet<String>();
-        for (var leaf : Configuration.changedKeys(before, after)) keys.add(owner(file, leaf));
+        for (var leaf : leaves) keys.add(owner(file, leaf));
         var diffs = new ArrayList<Payloads.AdminSettingDiff>();
         for (var key : keys) {
             var field = SettingsCatalogue.field(file, key);
-            if (field.isEmpty() || field.get().secret()) {
-                diffs.add(new Payloads.AdminSettingDiff(key, null, null, field.isPresent()));
-                continue;
+            if (field.isEmpty()) {
+                diffs.add(new Payloads.AdminSettingDiff(key, null, null, false, true));
+            } else if (field.get().secret()) {
+                diffs.add(new Payloads.AdminSettingDiff(key, null, null, true, false));
+            } else {
+                diffs.add(new Payloads.AdminSettingDiff(
+                        key, present(at(before, field.get())), present(at(after, field.get())), false, false));
             }
-            diffs.add(new Payloads.AdminSettingDiff(
-                    key, present(at(before, field.get())), present(at(after, field.get())), false));
         }
         return diffs;
+    }
+
+    private static void leaves(String prefix, JsonNode before, JsonNode after, List<String> found) {
+        if (section(before) && section(after) && (before.isObject() || after.isObject())) {
+            var names = new TreeSet<String>();
+            before.properties().forEach(entry -> names.add(entry.getKey()));
+            after.properties().forEach(entry -> names.add(entry.getKey()));
+            for (var name : names) {
+                leaves(prefix.isEmpty() ? name : prefix + "." + name, before.path(name), after.path(name), found);
+            }
+            return;
+        }
+        if (!before.equals(after)) found.add(prefix);
+    }
+
+    private static boolean section(JsonNode node) {
+        return node.isObject() || node.isMissingNode();
     }
 
     private static String owner(String file, String leaf) {

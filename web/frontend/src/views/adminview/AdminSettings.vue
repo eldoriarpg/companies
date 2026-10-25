@@ -36,6 +36,8 @@ const page = ref(1)
 const more = ref(false)
 const opened = ref<AdminSettingsRevision | null>(null)
 const choices = computed(() => FILES.map(name => ({value: name, label: name})))
+const busy = computed(() => loading.busy.value || listing.busy.value || opening.busy.value)
+const answering = computed(() => (settings.value ? serverName(settings.value.node) : ''))
 const nodes = computed(() => new Map((server.value?.nodes ?? []).map(node => [node.uid, node])))
 const sections = computed(() => {
   const grouped = new Map<string, AdminSetting[]>()
@@ -49,20 +51,23 @@ watch(file, load, {immediate: true})
 
 /** Loads the chosen file and the first page of its history. */
 async function load(): Promise<void> {
+  const chosen = file.value
   settings.value = null
   opened.value = null
   revisions.value = []
+  more.value = false
   page.value = 1
-  const [current] = await Promise.all([loading.run('admin.settings.get', {file: file.value}), history()])
-  if (current) settings.value = current
+  const [current] = await Promise.all([loading.run('admin.settings.get', {file: chosen}), history()])
+  if (current && file.value === chosen) settings.value = current
 }
 
 /** Loads the next page of the history. */
 async function history(): Promise<void> {
-  const result = await listing.run('admin.settings.history', {file: file.value, page: page.value})
-  if (!result) return
+  const chosen = file.value
+  const result = await listing.run('admin.settings.history', {file: chosen, page: page.value})
+  if (!result || file.value !== chosen) return
   revisions.value = [...revisions.value, ...result.revisions]
-  more.value = result.revisions.length === 20
+  more.value = result.revisions.length === result.pageSize
   page.value++
 }
 
@@ -76,8 +81,9 @@ async function open(revision: AdminSettingsChange): Promise<void> {
     opened.value = null
     return
   }
-  const result = await opening.run('admin.settings.revision', {file: file.value, revision: revision.revision})
-  if (result) opened.value = result
+  const chosen = file.value
+  const result = await opening.run('admin.settings.revision', {file: chosen, revision: revision.revision})
+  if (result && file.value === chosen) opened.value = result
 }
 
 /**
@@ -95,7 +101,7 @@ function serverName(uid: string): string {
  */
 function shown(setting: AdminSetting): string {
   if (setting.type === 'SECRET') {
-    return setting.secret?.set ? t(`admin.settings.secret.${setting.secret.source}`) : t('admin.settings.secret.none')
+    return setting.secret?.set ? t(`admin.settings.secret.${setting.secret.source}`, {server: answering.value}) : t('admin.settings.secret.none')
   }
   if (setting.type === 'FLAG_MAP') {
     const off = Object.entries((setting.value ?? {}) as Record<string, boolean>).filter(([, on]) => !on).map(([name]) => name)
@@ -120,12 +126,12 @@ function value(raw: unknown): string {
 
 <template>
   <div class="flex min-w-0 flex-col gap-4">
-    <SelectInput v-model="file" :label="t('admin.settings.file')" :options="choices"/>
+    <SelectInput v-model="file" :label="t('admin.settings.file')" :options="choices" :disabled="busy"/>
     <ActionNotice :problem="loading.problem.value"/>
     <PanelBox v-if="settings" padded :aria-label="t('admin.settings.status')" data-testid="admin-settings-status">
       <SectionHeader>{{ t('admin.settings.status') }}</SectionHeader>
-      <p class="text-sm">{{ t('admin.settings.revisions', {latest: settings.revision, applied: settings.applied}) }}</p>
-      <p v-if="settings.editedHere" class="text-sm text-ink-muted">{{ t('admin.settings.editedHere') }}</p>
+      <p class="text-sm">{{ t('admin.settings.revisions', {latest: settings.revision, server: answering, applied: settings.applied}) }}</p>
+      <p v-if="settings.editedHere" class="text-sm text-ink-muted">{{ t('admin.settings.editedHere', {server: answering}) }}</p>
       <p v-if="settings.behind.length > 0" class="text-sm text-ink-muted">{{ t('admin.settings.behind', {servers: settings.behind.map(serverName).join(', ')}) }}</p>
     </PanelBox>
     <PanelBox v-for="section in sections" :key="section.name" :aria-label="t(`admin.settings.section.${section.name}`)">
@@ -134,7 +140,7 @@ function value(raw: unknown): string {
       </template>
       <PlainList :data-testid="`admin-settings-${section.name}`">
         <li v-for="setting in section.entries" :key="setting.key" class="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 text-sm md:flex-row md:items-baseline md:justify-between md:px-4">
-          <span class="flex flex-wrap items-center gap-2 font-mono text-xs">{{ setting.key }}<NoticeBadge v-if="setting.restart">{{ t('admin.settings.restart') }}</NoticeBadge><InfoBadge v-if="setting.overridden">{{ t('admin.settings.overridden') }}</InfoBadge></span>
+          <span class="flex flex-wrap items-center gap-2 font-mono text-xs">{{ setting.key }}<NoticeBadge v-if="setting.restart">{{ t('admin.settings.restart') }}</NoticeBadge><InfoBadge v-if="setting.overridden">{{ t('admin.settings.overridden', {server: answering}) }}</InfoBadge></span>
           <span class="min-w-0 break-words" :data-testid="`admin-setting-${setting.key}`">{{ shown(setting) }}</span>
         </li>
       </PlainList>
@@ -146,15 +152,16 @@ function value(raw: unknown): string {
       <ActionNotice :problem="listing.problem.value" class="mx-3 mt-3 md:mx-4"/>
       <PlainList data-testid="admin-settings-history">
         <li v-for="revision in revisions" :key="revision.revision" class="text-sm">
-          <RowButton :selected="opened?.revision === revision.revision" @click="open(revision)">
+          <RowButton :selected="opened?.revision === revision.revision" :aria-expanded="opened?.revision === revision.revision" @click="open(revision)">
             {{ t('admin.settings.entry', {revision: revision.revision, actor: revision.actor, server: serverName(revision.node), time: dateTime(revision.changed, locale)}) }}
           </RowButton>
           <ul v-if="opened?.revision === revision.revision" class="flex flex-col gap-0.5 border-b border-line-soft px-3 py-2 text-xs md:px-4" :data-testid="`admin-settings-revision-${revision.revision}`">
-            <li v-if="opened.changes.length === 0" class="text-ink-muted">{{ t('admin.settings.noChanges') }}</li>
+            <li v-if="opened.first" class="text-ink-muted">{{ t('admin.settings.first') }}</li>
+            <li v-else-if="opened.changes.length === 0" class="text-ink-muted">{{ t('admin.settings.noChanges') }}</li>
             <li v-for="change in opened.changes" :key="change.key">
               <span class="font-mono">{{ change.key }}</span>
               <span v-if="change.secret" class="text-ink-muted"> · {{ t('admin.settings.secretChanged') }}</span>
-              <span v-else-if="change.before == null && change.after == null" class="text-ink-muted"> · {{ t('admin.settings.fileOnly') }}</span>
+              <span v-else-if="change.fileOnly" class="text-ink-muted"> · {{ t('admin.settings.fileOnly') }}</span>
               <span v-else> · {{ value(change.before) }} → {{ value(change.after) }}</span>
             </li>
           </ul>

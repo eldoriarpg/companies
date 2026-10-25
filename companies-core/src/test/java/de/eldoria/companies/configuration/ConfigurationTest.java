@@ -106,6 +106,20 @@ class ConfigurationTest {
         }
     }
 
+    @Test
+    void theCatalogueMarksExactlyTheSettingsReadAtStart() {
+        for (var field : SettingsCatalogue.FIELDS) {
+            var restart = ChangeTracker.RESTART.stream().anyMatch(setting -> setting.covers(field.file(), field.key()));
+            assertEquals(restart, field.restart(), field.file() + " " + field.key());
+        }
+        for (var setting : ChangeTracker.RESTART) {
+            assertTrue(
+                    SettingsCatalogue.FIELDS.stream()
+                            .anyMatch(field -> field.restart() && setting.covers(field.file(), field.key())),
+                    setting.toString());
+        }
+    }
+
     private static void leaves(String prefix, JsonNode node, List<String> keys) {
         if (!node.isObject()) {
             keys.add(prefix);

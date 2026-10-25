@@ -22,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
 
@@ -155,10 +156,50 @@ class AdminSettingsWritesTest {
         assertEquals(20000.0, founding.path("before").asDouble());
         assertEquals(500.0, founding.path("after").asDouble());
         assertEquals("level", level.path("key").asString());
+        assertTrue(level.path("fileOnly").asBoolean());
         assertTrue(level.path("after").isNull() || level.path("after").isMissingNode());
         assertEquals(
                 "companyadmin.settings.error.unknownRevision",
                 read(Actions.ADMIN_SETTINGS_REVISION, "{\"file\":\"company.yml\",\"revision\":9}")
                         .reason());
+    }
+
+    @Test
+    void theFirstRevisionChangesNothingAndAnAddedSectionNamesItsSettings() {
+        var content = copy(Configuration.COMPANY_SETTINGS);
+        world.nodeData.publishSettings(
+                "company.yml", content.replaceFirst("(?s)alerts:.*?(\\n[a-z])", "$1"), "startup");
+        world.nodeData.publishSettings("company.yml", content, "Ada");
+
+        var first = read(Actions.ADMIN_SETTINGS_REVISION, "{\"file\":\"company.yml\",\"revision\":1}");
+        assertTrue(first.data().path("first").asBoolean());
+        assertEquals(0, first.data().path("changes").size());
+
+        var added = read(Actions.ADMIN_SETTINGS_REVISION, "{\"file\":\"company.yml\",\"revision\":2}");
+        assertFalse(added.data().path("first").asBoolean());
+        var keys = new ArrayList<String>();
+        added.data()
+                .path("changes")
+                .forEach(change -> keys.add(change.path("key").asString()));
+        assertTrue(keys.contains("alerts.enabled"), keys.toString());
+        assertTrue(keys.contains("alerts.maxPerCompany"), keys.toString());
+        assertFalse(keys.contains("alerts"), keys.toString());
+    }
+
+    @Test
+    void theAnsweringServerIsNamedWithWhatBelongsToIt() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+
+        var result = read(Actions.ADMIN_SETTINGS_GET, "{\"file\":\"config.yml\"}");
+
+        assertEquals(
+                world.nodeData.nodeUid().toString(), result.data().path("node").asString());
+        assertFalse(setting(result, "discord.url").path("secret").path("set").asBoolean());
+        assertEquals(
+                "none",
+                setting(result, "discord.url").path("secret").path("source").asString());
+        assertFalse(setting(result, "generalSettings.messageBlocking")
+                .path("overridden")
+                .asBoolean());
     }
 }

@@ -580,6 +580,7 @@ public final class Payloads {
      *
      * @param file       the file, such as {@code config.yml}
      * @param revision   its latest revision, 0 before one was stored
+     * @param node       the answering node, to which the next three and the sources of the secrets belong
      * @param applied    the revision the answering node uses
      * @param editedHere whether the answering node changed it without sharing the change
      * @param behind     the nodes that use an older revision
@@ -588,6 +589,7 @@ public final class Payloads {
     public record AdminSettingsFile(
             String file,
             int revision,
+            UUID node,
             int applied,
             boolean editedHere,
             List<UUID> behind,
@@ -642,19 +644,27 @@ public final class Payloads {
      * @param actor    who stored it
      * @param node     the node it was stored on
      * @param changed  when it was stored
-     * @param changes  the settings it changed
+     * @param first    whether it is the first revision, which holds the file as it was first stored
+     * @param changes  the settings it changed, empty for the first revision
      */
     public record AdminSettingsRevision(
-            String file, int revision, String actor, UUID node, Instant changed, List<AdminSettingDiff> changes) {}
+            String file,
+            int revision,
+            String actor,
+            UUID node,
+            Instant changed,
+            boolean first,
+            List<AdminSettingDiff> changes) {}
 
     /**
      * One setting a revision changed.
      *
-     * @param key    the dotted key of the setting, or of the part edited in the file only, such as {@code level}
-     * @param before its value before, none for a secret, a setting edited in the file only or one that was missing
-     * @param after  its value after, none as for {@code before}
-     * @param secret whether it is a secret, whose values are never shown
+     * @param key      the dotted key of the setting, or of the part edited in the file only, such as {@code level}
+     * @param before   its value before, none for a secret, a setting edited in the file only or one that was missing
+     * @param after    its value after, none as for {@code before}
+     * @param secret   whether it is a secret, whose values are never shown
+     * @param fileOnly whether it is edited in the file only, whose values are not shown here
      */
     public record AdminSettingDiff(
-            String key, @Nullable JsonNode before, @Nullable JsonNode after, boolean secret) {}
+            String key, @Nullable JsonNode before, @Nullable JsonNode after, boolean secret, boolean fileOnly) {}
 }
