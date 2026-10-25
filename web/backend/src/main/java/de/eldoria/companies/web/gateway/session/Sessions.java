@@ -330,7 +330,7 @@ public final class Sessions {
      */
     public void listedByPlugin(LiveServer server, NodeLink link, SessionsOpen message) {
         Map<String, UUID> known = new HashMap<>();
-        for (SessionsOpen.Entry entry : message.sessions()) known.put(entry.session(), entry.player());
+        for (SessionsOpen.ListedSession entry : message.sessions()) known.put(entry.session(), entry.player());
         Instant settled = clock.instant().minusSeconds(LIST_MARGIN_SECONDS);
         Set<String> held = new HashSet<>();
         for (StoredSession session : repository.ofServer(server.id())) {

@@ -67,6 +67,7 @@ public final class GatewayApp {
     private final Health health;
     private final GatewayStateRepository state = new GatewayStateRepository();
     private final SessionRepository sessionData = new SessionRepository();
+    private final ServerRepository serverData = new ServerRepository();
     private final Clock clock;
 
     /**
@@ -84,7 +85,7 @@ public final class GatewayApp {
             Clock clock) {
         this.config = config;
         this.clock = clock;
-        ServerRepository servers = new ServerRepository();
+        ServerRepository servers = serverData;
         IconRepository icons = new IconRepository();
         RateLimiter connects = new RateLimiter(config.connectsPerAddress(), Duration.ofMinutes(1), clock);
         RateLimiter logins = new RateLimiter(config.loginsPerAddress(), Duration.ofMinutes(10), clock);
@@ -171,15 +172,18 @@ public final class GatewayApp {
     }
 
     /**
-     * Picks up after a restart: the time since the gateway last ran does not count as idle time of the logins, so a long
-     * outage does not log everyone out. Called once at start, before the sweeps.
+     * Picks up after a restart: the time since the gateway last ran counts neither as idle time of the logins nor
+     * towards the grace period of the servers that were disconnected, so a long outage does not log everyone out. Called once at start, before the sweeps.
      */
     public void resume() {
         Instant now = clock.instant();
         state.aliveAt()
                 .map(last -> Duration.between(last, now))
                 .filter(downtime -> downtime.isPositive())
-                .ifPresent(sessionData::excuseIdle);
+                .ifPresent(downtime -> {
+                    sessionData.excuseIdle(downtime);
+                    serverData.excuseDisconnect(downtime);
+                });
         state.alive(now);
     }
 

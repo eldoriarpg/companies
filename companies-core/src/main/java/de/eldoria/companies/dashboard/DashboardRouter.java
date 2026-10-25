@@ -123,6 +123,7 @@ public final class DashboardRouter {
         }
         parts.handshake().iconFor(welcome).ifPresent(parts.link()::send);
         parts.reportPresence().run();
+        parts.welcomed().run();
         parts.work().execute(this::listSessions);
     }
 
@@ -133,7 +134,7 @@ public final class DashboardRouter {
     private void listSessions() {
         try {
             var sessions = parts.sessions().all().stream()
-                    .map(session -> new SessionsOpen.Entry(session.id(), session.player()))
+                    .map(session -> new SessionsOpen.ListedSession(session.id(), session.player()))
                     .toList();
             parts.link().send(new SessionsOpen(null, Protocol.VERSION, sessions));
         } catch (RuntimeException e) {
@@ -258,6 +259,7 @@ public final class DashboardRouter {
      * @param disconnect  closes the connection without sending the key again
      * @param node      this node's uid
      * @param reportPresence tells the gateway which players with a session are online here
+     * @param welcomed  told about each welcome, after the presence was reported
      * @param work      builds snapshots and answers actions off the inbound thread
      * @param logger    logger of the plugin
      */
@@ -277,6 +279,7 @@ public final class DashboardRouter {
             Runnable disconnect,
             UUID node,
             Runnable reportPresence,
+            Runnable welcomed,
             Executor work,
             Logger logger) {}
 }

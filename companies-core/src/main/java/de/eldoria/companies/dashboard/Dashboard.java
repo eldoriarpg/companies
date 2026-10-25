@@ -34,6 +34,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,12 +72,33 @@ public final class Dashboard implements GatewayLink {
     private volatile @Nullable GatewayConnection connection;
     private volatile @Nullable URI gateway;
     private boolean stopped;
+    private volatile @Nullable Instant offlineSince;
 
     /**
      * @param parts what the dashboard is made of
      */
     public Dashboard(Parts parts) {
         this.parts = parts;
+        this.offlineSince = parts.clock().instant();
+    }
+
+    /**
+     * The gateway welcomed this node. On the primary, the time the dashboard could not be reached is excused from the
+     * sessions' idle time, as the gateway excuses its own downtime; only the primary does it, so it happens once.
+     */
+    public void welcomed() {
+        var since = offlineSince;
+        offlineSince = null;
+        if (since == null || !parts.primary()) return;
+        var downtime = Duration.between(since, parts.clock().instant());
+        if (!downtime.isPositive()) return;
+        parts.work().execute(() -> {
+            try {
+                parts.sessions().excuseIdle(downtime);
+            } catch (RuntimeException e) {
+                parts.logger().log(Level.WARNING, "Could not excuse the dashboard's downtime from the sessions.", e);
+            }
+        });
     }
 
     /**
@@ -223,6 +245,7 @@ public final class Dashboard implements GatewayLink {
     }
 
     private void disconnected(GatewayConnection.Closed closed) {
+        if (offlineSince == null) offlineSince = parts.clock().instant();
         parts.status().disconnected(closed);
         parts.feed().clear();
     }
@@ -368,11 +391,9 @@ public final class Dashboard implements GatewayLink {
 
     private void sweep() {
         try {
-            for (var session : parts.feed().subscribed()) {
-                if (!parts.sessions().exists(session)) parts.feed().unsubscribe(session);
-            }
-            parts.sessions().watched(parts.feed().subscribed());
-            for (var ended : parts.sessions().sweep()) {
+            for (var gone : parts.sessions().watched(parts.feed().subscribed()))
+                parts.feed().unsubscribe(gone);
+            for (var ended : parts.sessions().sweep(parts.primary() && offlineSince == null)) {
                 parts.feed().unsubscribe(ended.session().id());
                 send(new SessionClosed(
                         null,

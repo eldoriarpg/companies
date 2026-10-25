@@ -23,12 +23,12 @@ import java.util.UUID;
  * @param sessions the sessions
  */
 @JsonTypeName("session.list")
-public record SessionsOpen(@Nullable String id, int v, List<Entry> sessions) implements Message {
+public record SessionsOpen(@Nullable String id, int v, List<ListedSession> sessions) implements Message {
     /**
      * A session the plugin knows.
      *
      * @param session the session id
      * @param player the player it belongs to
      */
-    public record Entry(String session, UUID player) {}
+    public record ListedSession(String session, UUID player) {}
 }

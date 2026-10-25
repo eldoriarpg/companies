@@ -167,9 +167,9 @@ export interface SessionsOpen {
   type: 'session.list';
   id?: string;
   v: number;
-  sessions: Entry[];
+  sessions: ListedSession[];
 }
-export interface Entry {
+export interface ListedSession {
   session: string;
   player: string;
 }

@@ -202,6 +202,23 @@ class LifecycleTest {
     }
 
     @Test
+    void theTimeTheGatewayWasDownDoesNotCountTowardsTheGracePeriod() {
+        FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.45");
+        try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {
+            node.expect(Welcome.class);
+            login(node, browser, create(node));
+        }
+        HostedGatewayTest.assertEventually(() -> !FakeBrowser.json(browser.get("/api/v1/me/server"))
+                .path("online")
+                .asBoolean());
+        gateway.app().sweep();
+        CLOCK.advance(Duration.ofMinutes(30));
+        gateway.app().resume();
+        gateway.app().sweep();
+        assertEquals(200, browser.get("/api/v1/me/server").statusCode());
+    }
+
+    @Test
     void sessionsSurviveTheServerUntilTheGracePeriodEnds() {
         FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.41");
         try (FakeNode node = connect("2.2.0", FakeNode.FEATURES)) {
@@ -237,8 +254,8 @@ class LifecycleTest {
                     null,
                     1,
                     List.of(
-                            new SessionsOpen.Entry(keep.session(), PLAYER),
-                            new SessionsOpen.Entry("s-ended-here", PLAYER))));
+                            new SessionsOpen.ListedSession(keep.session(), PLAYER),
+                            new SessionsOpen.ListedSession("s-ended-here", PLAYER))));
             Message answer = node.next();
             while (answer instanceof Unsubscribe) answer = node.next();
             SessionClosed closed = assertInstanceOf(SessionClosed.class, answer);

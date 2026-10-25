@@ -183,6 +183,15 @@ public class MariaDbDashboardData extends ADashboardData {
     }
 
     @Override
+    public List<StoredSession> sessions() {
+        return queries()
+                .query(SESSIONS + "ORDER BY created, id")
+                .single()
+                .map(this::parseSession)
+                .all();
+    }
+
+    @Override
     public Set<UUID> playersWithSessions() {
         @Language("mariadb")
         var query = "SELECT DISTINCT player_uuid FROM dashboard_sessions";

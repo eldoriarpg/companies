@@ -257,19 +257,6 @@
       },
       "required" : [ "kind", "name", "since", "removedAt" ]
     },
-    "Entry" : {
-      "type" : "object",
-      "properties" : {
-        "session" : {
-          "type" : "string"
-        },
-        "player" : {
-          "type" : "string",
-          "format" : "uuid"
-        }
-      },
-      "required" : [ "session", "player" ]
-    },
     "ErrorCode" : {
       "type" : "string",
       "enum" : [ "UNKNOWN_TYPE", "INVALID", "UNSUPPORTED_PROTOCOL", "UNAUTHORIZED", "DISCONTINUED", "UNKNOWN_SESSION", "RATE_LIMITED", "INTERNAL" ]
@@ -404,6 +391,19 @@
         }
       },
       "required" : [ "maxPageSize" ]
+    },
+    "ListedSession" : {
+      "type" : "object",
+      "properties" : {
+        "session" : {
+          "type" : "string"
+        },
+        "player" : {
+          "type" : "string",
+          "format" : "uuid"
+        }
+      },
+      "required" : [ "session", "player" ]
     },
     "MemberPermission" : {
       "type" : "string",
@@ -905,7 +905,7 @@
         "sessions" : {
           "type" : "array",
           "items" : {
-            "$ref" : "#/$defs/Entry"
+            "$ref" : "#/$defs/ListedSession"
           }
         }
       },

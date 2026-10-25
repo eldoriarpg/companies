@@ -145,6 +145,7 @@ class DashboardIntegrationTest {
                 () -> disconnects.incrementAndGet(),
                 NODE,
                 () -> presence.reportAll(),
+                () -> {},
                 world.executor,
                 logger));
         dashboard = new Dashboard(new Dashboard.Parts(
@@ -273,7 +274,7 @@ class DashboardIntegrationTest {
         gateway.connections().getLast().close();
         connect(supported());
         var listed = gateway.next(SessionsOpen.class, WAIT);
-        assertEquals(List.of(new SessionsOpen.Entry(session, wren)), listed.sessions());
+        assertEquals(List.of(new SessionsOpen.ListedSession(session, wren)), listed.sessions());
 
         gateway.send(new SessionClosed(null, Protocol.VERSION, session, wren, CloseReason.EXPIRED));
         var end = System.nanoTime() + WAIT.toNanos();

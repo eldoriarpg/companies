@@ -78,7 +78,9 @@ class DashboardSessionsTest {
         assertTrue(sessions.open("one", wren.uuid(), "Firefox").isEmpty());
         assertEquals(
                 List.of(CloseReason.EXPIRED),
-                sessions.sweep().stream().map(DashboardSessions.Ended::reason).toList());
+                sessions.sweep(true).stream()
+                        .map(DashboardSessions.Ended::reason)
+                        .toList());
         assertTrue(sessions.of(wren.uuid()).isEmpty());
     }
 
@@ -89,10 +91,24 @@ class DashboardSessionsTest {
         clock.advance(Duration.ofMinutes(61));
 
         assertTrue(sessions.active("one", wren.uuid()).isEmpty());
-        var ended = sessions.sweep();
+        var ended = sessions.sweep(true);
         assertEquals(1, ended.size());
         assertEquals(CloseReason.IDLE, ended.getFirst().reason());
-        assertTrue(sessions.sweep().isEmpty());
+        assertTrue(sessions.sweep(true).isEmpty());
+    }
+
+    @Test
+    void anIdleSessionWaitsWhileTheDashboardIsUnreachableAndItsDowntimeIsExcused() {
+        create("one");
+        sessions.open("one", wren.uuid(), null);
+        clock.advance(Duration.ofMinutes(50));
+        clock.advance(Duration.ofMinutes(30));
+
+        assertTrue(sessions.sweep(false).isEmpty());
+        sessions.excuseIdle(Duration.ofMinutes(30));
+
+        assertTrue(sessions.sweep(true).isEmpty());
+        assertTrue(sessions.active("one", wren.uuid()).isPresent());
     }
 
     @Test
@@ -103,7 +119,7 @@ class DashboardSessionsTest {
         sessions.watched(Set.of("one", "unknown"));
         clock.advance(Duration.ofMinutes(40));
 
-        assertTrue(sessions.sweep().isEmpty());
+        assertTrue(sessions.sweep(true).isEmpty());
         assertTrue(sessions.active("one", wren.uuid()).isPresent());
     }
 
@@ -120,7 +136,9 @@ class DashboardSessionsTest {
 
         assertEquals(
                 List.of(CloseReason.EXPIRED),
-                sessions.sweep().stream().map(DashboardSessions.Ended::reason).toList());
+                sessions.sweep(true).stream()
+                        .map(DashboardSessions.Ended::reason)
+                        .toList());
     }
 
     @Test
