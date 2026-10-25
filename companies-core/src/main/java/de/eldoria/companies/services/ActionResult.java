@@ -8,6 +8,8 @@ package de.eldoria.companies.services;
 import de.eldoria.companies.commands.support.CommandFailure;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 
+import java.util.function.Function;
+
 /**
  * The result of an action a player takes, wherever it was started from.
  * <p>
@@ -62,6 +64,20 @@ public sealed interface ActionResult<T> {
      */
     static <T> ActionResult<T> refusedChat(String localeKey, TagResolver... values) {
         return refused(CommandFailure.of(localeKey, values));
+    }
+
+    /**
+     * Turns the value of a performed action into another; a refusal stays the refusal.
+     *
+     * @param mapper turns the value
+     * @param <R>    type of the new value
+     * @return the action with the new value, or the refusal
+     */
+    default <R> ActionResult<R> map(Function<T, R> mapper) {
+        return switch (this) {
+            case Done<T> done -> done(mapper.apply(done.value()));
+            case Refused<T> refused -> refused(refused.failure());
+        };
     }
 
     /**

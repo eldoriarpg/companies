@@ -11,7 +11,11 @@ import de.eldoria.companies.commands.suggest.QuotedCompanyNames;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.util.Permission.Admin;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.strokkur.commands.Executes;
@@ -20,6 +24,8 @@ import net.strokkur.commands.arguments.StringArg;
 import net.strokkur.commands.arguments.StringArgType;
 import net.strokkur.commands.permission.Permission;
 import org.bukkit.command.CommandSender;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code /companyadmin transferowner <company> <player>}: makes a member the owner of a company. The player may be
@@ -52,53 +58,47 @@ public final class TransferOwner {
         deps.requireReady();
         var target = deps.plugin().getServer().getOfflinePlayerIfCached(player);
         if (target == null) throw CommandFailure.of("error.unknownPlayer");
-        var companyData = deps.companyData();
-
-        companyData.retrieveCompanyByName(company).asFuture().thenAccept(optCompany -> {
-            if (optCompany.isEmpty()) {
-                messages().sendError(admin, "error.unknownCompany");
-                return;
-            }
-
-            var optProfile =
-                    companyData.retrieveCompanyProfile(optCompany.get()).join();
-            if (optProfile == null || optProfile.isEmpty()) {
-                messages().sendError(admin, "error.unknownCompany");
-                return;
-            }
-            var profile = optProfile.get();
-
-            var owner = profile.owner();
-            owner.isOwner(false);
-
-            var newOwner = profile.member(target);
-            if (newOwner.isEmpty()) {
-                messages().sendError(admin, "error.noCompanyMember");
-                return;
-            }
-
-            newOwner.get().isOwner(true);
-            companyData.submitMemberUpdate(newOwner.get()).join();
-            companyData.submitMemberUpdate(owner).join();
-            if (!owner.uuid().equals(newOwner.get().uuid())) {
-                deps.companyChanges()
-                        .ownerTransferred(
-                                profile.id(), owner.uuid(), newOwner.get().uuid(), true);
-            }
-            deps.adminLog()
-                    .entry(admin, "transferowner")
-                    .with("company", profile.name())
-                    .with("company_id", profile.id())
-                    .with("from", owner.player().getName())
-                    .with("to", newOwner.get().player().getName())
-                    .write();
-            messages()
-                    .sendMessage(
-                            admin,
-                            "companyadmin.transferOwner.done",
-                            Replacement.create("name", newOwner.get().player().getName()));
-        });
+        var companies = new AdminCompanyService(deps.companyData(), deps.companyChanges());
+        CompletableFuture.supplyAsync(
+                        () -> companies
+                                .profile(company)
+                                .map(profile -> companies
+                                        .transferOwner(profile, target.getUniqueId())
+                                        .map(transfer -> new Done(profile, transfer)))
+                                .orElseGet(() -> ActionResult.refusedChat("error.unknownCompany")),
+                        Threading.VIRTUAL)
+                .thenAccept(result -> {
+                    switch (result) {
+                        case ActionResult.Refused<Done> refused ->
+                            refused.failure().sendTo(admin, messages());
+                        case ActionResult.Done<Done> done -> {
+                            var transfer = done.value().transfer();
+                            deps.adminLog()
+                                    .entry(admin, "transferowner")
+                                    .with("company", done.value().profile().name())
+                                    .with("company_id", done.value().profile().id())
+                                    .with("from", transfer.from().player().getName())
+                                    .with("to", transfer.to().player().getName())
+                                    .write();
+                            messages()
+                                    .sendMessage(
+                                            admin,
+                                            "companyadmin.transferOwner.done",
+                                            Replacement.create(
+                                                    "name",
+                                                    transfer.to().player().getName()));
+                        }
+                    }
+                });
     }
+
+    /**
+     * A transfer and the company it happened in.
+     *
+     * @param profile  the company
+     * @param transfer the former and the new owner
+     */
+    private record Done(CompanyProfile profile, AdminCompanyService.Transfer transfer) {}
 
     private MessageSender messages() {
         return deps.messages();

@@ -99,6 +99,8 @@ public final class DashboardReads {
             Features.COMPANY_TREASURY,
             Features.COMPANY_CREATE,
             Features.ADMIN_ORDERS,
+            Features.ADMIN_PLAYERS,
+            Features.ADMIN_COMPANIES,
             Features.COMPANY_DISBAND,
             Features.INBOX,
             Features.RANKINGS,

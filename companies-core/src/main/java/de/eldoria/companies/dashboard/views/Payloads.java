@@ -450,4 +450,38 @@ public final class Payloads {
      * @param orders  the orders of the page
      */
     public record AdminOrderPage(String target, int page, boolean hasNext, List<AdminOrderRow> orders) {}
+
+    /**
+     * A player as an admin looks them up.
+     *
+     * @param player      the player
+     * @param company     the player's company, none without one
+     * @param owner       whether the player owns it
+     * @param permissions the player's permissions in it
+     * @param orders      the player's own orders
+     * @param workerItems items waiting for the player as a worker
+     * @param ownerItems  items waiting for the player as an owner
+     * @param unread      unread inbox entries
+     * @param latest      the latest inbox entries
+     */
+    public record AdminPlayer(
+            PlayerRef player,
+            @Nullable String company,
+            boolean owner,
+            List<String> permissions,
+            List<AdminOrderRow> orders,
+            int workerItems,
+            int ownerItems,
+            int unread,
+            List<InboxEntry> latest) {}
+
+    /**
+     * A company's treasury as an admin sees it.
+     *
+     * @param company the company's name
+     * @param balance the balance
+     * @param share   the share of payouts the company keeps, in percent
+     * @param entries the latest movements, newest first
+     */
+    public record AdminTreasury(String company, double balance, int share, List<TreasuryEntry> entries) {}
 }

@@ -9,6 +9,8 @@ import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.suggest.QuotedCompanyNames;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.services.ActionResult;
+import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.strokkur.commands.Executes;
@@ -47,37 +49,24 @@ public final class Rename {
         var player = Senders.player(sender);
         deps.requireReady();
         var companyData = deps.companyData();
-
+        var companies = new AdminCompanyService(companyData, deps.companyChanges());
         companyData.retrieveCompanyByName(current).asFuture().thenAccept(company -> {
             if (company.isEmpty()) {
                 messages().sendError(player, "error.unknownCompany");
                 return;
             }
-
-            var other = companyData.retrieveCompanyByName(name).join();
-            if (other == null) {
-                messages().sendError(player, "error.saveFailed");
-                return;
+            switch (companies.rename(company.get(), name, player.getUniqueId())) {
+                case ActionResult.Refused<String> refused -> refused.failure().sendTo(player, messages());
+                case ActionResult.Done<String> done -> {
+                    deps.adminLog()
+                            .entry(player, "rename")
+                            .with("company_id", company.get().id())
+                            .with("from", current)
+                            .with("to", name)
+                            .write();
+                    messages().sendMessage(player, "company.rename.changed");
+                }
             }
-
-            if (other.isPresent() && other.get().id() != company.get().id()) {
-                messages().sendError(player, "error.companyNameUsed");
-                return;
-            }
-
-            if (!Boolean.TRUE.equals(
-                    companyData.updateCompanyName(company.get(), name).join())) {
-                messages().sendError(player, "error.companyNameUsed");
-                return;
-            }
-            deps.companyChanges().renamed(company.get().id(), company.get().name(), player.getUniqueId(), true);
-            deps.adminLog()
-                    .entry(player, "rename")
-                    .with("company_id", company.get().id())
-                    .with("from", current)
-                    .with("to", name)
-                    .write();
-            messages().sendMessage(player, "company.rename.changed");
         });
     }
 
