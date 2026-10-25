@@ -360,8 +360,17 @@ public final class CommandDependencies {
      */
     public LevelAdminService levels() {
         LevelAdminService.Share share = admin -> {
-            var copy = nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, configuration);
-            return () -> configuration.publish(nodeData, Configuration.COMPANY_SETTINGS, copy, admin);
+            var key = Configuration.COMPANY_SETTINGS;
+            var base = configuration.appliedRevision(key.path().toString());
+            var copy = nodeData.primaryCopy(key, configuration);
+            return () -> {
+                var outcome = configuration.publishEdit(nodeData, key, base, copy, admin);
+                if (outcome.revision().isPresent()) return;
+                plugin.getLogger()
+                        .severe("The level change of " + admin + " was not shared, since another server changed"
+                                + " company.yml meanwhile. It is kept as " + outcome.conflictFile()
+                                + " and the newer levels are used.");
+            };
         };
         return new LevelAdminService(configuration, share, adminLog(), levelShares, plugin.getLogger());
     }

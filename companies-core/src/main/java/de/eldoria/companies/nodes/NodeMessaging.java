@@ -87,9 +87,8 @@ public final class NodeMessaging {
         bus.subscribe(
                 RankingChanged.class, (sender, message) -> caches.invalidate(NodeCaches.RANKING, Optional.empty()));
         bus.subscribe(BoardsChanged.class, (sender, message) -> caches.invalidate(NodeCaches.BOARDS, Optional.empty()));
-        bus.subscribe(SettingsChanged.class, (sender, message) -> {
-            if (!node.primary()) node.settingsChanged().accept(message);
-        });
+        bus.subscribe(SettingsChanged.class, (sender, message) -> node.settingsChanged()
+                .accept(message));
         bus.onStateChange(state -> stateChanged(state, node));
         heartbeat = timer.scheduleWithFixedDelay(
                 () -> beat(node), 0, NetworkPresence.HEARTBEAT.toSeconds(), TimeUnit.SECONDS);
@@ -138,9 +137,9 @@ public final class NodeMessaging {
     /**
      * What this node does with the messages of the others.
      *
-     * @param primary      true on the primary node, which ignores {@code settings.changed}
+     * @param primary      true on the primary node
      * @param inbox        claims and shows the pending entries of a player when the player is online here; blocks
-     * @param settingsChanged takes a shared file's revision the primary stored
+     * @param settingsChanged takes a shared file's revision another node stored
      * @param stateChanged runs whenever the bus changes its state, to change the poll interval and poll once
      * @param onlineHere   the players online on this node; blocks
      * @param knownNodes   the uids of the nodes registered in the database; blocks

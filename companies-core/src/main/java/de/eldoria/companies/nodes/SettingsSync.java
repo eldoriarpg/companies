@@ -18,7 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * How a secondary follows the shared files: it takes a revision the primary announces over the bus, and it looks for
+ * How a node follows the shared files: it takes a revision another node announces over the bus, and it looks for
  * new revisions every {@value #POLL_SECONDS} seconds, or only every {@value #REALTIME_POLL_TICKS}th time while the bus
  * delivers messages at once, as a safety net. One revision is taken after the other. A new {@code config.yml} is
  * applied like a reload; the other files are read where they are used. A revision that cannot be taken is tried again
@@ -72,7 +72,7 @@ public final class SettingsSync {
     }
 
     /**
-     * Takes a revision the primary announced.
+     * Takes a revision another node announced.
      *
      * @param changed the announcement
      */
@@ -105,7 +105,7 @@ public final class SettingsSync {
     private void apply(String path, int revision) {
         try {
             if (!configuration.takeIfNewer(nodeData, path, revision)) return;
-            logger.info("Took revision " + revision + " of " + path + " from the primary node.");
+            logger.info("Took revision " + revision + " of " + path + " from another node.");
             if (path.equals(Configuration.CONFIG_YML.path().toString())) mainThread.execute(reloaded);
         } catch (RuntimeException e) {
             var known = failed.put(path, revision);

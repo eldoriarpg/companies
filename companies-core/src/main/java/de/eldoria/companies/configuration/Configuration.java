@@ -41,14 +41,18 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
@@ -340,23 +344,235 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Writes a file into the database on the primary, or takes the primary's copy on a secondary, saves it and reads it
-     * again, which applies the environment overrides of this node. A value set through an environment variable is part
-     * of neither copy.
+     * Stores a file as a revision on the primary, checked against its base, or takes the latest revision on a
+     * secondary, saving it and reading it again, which applies the environment overrides of this node. A value set
+     * through an environment variable is part of no revision.
      *
      * @param nodeData  the node repository holding the copies
      * @param configKey the file
      * @param <V>       type of the file's content
      */
     private <V> boolean sync(ANodeData nodeData, Key<V> configKey, String actor) {
-        if (nodeSettings().nodeType() != NodeType.PRIMARY) return takePrimaryCopy(nodeData, configKey);
+        if (!primary()) return takePrimaryCopy(nodeData, configKey);
         secondary(configKey);
         if (unreadable(configKey)) {
             plugin().getLogger().warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
             return false;
         }
-        publish(nodeData, configKey, nodeData.primaryCopy(configKey, this), actor);
-        return false;
+        var path = configKey.path().toString();
+        var content = nodeData.primaryCopy(configKey, this);
+        var latest = nodeData.latestSettings(path);
+        var base = nodeData.appliedRevision(path);
+        if (latest.isEmpty() || base.isEmpty()) {
+            publish(nodeData, configKey, content, actor);
+            return false;
+        }
+        if (latest.get().revision() == base.getAsInt()) {
+            publishEdit(nodeData, configKey, base.getAsInt(), content, actor);
+            return false;
+        }
+        var unchangedHere = nodeData.settingsAt(path, base.getAsInt())
+                .map(stored -> tree(stored.content()).equals(tree(content)))
+                .orElse(false);
+        if (unchangedHere) return takePrimaryCopy(nodeData, configKey);
+        conflict(nodeData, configKey, latest.get().revision(), content);
+        return true;
+    }
+
+    /**
+     * A shared file this node changed against the revision it last applied.
+     *
+     * @param key     the file
+     * @param base    the revision the change started from
+     * @param content the changed content, as {@link ANodeData#primaryCopy} writes it
+     * @param changes the changed keys as dotted paths, such as {@code economy.fee.percent}
+     * @param behind  whether another server stored a newer revision already, so storing the edit will conflict
+     */
+    public record Edit(Key<?> key, int base, String content, List<String> changes, boolean behind) {
+        /**
+         * @return the file's path
+         */
+        public String path() {
+            return key.path().toString();
+        }
+    }
+
+    /**
+     * What storing an edit did.
+     *
+     * @param path         the file
+     * @param revision     the revision it became, empty when it was not stored
+     * @param conflictFile where this node's version was kept when another server changed the file meanwhile
+     * @param replaced     whether the newer revision replaced this node's version, so it has to be applied
+     */
+    public record EditOutcome(
+            String path, OptionalInt revision, @Nullable String conflictFile, boolean replaced) {}
+
+    /**
+     * The shared files this node changed against the revisions it last applied, as read now. Unreadable files and files
+     * without a stored revision yet are left out.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @return the edits, in the order the files are synced
+     */
+    public List<Edit> edits(ANodeData nodeData) {
+        var edits = new ArrayList<Edit>();
+        var revisions = nodeData.settingsRevisions();
+        for (var key : SHARED) {
+            if (unreadable(key)) continue;
+            var path = key.path().toString();
+            var base = applied.containsKey(path) ? OptionalInt.of(applied.get(path)) : nodeData.appliedRevision(path);
+            if (base.isEmpty()) continue;
+            var stored = nodeData.settingsAt(path, base.getAsInt());
+            if (stored.isEmpty()) continue;
+            var content = nodeData.primaryCopy(key, this);
+            var before = tree(stored.get().content());
+            var after = tree(content);
+            if (before.equals(after)) continue;
+            var latest = revisions.getOrDefault(path, base.getAsInt());
+            edits.add(new Edit(key, base.getAsInt(), content, changes(before, after), latest > base.getAsInt()));
+        }
+        return edits;
+    }
+
+    /**
+     * Stores edits as new revisions on top of their bases. An edit whose file was changed on another server meanwhile is
+     * not stored: this node's version is kept as {@code conflict_<revision>_<file>} and the newer revision is taken.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param edits    the edits
+     * @param actor    who made them
+     * @return what happened to each
+     */
+    public List<EditOutcome> publishEdits(ANodeData nodeData, List<Edit> edits, String actor) {
+        var outcomes = new ArrayList<EditOutcome>();
+        for (var edit : edits) {
+            outcomes.add(publishEdit(nodeData, edit.key(), edit.base(), edit.content(), actor));
+        }
+        return outcomes;
+    }
+
+    /**
+     * Stores one edit as the revision after its base, as {@link #publishEdits} does for each. Level changes go through
+     * here too, so they never replace a revision another server stored meanwhile.
+     *
+     * @param nodeData the node repository holding the revisions
+     * @param key      the file
+     * @param base     the revision the edit started from
+     * @param content  the edited content
+     * @param actor    who made it
+     * @return what happened
+     */
+    public EditOutcome publishEdit(ANodeData nodeData, Key<?> key, int base, String content, String actor) {
+        synchronized (copying) {
+            var path = key.path().toString();
+            return switch (nodeData.publishSettingsOn(path, base, content, actor)) {
+                case ANodeData.PublishOutcome.Published published -> {
+                    if (primary()) nodeData.savePrimaryCopy(key, content);
+                    stored(key, published.revision(), content);
+                    yield new EditOutcome(path, OptionalInt.of(published.revision()), null, false);
+                }
+                case ANodeData.PublishOutcome.Unchanged unchanged -> {
+                    if (primary()) nodeData.savePrimaryCopy(key, content);
+                    noteApplied(nodeData, path, unchanged.revision());
+                    rememberIfMatches(key, content);
+                    yield new EditOutcome(path, OptionalInt.of(unchanged.revision()), null, false);
+                }
+                case ANodeData.PublishOutcome.Conflict conflict -> {
+                    var kept = conflict(nodeData, key, conflict.latest(), content);
+                    yield kept == null
+                            ? new EditOutcome(path, OptionalInt.empty(), null, false)
+                            : new EditOutcome(path, OptionalInt.empty(), kept.file(), kept.replaced());
+                }
+            };
+        }
+    }
+
+    /**
+     * @param path a shared file
+     * @return the revision this node applied of it, 0 before it applied one
+     */
+    public int appliedRevision(String path) {
+        return applied.getOrDefault(path, 0);
+    }
+
+    /**
+     * Keeps this node's version of a file another server changed meanwhile and takes the newer revision. A file on disk
+     * that holds neither this version nor the newer revision, changed again after the reload, is backed up first.
+     *
+     * @param content this node's version, kept as {@code conflict_<revision>_<file>}
+     * @return where it was kept and whether the newer revision replaced the file, none when nothing could be kept and
+     *     the file stays as it is
+     */
+    private @Nullable Kept conflict(ANodeData nodeData, Key<?> key, int latest, String content) {
+        var file = plugin().getDataFolder().toPath().resolve(key.path());
+        var newer = nodeData.settingsAt(key.path().toString(), latest)
+                .map(stored -> tree(stored.content()))
+                .orElse(MissingNode.getInstance());
+        var onDisk = tree(file);
+        if (Files.exists(file) && !onDisk.equals(tree(content)) && !onDisk.equals(newer)) {
+            if (keepBackup(file, latest) == null) return null;
+        }
+        var kept = keepContent(file, "conflict_" + latest, content);
+        if (kept == null) return null;
+        plugin().getLogger()
+                .warning(file.getFileName() + " was changed on this server and on another one (revision " + latest
+                        + "). This server's version is kept as " + kept + " and revision " + latest + " is used.");
+        return new Kept(kept, take(nodeData, key, false));
+    }
+
+    /**
+     * Where a conflicting version was kept.
+     *
+     * @param file     the kept file's name
+     * @param replaced whether taking the newer revision changed the file
+     */
+    private record Kept(String file, boolean replaced) {}
+
+    private boolean primary() {
+        return nodeSettings().nodeType() == NodeType.PRIMARY;
+    }
+
+    private void stored(Key<?> key, int revision, String content) {
+        var path = key.path().toString();
+        plugin().getLogger().info("Stored " + path + " as revision " + revision + ".");
+        applied.put(path, revision);
+        rememberIfMatches(key, content);
+        var announce = announcer;
+        if (announce != null) announce.accept(path, revision);
+    }
+
+    /**
+     * Notes the file as taken when it holds what was stored, so a later revision does not count it as edited here. A
+     * file changed again meanwhile is left as an edit.
+     */
+    private void rememberIfMatches(Key<?> key, String content) {
+        var file = plugin().getDataFolder().toPath().resolve(key.path());
+        if (tree(file).equals(tree(content))) rememberApplied(file);
+    }
+
+    /**
+     * @param before a file's content as it was
+     * @param after  the file's content now
+     * @return the keys that differ, as dotted paths, sorted
+     */
+    static List<String> changes(JsonNode before, JsonNode after) {
+        var found = new TreeSet<String>();
+        diff("", before, after, found);
+        return List.copyOf(found);
+    }
+
+    private static void diff(String prefix, JsonNode before, JsonNode after, Set<String> found) {
+        if (before.isObject() && after.isObject()) {
+            var names = new TreeSet<String>();
+            before.properties().forEach(entry -> names.add(entry.getKey()));
+            after.properties().forEach(entry -> names.add(entry.getKey()));
+            for (var name : names) {
+                diff(prefix.isEmpty() ? name : prefix + "." + name, before.path(name), after.path(name), found);
+            }
+            return;
+        }
+        if (!before.equals(after)) found.add(prefix);
     }
 
     /**
@@ -369,21 +585,21 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @param actor     who changed it
      */
     public void publish(ANodeData nodeData, Key<?> configKey, String content, String actor) {
-        var path = configKey.path().toString();
-        nodeData.savePrimaryCopy(configKey, content);
-        var revision = nodeData.publishSettings(path, content, actor);
-        if (revision.isEmpty()) {
-            nodeData.latestSettings(path).ifPresent(latest -> noteApplied(nodeData, path, latest.revision()));
-            return;
+        synchronized (copying) {
+            var path = configKey.path().toString();
+            nodeData.savePrimaryCopy(configKey, content);
+            var revision = nodeData.publishSettings(path, content, actor);
+            if (revision.isEmpty()) {
+                nodeData.latestSettings(path).ifPresent(latest -> noteApplied(nodeData, path, latest.revision()));
+                rememberIfMatches(configKey, content);
+                return;
+            }
+            stored(configKey, revision.getAsInt(), content);
         }
-        plugin().getLogger().info("Stored " + path + " as revision " + revision.getAsInt() + ".");
-        applied.put(path, revision.getAsInt());
-        var announce = announcer;
-        if (announce != null) announce.accept(path, revision.getAsInt());
     }
 
     /**
-     * Takes a shared file's revision on a secondary, unless this node applied it or a later one already.
+     * Takes a shared file's revision another node stored, unless this node applied it or a later one already.
      *
      * @param nodeData the node repository holding the revisions
      * @param path     the file
@@ -429,7 +645,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Takes the primary's copy of a shared file on a secondary: saves it, reads it again, which applies this node's
+     * Takes the latest stored revision of a shared file: saves it, reads it again, which applies this node's
      * environment overrides, and remembers what was written. A file that matches the copy is left alone. A file that
      * changed on this node since it last took a copy, or one never taken, is kept as
      * {@code backup_<time>_<file>} first; when that backup cannot be written, the file stays and nothing is taken. One
@@ -442,6 +658,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * @return whether the file changed
      */
     public <V> boolean takePrimaryCopy(ANodeData nodeData, Key<V> configKey) {
+        return take(nodeData, configKey, true);
+    }
+
+    private <V> boolean take(ANodeData nodeData, Key<V> configKey, boolean backupEdits) {
         synchronized (copying) {
             var path = configKey.path().toString();
             var latest = nodeData.latestSettings(path);
@@ -454,9 +674,12 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             if (tree(copy).equals(tree(file))) {
                 rememberApplied(file);
                 if (revision > 0) noteApplied(nodeData, path, revision);
+                if (primary() && revision > 0) nodeData.savePrimaryCopy(configKey, copy);
                 return false;
             }
-            if (Files.exists(file) && editedHere(file) && !keepBackup(file)) return false;
+            if (backupEdits && Files.exists(file) && editedHere(file) && keepBackup(file, revision) == null) {
+                return false;
+            }
             plugin().getLogger()
                     .info("Taking " + path + (revision > 0 ? " revision " + revision : "") + " from the database.");
             replace(configKey, nodeData.readSettings(configKey, this, copy));
@@ -464,6 +687,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             reload(configKey);
             rememberApplied(file);
             if (revision > 0) noteApplied(nodeData, path, revision);
+            if (primary()) nodeData.savePrimaryCopy(configKey, copy);
             return true;
         }
     }
@@ -499,34 +723,54 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Keeps a copy of a file before the primary's copy replaces it, so a change made on this node is not lost. A backup
+     * Keeps a copy of a file before a newer revision replaces it, so a change made on this node is not lost. A backup
      * that keeps failing is reported once, until one is written again.
      *
      * @param file the file
      * @return whether the backup was written
      */
-    private boolean keepBackup(Path file) {
-        var stamp = BACKUP_TIME.format(Times.local(Times.now()));
-        var backup = file.resolveSibling("backup_" + stamp + "_" + file.getFileName());
-        for (var attempt = 2; Files.exists(backup); attempt++) {
-            backup = file.resolveSibling("backup_" + stamp + "-" + attempt + "_" + file.getFileName());
+    private @Nullable String keepBackup(Path file, int revision) {
+        var kept = keepCopy(file, "backup_" + BACKUP_TIME.format(Times.local(Times.now())));
+        if (kept == null) return null;
+        plugin().getLogger()
+                .warning(file.getFileName() + " was changed on this server and differs from revision " + revision
+                        + ", which replaces it now. This server's version is kept as " + kept + ".");
+        return kept;
+    }
+
+    /**
+     * Copies a file next to it as {@code <prefix>_<file name>}, with a number added when that name is taken. A copy
+     * that keeps failing is reported once, until one is written again.
+     *
+     * @param file   the file
+     * @param prefix start of the copy's name
+     * @return the copy's name, none when it could not be written
+     */
+    private @Nullable String keepCopy(Path file, String prefix) {
+        return keep(file, prefix, copy -> Files.copy(file, copy));
+    }
+
+    private @Nullable String keepContent(Path file, String prefix, String content) {
+        return keep(file, prefix, copy -> Files.writeString(copy, content, StandardOpenOption.CREATE_NEW));
+    }
+
+    private @Nullable String keep(Path file, String prefix, Writer writer) {
+        var name = String.valueOf(file.getFileName());
+        var kept = prefix + "_" + name;
+        for (var attempt = 2; Files.exists(file.resolveSibling(kept)); attempt++) {
+            kept = prefix + "-" + attempt + "_" + name;
         }
         try {
-            Files.copy(file, backup);
+            writer.write(file.resolveSibling(kept));
             backupFailed.remove(file);
-            plugin().getLogger()
-                    .warning(file.getFileName() + " was changed on this server and differs from the primary's copy,"
-                            + " which replaces it now. This server's version is kept as " + backup.getFileName()
-                            + ".");
-            return true;
+            return kept;
         } catch (IOException e) {
             plugin().getLogger()
                     .log(
                             backupFailed.add(file) ? Level.SEVERE : Level.FINE,
-                            "Could not keep a backup of " + file.getFileName()
-                                    + ", so the primary's copy does not replace it.",
+                            "Could not keep a copy of " + name + ", so it is not replaced.",
                             e);
-            return false;
+            return null;
         }
     }
 
@@ -558,5 +802,17 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         configure((MapperBuilder<ObjectMapper, ?>) (MapperBuilder<?, ?>) builder);
         additionalModules().forEach(builder::addModule);
         return builder.build();
+    }
+
+    /**
+     * Writes the kept version of a file.
+     */
+    @FunctionalInterface
+    private interface Writer {
+        /**
+         * @param target where the kept version goes
+         * @throws IOException when it cannot be written
+         */
+        void write(Path target) throws IOException;
     }
 }

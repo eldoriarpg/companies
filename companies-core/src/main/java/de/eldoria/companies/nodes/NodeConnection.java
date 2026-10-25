@@ -13,7 +13,6 @@ import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.Times;
-import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -37,9 +36,9 @@ public final class NodeConnection {
     private final NodeBus bus;
     private final NodeMessaging messaging;
     private final NodeSignals signals;
-    private final @Nullable ScheduledFuture<?> settingsPoll;
+    private final ScheduledFuture<?> settingsPoll;
 
-    private NodeConnection(NodeBus bus, NodeMessaging messaging, @Nullable ScheduledFuture<?> settingsPoll) {
+    private NodeConnection(NodeBus bus, NodeMessaging messaging, ScheduledFuture<?> settingsPoll) {
         this.bus = bus;
         this.messaging = messaging;
         this.signals = new NodeSignals(bus);
@@ -76,18 +75,14 @@ public final class NodeConnection {
                         () -> {
                             inbox.reschedule();
                             inbox.pollNow();
-                            if (!parts.primary()) parts.settings().pollNow();
+                            parts.settings().pollNow();
                         },
                         parts.onlineHere(),
                         parts.knownNodes()),
                 timer);
-        ScheduledFuture<?> settingsPoll = null;
-        if (parts.primary()) {
-            announceRevisions(parts, bus);
-        } else {
-            settingsPoll = timer.scheduleWithFixedDelay(
-                    parts.settings()::poll, SettingsSync.POLL_SECONDS, SettingsSync.POLL_SECONDS, TimeUnit.SECONDS);
-        }
+        if (parts.primary()) announceRevisions(parts, bus);
+        var settingsPoll = timer.scheduleWithFixedDelay(
+                parts.settings()::poll, SettingsSync.POLL_SECONDS, SettingsSync.POLL_SECONDS, TimeUnit.SECONDS);
         return new NodeConnection(bus, messaging, settingsPoll);
     }
 
@@ -122,7 +117,7 @@ public final class NodeConnection {
      * Tells the other nodes that this one stops, and closes the bus.
      */
     public void stop() {
-        if (settingsPoll != null) settingsPoll.cancel(false);
+        settingsPoll.cancel(false);
         messaging.stop();
     }
 
@@ -137,7 +132,7 @@ public final class NodeConnection {
      * @param notifications sends notifications
      * @param inbox         shows notifications sent from other nodes
      * @param orders        the order repository and its caches
-     * @param settings      follows the shared files the primary stores, on a secondary
+     * @param settings      follows the shared files other nodes store
      * @param revisions     the latest revision of each shared file; the primary announces them when it connects
      * @param onlineHere    the players online on this node; blocks
      * @param knownNodes    the uids of the nodes registered in the database; blocks

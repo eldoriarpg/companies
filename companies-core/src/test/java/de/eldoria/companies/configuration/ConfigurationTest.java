@@ -67,6 +67,14 @@ class ConfigurationTest {
     }
 
     @Test
+    void changesAreNamedByTheirDottedKeys() {
+        var before = MAPPER.readTree("economy:\n  fee: 2\n  tax: 1\nlevel: [1, 2]\nname: a\n");
+        var after = MAPPER.readTree("economy:\n  fee: 3\n  tax: 1\nlevel: [1]\nextra: true\n");
+
+        assertEquals(List.of("economy.fee", "extra", "level", "name"), Configuration.changes(before, after));
+    }
+
+    @Test
     void anUnreadableSharedFileIsLeftAsItIsAndNeitherSavedNorReplaced() throws IOException {
         var broken = "level: [ {levelName: First";
         Files.writeString(folder.resolve("company.yml"), broken);

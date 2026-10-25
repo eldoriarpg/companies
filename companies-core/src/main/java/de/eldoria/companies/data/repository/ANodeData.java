@@ -150,6 +150,70 @@ public abstract class ANodeData {
     }
 
     /**
+     * Stores a shared file as the revision after the one an edit was based on. It is refused when another revision was
+     * stored after that base meanwhile, so an edit never silently replaces a newer one.
+     *
+     * @param path    the file
+     * @param base    the revision the edit started from
+     * @param content the file's content
+     * @param actor   who changed it
+     * @return what happened
+     */
+    public PublishOutcome publishSettingsOn(String path, int base, String content, String actor) {
+        var hash = SettingsRevision.hash(content);
+        var latest = latestSettings(path);
+        if (latest.isPresent() && latest.get().hash().equals(hash)) {
+            return new PublishOutcome.Unchanged(latest.get().revision());
+        }
+        if (latest.map(SettingsRevision::revision).orElse(0) != base
+                || !insertSettings(path, base + 1, content, hash, actor, Times.now())) {
+            return new PublishOutcome.Conflict(
+                    latestSettings(path).map(SettingsRevision::revision).orElse(base));
+        }
+        appliedSettings(path, base + 1);
+        return new PublishOutcome.Published(base + 1);
+    }
+
+    /**
+     * What storing an edit did.
+     */
+    public sealed interface PublishOutcome {
+        /**
+         * The edit is the new revision.
+         *
+         * @param revision its number
+         */
+        record Published(int revision) implements PublishOutcome {}
+
+        /**
+         * The latest revision holds the same content already.
+         *
+         * @param revision the latest revision
+         */
+        record Unchanged(int revision) implements PublishOutcome {}
+
+        /**
+         * Another revision was stored after the edit's base.
+         *
+         * @param latest the latest revision
+         */
+        record Conflict(int latest) implements PublishOutcome {}
+    }
+
+    /**
+     * @param path     the file
+     * @param revision a revision
+     * @return that revision, empty when it does not exist
+     */
+    public abstract Optional<SettingsRevision> settingsAt(String path, int revision);
+
+    /**
+     * @param path the file
+     * @return the revision this node last applied, empty before it applied one
+     */
+    public abstract OptionalInt appliedRevision(String path);
+
+    /**
      * @param path the file
      * @return its latest revision, empty before the primary stored one
      */

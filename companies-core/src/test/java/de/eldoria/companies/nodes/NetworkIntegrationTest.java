@@ -519,6 +519,70 @@ class NetworkIntegrationTest {
     }
 
     @Test
+    void anEditOnASecondaryBecomesTheNextRevisionEverywhere() throws Exception {
+        var a = primary();
+        var b = secondary();
+        var file = folder.resolve("B").resolve("user.yml");
+        Files.writeString(file, Files.readString(file).replaceFirst("maxOrders: \\d+", "maxOrders: 42"));
+        b.configuration.reload();
+
+        var edits = b.configuration.edits(b.nodeData);
+        assertEquals(1, edits.size());
+        assertEquals(List.of("maxOrders"), edits.getFirst().changes());
+        var outcome = b.configuration.publishEdits(b.nodeData, edits, "Ada").getFirst();
+
+        assertTrue(outcome.revision().isPresent());
+        await(() -> a.configuration.userSettings().maxOrders() == 42, WAIT, "the primary to take the edit");
+        assertTrue(Files.readString(folder.resolve("A").resolve("user.yml")).contains("maxOrders: 42"));
+        assertTrue(b.configuration.edits(b.nodeData).isEmpty());
+    }
+
+    @Test
+    void anEditOnTopOfAnOutdatedRevisionIsKeptAsConflictAndTheNewerOneIsUsed() throws Exception {
+        var a = primary();
+        var b = secondary();
+        var fileB = folder.resolve("B").resolve("user.yml");
+        Files.writeString(fileB, Files.readString(fileB).replaceFirst("maxOrders: \\d+", "maxOrders: 8"));
+        b.configuration.reload();
+        var edits = b.configuration.edits(b.nodeData);
+
+        a.configuration.userSettings().maxOrders(9);
+        a.configuration.save(Configuration.USER_SETTINGS);
+        a.configuration.syncConfigurations(a.nodeData).join();
+        var outcome = b.configuration.publishEdits(b.nodeData, edits, "Bo").getFirst();
+
+        assertTrue(outcome.revision().isEmpty());
+        assertTrue(outcome.conflictFile().startsWith("conflict_"));
+        assertTrue(Files.readString(folder.resolve("B").resolve(outcome.conflictFile()))
+                .contains("maxOrders: 8"));
+        assertEquals(9, b.configuration.userSettings().maxOrders());
+    }
+
+    @Test
+    void aLevelChangeOnTopOfAnOutdatedRevisionDoesNotReplaceIt() throws Exception {
+        var a = primary();
+        var b = secondary();
+        b.configuration.companySettings().level(1).orElseThrow().levelName("FromB");
+        var fromB = b.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, b.configuration);
+        b.nodeData.publishSettings("company.yml", fromB, "Bo");
+
+        var base = a.configuration.appliedRevision("company.yml");
+        a.configuration.companySettings().level(2).orElseThrow().levelName("FromA");
+        var fromA = a.nodeData.primaryCopy(Configuration.COMPANY_SETTINGS, a.configuration);
+        var outcome = a.configuration.publishEdit(a.nodeData, Configuration.COMPANY_SETTINGS, base, fromA, "Ada");
+
+        assertTrue(outcome.revision().isEmpty());
+        assertTrue(outcome.replaced());
+        assertTrue(Files.readString(folder.resolve("A").resolve(outcome.conflictFile()))
+                .contains("FromA"));
+        assertEquals(
+                "FromB",
+                a.configuration.companySettings().level(1).orElseThrow().levelName());
+        assertTrue(
+                a.nodeData.latestSettings("company.yml").orElseThrow().content().contains("FromB"));
+    }
+
+    @Test
     void changedLevelsReachTheSecondaryWithoutAReload() throws Exception {
         var a = primary();
         var b = secondary();
