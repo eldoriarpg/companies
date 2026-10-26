@@ -83,8 +83,13 @@ async function load(): Promise<void> {
   current.value = result.pages.find(entry => entry.state === 'open')?.id ?? 'summary'
 }
 
-/** Loads the settings files the pages show, keeping the admin's unsaved edits. */
-async function loadFiles(): Promise<void> {
+/**
+ * Loads the settings files the pages show, keeping the admin's unsaved edits. A file that cannot be loaded keeps its
+ * last answer and its edits; a file just saved starts from what is stored, so an entered secret is not sent again.
+ *
+ * @param saved the files just saved
+ */
+async function loadFiles(saved: ReadonlySet<SettingsFileName> = new Set()): Promise<void> {
   reloading.value = true
   const before = files.value
   const kept = draft.value
@@ -93,8 +98,12 @@ async function loadFiles(): Promise<void> {
   try {
     for (const name of needed.value) {
       const result = await fetching.run('admin.settings.get', {file: name})
-      if (result) loaded[name] = result
-      else missing.push(name)
+      if (result) {
+        loaded[name] = result
+        continue
+      }
+      missing.push(name)
+      if (before[name]) loaded[name] = before[name]
     }
   } finally {
     reloading.value = false
@@ -104,7 +113,7 @@ async function loadFiles(): Promise<void> {
     for (const setting of file?.settings ?? []) {
       const key = id(file!.file, setting.key)
       const old = before[file!.file]?.settings.find(entry => entry.key === setting.key)
-      const dirty = old !== undefined && key in kept && changedValue(kept[key], original(old))
+      const dirty = !saved.has(file!.file) && old !== undefined && key in kept && changedValue(kept[key], original(old))
       next[key] = dirty ? kept[key] : structuredClone(original(setting))
     }
   }
@@ -181,18 +190,20 @@ async function next(target: AdminSetupPage): Promise<void> {
     if (!changedValue(value, original(setting))) continue
     byFile.set(file, {...byFile.get(file), [setting.key]: value ?? (setting.type === 'SECRET' ? undefined : null)})
   }
+  const saved = new Set<SettingsFileName>()
   for (const [file, values] of byFile) {
     const base = files.value[file]?.revision ?? 0
     const result = await saving.run('admin.settings.save', {file, base, values})
     if (!result || result.status === 'invalid' || result.status === 'newer') {
       if (result?.status === 'invalid') errors.value = Object.fromEntries(Object.entries(result.fields).map(([key, reason]) => [id(file, key), reason]))
       if (result?.status === 'newer') notice.value = t('admin.setup.newer', {file})
-      await loadFiles()
+      await loadFiles(saved)
       return
     }
+    saved.add(file)
     restart.value = [...new Set([...restart.value, ...result.restart])]
   }
-  await mark(target, 'done')
+  await mark(target, 'done', saved)
 }
 
 /**
@@ -200,8 +211,9 @@ async function next(target: AdminSetupPage): Promise<void> {
  *
  * @param target the page
  * @param state done or skipped
+ * @param saved the files the page just saved
  */
-async function mark(target: AdminSetupPage, state: 'done' | 'skipped'): Promise<void> {
+async function mark(target: AdminSetupPage, state: 'done' | 'skipped', saved: ReadonlySet<SettingsFileName> = new Set()): Promise<void> {
   const result = await marking.run('admin.setup.mark', {page: target.id, state})
   if (!result) return
   setup.value = result
@@ -210,7 +222,7 @@ async function mark(target: AdminSetupPage, state: 'done' | 'skipped'): Promise<
   current.value = result.pages.slice(index + 1).find(entry => entry.state === 'open')?.id
     ?? result.pages.find(entry => entry.state === 'open')?.id
     ?? 'summary'
-  await loadFiles()
+  await loadFiles(saved)
 }
 
 /**
@@ -238,7 +250,8 @@ async function iconDone(result: {status: string, revision: number, refused?: str
     errors.value = {[id('config.yml', 'dashboard.branding.icon')]: result.refused}
     return
   }
-  errors.value = {}
+  const iconKey = id('config.yml', 'dashboard.branding.icon')
+  errors.value = Object.fromEntries(Object.entries(errors.value).filter(([key]) => key !== iconKey))
   if (result.status === 'newer') notice.value = t('admin.setup.newer', {file: 'config.yml'})
   await loadFiles()
 }
@@ -284,12 +297,12 @@ async function iconDone(result: {status: string, revision: number, refused?: str
         </li>
       </ul>
       <ButtonRow v-if="setup?.editable">
-        <PrimaryButton :disabled="busy || !editable || !complete(page)" @click="next(page)">{{ page.fields.length > 0 ? t('admin.setup.saveNext') : t('admin.setup.next') }}</PrimaryButton>
+        <PrimaryButton :disabled="busy || (page.fields.length > 0 && (!editable || !complete(page)))" @click="next(page)">{{ page.fields.length > 0 ? t('admin.setup.saveNext') : t('admin.setup.next') }}</PrimaryButton>
         <SecondaryButton :disabled="busy" @click="mark(page, 'skipped')">{{ t('admin.setup.skip') }}</SecondaryButton>
       </ButtonRow>
       <ActionNotice :problem="saving.problem.value ?? marking.problem.value"/>
     </PanelBox>
-    <PanelBox v-else padded :aria-label="t('admin.setup.summary')" data-testid="admin-setup-summary">
+    <PanelBox v-else-if="current" padded :aria-label="t('admin.setup.summary')" data-testid="admin-setup-summary">
       <SectionHeader>{{ t('admin.setup.summary') }}</SectionHeader>
       <p class="text-sm">{{ finished ? t('admin.setup.finished') : t('admin.setup.unfinished') }}</p>
       <ul class="flex flex-col gap-1 text-sm">
