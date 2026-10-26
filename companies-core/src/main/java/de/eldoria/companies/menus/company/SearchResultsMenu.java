@@ -15,6 +15,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Page;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.Payout;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
@@ -35,7 +36,7 @@ import java.util.Optional;
  * A page of the orders a company order search found.
  * <p>
  * Each order shows its contents and price when hovered, with buttons for its info and, for members who may manage the
- * company's orders, for accepting it. Paging runs the search again. As a dialog every order is a button showing its
+ * company's orders, for accepting it. While the server marks its own orders, they carry a badge. Paging runs the search again. As a dialog every order is a button showing its
  * info, next to its {@code [Accept]} button.
  */
 public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
@@ -104,7 +105,7 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
             var id = order.id();
             var label = texts.of(MenuText.create()
                     .text(
-                            "<name><order_id> | <value><order_name>",
+                            badge(order) + "<name><order_id> | <value><order_name>",
                             Values.number("order_id", id),
                             Values.text("order_name", order.name())));
             buttons.add(actions.button(label, texts.of(details(order, results.taxPercent())), (clicker, response) -> {
@@ -148,6 +149,17 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
         return Optional.of(Dialog.create(factory -> factory.empty().base(base).type(type)));
     }
 
+    /**
+     * The badge of an order the server placed, while the server marks its orders.
+     *
+     * @param order the order
+     * @return the badge and a space, or nothing
+     */
+    private String badge(FullOrder order) {
+        if (!search.marksServerOrders() || !SystemOwner.is(order.owner())) return "";
+        return "<neutral><i18n:company.order.search.serverBadge> ";
+    }
+
     private MenuText orderLine(
             int index, FullOrder order, SearchTexts texts, SearchResults results, MenuActions actions) {
         var id = order.id();
@@ -157,8 +169,8 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
         var infoKey = Keys.of("act_info", index);
         var text = MenuText.create()
                 .text(
-                        "<hover:show_text:'<" + detailsKey + ">'><name><" + idKey + "> | <value><" + nameKey
-                                + "></hover> ",
+                        badge(order) + "<hover:show_text:'<" + detailsKey + ">'><name><" + idKey + "> | <value><"
+                                + nameKey + "></hover> ",
                         Values.component(detailsKey, texts.of(details(order, results.taxPercent()))),
                         Values.number(idKey, id),
                         Values.text(nameKey, order.name()))

@@ -107,6 +107,8 @@ public final class DashboardReads {
             Features.ADMIN_CONFIG,
             Features.ADMIN_SETTINGS,
             Features.ADMIN_SETUP,
+            Features.ADMIN_SYSTEM_ORDERS,
+            Features.ORDERS_SERVER_MARKS,
             Features.COMPANY_DISBAND,
             Features.INBOX,
             Features.RANKINGS,
@@ -173,6 +175,14 @@ public final class DashboardReads {
         };
     }
 
+    private static SearchQuery.ServerOrders serverOrders(String value) {
+        return switch (value) {
+            case "only" -> SearchQuery.ServerOrders.ONLY;
+            case "hide" -> SearchQuery.ServerOrders.HIDE;
+            default -> SearchQuery.ServerOrders.ALL;
+        };
+    }
+
     private static boolean isRead(String action) {
         return action.equals(Actions.RANKINGS_HISTORY);
     }
@@ -195,6 +205,7 @@ public final class DashboardReads {
         query.maxOrderSize(args.path("maxOrderSize").asInt(Integer.MAX_VALUE));
         sorting(args.path("sort").asString("")).ifPresent(query::sortingType);
         query.asc(args.path("asc").asBoolean(true));
+        query.serverOrders(serverOrders(args.path("serverOrders").asString("")));
         var results = sources.search().apply(player, query).join();
         var orders = new ArrayList<>(results.orders());
         query.sort(orders);

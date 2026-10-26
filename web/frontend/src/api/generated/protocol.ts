@@ -450,6 +450,7 @@ export const Feature = {
     "admin.players": "admin.players",
     "admin.settings": "admin.settings",
     "admin.setup": "admin.setup",
+    "admin.systemorders": "admin.systemorders",
     "company.applications": "company.applications",
     "company.create": "company.create",
     "company.disband": "company.disband",
@@ -464,6 +465,7 @@ export const Feature = {
     "orders.deliver": "orders.deliver",
     "orders.own": "orders.own",
     "orders.receive": "orders.receive",
+    "orders.servermarks": "orders.servermarks",
     "rankings": "rankings",
 } as const;
 

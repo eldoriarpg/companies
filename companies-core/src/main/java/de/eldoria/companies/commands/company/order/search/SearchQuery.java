@@ -6,6 +6,7 @@
 package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.query.OrderFilter;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,7 +15,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * The order search of one player: an editable {@link OrderFilter} plus sorting and the fillable switch.
+ * The order search of one player: an editable {@link OrderFilter} plus sorting, the fillable switch and, while the
+ * server marks its own orders, which of them to show.
  */
 public class SearchQuery {
     private String name;
@@ -28,6 +30,8 @@ public class SearchQuery {
     private SortingType sortingType = SortingType.AGE;
     private boolean asc = true;
     private boolean fillable;
+    private ServerOrders serverOrders = ServerOrders.ALL;
+    private boolean playersFirst;
 
     /**
      * A search with the given filter, sorted by age.
@@ -59,7 +63,59 @@ public class SearchQuery {
     }
 
     public void sort(List<FullOrder> orders) {
-        sortingType().sort(orders, isAsc());
+        sortingType().sort(orders, isAsc(), playersFirst);
+    }
+
+    /**
+     * @return which orders of the server the search shows, while the server marks them
+     */
+    public ServerOrders serverOrders() {
+        return serverOrders == null ? ServerOrders.ALL : serverOrders;
+    }
+
+    public void serverOrders(ServerOrders serverOrders) {
+        this.serverOrders = serverOrders;
+    }
+
+    /**
+     * Whether orders of players come before orders of the server that sort the same, set while the server marks its
+     * orders.
+     *
+     * @param playersFirst true to list player orders first among equals
+     */
+    public void playersFirst(boolean playersFirst) {
+        this.playersFirst = playersFirst;
+    }
+
+    /**
+     * Which orders of the server a search shows.
+     */
+    public enum ServerOrders {
+        /**
+         * Orders of players and of the server.
+         */
+        ALL,
+        /**
+         * Only orders of the server.
+         */
+        ONLY,
+        /**
+         * Only orders of players.
+         */
+        HIDE;
+
+        /**
+         * @param order an order
+         * @return true when the search shows it
+         */
+        public boolean shows(FullOrder order) {
+            var server = SystemOwner.is(order.owner());
+            return switch (this) {
+                case ALL -> true;
+                case ONLY -> server;
+                case HIDE -> !server;
+            };
+        }
     }
 
     public SortingType sortingType() {

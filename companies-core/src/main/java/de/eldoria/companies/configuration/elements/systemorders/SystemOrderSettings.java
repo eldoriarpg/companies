@@ -20,6 +20,7 @@ public class SystemOrderSettings {
     private double mintedDailyCap = 10000.0;
     private List<SystemOrderRule> rules = new ArrayList<>();
     private GuessedSettings guessed = new GuessedSettings();
+    private boolean markSystemOrders = false;
 
     public SystemOrderSettings() {}
 
@@ -71,6 +72,20 @@ public class SystemOrderSettings {
 
     public void rules(List<SystemOrderRule> rules) {
         this.rules = new ArrayList<>(rules);
+    }
+
+    /**
+     * Whether players see which orders the server placed: a badge with the rule's name, a search filter, and player
+     * orders listed first when sorting is otherwise equal. Off, system orders look like any order.
+     *
+     * @return true when system orders are marked
+     */
+    public boolean markSystemOrders() {
+        return markSystemOrders;
+    }
+
+    public void markSystemOrders(boolean markSystemOrders) {
+        this.markSystemOrders = markSystemOrders;
     }
 
     /**

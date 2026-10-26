@@ -33,6 +33,12 @@ export const SESSIONS = {
     LONE01: {version: SUPPORTED, company: false},
     ADMN01: {version: SUPPORTED, admin: true},
     NOMK01: {version: SUPPORTED, features: ['orders.browse', 'inbox', 'rankings']},
+    SRVR01: {
+        version: SUPPORTED,
+        get features() {
+            return [...FEATURES, 'orders.servermarks']
+        },
+    },
     DEPR01: {
         version: {
             status: 'DEPRECATED',

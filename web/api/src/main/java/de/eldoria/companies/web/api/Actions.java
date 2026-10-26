@@ -445,6 +445,31 @@ public final class Actions {
     public static final String ADMIN_SETUP_MARK = "admin.setup.mark";
 
     /**
+     * Lists the orders the server placed itself that are open or in work.
+     */
+    public static final String ADMIN_SYSTEM_ORDERS_LIST = "admin.systemorders.list";
+
+    /**
+     * Reads why the server placed one of its orders.
+     */
+    public static final String ADMIN_SYSTEM_ORDERS_INFO = "admin.systemorders.info";
+
+    /**
+     * Reads what the server's guessed orders learned per material.
+     */
+    public static final String ADMIN_SYSTEM_ORDERS_STATS = "admin.systemorders.stats";
+
+    /**
+     * Reads the defined rules of the server's own orders, as the latest revision has them.
+     */
+    public static final String ADMIN_SYSTEM_ORDERS_RULES = "admin.systemorders.rules";
+
+    /**
+     * Stores the defined rules of the server's own orders as the next revision of their file.
+     */
+    public static final String ADMIN_SYSTEM_ORDERS_RULES_SAVE = "admin.systemorders.rules.save";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -532,7 +557,12 @@ public final class Actions {
             ADMIN_SETTINGS_ROLLBACK,
             ADMIN_SETTINGS_ICON,
             ADMIN_SETUP_GET,
-            ADMIN_SETUP_MARK);
+            ADMIN_SETUP_MARK,
+            ADMIN_SYSTEM_ORDERS_LIST,
+            ADMIN_SYSTEM_ORDERS_INFO,
+            ADMIN_SYSTEM_ORDERS_STATS,
+            ADMIN_SYSTEM_ORDERS_RULES,
+            ADMIN_SYSTEM_ORDERS_RULES_SAVE);
 
     private Actions() {}
 

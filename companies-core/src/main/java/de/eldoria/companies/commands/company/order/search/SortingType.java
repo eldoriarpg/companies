@@ -7,10 +7,10 @@ package de.eldoria.companies.commands.company.order.search;
 
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.orders.SystemOwner;
 import net.kyori.adventure.translation.Translatable;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -33,11 +33,17 @@ public enum SortingType implements Translatable {
         return amount == 0 ? 0 : order.price() / amount;
     }
 
-    public void sort(List<FullOrder> orders, boolean asc) {
-        orders.sort(comparator);
-        if (!asc) {
-            Collections.reverse(orders);
-        }
+    /**
+     * Sorts orders in place.
+     *
+     * @param orders       the orders
+     * @param asc          true for ascending
+     * @param playersFirst true to put orders of players before orders of the server that sort the same
+     */
+    public void sort(List<FullOrder> orders, boolean asc, boolean playersFirst) {
+        var order = asc ? comparator : comparator.reversed();
+        if (playersFirst) order = order.thenComparing(found -> SystemOwner.is(found.owner()));
+        orders.sort(order);
     }
 
     @Override

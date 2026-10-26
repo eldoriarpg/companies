@@ -1151,7 +1151,9 @@
     "admin.nodes" : { },
     "admin.config" : { },
     "admin.settings" : { },
-    "admin.setup" : { }
+    "admin.setup" : { },
+    "admin.systemorders" : { },
+    "orders.servermarks" : { }
   },
   "x-actions" : {
     "orders.browse.search" : {
@@ -1408,6 +1410,21 @@
     },
     "admin.setup.mark" : {
       "feature" : "admin.setup"
+    },
+    "admin.systemorders.list" : {
+      "feature" : "admin.systemorders"
+    },
+    "admin.systemorders.info" : {
+      "feature" : "admin.systemorders"
+    },
+    "admin.systemorders.stats" : {
+      "feature" : "admin.systemorders"
+    },
+    "admin.systemorders.rules" : {
+      "feature" : "admin.systemorders"
+    },
+    "admin.systemorders.rules.save" : {
+      "feature" : "admin.systemorders"
     }
   }
 }

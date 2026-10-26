@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import {Feature} from '~/api/generated/protocol'
 import ChipButton from '@/components/button/ChipButton.vue'
 import SearchInput from '@/components/input/SearchInput.vue'
 import SelectInput from '@/components/input/SelectInput.vue'
@@ -19,7 +20,10 @@ defineProps<{
 }>()
 
 const {t} = useI18n()
-const filters: readonly OrderFilter[] = ['all', 'small', 'large-payout']
+const {supports} = useDashboard()
+const filters = computed<readonly OrderFilter[]>(() => (supports(Feature['orders.servermarks'])
+  ? ['all', 'small', 'large-payout', 'players', 'server']
+  : ['all', 'small', 'large-payout']))
 const sortings = computed(() => ORDER_SORTINGS.map(value => ({value, label: t(`orders.sort.${value}`)})))
 const sortChoice = computed({
   get: () => sort.value as string,

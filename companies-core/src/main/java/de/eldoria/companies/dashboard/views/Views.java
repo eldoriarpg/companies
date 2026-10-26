@@ -21,6 +21,7 @@ import de.eldoria.companies.data.repository.AAlertData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.AStatsData;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
 import de.eldoria.companies.web.api.snapshot.ClaimedOrderView;
@@ -56,6 +57,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -459,7 +461,8 @@ public final class Views {
                 order.price(),
                 order.amount(),
                 claimed,
-                owner ? own(order).waiting() : null);
+                owner ? own(order).waiting() : null,
+                sources.marked().getAsBoolean() && SystemOwner.is(order.owner()));
     }
 
     /**
@@ -644,6 +647,7 @@ public final class Views {
      * @param names           a player's name by id
      * @param zone            the time zone of the plugin's stored times
      * @param clock           the current time
+     * @param marked          whether the server marks the orders it placed itself
      */
     public record Sources(
             CompaniesApi api,
@@ -655,5 +659,6 @@ public final class Views {
             Supplier<OrderSettings> orderSettings,
             Function<UUID, String> names,
             ZoneId zone,
-            Clock clock) {}
+            Clock clock,
+            BooleanSupplier marked) {}
 }

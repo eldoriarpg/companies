@@ -22,6 +22,7 @@ import net.strokkur.commands.arguments.StringArgType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.ObjIntConsumer;
 
@@ -94,6 +95,17 @@ public final class CompanyOrderSearchCommand {
     @Executes("query fillable")
     public void fillable(CommandSender sender, boolean fillable) {
         change(sender, query -> query.fillable(fillable));
+    }
+
+    /**
+     * Shows every order, only the server's own orders, or only the orders of players, while the server marks its own.
+     *
+     * @param sender sender of the command
+     * @param which  {@code all}, {@code only} or {@code hide}
+     */
+    @Executes("query server")
+    public void server(CommandSender sender, @Literal({"all", "only", "hide"}) String which) {
+        change(sender, query -> query.serverOrders(SearchQuery.ServerOrders.valueOf(which.toUpperCase(Locale.ROOT))));
     }
 
     /**

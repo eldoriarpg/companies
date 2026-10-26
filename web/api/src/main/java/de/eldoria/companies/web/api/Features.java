@@ -86,6 +86,12 @@ public final class Features {
     public static final String RANKINGS = "rankings";
 
     /**
+     * Orders the server placed itself carry a badge, and the search can show or hide them. Offered only while the
+     * server marks its orders.
+     */
+    public static final String ORDERS_SERVER_MARKS = "orders.servermarks";
+
+    /**
      * Price statistics per item.
      */
     public static final String MARKET = "market";
@@ -149,6 +155,12 @@ public final class Features {
     public static final String ADMIN_SETUP = "admin.setup";
 
     /**
+     * See the orders the server places itself, why each was placed and what guessed orders learned, and edit the rules
+     * that place them. Needs {@code companies.admin.orders}, and {@code companies.admin.reload} too to change rules.
+     */
+    public static final String ADMIN_SYSTEM_ORDERS = "admin.systemorders";
+
+    /**
      * Every feature name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -175,7 +187,9 @@ public final class Features {
             ADMIN_NODES,
             ADMIN_CONFIG,
             ADMIN_SETTINGS,
-            ADMIN_SETUP);
+            ADMIN_SETUP,
+            ADMIN_SYSTEM_ORDERS,
+            ORDERS_SERVER_MARKS);
 
     private Features() {}
 }

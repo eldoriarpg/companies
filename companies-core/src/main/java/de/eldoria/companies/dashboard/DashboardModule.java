@@ -19,6 +19,7 @@ import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminServerWrites;
 import de.eldoria.companies.dashboard.actions.AdminSettingsWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
+import de.eldoria.companies.dashboard.actions.AdminSystemOrderWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
@@ -78,6 +79,7 @@ import de.eldoria.companies.services.notifications.NotificationRenderer;
 import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
+import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.handshake.NodeInfo;
 import de.eldoria.companies.web.api.handshake.NodeRole;
 import de.eldoria.companies.web.api.session.PlayerRef;
@@ -85,6 +87,7 @@ import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -165,7 +168,8 @@ public final class DashboardModule {
                 configuration::orderSetting,
                 names,
                 ZoneOffset.UTC,
-                clock));
+                clock,
+                () -> configuration.systemOrderSettings().markSystemOrders()));
         var market = new MarketHistory(new MarketHistory.Sources(
                 data.dashboard(),
                 data.history(),
@@ -212,6 +216,8 @@ public final class DashboardModule {
                 primary ? keys::refreshIfDue : keys::current,
                 () -> DashboardReads.FEATURES.stream()
                         .filter(settings.get()::feature)
+                        .filter(feature -> !feature.equals(Features.ORDERS_SERVER_MARKS)
+                                || configuration.systemOrderSettings().markSystemOrders())
                         .toList(),
                 new BrandingSource(
                         configuration::branding,
@@ -339,6 +345,21 @@ public final class DashboardModule {
                         data.admin().log(),
                         plugin.getLogger(),
                         views::instant,
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminSystemOrderWrites(new AdminSystemOrderWrites.Sources(
+                        data.items().orders(),
+                        configuration::systemOrderSettings,
+                        views::instant,
+                        Times::now,
+                        data.admin().log(),
+                        configuration,
+                        data.admin().nodeData(),
+                        data.admin().applyChanges(),
+                        material -> {
+                            var found = Material.matchMaterial(material);
+                            return found != null && found.isItem() && !found.isAir();
+                        },
+                        plugin.getLogger(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()

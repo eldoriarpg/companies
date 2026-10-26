@@ -239,6 +239,7 @@ Commands to find, claim and deliver orders. Read [Claiming and delivering](../co
 | `/company order search query clear` | none | none | Resets the search. |
 | `/company order search query execute` | none | none | Runs the search and shows the first page of results. |
 | `/company order search query fillable true\|false` | none | none | Shows only orders you can deliver to. |
+| `/company order search query server all\|only\|hide` | none | none | Shows every order, only the orders the server placed, or only orders of players. Works while the server marks its orders (`markSystemOrders` in [system-orders.yml](../admin/configuration/system-orders-yml.md)). |
 | `/company order search query material_add <material>` | none | none | Adds a material to the search. |
 | `/company order search query material_remove [material]` | none | none | Removes a material. Without a material, it removes all. |
 | `/company order search query material_match exact\|part` | none | none | Matches whole material names or parts of them. |

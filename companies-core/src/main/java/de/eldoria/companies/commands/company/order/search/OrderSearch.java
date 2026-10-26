@@ -237,6 +237,14 @@ public final class OrderSearch {
         accept.accept(player, id);
     }
 
+    /**
+     * @return whether the server marks its own orders, so searches offer to show or hide them and results mark them
+     */
+    public boolean marksServerOrders() {
+        var configuration = deps.configuration();
+        return configuration != null && configuration.systemOrderSettings().markSystemOrders();
+    }
+
     private SearchMenu searchMenu() {
         return new SearchMenu(this, deps.messages());
     }

@@ -107,6 +107,8 @@ public class SearchExecutor implements OrderFinder {
     private CompletableFuture<SearchResults> run(
             OfflinePlayer player, SearchQuery query, boolean fillable, List<ItemStack> available) {
         var itemMatcher = matcher.get();
+        var marked = configuration.systemOrderSettings().markSystemOrders();
+        query.playersFirst(marked);
         var orders = orderData
                 .retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
                 .asFuture();
@@ -118,8 +120,21 @@ public class SearchExecutor implements OrderFinder {
                         (company, found) -> results(
                                 player.getUniqueId(),
                                 company,
-                                fillable ? filled(found, query, itemMatcher, available) : found),
+                                shown(fillable ? filled(found, query, itemMatcher, available) : found, query, marked)),
                         Threading.VIRTUAL);
+    }
+
+    /**
+     * Keeps the orders of the server the query asks for, while the server marks them.
+     *
+     * @param orders orders found
+     * @param query  the query
+     * @param marked whether the server marks its orders
+     * @return the orders shown
+     */
+    private static List<FullOrder> shown(List<FullOrder> orders, SearchQuery query, boolean marked) {
+        if (!marked) return orders;
+        return orders.stream().filter(query.serverOrders()::shows).toList();
     }
 
     /**
