@@ -14,11 +14,13 @@ import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
+import de.eldoria.companies.data.wrapper.order.DeliveredVolume;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.data.wrapper.order.PlayerDemand;
 import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.ReturnedItems;
@@ -41,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -417,7 +420,54 @@ public abstract class AOrderData {
     public abstract List<SystemDecision> unclaimedSystemOrders(String rule, LocalDateTime before);
 
     /**
-     * What a rule put into orders since a point in time.
+     * What players ask for in their orders nobody claimed yet, per material. Orders of the server are left out.
+     *
+     * @return the demand per material, keyed as order lines store the material
+     */
+    public abstract Map<String, PlayerDemand> openPlayerDemand();
+
+    /**
+     * What players' orders got delivered per material in a span of time, by when the order was delivered or received.
+     * Exact lines and orders of the server are left out.
+     *
+     * @param from   start, included
+     * @param recent start of the recent part, included
+     * @param to     end, excluded
+     * @return the volume per material
+     */
+    public abstract List<DeliveredVolume> deliveredVolume(LocalDateTime from, LocalDateTime recent, LocalDateTime to);
+
+    /**
+     * @return how many orders of players nobody claimed yet
+     */
+    public abstract int openPlayerOrders();
+
+    /**
+     * Lets a material rest: it is not guessed until a point in time.
+     *
+     * @param material the material
+     * @param until    when it may be guessed again
+     */
+    public abstract void restMaterial(String material, LocalDateTime until);
+
+    /**
+     * @param now the current time
+     * @return the materials resting at that time
+     */
+    public abstract Set<String> restingMaterials(LocalDateTime now);
+
+    /**
+     * How many orders of a rule a company holds or finished since a point in time.
+     *
+     * @param company id of the company
+     * @param rule    id of the rule
+     * @param since   start, included
+     * @return the orders
+     */
+    public abstract int systemOrdersTaken(int company, String rule, LocalDateTime since);
+
+    /**
+     * What a rule put into orders since a point in time. Orders removed since gave their money back and do not count.
      *
      * @param rule  id of the rule
      * @param since start, included
@@ -426,7 +476,7 @@ public abstract class AOrderData {
     public abstract double systemSpent(String rule, LocalDateTime since);
 
     /**
-     * What all rules put into orders from minted money since a point in time.
+     * What all rules put into orders from minted money since a point in time. Orders removed since do not count.
      *
      * @param since start, included
      * @return the minted money spent

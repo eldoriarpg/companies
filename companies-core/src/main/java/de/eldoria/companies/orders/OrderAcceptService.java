@@ -47,6 +47,7 @@ public final class OrderAcceptService {
     private final Consumer<Event> events;
     private final Function<UUID, Optional<Player>> online;
     private final Executor executor;
+    private final Limit limit;
 
     /**
      * @param orderData order repository
@@ -72,11 +73,30 @@ public final class OrderAcceptService {
             Consumer<Event> events,
             Function<UUID, Optional<Player>> online,
             Executor executor) {
+        this(orderData, settings, events, online, executor, Limit.NONE);
+    }
+
+    /**
+     * @param orderData order repository
+     * @param settings  the current company settings
+     * @param events    fires the events of the acceptance
+     * @param online    looks up a player online on this server by id
+     * @param executor  runs the acceptance off the main thread
+     * @param limit     refuses orders a company may not take for reasons of their own, such as a daily cap
+     */
+    public OrderAcceptService(
+            AOrderData orderData,
+            Supplier<CompanySettings> settings,
+            Consumer<Event> events,
+            Function<UUID, Optional<Player>> online,
+            Executor executor,
+            Limit limit) {
         this.orderData = orderData;
         this.settings = settings;
         this.events = events;
         this.online = online;
         this.executor = executor;
+        this.limit = limit;
     }
 
     /**
@@ -129,6 +149,8 @@ public final class OrderAcceptService {
         if (!company.mayAcceptOrderOf(order.owner(), companySettings.allowMemberOrders())) {
             return refused("error.ownMemberOrder");
         }
+        var limited = limit.refusal(company, order);
+        if (limited.isPresent()) return new Result.Refused(limited.get());
 
         var refusal = player.map(acting -> new PreOrderAcceptEvent(fullOrder, company, acting))
                 .filter(this::cancelledBy)
@@ -164,6 +186,24 @@ public final class OrderAcceptService {
 
     private static Result refused(String key) {
         return new Result.Refused(CommandFailure.actionBar(key));
+    }
+
+    /**
+     * Refuses orders a company may not take for reasons of their own.
+     */
+    @FunctionalInterface
+    public interface Limit {
+        /**
+         * No limit.
+         */
+        Limit NONE = (company, order) -> Optional.empty();
+
+        /**
+         * @param company the company accepting
+         * @param order   the order
+         * @return why the company may not take it, empty when it may
+         */
+        Optional<CommandFailure> refusal(CompanyProfile company, SimpleOrder order);
     }
 
     /**

@@ -17,11 +17,13 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
+import de.eldoria.companies.data.wrapper.order.DeliveredVolume;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.ItemAmount;
 import de.eldoria.companies.data.wrapper.order.ItemReturn;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
+import de.eldoria.companies.data.wrapper.order.PlayerDemand;
 import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.ReturnedItems;
@@ -41,10 +43,12 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -821,13 +825,131 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    public Map<String, PlayerDemand> openPlayerDemand() {
+        @Language("mariadb")
+        var select = """
+                SELECT c.material,
+                       COUNT(DISTINCT c.id)    AS orders,
+                       SUM(c.amount)           AS items,
+                       MIN(c.price / c.amount) AS lowest
+                FROM order_content c
+                         JOIN order_states s ON c.id = s.id
+                         JOIN orders o ON c.id = o.id
+                WHERE s.state = ?
+                  AND c.amount > 0
+                  AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
+                GROUP BY c.material""";
+        var demand = new HashMap<String, PlayerDemand>();
+        query(select)
+                .single(call().bind(OrderState.UNCLAIMED.stateId()).bind(SystemOwner.ID, UUID_BYTES))
+                .map(row -> new PlayerDemand(
+                        row.getString("material"), row.getInt("orders"), row.getLong("items"), row.getDouble("lowest")))
+                .all()
+                .forEach(entry -> demand.put(entry.material(), entry));
+        return demand;
+    }
+
+    @Override
+    public List<DeliveredVolume> deliveredVolume(LocalDateTime from, LocalDateTime recent, LocalDateTime to) {
+        @Language("mariadb")
+        var select = """
+                SELECT c.material,
+                       COUNT(DISTINCT c.id)                                       AS orders,
+                       SUM(c.amount)                                              AS items,
+                       SUM(CASE WHEN s.last_update >= ? THEN c.amount ELSE 0 END) AS recent_items
+                FROM order_content c
+                         JOIN order_states s ON c.id = s.id
+                         JOIN orders o ON c.id = o.id
+                WHERE s.state >= ?
+                  AND s.last_update >= ?
+                  AND s.last_update < ?
+                  AND c.amount > 0
+                  AND NOT c.exact
+                  AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
+                GROUP BY c.material""";
+        return query(select)
+                .single(call().bind(recent, time())
+                        .bind(OrderState.DELIVERED.stateId())
+                        .bind(from, time())
+                        .bind(to, time())
+                        .bind(SystemOwner.ID, UUID_BYTES))
+                .map(row -> new DeliveredVolume(
+                        row.getString("material"),
+                        row.getInt("orders"),
+                        row.getLong("items"),
+                        row.getLong("recent_items")))
+                .all();
+    }
+
+    @Override
+    public int openPlayerOrders() {
+        @Language("mariadb")
+        var select = """
+                SELECT COUNT(1) AS open_orders
+                FROM orders o
+                         JOIN order_states s ON o.id = s.id
+                WHERE s.state = ?
+                  AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)""";
+        return query(select)
+                .single(call().bind(OrderState.UNCLAIMED.stateId()).bind(SystemOwner.ID, UUID_BYTES))
+                .map(row -> row.getInt("open_orders"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
+    public void restMaterial(String material, LocalDateTime until) {
+        @Language("mariadb")
+        var clear = "DELETE FROM system_order_rest WHERE material = ?";
+        @Language("mariadb")
+        var insert = "INSERT INTO system_order_rest(material, rest_until) VALUES (?, ?)";
+        var conf = QueryConfiguration.getDefault().withSingleTransaction();
+        try (conf) {
+            conf.query(clear).single(call().bind(material)).delete();
+            conf.query(insert).single(call().bind(material).bind(until, time())).insert();
+        }
+    }
+
+    @Override
+    public Set<String> restingMaterials(LocalDateTime now) {
+        @Language("mariadb")
+        var select = "SELECT material FROM system_order_rest WHERE rest_until > ?";
+        return new HashSet<>(query(select)
+                .single(call().bind(now, time()))
+                .map(row -> row.getString("material"))
+                .all());
+    }
+
+    @Override
+    public int systemOrdersTaken(int company, String rule, LocalDateTime since) {
+        @Language("mariadb")
+        var select = """
+                SELECT COUNT(1) AS taken
+                FROM orders o
+                         JOIN order_states s ON o.id = s.id
+                WHERE o.system_rule = ?
+                  AND s.company = ?
+                  AND s.state >= ?
+                  AND s.last_update >= ?""";
+        return query(select)
+                .single(call().bind(rule)
+                        .bind(company)
+                        .bind(OrderState.CLAIMED.stateId())
+                        .bind(since, time()))
+                .map(row -> row.getInt("taken"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
     public double systemSpent(String rule, LocalDateTime since) {
         @Language("mariadb")
         var select = """
                 SELECT COALESCE(SUM(paid), 0) AS spent
                 FROM system_order_decisions
                 WHERE rule = ?
-                  AND decided_at >= ?""";
+                  AND decided_at >= ?
+                  AND order_id IN (SELECT id FROM orders)""";
         return query(select)
                 .single(call().bind(rule).bind(since, time()))
                 .map(row -> row.getDouble("spent"))
@@ -842,7 +964,8 @@ public class MariaDbOrderData extends AOrderData {
                 SELECT COALESCE(SUM(paid), 0) AS spent
                 FROM system_order_decisions
                 WHERE account IS NULL
-                  AND decided_at >= ?""";
+                  AND decided_at >= ?
+                  AND order_id IN (SELECT id FROM orders)""";
         return query(select)
                 .single(call().bind(since, time()))
                 .map(row -> row.getDouble("spent"))

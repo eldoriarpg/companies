@@ -112,6 +112,7 @@ import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.orders.SystemOrders;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.system.GuessedLimit;
 import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
@@ -400,7 +401,9 @@ public class Companies extends EldoPlugin {
                 configuration::companySettings,
                 getServer().getPluginManager()::callEvent,
                 uuid -> Optional.ofNullable(getServer().getPlayer(uuid)),
-                Threading.VIRTUAL);
+                Threading.VIRTUAL,
+                new GuessedLimit(
+                        orderData, () -> configuration.systemOrderSettings().guessed(), Times.UTC));
         var ownerOrders = OwnerOrderService.create(
                 this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
         var search = new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher);

@@ -436,6 +436,14 @@ class SystemOrderServiceTest {
     }
 
     @Test
+    void theGuessedIdIsReservedForGuessedOrders() {
+        rule(fixed("guessed", 2.0));
+
+        assertEquals(Step.INVALID_ID, step(service.run()));
+        assertEquals(0, placements);
+    }
+
+    @Test
     void aDayStartsInTheServersZone() {
         Times.useZone(() -> ZoneId.of("Europe/Berlin"));
         try {
@@ -452,6 +460,29 @@ class SystemOrderServiceTest {
         } finally {
             Times.useZone(() -> ZoneOffset.UTC);
         }
+    }
+
+    private static void delete(int order) {
+        for (var table : List.of("order_content", "order_states", "orders")) {
+            query("DELETE FROM " + table + " WHERE id = ?")
+                    .single(call().bind(order))
+                    .delete();
+        }
+    }
+
+    @Test
+    void anOrderRemovedAgainGivesItsBudgetBack() {
+        var rule = rule(fixed("iron", 2.0));
+        rule.everyHours(1);
+        rule.lifetimeHours(1);
+        rule.source(new MoneySource(SourceType.MINTED, "", 200));
+        service.run();
+
+        clock.advance(Duration.ofHours(1));
+        var run = service.run();
+
+        assertEquals(1, run.removed().size());
+        assertEquals(Step.PLACED, step(run));
     }
 
     private SystemDecision onlyDecision() {
@@ -500,14 +531,24 @@ class SystemOrderServiceTest {
         }
 
         @Override
-        public CompletableFuture<SystemOrderService.Placed> place(SystemOrderRule rule, double unitPrice) {
+        public String canonical(String material) {
+            return knows(material) ? material : null;
+        }
+
+        @Override
+        public int stackSize(String material) {
+            return 64;
+        }
+
+        @Override
+        public CompletableFuture<SystemOrderService.Placed> place(SystemOrderService.Wanted wanted) {
             if (failPlacement) throw new IllegalStateException("placing failed");
             if (refusal != null) return CompletableFuture.completedFuture(new SystemOrderService.Refused(refusal));
             placements++;
             var order = system.place(0.0);
-            system.orderData().systemRule(order.id(), rule.id());
+            system.orderData().systemRule(order.id(), wanted.rule());
             placedAt(order.id(), LocalDateTime.now(clock));
-            var price = changedPrice != null ? changedPrice : OrderBuilder.total(unitPrice, rule.amount());
+            var price = changedPrice != null ? changedPrice : OrderBuilder.total(wanted.unit(), wanted.amount());
             return CompletableFuture.completedFuture(new SystemOrderService.Created(order.id(), price));
         }
 
@@ -515,7 +556,7 @@ class SystemOrderServiceTest {
         public boolean remove(int order) {
             if (failRemove) throw new IllegalStateException("removing failed");
             removed.add(order);
-            SqLiteTestDatabase.setState(order, OrderState.RECEIVED.stateId(), 0);
+            delete(order);
             return true;
         }
     }
