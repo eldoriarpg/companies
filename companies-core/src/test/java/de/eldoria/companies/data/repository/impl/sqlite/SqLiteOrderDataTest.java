@@ -14,7 +14,9 @@ import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.DeliveryPart;
+import de.eldoria.companies.orders.SystemOwner;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.enchantments.Enchantment;
@@ -68,6 +70,19 @@ class SqLiteOrderDataTest {
 
     private SimpleOrder createOrder(int stone, int dirt) {
         return createOrder(stone, dirt, 0.0);
+    }
+
+    private SimpleOrder createOrder(OfflinePlayer owner, int stone, int dirt) {
+        var contents = List.of(
+                new OrderContent(0, new ItemStack(Material.STONE), false, stone, 100.0),
+                new OrderContent(1, new ItemStack(Material.DIRT), false, dirt, 50.0));
+        orderData
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test", 0.0).toFullOrder(contents))
+                .join();
+        var orders = orderData
+                .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED)
+                .join();
+        return orders.get(orders.size() - 1);
     }
 
     private SimpleOrder createOrder(int stone, int dirt, double fee) {
@@ -298,6 +313,73 @@ class SqLiteOrderDataTest {
         var price = orderData.retrieveMaterialPrice("STONE").join();
         Assertions.assertEquals(10.0, price.minPrice(), 0.0001);
         Assertions.assertEquals(100.0, price.maxPrice(), 0.0001);
+    }
+
+    @Test
+    void ordersOfTheServerAreLeftOutOfTheMarketPrice() {
+        var system = createOrder(SqLiteTestDatabase.player(SystemOwner.ID), 10, 5);
+        SqLiteTestDatabase.setState(system.id(), OrderState.DELIVERED.stateId(), COMPANY);
+        var player = createOrder(1, 5);
+        SqLiteTestDatabase.setState(player.id(), OrderState.DELIVERED.stateId(), COMPANY);
+
+        orderData.refreshMaterialPrices();
+
+        var price = orderData.retrieveMaterialPrice("STONE").join();
+        Assertions.assertEquals(100.0, price.minPrice(), 0.0001);
+        Assertions.assertEquals(100.0, price.maxPrice(), 0.0001);
+    }
+
+    @Test
+    void ordersOfTheServerAreLeftOutOfTheDashboardMarket() {
+        var system = createOrder(SqLiteTestDatabase.player(SystemOwner.ID), 10, 5);
+        SqLiteTestDatabase.setState(system.id(), OrderState.DELIVERED.stateId(), COMPANY);
+        var player = createOrder(1, 5);
+        SqLiteTestDatabase.setState(player.id(), OrderState.DELIVERED.stateId(), COMPANY);
+
+        var stone = new SqLiteDashboardData()
+                .market().stream()
+                        .filter(row -> row.material().equals("STONE"))
+                        .findFirst()
+                        .orElseThrow();
+
+        Assertions.assertEquals(1, stone.orders());
+        Assertions.assertEquals(100.0, stone.avg(), 0.0001);
+    }
+
+    @Test
+    void systemDecisionsAreStoredAndCountedPerRuleAndDay() {
+        var morning = LocalDateTime.of(2026, 10, 26, 8, 0);
+        var open = createOrder(10, 5);
+        var claimed = createOrder(10, 5);
+        var delivered = createOrder(10, 5);
+        for (var order : List.of(open, claimed, delivered)) orderData.systemRule(order.id(), "iron");
+        claim(claimed);
+        SqLiteTestDatabase.setState(delivered.id(), OrderState.DELIVERED.stateId(), COMPANY);
+        orderData.saveSystemDecision(decision(open.id(), "iron", morning.minusDays(1), null, 50));
+        orderData.saveSystemDecision(decision(claimed.id(), "iron", morning, "bank", 20));
+        orderData.saveSystemDecision(decision(delivered.id(), "iron", morning.plusHours(1), null, 5));
+
+        Assertions.assertEquals(25.0, orderData.systemSpent("iron", morning));
+        Assertions.assertEquals(0.0, orderData.systemSpent("gold", morning));
+        Assertions.assertEquals(5.0, orderData.mintedSpent(morning));
+        Assertions.assertEquals(
+                morning.plusHours(1), orderData.lastSystemPlacement("iron").orElseThrow());
+        Assertions.assertTrue(orderData.lastSystemPlacement("gold").isEmpty());
+        Assertions.assertEquals(2, orderData.activeSystemOrders("iron"));
+        Assertions.assertEquals(
+                List.of(open.id(), claimed.id()),
+                orderData.systemDecisions(OrderState.UNCLAIMED, OrderState.CLAIMED).stream()
+                        .map(SystemDecision::order)
+                        .toList());
+        var stored = orderData.systemDecision(claimed.id()).orElseThrow();
+        Assertions.assertEquals("bank", stored.account());
+        Assertions.assertEquals(morning, stored.decidedAt());
+        Assertions.assertTrue(
+                orderData.systemDecision(open.id()).orElseThrow().paidFrom().isEmpty());
+    }
+
+    private static SystemDecision decision(int order, String rule, LocalDateTime decided, String account, double paid) {
+        return new SystemDecision(order, rule, "DEFINED", decided, account, paid, "{}");
     }
 
     @Test

@@ -88,6 +88,20 @@ the order or the company who the owner is.
 as alone. Every action works on these orders the same way: the player gets the delivered items back and a
 notification, and `deliver` pays them with the solo tax. Nothing counts for or against a company.
 
+## System orders
+
+You need `companies.admin.orders`. These commands also work from the console.
+
+| Command | What it does |
+|---|---|
+| `/companyadmin systemorders list` | Lists the orders the server placed that are open or in work: rule, price, when placed and state |
+| `/companyadmin systemorders info <id>` | Shows why the server placed an order: the rule, how its price was found, the jitter drawn, the bounds and where the money came from |
+
+`info` also works for orders that ended: for completed ones always, for removed ones as long as the
+[order history](./configuration/config-yml.md#generalsettings) keeps them. To remove a system order, use `/companyadmin order cancel <id>`. Its money always goes back to the account
+that paid it, whether you choose `refund` or `keep`; minted money goes nowhere. See
+[system-orders.yml](./configuration/system-orders-yml.md).
+
 ## Players
 
 | Command | Permission | What it does |

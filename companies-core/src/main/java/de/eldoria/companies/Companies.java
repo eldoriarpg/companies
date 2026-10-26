@@ -98,6 +98,7 @@ import de.eldoria.companies.nodes.NodeMessage;
 import de.eldoria.companies.nodes.SettingsSync;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
+import de.eldoria.companies.orders.EconomyAccounts;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCompletionService;
@@ -105,10 +106,14 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderReceiveService;
+import de.eldoria.companies.orders.OrderRefunds;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.SystemOrders;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.system.SystemFunding;
+import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
@@ -165,6 +170,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -355,6 +361,20 @@ public class Companies extends EldoPlugin {
                 Threading.mainThread(this),
                 getLogger());
 
+        var systemFunding = new SystemFunding(
+                new EconomyAccounts(getServer(), economy), orderData, Threading.mainThread(this), getLogger());
+        var systemOrders = new SystemOrderService(
+                configuration::systemOrderSettings,
+                orderData,
+                SystemOrderService.placement(
+                        orderData,
+                        new SystemOrders(orderCreation, orderData, getServer()::getOfflinePlayer, getLogger()),
+                        outcomes),
+                systemFunding,
+                Times.UTC,
+                () -> ThreadLocalRandom.current().nextDouble(),
+                getLogger());
+
         var seriesService = SeriesService.create(
                 this,
                 this.economy.series(),
@@ -419,12 +439,20 @@ public class Companies extends EldoPlugin {
                             .orderSetting()
                             .savedItems()),
                     new OrderReceiveService(
-                            orderData, outcomes, itemReturnService, Threading.mainThread(this), getLogger())));
+                            orderData, outcomes, itemReturnService, Threading.mainThread(this), getLogger()),
+                    systemFunding));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
         var expiringService = new ExpiringService(
-                this, orderData, companyData, configuration, economy, notificationService, outcomes, soloOrders);
+                this,
+                orderData,
+                companyData,
+                configuration,
+                notificationService,
+                outcomes,
+                soloOrders,
+                OrderRefunds.of(this, economy, systemFunding));
         var alertNotices = new AlertNotices(notificationService::send, economy::format);
         var alertCompanies = AlertCompanies.of(companyData, orderData);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
@@ -434,6 +462,7 @@ public class Companies extends EldoPlugin {
             });
             membershipService.start(workerPool);
             seriesService.schedule(workerPool);
+            systemOrders.schedule(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
             new HistoryRetention(
                             information.history(),

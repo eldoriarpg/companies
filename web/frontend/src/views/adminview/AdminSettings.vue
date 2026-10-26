@@ -37,7 +37,7 @@ interface NewerRevision {
   changed: string[]
 }
 
-const FILES: SettingsFileName[] = ['config.yml', 'company.yml', 'order.yml', 'user.yml']
+const FILES: SettingsFileName[] = ['config.yml', 'company.yml', 'order.yml', 'user.yml', 'system-orders.yml']
 
 const {t, locale} = useI18n()
 const {server} = useDashboard()

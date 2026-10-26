@@ -410,8 +410,8 @@ public final class DashboardWorld implements AutoCloseable {
                 new HistoryRecorder(history, Clock.systemUTC()),
                 new AdminOrderService.Funds() {
                     @Override
-                    public void refund(UUID owner, double amount) {
-                        wallets.merge(owner, amount, Double::sum);
+                    public void refund(SimpleOrder order, double amount) {
+                        wallets.merge(order.owner(), amount, Double::sum);
                     }
 
                     @Override

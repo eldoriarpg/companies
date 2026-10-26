@@ -407,6 +407,7 @@ export default {
                 market: 'Marché',
                 matching: 'Correspondance des objets',
                 repeating: 'Commandes récurrentes',
+                systemOrders: 'Commandes système',
                 solo: 'Commandes solo',
             },
             fields: {
@@ -571,6 +572,11 @@ export default {
                 },
                 user: {
                     maxOrders: 'Commandes ouvertes par joueur',
+                },
+                'system-orders': {
+                    enabled: 'Le serveur passe des commandes système',
+                    checkMinutes: 'Minutes entre les vérifications des commandes système dues',
+                    mintedDailyCap: 'Argent créé que toutes les règles peuvent dépenser par jour (0 : aucun)',
                 },
             },
         },

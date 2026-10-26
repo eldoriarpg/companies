@@ -254,17 +254,23 @@ public final class AdminOrderCommand implements AdminOrderActions {
         var economy = deps.services().economy();
         ask(viewer, order, null, full -> {
             var money = AdminOrderService.cancelMoney(full, refund);
-            var question = refund
+            var question = SystemOwner.is(full.owner())
                     ? MenuText.create()
                             .locale(
-                                    "companyadmin.order.cancelRefundConfirm",
+                                    "companyadmin.order.cancelSystemConfirm",
                                     Values.text("order_name", full.name()),
                                     Values.money("amount", economy, money.refund()))
-                    : MenuText.create()
-                            .locale(
-                                    "companyadmin.order.cancelKeepConfirm",
-                                    Values.text("order_name", full.name()),
-                                    Values.money("amount", economy, money.collected()));
+                    : refund
+                            ? MenuText.create()
+                                    .locale(
+                                            "companyadmin.order.cancelRefundConfirm",
+                                            Values.text("order_name", full.name()),
+                                            Values.money("amount", economy, money.refund()))
+                            : MenuText.create()
+                                    .locale(
+                                            "companyadmin.order.cancelKeepConfirm",
+                                            Values.text("order_name", full.name()),
+                                            Values.money("amount", economy, money.collected()));
             cancels.ask(deps.services().menus(), viewer, new CancelRequest(order, refund), question);
         });
     }
@@ -283,7 +289,9 @@ public final class AdminOrderCommand implements AdminOrderActions {
                         order,
                         MenuText.create()
                                 .locale(
-                                        "companyadmin.order.deliverConfirm",
+                                        SystemOwner.is(full.owner())
+                                                ? "companyadmin.order.deliverSystemConfirm"
+                                                : "companyadmin.order.deliverConfirm",
                                         Values.text("order_name", full.name()),
                                         Values.money("amount", economy, AdminOrderService.undeliveredRefund(full)))));
     }
@@ -340,8 +348,11 @@ public final class AdminOrderCommand implements AdminOrderActions {
                     .with("collected", money.collected())
                     .with("workers", cancelled.workers().size())
                     .write();
-            var key = request.refund() ? "companyadmin.order.cancelledRefund" : "companyadmin.order.cancelledKept";
-            var amount = request.refund() ? money.refund() : money.collected();
+            var system = SystemOwner.is(full.owner());
+            var key = system
+                    ? "companyadmin.order.cancelledSystem"
+                    : request.refund() ? "companyadmin.order.cancelledRefund" : "companyadmin.order.cancelledKept";
+            var amount = system || request.refund() ? money.refund() : money.collected();
             var text = notice(key, Values.text("order_name", full.name()), Values.money("amount", economy, amount));
             deps.services().menus().close(viewer).thenRun(() -> deps.messages().sendMessage(viewer, text));
         });
@@ -361,7 +372,9 @@ public final class AdminOrderCommand implements AdminOrderActions {
                     viewer,
                     order,
                     Optional.of(notice(
-                            "companyadmin.order.delivered",
+                            SystemOwner.is(full.owner())
+                                    ? "companyadmin.order.deliveredSystem"
+                                    : "companyadmin.order.delivered",
                             Values.text("order_name", full.name()),
                             Values.money("amount", economy, delivered.refund()))));
         });

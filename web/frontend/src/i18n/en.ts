@@ -407,6 +407,7 @@ export default {
                 market: 'Market',
                 matching: 'Item matching',
                 repeating: 'Repeating orders',
+                systemOrders: 'System orders',
                 solo: 'Solo orders',
             },
             fields: {
@@ -571,6 +572,11 @@ export default {
                 },
                 user: {
                     maxOrders: 'Orders a player may have open',
+                },
+                'system-orders': {
+                    enabled: 'Server places system orders',
+                    checkMinutes: 'Minutes between checks for due system orders',
+                    mintedDailyCap: 'New money all rules may spend per day (0: none)',
                 },
             },
         },

@@ -14,6 +14,7 @@ import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.Times;
 import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
@@ -247,7 +248,9 @@ public class SqLiteOrderData extends MariaDbOrderData {
                                    last_update
                             FROM order_content c
                                      LEFT JOIN order_states s ON c.id = s.id
+                                     JOIN orders o ON c.id = o.id
                             WHERE s.state >= 200
+                              AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
                               AND c.exact = 0) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg
@@ -255,7 +258,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price,
                                                     min_price = excluded.min_price,
                                                     max_price = excluded.max_price""";
-        query(query).single().update();
+        query(query).single(call().bind(SystemOwner.ID, UUID_BYTES)).update();
     }
 
     @Override
