@@ -115,9 +115,10 @@ public final class AdminSettingsWrites {
             return answers.refused(request, "companyadmin.error.permission");
         }
         var admin = session.playerName() + "@dashboard";
+        var reload = editable(session);
         try {
-            if (request.name().equals(Actions.ADMIN_SETUP_GET)) return answers.data(request, setup());
-            if (request.name().equals(Actions.ADMIN_SETUP_MARK)) return mark(request, admin, args);
+            if (request.name().equals(Actions.ADMIN_SETUP_GET)) return answers.data(request, setup(reload));
+            if (request.name().equals(Actions.ADMIN_SETUP_MARK)) return mark(request, admin, args, reload);
             var file = file(args);
             return switch (request.name()) {
                 case Actions.ADMIN_SETTINGS_GET ->
@@ -193,7 +194,11 @@ public final class AdminSettingsWrites {
         return saved(request, admin, file, args.path("base").asInt(), values);
     }
 
-    private Payloads.AdminSetup setup() {
+    private static boolean editable(StoredSession session) {
+        return session.permissions().contains(Permission.Admin.RELOAD);
+    }
+
+    private Payloads.AdminSetup setup(boolean editable) {
         var progress = sources.nodeData().get().setupProgress();
         var pages = SetupPages.PAGES.stream()
                 .map(page -> new Payloads.AdminSetupPage(
@@ -203,10 +208,10 @@ public final class AdminSettingsWrites {
                                 .map(field -> new Payloads.AdminSetupField(field.file(), field.key()))
                                 .toList()))
                 .toList();
-        return new Payloads.AdminSetup(pages, DISMISSED.equals(progress.get(BANNER)));
+        return new Payloads.AdminSetup(pages, DISMISSED.equals(progress.get(BANNER)), editable);
     }
 
-    private ActionResult mark(ActionRequest request, String admin, JsonNode args) {
+    private ActionResult mark(ActionRequest request, String admin, JsonNode args, boolean editable) {
         var page = args.path("page").asString("");
         var state = args.path("state").asString("");
         var banner = page.equals(BANNER) && (state.equals(DISMISSED) || state.equals("open"));
@@ -217,7 +222,7 @@ public final class AdminSettingsWrites {
                 .with("page", page)
                 .with("state", state)
                 .write();
-        return answers.data(request, setup());
+        return answers.data(request, setup(editable));
     }
 
     private ActionResult rollback(ActionRequest request, String admin, String file, JsonNode args) {

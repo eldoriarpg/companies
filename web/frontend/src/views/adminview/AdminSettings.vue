@@ -16,6 +16,7 @@ import SelectInput from '@/components/input/SelectInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {dateTime} from '~/util/format'
 import {nodeLabel} from '~/util/nodes'
+import {settingProblem} from '~/util/settings'
 import AdminSettingField from './AdminSettingField.vue'
 import AdminSettingsIcon from './AdminSettingsIcon.vue'
 
@@ -192,8 +193,7 @@ function discard(): void {
  * @returns the reason for the admin
  */
 function problem(setting: AdminSetting, reason: string): string {
-  if (reason !== 'range') return t(`admin.settings.problem.${reason}`)
-  return setting.max == null ? t('admin.settings.problem.atLeast', {min: setting.min ?? 0}) : t('admin.settings.problem.range', {min: setting.min ?? 0, max: setting.max})
+  return settingProblem(t, setting, reason)
 }
 
 /**

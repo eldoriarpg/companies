@@ -279,13 +279,20 @@ test.describe('admin', () => {
 
         const current = page.getByTestId('admin-setup-page')
         await expect(current).toContainText('Economy')
-        await current.getByRole('textbox').fill('5000')
+        await page.getByTestId('admin-setup-field-foundingPrice').getByRole('textbox').fill('5000')
+        await page.getByTestId('admin-setup-field-fee.fixed').getByRole('textbox').fill('-1')
+        await current.getByRole('button', {name: 'Save and next'}).click()
+        await expect(page.getByTestId('admin-setup-field-fee.fixed')).toContainText('Needs a value.')
+        await expect(page.getByTestId('admin-setup-field-foundingPrice').getByRole('textbox')).toHaveValue('5000')
+        await expect(page.getByTestId('admin-setup-field-fee.fixed').getByRole('textbox')).toHaveValue('-1')
+
+        await page.getByTestId('admin-setup-field-fee.fixed').getByRole('textbox').fill('5')
         await current.getByRole('button', {name: 'Save and next'}).click()
         await expect(current).toContainText('Levels')
         await current.getByRole('button', {name: 'Skip'}).click()
         await expect(current).toContainText('Language and menus')
         await current.getByRole('button', {name: 'Save and next'}).click()
-        await expect(current).toContainText('lp group default permission set companies.orders.limit.5 true')
+        await expect(page.getByTestId('admin-setup-permissions')).toContainText('lp group admin permission set companies.admin.* true')
         await current.getByRole('button', {name: 'Next', exact: true}).click()
 
         await expect(page.getByTestId('admin-setup-summary')).toContainText('The setup is done.')

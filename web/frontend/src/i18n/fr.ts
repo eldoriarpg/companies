@@ -258,6 +258,8 @@ export default {
             synced: 'La configuration est synchronisée.',
         },
         setup: {
+            loadFailed: 'Ces fichiers n\'ont pas pu être chargés, cette étape ne peut donc pas être enregistrée ici : {files}. Réessayez plus tard ou utilisez l\'onglet Paramètres.',
+            wholeFile: 'le fichier dans son ensemble',
             steps: 'Étapes',
             summary: 'Résumé',
             state: {
@@ -299,7 +301,10 @@ export default {
                 },
                 permissions: {
                     title: 'Permissions',
-                    intro: 'Companies ne modifie pas les permissions. Voici les plus courantes, par exemple avec LuckPerms :',
+                    intro: 'Companies ne modifie pas les permissions. Quelques exemples avec LuckPerms ; la documentation liste chaque permission :',
+                    limit: 'Permet aux joueurs d\'avoir jusqu\'à 15 commandes ouvertes. Remplace maxOrders pour ce groupe, un nombre plus petit baisse donc la limite.',
+                    repeat: 'Les commandes récurrentes sont ouvertes à tous par défaut ; ceci les retire.',
+                    admin: 'Tous les outils d\'admin, y compris l\'enregistrement des paramètres.',
                 },
             },
         },

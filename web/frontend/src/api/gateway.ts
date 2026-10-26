@@ -623,6 +623,8 @@ export interface AdminSetup {
     pages: AdminSetupPage[]
     /** Whether an admin dismissed the reminder to finish it. */
     dismissed: boolean
+    /** Whether the admin may save settings and mark pages, which needs companies.admin.reload. */
+    editable: boolean
 }
 
 /** What saving settings or rolling a file back did. */

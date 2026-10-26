@@ -262,6 +262,11 @@ function settingsFile(file) {
             {section: 'company', key: 'foundingPrice', type: 'DECIMAL', choices: [], restart: false, value: 20000, overridden: false, min: 0},
         ]}
     }
+    if (file === 'order.yml') {
+        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, editable: true, behind: [], settings: [
+            {section: 'fee', key: 'fee.fixed', type: 'DECIMAL', choices: [], restart: false, value: 0, overridden: false, min: 0},
+        ]}
+    }
     if (file !== 'config.yml') {
         return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, editable: true, behind: [], settings: [
             {section: 'orders', key: 'maxOrders', type: 'WHOLE', choices: [], restart: false, value: 7, overridden: false},
@@ -281,7 +286,7 @@ function settingsFile(file) {
 
 /** The pages of the guided setup with the settings they show. */
 const SETUP_PAGES = [
-    {id: 'economy', fields: [{file: 'company.yml', key: 'foundingPrice'}]},
+    {id: 'economy', fields: [{file: 'company.yml', key: 'foundingPrice'}, {file: 'order.yml', key: 'fee.fixed'}]},
     {id: 'levels', fields: []},
     {id: 'language', fields: [{file: 'config.yml', key: 'generalSettings.language'}]},
     {id: 'permissions', fields: []},
@@ -299,6 +304,7 @@ function setupOf(state) {
     return Object.assign(state.setup, {
         pages: SETUP_PAGES.map(page => ({...page, state: progress[page.id] ?? 'open'})),
         dismissed: progress.banner === 'dismissed',
+        editable: true,
     })
 }
 
@@ -340,6 +346,8 @@ function saveSettings(state, args) {
     if (args.values['generalSettings.timezone'] === 'Mars/Base') {
         return settingsAnswer('invalid', 0, {fields: {'generalSettings.timezone': 'timezone'}})
     }
+    const negative = Object.keys(args.values).filter(key => typeof args.values[key] === 'number' && args.values[key] < 0)
+    if (negative.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(negative.map(key => [key, 'range']))})
     const empty = Object.keys(args.values).filter(key => args.values[key] === null)
     if (empty.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(empty.map(key => [key, 'empty']))})
     if ('discord.username' in args.values && !state.settingsRaced) {

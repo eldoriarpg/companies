@@ -286,16 +286,14 @@ public class MariaDbNodeData extends ANodeData {
     @Override
     public void setupProgress(String page, String state, String actor) {
         @Language("mariadb")
-        var delete = """
-                DELETE FROM setup_progress
-                WHERE page = ?""";
-        @Language("mariadb")
-        var insert = """
+        var upsert = """
                 INSERT INTO setup_progress(page, state, actor, changed_at)
-                VALUES (?, ?, ?, ?)""";
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE state      = VALUES(state),
+                                        actor      = VALUES(actor),
+                                        changed_at = VALUES(changed_at)""";
 
-        query(delete).single(call().bind(page)).delete();
-        query(insert)
+        query(upsert)
                 .single(call().bind(page).bind(state).bind(actor).bind(Times.now(), time()))
                 .insert();
     }

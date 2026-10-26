@@ -14,6 +14,8 @@ import PlainList from '@/components/container/PlainList.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import Alert from '@/components/feedback/Alert.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
+import {Feature} from '~/api/generated/protocol'
+import {changedValue, settingProblem} from '~/util/settings'
 import AdminSettingField from './AdminSettingField.vue'
 import AdminSettingsIcon from './AdminSettingsIcon.vue'
 
@@ -22,6 +24,10 @@ import AdminSettingsIcon from './AdminSettingsIcon.vue'
  * editor saves (as the next revision, checked against the one shown) when the admin goes on, or skipped. How far it
  * got is kept for the whole network, so it opens at the first page not done, on any server and for any admin. Pages
  * without settings explain something or open another tool, such as the level editor.
+ *
+ * A page may save to several files, one revision each. The files are loaded again after every save, upload or mark,
+ * and the admin's unsaved edits are kept across all of them, so a refused or outdated file never costs the edits of
+ * another. A page whose files could not be loaded cannot be saved.
  */
 const emit = defineEmits<{
   /** Opens another admin tab, such as the level editor. */
@@ -30,21 +36,40 @@ const emit = defineEmits<{
   changed: [setup: AdminSetup]
 }>()
 
+/** A permission example of the permissions page: the command and what it does. */
+interface PermissionExample {
+  command: string
+  note: string
+}
+
 const {t} = useI18n()
+const {supports} = useDashboard()
 const loading = useAction()
+const fetching = useAction()
 const saving = useAction()
 const marking = useAction()
 const setup = ref<AdminSetup | null>(null)
 const files = ref<Partial<Record<SettingsFileName, AdminSettingsFile>>>({})
+const failed = ref<SettingsFileName[]>([])
 const draft = ref<Record<string, unknown>>({})
 const errors = ref<Record<string, string>>({})
 const notice = ref('')
 const restart = ref<string[]>([])
 const current = ref('')
+const reloading = ref(false)
 const pages = computed(() => setup.value?.pages ?? [])
 const page = computed(() => pages.value.find(entry => entry.id === current.value) ?? null)
-const editable = computed(() => Object.values(files.value).every(file => file?.editable === true))
+const needed = computed(() => [...new Set(pages.value.flatMap(entry => entry.fields.map(field => field.file as SettingsFileName)))])
+const editable = computed(() => setup.value?.editable === true && failed.value.length === 0 && needed.value.every(name => files.value[name]?.editable === true))
+const busy = computed(() => reloading.value || loading.busy.value || saving.busy.value || marking.busy.value)
 const finished = computed(() => pages.value.length > 0 && pages.value.every(entry => entry.state !== 'open'))
+const shownKeys = computed(() => new Set(page.value ? fields(page.value).map(({file, setting}) => id(file, setting.key)) : []))
+const unshownErrors = computed(() => Object.keys(errors.value).filter(key => !shownKeys.value.has(key)).map(key => key.split(':').pop() || t('admin.setup.wholeFile')))
+const permissions = computed<PermissionExample[]>(() => [
+  {command: 'lp group default permission set companies.orders.limit.15 true', note: t('admin.setup.pages.permissions.limit')},
+  {command: 'lp group default permission set companies.orders.repeat false', note: t('admin.setup.pages.permissions.repeat')},
+  {command: 'lp group admin permission set companies.admin.* true', note: t('admin.setup.pages.permissions.admin')},
+])
 
 onMounted(load)
 
@@ -58,16 +83,34 @@ async function load(): Promise<void> {
   current.value = result.pages.find(entry => entry.state === 'open')?.id ?? 'summary'
 }
 
-/** Loads the settings files the pages show and resets the draft to them. */
+/** Loads the settings files the pages show, keeping the admin's unsaved edits. */
 async function loadFiles(): Promise<void> {
-  const names = [...new Set(pages.value.flatMap(entry => entry.fields.map(field => field.file as SettingsFileName)))]
+  reloading.value = true
+  const before = files.value
+  const kept = draft.value
   const loaded: Partial<Record<SettingsFileName, AdminSettingsFile>> = {}
-  for (const name of names) {
-    const result = await loading.run('admin.settings.get', {file: name})
-    if (result) loaded[name] = result
+  const missing: SettingsFileName[] = []
+  try {
+    for (const name of needed.value) {
+      const result = await fetching.run('admin.settings.get', {file: name})
+      if (result) loaded[name] = result
+      else missing.push(name)
+    }
+  } finally {
+    reloading.value = false
+  }
+  const next: Record<string, unknown> = {}
+  for (const file of Object.values(loaded)) {
+    for (const setting of file?.settings ?? []) {
+      const key = id(file!.file, setting.key)
+      const old = before[file!.file]?.settings.find(entry => entry.key === setting.key)
+      const dirty = old !== undefined && key in kept && changedValue(kept[key], original(old))
+      next[key] = dirty ? kept[key] : structuredClone(original(setting))
+    }
   }
   files.value = loaded
-  draft.value = Object.fromEntries(Object.values(loaded).flatMap(file => (file?.settings ?? []).map(setting => [id(file!.file, setting.key), structuredClone(original(setting))])))
+  failed.value = missing
+  draft.value = next
 }
 
 /**
@@ -99,6 +142,14 @@ function fields(target: AdminSetupPage): {file: SettingsFileName, setting: Admin
 }
 
 /**
+ * @param target a page
+ * @returns whether every setting of the page could be loaded
+ */
+function complete(target: AdminSetupPage): boolean {
+  return fields(target).length === target.fields.length
+}
+
+/**
  * @param file a settings file
  * @param setting one of its settings
  * @returns its name for the admin
@@ -116,7 +167,8 @@ function hint(setting: AdminSetting): string {
 }
 
 /**
- * Saves the changed settings of the page, one revision per file, notes the page as done and goes on.
+ * Saves the changed settings of the page, one revision per file, notes the page as done and goes on. Stops at the
+ * first file that is refused or was saved meanwhile; the files are loaded again and every unsaved edit is kept.
  *
  * @param target the page
  */
@@ -126,22 +178,16 @@ async function next(target: AdminSetupPage): Promise<void> {
   const byFile = new Map<SettingsFileName, Record<string, unknown>>()
   for (const {file, setting} of fields(target)) {
     const value = draft.value[id(file, setting.key)]
-    if (JSON.stringify(value) === JSON.stringify(original(setting))) continue
+    if (!changedValue(value, original(setting))) continue
     byFile.set(file, {...byFile.get(file), [setting.key]: value ?? (setting.type === 'SECRET' ? undefined : null)})
   }
   for (const [file, values] of byFile) {
     const base = files.value[file]?.revision ?? 0
     const result = await saving.run('admin.settings.save', {file, base, values})
-    if (!result) return
-    if (result.status === 'invalid') {
-      errors.value = Object.fromEntries(Object.entries(result.fields).map(([key, reason]) => [id(file, key), reason]))
-      return
-    }
-    if (result.status === 'newer') {
-      const kept = {...draft.value}
+    if (!result || result.status === 'invalid' || result.status === 'newer') {
+      if (result?.status === 'invalid') errors.value = Object.fromEntries(Object.entries(result.fields).map(([key, reason]) => [id(file, key), reason]))
+      if (result?.status === 'newer') notice.value = t('admin.setup.newer', {file})
       await loadFiles()
-      draft.value = {...draft.value, ...Object.fromEntries(Object.keys(values).map(key => [id(file, key), kept[id(file, key)]]))}
-      notice.value = t('admin.setup.newer', {file})
       return
     }
     restart.value = [...new Set([...restart.value, ...result.restart])]
@@ -160,11 +206,11 @@ async function mark(target: AdminSetupPage, state: 'done' | 'skipped'): Promise<
   if (!result) return
   setup.value = result
   emit('changed', result)
-  await loadFiles()
   const index = result.pages.findIndex(entry => entry.id === target.id)
   current.value = result.pages.slice(index + 1).find(entry => entry.state === 'open')?.id
     ?? result.pages.find(entry => entry.state === 'open')?.id
     ?? 'summary'
+  await loadFiles()
 }
 
 /**
@@ -178,8 +224,22 @@ function go(target: string): void {
   current.value = target
 }
 
-/** Reloads the files after an icon upload, which saves on its own. */
-async function iconDone(): Promise<void> {
+/**
+ * Shows what an icon upload did and loads the files again, keeping the other edits of the page.
+ *
+ * @param result what the server answered
+ * @param result.status what saving did
+ * @param result.revision the stored or latest revision
+ * @param result.refused why the icon was refused, if it was
+ */
+async function iconDone(result: {status: string, revision: number, refused?: string}): Promise<void> {
+  notice.value = ''
+  if (result.refused) {
+    errors.value = {[id('config.yml', 'dashboard.branding.icon')]: result.refused}
+    return
+  }
+  errors.value = {}
+  if (result.status === 'newer') notice.value = t('admin.setup.newer', {file: 'config.yml'})
   await loadFiles()
 }
 </script>
@@ -199,34 +259,37 @@ async function iconDone(): Promise<void> {
           </RowButton>
         </li>
         <li>
-          <RowButton :selected="current === 'summary'" @click="go('summary')">{{ t('admin.setup.summary') }}</RowButton>
+          <RowButton :selected="current === 'summary' || !page" @click="go('summary')">{{ t('admin.setup.summary') }}</RowButton>
         </li>
       </PlainList>
     </PanelBox>
     <PanelBox v-if="page" padded :aria-label="t(`admin.setup.pages.${page.id}.title`)" data-testid="admin-setup-page">
       <SectionHeader>{{ t(`admin.setup.pages.${page.id}.title`) }}</SectionHeader>
       <p class="text-sm">{{ t(`admin.setup.pages.${page.id}.intro`) }}</p>
-      <Alert v-if="!editable" variant="notice">{{ t('admin.settings.readOnly') }}</Alert>
+      <Alert v-if="setup && !setup.editable" variant="notice">{{ t('admin.settings.readOnly') }}</Alert>
+      <Alert v-if="failed.length > 0" variant="problem">{{ t('admin.setup.loadFailed', {files: failed.join(', ')}) }}</Alert>
       <Alert v-if="notice" variant="notice">{{ notice }}</Alert>
+      <Alert v-if="unshownErrors.length > 0" variant="problem">{{ t('admin.settings.otherErrors', {settings: unshownErrors.join(', ')}) }}</Alert>
       <div v-for="{file, setting} in fields(page)" :key="id(file, setting.key)" class="flex flex-col gap-1" :data-testid="`admin-setup-field-${setting.key}`">
         <AdminSettingField v-model="draft[id(file, setting.key)]" :setting="setting" :label="label(file, setting)" :hint="hint(setting)" :disabled="!editable"/>
+        <span v-if="setting.type === 'SECRET' && setting.secret?.source !== 'environment'" class="text-xs text-ink-muted">{{ setting.secret?.set ? t('admin.settings.secret.file') : t('admin.settings.secret.none') }}</span>
         <AdminSettingsIcon v-if="setting.key === 'dashboard.branding.icon' && editable" :base="files[file]?.revision ?? 0" :current="String(setting.value ?? '')" :overridden="setting.overridden" @done="iconDone"/>
-        <span v-if="errors[id(file, setting.key)]" class="text-xs font-semibold text-problem-ink" role="alert">{{ t(`admin.settings.problem.${errors[id(file, setting.key)]}`, {min: setting.min ?? 0, max: setting.max ?? 0}) }}</span>
+        <span v-if="errors[id(file, setting.key)]" class="text-xs font-semibold text-problem-ink" role="alert">{{ settingProblem(t, setting, errors[id(file, setting.key)] ?? '') }}</span>
       </div>
-      <SecondaryButton v-if="page.id === 'levels'" @click="emit('open', 'levels')">{{ t('admin.setup.pages.levels.open') }}</SecondaryButton>
-      <ul v-if="page.id === 'permissions'" class="flex list-disc flex-col gap-1 pl-5 font-mono text-xs">
-        <li>lp group default permission set companies.orders.limit.5 true</li>
-        <li>lp group default permission set companies.orders.repeat true</li>
-        <li>lp group admin permission set companies.admin true</li>
-        <li>lp group admin permission set companies.admin.reload true</li>
+      <SecondaryButton v-if="page.id === 'levels' && supports(Feature['admin.levels'])" @click="emit('open', 'levels')">{{ t('admin.setup.pages.levels.open') }}</SecondaryButton>
+      <ul v-if="page.id === 'permissions'" class="flex flex-col gap-2 text-sm" data-testid="admin-setup-permissions">
+        <li v-for="example in permissions" :key="example.command" class="flex flex-col gap-0.5">
+          <code class="font-mono text-xs">{{ example.command }}</code>
+          <span class="text-xs text-ink-muted">{{ example.note }}</span>
+        </li>
       </ul>
-      <ButtonRow v-if="editable">
-        <PrimaryButton :disabled="saving.busy.value || marking.busy.value" @click="next(page)">{{ page.fields.length > 0 ? t('admin.setup.saveNext') : t('admin.setup.next') }}</PrimaryButton>
-        <SecondaryButton :disabled="saving.busy.value || marking.busy.value" @click="mark(page, 'skipped')">{{ t('admin.setup.skip') }}</SecondaryButton>
+      <ButtonRow v-if="setup?.editable">
+        <PrimaryButton :disabled="busy || !editable || !complete(page)" @click="next(page)">{{ page.fields.length > 0 ? t('admin.setup.saveNext') : t('admin.setup.next') }}</PrimaryButton>
+        <SecondaryButton :disabled="busy" @click="mark(page, 'skipped')">{{ t('admin.setup.skip') }}</SecondaryButton>
       </ButtonRow>
       <ActionNotice :problem="saving.problem.value ?? marking.problem.value"/>
     </PanelBox>
-    <PanelBox v-else-if="current === 'summary'" padded :aria-label="t('admin.setup.summary')" data-testid="admin-setup-summary">
+    <PanelBox v-else padded :aria-label="t('admin.setup.summary')" data-testid="admin-setup-summary">
       <SectionHeader>{{ t('admin.setup.summary') }}</SectionHeader>
       <p class="text-sm">{{ finished ? t('admin.setup.finished') : t('admin.setup.unfinished') }}</p>
       <ul class="flex flex-col gap-1 text-sm">

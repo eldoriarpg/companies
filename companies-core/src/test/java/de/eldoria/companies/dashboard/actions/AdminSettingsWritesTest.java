@@ -526,5 +526,14 @@ class AdminSettingsWritesTest {
                 change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"economy\",\"state\":\"dismissed\"}")
                         .reason());
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("setup")));
+        assertEquals(
+                "dashboard.invalid",
+                change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"banner\",\"state\":\"done\"}")
+                        .reason());
+        var reopened = change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"economy\",\"state\":\"open\"}")
+                .data();
+        assertEquals("open", reopened.path("pages").get(0).path("state").asString());
+        assertTrue(reopened.path("editable").asBoolean());
+        assertFalse(read(Actions.ADMIN_SETUP_GET, "{}").data().path("editable").asBoolean());
     }
 }

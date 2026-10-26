@@ -258,6 +258,8 @@ export default {
             synced: 'The configuration is synced.',
         },
         setup: {
+            loadFailed: 'These files could not be loaded, so this step cannot be saved here: {files}. Try again later or use the Settings tab.',
+            wholeFile: 'the file as a whole',
             steps: 'Steps',
             summary: 'Summary',
             state: {
@@ -299,7 +301,10 @@ export default {
                 },
                 permissions: {
                     title: 'Permissions',
-                    intro: 'Companies does not change permissions. These are the usual ones, for example with LuckPerms:',
+                    intro: 'Companies does not change permissions. Some examples with LuckPerms; the documentation lists every permission:',
+                    limit: 'Lets players have up to 15 open orders. It replaces maxOrders for that group, so a smaller number lowers the limit.',
+                    repeat: 'Repeating orders are open to everyone by default; this takes them away.',
+                    admin: 'Every admin tool, saving settings included.',
                 },
             },
         },

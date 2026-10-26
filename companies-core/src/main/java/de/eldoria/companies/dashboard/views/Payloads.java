@@ -701,8 +701,9 @@ public final class Payloads {
      *
      * @param pages     its pages in order
      * @param dismissed whether an admin dismissed the reminder to finish it
+     * @param editable  whether the admin may save settings and mark pages, which needs {@code companies.admin.reload}
      */
-    public record AdminSetup(List<AdminSetupPage> pages, boolean dismissed) {}
+    public record AdminSetup(List<AdminSetupPage> pages, boolean dismissed, boolean editable) {}
 
     /**
      * One page of the setup.

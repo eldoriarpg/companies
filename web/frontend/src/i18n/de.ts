@@ -258,6 +258,8 @@ export default {
             synced: 'Die Konfiguration ist abgeglichen.',
         },
         setup: {
+            loadFailed: 'Diese Dateien ließen sich nicht laden, daher kann dieser Schritt hier nicht gespeichert werden: {files}. Versuche es später oder nutze den Tab Einstellungen.',
+            wholeFile: 'die Datei als Ganzes',
             steps: 'Schritte',
             summary: 'Zusammenfassung',
             state: {
@@ -299,7 +301,10 @@ export default {
                 },
                 permissions: {
                     title: 'Berechtigungen',
-                    intro: 'Companies ändert keine Berechtigungen. Das sind die üblichen, zum Beispiel mit LuckPerms:',
+                    intro: 'Companies ändert keine Berechtigungen. Einige Beispiele mit LuckPerms; die Dokumentation listet jede Berechtigung:',
+                    limit: 'Erlaubt Spielern bis zu 15 offene Aufträge. Ersetzt maxOrders für diese Gruppe, eine kleinere Zahl senkt also das Limit.',
+                    repeat: 'Wiederkehrende Aufträge sind standardmäßig für alle offen; das nimmt sie weg.',
+                    admin: 'Alle Admin-Werkzeuge, das Speichern von Einstellungen eingeschlossen.',
                 },
             },
         },
