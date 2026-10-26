@@ -28,8 +28,8 @@ import java.util.Optional;
  * the next revision when nobody stored one meanwhile.
  * <p>
  * Every bad value is named at once and nothing is stored then. A secret is written only when a value is given; none
- * keeps it, an empty one clears it, one of only spaces is refused, and one set by an environment variable cannot be changed here. When another
- * revision was stored after the one the admin saw, nothing is stored; the answer carries the newer values of the
+ * keeps it, an empty one clears it, one of only spaces is refused, and one set by an environment variable cannot be
+ * changed here. When another revision was stored after the one the admin saw, nothing is stored; the answer carries the newer values of the
  * submitted settings and which settings that revision changed, so the admin can save again on top of it.
  */
 public final class SettingsEditor {
@@ -110,6 +110,7 @@ public final class SettingsEditor {
     private static Optional<String> problem(Configuration configuration, String file, String name, JsonNode value) {
         var field = SettingsCatalogue.field(file, name);
         if (field.isEmpty()) return Optional.of("unknown");
+        if (value.isNull() && !field.get().secret()) return Optional.of("empty");
         var valid =
                 switch (field.get().type()) {
                     case FLAG -> value.isBoolean();
@@ -194,7 +195,7 @@ public final class SettingsEditor {
          *
          * @param fields the reason by dotted key: the type the value should have ({@code flag}, {@code whole},
          *               {@code decimal}, {@code text}, {@code choice}, {@code choices}, {@code text_list},
-         *               {@code flag_map}, {@code secret}), {@code range} outside its bounds,
+         *               {@code flag_map}, {@code secret}), {@code empty} for no value, {@code range} outside its bounds,
          *               {@code timezone} for a zone that does not exist, {@code unknown}, {@code environment}, or
          *               {@code invalid} under the empty key when the file as a whole could not be read or the
          *               revision edited does not exist

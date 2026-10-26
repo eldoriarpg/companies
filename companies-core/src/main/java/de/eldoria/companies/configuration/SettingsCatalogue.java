@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -56,8 +57,6 @@ public final class SettingsCatalogue {
             "profile.tagLength.max",
             "profile.maxDescriptionLength",
             "treasury.logPageSize",
-            "treasury.logRetentionDays",
-            "alerts.maxPerCompany",
             "maxItems",
             "maxMaterials",
             "maxUnclaimedHours",
@@ -67,11 +66,25 @@ public final class SettingsCatalogue {
             "repeating.maxDays",
             "repeating.checkMinutes",
             "solo.maxActive",
-            "solo.maxOrderSize",
             "solo.deliveryHours");
 
     private static final Set<String> PERCENT =
             Set.of("tax.percent", "fee.percent", "solo.taxPercent", "treasury.maxPayoutShare");
+
+    private static final Map<String, Double> LOWEST = Map.of(
+            "placeholders.refreshSeconds", 10.0,
+            "boards.refreshSeconds", 10.0,
+            "market.historyDays", 14.0,
+            "dashboard.sessionIdleMinutes", 5.0);
+
+    private static final Map<String, Double> HIGHEST = Map.of(
+            "notifications.pageSize", 50.0,
+            "treasury.logPageSize", 50.0,
+            "discord.maxPerMinute", 60.0,
+            "discord.queueSize", 1000.0,
+            "profile.tagLength.max", 5.0,
+            "dashboard.sessionIdleMinutes", 10080.0,
+            "dashboard.sessionMaxHours", 720.0);
 
     /**
      * Every field, grouped by file and section in the order they are shown.
@@ -348,13 +361,8 @@ public final class SettingsCatalogue {
     private record Section(List<Field> fields, String file, String name) {
         void add(Type type, String key, List<String> choices, boolean restart) {
             var number = type == Type.WHOLE || type == Type.DECIMAL;
-            var min = number ? (AT_LEAST_ONE.contains(key) ? 1.0 : 0.0) : null;
-            var max = PERCENT.contains(key) ? Double.valueOf(100) : null;
-            if (key.equals("dashboard.sessionIdleMinutes")) {
-                min = 5.0;
-                max = 10080.0;
-            }
-            if (key.equals("dashboard.sessionMaxHours")) max = 720.0;
+            var min = number ? LOWEST.getOrDefault(key, AT_LEAST_ONE.contains(key) ? 1.0 : 0.0) : null;
+            var max = PERCENT.contains(key) ? Double.valueOf(100) : HIGHEST.get(key);
             fields.add(new Field(file, name, key, type, List.copyOf(choices), restart, type == Type.SECRET, min, max));
         }
 

@@ -241,7 +241,7 @@ test.describe('admin', () => {
         await orders.getByRole('textbox').fill('')
         await save.getByRole('button', {name: 'Save'}).click()
         await save.getByRole('button', {name: 'Save', exact: true}).last().click()
-        await expect(orders).toContainText('Must be a whole number.')
+        await expect(orders).toContainText('Needs a value.')
         await expect(page.getByLabel('File', {exact: true})).toBeDisabled()
 
         await save.getByRole('button', {name: 'Discard changes'}).click()

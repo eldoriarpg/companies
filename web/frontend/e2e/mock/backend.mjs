@@ -312,7 +312,7 @@ function saveSettings(state, args) {
         return settingsAnswer('invalid', 0, {fields: {'generalSettings.timezone': 'timezone'}})
     }
     const empty = Object.keys(args.values).filter(key => args.values[key] === null)
-    if (empty.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(empty.map(key => [key, 'whole']))})
+    if (empty.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(empty.map(key => [key, 'empty']))})
     if ('discord.username' in args.values && !state.settingsRaced) {
         state.settingsRaced = true
         stored.revision++

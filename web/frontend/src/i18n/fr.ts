@@ -281,6 +281,7 @@ export default {
             rollbackConfirm: 'Restaurer',
             rollbackNewer: 'La révision {revision} a été enregistrée entre-temps ; rien n\'a été modifié.',
             problem: {
+                empty: 'Nécessite une valeur.',
                 atLeast: 'Doit être au moins {min}.',
                 range: 'Doit être entre {min} et {max}.',
                 timezone: 'Doit être un fuseau horaire comme Europe/Berlin, ou vide.',

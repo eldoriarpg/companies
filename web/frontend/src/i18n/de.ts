@@ -281,6 +281,7 @@ export default {
             rollbackConfirm: 'Zurücksetzen',
             rollbackNewer: 'Inzwischen wurde Revision {revision} gespeichert; nichts wurde geändert.',
             problem: {
+                empty: 'Braucht einen Wert.',
                 atLeast: 'Muss mindestens {min} sein.',
                 range: 'Muss zwischen {min} und {max} liegen.',
                 timezone: 'Muss eine Zeitzone wie Europe/Berlin sein, oder leer.',

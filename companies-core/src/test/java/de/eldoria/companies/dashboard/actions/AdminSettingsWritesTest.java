@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.SettingsCatalogue;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
@@ -353,7 +354,7 @@ class AdminSettingsWritesTest {
         assertEquals("range", fields.path("generalSettings.orderCheckInterval").asString());
         assertEquals("timezone", fields.path("generalSettings.timezone").asString());
         assertEquals("secret", fields.path("discord.url").asString());
-        assertEquals("whole", fields.path("notifications.pageSize").asString());
+        assertEquals("empty", fields.path("notifications.pageSize").asString());
         assertEquals(
                 "range",
                 change(
@@ -390,5 +391,23 @@ class AdminSettingsWritesTest {
 
         change(Actions.ADMIN_SETTINGS_ROLLBACK, "{\"file\":\"user.yml\",\"revision\":1,\"base\":2}");
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("settings rollback")));
+    }
+
+    @Test
+    void documentedZerosAreAccepted() {
+        world.nodeData.publishSettings("company.yml", copy(Configuration.COMPANY_SETTINGS), "startup");
+
+        var result = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"company.yml\",\"base\":1,\"values\":{\"alerts.maxPerCompany\":0,"
+                        + "\"treasury.logRetentionDays\":0}}");
+
+        assertEquals(
+                "saved", result.data().path("status").asString(), result.data().toString());
+        assertEquals(
+                0.0,
+                SettingsCatalogue.field("order.yml", "solo.maxOrderSize")
+                        .orElseThrow()
+                        .min());
     }
 }
