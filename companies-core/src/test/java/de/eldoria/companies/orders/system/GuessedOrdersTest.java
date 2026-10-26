@@ -68,6 +68,7 @@ class GuessedOrdersTest {
     private OfflinePlayer player;
     private SystemOrderService service;
     private String failing;
+    private double balance = Double.MAX_VALUE;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -98,6 +99,8 @@ class GuessedOrdersTest {
                 new SystemOrderService.Funding() {
                     @Override
                     public boolean withdraw(String account, double amount) {
+                        if (balance < amount) return false;
+                        balance -= amount;
                         return true;
                     }
 
@@ -338,6 +341,35 @@ class GuessedOrdersTest {
                         new SystemOrderService.Result("guessed DIRT", Step.MINTED_CAP),
                         new SystemOrderService.Result("guessed STONE", Step.PLACED)),
                 steps);
+    }
+
+    @Test
+    void anAccountThatCannotPayLetsTheNextCandidateTry() {
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        settings.guessed().source(new MoneySource(MoneySource.SourceType.ACCOUNT, "bank", 0));
+        balance = 60.0;
+
+        var steps = service.run().rules();
+
+        assertEquals(
+                List.of(
+                        new SystemOrderService.Result("guessed DIRT", Step.CANNOT_PAY),
+                        new SystemOrderService.Result("guessed STONE", Step.PLACED)),
+                steps);
+    }
+
+    @Test
+    void moneyStoppingThreePlacementsEndsTheCheck() {
+        settings.guessed().minOpen(5);
+        settings.guessed().maxOpen(5);
+        settings.guessed().allow(List.of("SAND", "GRAVEL", "CLAY_BALL"));
+        for (var material : List.of("SAND", "GRAVEL", "CLAY_BALL")) averages.put(material, 1.0);
+        settings.mintedDailyCap(1);
+
+        var steps = service.run().rules();
+
+        assertEquals(GuessedOrders.MONEY_FAILURES, steps.size());
     }
 
     @Test

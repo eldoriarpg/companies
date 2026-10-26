@@ -47,13 +47,19 @@ import java.util.stream.Collectors;
  *     <li>New guessed orders, replacements first, fill up to the target of {@link GuessedChoice#target}, in the order
  *     of {@link GuessedChoice#rank}, one per material, skipping resting materials and, in {@code SKIP} mode, those
  *     players have open orders for. A placement that fails is logged and the next candidate is tried, also when money
- *     stopped it, since a cheaper one may still fit; only a missing account ends the check's placing.</li>
+ *     stopped it, since a cheaper one may still fit; a missing account, or money stopping {@value #MONEY_FAILURES}
+ *     placements, ends the check's placing. A replacement money stopped is placed later as a new order.</li>
  * </ol>
  * The allow and deny lists are resolved to material names first; entries naming no item are logged. While guessed
  * orders or system orders are disabled, open ones are removed when they would be repriced, and none are placed.
  * Removed orders give their money back to the account that paid them.
  */
 final class GuessedOrders {
+    /**
+     * Placements money may stop in one check before the check stops placing.
+     */
+    static final int MONEY_FAILURES = 3;
+
     private final AOrderData orders;
     private final Placement placement;
     private final Purchases purchases;
@@ -152,6 +158,7 @@ final class GuessedOrders {
         var target = GuessedChoice.target(settings, openPlayer);
         var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results);
         var slots = target - stillOpen;
+        var moneyFailures = 0;
         for (var replacement : replacements) {
             var material = replacement.material();
             if (slots <= 0 || active.contains(material)) {
@@ -164,7 +171,7 @@ final class GuessedOrders {
             if (step == Step.PLACED) {
                 slots--;
                 stillOpen++;
-            } else if (step == Step.NO_ACCOUNT) {
+            } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
                 return;
             } else if (!money(step)) {
                 rest(settings, material, now);
@@ -181,7 +188,7 @@ final class GuessedOrders {
             if (step == Step.PLACED) {
                 slots--;
                 stillOpen++;
-            } else if (step == Step.NO_ACCOUNT) {
+            } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
                 return;
             }
         }
