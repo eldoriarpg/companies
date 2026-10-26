@@ -1398,6 +1398,9 @@
     },
     "admin.settings.rollback" : {
       "feature" : "admin.settings"
+    },
+    "admin.settings.icon" : {
+      "feature" : "admin.settings"
     }
   }
 }

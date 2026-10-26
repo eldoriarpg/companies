@@ -112,6 +112,17 @@ class SqLiteNodeDataTest {
         assertEquals(Map.of(), nodeData.pendingRestarts());
     }
 
+    @Test
+    void assetsAreKeptByNameAndStoredOnce() {
+        assertTrue(nodeData.storeAsset("icon-a", "AAAA", "hash-a", "Ada"));
+        assertTrue(nodeData.storeAsset("icon-b", "BBBB", "hash-b", "Ada"));
+        assertTrue(nodeData.storeAsset("icon-a", "AAAA", "hash-a", "Bo"));
+
+        assertEquals(Optional.of("AAAA"), nodeData.asset("icon-a"));
+        assertEquals(Optional.of("BBBB"), nodeData.asset("icon-b"));
+        assertTrue(nodeData.asset("icon-x").isEmpty());
+    }
+
     private SqLiteNodeData staleAt(int revision) {
         return new SqLiteNodeData(new NodeSettings()) {
             private boolean answered;

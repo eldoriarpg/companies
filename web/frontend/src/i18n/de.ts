@@ -257,6 +257,20 @@ export default {
             synced: 'Die Konfiguration ist abgeglichen.',
         },
         settings: {
+            icon: {
+                none: 'Das Dashboard zeigt kein Symbol.',
+                overridden: 'Dieser Server setzt sein eigenes Symbol in seiner node.yml und zeigt es weiter.',
+                shared: 'Jeder Server zeigt das hochgeladene Symbol.',
+                perServer: 'Jeder Server zeigt sein eigenes {file}.',
+                choose: 'Symbol für alle Server hochladen',
+                limits: 'Ein PNG von höchstens 256×256 Pixeln und 40 KB.',
+                notPng: 'Das ist kein PNG.',
+                tooLarge: 'Die Datei ist größer als 40 KB.',
+                tooWide: 'Das Bild ist größer als 256×256 Pixel.',
+                preview: 'Das gewählte Symbol',
+                upload: 'Für alle Server hochladen',
+                reset: 'Wieder das Serversymbol nutzen',
+            },
             readOnly: 'Zum Ändern der Einstellungen braucht es companies.admin.reload.',
             discard: 'Änderungen verwerfen',
             otherErrors: 'Abgelehnt: {settings}',
@@ -281,6 +295,7 @@ export default {
             rollbackConfirm: 'Zurücksetzen',
             rollbackNewer: 'Inzwischen wurde Revision {revision} gespeichert; nichts wurde geändert.',
             problem: {
+                icon: 'Muss ein PNG von höchstens 256×256 Pixeln und 40 KB sein.',
                 empty: 'Braucht einen Wert.',
                 atLeast: 'Muss mindestens {min} sein.',
                 range: 'Muss zwischen {min} und {max} liegen.',

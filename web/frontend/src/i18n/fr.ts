@@ -257,6 +257,20 @@ export default {
             synced: 'La configuration est synchronisée.',
         },
         settings: {
+            icon: {
+                none: 'Le tableau de bord n\'affiche aucune icône.',
+                overridden: 'Ce serveur définit sa propre icône dans son node.yml et continue de l\'afficher.',
+                shared: 'Chaque serveur affiche l\'icône envoyée.',
+                perServer: 'Chaque serveur affiche son propre {file}.',
+                choose: 'Envoyer une icône pour tous les serveurs',
+                limits: 'Un PNG d\'au plus 256×256 pixels et 40 Ko.',
+                notPng: 'Ce n\'est pas un PNG.',
+                tooLarge: 'Le fichier dépasse 40 Ko.',
+                tooWide: 'L\'image dépasse 256×256 pixels.',
+                preview: 'L\'icône choisie',
+                upload: 'Envoyer pour tous les serveurs',
+                reset: 'Reprendre l\'icône du serveur',
+            },
             readOnly: 'Modifier les paramètres nécessite companies.admin.reload.',
             discard: 'Annuler les modifications',
             otherErrors: 'Refusé : {settings}',
@@ -281,6 +295,7 @@ export default {
             rollbackConfirm: 'Restaurer',
             rollbackNewer: 'La révision {revision} a été enregistrée entre-temps ; rien n\'a été modifié.',
             problem: {
+                icon: 'Doit être un PNG d\'au plus 256×256 pixels et 40 Ko.',
                 empty: 'Nécessite une valeur.',
                 atLeast: 'Doit être au moins {min}.',
                 range: 'Doit être entre {min} et {max}.',

@@ -248,4 +248,26 @@ test.describe('admin', () => {
         await expect(save).toContainText('No changes to save.')
         await expect(orders.getByRole('textbox')).toHaveValue('7')
     })
+
+    test('uploads an icon for every server and goes back to the server icon', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Settings'}).click()
+        const icon = page.getByTestId('admin-settings-icon')
+        await expect(icon).toContainText('Each server shows its own server-icon.png.')
+
+        await icon.getByLabel('Upload an icon for every server').setInputFiles({
+            name: 'icon.png',
+            mimeType: 'image/png',
+            buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'),
+        })
+        await expect(page.getByTestId('admin-settings-icon-preview')).toBeVisible()
+        await icon.getByRole('button', {name: 'Upload for every server'}).click()
+        await expect(page.getByTestId('admin-settings-done')).toHaveText('Saved as revision 3.')
+        await expect(icon).toContainText('Every server shows the uploaded icon.')
+
+        await icon.getByRole('button', {name: 'Use the server icon again'}).click()
+        await expect(page.getByTestId('admin-settings-done')).toHaveText('Saved as revision 4.')
+        await expect(icon).toContainText('Each server shows its own server-icon.png.')
+    })
 })

@@ -249,4 +249,4 @@ copied to every server; see [node.yml](./node-yml.md).
 | `sessionMaxHours` | number (hours) | `24` | A login ends after this long in any case. From 1 hour to 30 days. | reload |
 | `features` | map of true/false | every part `true` | Switch parts of the dashboard off, for example `market: false`. A part missing from the map is on. | reload |
 | `branding.name` | text | `''` | The server's name on the dashboard. When empty, the MOTD without colours is used. At most 64 characters. | reload |
-| `branding.icon` | text | `server-icon.png` | A PNG in the plugin folder, or in the server folder, of at most 256×256 pixels and 48 KB. When it is missing or too large, the dashboard shows no icon and the console says why. | reload |
+| `branding.icon` | text | `server-icon.png` | A PNG in the plugin folder, or in the server folder, of at most 256×256 pixels and 48 KB. The default is each server's own server icon. `shared:` followed by a name is an icon uploaded on the dashboard and shown by every server; the dashboard sets it, do not type it. When the icon is missing or too large, the dashboard shows no icon and the console says why. | reload |

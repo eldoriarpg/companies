@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.SettingsCatalogue;
 import de.eldoria.companies.configuration.SettingsEditor;
+import de.eldoria.companies.dashboard.gateway.BrandingSource;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
@@ -22,11 +23,13 @@ import org.jetbrains.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.MissingNode;
+import tools.jackson.databind.node.StringNode;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,9 +60,17 @@ public final class AdminSettingsWrites {
             Actions.ADMIN_SETTINGS_HISTORY,
             Actions.ADMIN_SETTINGS_REVISION,
             Actions.ADMIN_SETTINGS_SAVE,
-            Actions.ADMIN_SETTINGS_ROLLBACK);
+            Actions.ADMIN_SETTINGS_ROLLBACK,
+            Actions.ADMIN_SETTINGS_ICON);
 
-    private static final Set<String> CHANGES = Set.of(Actions.ADMIN_SETTINGS_SAVE, Actions.ADMIN_SETTINGS_ROLLBACK);
+    /**
+     * The largest icon accepted, so its base64 fits the gateway's request limit.
+     */
+    public static final int MAX_ICON_BYTES = 40 * 1024;
+
+    private static final String ICON_KEY = "dashboard.branding.icon";
+    private static final Set<String> CHANGES =
+            Set.of(Actions.ADMIN_SETTINGS_SAVE, Actions.ADMIN_SETTINGS_ROLLBACK, Actions.ADMIN_SETTINGS_ICON);
 
     /**
      * The revisions of one history page.
@@ -105,6 +116,7 @@ public final class AdminSettingsWrites {
                 case Actions.ADMIN_SETTINGS_REVISION -> revision(request, file, args);
                 case Actions.ADMIN_SETTINGS_SAVE -> save(request, admin, file, args);
                 case Actions.ADMIN_SETTINGS_ROLLBACK -> rollback(request, admin, file, args);
+                case Actions.ADMIN_SETTINGS_ICON -> icon(request, admin, file, args);
                 default -> answers.refused(request, "dashboard.unsupported");
             };
         } catch (CommandFailure failure) {
@@ -116,7 +128,11 @@ public final class AdminSettingsWrites {
         var values = new LinkedHashMap<String, JsonNode>();
         args.path("values").properties().forEach(entry -> values.put(entry.getKey(), entry.getValue()));
         if (values.isEmpty() || !args.path("base").canConvertToInt()) throw CommandFailure.of(INVALID);
-        var base = args.path("base").asInt();
+        return saved(request, admin, file, args.path("base").asInt(), values);
+    }
+
+    private ActionResult saved(
+            ActionRequest request, String admin, String file, int base, Map<String, JsonNode> values) {
         return switch (SettingsEditor.save(
                 sources.configuration(), sources.nodeData().get(), file, base, values, admin)) {
             case SettingsEditor.Result.Invalid invalid ->
@@ -137,6 +153,33 @@ public final class AdminSettingsWrites {
                         .with("keys", String.join(",", values.keySet()))
                         .write());
         };
+    }
+
+    private ActionResult icon(ActionRequest request, String admin, String file, JsonNode args) {
+        if (!file.equals(Configuration.CONFIG_YML.path().toString())
+                || !args.path("base").canConvertToInt()) {
+            throw CommandFailure.of(INVALID);
+        }
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(args.path("png").asString(""));
+        } catch (IllegalArgumentException e) {
+            throw CommandFailure.of(INVALID);
+        }
+        if (bytes.length > MAX_ICON_BYTES || BrandingSource.problem(bytes).isPresent()) {
+            return answers.data(
+                    request,
+                    new Payloads.AdminSettingsSaved(
+                            "invalid", 0, Map.of(ICON_KEY, "icon"), Map.of(), List.of(), List.of(), true));
+        }
+        var hash = BrandingSource.sha256(bytes);
+        var name = "icon-" + hash.substring(0, 16);
+        var nodeData = sources.nodeData().get();
+        if (!nodeData.storeAsset(name, Base64.getEncoder().encodeToString(bytes), hash, admin)) {
+            return answers.refused(request, "companyadmin.settings.error.failed");
+        }
+        var values = Map.<String, JsonNode>of(ICON_KEY, StringNode.valueOf(BrandingSource.SHARED + name));
+        return saved(request, admin, file, args.path("base").asInt(), values);
     }
 
     private ActionResult rollback(ActionRequest request, String admin, String file, JsonNode args) {

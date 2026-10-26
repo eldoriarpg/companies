@@ -13,7 +13,10 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,6 +31,8 @@ class BrandingSourceTest {
     @TempDir
     Path server;
 
+    private final Map<String, String> shared = new HashMap<>();
+
     private static byte[] png(int width, int height, int size) {
         var bytes = ByteBuffer.allocate(size);
         bytes.put(new byte[] {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'});
@@ -41,6 +46,7 @@ class BrandingSourceTest {
                 () -> new BrandingSettings(name, icon),
                 () -> motd,
                 List.of(plugin, server),
+                asset -> Optional.ofNullable(shared.get(asset)),
                 Logger.getAnonymousLogger());
     }
 
@@ -54,6 +60,32 @@ class BrandingSourceTest {
         assertEquals("My Server", branding.name());
         assertEquals(Base64.getEncoder().encodeToString(icon), branding.icon());
         assertEquals(64, branding.iconHash().length());
+    }
+
+    @Test
+    void anUploadedIconIsReadFromTheDatabaseAndAMissingOneIsLeftOut() throws Exception {
+        Files.write(server.resolve("server-icon.png"), png(64, 64, 200));
+        shared.put("icon-abc", Base64.getEncoder().encodeToString(png(16, 16, 80)));
+
+        var uploaded = source("Castle", "shared:icon-abc", "motd").read().orElseThrow();
+        var missing = source("Castle", "shared:icon-gone", "motd").read().orElseThrow();
+
+        assertEquals(Base64.getEncoder().encodeToString(png(16, 16, 80)), uploaded.icon());
+        assertNull(missing.icon());
+    }
+
+    @Test
+    void anUploadedIconThatCannotBeReadIsLeftOut() {
+        var source = new BrandingSource(
+                () -> new BrandingSettings("Castle", "shared:icon-abc"),
+                () -> "motd",
+                List.of(plugin, server),
+                asset -> {
+                    throw new IllegalStateException("the database is away");
+                },
+                Logger.getAnonymousLogger());
+
+        assertNull(source.read().orElseThrow().icon());
     }
 
     @Test

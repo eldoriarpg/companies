@@ -103,7 +103,7 @@ The four shared files are stored in the database as revisions. Edit them on any 
 
 A few settings, such as the plugin hooks, `boards.enabled` and the dashboard name and icon, can be set for one server
 only in its `node.yml`, see [Settings for this server only](./configuration/node-yml.md#settings-for-this-server-only).
-The dashboard icon file is not copied between servers; put it on each server that shows it.
+The dashboard icon file is not copied between servers: by default each server shows its own server icon. To show one icon on every server, upload it in the dashboard's Settings tab.
 
 ### When the configuration is copied
 

@@ -17,6 +17,7 @@ import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {dateTime} from '~/util/format'
 import {nodeLabel} from '~/util/nodes'
 import AdminSettingField from './AdminSettingField.vue'
+import AdminSettingsIcon from './AdminSettingsIcon.vue'
 
 /**
  * The shared settings, as `/companyadmin settings` shows them in game: one file as its latest revision, grouped in
@@ -156,6 +157,26 @@ function saved(status: string, revision: number, restart: string[], applied: boo
   return parts.join(' ')
 }
 
+/**
+ * Shows what an icon upload or the return to the server icon did.
+ *
+ * @param result what the server answered
+ * @param result.status what saving did
+ * @param result.revision the stored or latest revision
+ * @param result.refused why the icon was refused, if it was
+ */
+async function iconDone(result: {status: string, revision: number, refused?: string}): Promise<void> {
+  done.value = ''
+  if (result.refused) {
+    errors.value = {'dashboard.branding.icon': result.refused}
+    return
+  }
+  await load()
+  done.value = result.status === 'newer'
+    ? t('admin.settings.rollbackNewer', {revision: result.revision})
+    : saved(result.status, result.revision, [], true)
+}
+
 /** Drops the changes not saved yet. */
 function discard(): void {
   const current = settings.value
@@ -273,6 +294,7 @@ function value(raw: unknown): string {
       <PlainList :data-testid="`admin-settings-${section.name}`">
         <li v-for="setting in section.entries" :key="setting.key" class="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 text-sm md:px-4" :data-testid="`admin-setting-${setting.key}`">
           <AdminSettingField v-model="draft[setting.key]" :setting="setting" :label="label(setting)" :hint="hint(setting)" :disabled="!editable"/>
+          <AdminSettingsIcon v-if="setting.key === 'dashboard.branding.icon' && editable && changed.length === 0 && settings" :base="settings.revision" :current="String(setting.value ?? '')" :overridden="setting.overridden" @done="iconDone"/>
           <span v-if="setting.type === 'SECRET'" class="text-xs text-ink-muted" data-testid="admin-setting-secret">{{ shown(setting) }}</span>
           <span v-if="errors[setting.key]" class="text-xs font-semibold text-problem-ink" role="alert">{{ problem(setting, errors[setting.key] ?? '') }}</span>
           <span v-if="newer && newer.changed.includes(setting.key)" class="text-xs font-semibold" data-testid="admin-setting-newer">{{ t('admin.settings.newerValue', {revision: newer.revision, value: setting.type === 'SECRET' ? t('admin.settings.secretChanged') : value(newer.values[setting.key] ?? setting.value)}) }}</span>

@@ -251,6 +251,37 @@ public class MariaDbNodeData extends ANodeData {
     }
 
     @Override
+    protected void insertAsset(String name, String content, String hash, String actor) {
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO settings_asset(name, content, hash, node_uid, actor, changed_at)
+                VALUES (?, ?, ?, ?, ?, ?)""";
+
+        query(insert)
+                .single(call().bind(name)
+                        .bind(content)
+                        .bind(hash)
+                        .bind(nodeUid(), UUID_BYTES)
+                        .bind(actor)
+                        .bind(Times.now(), time()))
+                .insert();
+    }
+
+    @Override
+    public Optional<String> asset(String name) {
+        @Language("mariadb")
+        var select = """
+                SELECT content
+                FROM settings_asset
+                WHERE name = ?""";
+
+        return query(select)
+                .single(call().bind(name))
+                .map(row -> row.getString("content"))
+                .first();
+    }
+
+    @Override
     public List<AppliedSettings> settingsApplied() {
         @Language("mariadb")
         var select = """

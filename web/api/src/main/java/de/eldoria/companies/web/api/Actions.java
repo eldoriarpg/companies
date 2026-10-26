@@ -430,6 +430,11 @@ public final class Actions {
     public static final String ADMIN_SETTINGS_ROLLBACK = "admin.settings.rollback";
 
     /**
+     * Uploads a PNG as the dashboard icon of every server.
+     */
+    public static final String ADMIN_SETTINGS_ICON = "admin.settings.icon";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -514,7 +519,8 @@ public final class Actions {
             ADMIN_SETTINGS_HISTORY,
             ADMIN_SETTINGS_REVISION,
             ADMIN_SETTINGS_SAVE,
-            ADMIN_SETTINGS_ROLLBACK);
+            ADMIN_SETTINGS_ROLLBACK,
+            ADMIN_SETTINGS_ICON);
 
     private Actions() {}
 

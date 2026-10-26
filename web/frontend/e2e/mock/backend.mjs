@@ -269,6 +269,7 @@ function settingsFile(file) {
         {section: 'discord', key: 'discord.enabled', type: 'FLAG', choices: [], restart: false, value: true, overridden: false},
         {section: 'discord', key: 'discord.username', type: 'TEXT', choices: [], restart: false, value: 'Companies', overridden: false},
         {section: 'discord', key: 'discord.url', type: 'SECRET', choices: [], restart: false, secret: {set: true, source: 'environment'}, overridden: false},
+        {section: 'dashboard', key: 'dashboard.branding.icon', type: 'TEXT', choices: [], restart: false, value: 'server-icon.png', overridden: false},
         {section: 'dashboard', key: 'dashboard.features', type: 'FLAG_MAP', choices: [], restart: false, value: {market: false, inbox: true}, overridden: false},
     ]}
 }
@@ -467,6 +468,13 @@ function action(name, args, state) {
             return done(storedSettings(state, args.file))
         case 'admin.settings.save':
             return done(saveSettings(state, args))
+        case 'admin.settings.icon': {
+            const stored = storedSettings(state, args.file)
+            if (args.base !== stored.revision) return done(settingsAnswer('newer', stored.revision))
+            stored.settings.find(entry => entry.key === 'dashboard.branding.icon').value = 'shared:icon-0123456789abcdef'
+            stored.revision++
+            return done(settingsAnswer('saved', stored.revision))
+        }
         case 'admin.settings.rollback': {
             const stored = storedSettings(state, args.file)
             if (args.base !== stored.revision) return done(settingsAnswer('newer', stored.revision))

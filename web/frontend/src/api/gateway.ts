@@ -724,6 +724,7 @@ export interface WriteActions {
     'admin.settings.revision': {args: {file: SettingsFileName, revision: number}, result: AdminSettingsRevision}
     'admin.settings.save': {args: {file: SettingsFileName, base: number, values: Record<string, unknown>}, result: AdminSettingsSaved}
     'admin.settings.rollback': {args: {file: SettingsFileName, revision: number, base: number}, result: AdminSettingsSaved}
+    'admin.settings.icon': {args: {file: 'config.yml', base: number, png: string}, result: AdminSettingsSaved}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

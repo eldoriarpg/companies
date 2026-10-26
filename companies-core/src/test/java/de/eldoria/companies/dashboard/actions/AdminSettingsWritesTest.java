@@ -8,6 +8,7 @@ package de.eldoria.companies.dashboard.actions;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.SettingsCatalogue;
 import de.eldoria.companies.dashboard.DashboardWorld;
+import de.eldoria.companies.dashboard.gateway.BrandingSource;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.util.Permission;
@@ -24,8 +25,11 @@ import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -409,5 +413,85 @@ class AdminSettingsWritesTest {
                 SettingsCatalogue.field("order.yml", "solo.maxOrderSize")
                         .orElseThrow()
                         .min());
+    }
+
+    private static String png(int width, int height, int size) {
+        var bytes = ByteBuffer.allocate(size);
+        bytes.put(new byte[] {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'});
+        bytes.putInt(13).put("IHDR".getBytes(StandardCharsets.US_ASCII));
+        bytes.putInt(width).putInt(height);
+        return Base64.getEncoder().encodeToString(bytes.array());
+    }
+
+    @Test
+    void anUploadedIconIsStoredAndNamedInTheNextRevision() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+        var icon = png(64, 64, 300);
+
+        var result =
+                change(Actions.ADMIN_SETTINGS_ICON, "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + icon + "\"}");
+
+        assertEquals(
+                "saved", result.data().path("status").asString(), result.data().toString());
+        var named = world.settings.dashboardSettings().branding().icon();
+        assertTrue(named.startsWith("shared:icon-"), named);
+        assertEquals(
+                icon, world.nodeData.asset(named.substring("shared:".length())).orElseThrow());
+    }
+
+    @Test
+    void anIconThatIsNoPngOrTooLargeIsRefused() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+
+        for (var icon : List.of(png(512, 64, 300), png(64, 64, 50_000), "bm90IGEgcG5n")) {
+            var result = change(
+                    Actions.ADMIN_SETTINGS_ICON, "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + icon + "\"}");
+            assertEquals(
+                    "icon",
+                    result.data().path("fields").path("dashboard.branding.icon").asString());
+        }
+        assertEquals(1, world.nodeData.settingsRevisions().get("config.yml"));
+    }
+
+    @Test
+    void anUploadNeedsTheReloadPermissionAndARefusedOneStoresNothing() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+        var icon = png(64, 64, 300);
+        var args = "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + icon + "\"}";
+
+        assertEquals(
+                "companyadmin.error.permission",
+                read(Actions.ADMIN_SETTINGS_ICON, args).reason());
+        var wide = png(512, 64, 300);
+        var refused =
+                change(Actions.ADMIN_SETTINGS_ICON, "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + wide + "\"}");
+        assertEquals("invalid", refused.data().path("status").asString());
+        assertTrue(world.nodeData.asset(assetName(wide)).isEmpty());
+        assertTrue(world.nodeData.asset(assetName(icon)).isEmpty());
+    }
+
+    private static String assetName(String png) {
+        return "icon-" + BrandingSource.sha256(Base64.getDecoder().decode(png)).substring(0, 16);
+    }
+
+    @Test
+    void anUploadOnAnOutdatedRevisionIsNewerAndAHandTypedMissingIconIsRefused() {
+        var content = copy(Configuration.CONFIG_YML);
+        world.nodeData.publishSettings("config.yml", content, "startup");
+        world.nodeData.publishSettings(
+                "config.yml", content.replaceFirst("signHeader: \"\\[Companies\\]\"", "signHeader: \"[Shop]\""), "Bo");
+
+        var newer = change(
+                Actions.ADMIN_SETTINGS_ICON,
+                "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + png(64, 64, 300) + "\"}");
+        assertEquals(
+                "newer", newer.data().path("status").asString(), newer.data().toString());
+
+        var typed = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":2,\"values\":{\"dashboard.branding.icon\":\"shared:icon-nothere\"}}");
+        assertEquals(
+                "icon",
+                typed.data().path("fields").path("dashboard.branding.icon").asString());
     }
 }
