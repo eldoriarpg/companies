@@ -119,7 +119,8 @@ public final class SystemOrdersCommand {
     }
 
     private MenuText statsLine(GuessedSettings guessed, GuessedLearning.Stats stats) {
-        var factor = guessed.learning().enabled() ? stats.factor() : guessed.factor();
+        var learning = guessed.learning().enabled();
+        var factor = learning ? stats.factor() : guessed.factor();
         var minutes = stats.minutesToTake();
         return MenuText.create()
                 .locale(
@@ -130,7 +131,7 @@ public final class SystemOrdersCommand {
                         Values.number("expired", stats.expired()),
                         Values.text("minutes", minutes == null ? "-" : String.format(Locale.ROOT, "%.0f", minutes)),
                         Values.text("factor", String.format(Locale.ROOT, "%.2f", factor)),
-                        Values.text("offset", String.format(Locale.ROOT, "%+.2f", stats.offset())));
+                        Values.text("offset", learning ? String.format(Locale.ROOT, "%+.2f", stats.offset()) : "-"));
     }
 
     /**

@@ -69,6 +69,35 @@ class GuessedLearningTest {
     }
 
     @Test
+    void theFactorContinuesFromTheLatestOrderSoItDoesNotSpringBack() {
+        var latest = START.plusDays(40);
+        var stats = stats(
+                new Ended("DIRT", 1.0, false, 1.0, latest, TAKEN, latest.plusMinutes(60)),
+                new Ended(
+                        "DIRT",
+                        1.0,
+                        false,
+                        0.95,
+                        latest.minusDays(1),
+                        EXPIRED,
+                        latest.minusDays(1).plusHours(2)));
+
+        assertEquals(1.0, stats.factor(), 0.000_1);
+        assertEquals(0.2, stats.offset(), 0.000_1);
+    }
+
+    @Test
+    void onlyWhatEndedAfterTheLatestOrderMovesItsFactorFurther() {
+        var latest = START.plusDays(10);
+        var stats = stats(
+                new Ended("DIRT", 0.9, false, 0.9, latest, null, null),
+                ended("DIRT", 0.8, 9, EXPIRED, 60 * 30),
+                ended("DIRT", 0.8, 8, EXPIRED, 60));
+
+        assertEquals(0.95, stats.factor(), 0.000_1);
+    }
+
+    @Test
     void theWalkStaysWithinItsBounds() {
         var expiries = new ArrayList<Ended>();
         for (var day = 0; day < 20; day++) expiries.add(ended("DIRT", 0.8, day, EXPIRED, 120));
@@ -98,6 +127,7 @@ class GuessedLearningTest {
                         "DIRT",
                         0.7,
                         true,
+                        null,
                         START.plusDays(2),
                         EXPIRED,
                         START.plusDays(2).plusHours(2)));
@@ -136,6 +166,6 @@ class GuessedLearningTest {
     private static Ended ended(String material, double factor, int day, String outcome, int minutes) {
         var placed = START.plusDays(day);
         return new Ended(
-                material, factor, false, placed, outcome, outcome == null ? null : placed.plusMinutes(minutes));
+                material, factor, false, null, placed, outcome, outcome == null ? null : placed.plusMinutes(minutes));
     }
 }

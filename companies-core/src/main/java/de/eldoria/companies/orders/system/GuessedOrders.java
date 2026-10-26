@@ -155,9 +155,7 @@ final class GuessedOrders {
                 continue;
             }
             if (record.step() < settings.maxReprices() && ranks.containsKey(material) && !capped(record)) {
-                ended(order, GuessedLearning.REPRICED, now);
-                replacements.add(new Replacement(
-                        material, record.step() + 1, order.decision().order()));
+                replacements.add(new Replacement(material, record.step() + 1, order));
             } else {
                 ended(order, GuessedLearning.EXPIRED, now);
                 rest(settings, material, now);
@@ -171,27 +169,35 @@ final class GuessedOrders {
         var openPlayer = orders.openPlayerOrders();
         var target = GuessedChoice.target(settings, openPlayer);
         var slots = target - stillOpen;
-        var learning = slots > 0 ? learning(settings, now) : Map.<String, GuessedLearning.Stats>of();
+        var learning = slots > 0 ? learning(settings, now) : null;
         var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results, learning);
         var moneyFailures = 0;
-        for (var replacement : replacements) {
+        for (var at = 0; at < replacements.size(); at++) {
+            var replacement = replacements.get(at);
             var material = replacement.material();
             if (slots <= 0 || active.contains(material)) {
+                ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
                 rest(settings, material, now);
                 continue;
             }
             active.add(material);
             var index = ranks.get(material);
-            var step = place(
-                    round, ranking.get(index), index, replacement.step(), replacement.replaces(), stillOpen, null);
+            var replaces = replacement.replaced().decision().order();
+            var step = place(round, ranking.get(index), index, replacement.step(), replaces, stillOpen, null);
             if (step == Step.PLACED) {
+                ended(replacement.replaced(), GuessedLearning.REPRICED, now);
                 slots--;
                 stillOpen++;
-            } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
-                return;
-            } else if (!money(step)) {
-                rest(settings, material, now);
+                continue;
             }
+            ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
+            if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
+                for (var rest : replacements.subList(at + 1, replacements.size())) {
+                    ended(rest.replaced(), GuessedLearning.EXPIRED, now);
+                }
+                return;
+            }
+            if (!money(step)) rest(settings, material, now);
         }
         var resting = orders.restingMaterials(now);
         var eligible = new ArrayList<Candidate>();
@@ -204,7 +210,7 @@ final class GuessedOrders {
         while (slots > 0 && !eligible.isEmpty()) {
             var pick = 0;
             Double weight = null;
-            if (settings.learning().enabled()) {
+            if (learning != null) {
                 var weights = eligible.stream()
                         .map(candidate -> weight(settings, learning, candidate))
                         .toList();
@@ -225,21 +231,21 @@ final class GuessedOrders {
     }
 
     /**
-     * What learning knows of the guessed orders of the last {@code days}, per material; empty while learning is off or
+     * What learning knows of the guessed orders of the last {@code days}, per material; null while learning is off or
      * when it cannot be read, so the check goes on by rank at the configured factor.
      *
      * @param settings the guessed order settings
      * @param now      the current time
-     * @return the statistics per material
+     * @return the statistics per material, null without learning
      */
-    private Map<String, GuessedLearning.Stats> learning(GuessedSettings settings, LocalDateTime now) {
-        if (!settings.learning().enabled()) return Map.of();
+    private @Nullable Map<String, GuessedLearning.Stats> learning(GuessedSettings settings, LocalDateTime now) {
+        if (!settings.learning().enabled()) return null;
         try {
             return GuessedLearning.stats(
                     orders, settings, now.minusDays(settings.learning().days()));
         } catch (RuntimeException e) {
-            logger.log(Level.WARNING, "Could not read what guessed orders learned; placing without it", e);
-            return Map.of();
+            logger.log(Level.WARNING, "Could not read what guessed orders learned; placing by rank without it", e);
+            return null;
         }
     }
 
@@ -374,7 +380,7 @@ final class GuessedOrders {
      * @param openPlayer open player orders
      * @param target     the target of open guessed orders
      * @param results    collects what each placement did
-     * @param learning   what learning knows per material
+     * @param learning   what learning knows per material, null without learning
      */
     private record Placing(
             SystemOrderSettings current,
@@ -385,7 +391,7 @@ final class GuessedOrders {
             int openPlayer,
             int target,
             List<Result> results,
-            Map<String, GuessedLearning.Stats> learning) {}
+            @Nullable Map<String, GuessedLearning.Stats> learning) {}
 
     private Step place(
             Placing placing,
@@ -418,7 +424,8 @@ final class GuessedOrders {
             String label) {
         var settings = placing.current().guessed();
         var material = candidate.material();
-        var stats = placing.learning().get(material);
+        var known = placing.learning();
+        var stats = known == null ? null : known.get(material);
         var learned = settings.learning();
         var base = stats == null ? settings.factor() : stats.factor();
         Step result;
@@ -475,9 +482,9 @@ final class GuessedOrders {
                                         money.account(),
                                         money.budgetLeft(),
                                         money.mintedLeft(),
-                                        learned.enabled()
-                                                ? learning(base, stats, weight, paidFactor(priced), learned)
-                                                : null))
+                                        known == null
+                                                ? null
+                                                : learning(base, stats, weight, paidFactor(priced), learned)))
                         .step();
             }
         }
@@ -521,11 +528,12 @@ final class GuessedOrders {
     private record Open(SystemDecision decision, @Nullable GuessedRecord record) {}
 
     /**
-     * A copy at a higher price that replaces a removed guessed order.
+     * A copy at a higher price that replaces a removed guessed order. The removed order is noted {@code REPRICED} once
+     * the copy is placed, {@code EXPIRED} otherwise.
      *
      * @param material the material
      * @param step     the next price step
-     * @param replaces the order it replaces
+     * @param replaced the order it replaces
      */
-    private record Replacement(String material, int step, int replaces) {}
+    private record Replacement(String material, int step, Open replaced) {}
 }

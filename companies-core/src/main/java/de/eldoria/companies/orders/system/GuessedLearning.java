@@ -28,12 +28,14 @@ import java.util.function.DoubleSupplier;
  *     <li><b>Outcomes</b>: an order is {@value #TAKEN} when a company or player accepted it, {@value #REPRICED} when
  *     nobody did and a copy at a higher price replaced it, {@value #EXPIRED} when nobody took the last copy of such a
  *     chain, and {@value #WITHDRAWN} when it made way for players or guessed orders were switched off.</li>
- *     <li><b>Price</b>: a material's factor starts at the configured {@code factor} and walks through its taken and
- *     expired orders of the last {@code days} in the order they ended: each one taken within {@code fastMinutes}
- *     lowers it by {@code step} (it paid too much), each expired one raises it (it paid too little). It never leaves
- *     the range from {@code minFactor}, or {@code factor} when that is lower, to the guessed {@code maxFactor}, so it
- *     keeps what it learned instead of springing back. An order an underbidding cap held down says nothing about the
- *     factor and does not move it.</li>
+ *     <li><b>Price</b>: a material's factor continues from the factor its latest order was placed with, as that
+ *     order's record keeps it, or starts at the configured {@code factor} when no order of the last {@code days} has
+ *     one. It then walks through the taken and expired orders that ended since, in the order they ended: each one
+ *     taken within {@code fastMinutes} lowers it by {@code step} (it paid too much), each expired one raises it (it
+ *     paid too little), slower takes keep it. It never leaves the range from {@code minFactor}, or {@code factor} when
+ *     that is lower, to the guessed {@code maxFactor}. So it keeps what it learned for as long as the material is
+ *     guessed; one not guessed for {@code days} starts over. An order an underbidding cap held down says nothing about
+ *     the factor and does not move it.</li>
  *     <li><b>Choice</b>: candidates are drawn at random, weighted by their low demand ({@code 1 / (1 + score)}) times
  *     their take rate ({@code (taken + 1) / (taken + expired + 2)}, never below {@code weightFloor}), so every
  *     candidate is still tried now and then.</li>
@@ -87,13 +89,13 @@ public final class GuessedLearning {
             } catch (RuntimeException e) {
                 continue;
             }
-            var cap = record.cap();
-            var capped = cap != null && record.unit() >= cap - 0.000_001;
             var paid = record.average() > 0 ? record.unit() / record.average() : record.factor();
+            var learned = record.learning();
             ended.add(new Ended(
                     record.material(),
                     paid,
-                    capped,
+                    GuessedOrders.capped(record),
+                    learned == null ? null : learned.base(),
                     outcome.decision().decidedAt(),
                     outcome.outcome(),
                     outcome.endedAt()));
@@ -138,8 +140,15 @@ public final class GuessedLearning {
         }
         var lower = lowest(settings);
         var factor = settings.factor();
+        var since = LocalDateTime.MIN;
+        var latest = orders.stream().filter(order -> order.base() != null).max(Comparator.comparing(Ended::placed));
+        if (latest.isPresent()) {
+            factor = Math.clamp(latest.get().base(), lower, settings.maxFactor());
+            since = latest.get().placed();
+        }
+        var from = since;
         var concluded = orders.stream()
-                .filter(order -> order.ended() != null)
+                .filter(order -> order.ended() != null && order.ended().isAfter(from))
                 .sorted(Comparator.comparing(Ended::ended))
                 .toList();
         for (var order : concluded) {
@@ -150,7 +159,15 @@ public final class GuessedLearning {
             }
         }
         var average = taken == 0 ? null : (double) minutes / taken;
-        return new Stats(material, orders.size(), taken, expired, average, factor, factor - settings.factor(), buckets);
+        return new Stats(
+                material,
+                orders.size(),
+                taken,
+                expired,
+                average,
+                factor,
+                factor - settings.factor(),
+                Map.copyOf(buckets));
     }
 
     /**
@@ -197,6 +214,7 @@ public final class GuessedLearning {
      * @param material the material
      * @param factor   the factor on the market average it paid, after any cap
      * @param capped   whether an underbidding cap held its price down
+     * @param base     the factor learning had reached when it was placed, null without learning
      * @param placed   when it was placed
      * @param outcome  how it ended, null while open or unnoticed
      * @param ended    when it ended, null without an outcome
@@ -205,6 +223,7 @@ public final class GuessedLearning {
             String material,
             double factor,
             boolean capped,
+            @Nullable Double base,
             LocalDateTime placed,
             @Nullable String outcome,
             @Nullable LocalDateTime ended) {

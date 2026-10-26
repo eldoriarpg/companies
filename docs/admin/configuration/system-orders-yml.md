@@ -198,16 +198,17 @@ Players working alone are not limited by `perCompanyDaily`.
 With `guessed.learning.enabled`, guessed orders learn from how their earlier orders ended. Nothing is trained: the
 server counts outcomes and moves prices in small, bounded steps, so you can always read why an order was placed.
 
-- An order counts as **taken** when a company or a player working alone accepts it. When nobody takes it, a copy at
-  a higher price replaces it (**repriced**), and the last copy of such a chain counts as **expired**. An order that
+- An order counts as **taken** when a company or a player working alone accepts it. When nobody takes it and a copy
+  at a higher price replaces it, it counts as **repriced**; when no copy replaces it, it counts as **expired**. An order that
   made way for players, or ran out while guessed orders were switched off, counts as **withdrawn**. Orders an admin
   cancelled or the order purge removed have no outcome.
-- **Price:** a material's factor starts at `factor` and walks through its taken and expired orders of the last
-  `days` in the order they ended. Each order taken within `fastMinutes` lowers it by `step`, since it paid more than
-  needed; each expired one raises it by `step`. Slower takes keep it where it is, so a price that sells stays. The
-  factor never leaves the range from `minFactor` (or `factor`, when that is lower) to `maxFactor`. Repricing adds
-  its steps on top. An underbidding order whose cap held its price down does not move the factor, since a higher
-  factor would not have paid more.
+- **Price:** a material's factor continues from the factor its latest guessed order was placed with, or starts at
+  `factor` when it had none in the last `days`. Each order that ended since and was taken within `fastMinutes` lowers
+  it by `step`, since it paid more than needed; each expired one raises it by `step`. Slower takes keep it where it
+  is, so a price that sells stays. The factor never leaves the range from `minFactor` (or `factor`, when that is
+  lower) to `maxFactor`. A material not guessed for `days` starts over at `factor`. Repricing adds its steps on top.
+  An underbidding order whose cap held its price down does not move the factor, since a higher factor would not have
+  paid more.
 - **Choice:** instead of strictly by rank, materials are drawn at random. The weight is the take rate,
   `(taken + 1) / (taken + expired + 2)` and never below `weightFloor`, divided by `1 + score`. Materials players
   rarely buy and that companies take are guessed most, and every candidate is still tried now and then.
@@ -217,7 +218,7 @@ server counts outcomes and moves prices in small, bounded steps, so you can alwa
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `learning.enabled` | true/false | `true` | Whether guessed orders learn. When off, they are chosen by rank at `factor`. |
-| `learning.days` | number (days) | `30` | How many days back guessed orders count for learning. Older ones are also gone once the order history purges them. |
+| `learning.days` | number (days) | `30` | How many days back guessed orders count for the statistics and the take rate. A material not guessed for this long starts over at `factor`. |
 | `learning.fastMinutes` | number (minutes) | `30` | An order taken within this counts as taken fast. |
 | `learning.step` | number | `0.05` | How much one fast take or expiry moves the factor. |
 | `learning.minFactor` | number | `0.5` | Lowest factor learning reaches. A lower `factor` lowers it further. |
