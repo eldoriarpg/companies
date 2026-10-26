@@ -462,12 +462,16 @@ class AdminSettingsWritesTest {
         assertEquals(
                 "companyadmin.error.permission",
                 read(Actions.ADMIN_SETTINGS_ICON, args).reason());
-        change(
-                Actions.ADMIN_SETTINGS_ICON,
-                "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + png(512, 64, 300) + "\"}");
-        var name = "icon-"
-                + BrandingSource.sha256(Base64.getDecoder().decode(icon)).substring(0, 16);
-        assertTrue(world.nodeData.asset(name).isEmpty());
+        var wide = png(512, 64, 300);
+        var refused =
+                change(Actions.ADMIN_SETTINGS_ICON, "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + wide + "\"}");
+        assertEquals("invalid", refused.data().path("status").asString());
+        assertTrue(world.nodeData.asset(assetName(wide)).isEmpty());
+        assertTrue(world.nodeData.asset(assetName(icon)).isEmpty());
+    }
+
+    private static String assetName(String png) {
+        return "icon-" + BrandingSource.sha256(Base64.getDecoder().decode(png)).substring(0, 16);
     }
 
     @Test
