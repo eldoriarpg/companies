@@ -71,6 +71,7 @@ class GuessedOrdersTest {
     private String failing;
     private boolean failOutcomes;
     private boolean failOpenPlayers;
+    private boolean failRest;
     private double balance = Double.MAX_VALUE;
     private final SystemOrderService.Funding funding = new SystemOrderService.Funding() {
         @Override
@@ -90,6 +91,12 @@ class GuessedOrdersTest {
         Times.useZone(() -> ZoneOffset.UTC);
         SqLiteTestDatabase.create(directory);
         orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper()) {
+            @Override
+            public void restMaterial(String material, LocalDateTime until) {
+                if (failRest) throw new IllegalStateException("writing failed");
+                super.restMaterial(material, until);
+            }
+
             @Override
             public int openPlayerOrders() {
                 if (failOpenPlayers) throw new IllegalStateException("reading failed");
@@ -546,6 +553,26 @@ class GuessedOrdersTest {
         service.run();
 
         assertEquals(GuessedLearning.EXPIRED, outcome(first));
+    }
+
+    @Test
+    void aQueuedRepriceIsNotedExpiredWhenRemovingALaterOrderFails() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        service.run();
+        var dirt = guessedDecisions().stream()
+                .filter(decision -> decision.record().contains("\"DIRT\""))
+                .findFirst()
+                .orElseThrow()
+                .order();
+        settings.guessed().deny(List.of("STONE"));
+        failRest = true;
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(dirt));
     }
 
     @Test
