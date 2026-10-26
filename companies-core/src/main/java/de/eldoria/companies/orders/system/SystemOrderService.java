@@ -183,18 +183,16 @@ public final class SystemOrderService {
         var priced = found.get();
         var total = OrderBuilder.total(priced.unit(), rule.amount());
         var source = rule.source();
-        Double budgetLeft = null;
+        Double budget = null;
         if (source.dailyBudget() > 0) {
-            var left = source.dailyBudget() - orders.systemSpent(id, dayStart);
-            if (exceeds(total, left)) return note(label, Step.BUDGET, "");
-            budgetLeft = left - total;
+            budget = source.dailyBudget() - orders.systemSpent(id, dayStart);
+            if (exceeds(total, budget)) return note(label, Step.BUDGET, "");
         }
-        Double mintedLeft = null;
+        Double minted = null;
         String account = null;
         if (source.type() == MoneySource.SourceType.MINTED) {
-            var left = current.mintedDailyCap() - orders.mintedSpent(dayStart);
-            if (exceeds(total, left)) return note(label, Step.MINTED_CAP, "");
-            mintedLeft = left - total;
+            minted = current.mintedDailyCap() - orders.mintedSpent(dayStart);
+            if (exceeds(total, minted)) return note(label, Step.MINTED_CAP, "");
         } else {
             account = source.account();
             if (account.isEmpty()) return note(label, Step.NO_ACCOUNT, "");
@@ -215,9 +213,16 @@ public final class SystemOrderService {
         var order = created.order();
         var paid = created.price();
         if (account != null && !settle(account, total, paid)) {
-            if (placement.remove(order)) giveBack(account, total);
-            else lost(order, account, total);
+            undo(order, account, total);
             return note(label, Step.CANNOT_PAY, account);
+        }
+        if (budget != null && exceeds(paid, budget)) {
+            undo(order, account, paid);
+            return note(label, Step.BUDGET, "raised by a listener");
+        }
+        if (minted != null && exceeds(paid, minted)) {
+            undo(order, account, paid);
+            return note(label, Step.MINTED_CAP, "raised by a listener");
         }
         var record = new DefinedRecord(
                 id,
@@ -236,13 +241,12 @@ public final class SystemOrderService {
                 paid,
                 source.type(),
                 account,
-                budgetLeft,
-                mintedLeft);
+                budget == null ? null : budget - paid,
+                minted == null ? null : minted - paid);
         var decision = new SystemDecision(
                 order, id, DefinedRecord.KIND, now, account, paid, mapper.writeValueAsString(record));
         if (!store(decision)) {
-            if (placement.remove(order)) giveBack(account, paid);
-            else if (account != null) lost(order, account, paid);
+            undo(order, account, paid);
             return note(label, Step.FAILED, "decision not stored, order removed");
         }
         notes.remove(label);
@@ -266,6 +270,26 @@ public final class SystemOrderService {
             return true;
         }
         return funding.withdraw(account, difference);
+    }
+
+    /**
+     * Removes an order placed in this check again and gives back what its account paid for it. An order that cannot
+     * be removed keeps the money, which is logged.
+     *
+     * @param order   id of the order
+     * @param account the account that paid, null for minted money
+     * @param amount  what the account paid
+     */
+    private void undo(int order, @Nullable String account, double amount) {
+        boolean removed;
+        try {
+            removed = placement.remove(order);
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not remove the system order " + order + " again", e);
+            removed = false;
+        }
+        if (removed) giveBack(account, amount);
+        else if (account != null) lost(order, account, amount);
     }
 
     private boolean store(SystemDecision decision) {

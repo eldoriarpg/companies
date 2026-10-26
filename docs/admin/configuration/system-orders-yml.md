@@ -71,7 +71,7 @@ rules:
 | `price.min` | number | `0.0` | Lowest price per item. |
 | `price.max` | number | `0.0` | Highest price per item. `0` means no highest price. |
 | `everyHours` | number (hours) | `24` | How long after one order the next one is placed. |
-| `lifetimeHours` | number (hours) | `12` | How long an order waits for a company, counted from when it was placed or last extended with `/companyadmin order extend`. After that it is removed and its money goes back to the source. `maxUnclaimedHours` of [order.yml](./order-yml.md) still applies and removes it earlier if it is shorter. |
+| `lifetimeHours` | number (hours) | `12` | How long an order waits for a company, counted from when it was placed, last extended with `/companyadmin order extend`, or last given up by a company. After that it is removed and its money goes back to the source. `maxUnclaimedHours` of [order.yml](./order-yml.md) still applies and removes it earlier if it is shorter. |
 | `maxOpen` | number | `1` | How many orders of the rule may be open or in work at once. |
 | `source.type` | `ACCOUNT` or `MINTED` | `MINTED` | Where the money comes from, see below. |
 | `source.account` | text | none | The economy account for `ACCOUNT`: a player's UUID, or an account name your economy plugin knows. |
@@ -81,10 +81,12 @@ A rule places its next order when `everyHours` passed since its last one and it 
 or in work. The order is placed only when its price fits the budget of the day, and:
 
 - with `ACCOUNT`, the account pays the price at once. If a plugin listening to new orders changes the price, the account
-  pays the difference or gets it back; an account that cannot pay a raise places nothing. When the order is removed, cancelled by an admin or delivered
+  pays the difference or gets it back. A raise the account cannot pay, or that goes beyond the rule's budget,
+  removes the order again. When the order is removed, cancelled by an admin or delivered
   with items missing, that money goes back to the same account. An account that cannot pay places nothing.
 - with `MINTED`, nothing is paid when the order is placed. The workers are paid with new money. All minted rules
-  together stay within `mintedDailyCap`. Minted money that is not spent goes nowhere.
+  together stay within `mintedDailyCap`. A price raised by a plugin beyond the budget or the cap removes the
+  order again. Minted money that is not spent goes nowhere.
 
 With `AVERAGE`, a material that nobody delivered lately has no market average, and the rule waits until it has one.
 

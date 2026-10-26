@@ -69,6 +69,7 @@ class SystemOrderServiceTest {
     private Double changedPrice;
     private boolean failPlacement;
     private boolean failStore;
+    private boolean failRemove;
     private int placements;
     private SystemOrderService service;
 
@@ -333,6 +334,42 @@ class SystemOrderServiceTest {
     }
 
     @Test
+    void aRaiseBeyondTheBudgetRemovesTheOrderAgain() {
+        balances.put(BANK, 1000.0);
+        changedPrice = 250.0;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 200));
+
+        assertEquals(Step.BUDGET, step(service.run()));
+
+        assertEquals(1, removed.size());
+        assertEquals(1000.0, balances.get(BANK));
+    }
+
+    @Test
+    void aRaiseBeyondTheMintedCapRemovesTheOrderAgain() {
+        settings.mintedDailyCap(200);
+        changedPrice = 250.0;
+        rule(fixed("iron", 2.0));
+
+        assertEquals(Step.MINTED_CAP, step(service.run()));
+
+        assertEquals(1, removed.size());
+    }
+
+    @Test
+    void anOrderThatCannotBeRemovedAgainKeepsItsMoneyAndSaysSo() {
+        balances.put(BANK, 1000.0);
+        failStore = true;
+        failRemove = true;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 0));
+
+        assertEquals(Step.FAILED, step(service.run()));
+
+        assertEquals(872.0, balances.get(BANK));
+        assertTrue(logged.stream().anyMatch(message -> message.contains("is not given back")));
+    }
+
+    @Test
     void anOrderWhoseDecisionIsNotStoredIsRemovedAgain() {
         balances.put(BANK, 1000.0);
         failStore = true;
@@ -450,6 +487,7 @@ class SystemOrderServiceTest {
 
         @Override
         public boolean remove(int order) {
+            if (failRemove) throw new IllegalStateException("removing failed");
             removed.add(order);
             SqLiteTestDatabase.setState(order, OrderState.RECEIVED.stateId(), 0);
             return true;

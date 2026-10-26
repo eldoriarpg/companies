@@ -105,7 +105,8 @@ public abstract class AHistoryData {
 
     /**
      * The company entries of one outcome that ended in a span of time, such as the orders delivered on one day. Orders
-     * the server owns are left out, so they never become market data; they are known by their owner's entry.
+     * the server owns are left out, so they never become market data; they are known by their owner's entry
+     * or their stored decision.
      *
      * @param outcome the outcome
      * @param from    the start of the span, included

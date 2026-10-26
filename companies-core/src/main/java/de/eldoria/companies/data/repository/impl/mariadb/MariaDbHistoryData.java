@@ -132,6 +132,8 @@ public class MariaDbHistoryData extends AHistoryData {
                         + "WHERE company_id IS NOT NULL AND outcome = ? AND finished >= ? AND finished < ? "
                         + "AND NOT EXISTS (SELECT 1 FROM order_history o WHERE o.order_id = order_history.order_id "
                         + "AND o.owner_uuid = ?) "
+                        + "AND NOT EXISTS (SELECT 1 FROM system_order_decisions d "
+                        + "WHERE d.order_id = order_history.order_id) "
                         + "ORDER BY finished, id")
                 .single(call().bind(outcome.id())
                         .bind(from, time())
