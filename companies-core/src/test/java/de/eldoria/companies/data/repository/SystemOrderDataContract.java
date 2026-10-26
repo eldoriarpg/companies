@@ -158,6 +158,21 @@ public abstract class SystemOrderDataContract {
     }
 
     @Test
+    void anOutcomeIsNotedOnceAndReadWithItsDecision() {
+        var order = order(server, Material.DIRT, 1, 1.0);
+        orders.saveSystemDecision(decision(order, "guessed", NOW, null, 1));
+
+        assertTrue(orders.systemOutcome(order.id(), "TAKEN", NOW.plusMinutes(5)));
+        assertTrue(!orders.systemOutcome(order.id(), "EXPIRED", NOW.plusMinutes(9)));
+
+        var outcome = orders.systemOutcomes("guessed").getFirst();
+        assertEquals(order.id(), outcome.decision().order());
+        assertEquals("TAKEN", outcome.outcome());
+        assertEquals(NOW.plusMinutes(5), outcome.endedAt());
+        assertTrue(orders.systemOutcomes("iron").isEmpty());
+    }
+
+    @Test
     void removedOrdersNoLongerCountAsSpent() {
         var kept = order(server, Material.IRON_INGOT, 10, 20.0);
         var delivered = order(server, Material.IRON_INGOT, 10, 20.0);

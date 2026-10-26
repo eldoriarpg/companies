@@ -99,7 +99,28 @@ public final class GuessedChoice {
      */
     public static Optional<Price> price(
             GuessedSettings settings, double average, int step, @Nullable PlayerDemand demand, DoubleSupplier random) {
-        var factor = Math.min(settings.maxFactor(), settings.factor() + step * settings.repriceStep());
+        return price(settings, settings.factor(), average, step, demand, random);
+    }
+
+    /**
+     * Prices a guessed order from a factor learning found instead of the configured one.
+     *
+     * @param settings the guessed order settings
+     * @param base     the factor of a new order
+     * @param average  the market average per item
+     * @param step     how often the order was repriced before, 0 for a new one
+     * @param demand   the open player demand of the material, null when there is none
+     * @param random   a random number from 0 included to 1 excluded
+     * @return the price, empty when it comes out below a cent or an underbidding cap lies below the lowest price
+     */
+    public static Optional<Price> price(
+            GuessedSettings settings,
+            double base,
+            double average,
+            int step,
+            @Nullable PlayerDemand demand,
+            DoubleSupplier random) {
+        var factor = Math.min(settings.maxFactor(), base + step * settings.repriceStep());
         var rule = new RulePrice(
                 RulePrice.PriceMode.AVERAGE, 0, factor, settings.jitter(), settings.minPrice(), settings.maxPrice());
         var priced = RulePricing.price(rule, OptionalDouble.of(average), random);

@@ -370,6 +370,7 @@ class GuessedOrdersTest {
         var steps = service.run().rules();
 
         assertEquals(GuessedOrders.MONEY_FAILURES, steps.size());
+        assertTrue(steps.stream().allMatch(result -> result.step() == Step.MINTED_CAP));
     }
 
     @Test
@@ -425,6 +426,78 @@ class GuessedOrdersTest {
 
         assertTrue(orderData.retrieveOrderById(foreign.id()).join().isPresent());
         assertTrue(!run.removed().contains(foreign.id()));
+    }
+
+    @Test
+    void howAnOrderEndedIsNotedForLearning() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().maxReprices(0);
+        service.run();
+        var expired = onlyDecision().order();
+        clock.advance(Duration.ofHours(2));
+        service.run();
+        var withdrawn = onlyDecision().order();
+
+        open(Material.STONE, 10, 30.0);
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(expired));
+        assertEquals(GuessedLearning.WITHDRAWN, outcome(withdrawn));
+    }
+
+    @Test
+    void aMaterialTakenFastIsPricedLowerNextTime() {
+        service.run();
+        var first = onlyDecision().order();
+        orderData.systemOutcome(first, GuessedLearning.TAKEN, now().plusMinutes(5));
+        removeOrder(first);
+
+        clock.advance(Duration.ofMinutes(10));
+        service.run();
+
+        var record = only();
+        assertEquals("DIRT", record.material());
+        assertEquals(0.75, record.factor(), 0.000_1);
+        assertEquals(1.5, record.unit());
+        var learning = record.learning();
+        assertEquals(-0.05, learning.offset(), 0.000_1);
+        assertEquals(1, learning.taken());
+        assertEquals(5.0, learning.minutesToTake());
+    }
+
+    @Test
+    void withoutLearningOrdersFollowTheRankAndRecordNoLearning() {
+        settings.guessed().learning().enabled(false);
+
+        service.run();
+
+        assertEquals("DIRT", only().material());
+        assertNull(only().learning());
+    }
+
+    @Test
+    void aNewOrderRecordsTheWeightItWasDrawnWith() {
+        service.run();
+
+        var learning = only().learning();
+        assertEquals(0.5, learning.weight(), 0.000_1);
+        assertEquals(0.5, learning.takeRate(), 0.000_1);
+    }
+
+    private String outcome(int order) {
+        return orderData.systemOutcomes(GuessedSettings.RULE).stream()
+                .filter(entry -> entry.decision().order() == order)
+                .findFirst()
+                .orElseThrow()
+                .outcome();
+    }
+
+    private static void removeOrder(int order) {
+        for (var table : List.of("order_content", "order_states", "orders")) {
+            query("DELETE FROM " + table + " WHERE id = ?")
+                    .single(call().bind(order))
+                    .delete();
+        }
     }
 
     private GuessedRecord only() {

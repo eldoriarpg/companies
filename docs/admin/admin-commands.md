@@ -96,6 +96,7 @@ You need `companies.admin.orders`. These commands also work from the console.
 |---|---|
 | `/companyadmin systemorders list` | Lists the orders the server placed that are open or in work: rule, price, when placed and state |
 | `/companyadmin systemorders info <id>` | Shows why the server placed an order: the rule, how its price was found, the jitter drawn, the bounds and where the money came from |
+| `/companyadmin systemorders stats` | Shows per material what guessed orders learned: placed, taken and expired orders, the average minutes until one was taken, and the factor learning moved the price to |
 
 `info` also works for orders that ended: for completed ones always, for removed ones as long as the
 [order history](./configuration/config-yml.md#generalsettings) keeps them. To remove a system order, use `/companyadmin order cancel <id>`. Its money always goes back to the account

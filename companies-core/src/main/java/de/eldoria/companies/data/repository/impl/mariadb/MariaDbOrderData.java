@@ -29,6 +29,7 @@ import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
+import de.eldoria.companies.data.wrapper.order.SystemOutcome;
 import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.companies.orders.SystemOwner;
@@ -821,6 +822,38 @@ public class MariaDbOrderData extends AOrderData {
         return query(select)
                 .single(call().bind(rule).bind(OrderState.UNCLAIMED.stateId()).bind(before, time()))
                 .map(this::parseDecision)
+                .all();
+    }
+
+    @Override
+    public boolean systemOutcome(int order, String outcome, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE system_order_decisions
+                SET outcome  = ?,
+                    ended_at = ?
+                WHERE order_id = ?
+                  AND outcome IS NULL""";
+        return query(update)
+                .single(call().bind(outcome).bind(at, time()).bind(order))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public List<SystemOutcome> systemOutcomes(String rule) {
+        @Language("mariadb")
+        var select = """
+                SELECT order_id, rule, kind, decided_at, account, paid, record, outcome, ended_at
+                FROM system_order_decisions
+                WHERE rule = ?
+                ORDER BY decided_at, order_id""";
+        return query(select)
+                .single(call().bind(rule))
+                .map(row -> new SystemOutcome(
+                        parseDecision(row),
+                        row.getString("outcome"),
+                        row.getObject("ended_at") == null ? null : readTime(row, "ended_at")))
                 .all();
     }
 

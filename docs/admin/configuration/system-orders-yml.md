@@ -49,6 +49,13 @@ guessed:
     type: MINTED
     account: ""
     dailyBudget: 0.0
+  learning:
+    enabled: true
+    window: 10
+    fastMinutes: 30
+    step: 0.05
+    minFactor: 0.5
+    weightFloor: 0.1
 ```
 
 ## Keys
@@ -150,7 +157,7 @@ gaps and never compete with players.
 5. **Repricing:** an order nobody took within `repriceAfterHours` is replaced by one paying `repriceStep` more of the
    average, up to `maxFactor`. After `maxReprices` the order is removed and the material rests for `restHours`. A
    replacement that finds no free slot, or cannot be placed for a reason other than money, lets its material rest
-   as well. One money stopped is placed later as a new order at the first price step.
+   as well. One that money stopped may be placed later as a new order, starting again at the first price step.
 6. **How many:** guessed orders make up at most `share` of all open orders, but `minOpen` stay open even when players
    order nothing, and never more than `maxOpen`. One guessed order per material at a time. When the budget, the
    minted cap or the account stops one guessed order, for example because it lacks the money or does not exist, a
@@ -186,8 +193,33 @@ gaps and never compete with players.
 
 Players working alone are not limited by `perCompanyDaily`.
 
+### Learning
+
+With `guessed.learning.enabled`, guessed orders learn from how their earlier orders ended. Nothing is trained: the
+server counts outcomes and moves prices in small, bounded steps, so you can always read why an order was placed.
+
+- An order counts as **taken** when a company or a player working alone accepts it, as **expired** when nobody did
+  before it was repriced or removed, and as **withdrawn** when it made way for players.
+- **Price:** over a material's last `window` taken or expired orders, each one taken within `fastMinutes` lowers its
+  factor by `step`, since it paid more than needed, and each expired one raises it by `step`. The factor stays
+  between `minFactor` and `maxFactor`. Reprices add their steps on top.
+- **Choice:** instead of strictly by rank, materials are drawn at random, weighted by low demand (`1 / (1 + score)`)
+  times their take rate (`(taken + 1) / (taken + expired + 2)`), never below `weightFloor`. Materials players
+  rarely buy and that companies take are guessed most, and every candidate is still tried now and then.
+- What learning counts is kept as long as the order history keeps the orders.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `learning.enabled` | true/false | `true` | Whether guessed orders learn. When off, they are chosen by rank at `factor`. |
+| `learning.window` | number | `10` | How many of a material's last taken or expired orders move its price. |
+| `learning.fastMinutes` | number (minutes) | `30` | An order taken within this counts as taken fast. |
+| `learning.step` | number | `0.05` | How much one fast take or expiry moves the factor. |
+| `learning.minFactor` | number | `0.5` | Lowest factor learning reaches. |
+| `learning.weightFloor` | number | `0.1` | Lowest take rate a material is weighted with, 0.01 to 1. |
+
 ## See why an order exists
 
 Each system order keeps the numbers it was placed on: the rule, the price and how it was found, the jitter drawn, the
 bounds and where the money came from. A guessed order also keeps why its material was picked: its demand score and
-rank, the players' open orders it had to stay under, its size and whether it replaced an order nobody took. See [System orders](../admin-commands.md#system-orders) in the admin commands.
+rank, the players' open orders it had to stay under, its size, whether it replaced an order nobody took, and what
+learning knew of the material: its factor, weight and take rate. See [System orders](../admin-commands.md#system-orders) in the admin commands.

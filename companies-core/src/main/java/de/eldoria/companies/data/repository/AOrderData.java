@@ -26,6 +26,7 @@ import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
+import de.eldoria.companies.data.wrapper.order.SystemOutcome;
 import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -418,6 +419,24 @@ public abstract class AOrderData {
      * @return the decisions
      */
     public abstract List<SystemDecision> unclaimedSystemOrders(String rule, LocalDateTime before);
+
+    /**
+     * Notes how a system order ended, unless an outcome was noted before.
+     *
+     * @param order   id of the order
+     * @param outcome how it ended
+     * @param at      when it ended
+     * @return true when this noted it
+     */
+    public abstract boolean systemOutcome(int order, String outcome, LocalDateTime at);
+
+    /**
+     * Every kept decision of a rule with how its order ended, oldest first.
+     *
+     * @param rule id of the rule
+     * @return the decisions and outcomes
+     */
+    public abstract List<SystemOutcome> systemOutcomes(String rule);
 
     /**
      * What players ask for in their orders nobody claimed yet, per material. Orders of the server are left out.

@@ -48,6 +48,7 @@ public class GuessedSettings {
     private int maxOpen = 10;
     private int perCompanyDaily = 5;
     private MoneySource source = new MoneySource();
+    private LearningSettings learning = new LearningSettings();
 
     public GuessedSettings() {}
 
@@ -289,6 +290,17 @@ public class GuessedSettings {
 
     public void source(MoneySource source) {
         this.source = source;
+    }
+
+    /**
+     * @return how guessed orders learn from their earlier orders
+     */
+    public LearningSettings learning() {
+        return learning == null ? new LearningSettings() : learning;
+    }
+
+    public void learning(LearningSettings learning) {
+        this.learning = learning;
     }
 
     private static Set<String> names(List<String> materials) {

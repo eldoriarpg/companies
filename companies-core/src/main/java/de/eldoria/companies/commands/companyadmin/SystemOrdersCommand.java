@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.system.DefinedRecord;
+import de.eldoria.companies.orders.system.GuessedLearning;
 import de.eldoria.companies.orders.system.GuessedRecord;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.companies.util.Threading;
@@ -33,6 +34,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -47,7 +49,9 @@ import java.util.logging.Level;
  *     <li>{@code list} shows every system order that is open or in work, with its rule, price, state and when it was
  *     placed;</li>
  *     <li>{@code info <id>} shows why a system order was placed: the rule and the numbers its price and money stood
- *     on. It works for ended orders as long as the order history keeps them.</li>
+ *     on. It works for ended orders as long as the order history keeps them;</li>
+ *     <li>{@code stats} shows per material what guessed orders learned: how many were placed, taken and expired, the
+ *     average minutes until one was taken, and the factor learning moved the price to.</li>
  * </ul>
  * Removing one is {@code /companyadmin order cancel}, which gives its money back to the account that paid it.
  */
@@ -85,6 +89,47 @@ public final class SystemOrdersCommand {
                     .sendMessage(sender, MenuText.create().text("<heading>").locale(PREFIX + "title"));
             for (var decision : decisions) deps.messages().sendMessage(sender, entry(decision));
         });
+    }
+
+    /**
+     * Shows what guessed orders learned per material, most placed first.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("stats")
+    public void stats(CommandSender sender) {
+        deps.requireReady();
+        var orderData = deps.orderData();
+        var guessed = deps.configuration().systemOrderSettings().guessed();
+        run(sender, () -> GuessedLearning.stats(orderData, guessed.learning()), stats -> {
+            if (stats.isEmpty()) {
+                deps.messages().sendMessage(sender, PREFIX + "stats.none");
+                return;
+            }
+            deps.messages()
+                    .sendMessage(sender, MenuText.create().text("<heading>").locale(PREFIX + "stats.title"));
+            stats.values().stream()
+                    .sorted(Comparator.comparingInt(GuessedLearning.Stats::posted)
+                            .reversed()
+                            .thenComparing(GuessedLearning.Stats::material))
+                    .forEach(entry -> deps.messages().sendMessage(sender, statsLine(guessed, entry)));
+        });
+    }
+
+    private MenuText statsLine(GuessedSettings guessed, GuessedLearning.Stats stats) {
+        var learning = guessed.learning();
+        var factor = stats.factor(guessed.factor(), learning.minFactor(), guessed.maxFactor());
+        var minutes = stats.minutesToTake();
+        return MenuText.create()
+                .locale(
+                        PREFIX + "stats.entry",
+                        Values.text("material", stats.material()),
+                        Values.number("posted", stats.posted()),
+                        Values.number("taken", stats.taken()),
+                        Values.number("expired", stats.expired()),
+                        Values.text("minutes", minutes == null ? "-" : String.format(Locale.ROOT, "%.0f", minutes)),
+                        Values.text("factor", String.format(Locale.ROOT, "%.2f", factor)),
+                        Values.text("offset", String.format(Locale.ROOT, "%+.2f", stats.offset())));
     }
 
     /**
@@ -197,8 +242,27 @@ public final class SystemOrdersCommand {
                         Values.number("open", record.openGuessed()),
                         Values.number("target", record.target()),
                         Values.number("players", record.openPlayer())));
+        var learning = record.learning();
+        if (learning != null) lines.add(learning(learning));
         lines.add(money(record.source(), record.account(), record.budgetLeft(), record.mintedLeft()));
         return lines;
+    }
+
+    private MenuText learning(GuessedRecord.Learning learning) {
+        var minutes = learning.minutesToTake();
+        var weight = learning.weight();
+        return MenuText.create()
+                .locale(
+                        PREFIX + "info.guessed.learning",
+                        Values.text("base", String.format(Locale.ROOT, "%.2f", learning.base())),
+                        Values.text("offset", String.format(Locale.ROOT, "%+.2f", learning.offset())),
+                        Values.text("weight", weight == null ? "-" : String.format(Locale.ROOT, "%.2f", weight)),
+                        Values.text("rate", String.format(Locale.ROOT, "%.0f %%", learning.takeRate() * 100)),
+                        Values.number("taken", learning.taken()),
+                        Values.number("posted", learning.posted()),
+                        Values.text("minutes", minutes == null ? "-" : String.format(Locale.ROOT, "%.0f", minutes)),
+                        Values.number("bucket_taken", learning.bucketTaken()),
+                        Values.number("bucket_posted", learning.bucketPosted()));
     }
 
     private MenuText competition(GuessedRecord record) {

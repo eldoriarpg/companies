@@ -113,6 +113,7 @@ import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.orders.SystemOrders;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.system.GuessedLimit;
+import de.eldoria.companies.orders.system.GuessedOutcomes;
 import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
@@ -447,6 +448,7 @@ public class Companies extends EldoPlugin {
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
+        registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));
         var expiringService = new ExpiringService(
                 this,
                 orderData,

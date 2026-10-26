@@ -41,6 +41,7 @@ import org.jetbrains.annotations.Nullable;
  * @param account     economy account that paid, null for minted money
  * @param budgetLeft  what guessed orders may still spend that day, null without a budget
  * @param mintedLeft  minted money all rules may still spend that day, null for an account
+ * @param learning    what learning knew of the material, null when learning is off
  */
 public record GuessedRecord(
         String material,
@@ -71,9 +72,36 @@ public record GuessedRecord(
         MoneySource.SourceType source,
         @Nullable String account,
         @Nullable Double budgetLeft,
-        @Nullable Double mintedLeft) {
+        @Nullable Double mintedLeft,
+        @Nullable Learning learning) {
     /**
      * The kind stored with a decision of a guessed order.
      */
     public static final String KIND = "GUESSED";
+
+    /**
+     * What learning knew of a material when an order of it was placed.
+     *
+     * @param base          the factor of a new order of the material, the configured one moved by learning
+     * @param offset        how far learning moved it
+     * @param weight        the weight the material was drawn with, null for a replacement
+     * @param takeRate      the share of its orders taken, smoothed and floored
+     * @param posted        its guessed orders kept in the history
+     * @param taken         of them taken
+     * @param expired       of them expired
+     * @param minutesToTake average minutes until one was taken, null when none was
+     * @param bucketPosted  orders placed at about the factor this one pays
+     * @param bucketTaken   of them taken
+     */
+    public record Learning(
+            double base,
+            double offset,
+            @Nullable Double weight,
+            double takeRate,
+            int posted,
+            int taken,
+            int expired,
+            @Nullable Double minutesToTake,
+            int bucketPosted,
+            int bucketTaken) {}
 }
