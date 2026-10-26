@@ -224,6 +224,23 @@ public abstract class ANodeData {
     public abstract Optional<SettingsChange> settingsChange(String path, int revision);
 
     /**
+     * Stores a file the shared settings refer to, such as the dashboard icon. Earlier files are kept, so every revision
+     * keeps the file it names, a rollback included; each is small.
+     *
+     * @param name    the name the settings use, such as {@code icon-1a2b3c4d5e6f}
+     * @param content the file as base64
+     * @param hash    the SHA-256 of the file as lower-case hex
+     * @param actor   who stored it
+     */
+    public abstract void storeAsset(String name, String content, String hash, String actor);
+
+    /**
+     * @param name the name the settings use
+     * @return the file as base64, empty when there is none of that name
+     */
+    public abstract Optional<String> asset(String name);
+
+    /**
      * Stores the settings this node reads only at start that changed since it started.
      *
      * @param settings the settings, none when no restart is pending

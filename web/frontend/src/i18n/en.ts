@@ -257,6 +257,18 @@ export default {
             synced: 'The configuration is synced.',
         },
         settings: {
+            icon: {
+                shared: 'Every server shows the uploaded icon.',
+                perServer: 'Each server shows its own {file}.',
+                choose: 'Upload an icon for every server',
+                limits: 'A PNG of at most 256×256 pixels and 40 KB.',
+                notPng: 'This is no PNG.',
+                tooLarge: 'The file is larger than 40 KB.',
+                tooWide: 'The picture is larger than 256×256 pixels.',
+                preview: 'The chosen icon',
+                upload: 'Upload for every server',
+                reset: 'Use the server icon again',
+            },
             readOnly: 'Changing the settings needs companies.admin.reload.',
             discard: 'Discard changes',
             otherErrors: 'Refused: {settings}',
@@ -281,6 +293,7 @@ export default {
             rollbackConfirm: 'Roll back',
             rollbackNewer: 'Revision {revision} was saved meanwhile; nothing was changed.',
             problem: {
+                icon: 'Must be a PNG of at most 256×256 pixels and 40 KB.',
                 empty: 'Needs a value.',
                 atLeast: 'Must be at least {min}.',
                 range: 'Must be between {min} and {max}.',

@@ -218,6 +218,8 @@ public final class DashboardModule {
                         configuration::branding,
                         () -> PlainText.of(plugin.getServer().motd()),
                         List.of(plugin.getDataFolder().toPath(), Path.of("").toAbsolutePath()),
+                        name -> Optional.ofNullable(data.admin().nodeData().get())
+                                .flatMap(nodes -> nodes.asset(name)),
                         logger)::read);
         var link = new LinkProxy();
         var feed = new PatchFeed(

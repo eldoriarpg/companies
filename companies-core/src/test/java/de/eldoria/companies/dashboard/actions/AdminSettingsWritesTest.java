@@ -24,8 +24,11 @@ import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -409,5 +412,43 @@ class AdminSettingsWritesTest {
                 SettingsCatalogue.field("order.yml", "solo.maxOrderSize")
                         .orElseThrow()
                         .min());
+    }
+
+    private static String png(int width, int height, int size) {
+        var bytes = ByteBuffer.allocate(size);
+        bytes.put(new byte[] {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'});
+        bytes.putInt(13).put("IHDR".getBytes(StandardCharsets.US_ASCII));
+        bytes.putInt(width).putInt(height);
+        return Base64.getEncoder().encodeToString(bytes.array());
+    }
+
+    @Test
+    void anUploadedIconIsStoredAndNamedInTheNextRevision() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+        var icon = png(64, 64, 300);
+
+        var result =
+                change(Actions.ADMIN_SETTINGS_ICON, "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + icon + "\"}");
+
+        assertEquals(
+                "saved", result.data().path("status").asString(), result.data().toString());
+        var named = world.settings.dashboardSettings().branding().icon();
+        assertTrue(named.startsWith("shared:icon-"), named);
+        assertEquals(
+                icon, world.nodeData.asset(named.substring("shared:".length())).orElseThrow());
+    }
+
+    @Test
+    void anIconThatIsNoPngOrTooLargeIsRefused() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+
+        for (var icon : List.of(png(512, 64, 300), png(64, 64, 50_000), "bm90IGEgcG5n")) {
+            var result = change(
+                    Actions.ADMIN_SETTINGS_ICON, "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + icon + "\"}");
+            assertEquals(
+                    "icon",
+                    result.data().path("fields").path("dashboard.branding.icon").asString());
+        }
+        assertEquals(1, world.nodeData.settingsRevisions().get("config.yml"));
     }
 }
