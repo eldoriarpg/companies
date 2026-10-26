@@ -227,8 +227,8 @@ public final class OrderCompletionService {
                 plugin.getLogger().log(Level.SEVERE, "Could not complete the system order " + order.id(), err);
             } else if (!Boolean.TRUE.equals(received)) {
                 plugin.getLogger()
-                        .warning("The system order " + order.id()
-                                + " stays delivered; the next expiry check completes it.");
+                        .info("The system order " + order.id()
+                                + " was not received here; it was received already or the next expiry check does it.");
             }
             return completion;
         });

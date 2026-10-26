@@ -193,9 +193,13 @@ public class ExpiringService implements Runnable, Listener {
         }
         try {
             purgeDeadOrders();
-            receiveSystemOrders();
         } catch (RuntimeException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not purge dead orders", e);
+        }
+        try {
+            receiveSystemOrders();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not complete the delivered system orders", e);
         }
     }
 
@@ -249,22 +253,6 @@ public class ExpiringService implements Runnable, Listener {
      * <p>
      * TODO refund a removed system order funded from an account to that account.
      */
-    /**
-     * Receives the delivered system orders that could not be received when they were completed, so none stays
-     * delivered.
-     */
-    private void receiveSystemOrders() {
-        var server = plugin.getServer().getOfflinePlayer(SystemOwner.ID);
-        var delivered = orderData
-                .retrieveOrdersByPlayer(server, OrderState.DELIVERED, OrderState.DELIVERED)
-                .join();
-        if (delivered == null) return;
-        for (var order : delivered) {
-            var full = orderData.retrieveFullOrder(order).join();
-            if (full != null) outcomes.receive(full, List.of()).join();
-        }
-    }
-
     private void purgeDeadOrders() {
         var expired = orderData
                 .retrieveDeadOrders(configuration.orderSetting().maxUnclaimedHours())
@@ -282,6 +270,26 @@ public class ExpiringService implements Runnable, Listener {
             var owner = plugin.getServer().getOfflinePlayer(order.owner());
             Threading.mainThread(plugin)
                     .execute(() -> economy.depositPlayer(owner, fullOrder.price() + fullOrder.fee()));
+        }
+    }
+
+    /**
+     * Receives the delivered system orders that could not be received when they were completed, so none stays
+     * delivered.
+     */
+    private void receiveSystemOrders() {
+        var server = plugin.getServer().getOfflinePlayer(SystemOwner.ID);
+        var delivered = orderData
+                .retrieveOrdersByPlayer(server, OrderState.DELIVERED, OrderState.DELIVERED)
+                .join();
+        if (delivered == null) return;
+        for (var order : delivered) {
+            try {
+                var full = orderData.retrieveFullOrder(order).join();
+                if (full != null) outcomes.receive(full, List.of()).join();
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.SEVERE, "Could not complete the system order " + order.id(), e);
+            }
         }
     }
 }

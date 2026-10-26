@@ -21,6 +21,7 @@ import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderReceivedEvent;
 import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
+import de.eldoria.companies.events.order.SoloOrderReceivedEvent;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Times;
@@ -317,6 +318,7 @@ class OrderCompletionServiceTest {
         assertEquals(OrderState.RECEIVED, system.reload(order).state());
         assertEquals(
                 1, history.retrieveOwnerHistory(SystemOwner.ID, 1, 10).join().size());
+        assertTrue(received.stream().anyMatch(event -> event instanceof SoloOrderReceivedEvent));
     }
 
     @Test
