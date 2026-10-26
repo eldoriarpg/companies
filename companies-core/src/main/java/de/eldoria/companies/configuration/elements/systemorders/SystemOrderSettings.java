@@ -19,6 +19,7 @@ public class SystemOrderSettings {
     private int checkMinutes = 5;
     private double mintedDailyCap = 10000.0;
     private List<SystemOrderRule> rules = new ArrayList<>();
+    private GuessedSettings guessed = new GuessedSettings();
 
     public SystemOrderSettings() {}
 
@@ -70,5 +71,18 @@ public class SystemOrderSettings {
 
     public void rules(List<SystemOrderRule> rules) {
         this.rules = new ArrayList<>(rules);
+    }
+
+    /**
+     * The orders the server guesses from the market data.
+     *
+     * @return the guessed order settings
+     */
+    public GuessedSettings guessed() {
+        return guessed == null ? new GuessedSettings() : guessed;
+    }
+
+    public void guessed(GuessedSettings guessed) {
+        this.guessed = guessed;
     }
 }

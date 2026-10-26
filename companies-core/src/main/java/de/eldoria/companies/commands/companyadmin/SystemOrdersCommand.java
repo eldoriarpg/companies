@@ -7,6 +7,7 @@ package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -14,6 +15,7 @@ import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.system.DefinedRecord;
+import de.eldoria.companies.orders.system.GuessedRecord;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
@@ -24,11 +26,13 @@ import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.IntArg;
 import net.strokkur.commands.permission.Permission;
 import org.bukkit.command.CommandSender;
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -133,19 +137,85 @@ public final class SystemOrdersCommand {
                         Values.number("id", decision.order()),
                         Values.text("rule", decision.rule()),
                         Values.text("placed", PLACED.format(Times.local(decision.decidedAt()))));
-        DefinedRecord record;
+        if (DefinedRecord.KIND.equals(decision.kind())) {
+            var record = read(decision, DefinedRecord.class);
+            if (record != null) return List.of(head, item(record), price(record), paid(record), money(record));
+        }
+        if (GuessedRecord.KIND.equals(decision.kind())) {
+            var record = read(decision, GuessedRecord.class);
+            if (record != null) return guessed(head, record);
+        }
+        return List.of(
+                head, MenuText.create().locale(PREFIX + "info.unreadable", Values.text("kind", decision.kind())));
+    }
+
+    private <T> @Nullable T read(SystemDecision decision, Class<T> type) {
         try {
-            record = DefinedRecord.KIND.equals(decision.kind())
-                    ? mapper.readValue(decision.record(), DefinedRecord.class)
-                    : null;
+            return mapper.readValue(decision.record(), type);
         } catch (JacksonException e) {
-            record = null;
+            return null;
         }
-        if (record == null) {
-            return List.of(
-                    head, MenuText.create().locale(PREFIX + "info.unreadable", Values.text("kind", decision.kind())));
+    }
+
+    private List<MenuText> guessed(MenuText head, GuessedRecord record) {
+        var lines = new ArrayList<MenuText>();
+        lines.add(head);
+        lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.guessed.candidate",
+                        Values.text("material", record.material()),
+                        Values.number("orders", record.orders()),
+                        Values.text("score", "%.2f".formatted(record.score())),
+                        Values.text("recent", "%.1f".formatted(record.recentRate())),
+                        Values.text("long", "%.1f".formatted(record.longRate())),
+                        Values.number("rank", record.rank()),
+                        Values.number("candidates", record.candidates())));
+        lines.add(competition(record));
+        lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.guessed.price",
+                        Values.money("average", economy(), record.average()),
+                        Values.text("factor", "%.2f".formatted(record.factor())),
+                        Values.number("step", record.step()),
+                        Values.text("jitter", "%+.1f %%".formatted(record.jitter() * 100)),
+                        Values.money("unit", economy(), record.unit()),
+                        Values.money("total", economy(), record.total())));
+        var replaces = record.replaces();
+        if (replaces != null) {
+            lines.add(MenuText.create().locale(PREFIX + "info.guessed.reprice", Values.number("replaces", replaces)));
         }
-        return List.of(head, item(record), price(record), paid(record), money(record));
+        lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.guessed.size",
+                        Values.number("amount", record.amount()),
+                        Values.text("share", "%.0f %%".formatted(record.sizeShare() * 100)),
+                        Values.number("typical", record.typical())));
+        lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.guessed.cap",
+                        Values.number("open", record.openGuessed()),
+                        Values.number("target", record.target()),
+                        Values.number("players", record.openPlayer())));
+        lines.add(money(record.source(), record.account(), record.budgetLeft(), record.mintedLeft()));
+        return lines;
+    }
+
+    private MenuText competition(GuessedRecord record) {
+        var cap = record.cap();
+        if (record.competition() == GuessedSettings.Competition.SKIP || cap == null) {
+            return MenuText.create().locale(PREFIX + "info.guessed.skip");
+        }
+        var lowest = record.lowest();
+        if (lowest == null) {
+            return MenuText.create()
+                    .locale(PREFIX + "info.guessed.underbidMarket", Values.money("cap", economy(), cap));
+        }
+        return MenuText.create()
+                .locale(
+                        PREFIX + "info.guessed.underbid",
+                        Values.number("items", record.playerItems()),
+                        Values.money("lowest", economy(), lowest),
+                        Values.money("cap", economy(), cap));
     }
 
     private MenuText item(DefinedRecord record) {
@@ -188,16 +258,18 @@ public final class SystemOrdersCommand {
     }
 
     private MenuText money(DefinedRecord record) {
+        return money(record.source(), record.account(), record.budgetLeft(), record.mintedLeft());
+    }
+
+    private MenuText money(
+            MoneySource.SourceType source, @Nullable String account, @Nullable Double budget, @Nullable Double minted) {
         MenuText text;
-        if (record.source() == MoneySource.SourceType.ACCOUNT) {
-            text = MenuText.create()
-                    .locale(PREFIX + "info.account", Values.text("account", String.valueOf(record.account())));
+        if (source == MoneySource.SourceType.ACCOUNT) {
+            text = MenuText.create().locale(PREFIX + "info.account", Values.text("account", String.valueOf(account)));
         } else {
-            var minted = record.mintedLeft();
             var left = minted == null ? 0 : minted;
             text = MenuText.create().locale(PREFIX + "info.minted", Values.money("left", economy(), left));
         }
-        var budget = record.budgetLeft();
         if (budget != null) {
             text.space().locale(PREFIX + "info.budget", Values.money("left", economy(), budget));
         }

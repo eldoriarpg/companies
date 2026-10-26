@@ -436,6 +436,14 @@ class SystemOrderServiceTest {
     }
 
     @Test
+    void theGuessedIdIsReservedForGuessedOrders() {
+        rule(fixed("guessed", 2.0));
+
+        assertEquals(Step.INVALID_ID, step(service.run()));
+        assertEquals(0, placements);
+    }
+
+    @Test
     void aDayStartsInTheServersZone() {
         Times.useZone(() -> ZoneId.of("Europe/Berlin"));
         try {
@@ -500,14 +508,19 @@ class SystemOrderServiceTest {
         }
 
         @Override
-        public CompletableFuture<SystemOrderService.Placed> place(SystemOrderRule rule, double unitPrice) {
+        public int stackSize(String material) {
+            return 64;
+        }
+
+        @Override
+        public CompletableFuture<SystemOrderService.Placed> place(SystemOrderService.Wanted wanted) {
             if (failPlacement) throw new IllegalStateException("placing failed");
             if (refusal != null) return CompletableFuture.completedFuture(new SystemOrderService.Refused(refusal));
             placements++;
             var order = system.place(0.0);
-            system.orderData().systemRule(order.id(), rule.id());
+            system.orderData().systemRule(order.id(), wanted.rule());
             placedAt(order.id(), LocalDateTime.now(clock));
-            var price = changedPrice != null ? changedPrice : OrderBuilder.total(unitPrice, rule.amount());
+            var price = changedPrice != null ? changedPrice : OrderBuilder.total(wanted.unit(), wanted.amount());
             return CompletableFuture.completedFuture(new SystemOrderService.Created(order.id(), price));
         }
 
