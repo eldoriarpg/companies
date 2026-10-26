@@ -60,8 +60,9 @@ Set `language` in `config.yml` to `en_US`, `de_DE` or `fr_FR`, then run `/compan
 
 ## 7. Optional extras
 
-- **Web dashboard:** players manage orders and companies in the browser. Get a key on Lyna, set
-  `dashboard.enabled: true` and reload. See [Web dashboard](../admin/dashboard.md). Once it runs, the dashboard's
+- **Web dashboard:** players manage orders and companies in the browser. Get a key on Lyna, then run
+  `/companyadmin setup` in game: it switches the dashboard on and takes the key. Or set `dashboard.enabled: true` and
+  reload. See [Web dashboard](../admin/dashboard.md). Once it runs, the dashboard's
   admin view has a guided **Setup** for the most important settings, which is the quickest way through the rest of this
   list.
 - **Order boards:** signs and NPCs that show open orders. See [Boards](../admin/boards.md).

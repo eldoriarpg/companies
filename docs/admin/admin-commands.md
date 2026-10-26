@@ -149,6 +149,7 @@ dashboard key, and `/companyadmin dashboard revoke <player>` logs a player out o
 | `/companyadmin reload` | `companies.admin.reload` | Reads the configuration files again and applies them; in a network it names the shared settings changed here |
 | `/companyadmin reload confirm` | `companies.admin.reload` | Shares those settings with every server |
 | `/companyadmin syncconfiguration` | `companies.admin` | Copies the configuration between the primary server and the database |
+| `/companyadmin setup` | `companies.admin` | Shows what this server needs before the dashboard can take over, and lets you name it, switch the dashboard on and enter its key |
 | `/companyadmin settings status` | `companies.admin` | Shows the latest revision of each shared file, the one this server uses, and the servers still on an older one |
 | `/companyadmin settings history <file> [page]` | `companies.admin` | Lists who changed a shared file, where and when |
 | `/companyadmin settings rollback <file> <revision>` | `companies.admin` and `companies.admin.reload` | Asks to make an earlier revision of a shared file the newest again |
