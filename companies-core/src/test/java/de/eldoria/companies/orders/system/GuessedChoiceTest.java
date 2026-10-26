@@ -89,6 +89,14 @@ class GuessedChoiceTest {
     }
 
     @Test
+    void anUnderbidCapBelowTheLowestPriceHasNoPrice() {
+        settings.competition(Competition.UNDERBID);
+        settings.minPrice(8.0);
+
+        assertTrue(GuessedChoice.price(settings, 10.0, 0, null, () -> 0.5).isEmpty());
+    }
+
+    @Test
     void aPriceBelowACentPlacesNothing() {
         assertTrue(GuessedChoice.price(settings, 0.001, 0, null, () -> 0.5).isEmpty());
     }

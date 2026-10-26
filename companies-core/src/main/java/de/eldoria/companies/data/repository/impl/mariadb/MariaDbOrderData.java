@@ -948,7 +948,8 @@ public class MariaDbOrderData extends AOrderData {
                 SELECT COALESCE(SUM(paid), 0) AS spent
                 FROM system_order_decisions
                 WHERE rule = ?
-                  AND decided_at >= ?""";
+                  AND decided_at >= ?
+                  AND order_id IN (SELECT id FROM orders)""";
         return query(select)
                 .single(call().bind(rule).bind(since, time()))
                 .map(row -> row.getDouble("spent"))
@@ -963,7 +964,8 @@ public class MariaDbOrderData extends AOrderData {
                 SELECT COALESCE(SUM(paid), 0) AS spent
                 FROM system_order_decisions
                 WHERE account IS NULL
-                  AND decided_at >= ?""";
+                  AND decided_at >= ?
+                  AND order_id IN (SELECT id FROM orders)""";
         return query(select)
                 .single(call().bind(since, time()))
                 .map(row -> row.getDouble("spent"))

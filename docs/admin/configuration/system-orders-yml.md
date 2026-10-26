@@ -57,7 +57,7 @@ guessed:
 |---|---|---|---|---|
 | `enabled` | true/false | `false` | Whether the server places system orders. When off, open system orders still run out at the end of their lifetime. | reload |
 | `checkMinutes` | number (minutes) | `5` | How often the primary server places due orders and removes the ones past their lifetime. At least 1. | restart |
-| `mintedDailyCap` | number | `10000.0` | How much new money all rules together may put into orders per day. `0` allows no new money. | reload |
+| `mintedDailyCap` | number | `10000.0` | How much new money all rules together may put into orders per day. Orders removed again do not count. `0` allows no new money. | reload |
 | `rules` | list | empty | The rules, see below. | reload |
 | `guessed` | section | off | Orders the server guesses, see [Guessed orders](#guessed-orders). | reload |
 
@@ -105,7 +105,7 @@ rules:
 | `maxOpen` | number | `1` | How many orders of the rule may be open or in work at once. |
 | `source.type` | `ACCOUNT` or `MINTED` | `MINTED` | Where the money comes from, see below. |
 | `source.account` | text | none | The economy account for `ACCOUNT`: a player's UUID, or an account name your economy plugin knows. |
-| `source.dailyBudget` | number | `0.0` | How much the rule may put into orders per day. `0` means no budget of its own. |
+| `source.dailyBudget` | number | `0.0` | How much the rule may put into orders per day. `0` means no budget of its own. Orders removed again, for example after their lifetime, give their share back. |
 
 A rule places its next order when `everyHours` passed since its last one and it has fewer than `maxOpen` orders open
 or in work. The order is placed only when its price fits the budget of the day, and:
@@ -139,15 +139,20 @@ gaps and never compete with players.
    - `SKIP`: no guessed order for a material players have an open order for. A guessed order is withdrawn as soon
      as a player orders its material.
    - `UNDERBID`: guessed orders are allowed, but pay at most `1 - margin` of the lowest open player price and of the
-     market average. A guessed order that pays more once a player orders cheaper is withdrawn.
+     market average. A guessed order that pays more once a player orders cheaper is withdrawn. When this cap lies
+     below `minPrice`, the material is not guessed.
+     An order whose price the cap already holds down is not repriced, since a higher step could not pay more; its
+     material rests instead.
 3. **Price** is the market average times `factor`, moved by `jitter`, within `minPrice` and `maxPrice`. A material
    without a market average is not guessed.
 4. **Size** is `sizeShare` of the items a delivered order of the material usually has, in whole stacks, at most
    `maxItems`.
 5. **Repricing:** an order nobody took within `repriceAfterHours` is replaced by one paying `repriceStep` more of the
-   average, up to `maxFactor`. After `maxReprices` the order is removed and the material rests for `restHours`.
+   average, up to `maxFactor`. After `maxReprices` the order is removed and the material rests for `restHours`. A
+   replacement that finds no free slot, or cannot be placed, lets its material rest as well.
 6. **How many:** guessed orders make up at most `share` of all open orders, but `minOpen` stay open even when players
-   order nothing, and never more than `maxOpen`. One guessed order per material at a time.
+   order nothing, and never more than `maxOpen`. One guessed order per material at a time. When the budget, the
+   minted cap or the account stops one guessed order, no further one is placed in that check.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -155,8 +160,8 @@ gaps and never compete with players.
 | `historyDays` | number (days) | `14` | How far back deliveries count. At least 2. |
 | `recentDays` | number (days) | `3` | The last days that count as recent. |
 | `minOrders` | number | `3` | Delivered player orders a material needs to be guessed. |
-| `allow` | list of materials | empty | Materials guessed even with fewer orders, as long as they have a market average. |
-| `deny` | list of materials | empty | Materials never guessed. |
+| `allow` | list of materials | empty | Materials guessed even with fewer orders, as long as they have a market average. Write them as material names, for example `IRON_INGOT`; an entry that names no item is logged. |
+| `deny` | list of materials | empty | Materials never guessed, written like `allow`. |
 | `competition` | `SKIP` or `UNDERBID` | `SKIP` | How guessed orders keep out of the way of players. |
 | `margin` | number | `0.3` | How much less an underbidding order pays, 0.05 to 0.95. |
 | `factor` | number | `0.8` | Factor on the market average of a new guessed order. |
@@ -173,7 +178,7 @@ gaps and never compete with players.
 | `share` | number | `0.2` | Share of all open orders guessed orders may make up, up to 0.9. |
 | `minOpen` | number | `3` | Guessed orders kept open even when players order nothing. |
 | `maxOpen` | number | `10` | Most guessed orders open at once. |
-| `perCompanyDaily` | number | `5` | Guessed orders one company may take per day. It counts the guessed orders the company holds or finished that day. `0` means no limit. |
+| `perCompanyDaily` | number | `5` | Guessed orders one company may take per day. It counts the guessed orders the company holds or finished that day. Two members accepting at the very same moment can go one past it. `0` means no limit. |
 | `source` | section | minted | Where the money comes from, as `source` of a rule. Its `dailyBudget` counts all guessed orders together. |
 
 Players working alone are not limited by `perCompanyDaily`.

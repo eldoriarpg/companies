@@ -462,6 +462,29 @@ class SystemOrderServiceTest {
         }
     }
 
+    private static void delete(int order) {
+        for (var table : List.of("order_content", "order_states", "orders")) {
+            query("DELETE FROM " + table + " WHERE id = ?")
+                    .single(call().bind(order))
+                    .delete();
+        }
+    }
+
+    @Test
+    void anOrderRemovedAgainGivesItsBudgetBack() {
+        var rule = rule(fixed("iron", 2.0));
+        rule.everyHours(1);
+        rule.lifetimeHours(1);
+        rule.source(new MoneySource(SourceType.MINTED, "", 200));
+        service.run();
+
+        clock.advance(Duration.ofHours(1));
+        var run = service.run();
+
+        assertEquals(1, run.removed().size());
+        assertEquals(Step.PLACED, step(run));
+    }
+
     private SystemDecision onlyDecision() {
         return system.orderData()
                 .systemDecisions(OrderState.UNCLAIMED, OrderState.UNCLAIMED)
@@ -508,6 +531,11 @@ class SystemOrderServiceTest {
         }
 
         @Override
+        public String canonical(String material) {
+            return knows(material) ? material : null;
+        }
+
+        @Override
         public int stackSize(String material) {
             return 64;
         }
@@ -528,7 +556,7 @@ class SystemOrderServiceTest {
         public boolean remove(int order) {
             if (failRemove) throw new IllegalStateException("removing failed");
             removed.add(order);
-            SqLiteTestDatabase.setState(order, OrderState.RECEIVED.stateId(), 0);
+            delete(order);
             return true;
         }
     }

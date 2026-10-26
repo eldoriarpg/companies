@@ -8,6 +8,7 @@ package de.eldoria.companies.orders.system;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings.Competition;
+import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.dashboard.MutableClock;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
@@ -66,6 +67,7 @@ class GuessedOrdersTest {
     private OfflinePlayer system;
     private OfflinePlayer player;
     private SystemOrderService service;
+    private String failing;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -241,8 +243,126 @@ class GuessedOrdersTest {
 
         assertTrue(limit.refusal(company, guessed).isPresent());
         assertTrue(limit.refusal(company, playerOrder).isEmpty());
+        var defined = order(system, Material.SAND, 1, 1.0);
+        orderData.systemRule(defined.id(), "iron");
+        assertTrue(limit.refusal(company, defined).isEmpty());
         settings.guessed().perCompanyDaily(0);
         assertTrue(limit.refusal(company, guessed).isEmpty());
+    }
+
+    @Test
+    void aFailingPlacementDoesNotStopTheOthers() {
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        failing = "DIRT";
+
+        var steps = service.run().rules();
+
+        assertEquals(
+                List.of(
+                        new SystemOrderService.Result("guessed DIRT", Step.FAILED),
+                        new SystemOrderService.Result("guessed STONE", Step.PLACED)),
+                steps);
+    }
+
+    @Test
+    void anOrderHeldDownByTheUnderbidCapRestsInsteadOfRepricing() {
+        settings.guessed().competition(Competition.UNDERBID);
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        assertEquals(1.4, only().unit());
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertTrue(orderData.restingMaterials(now()).contains("DIRT"));
+        assertEquals("STONE", only().material());
+    }
+
+    @Test
+    void anUnderbidCapBelowTheLowestPriceGuessesNothing() {
+        settings.guessed().competition(Competition.UNDERBID);
+        settings.guessed().minPrice(1.5);
+
+        var steps = service.run().rules().stream()
+                .map(SystemOrderService.Result::step)
+                .toList();
+
+        assertEquals(List.of(Step.NO_PRICE, Step.NO_PRICE), steps);
+        assertTrue(guessedDecisions().isEmpty());
+    }
+
+    @Test
+    void allowAndDenyEntriesAreResolvedToMaterialNames() {
+        settings.guessed().minOrders(5);
+        settings.guessed().allow(List.of("iron ingot"));
+        averages.put("IRON_INGOT", 3.0);
+
+        service.run();
+
+        assertEquals("IRON_INGOT", only().material());
+    }
+
+    @Test
+    void aDeniedMaterialIsNeverGuessed() {
+        settings.guessed().deny(List.of("dirt"));
+
+        service.run();
+
+        assertEquals("STONE", only().material());
+    }
+
+    @Test
+    void anOrderRemovedForRepricingGivesItsBudgetBack() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().repriceStep(0);
+        settings.guessed().source(new MoneySource(MoneySource.SourceType.MINTED, "", 120));
+        service.run();
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(1, only().step());
+    }
+
+    @Test
+    void moneyThatStopsOneGuessedOrderStopsTheCheck() {
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        settings.mintedDailyCap(50);
+
+        var steps = service.run().rules();
+
+        assertEquals(List.of(new SystemOrderService.Result("guessed DIRT", Step.MINTED_CAP)), steps);
+    }
+
+    @Test
+    void aReplacementWithoutAFreeSlotLetsItsMaterialRest() {
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        settings.guessed().minOpen(0);
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertTrue(guessedDecisions().isEmpty());
+        assertTrue(orderData.restingMaterials(now()).contains("DIRT"));
+    }
+
+    @Test
+    void aDecisionOfAnotherKindUnderTheGuessedRuleIsLeftAlone() {
+        settings.guessed().repriceAfterHours(2);
+        var foreign = order(system, Material.SAND, 1, 1.0);
+        orderData.systemRule(foreign.id(), GuessedSettings.RULE);
+        at(foreign.id(), now());
+        orderData.saveSystemDecision(
+                new SystemDecision(foreign.id(), GuessedSettings.RULE, "DEFINED", now(), null, 1, "{}"));
+
+        clock.advance(Duration.ofHours(2));
+        var run = service.run();
+
+        assertTrue(orderData.retrieveOrderById(foreign.id()).join().isPresent());
+        assertTrue(!run.removed().contains(foreign.id()));
     }
 
     private GuessedRecord only() {
@@ -305,12 +425,19 @@ class GuessedOrdersTest {
         }
 
         @Override
+        public String canonical(String material) {
+            var found = Material.matchMaterial(material);
+            return found == null ? null : found.name();
+        }
+
+        @Override
         public int stackSize(String material) {
             return 64;
         }
 
         @Override
         public CompletableFuture<SystemOrderService.Placed> place(SystemOrderService.Wanted wanted) {
+            if (wanted.material().equals(failing)) throw new IllegalStateException("placing failed");
             var total = OrderBuilder.total(wanted.unit(), wanted.amount());
             var order = order(system, Material.matchMaterial(wanted.material()), wanted.amount(), total);
             orderData.systemRule(order.id(), wanted.rule());
@@ -323,7 +450,11 @@ class GuessedOrdersTest {
             removed.add(order);
             var found = orderData.retrieveOrderById(order).join();
             if (found.isEmpty() || found.get().state() != OrderState.UNCLAIMED) return false;
-            SqLiteTestDatabase.setState(order, OrderState.RECEIVED.stateId(), 0);
+            for (var table : List.of("order_content", "order_states", "orders")) {
+                query("DELETE FROM " + table + " WHERE id = ?")
+                        .single(call().bind(order))
+                        .delete();
+            }
             return true;
         }
     }

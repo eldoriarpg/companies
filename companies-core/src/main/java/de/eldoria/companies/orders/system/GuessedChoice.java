@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.function.DoubleSupplier;
 
 /**
@@ -31,7 +32,8 @@ import java.util.function.DoubleSupplier;
  *     material players buy least lately, ranks first.</li>
  *     <li><b>Price</b> is the market average times the factor, which rises by {@code repriceStep} with each reprice
  *     up to {@code maxFactor}, moved by the jitter and kept within the bounds. Underbidding orders pay at most
- *     {@code 1 - margin} of the lowest open player price and of the market average.</li>
+ *     {@code 1 - margin} of the lowest open player price and of the market average; a material whose cap lies
+ *     below {@code minPrice} is not guessed.</li>
  *     <li><b>Size</b> is {@code sizeShare} of the typical delivered amount, rounded to whole stacks, within
  *     {@code maxItems}.</li>
  *     <li><b>How many</b>: guessed orders stay at most {@code share} of all open orders, but at least
@@ -49,15 +51,29 @@ public final class GuessedChoice {
      * @return the candidates, lowest demand score first
      */
     public static List<Candidate> rank(GuessedSettings settings, List<DeliveredVolume> volumes) {
-        var deny = settings.deny();
+        return rank(settings, volumes, settings.allow(), settings.deny());
+    }
+
+    /**
+     * Ranks the candidates with allow and deny lists already resolved to material names.
+     *
+     * @param settings the guessed order settings
+     * @param volumes  the delivered volume per material over the history
+     * @param allowed  materials guessed even with fewer orders, upper case
+     * @param denied   materials never guessed, upper case
+     * @return the candidates, lowest demand score first
+     */
+    public static List<Candidate> rank(
+            GuessedSettings settings, List<DeliveredVolume> volumes, Set<String> allowed, Set<String> denied) {
+        var deny = denied;
         var allow = new HashMap<String, Boolean>();
-        settings.allow().forEach(material -> allow.put(material, true));
+        allowed.forEach(material -> allow.put(material, true));
         var candidates = new ArrayList<Candidate>();
         for (var volume : volumes) {
             var material = volume.material().toUpperCase(Locale.ROOT);
-            var allowed = allow.remove(material) != null;
+            var listed = allow.remove(material) != null;
             if (deny.contains(material)) continue;
-            if (volume.orders() < settings.minOrders() && !allowed) continue;
+            if (volume.orders() < settings.minOrders() && !listed) continue;
             var longRate = (double) volume.items() / settings.historyDays();
             var recentRate = (double) volume.recentItems() / settings.recentDays();
             var score = longRate > 0 ? recentRate / longRate : 0;
@@ -79,7 +95,7 @@ public final class GuessedChoice {
      * @param step     how often the order was repriced before, 0 for a new one
      * @param demand   the open player demand of the material, null when there is none
      * @param random   a random number from 0 included to 1 excluded
-     * @return the price, empty when it comes out below a cent
+     * @return the price, empty when it comes out below a cent or an underbidding cap lies below the lowest price
      */
     public static Optional<Price> price(
             GuessedSettings settings, double average, int step, @Nullable PlayerDemand demand, DoubleSupplier random) {
@@ -94,6 +110,7 @@ public final class GuessedChoice {
         if (settings.competition() == GuessedSettings.Competition.UNDERBID) {
             var reference = lowest == null ? average : Math.min(average, lowest);
             cap = cap(reference, settings.margin());
+            if (cap < settings.minPrice()) return Optional.empty();
             unit = Math.min(unit, cap);
         }
         if (unit < 0.01) return Optional.empty();

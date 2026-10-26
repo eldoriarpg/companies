@@ -163,6 +163,10 @@ public class GuessedSettings {
         return Math.max(0, minPrice);
     }
 
+    public void minPrice(double minPrice) {
+        this.minPrice = minPrice;
+    }
+
     /**
      * @return the highest price per item, 0 for none
      */

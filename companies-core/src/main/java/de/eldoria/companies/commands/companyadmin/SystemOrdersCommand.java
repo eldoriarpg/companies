@@ -34,6 +34,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -165,9 +166,9 @@ public final class SystemOrdersCommand {
                         PREFIX + "info.guessed.candidate",
                         Values.text("material", record.material()),
                         Values.number("orders", record.orders()),
-                        Values.text("score", "%.2f".formatted(record.score())),
-                        Values.text("recent", "%.1f".formatted(record.recentRate())),
-                        Values.text("long", "%.1f".formatted(record.longRate())),
+                        Values.text("score", String.format(Locale.ROOT, "%.2f", record.score())),
+                        Values.text("recent", String.format(Locale.ROOT, "%.1f", record.recentRate())),
+                        Values.text("long", String.format(Locale.ROOT, "%.1f", record.longRate())),
                         Values.number("rank", record.rank()),
                         Values.number("candidates", record.candidates())));
         lines.add(competition(record));
@@ -175,9 +176,9 @@ public final class SystemOrdersCommand {
                 .locale(
                         PREFIX + "info.guessed.price",
                         Values.money("average", economy(), record.average()),
-                        Values.text("factor", "%.2f".formatted(record.factor())),
+                        Values.text("factor", String.format(Locale.ROOT, "%.2f", record.factor())),
                         Values.number("step", record.step()),
-                        Values.text("jitter", "%+.1f %%".formatted(record.jitter() * 100)),
+                        Values.text("jitter", String.format(Locale.ROOT, "%+.1f %%", record.jitter() * 100)),
                         Values.money("unit", economy(), record.unit()),
                         Values.money("total", economy(), record.total())));
         var replaces = record.replaces();
@@ -188,7 +189,7 @@ public final class SystemOrdersCommand {
                 .locale(
                         PREFIX + "info.guessed.size",
                         Values.number("amount", record.amount()),
-                        Values.text("share", "%.0f %%".formatted(record.sizeShare() * 100)),
+                        Values.text("share", String.format(Locale.ROOT, "%.0f %%", record.sizeShare() * 100)),
                         Values.number("typical", record.typical())));
         lines.add(MenuText.create()
                 .locale(
@@ -228,7 +229,7 @@ public final class SystemOrdersCommand {
     }
 
     private MenuText price(DefinedRecord record) {
-        var jitter = Values.text("jitter", "%+.1f %%".formatted(record.jitter() * 100));
+        var jitter = Values.text("jitter", String.format(Locale.ROOT, "%+.1f %%", record.jitter() * 100));
         var average = record.average();
         if (record.mode() == RulePrice.PriceMode.FIXED || average == null) {
             return MenuText.create()
@@ -238,7 +239,7 @@ public final class SystemOrdersCommand {
                 .locale(
                         PREFIX + "info.average",
                         Values.money("average", economy(), average),
-                        Values.text("factor", "%.2f".formatted(record.factor())),
+                        Values.text("factor", String.format(Locale.ROOT, "%.2f", record.factor())),
                         Values.money("base", economy(), record.base()),
                         jitter);
     }

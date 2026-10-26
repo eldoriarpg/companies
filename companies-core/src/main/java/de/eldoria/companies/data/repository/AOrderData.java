@@ -467,7 +467,7 @@ public abstract class AOrderData {
     public abstract int systemOrdersTaken(int company, String rule, LocalDateTime since);
 
     /**
-     * What a rule put into orders since a point in time.
+     * What a rule put into orders since a point in time. Orders removed since gave their money back and do not count.
      *
      * @param rule  id of the rule
      * @param since start, included
@@ -476,7 +476,7 @@ public abstract class AOrderData {
     public abstract double systemSpent(String rule, LocalDateTime since);
 
     /**
-     * What all rules put into orders from minted money since a point in time.
+     * What all rules put into orders from minted money since a point in time. Orders removed since do not count.
      *
      * @param since start, included
      * @return the minted money spent

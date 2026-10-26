@@ -158,6 +158,22 @@ public abstract class SystemOrderDataContract {
     }
 
     @Test
+    void removedOrdersNoLongerCountAsSpent() {
+        var kept = order(server, Material.IRON_INGOT, 10, 20.0);
+        var removed = order(server, Material.IRON_INGOT, 10, 20.0);
+        orders.saveSystemDecision(decision(kept, "iron", NOW, null, 20));
+        orders.saveSystemDecision(decision(removed, "iron", NOW, null, 30));
+        for (var table : List.of("order_content", "order_states", "orders")) {
+            query("DELETE FROM " + table + " WHERE id = ?")
+                    .single(call().bind(removed.id()))
+                    .delete();
+        }
+
+        assertEquals(20.0, orders.systemSpent("iron", NOW));
+        assertEquals(20.0, orders.mintedSpent(NOW));
+    }
+
+    @Test
     void ordersOfTheServerStayOutOfTheMarketData() {
         var system = order(server, Material.STONE, 10, 100.0);
         state(system, OrderState.DELIVERED, NOW);

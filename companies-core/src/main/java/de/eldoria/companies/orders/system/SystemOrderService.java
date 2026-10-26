@@ -87,7 +87,7 @@ public final class SystemOrderService {
         this.random = random;
         this.logger = logger;
         purchases = new Purchases(orders, placement, funding, logger);
-        guessed = new GuessedOrders(orders, placement, purchases, random);
+        guessed = new GuessedOrders(orders, placement, purchases, random, logger);
     }
 
     /**
@@ -242,6 +242,12 @@ public final class SystemOrderService {
             }
 
             @Override
+            public @Nullable String canonical(String material) {
+                var item = item(material);
+                return item == null ? null : item.name();
+            }
+
+            @Override
             public int stackSize(String material) {
                 var item = item(material);
                 return item == null ? 64 : item.getMaxStackSize();
@@ -290,6 +296,13 @@ public final class SystemOrderService {
          * @return the market average per item, empty when there is none
          */
         OptionalDouble average(String material);
+
+        /**
+         * @param material a material name as a rule writes it
+         * @return the material's name as order lines store it, null when it names no item
+         */
+        @Nullable
+        String canonical(String material);
 
         /**
          * @param material a material name as a rule writes it
