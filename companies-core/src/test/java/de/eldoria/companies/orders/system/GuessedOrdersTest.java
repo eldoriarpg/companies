@@ -70,6 +70,7 @@ class GuessedOrdersTest {
     private SystemOrderService service;
     private String failing;
     private boolean failOutcomes;
+    private boolean failOpenPlayers;
     private double balance = Double.MAX_VALUE;
     private final SystemOrderService.Funding funding = new SystemOrderService.Funding() {
         @Override
@@ -89,6 +90,12 @@ class GuessedOrdersTest {
         Times.useZone(() -> ZoneOffset.UTC);
         SqLiteTestDatabase.create(directory);
         orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper()) {
+            @Override
+            public int openPlayerOrders() {
+                if (failOpenPlayers) throw new IllegalStateException("reading failed");
+                return super.openPlayerOrders();
+            }
+
             @Override
             public List<SystemOutcome> systemOutcomes(String rule, LocalDateTime since) {
                 if (failOutcomes) throw new IllegalStateException("reading failed");
@@ -512,7 +519,7 @@ class GuessedOrdersTest {
     }
 
     @Test
-    void replacementsLeftWhenMoneyStopsTheCheckAreNotedExpired() {
+    void replacementsLeftWhenTheCheckStopsEarlyAreNotedExpired() {
         settings.guessed().repriceAfterHours(2);
         settings.guessed().minOpen(2);
         settings.guessed().maxOpen(2);
@@ -526,6 +533,19 @@ class GuessedOrdersTest {
 
         assertEquals(GuessedLearning.EXPIRED, outcome(first));
         assertEquals(GuessedLearning.EXPIRED, outcome(second));
+    }
+
+    @Test
+    void aRemovedOrderIsNotedExpiredWhenTheCheckFailsBeforeItsCopy() {
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        var first = onlyDecision().order();
+        failOpenPlayers = true;
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(first));
     }
 
     @Test

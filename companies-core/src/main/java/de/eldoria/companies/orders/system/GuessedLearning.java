@@ -145,14 +145,17 @@ public final class GuessedLearning {
         var since = LocalDateTime.MIN;
         var latest = orders.stream().filter(order -> order.base() != null).max(Comparator.comparing(Ended::placed));
         if (latest.isPresent()) {
-            factor = Math.clamp(latest.get().base(), lower, settings.maxFactor());
+            var base = latest.get().base();
+            factor = Math.clamp(base == null ? factor : base, lower, settings.maxFactor());
             since = latest.get().placed();
         }
         var from = since;
-        var concluded = orders.stream()
-                .filter(order -> order.ended() != null && order.ended().isAfter(from))
-                .sorted(Comparator.comparing(Ended::ended))
-                .toList();
+        var concluded = new ArrayList<Ended>();
+        for (var order : orders) {
+            var ended = order.ended();
+            if (ended != null && ended.isAfter(from)) concluded.add(order);
+        }
+        concluded.sort(Comparator.comparing(Ended::ended, Comparator.nullsFirst(Comparator.naturalOrder())));
         for (var order : concluded) {
             if (EXPIRED.equals(order.outcome()) && !order.capped()) {
                 factor = Math.min(settings.maxFactor(), factor + learning.step());

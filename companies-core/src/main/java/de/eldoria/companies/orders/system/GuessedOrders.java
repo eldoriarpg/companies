@@ -133,37 +133,36 @@ final class GuessedOrders {
         for (var index = 0; index < ranking.size(); index++) {
             ranks.put(ranking.get(index).material(), index);
         }
-        var replacements = new ArrayList<Replacement>();
-        var stillOpen = 0;
-        for (var order : open) {
-            var record = order.record();
-            var material = record == null ? null : record.material();
-            if (record != null && competes(settings, record, demand.get(material))) {
-                if (purchases.remove(order.decision())) {
-                    removed.add(order.decision().order());
-                    ended(order, GuessedLearning.WITHDRAWN, now);
-                }
-                continue;
-            }
-            if (!due.contains(order.decision().order())) {
-                stillOpen++;
-                continue;
-            }
-            if (!purchases.remove(order.decision())) continue;
-            removed.add(order.decision().order());
-            if (material == null) {
-                ended(order, GuessedLearning.EXPIRED, now);
-                continue;
-            }
-            if (record.step() < settings.maxReprices() && ranks.containsKey(material) && !capped(record)) {
-                replacements.add(new Replacement(material, record.step() + 1, order));
-            } else {
-                ended(order, GuessedLearning.EXPIRED, now);
-                rest(settings, material, now);
-            }
-        }
-        var pending = new ArrayDeque<>(replacements);
+        var pending = new ArrayDeque<Replacement>();
         try {
+            var stillOpen = 0;
+            for (var order : open) {
+                var record = order.record();
+                var material = record == null ? null : record.material();
+                if (record != null && competes(settings, record, demand.get(material))) {
+                    if (purchases.remove(order.decision())) {
+                        removed.add(order.decision().order());
+                        ended(order, GuessedLearning.WITHDRAWN, now);
+                    }
+                    continue;
+                }
+                if (!due.contains(order.decision().order())) {
+                    stillOpen++;
+                    continue;
+                }
+                if (!purchases.remove(order.decision())) continue;
+                removed.add(order.decision().order());
+                if (material == null) {
+                    ended(order, GuessedLearning.EXPIRED, now);
+                    continue;
+                }
+                if (record.step() < settings.maxReprices() && ranks.containsKey(material) && !capped(record)) {
+                    pending.add(new Replacement(material, record.step() + 1, order));
+                } else {
+                    ended(order, GuessedLearning.EXPIRED, now);
+                    rest(settings, material, now);
+                }
+            }
             var active = guessed(OrderState.UNCLAIMED, OrderState.CLAIMED).stream()
                     .map(Open::record)
                     .filter(Objects::nonNull)

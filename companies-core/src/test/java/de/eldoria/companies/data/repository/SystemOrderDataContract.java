@@ -98,8 +98,8 @@ public abstract class SystemOrderDataContract {
     @BeforeAll
     void startDatabase() throws Exception {
         MockBukkit.mock();
-        dataSource = start();
         executor = Executors.newFixedThreadPool(2);
+        dataSource = start();
     }
 
     @BeforeEach
@@ -123,9 +123,12 @@ public abstract class SystemOrderDataContract {
 
     @AfterAll
     void stopDatabase() {
-        TestExecutors.drain(executor);
-        stop();
-        MockBukkit.unmock();
+        try {
+            if (executor != null) TestExecutors.drain(executor);
+            if (dataSource != null) stop();
+        } finally {
+            MockBukkit.unmock();
+        }
     }
 
     @Test
