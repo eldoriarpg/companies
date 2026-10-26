@@ -56,8 +56,8 @@ public final class SetupReminder implements Listener {
         work.execute(() -> {
             if (open()) {
                 plugin.getLogger()
-                        .info("Companies is not set up yet. Join and run " + SetupMenu.COMMAND
-                                + ", or continue on the dashboard.");
+                        .info("The setup of Companies is not finished. Join and run " + SetupMenu.COMMAND
+                                + ", continue on the dashboard, or hide this with " + SetupMenu.COMMAND + " dismiss.");
             }
         });
     }
@@ -84,7 +84,9 @@ public final class SetupReminder implements Listener {
                 MenuText.create()
                         .locale("companyadmin.setup.reminder")
                         .text(" <click:run_command:'" + SetupMenu.COMMAND
-                                + "'><add>[<i18n:companyadmin.setup.reminderOpen>]</click>"));
+                                + "'><add>[<i18n:companyadmin.setup.reminderOpen>]</click> <click:run_command:'"
+                                + SetupMenu.COMMAND
+                                + " dismiss'><remove>[<i18n:companyadmin.setup.reminderHide>]</click>"));
     }
 
     /**

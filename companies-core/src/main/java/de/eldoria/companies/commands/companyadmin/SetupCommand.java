@@ -14,6 +14,7 @@ import de.eldoria.companies.menus.admin.SetupMenu;
 import de.eldoria.companies.menus.admin.SetupStatus;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.StringArg;
@@ -33,12 +34,16 @@ import java.util.logging.Level;
 /**
  * {@code /companyadmin setup}: the in-game part of the setup, see {@link SetupMenu}. A player gets the menu, the console
  * the same status with the commands to use. {@code name <name>} names this server, {@code dashboard <on|off>} switches
- * the dashboard for the network, and the key is entered with {@code /companyadmin dashboard key}. Looking needs the
+ * the dashboard for the network, {@code dismiss} hides the reminder to finish the setup, and the key is entered with
+ * {@code /companyadmin dashboard key}. The network is counted by the servers seen in the last {@value #RECENT_DAYS}
+ * days, so old entries do not turn a single server's advice into a network's. Looking needs the
  * general admin permission, changing the reload permission too, as for settings on the dashboard.
  */
 @Subcommand("setup")
 @Permission(Admin.ADMIN)
 public final class SetupCommand {
+    private static final int RECENT_DAYS = 30;
+
     private final CommandDependencies deps;
 
     /**
@@ -63,7 +68,7 @@ public final class SetupCommand {
                                         player,
                                         new SetupMenu(
                                                 deps.messages(), deps.services().menus(), this::apply),
-                                        SetupMenu.View.of(status));
+                                        SetupMenu.View.of(status, player.hasPermission(Admin.DASHBOARD)));
                         return;
                     }
                     deps.messages()
@@ -111,23 +116,28 @@ public final class SetupCommand {
                 .exceptionally(error -> failed(sender, error));
     }
 
-    private void apply(Player admin, SetupMenu.Input input, Consumer<@Nullable CommandFailure> then) {
-        if (!admin.hasPermission(Admin.RELOAD)) {
+    private void apply(
+            Player admin, SetupMenu.View opened, SetupMenu.Input input, Consumer<@Nullable CommandFailure> then) {
+        if (!admin.hasPermission(Admin.RELOAD) || (input.key().isPresent() && !admin.hasPermission(Admin.DASHBOARD))) {
             then.accept(CommandFailure.of("companyadmin.error.permission"));
             return;
         }
         CompletableFuture.runAsync(
                         () -> {
-                            input.key().ifPresent(key -> {
-                                deps.dashboard().enterKey(key).join();
-                                deps.adminLog().entry(admin, "dashboard key").write();
-                            });
-                            switchDashboard(admin.getName(), input.dashboard());
+                            input.key().ifPresent(key -> enterKey(admin, key));
+                            if (input.dashboard() != opened.status().dashboardEnabled()) {
+                                switchDashboard(admin.getName(), input.dashboard());
+                            }
                         },
                         Threading.VIRTUAL)
                 .thenRun(() -> onMainThread(() -> {
-                    rename(admin, input.name());
-                    then.accept(null);
+                    try {
+                        rename(admin, input.name());
+                        then.accept(null);
+                    } catch (RuntimeException e) {
+                        deps.plugin().getLogger().log(Level.SEVERE, "Could not rename this server.", e);
+                        then.accept(CommandFailure.of("companyadmin.setup.error.failed"));
+                    }
                 }))
                 .exceptionally(error -> {
                     var cause = error.getCause() == null ? error : error.getCause();
@@ -140,6 +150,46 @@ public final class SetupCommand {
                     onMainThread(() -> then.accept(failure));
                     return null;
                 });
+    }
+
+    /**
+     * Stores the dashboard key. A failure is logged by its kind only, so the key never reaches the log.
+     */
+    private void enterKey(Player admin, String key) {
+        try {
+            deps.dashboard().enterKey(key).join();
+        } catch (CommandFailure failure) {
+            throw failure;
+        } catch (RuntimeException e) {
+            var cause = e.getCause() == null ? e : e.getCause();
+            deps.plugin()
+                    .getLogger()
+                    .severe("Could not store the dashboard key: "
+                            + cause.getClass().getSimpleName());
+            throw CommandFailure.of("companyadmin.dashboard.error.failed");
+        }
+        deps.adminLog().entry(admin, "dashboard key").write();
+    }
+
+    /**
+     * Hides the reminder to finish the setup, for every admin; the dashboard's admin view hides it too.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("dismiss")
+    @Permission(Admin.RELOAD)
+    public void dismiss(CommandSender sender) {
+        CompletableFuture.runAsync(
+                        () -> deps.nodeData().setupProgress("banner", "dismissed", sender.getName()), Threading.VIRTUAL)
+                .thenRun(() -> {
+                    deps.adminLog()
+                            .entry(sender, "setup")
+                            .with("page", "banner")
+                            .with("state", "dismissed")
+                            .write();
+                    deps.messages().sendMessage(sender, "companyadmin.setup.dismissed");
+                })
+                .exceptionally(error -> failed(sender, error));
     }
 
     private void rename(CommandSender sender, String name) {
@@ -173,6 +223,10 @@ public final class SetupCommand {
                 if (done.outcome() instanceof Configuration.StoreOutcome.Stored stored && stored.replaced()) {
                     onMainThread(deps::applyChanges);
                 }
+                if (done.outcome() instanceof Configuration.StoreOutcome.Unchanged
+                        && configuration.dashboardSettings().enabled() != on) {
+                    throw CommandFailure.of("companyadmin.setup.error.sync");
+                }
             }
         }
     }
@@ -181,7 +235,14 @@ public final class SetupCommand {
         return CompletableFuture.supplyAsync(
                 () -> {
                     var configuration = deps.configuration();
-                    var nodes = deps.nodeData().nodes().size();
+                    var nodeData = deps.nodeData();
+                    var recent = Times.now().minusDays(RECENT_DAYS);
+                    var nodes = (int) nodeData.nodes().stream()
+                            .filter(node -> node.uid().equals(nodeData.nodeUid())
+                                    || node.seen()
+                                            .filter(seen -> seen.isAfter(recent))
+                                            .isPresent())
+                            .count();
                     var dashboard = dashboardStatus();
                     return new SetupStatus(
                             configuration.databaseSettings().storageType(),

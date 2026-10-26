@@ -36,8 +36,9 @@ import java.util.function.Consumer;
  * the menu points to at the end.
  * <p>
  * The database and the role are only shown, with where to change them, since both are read at start. The key is only
- * asked for while the network has none; it is never filled in or shown, and it is stored like
- * {@code /companyadmin dashboard key}. The chat rendering offers the same through commands.
+ * asked for while the network has none and only from an admin who may run {@code /companyadmin dashboard key}; it is
+ * never filled in or shown, and it is stored like that command stores it. Only what the admin changed is applied, so
+ * a dashboard another admin switched meanwhile is not switched back. The chat rendering offers the same through commands.
  */
 public final class SetupMenu implements Menu<SetupMenu.View> {
     /**
@@ -81,7 +82,7 @@ public final class SetupMenu implements Menu<SetupMenu.View> {
                         + " dashboard on'><add>[<i18n:companyadmin.setup.on>]</click> "
                         + "<click:run_command:'" + COMMAND
                         + " dashboard off'><remove>[<i18n:companyadmin.setup.off>]</click>");
-        if (!model.status().keySet()) {
+        if (!model.status().keySet() && model.mayEnterKey()) {
             text.newLine()
                     .text(
                             "<name><i18n:companyadmin.setup.key>: "
@@ -102,9 +103,9 @@ public final class SetupMenu implements Menu<SetupMenu.View> {
                         render(player, MenuText.create().text("<heading>").locale("companyadmin.setup.title")))
                 .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                 .body(body)
-                .inputs(inputs(player, model.status()))
+                .inputs(inputs(player, model))
                 .build();
-        var save = actions.button(
+        var save = actions.buttonOnce(
                 render(player, MenuText.create().locale("companyadmin.setup.save")),
                 null,
                 (viewer, response) -> save(viewer, model, response));
@@ -132,9 +133,9 @@ public final class SetupMenu implements Menu<SetupMenu.View> {
     }
 
     private void save(Player viewer, View model, DialogResponseView response) {
-        changes.apply(viewer, input(response), failure -> {
+        changes.apply(viewer, model, input(response), failure -> {
             if (failure != null) {
-                menus.show(viewer, this, new View(model.status(), Optional.of(failure)));
+                menus.show(viewer, this, new View(model.status(), model.mayEnterKey(), Optional.of(failure)));
                 return;
             }
             menus.close(viewer)
@@ -186,7 +187,8 @@ public final class SetupMenu implements Menu<SetupMenu.View> {
         return name.isEmpty() ? "-" : name;
     }
 
-    private List<DialogInput> inputs(Player player, SetupStatus status) {
+    private List<DialogInput> inputs(Player player, View model) {
+        var status = model.status();
         var inputs = new ArrayList<DialogInput>();
         inputs.add(DialogInput.text(NAME, render(player, MenuText.create().locale("companyadmin.setup.serverName")))
                 .initial(status.name())
@@ -195,7 +197,7 @@ public final class SetupMenu implements Menu<SetupMenu.View> {
         inputs.add(DialogInput.bool(DASHBOARD, render(player, MenuText.create().locale("companyadmin.setup.dashboard")))
                 .initial(status.dashboardEnabled())
                 .build());
-        if (!status.keySet()) {
+        if (!status.keySet() && model.mayEnterKey()) {
             inputs.add(DialogInput.text(KEY, render(player, MenuText.create().locale("companyadmin.setup.key")))
                     .initial("")
                     .maxLength(MAX_KEY)
@@ -213,16 +215,18 @@ public final class SetupMenu implements Menu<SetupMenu.View> {
     /**
      * What the in-game setup shows.
      *
-     * @param status the server's state
-     * @param error  why the last change was refused, if it was
+     * @param status      the server's state, as the menu was opened
+     * @param mayEnterKey whether the admin may enter the dashboard key, which needs the dashboard permission
+     * @param error       why the last change was refused, if it was
      */
-    public record View(SetupStatus status, Optional<CommandFailure> error) {
+    public record View(SetupStatus status, boolean mayEnterKey, Optional<CommandFailure> error) {
         /**
-         * @param status the server's state
+         * @param status      the server's state
+         * @param mayEnterKey whether the admin may enter the dashboard key
          * @return the view without an error
          */
-        public static View of(SetupStatus status) {
-            return new View(status, Optional.empty());
+        public static View of(SetupStatus status, boolean mayEnterKey) {
+            return new View(status, mayEnterKey, Optional.empty());
         }
     }
 
@@ -241,10 +245,11 @@ public final class SetupMenu implements Menu<SetupMenu.View> {
     @FunctionalInterface
     public interface Changes {
         /**
-         * @param admin the admin
-         * @param input what was entered
-         * @param then  receives why it was refused, null when it was applied
+         * @param admin  the admin
+         * @param opened what the menu showed when the admin opened it, so only what the admin changed is applied
+         * @param input  what was entered
+         * @param then   receives why it was refused, null when it was applied
          */
-        void apply(Player admin, Input input, Consumer<@Nullable CommandFailure> then);
+        void apply(Player admin, View opened, Input input, Consumer<@Nullable CommandFailure> then);
     }
 }
