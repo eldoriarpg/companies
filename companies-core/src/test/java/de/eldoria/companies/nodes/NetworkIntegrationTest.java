@@ -609,7 +609,7 @@ class NetworkIntegrationTest {
                 .rollback(b.nodeData, "user.yml", latest - 1, latest, "Bo")
                 .orElseThrow();
 
-        assertEquals(new Configuration.RollbackOutcome.RolledBack(latest + 1, true, true), outcome);
+        assertEquals(new Configuration.StoreOutcome.Stored(latest + 1, true, true), outcome);
         assertEquals(original, b.configuration.userSettings().maxOrders());
         assertEquals(latest + 1, b.configuration.appliedRevision("user.yml"));
         await(() -> a.configuration.appliedRevision("user.yml") == latest + 1, WAIT, "the primary to take it");
@@ -638,7 +638,7 @@ class NetworkIntegrationTest {
                 .rollback(b.nodeData, "user.yml", latest - 1, latest - 1, "Bo")
                 .orElseThrow();
 
-        assertEquals(new Configuration.RollbackOutcome.Newer(latest), outcome);
+        assertEquals(new Configuration.StoreOutcome.Newer(latest), outcome);
         assertEquals(latest, b.nodeData.settingsRevisions().get("user.yml"));
         assertEquals(current, a.configuration.userSettings().maxOrders());
         try (var files = Files.list(folder.resolve("B"))) {

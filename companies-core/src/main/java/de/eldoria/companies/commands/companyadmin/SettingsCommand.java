@@ -235,17 +235,17 @@ public final class SettingsCommand {
         return OptionalInt.of(nodeData.settingsRevisions().getOrDefault(path, 0));
     }
 
-    private void rolledBack(CommandSender sender, Rollback rollback, Configuration.RollbackOutcome outcome) {
+    private void rolledBack(CommandSender sender, Rollback rollback, Configuration.StoreOutcome outcome) {
         var file = Values.text("file", rollback.path());
         switch (outcome) {
-            case Configuration.RollbackOutcome.Newer newer ->
+            case Configuration.StoreOutcome.Newer newer ->
                 deps.messages()
                         .sendError(
                                 sender,
                                 "companyadmin.settings.rollback.newer",
                                 file,
                                 Values.number("latest", newer.latest()));
-            case Configuration.RollbackOutcome.Unchanged unchanged ->
+            case Configuration.StoreOutcome.Unchanged unchanged ->
                 deps.messages()
                         .sendMessage(
                                 sender,
@@ -253,7 +253,7 @@ public final class SettingsCommand {
                                 file,
                                 Values.number("revision", rollback.revision()),
                                 Values.number("latest", unchanged.latest()));
-            case Configuration.RollbackOutcome.RolledBack done -> {
+            case Configuration.StoreOutcome.Stored done -> {
                 deps.adminLog()
                         .entry(sender, "settings rollback")
                         .with("file", rollback.path())

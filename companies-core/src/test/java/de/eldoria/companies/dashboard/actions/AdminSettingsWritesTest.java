@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.SettingsCatalogue;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
@@ -226,5 +227,187 @@ class AdminSettingsWritesTest {
                         "config.yml",
                         "dashboard:\n  features:\n    orders.browse: true\n",
                         "dashboard:\n  features:\n    orders.browse: false\n    market: false\n"));
+    }
+
+    private ActionResult change(String action, String args) {
+        return perform(action, args, Permission.Admin.ADMIN, Permission.Admin.RELOAD);
+    }
+
+    private String latest(String file) {
+        return world.nodeData.latestSettings(file).orElseThrow().content();
+    }
+
+    @Test
+    void changingNeedsTheReloadPermission() {
+        assertEquals(
+                "companyadmin.error.permission",
+                read(Actions.ADMIN_SETTINGS_SAVE, "{\"file\":\"user.yml\",\"base\":0,\"values\":{\"maxOrders\":3}}")
+                        .reason());
+    }
+
+    @Test
+    void everyBadValueIsNamedAndNothingIsStored() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+
+        var result = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":1,\"values\":{\"generalSettings.language\":\"xx_XX\","
+                        + "\"boards.enabled\":\"yes\",\"top.cacheSeconds\":1.5,\"nope\":1}}");
+
+        assertEquals("invalid", result.data().path("status").asString());
+        var fields = result.data().path("fields");
+        assertEquals("choice", fields.path("generalSettings.language").asString());
+        assertEquals("flag", fields.path("boards.enabled").asString());
+        assertEquals("whole", fields.path("top.cacheSeconds").asString());
+        assertEquals("unknown", fields.path("nope").asString());
+        assertEquals(1, world.nodeData.settingsRevisions().get("config.yml"));
+    }
+
+    @Test
+    void valuesAreStoredAsTheNextRevisionAndApplied() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+
+        var result = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":1,\"values\":{\"generalSettings.language\":\"de_DE\","
+                        + "\"boards.enabled\":false,\"discord.events\":[\"LEVEL_UP\"]}}");
+
+        assertEquals(
+                "saved", result.data().path("status").asString(), result.data().toString());
+        assertEquals(2, result.data().path("revision").asInt());
+        assertEquals("boards.enabled", result.data().path("restart").get(0).asString());
+        assertEquals("de_DE", world.settings.generalSettings().language());
+        assertFalse(world.settings.boardSettings().enabled());
+        assertTrue(latest("config.yml").contains("de_DE"));
+        assertEquals(1, world.settingsApplied.get());
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("settings save")));
+    }
+
+    @Test
+    void aSaveOnAnOutdatedRevisionStoresNothingAndShowsTheNewerValues() {
+        var content = copy(Configuration.USER_SETTINGS);
+        world.nodeData.publishSettings("user.yml", content, "startup");
+        world.nodeData.publishSettings("user.yml", content.replaceFirst("maxOrders: \\d+", "maxOrders: 11"), "Bo");
+
+        var result =
+                change(Actions.ADMIN_SETTINGS_SAVE, "{\"file\":\"user.yml\",\"base\":1,\"values\":{\"maxOrders\":3}}");
+
+        assertEquals("newer", result.data().path("status").asString());
+        assertEquals(2, result.data().path("revision").asInt());
+        assertEquals(11, result.data().path("values").path("maxOrders").asInt());
+        assertEquals("maxOrders", result.data().path("changed").get(0).asString());
+        assertEquals(2, world.nodeData.settingsRevisions().get("user.yml"));
+    }
+
+    @Test
+    void aSecretIsKeptWithoutAValueReplacedWithOneAndClearedWithAnEmptyOne() {
+        world.nodeData.publishSettings(
+                "config.yml",
+                copy(Configuration.CONFIG_YML).replaceFirst("url: \"\"", "url: https://a.test/1"),
+                "startup");
+
+        change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":1,\"values\":{\"discord.url\":null,\"discord.enabled\":true}}");
+        assertTrue(latest("config.yml").contains("https://a.test/1"));
+
+        change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":2,\"values\":{\"discord.url\":\"https://a.test/2\"}}");
+        assertTrue(latest("config.yml").contains("https://a.test/2"));
+
+        var cleared = change(
+                Actions.ADMIN_SETTINGS_SAVE, "{\"file\":\"config.yml\",\"base\":3,\"values\":{\"discord.url\":\"\"}}");
+        assertEquals("saved", cleared.data().path("status").asString());
+        assertFalse(latest("config.yml").contains("a.test"));
+        assertFalse(cleared.data().toString().contains("a.test"));
+    }
+
+    @Test
+    void aRollbackStoresTheEarlierRevisionOnTheLatestOne() {
+        var content = copy(Configuration.USER_SETTINGS);
+        world.nodeData.publishSettings("user.yml", content, "startup");
+        world.nodeData.publishSettings("user.yml", content.replaceFirst("maxOrders: \\d+", "maxOrders: 11"), "Bo");
+
+        assertEquals(
+                "dashboard.invalid",
+                change(Actions.ADMIN_SETTINGS_ROLLBACK, "{\"file\":\"user.yml\",\"revision\":1,\"base\":1}")
+                        .reason());
+        var result = change(Actions.ADMIN_SETTINGS_ROLLBACK, "{\"file\":\"user.yml\",\"revision\":1,\"base\":2}");
+
+        assertEquals("saved", result.data().path("status").asString());
+        assertEquals(3, result.data().path("revision").asInt());
+        assertFalse(latest("user.yml").contains("maxOrders: 11"));
+    }
+
+    @Test
+    void numbersOutsideTheirBoundsUnknownZonesAndBlankSecretsAreRefused() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+
+        var result = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":1,\"values\":{\"generalSettings.orderCheckInterval\":0,"
+                        + "\"generalSettings.timezone\":\"Mars/Base\",\"discord.url\":\"  \","
+                        + "\"notifications.pageSize\":null}}");
+
+        var fields = result.data().path("fields");
+        assertEquals("range", fields.path("generalSettings.orderCheckInterval").asString());
+        assertEquals("timezone", fields.path("generalSettings.timezone").asString());
+        assertEquals("secret", fields.path("discord.url").asString());
+        assertEquals("empty", fields.path("notifications.pageSize").asString());
+        assertEquals(
+                "range",
+                change(
+                                Actions.ADMIN_SETTINGS_SAVE,
+                                "{\"file\":\"company.yml\",\"base\":0,\"values\":{\"tax.percent\":101}}")
+                        .data()
+                        .path("fields")
+                        .path("tax.percent")
+                        .asString());
+        assertEquals(
+                "invalid",
+                change(
+                                Actions.ADMIN_SETTINGS_SAVE,
+                                "{\"file\":\"config.yml\",\"base\":7,\"values\":{\"top.cacheSeconds\":5}}")
+                        .data()
+                        .path("fields")
+                        .path("")
+                        .asString());
+    }
+
+    @Test
+    void theFileSaysWhetherTheAdminMayChangeItAndARollbackIsLoggedAsOne() {
+        var content = copy(Configuration.USER_SETTINGS);
+        world.nodeData.publishSettings("user.yml", content, "startup");
+        world.nodeData.publishSettings("user.yml", content.replaceFirst("maxOrders: \\d+", "maxOrders: 11"), "Bo");
+
+        assertFalse(read(Actions.ADMIN_SETTINGS_GET, "{\"file\":\"user.yml\"}")
+                .data()
+                .path("editable")
+                .asBoolean());
+        var editable = change(Actions.ADMIN_SETTINGS_GET, "{\"file\":\"user.yml\"}");
+        assertTrue(editable.data().path("editable").asBoolean());
+        assertEquals(0.0, setting(editable, "maxOrders").path("min").asDouble());
+
+        change(Actions.ADMIN_SETTINGS_ROLLBACK, "{\"file\":\"user.yml\",\"revision\":1,\"base\":2}");
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("settings rollback")));
+    }
+
+    @Test
+    void documentedZerosAreAccepted() {
+        world.nodeData.publishSettings("company.yml", copy(Configuration.COMPANY_SETTINGS), "startup");
+
+        var result = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"company.yml\",\"base\":1,\"values\":{\"alerts.maxPerCompany\":0,"
+                        + "\"treasury.logRetentionDays\":0}}");
+
+        assertEquals(
+                "saved", result.data().path("status").asString(), result.data().toString());
+        assertEquals(
+                0.0,
+                SettingsCatalogue.field("order.yml", "solo.maxOrderSize")
+                        .orElseThrow()
+                        .min());
     }
 }

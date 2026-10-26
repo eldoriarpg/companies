@@ -70,7 +70,7 @@ The fee a player pays when placing an order. It goes to the `economy.collectorAc
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `fee.fixed` | number | `0.0` | Fixed amount per order. |
-| `fee.percent` | number | `0.0` | Percent of the order price. `5` means 5 %. |
+| `fee.percent` | number | `0.0` | Percent of the order price, from 0 to 100. `5` means 5 %. |
 | `fee.min` | number | `0.0` | Lowest fee. `0` means no lower bound. |
 | `fee.max` | number | `0.0` | Highest fee. `0` means no upper bound. |
 

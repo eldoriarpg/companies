@@ -585,6 +585,7 @@ public final class Payloads {
      * @param editedHere whether the answering node changed it without sharing the change
      * @param behind     the nodes that use an older revision
      * @param settings   its settings, in the order they are shown
+     * @param editable   whether the admin may change it, which needs {@code companies.admin.reload}
      */
     public record AdminSettingsFile(
             String file,
@@ -593,7 +594,8 @@ public final class Payloads {
             int applied,
             boolean editedHere,
             List<UUID> behind,
-            List<AdminSetting> settings) {}
+            List<AdminSetting> settings,
+            boolean editable) {}
 
     /**
      * One shared setting.
@@ -607,6 +609,8 @@ public final class Payloads {
      * @param value      its value in the latest revision, none for a secret
      * @param secret     whether a secret is set and where from, none unless a secret
      * @param overridden whether the answering node sets it for itself in its {@code node.yml}
+     * @param min        the smallest number allowed, none unless a number
+     * @param max        the largest number allowed, none when unbounded
      */
     public record AdminSetting(
             String section,
@@ -616,7 +620,9 @@ public final class Payloads {
             boolean restart,
             @Nullable JsonNode value,
             @Nullable AdminSecret secret,
-            boolean overridden) {}
+            boolean overridden,
+            @Nullable Double min,
+            @Nullable Double max) {}
 
     /**
      * Whether a secret setting is set, never its value.
@@ -667,4 +673,26 @@ public final class Payloads {
      */
     public record AdminSettingDiff(
             String key, @Nullable JsonNode before, @Nullable JsonNode after, boolean secret, boolean fileOnly) {}
+
+    /**
+     * What saving settings or rolling a file back did.
+     *
+     * @param status   {@code saved}, {@code unchanged} (nothing differed from the latest revision), {@code invalid} or
+     *                 {@code newer} (another revision was stored after the one the admin saw; nothing was stored)
+     * @param revision the stored revision, the latest one when unchanged or newer, 0 when invalid
+     * @param fields   why each refused value was refused, by dotted key, when invalid
+     * @param values   the submitted settings as the newer revision holds them, without secrets, when newer
+     * @param changed  the settings the newer revisions changed, when newer
+     * @param restart  the saved settings that apply only after a restart, when saved
+     * @param applied  whether the answering node uses the stored revision; not when a file changed there could not be
+     *                 backed up
+     */
+    public record AdminSettingsSaved(
+            String status,
+            int revision,
+            Map<String, String> fields,
+            Map<String, JsonNode> values,
+            List<String> changed,
+            List<String> restart,
+            boolean applied) {}
 }

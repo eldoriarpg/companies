@@ -336,6 +336,9 @@ public final class DashboardModule {
                 new AdminSettingsWrites(new AdminSettingsWrites.Sources(
                         configuration,
                         data.admin().nodeData(),
+                        data.admin().applyChanges(),
+                        data.admin().log(),
+                        plugin.getLogger(),
                         views::instant,
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
@@ -491,6 +494,7 @@ public final class DashboardModule {
      * @param nodeData      the node repository
      * @param bus           how a node exchanges messages, as the admin reads it
      * @param syncConfiguration does what {@code /companyadmin syncconfiguration} does; blocks until synced
+     * @param applyChanges  applies the shared settings changed on this node a few seconds later on the main thread
      */
     public record AdminServices(
             AdminOrderService orders,
@@ -506,7 +510,8 @@ public final class DashboardModule {
             NpcBoards npcBoards,
             Supplier<ANodeData> nodeData,
             Function<Node, String> bus,
-            Consumer<String> syncConfiguration) {}
+            Consumer<String> syncConfiguration,
+            Runnable applyChanges) {}
 
     /**
      * The services the dashboard moves items through, with the inventory of a player online on this node.

@@ -258,17 +258,76 @@ const SETTINGS_HISTORY = [
  */
 function settingsFile(file) {
     if (file !== 'config.yml') {
-        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, behind: [], settings: [
+        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, editable: true, behind: [], settings: [
             {section: 'orders', key: 'maxOrders', type: 'WHOLE', choices: [], restart: false, value: 7, overridden: false},
         ]}
     }
-    return {file, revision: 2, node: PRIMARY_NODE, applied: 2, editedHere: false, behind: [SECONDARY_NODE], settings: [
+    return {file, revision: 2, node: PRIMARY_NODE, applied: 2, editedHere: false, editable: true, behind: [SECONDARY_NODE], settings: [
         {section: 'general', key: 'generalSettings.language', type: 'CHOICE', choices: ['en_US', 'de_DE', 'fr_FR'], restart: false, value: 'en_US', overridden: false},
+        {section: 'general', key: 'generalSettings.timezone', type: 'TEXT', choices: [], restart: false, value: '', overridden: false},
         {section: 'general', key: 'generalSettings.messageBlocking', type: 'FLAG', choices: [], restart: true, value: true, overridden: true},
         {section: 'discord', key: 'discord.enabled', type: 'FLAG', choices: [], restart: false, value: true, overridden: false},
+        {section: 'discord', key: 'discord.username', type: 'TEXT', choices: [], restart: false, value: 'Companies', overridden: false},
         {section: 'discord', key: 'discord.url', type: 'SECRET', choices: [], restart: false, secret: {set: true, source: 'environment'}, overridden: false},
         {section: 'dashboard', key: 'dashboard.features', type: 'FLAG_MAP', choices: [], restart: false, value: {market: false, inbox: true}, overridden: false},
     ]}
+}
+
+/**
+ * A settings file as the session changed it, made on first use.
+ *
+ * @param state the session's state
+ * @param file the file
+ * @returns the file
+ */
+function storedSettings(state, file) {
+    state.settings ??= {}
+    state.settings[file] ??= settingsFile(file)
+    return state.settings[file]
+}
+
+/**
+ * What a save or rollback answers.
+ *
+ * @param status what happened
+ * @param revision the stored or latest revision
+ * @param extra the fields of a refused or outdated save
+ * @returns the answer
+ */
+function settingsAnswer(status, revision, extra = {}) {
+    return {status, revision, fields: {}, values: {}, changed: [], restart: [], applied: true, ...extra}
+}
+
+/**
+ * Saves settings: a timezone on Mars and an emptied number are refused, and the first save of the Discord username meets a revision another
+ * admin saved meanwhile.
+ *
+ * @param state the session's state
+ * @param args the file, the revision edited and the changed values
+ * @returns the answer
+ */
+function saveSettings(state, args) {
+    const stored = storedSettings(state, args.file)
+    if (args.values['generalSettings.timezone'] === 'Mars/Base') {
+        return settingsAnswer('invalid', 0, {fields: {'generalSettings.timezone': 'timezone'}})
+    }
+    const empty = Object.keys(args.values).filter(key => args.values[key] === null)
+    if (empty.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(empty.map(key => [key, 'empty']))})
+    if ('discord.username' in args.values && !state.settingsRaced) {
+        state.settingsRaced = true
+        stored.revision++
+        stored.settings.find(entry => entry.key === 'discord.username').value = 'Other'
+        return settingsAnswer('newer', stored.revision, {values: {'discord.username': 'Other'}, changed: ['discord.username']})
+    }
+    if (args.base !== stored.revision) return settingsAnswer('newer', stored.revision)
+    for (const [key, value] of Object.entries(args.values)) {
+        const entry = stored.settings.find(candidate => candidate.key === key)
+        if (entry && entry.type !== 'SECRET') entry.value = value
+    }
+    stored.revision++
+    stored.applied = stored.revision
+    const restart = Object.keys(args.values).filter(key => stored.settings.find(entry => entry.key === key)?.restart)
+    return settingsAnswer('saved', stored.revision, {restart})
 }
 
 /**
@@ -405,7 +464,15 @@ function action(name, args, state) {
         case 'admin.config.sync':
             return done({})
         case 'admin.settings.get':
-            return done(settingsFile(args.file))
+            return done(storedSettings(state, args.file))
+        case 'admin.settings.save':
+            return done(saveSettings(state, args))
+        case 'admin.settings.rollback': {
+            const stored = storedSettings(state, args.file)
+            if (args.base !== stored.revision) return done(settingsAnswer('newer', stored.revision))
+            stored.revision++
+            return done(settingsAnswer('saved', stored.revision))
+        }
         case 'admin.settings.history':
             return done({revisions: args.page > 1 ? [] : SETTINGS_HISTORY, pageSize: 20})
         case 'admin.settings.revision':

@@ -166,9 +166,12 @@ test.describe('admin', () => {
 
         await expect(page.getByTestId('admin-settings-status')).toContainText('Revision 2 · survival uses 2')
         await expect(page.getByTestId('admin-settings-status')).toContainText('Still on an older revision: Secondary 9a2d7c41')
-        await expect(page.getByTestId('admin-setting-generalSettings.language')).toHaveText('en_US')
-        await expect(page.getByTestId('admin-setting-discord.url')).toHaveText('set by the environment variable on survival')
-        await expect(page.getByTestId('admin-setting-dashboard.features')).toHaveText('off: market')
+        await expect(page.getByTestId('admin-setting-generalSettings.language').getByRole('combobox')).toHaveValue('en_US')
+        const url = page.getByTestId('admin-setting-discord.url')
+        await expect(url.getByTestId('admin-setting-secret')).toHaveText('set by the environment variable on survival')
+        await expect(url.getByRole('textbox')).toBeDisabled()
+        await expect(page.getByTestId('admin-setting-dashboard.features').getByLabel('market', {exact: true})).not.toBeChecked()
+        await expect(page.getByTestId('admin-setting-dashboard.features').getByLabel('inbox', {exact: true})).toBeChecked()
         await expect(page.getByTestId('admin-settings-general').getByText('set on survival')).toBeVisible()
 
         await page.getByTestId('admin-settings-history').getByRole('button', {name: /#2 · Ada/}).click()
@@ -180,7 +183,69 @@ test.describe('admin', () => {
         await page.getByTestId('admin-settings-history').getByRole('button', {name: /#1 · startup/}).click()
         await expect(page.getByTestId('admin-settings-revision-1')).toContainText('The first revision')
 
-        await page.getByLabel('File').selectOption('user.yml')
-        await expect(page.getByTestId('admin-setting-maxOrders')).toHaveText('7')
+        await page.getByLabel('File', {exact: true}).selectOption('user.yml')
+        await expect(page.getByTestId('admin-setting-maxOrders').getByRole('textbox')).toHaveValue('7')
+    })
+
+    test('saves changed settings, marks a refused one and keeps changes when someone saved meanwhile', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Settings'}).click()
+        const save = page.getByTestId('admin-settings-save')
+        await expect(save).toContainText('No changes to save.')
+
+        await page.getByTestId('admin-setting-generalSettings.timezone').getByRole('textbox').fill('Mars/Base')
+        await save.getByRole('button', {name: 'Save'}).click()
+        await save.getByRole('button', {name: 'Save', exact: true}).last().click()
+        await expect(page.getByTestId('admin-setting-generalSettings.timezone')).toContainText('Must be a time zone such as Europe/Berlin, or empty.')
+
+        await page.getByTestId('admin-setting-generalSettings.timezone').getByRole('textbox').fill('')
+        await page.getByTestId('admin-setting-generalSettings.language').getByRole('combobox').selectOption('de_DE')
+        await expect(save).toContainText('Changed: Language')
+        await save.getByRole('button', {name: 'Save'}).click()
+        await save.getByRole('button', {name: 'Save', exact: true}).last().click()
+        await expect(page.getByTestId('admin-settings-done')).toHaveText('Saved as revision 3.')
+        await expect(page.getByTestId('admin-setting-generalSettings.language').getByRole('combobox')).toHaveValue('de_DE')
+
+        await page.getByTestId('admin-setting-discord.username').getByRole('textbox').fill('Bot')
+        await save.getByRole('button', {name: 'Save'}).click()
+        await save.getByRole('button', {name: 'Save', exact: true}).last().click()
+        await expect(save).toContainText('Revision 4 was saved meanwhile and changed: discord.username')
+        await expect(page.getByTestId('admin-setting-discord.username').getByTestId('admin-setting-newer')).toHaveText('Revision 4 has: Other')
+        await expect(page.getByTestId('admin-setting-discord.username').getByRole('textbox')).toHaveValue('Bot')
+        await save.getByRole('button', {name: 'Save'}).click()
+        await save.getByRole('button', {name: 'Save', exact: true}).last().click()
+        await expect(page.getByTestId('admin-settings-done')).toHaveText('Saved as revision 5.')
+    })
+
+    test('makes an earlier revision the newest again after asking', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Settings'}).click()
+
+        await page.getByTestId('admin-settings-history').getByRole('button', {name: /#1 · startup/}).click()
+        await page.getByRole('button', {name: 'Make this the newest revision again'}).click()
+        await page.getByRole('button', {name: 'Roll back'}).click()
+        await expect(page.getByTestId('admin-settings-done')).toHaveText('Saved as revision 3.')
+        await expect(page.getByTestId('admin-settings-status')).toContainText('Revision 3')
+    })
+
+    test('refuses an emptied number at its field and discards changes', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Settings'}).click()
+        await page.getByLabel('File', {exact: true}).selectOption('user.yml')
+        const save = page.getByTestId('admin-settings-save')
+        const orders = page.getByTestId('admin-setting-maxOrders')
+
+        await orders.getByRole('textbox').fill('')
+        await save.getByRole('button', {name: 'Save'}).click()
+        await save.getByRole('button', {name: 'Save', exact: true}).last().click()
+        await expect(orders).toContainText('Needs a value.')
+        await expect(page.getByLabel('File', {exact: true})).toBeDisabled()
+
+        await save.getByRole('button', {name: 'Discard changes'}).click()
+        await expect(save).toContainText('No changes to save.')
+        await expect(orders.getByRole('textbox')).toHaveValue('7')
     })
 })

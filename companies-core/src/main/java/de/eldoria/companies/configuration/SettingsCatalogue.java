@@ -8,11 +8,18 @@ package de.eldoria.companies.configuration;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.integrations.discord.WebhookEvent;
 import de.eldoria.companies.menus.MenuMode;
+import org.jetbrains.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Stream;
 
 /**
  * The shared settings the dashboard shows and edits, in the order it shows them: per file, sections of fields with
@@ -27,18 +34,67 @@ public final class SettingsCatalogue {
      * The settings edited in the file only, as dotted keys per file.
      */
     public static final List<Field> FILE_ONLY = List.of(
-            new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false),
-            new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false));
+            new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false, null, null),
+            new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false, null, null));
 
-    private static final String CONFIG = "config.yml";
-    private static final String COMPANY = "company.yml";
-    private static final String ORDER = "order.yml";
-    private static final String USER = "user.yml";
+    private static final Set<String> AT_LEAST_ONE = Set.of(
+            "generalSettings.historyDays",
+            "generalSettings.orderCheckInterval",
+            "notifications.pollSeconds",
+            "notifications.retentionDays",
+            "notifications.pageSize",
+            "placeholders.refreshSeconds",
+            "placeholders.leaderboardSize",
+            "placeholders.offlineCacheSize",
+            "boards.refreshSeconds",
+            "discord.maxPerMinute",
+            "discord.queueSize",
+            "dashboard.sessionMaxHours",
+            "inviteHours",
+            "deliveryHours",
+            "joining.maxApplicationLength",
+            "profile.tagLength.min",
+            "profile.tagLength.max",
+            "profile.maxDescriptionLength",
+            "treasury.logPageSize",
+            "maxItems",
+            "maxMaterials",
+            "maxUnclaimedHours",
+            "market.historyDays",
+            "market.minOrders",
+            "repeating.maxCopies",
+            "repeating.maxDays",
+            "repeating.checkMinutes",
+            "solo.maxActive",
+            "solo.deliveryHours");
+
+    private static final Set<String> PERCENT =
+            Set.of("tax.percent", "fee.percent", "solo.taxPercent", "treasury.maxPayoutShare");
+
+    private static final Map<String, Double> LOWEST = Map.of(
+            "placeholders.refreshSeconds", 10.0,
+            "boards.refreshSeconds", 10.0,
+            "market.historyDays", 14.0,
+            "dashboard.sessionIdleMinutes", 5.0);
+
+    private static final Map<String, Double> HIGHEST = Map.of(
+            "notifications.pageSize", 50.0,
+            "treasury.logPageSize", 50.0,
+            "discord.maxPerMinute", 60.0,
+            "discord.queueSize", 1000.0,
+            "profile.tagLength.max", 5.0,
+            "dashboard.sessionIdleMinutes", 10080.0,
+            "dashboard.sessionMaxHours", 720.0);
 
     /**
      * Every field, grouped by file and section in the order they are shown.
      */
     public static final List<Field> FIELDS = build();
+
+    private static final String CONFIG = "config.yml";
+    private static final String COMPANY = "company.yml";
+    private static final String ORDER = "order.yml";
+    private static final String USER = "user.yml";
 
     private SettingsCatalogue() {}
 
@@ -59,6 +115,43 @@ public final class SettingsCatalogue {
         return FIELDS.stream()
                 .filter(field -> field.file().equals(file) && field.key().equals(key))
                 .findFirst();
+    }
+
+    /**
+     * @param file   a shared file
+     * @param before its content before
+     * @param after  its content after
+     * @return the keys of the settings that changed, each once, as the catalogue or {@link #FILE_ONLY} names them; a
+     *     section only one side has counts as all of its settings
+     */
+    public static List<String> changed(String file, JsonNode before, JsonNode after) {
+        var leaves = new ArrayList<String>();
+        leaves("", before, after, leaves);
+        var keys = new LinkedHashSet<String>();
+        for (var leaf : leaves) keys.add(owner(file, leaf));
+        return List.copyOf(keys);
+    }
+
+    private static void leaves(String prefix, JsonNode before, JsonNode after, List<String> found) {
+        if (before.isObject() || after.isObject()) {
+            var names = new TreeSet<String>();
+            before.properties().forEach(entry -> names.add(entry.getKey()));
+            after.properties().forEach(entry -> names.add(entry.getKey()));
+            for (var name : names) {
+                leaves(prefix.isEmpty() ? name : prefix + "." + name, before.path(name), after.path(name), found);
+            }
+            return;
+        }
+        if (!before.equals(after)) found.add(prefix);
+    }
+
+    private static String owner(String file, String leaf) {
+        return Stream.concat(FIELDS.stream(), FILE_ONLY.stream())
+                .filter(field -> field.file().equals(file))
+                .map(Field::key)
+                .filter(key -> leaf.equals(key) || leaf.startsWith(key + "."))
+                .findFirst()
+                .orElse(leaf);
     }
 
     private static List<Field> build() {
@@ -234,20 +327,43 @@ public final class SettingsCatalogue {
      * @param choices the values of a {@link Type#CHOICE} or {@link Type#CHOICES}
      * @param restart whether it applies only after a restart
      * @param secret  whether its value is never shown
+     * @param min     the smallest number allowed, none unless a number
+     * @param max     the largest number allowed, none when unbounded
      */
     public record Field(
-            String file, String section, String key, Type type, List<String> choices, boolean restart, boolean secret) {
+            String file,
+            String section,
+            String key,
+            Type type,
+            List<String> choices,
+            boolean restart,
+            boolean secret,
+            @Nullable Double min,
+            @Nullable Double max) {
         /**
          * @return the key split into the names of the nested sections and the setting
          */
         public List<String> path() {
             return List.of(key.split("\\."));
         }
+
+        /**
+         * @param tree a file's content
+         * @return this setting's node in it, missing when it is not set
+         */
+        public JsonNode at(JsonNode tree) {
+            var node = tree;
+            for (var part : path()) node = node.path(part);
+            return node;
+        }
     }
 
     private record Section(List<Field> fields, String file, String name) {
         void add(Type type, String key, List<String> choices, boolean restart) {
-            fields.add(new Field(file, name, key, type, List.copyOf(choices), restart, type == Type.SECRET));
+            var number = type == Type.WHOLE || type == Type.DECIMAL;
+            var min = number ? LOWEST.getOrDefault(key, AT_LEAST_ONE.contains(key) ? 1.0 : 0.0) : null;
+            var max = PERCENT.contains(key) ? Double.valueOf(100) : HIGHEST.get(key);
+            fields.add(new Field(file, name, key, type, List.copyOf(choices), restart, type == Type.SECRET, min, max));
         }
 
         void flag(String key) {

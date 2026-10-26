@@ -46,6 +46,7 @@ public final class SessionPermissions {
             Permission.Admin.NODES,
             Permission.Admin.ORDERS,
             Permission.Admin.PLAYER,
+            Permission.Admin.RELOAD,
             Permission.Admin.RENAME,
             Permission.Admin.TRANSFER_OWNER,
             Permission.Admin.TREASURY);

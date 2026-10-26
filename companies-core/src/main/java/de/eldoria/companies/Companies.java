@@ -174,6 +174,7 @@ public class Companies extends EldoPlugin {
     private final ThreadGroup workerGroup = new ThreadGroup("Company Worker Pool");
     private static final long SYNC_APPLY_DELAY_TICKS = 40L;
     private @Nullable BukkitTask pendingApply;
+    private @Nullable BukkitTask pendingChanges;
     private final ExecutorService levelSyncs =
             Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
     private final ScheduledExecutorService workerPool =
@@ -594,7 +595,8 @@ public class Companies extends EldoPlugin {
                                 commands.npcBoards(),
                                 () -> nodeData,
                                 node -> NodeCommand.bus(commands, nodeData, node),
-                                this::syncConfigurationFromDashboard)),
+                                this::syncConfigurationFromDashboard,
+                                this::applyChangesFromDashboard)),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
@@ -630,6 +632,16 @@ public class Companies extends EldoPlugin {
         configuration.syncConfigurations(nodeData, admin).join();
         if (pendingApply != null) pendingApply.cancel();
         pendingApply = getServer().getScheduler().runTaskLater(this, commands::reloaded, SYNC_APPLY_DELAY_TICKS);
+    }
+
+    /**
+     * Applies the shared settings the dashboard changed on this node a few seconds later on the main thread, since
+     * applying them can reconnect the dashboard and the answer has to reach the gateway first. Saves in quick succession
+     * share one later apply.
+     */
+    private synchronized void applyChangesFromDashboard() {
+        if (pendingChanges != null) pendingChanges.cancel();
+        pendingChanges = getServer().getScheduler().runTaskLater(this, commands::applyChanges, SYNC_APPLY_DELAY_TICKS);
     }
 
     /**
