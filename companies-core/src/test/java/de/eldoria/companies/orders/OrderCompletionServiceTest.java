@@ -136,6 +136,25 @@ class OrderCompletionServiceTest {
     }
 
     @Test
+    void aDeliveredSystemOrderIsReceivedAtOnceWithoutItemsForAnyone() {
+        var system = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID));
+        var order = system.place(0.0);
+        system.state(order, OrderState.CLAIMED, COMPANY);
+        system.deliver(order, 0, Material.STONE, alice, 10);
+        system.deliver(order, 1, Material.DIRT, bob, 5);
+
+        service.complete(system.reload(order), PROFILE).join().orElseThrow();
+
+        assertEquals(OrderState.RECEIVED, system.reload(order).state());
+        assertEquals(Map.of(alice, 90.0, bob, 45.0), paid);
+        assertEquals(15.0, collected.get(), 0.001);
+        var owned = history.retrieveOwnerHistory(SystemOwner.ID, 1, 10).join();
+        assertEquals(1, owned.size());
+        assertEquals(HistoryOutcome.RECEIVED, owned.get(0).outcome());
+        assertEquals(0, SqLiteTestDatabase.count("item_returns", "1 = 1"));
+    }
+
+    @Test
     void ledgerHoldsThePayoutsOfTheCompletion() {
         var completion =
                 service.complete(deliveredByAliceAndBob(), PROFILE).join().orElseThrow();

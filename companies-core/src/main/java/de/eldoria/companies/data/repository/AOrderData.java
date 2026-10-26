@@ -369,6 +369,20 @@ public abstract class AOrderData {
     protected abstract boolean receiveOrder(SimpleOrder order, List<ItemAmount> pending);
 
     /**
+     * Notes the rule a system order was placed by.
+     *
+     * @param order the order's id
+     * @param rule  the rule's id
+     */
+    public abstract void systemRule(int order, String rule);
+
+    /**
+     * @param order the order's id
+     * @return the rule the system order was placed by, empty for a player's order or an unknown one
+     */
+    public abstract Optional<String> systemRule(int order);
+
+    /**
      * Marks a claimed and completely delivered order as delivered.
      *
      * @param order order to mark

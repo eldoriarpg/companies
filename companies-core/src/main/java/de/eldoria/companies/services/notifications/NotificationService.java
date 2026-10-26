@@ -33,6 +33,7 @@ import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
@@ -192,6 +193,7 @@ public class NotificationService implements Listener {
      * @return completes once the notification is stored
      */
     public CompletableFuture<Void> send(UUID recipient, NotificationType type, NotificationArgs args) {
+        if (SystemOwner.is(recipient)) return CompletableFuture.completedFuture(null);
         var now = Times.now();
         return inboxData
                 .retrieveMuted(recipient)

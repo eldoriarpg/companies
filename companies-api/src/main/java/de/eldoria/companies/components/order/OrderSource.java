@@ -24,5 +24,9 @@ public enum OrderSource {
     /**
      * A player placed the order on the web dashboard. The player may be offline.
      */
-    DASHBOARD
+    DASHBOARD,
+    /**
+     * The server placed the order itself, by a rule. Its owner is the server, not a player.
+     */
+    SYSTEM
 }

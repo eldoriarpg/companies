@@ -108,6 +108,7 @@ import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.placeholders.Placeholders;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
@@ -581,10 +582,9 @@ public class Companies extends EldoPlugin {
                                         companyData,
                                         information.history(),
                                         configuration,
-                                        uuid -> Optional.ofNullable(getServer()
-                                                        .getOfflinePlayer(uuid)
-                                                        .getName())
-                                                .orElse(uuid.toString())),
+                                        uuid -> SystemOwner.name(uuid, id -> getServer()
+                                                .getOfflinePlayer(id)
+                                                .getName())),
                                 commands.adminLog(),
                                 name -> companyData.retrieveCompanyByName(name).asFuture(),
                                 new AdminCompanyService(companyData, commands.companyChanges()),

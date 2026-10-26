@@ -19,6 +19,7 @@ import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
@@ -150,6 +151,7 @@ public final class AdminOrderService {
         Funds funds = new Funds() {
             @Override
             public void refund(UUID owner, double amount) {
+                if (SystemOwner.is(owner)) return;
                 mainThread.execute(
                         () -> economy.depositPlayer(plugin.getServer().getOfflinePlayer(owner), amount));
             }

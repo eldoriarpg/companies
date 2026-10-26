@@ -16,6 +16,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
@@ -242,7 +243,10 @@ public class ExpiringService implements Runnable, Listener {
     }
 
     /**
-     * Removes orders nobody accepted in time and refunds their price and fee to the owner.
+     * Removes orders nobody accepted in time and refunds their price and fee to the owner. A system order is removed
+     * without a refund.
+     * <p>
+     * TODO refund a removed system order to the money source of its rule.
      */
     private void purgeDeadOrders() {
         var expired = orderData
@@ -257,6 +261,7 @@ public class ExpiringService implements Runnable, Listener {
             if (!Boolean.TRUE.equals(outcomes.purge(fullOrder).join())) {
                 continue;
             }
+            if (SystemOwner.is(order.owner())) continue;
             var owner = plugin.getServer().getOfflinePlayer(order.owner());
             Threading.mainThread(plugin)
                     .execute(() -> economy.depositPlayer(owner, fullOrder.price() + fullOrder.fee()));

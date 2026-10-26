@@ -87,6 +87,20 @@ class OrderCreationServiceTest {
     }
 
     @Test
+    void aSystemOrderBelongsToTheServerChargesNothingAndKeepsItsRule() {
+        var systemOrders = new SystemOrders(service(orderData), orderData, id -> server.getOfflinePlayer(id));
+
+        var outcome = systemOrders.place(stone(10, 5.0), "harbour").join();
+
+        var order = assertInstanceOf(OrderCreationService.Created.class, outcome);
+        assertEquals(SystemOwner.ID, order.order().owner());
+        assertEquals(0.0, order.order().fee());
+        assertEquals(OrderSource.SYSTEM, created.getLast().source());
+        assertEquals(Optional.of("harbour"), orderData.systemRule(order.order().id()));
+        assertEquals(Optional.empty(), orderData.systemRule(order.order().id() + 1));
+    }
+
+    @Test
     void chargedOrderTakesPriceAndFee() {
         var outcome = create(stone(10, 5.0), OrderSource.API, true, true);
 

@@ -1,0 +1,2 @@
+ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS system_rule VARCHAR(64) NULL;

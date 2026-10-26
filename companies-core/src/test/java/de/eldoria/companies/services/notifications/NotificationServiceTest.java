@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
@@ -76,6 +77,13 @@ class NotificationServiceTest {
 
     private static NotificationArgs args() {
         return NotificationArgs.create().text("order_name", "Wood").number("order_id", 4);
+    }
+
+    @Test
+    void theServerAsOwnerGetsNoNotifications() {
+        service.send(SystemOwner.ID, NotificationType.ORDER_DELIVERED, args()).join();
+
+        assertTrue(data.all().isEmpty());
     }
 
     @Test

@@ -178,7 +178,8 @@ public final class OrderCompletionService {
      */
     public CompletableFuture<Completion> settle(FullOrder order, CompanyProfile company) {
         return CompletableFuture.supplyAsync(() -> pay(order, company), executor)
-                .thenCompose(completion -> record(completion, company).thenApply(ignored -> completion));
+                .thenCompose(completion -> record(completion, company).thenApply(ignored -> completion))
+                .thenCompose(this::sinkIfSystem);
     }
 
     /**
@@ -202,7 +203,27 @@ public final class OrderCompletionService {
      */
     public CompletableFuture<Completion> settleSolo(FullOrder order) {
         return CompletableFuture.supplyAsync(() -> paySolo(order), executor)
-                .thenCompose(completion -> recordPayouts(completion).thenApply(ignored -> completion));
+                .thenCompose(completion -> recordPayouts(completion).thenApply(ignored -> completion))
+                .thenCompose(this::sinkIfSystem);
+    }
+
+    /**
+     * Completes a delivered system order at once: nobody receives its items, so they are removed, the order is marked
+     * received and the owner's history entry is written for the server.
+     */
+    private CompletableFuture<Completion> sinkIfSystem(Completion completion) {
+        var order = completion.order();
+        if (!SystemOwner.is(order.owner())) return CompletableFuture.completedFuture(completion);
+        return orderData
+                .submitOrderReceive(order, List.of())
+                .asFuture()
+                .thenCompose(received -> Boolean.TRUE.equals(received)
+                        ? history.ownerEntry(order, HistoryOutcome.RECEIVED).thenApply(ignored -> completion)
+                        : CompletableFuture.completedFuture(completion))
+                .exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Could not complete the system order " + order.id(), err);
+                    return completion;
+                });
     }
 
     private Completion pay(FullOrder order, CompanyProfile company) {
