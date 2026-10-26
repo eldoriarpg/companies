@@ -695,4 +695,29 @@ public final class Payloads {
             List<String> changed,
             List<String> restart,
             boolean applied) {}
+
+    /**
+     * The guided setup and how far it got, for the whole network.
+     *
+     * @param pages     its pages in order
+     * @param dismissed whether an admin dismissed the reminder to finish it
+     */
+    public record AdminSetup(List<AdminSetupPage> pages, boolean dismissed) {}
+
+    /**
+     * One page of the setup.
+     *
+     * @param id     its id, such as {@code economy}
+     * @param state  {@code open}, {@code done} or {@code skipped}
+     * @param fields the settings it shows, none for a page that explains or links
+     */
+    public record AdminSetupPage(String id, String state, List<AdminSetupField> fields) {}
+
+    /**
+     * A setting a setup page shows.
+     *
+     * @param file the shared file
+     * @param key  the setting's dotted key
+     */
+    public record AdminSetupField(String file, String key) {}
 }

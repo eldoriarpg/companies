@@ -138,6 +138,7 @@ export default {
             boards: 'Boards',
             servers: 'Servers',
             settings: 'Settings',
+            setup: 'Setup',
         },
         players: {
             find: 'Look a player up',
@@ -255,6 +256,52 @@ export default {
             syncQuestion: 'Sync the configuration? The primary writes its files to the database and applies them; secondaries with Redis, PostgreSQL notify or low latency mode load them at once. The dashboard reconnects for a moment.',
             syncConfirm: 'Sync',
             synced: 'The configuration is synced.',
+        },
+        setup: {
+            steps: 'Steps',
+            summary: 'Summary',
+            state: {
+                open: 'open',
+                done: 'done',
+                skipped: 'skipped',
+            },
+            saveNext: 'Save and next',
+            next: 'Next',
+            skip: 'Skip',
+            newer: 'Someone saved {file} meanwhile. Your changes are kept; check them and save again.',
+            finished: 'The setup is done. Every setting can still be changed in the Settings tab.',
+            unfinished: 'Some steps are still open. You can come back any time, on any server.',
+            restart: 'Apply after a restart of each server: {settings}',
+            reminder: 'The setup of Companies is not finished yet.',
+            continue: 'Continue the setup',
+            dismiss: 'Hide this',
+            pages: {
+                economy: {
+                    title: 'Economy',
+                    intro: 'What founding and renaming a company cost, the tax on payouts, the order fee, and which account receives fees and taxes. Empty account: the money leaves the economy.',
+                },
+                levels: {
+                    title: 'Levels',
+                    intro: 'Company levels decide how many members and orders a company may have. Edit them in the level editor.',
+                    open: 'Open the level editor',
+                },
+                language: {
+                    title: 'Language and menus',
+                    intro: 'The language of the messages, your time zone, and whether menus open as dialogs or in chat.',
+                },
+                integrations: {
+                    title: 'Integrations',
+                    intro: 'Plugin hooks and order board signs apply after a restart. The Discord webhook posts orders and level-ups to a channel; it is never shown again once saved.',
+                },
+                dashboard: {
+                    title: 'Dashboard',
+                    intro: 'The name and icon the dashboard shows, and which parts of it players can use.',
+                },
+                permissions: {
+                    title: 'Permissions',
+                    intro: 'Companies does not change permissions. These are the usual ones, for example with LuckPerms:',
+                },
+            },
         },
         settings: {
             icon: {

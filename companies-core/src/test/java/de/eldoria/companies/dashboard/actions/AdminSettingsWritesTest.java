@@ -494,4 +494,37 @@ class AdminSettingsWritesTest {
                 "icon",
                 typed.data().path("fields").path("dashboard.branding.icon").asString());
     }
+
+    @Test
+    void theSetupListsItsPagesAndRemembersHowFarItGot() {
+        var setup = read(Actions.ADMIN_SETUP_GET, "{}");
+        var pages = setup.data().path("pages");
+        assertEquals("economy", pages.get(0).path("id").asString());
+        assertEquals("open", pages.get(0).path("state").asString());
+        assertEquals(
+                "company.yml", pages.get(0).path("fields").get(0).path("file").asString());
+        assertFalse(setup.data().path("dismissed").asBoolean());
+
+        assertEquals(
+                "companyadmin.error.permission",
+                read(Actions.ADMIN_SETUP_MARK, "{\"page\":\"economy\",\"state\":\"done\"}")
+                        .reason());
+        var marked = change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"economy\",\"state\":\"done\"}");
+        assertEquals("done", marked.data().path("pages").get(0).path("state").asString());
+        change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"levels\",\"state\":\"skipped\"}");
+        change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"banner\",\"state\":\"dismissed\"}");
+
+        var after = read(Actions.ADMIN_SETUP_GET, "{}").data();
+        assertEquals("skipped", after.path("pages").get(1).path("state").asString());
+        assertTrue(after.path("dismissed").asBoolean());
+        assertEquals(
+                "dashboard.invalid",
+                change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"nope\",\"state\":\"done\"}")
+                        .reason());
+        assertEquals(
+                "dashboard.invalid",
+                change(Actions.ADMIN_SETUP_MARK, "{\"page\":\"economy\",\"state\":\"dismissed\"}")
+                        .reason());
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("setup")));
+    }
 }

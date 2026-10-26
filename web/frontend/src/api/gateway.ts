@@ -604,6 +604,27 @@ export interface AdminSettingDiff {
     fileOnly: boolean
 }
 
+/** A setting a setup page shows. */
+export interface AdminSetupField {
+    file: string
+    key: string
+}
+
+/** One page of the guided setup. */
+export interface AdminSetupPage {
+    id: string
+    state: 'open' | 'done' | 'skipped'
+    /** The settings it shows, none for a page that explains or links. */
+    fields: AdminSetupField[]
+}
+
+/** The guided setup and how far it got, for the whole network. */
+export interface AdminSetup {
+    pages: AdminSetupPage[]
+    /** Whether an admin dismissed the reminder to finish it. */
+    dismissed: boolean
+}
+
 /** What saving settings or rolling a file back did. */
 export interface AdminSettingsSaved {
     /** `unchanged`: nothing differed from the latest revision; `newer`: another revision was saved after the one shown. */
@@ -725,6 +746,8 @@ export interface WriteActions {
     'admin.settings.save': {args: {file: SettingsFileName, base: number, values: Record<string, unknown>}, result: AdminSettingsSaved}
     'admin.settings.rollback': {args: {file: SettingsFileName, revision: number, base: number}, result: AdminSettingsSaved}
     'admin.settings.icon': {args: {file: 'config.yml', base: number, png: string}, result: AdminSettingsSaved}
+    'admin.setup.get': {args: Record<string, never>, result: AdminSetup}
+    'admin.setup.mark': {args: {page: string, state: 'done' | 'skipped' | 'open' | 'dismissed'}, result: AdminSetup}
     'orders.deliver.line': {args: OrderRef & {line: number, amount?: number}, result: OrderRef & DeliveryDone}
     'orders.deliver.all': {args: OrderRef, result: OrderRef & DeliveryDone}
     'orders.deliver.receive': {args: OrderRef, result: OrderRef & {amount: number, waiting: number}}

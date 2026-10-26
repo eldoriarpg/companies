@@ -270,4 +270,34 @@ test.describe('admin', () => {
         await expect(page.getByTestId('admin-settings-done')).toHaveText('Saved as revision 4.')
         await expect(icon).toContainText('Each server shows its own server-icon.png.')
     })
+
+    test('walks through the setup from the reminder, saving and skipping pages', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await expect(page.getByTestId('admin-setup-reminder')).toContainText('The setup of Companies is not finished yet.')
+        await page.getByRole('button', {name: 'Continue the setup'}).click()
+
+        const current = page.getByTestId('admin-setup-page')
+        await expect(current).toContainText('Economy')
+        await current.getByRole('textbox').fill('5000')
+        await current.getByRole('button', {name: 'Save and next'}).click()
+        await expect(current).toContainText('Levels')
+        await current.getByRole('button', {name: 'Skip'}).click()
+        await expect(current).toContainText('Language and menus')
+        await current.getByRole('button', {name: 'Save and next'}).click()
+        await expect(current).toContainText('lp group default permission set companies.orders.limit.5 true')
+        await current.getByRole('button', {name: 'Next', exact: true}).click()
+
+        await expect(page.getByTestId('admin-setup-summary')).toContainText('The setup is done.')
+        await expect(page.getByTestId('admin-setup-steps')).toContainText('skipped')
+        await page.getByRole('tab', {name: 'Orders'}).click()
+        await expect(page.getByTestId('admin-setup-reminder')).toHaveCount(0)
+    })
+
+    test('hides the setup reminder for every admin', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByTestId('admin-setup-reminder').getByRole('button', {name: 'Hide this'}).click()
+        await expect(page.getByTestId('admin-setup-reminder')).toHaveCount(0)
+    })
 })

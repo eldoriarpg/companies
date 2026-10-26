@@ -449,6 +449,7 @@ export const Feature = {
     "admin.orders": "admin.orders",
     "admin.players": "admin.players",
     "admin.settings": "admin.settings",
+    "admin.setup": "admin.setup",
     "company.applications": "company.applications",
     "company.create": "company.create",
     "company.disband": "company.disband",
