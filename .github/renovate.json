@@ -8,5 +8,15 @@
   ],
   "reviewers": [
     "RainbowDashLabs"
+  ],
+  "packageRules": [
+    {
+      "description": "The Playwright image of the frontend job must match the Playwright package",
+      "matchPackageNames": [
+        "@playwright/test",
+        "mcr.microsoft.com/playwright"
+      ],
+      "groupName": "playwright"
+    }
   ]
 }
