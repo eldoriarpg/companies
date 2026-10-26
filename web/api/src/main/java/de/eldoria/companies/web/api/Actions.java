@@ -435,6 +435,16 @@ public final class Actions {
     public static final String ADMIN_SETTINGS_ICON = "admin.settings.icon";
 
     /**
+     * Reads the pages of the guided setup and how far it got.
+     */
+    public static final String ADMIN_SETUP_GET = "admin.setup.get";
+
+    /**
+     * Notes a setup page as done, skipped or open again, or the setup reminder as dismissed.
+     */
+    public static final String ADMIN_SETUP_MARK = "admin.setup.mark";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -520,7 +530,9 @@ public final class Actions {
             ADMIN_SETTINGS_REVISION,
             ADMIN_SETTINGS_SAVE,
             ADMIN_SETTINGS_ROLLBACK,
-            ADMIN_SETTINGS_ICON);
+            ADMIN_SETTINGS_ICON,
+            ADMIN_SETUP_GET,
+            ADMIN_SETUP_MARK);
 
     private Actions() {}
 

@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.SettingsCatalogue;
 import de.eldoria.companies.configuration.SettingsEditor;
+import de.eldoria.companies.configuration.SetupPages;
 import de.eldoria.companies.dashboard.gateway.BrandingSource;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -61,7 +62,9 @@ public final class AdminSettingsWrites {
             Actions.ADMIN_SETTINGS_REVISION,
             Actions.ADMIN_SETTINGS_SAVE,
             Actions.ADMIN_SETTINGS_ROLLBACK,
-            Actions.ADMIN_SETTINGS_ICON);
+            Actions.ADMIN_SETTINGS_ICON,
+            Actions.ADMIN_SETUP_GET,
+            Actions.ADMIN_SETUP_MARK);
 
     /**
      * The largest icon accepted, so its base64 fits the gateway's request limit.
@@ -69,8 +72,14 @@ public final class AdminSettingsWrites {
     public static final int MAX_ICON_BYTES = 40 * 1024;
 
     private static final String ICON_KEY = "dashboard.branding.icon";
-    private static final Set<String> CHANGES =
-            Set.of(Actions.ADMIN_SETTINGS_SAVE, Actions.ADMIN_SETTINGS_ROLLBACK, Actions.ADMIN_SETTINGS_ICON);
+    private static final Set<String> CHANGES = Set.of(
+            Actions.ADMIN_SETTINGS_SAVE,
+            Actions.ADMIN_SETTINGS_ROLLBACK,
+            Actions.ADMIN_SETTINGS_ICON,
+            Actions.ADMIN_SETUP_MARK);
+    private static final String DISMISSED = "dismissed";
+    private static final String BANNER = "banner";
+    private static final Set<String> STATES = Set.of("done", "skipped", "open");
 
     /**
      * The revisions of one history page.
@@ -106,7 +115,10 @@ public final class AdminSettingsWrites {
             return answers.refused(request, "companyadmin.error.permission");
         }
         var admin = session.playerName() + "@dashboard";
+        var reload = editable(session);
         try {
+            if (request.name().equals(Actions.ADMIN_SETUP_GET)) return answers.data(request, setup(reload));
+            if (request.name().equals(Actions.ADMIN_SETUP_MARK)) return mark(request, admin, args, reload);
             var file = file(args);
             return switch (request.name()) {
                 case Actions.ADMIN_SETTINGS_GET ->
@@ -180,6 +192,37 @@ public final class AdminSettingsWrites {
         }
         var values = Map.<String, JsonNode>of(ICON_KEY, StringNode.valueOf(BrandingSource.SHARED + name));
         return saved(request, admin, file, args.path("base").asInt(), values);
+    }
+
+    private static boolean editable(StoredSession session) {
+        return session.permissions().contains(Permission.Admin.RELOAD);
+    }
+
+    private Payloads.AdminSetup setup(boolean editable) {
+        var progress = sources.nodeData().get().setupProgress();
+        var pages = SetupPages.PAGES.stream()
+                .map(page -> new Payloads.AdminSetupPage(
+                        page.id(),
+                        progress.getOrDefault(page.id(), "open"),
+                        page.fields().stream()
+                                .map(field -> new Payloads.AdminSetupField(field.file(), field.key()))
+                                .toList()))
+                .toList();
+        return new Payloads.AdminSetup(pages, DISMISSED.equals(progress.get(BANNER)), editable);
+    }
+
+    private ActionResult mark(ActionRequest request, String admin, JsonNode args, boolean editable) {
+        var page = args.path("page").asString("");
+        var state = args.path("state").asString("");
+        var banner = page.equals(BANNER) && (state.equals(DISMISSED) || state.equals("open"));
+        if (!banner && (SetupPages.page(page).isEmpty() || !STATES.contains(state))) throw CommandFailure.of(INVALID);
+        sources.nodeData().get().setupProgress(page, state, admin);
+        sources.log()
+                .entry(admin, "setup")
+                .with("page", page)
+                .with("state", state)
+                .write();
+        return answers.data(request, setup(editable));
     }
 
     private ActionResult rollback(ActionRequest request, String admin, String file, JsonNode args) {

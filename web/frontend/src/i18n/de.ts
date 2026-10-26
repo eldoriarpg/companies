@@ -138,6 +138,7 @@ export default {
             boards: 'Auftragstafeln',
             servers: 'Server',
             settings: 'Einstellungen',
+            setup: 'Einrichtung',
         },
         players: {
             find: 'Spieler nachschlagen',
@@ -255,6 +256,57 @@ export default {
             syncQuestion: 'Konfiguration abgleichen? Der Hauptserver schreibt seine Dateien in die Datenbank und wendet sie an; Nebenserver mit Redis, PostgreSQL notify oder Low-Latency-Modus laden sie sofort. Das Dashboard verbindet sich kurz neu.',
             syncConfirm: 'Abgleichen',
             synced: 'Die Konfiguration ist abgeglichen.',
+        },
+        setup: {
+            loadFailed: 'Diese Dateien ließen sich nicht laden, daher kann dieser Schritt hier nicht gespeichert werden: {files}. Versuche es später oder nutze den Tab Einstellungen.',
+            wholeFile: 'die Datei als Ganzes',
+            steps: 'Schritte',
+            summary: 'Zusammenfassung',
+            state: {
+                open: 'offen',
+                done: 'erledigt',
+                skipped: 'übersprungen',
+            },
+            saveNext: 'Speichern und weiter',
+            next: 'Weiter',
+            skip: 'Überspringen',
+            newer: 'Jemand hat {file} inzwischen gespeichert. Deine Änderungen bleiben; prüfe sie und speichere erneut.',
+            finished: 'Die Einrichtung ist abgeschlossen. Jede Einstellung lässt sich weiter im Tab Einstellungen ändern.',
+            unfinished: 'Einige Schritte sind noch offen. Du kannst jederzeit zurückkommen, auf jedem Server.',
+            restart: 'Gilt nach einem Neustart jedes Servers: {settings}',
+            reminder: 'Die Einrichtung von Companies ist noch nicht abgeschlossen.',
+            continue: 'Einrichtung fortsetzen',
+            dismiss: 'Ausblenden',
+            pages: {
+                economy: {
+                    title: 'Wirtschaft',
+                    intro: 'Was Gründen und Umbenennen einer Firma kostet, die Steuer auf Auszahlungen, die Auftragsgebühr und welches Konto Gebühren und Steuern erhält. Leeres Konto: das Geld verlässt die Wirtschaft.',
+                },
+                levels: {
+                    title: 'Stufen',
+                    intro: 'Firmenstufen legen fest, wie viele Mitglieder und Aufträge eine Firma haben darf. Bearbeite sie im Stufeneditor.',
+                    open: 'Stufeneditor öffnen',
+                },
+                language: {
+                    title: 'Sprache und Menüs',
+                    intro: 'Die Sprache der Nachrichten, deine Zeitzone und ob Menüs als Dialog oder im Chat öffnen.',
+                },
+                integrations: {
+                    title: 'Anbindungen',
+                    intro: 'Plugin-Anbindungen und Auftragstafel-Schilder gelten nach einem Neustart. Der Discord-Webhook sendet Aufträge und Aufstiege in einen Kanal; er wird nach dem Speichern nie wieder angezeigt.',
+                },
+                dashboard: {
+                    title: 'Dashboard',
+                    intro: 'Name und Symbol im Dashboard und welche Teile Spieler nutzen können.',
+                },
+                permissions: {
+                    title: 'Berechtigungen',
+                    intro: 'Companies ändert keine Berechtigungen. Einige Beispiele mit LuckPerms; die Dokumentation listet jede Berechtigung:',
+                    limit: 'Erlaubt Spielern bis zu 15 offene Aufträge. Ersetzt maxOrders für diese Gruppe, eine kleinere Zahl senkt also das Limit.',
+                    repeat: 'Wiederkehrende Aufträge sind standardmäßig für alle offen; das nimmt sie weg.',
+                    admin: 'Alle Admin-Werkzeuge, das Speichern von Einstellungen eingeschlossen.',
+                },
+            },
         },
         settings: {
             icon: {

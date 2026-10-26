@@ -268,6 +268,37 @@ public class MariaDbNodeData extends ANodeData {
     }
 
     @Override
+    public Map<String, String> setupProgress() {
+        @Language("mariadb")
+        var select = """
+                SELECT page, state
+                FROM setup_progress""";
+
+        var progress = new HashMap<String, String>();
+        query(select)
+                .single()
+                .map(row -> Map.entry(row.getString("page"), row.getString("state")))
+                .all()
+                .forEach(entry -> progress.put(entry.getKey(), entry.getValue()));
+        return progress;
+    }
+
+    @Override
+    public void setupProgress(String page, String state, String actor) {
+        @Language("mariadb")
+        var upsert = """
+                INSERT INTO setup_progress(page, state, actor, changed_at)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE state      = VALUES(state),
+                                        actor      = VALUES(actor),
+                                        changed_at = VALUES(changed_at)""";
+
+        query(upsert)
+                .single(call().bind(page).bind(state).bind(actor).bind(Times.now(), time()))
+                .insert();
+    }
+
+    @Override
     public Optional<String> asset(String name) {
         @Language("mariadb")
         var select = """

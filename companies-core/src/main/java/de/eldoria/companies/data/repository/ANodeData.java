@@ -254,6 +254,20 @@ public abstract class ANodeData {
     public abstract Optional<String> asset(String name);
 
     /**
+     * @return the state of each setup page an admin finished or skipped, by page, for the whole network
+     */
+    public abstract Map<String, String> setupProgress();
+
+    /**
+     * Notes how far the setup got on one page, replacing an earlier note of that page.
+     *
+     * @param page  the page, such as {@code economy}
+     * @param state {@code done} or {@code skipped}; the banner's {@code dismissed}
+     * @param actor who did it
+     */
+    public abstract void setupProgress(String page, String state, String actor);
+
+    /**
      * Stores the settings this node reads only at start that changed since it started.
      *
      * @param settings the settings, none when no restart is pending

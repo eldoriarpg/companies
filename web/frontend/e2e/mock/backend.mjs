@@ -143,7 +143,7 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup']
         : session.story.features ?? FEATURES
     const nodes = admin ? [{uid: PRIMARY_NODE, role: 'PRIMARY', name: 'survival'}, {uid: SECONDARY_NODE, role: 'SECONDARY'}] : []
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin, nodes}
@@ -257,6 +257,16 @@ const SETTINGS_HISTORY = [
  * @returns the file with a few settings
  */
 function settingsFile(file) {
+    if (file === 'company.yml') {
+        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, editable: true, behind: [], settings: [
+            {section: 'company', key: 'foundingPrice', type: 'DECIMAL', choices: [], restart: false, value: 20000, overridden: false, min: 0},
+        ]}
+    }
+    if (file === 'order.yml') {
+        return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, editable: true, behind: [], settings: [
+            {section: 'fee', key: 'fee.fixed', type: 'DECIMAL', choices: [], restart: false, value: 0, overridden: false, min: 0},
+        ]}
+    }
     if (file !== 'config.yml') {
         return {file, revision: 1, node: PRIMARY_NODE, applied: 1, editedHere: false, editable: true, behind: [], settings: [
             {section: 'orders', key: 'maxOrders', type: 'WHOLE', choices: [], restart: false, value: 7, overridden: false},
@@ -272,6 +282,30 @@ function settingsFile(file) {
         {section: 'dashboard', key: 'dashboard.branding.icon', type: 'TEXT', choices: [], restart: false, value: 'server-icon.png', overridden: false},
         {section: 'dashboard', key: 'dashboard.features', type: 'FLAG_MAP', choices: [], restart: false, value: {market: false, inbox: true}, overridden: false},
     ]}
+}
+
+/** The pages of the guided setup with the settings they show. */
+const SETUP_PAGES = [
+    {id: 'economy', fields: [{file: 'company.yml', key: 'foundingPrice'}, {file: 'order.yml', key: 'fee.fixed'}]},
+    {id: 'levels', fields: []},
+    {id: 'language', fields: [{file: 'config.yml', key: 'generalSettings.language'}]},
+    {id: 'permissions', fields: []},
+]
+
+/**
+ * The guided setup of a session, made on first use.
+ *
+ * @param state the session's state
+ * @returns the pages with their state and whether the reminder was dismissed
+ */
+function setupOf(state) {
+    state.setup ??= {progress: {}}
+    const progress = state.setup.progress
+    return Object.assign(state.setup, {
+        pages: SETUP_PAGES.map(page => ({...page, state: progress[page.id] ?? 'open'})),
+        dismissed: progress.banner === 'dismissed',
+        editable: true,
+    })
 }
 
 /**
@@ -312,6 +346,8 @@ function saveSettings(state, args) {
     if (args.values['generalSettings.timezone'] === 'Mars/Base') {
         return settingsAnswer('invalid', 0, {fields: {'generalSettings.timezone': 'timezone'}})
     }
+    const negative = Object.keys(args.values).filter(key => typeof args.values[key] === 'number' && args.values[key] < 0)
+    if (negative.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(negative.map(key => [key, 'range']))})
     const empty = Object.keys(args.values).filter(key => args.values[key] === null)
     if (empty.length > 0) return settingsAnswer('invalid', 0, {fields: Object.fromEntries(empty.map(key => [key, 'empty']))})
     if ('discord.username' in args.values && !state.settingsRaced) {
@@ -475,6 +511,11 @@ function action(name, args, state) {
             stored.revision++
             return done(settingsAnswer('saved', stored.revision))
         }
+        case 'admin.setup.get':
+            return done(setupOf(state))
+        case 'admin.setup.mark':
+            setupOf(state).progress[args.page] = args.state
+            return done(setupOf(state))
         case 'admin.settings.rollback': {
             const stored = storedSettings(state, args.file)
             if (args.base !== stored.revision) return done(settingsAnswer('newer', stored.revision))

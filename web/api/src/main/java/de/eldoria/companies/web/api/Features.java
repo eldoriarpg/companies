@@ -143,6 +143,12 @@ public final class Features {
     public static final String ADMIN_SETTINGS = "admin.settings";
 
     /**
+     * Walk through the guided setup, which saves settings like the settings editor. Reading needs
+     * {@code companies.admin}, saving and marking pages {@code companies.admin.reload} too.
+     */
+    public static final String ADMIN_SETUP = "admin.setup";
+
+    /**
      * Every feature name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -168,7 +174,8 @@ public final class Features {
             ADMIN_BOARDS,
             ADMIN_NODES,
             ADMIN_CONFIG,
-            ADMIN_SETTINGS);
+            ADMIN_SETTINGS,
+            ADMIN_SETUP);
 
     private Features() {}
 }

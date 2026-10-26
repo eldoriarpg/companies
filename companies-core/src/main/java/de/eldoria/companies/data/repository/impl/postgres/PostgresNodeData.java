@@ -39,6 +39,21 @@ public class PostgresNodeData extends MariaDbNodeData {
     }
 
     @Override
+    public void setupProgress(String page, String state, String actor) {
+        @Language("postgresql")
+        var upsert = """
+                INSERT INTO setup_progress(page, state, actor, changed_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(page) DO UPDATE SET state      = excluded.state,
+                                                actor      = excluded.actor,
+                                                changed_at = excluded.changed_at""";
+
+        query(upsert)
+                .single(call().bind(page).bind(state).bind(actor).bind(Times.now(), time()))
+                .insert();
+    }
+
+    @Override
     public void appliedSettings(String path, int revision) {
         @Language("postgresql")
         var upsert = """

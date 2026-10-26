@@ -138,6 +138,7 @@ export default {
             boards: 'Tableaux',
             servers: 'Serveurs',
             settings: 'Paramètres',
+            setup: 'Configuration',
         },
         players: {
             find: 'Chercher un joueur',
@@ -255,6 +256,57 @@ export default {
             syncQuestion: 'Synchroniser la configuration ? Le serveur principal écrit ses fichiers dans la base de données et les applique ; les serveurs secondaires avec Redis, PostgreSQL notify ou le mode faible latence les chargent aussitôt. Le tableau de bord se reconnecte un instant.',
             syncConfirm: 'Synchroniser',
             synced: 'La configuration est synchronisée.',
+        },
+        setup: {
+            loadFailed: 'Ces fichiers n\'ont pas pu être chargés, cette étape ne peut donc pas être enregistrée ici : {files}. Réessayez plus tard ou utilisez l\'onglet Paramètres.',
+            wholeFile: 'le fichier dans son ensemble',
+            steps: 'Étapes',
+            summary: 'Résumé',
+            state: {
+                open: 'ouverte',
+                done: 'faite',
+                skipped: 'sautée',
+            },
+            saveNext: 'Enregistrer et continuer',
+            next: 'Suivant',
+            skip: 'Passer',
+            newer: 'Quelqu\'un a enregistré {file} entre-temps. Vos modifications sont conservées ; vérifiez-les et enregistrez à nouveau.',
+            finished: 'La configuration est terminée. Chaque paramètre reste modifiable dans l\'onglet Paramètres.',
+            unfinished: 'Certaines étapes sont encore ouvertes. Vous pouvez revenir à tout moment, sur n\'importe quel serveur.',
+            restart: 'S\'applique après un redémarrage de chaque serveur : {settings}',
+            reminder: 'La configuration de Companies n\'est pas encore terminée.',
+            continue: 'Continuer la configuration',
+            dismiss: 'Masquer',
+            pages: {
+                economy: {
+                    title: 'Économie',
+                    intro: 'Le coût de création et de renommage d\'une entreprise, la taxe sur les paiements, les frais de commande et le compte qui reçoit frais et taxes. Compte vide : l\'argent quitte l\'économie.',
+                },
+                levels: {
+                    title: 'Niveaux',
+                    intro: 'Les niveaux décident du nombre de membres et de commandes d\'une entreprise. Modifiez-les dans l\'éditeur de niveaux.',
+                    open: 'Ouvrir l\'éditeur de niveaux',
+                },
+                language: {
+                    title: 'Langue et menus',
+                    intro: 'La langue des messages, votre fuseau horaire et si les menus s\'ouvrent en dialogue ou dans le chat.',
+                },
+                integrations: {
+                    title: 'Intégrations',
+                    intro: 'Les intégrations de plugins et les panneaux de tableaux s\'appliquent après un redémarrage. Le webhook Discord publie commandes et montées de niveau ; il n\'est plus jamais affiché une fois enregistré.',
+                },
+                dashboard: {
+                    title: 'Tableau de bord',
+                    intro: 'Le nom et l\'icône du tableau de bord, et les parties que les joueurs peuvent utiliser.',
+                },
+                permissions: {
+                    title: 'Permissions',
+                    intro: 'Companies ne modifie pas les permissions. Quelques exemples avec LuckPerms ; la documentation liste chaque permission :',
+                    limit: 'Permet aux joueurs d\'avoir jusqu\'à 15 commandes ouvertes. Remplace maxOrders pour ce groupe, un nombre plus petit baisse donc la limite.',
+                    repeat: 'Les commandes récurrentes sont ouvertes à tous par défaut ; ceci les retire.',
+                    admin: 'Tous les outils d\'admin, y compris l\'enregistrement des paramètres.',
+                },
+            },
         },
         settings: {
             icon: {

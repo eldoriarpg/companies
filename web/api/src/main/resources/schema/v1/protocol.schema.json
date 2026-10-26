@@ -1150,7 +1150,8 @@
     "admin.boards" : { },
     "admin.nodes" : { },
     "admin.config" : { },
-    "admin.settings" : { }
+    "admin.settings" : { },
+    "admin.setup" : { }
   },
   "x-actions" : {
     "orders.browse.search" : {
@@ -1401,6 +1402,12 @@
     },
     "admin.settings.icon" : {
       "feature" : "admin.settings"
+    },
+    "admin.setup.get" : {
+      "feature" : "admin.setup"
+    },
+    "admin.setup.mark" : {
+      "feature" : "admin.setup"
     }
   }
 }
