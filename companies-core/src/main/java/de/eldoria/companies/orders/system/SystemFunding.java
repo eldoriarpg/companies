@@ -6,11 +6,11 @@
 package de.eldoria.companies.orders.system;
 
 import de.eldoria.companies.data.repository.AOrderData;
-import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.EconomyAccounts;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -45,30 +45,38 @@ public final class SystemFunding implements SystemOrderService.Funding {
                 .join();
     }
 
+    /**
+     * Deposits on the main thread. While the plugin shuts down the main thread takes no more tasks, and the money is
+     * deposited on the calling thread rather than lost.
+     */
     @Override
     public void deposit(String account, double amount) {
         if (!(amount > 0)) return;
-        mainThread.execute(() -> {
+        Runnable deposit = () -> {
             var response = accounts.deposit(account, amount);
             if (!response.transactionSuccess()) {
                 logger.warning("Could not give %s back to the account %s: %s"
                         .formatted(amount, account, response.errorMessage));
             }
-        });
+        };
+        try {
+            mainThread.execute(deposit);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "The main thread takes no tasks, depositing on this thread", e);
+            deposit.run();
+        }
     }
 
     /**
-     * Gives money of a system order back to the account that paid it. Nothing happens for minted money or an order
-     * without a stored decision.
+     * Gives money of a system order back to the account that paid it, never more than it paid. Nothing happens for
+     * minted money or an order without a stored decision.
      *
      * @param order  id of the order
      * @param amount amount to give back
      */
     public void refund(int order, double amount) {
         if (!(amount > 0)) return;
-        orderData
-                .systemDecision(order)
-                .flatMap(SystemDecision::paidFrom)
-                .ifPresent(account -> deposit(account, amount));
+        orderData.systemDecision(order).ifPresent(decision -> decision.paidFrom()
+                .ifPresent(account -> deposit(account, Math.min(amount, decision.paid()))));
     }
 }

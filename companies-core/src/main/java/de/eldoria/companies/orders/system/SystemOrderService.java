@@ -16,6 +16,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.SystemOrders;
+import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -25,17 +26,14 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalDouble;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,9 +53,13 @@ import java.util.logging.Logger;
  * one of the server's calendar. Each placed order stores its {@link DefinedRecord}, which is what budgets, caps and the
  * schedule count.
  * <p>
+ * When a listener of the order's creation changes the price, an account pays the raise or gets the cut back; an order
+ * whose decision cannot be stored is removed again, so no order exists that budgets and refunds do not know.
+ * <p>
  * A rule that cannot place its order is skipped until the next check, and the reason is logged once until it changes.
- * An order removed after its lifetime gives its money back to the account that paid it. Orders of a rule that is no
- * longer in the file run out as player orders do.
+ * A rule without a usable id is logged by its position. An order nobody claimed within {@code lifetimeHours} of its
+ * placement or its last extension is removed and gives its money back to the account that paid it. Orders of a rule
+ * that is no longer in the file run out as player orders do.
  */
 public final class SystemOrderService {
     private final Supplier<SystemOrderSettings> settings;
@@ -65,7 +67,6 @@ public final class SystemOrderService {
     private final Placement placement;
     private final Funding funding;
     private final Clock clock;
-    private final Supplier<ZoneId> zone;
     private final DoubleSupplier random;
     private final Logger logger;
     private final ObjectMapper mapper = JsonMapper.builder().build();
@@ -76,8 +77,7 @@ public final class SystemOrderService {
      * @param orders    order repository
      * @param placement places and removes the orders
      * @param funding   moves the money of accounts
-     * @param clock     clock giving the current time in UTC
-     * @param zone      the server's time zone, where days start
+     * @param clock     clock giving the current time in UTC; days start in the server's zone of {@link Times#zone()}
      * @param random    a random number from 0 included to 1 excluded
      * @param logger    reports skipped rules and failures
      */
@@ -87,7 +87,6 @@ public final class SystemOrderService {
             Placement placement,
             Funding funding,
             Clock clock,
-            Supplier<ZoneId> zone,
             DoubleSupplier random,
             Logger logger) {
         this.settings = settings;
@@ -95,7 +94,6 @@ public final class SystemOrderService {
         this.placement = placement;
         this.funding = funding;
         this.clock = clock;
-        this.zone = zone;
         this.random = random;
         this.logger = logger;
     }
@@ -131,10 +129,16 @@ public final class SystemOrderService {
         var rules = current.rules();
         for (var index = 0; index < rules.size(); index++) {
             var rule = rules.get(index);
-            var label = rule.id().isEmpty() ? "#" + (index + 1) : rule.id();
+            var id = rule.id();
+            if (id.isEmpty() || id.length() > SystemOrderRule.MAX_ID_LENGTH || !seen.add(id)) {
+                var position = "#" + (index + 1) + (id.isEmpty() ? "" : " (" + id + ")");
+                results.add(new Result(position, note(position, Step.INVALID_ID, "")));
+                continue;
+            }
+            var label = id;
             Step step;
             try {
-                step = handle(current, rule, label, seen, now, dayStart);
+                step = handle(current, rule, label, now, dayStart);
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not place the system order of rule " + label, e);
                 step = Step.FAILED;
@@ -145,20 +149,20 @@ public final class SystemOrderService {
     }
 
     private List<Integer> expire(SystemOrderSettings current, LocalDateTime now) {
-        Map<String, Integer> lifetimes = new HashMap<>();
+        Map<String, Integer> lifetimes = new LinkedHashMap<>();
         for (var rule : current.rules()) lifetimes.putIfAbsent(rule.id(), rule.lifetimeHours());
         var removed = new ArrayList<Integer>();
-        for (var decision : orders.systemDecisions(OrderState.UNCLAIMED, OrderState.UNCLAIMED)) {
-            var hours = lifetimes.get(decision.rule());
-            if (hours == null || now.isBefore(decision.decidedAt().plusHours(hours))) continue;
-            try {
-                if (!placement.remove(decision.order())) continue;
-                decision.paidFrom().ifPresent(account -> funding.deposit(account, decision.paid()));
-                removed.add(decision.order());
-            } catch (RuntimeException e) {
-                logger.log(Level.SEVERE, "Could not remove the system order " + decision.order(), e);
+        lifetimes.forEach((rule, hours) -> {
+            for (var decision : orders.unclaimedSystemOrders(rule, now.minusHours(hours))) {
+                try {
+                    if (!placement.remove(decision.order())) continue;
+                    decision.paidFrom().ifPresent(account -> funding.deposit(account, decision.paid()));
+                    removed.add(decision.order());
+                } catch (RuntimeException e) {
+                    logger.log(Level.SEVERE, "Could not remove the system order " + decision.order(), e);
+                }
             }
-        }
+        });
         return removed;
     }
 
@@ -166,13 +170,9 @@ public final class SystemOrderService {
             SystemOrderSettings current,
             SystemOrderRule rule,
             String label,
-            Set<String> seen,
             LocalDateTime now,
             LocalDateTime dayStart) {
         var id = rule.id();
-        if (id.isEmpty() || id.length() > SystemOrderRule.MAX_ID_LENGTH || !seen.add(id)) {
-            return note(label, Step.INVALID_ID, "");
-        }
         if (!rule.enabled()) return Step.DISABLED;
         if (!placement.knows(rule.material())) return note(label, Step.UNKNOWN_ITEM, rule.material());
         var last = orders.lastSystemPlacement(id);
@@ -204,14 +204,21 @@ public final class SystemOrderService {
         try {
             placed = placement.place(rule, priced.unit()).join();
         } catch (RuntimeException e) {
-            giveBack(account, total);
+            giveBackAfter(e, account, total);
             throw e;
         }
         if (placed instanceof Refused refused) {
             giveBack(account, total);
             return note(label, Step.REFUSED, refused.reason());
         }
-        var order = ((Created) placed).order();
+        var created = (Created) placed;
+        var order = created.order();
+        var paid = created.price();
+        if (account != null && !settle(account, total, paid)) {
+            if (placement.remove(order)) giveBack(account, total);
+            else lost(order, account, total);
+            return note(label, Step.CANNOT_PAY, account);
+        }
         var record = new DefinedRecord(
                 id,
                 rule.name(),
@@ -226,31 +233,65 @@ public final class SystemOrderService {
                 rule.price().max(),
                 priced.bounded(),
                 priced.unit(),
-                total,
+                paid,
                 source.type(),
                 account,
                 budgetLeft,
                 mintedLeft);
-        store(new SystemDecision(
-                order, id, DefinedRecord.KIND, now, account, total, mapper.writeValueAsString(record)));
+        var decision = new SystemDecision(
+                order, id, DefinedRecord.KIND, now, account, paid, mapper.writeValueAsString(record));
+        if (!store(decision)) {
+            if (placement.remove(order)) giveBack(account, paid);
+            else if (account != null) lost(order, account, paid);
+            return note(label, Step.FAILED, "decision not stored, order removed");
+        }
         notes.remove(label);
         return Step.PLACED;
     }
 
-    private void store(SystemDecision decision) {
+    /**
+     * Settles the difference when a listener of the order's creation changed its price: the account pays a raise or
+     * gets a cut back.
+     *
+     * @param account   the account that paid
+     * @param withdrawn what it paid
+     * @param price     the price the order was saved with
+     * @return false when the account cannot pay a raise
+     */
+    private boolean settle(String account, double withdrawn, double price) {
+        var difference = price - withdrawn;
+        if (Math.abs(difference) < 0.005) return true;
+        if (difference < 0) {
+            funding.deposit(account, -difference);
+            return true;
+        }
+        return funding.withdraw(account, difference);
+    }
+
+    private boolean store(SystemDecision decision) {
         try {
-            orders.saveSystemDecision(decision);
+            if (orders.saveSystemDecision(decision)) return true;
         } catch (RuntimeException e) {
-            logger.log(
-                    Level.SEVERE,
-                    "Could not store why the system order " + decision.order() + " was placed. It does not count"
-                            + " against the budgets, and its money is not given back when it is removed.",
-                    e);
+            logger.log(Level.SEVERE, "Could not store why the system order " + decision.order() + " was placed", e);
+        }
+        return false;
+    }
+
+    private void giveBack(@Nullable String account, double amount) {
+        if (account != null) funding.deposit(account, amount);
+    }
+
+    private void giveBackAfter(RuntimeException failure, @Nullable String account, double amount) {
+        try {
+            giveBack(account, amount);
+        } catch (RuntimeException e) {
+            failure.addSuppressed(e);
         }
     }
 
-    private void giveBack(@Nullable String account, double total) {
-        if (account != null) funding.deposit(account, total);
+    private void lost(int order, String account, double amount) {
+        logger.severe("The system order " + order + " could not be removed after a failure. The " + amount
+                + " the account " + account + " paid is not given back when the order ends.");
     }
 
     private Step note(String label, Step step, String detail) {
@@ -266,11 +307,7 @@ public final class SystemOrderService {
     }
 
     private LocalDateTime dayStart() {
-        var serverZone = zone.get();
-        return LocalDate.now(clock.withZone(serverZone))
-                .atStartOfDay(serverZone)
-                .withZoneSameInstant(ZoneOffset.UTC)
-                .toLocalDateTime();
+        return Times.startOfDay(LocalDate.now(clock.withZone(Times.zone())));
     }
 
     /**
@@ -307,7 +344,7 @@ public final class SystemOrderService {
                 var draft = OrderDraftService.toDraft(rule.name(), List.of(line));
                 return systemOrders.place(draft, rule.id()).thenApply(outcome -> switch (outcome) {
                     case OrderCreationService.Created created ->
-                        new Created(created.order().id());
+                        new Created(created.order().id(), created.price());
                     case OrderCreationService.Rejected rejected ->
                         new Refused(rejected.reason().name());
                 });
@@ -387,8 +424,9 @@ public final class SystemOrderService {
 
     /**
      * @param order id of the placed order
+     * @param price price of the order as it was saved, after the listeners of its creation
      */
-    public record Created(int order) implements Placed {}
+    public record Created(int order, double price) implements Placed {}
 
     /**
      * @param reason why the order was not placed

@@ -97,8 +97,8 @@ You need `companies.admin.orders`. These commands also work from the console.
 | `/companyadmin systemorders list` | Lists the orders the server placed that are open or in work: rule, price, when placed and state |
 | `/companyadmin systemorders info <id>` | Shows why the server placed an order: the rule, how its price was found, the jitter drawn, the bounds and where the money came from |
 
-`info` also works for orders that ended, as long as the [order history](./configuration/config-yml.md#generalsettings)
-keeps them. To remove a system order, use `/companyadmin order cancel <id>`. Its money always goes back to the account
+`info` also works for orders that ended: for completed ones always, for removed ones as long as the
+[order history](./configuration/config-yml.md#generalsettings) keeps them. To remove a system order, use `/companyadmin order cancel <id>`. Its money always goes back to the account
 that paid it, whether you choose `refund` or `keep`; minted money goes nowhere. See
 [system-orders.yml](./configuration/system-orders-yml.md).
 

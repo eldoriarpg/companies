@@ -13,10 +13,15 @@ import de.eldoria.companies.configuration.elements.systemorders.RulePrice.PriceM
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderRule;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.dashboard.MutableClock;
+import de.eldoria.companies.data.repository.impl.TimeColumns;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.order.SystemDecision;
+import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.system.SystemOrderService.Step;
+import de.eldoria.companies.util.Times;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +32,8 @@ import tools.jackson.databind.json.JsonMapper;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +46,8 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import static de.chojo.sadu.queries.api.call.Call.call;
+import static de.chojo.sadu.queries.api.query.Query.query;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,15 +66,24 @@ class SystemOrderServiceTest {
     private final List<String> logged = new CopyOnWriteArrayList<>();
     private OrderTable system;
     private String refusal;
+    private Double changedPrice;
+    private boolean failPlacement;
+    private boolean failStore;
     private int placements;
     private SystemOrderService service;
 
     @BeforeEach
     void setUp() throws Exception {
         MockBukkit.mock();
+        Times.useZone(() -> ZoneOffset.UTC);
         SqLiteTestDatabase.create(directory);
-        var orders = OrderTable.create();
-        system = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID));
+        var orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper()) {
+            @Override
+            public boolean saveSystemDecision(SystemDecision decision) {
+                return !failStore && super.saveSystemDecision(decision);
+            }
+        };
+        system = new OrderTable(orderData, SqLiteTestDatabase.player(SystemOwner.ID));
         settings.enabled(true);
         var logger = Logger.getAnonymousLogger();
         logger.setUseParentHandlers(false);
@@ -82,18 +100,12 @@ class SystemOrderServiceTest {
             public void close() {}
         });
         service = new SystemOrderService(
-                () -> settings,
-                system.orderData(),
-                new FakePlacement(),
-                new FakeFunding(),
-                clock,
-                () -> ZoneOffset.UTC,
-                () -> 0.5,
-                logger);
+                () -> settings, system.orderData(), new FakePlacement(), new FakeFunding(), clock, () -> 0.5, logger);
     }
 
     @AfterEach
     void tearDown() {
+        Times.useZone(Times::machineZone);
         MockBukkit.unmock();
     }
 
@@ -273,6 +285,124 @@ class SystemOrderServiceTest {
         assertTrue(logged.get(1).contains("no account"));
     }
 
+    @Test
+    void aFailedPlacementGivesTheMoneyBack() {
+        balances.put(BANK, 1000.0);
+        failPlacement = true;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 0));
+
+        assertEquals(Step.FAILED, step(service.run()));
+
+        assertEquals(1000.0, balances.get(BANK));
+    }
+
+    @Test
+    void aPriceRaisedByAListenerIsPaidByTheAccount() {
+        balances.put(BANK, 1000.0);
+        changedPrice = 150.0;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 0));
+
+        assertEquals(Step.PLACED, step(service.run()));
+
+        assertEquals(850.0, balances.get(BANK));
+        assertEquals(150.0, onlyDecision().paid());
+    }
+
+    @Test
+    void aPriceCutByAListenerGoesBackToTheAccount() {
+        balances.put(BANK, 1000.0);
+        changedPrice = 100.0;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 0));
+
+        service.run();
+
+        assertEquals(900.0, balances.get(BANK));
+        assertEquals(100.0, onlyDecision().paid());
+    }
+
+    @Test
+    void aRaiseTheAccountCannotPayRemovesTheOrderAgain() {
+        balances.put(BANK, 130.0);
+        changedPrice = 150.0;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 0));
+
+        assertEquals(Step.CANNOT_PAY, step(service.run()));
+
+        assertEquals(1, removed.size());
+        assertEquals(130.0, balances.get(BANK));
+    }
+
+    @Test
+    void anOrderWhoseDecisionIsNotStoredIsRemovedAgain() {
+        balances.put(BANK, 1000.0);
+        failStore = true;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 0));
+
+        assertEquals(Step.FAILED, step(service.run()));
+
+        assertEquals(1, removed.size());
+        assertEquals(1000.0, balances.get(BANK));
+    }
+
+    @Test
+    void anExtendedOrderLivesLonger() {
+        rule(fixed("iron", 2.0));
+        service.run();
+        var order = onlyDecision().order();
+        placedAt(order, LocalDateTime.now(clock).plusHours(5));
+
+        clock.advance(Duration.ofHours(12));
+        assertEquals(List.of(), service.run().removed());
+        clock.advance(Duration.ofHours(5));
+        assertEquals(List.of(order), service.run().removed());
+    }
+
+    @Test
+    void aDuplicateIdIsLoggedByItsPositionApartFromTheFirstRule() {
+        settings.mintedDailyCap(100);
+        rule(fixed("iron", 2.0));
+        rule(fixed("iron", 3.0));
+
+        var labels = service.run().rules().stream()
+                .map(SystemOrderService.Result::rule)
+                .toList();
+        service.run();
+
+        assertEquals(List.of("iron", "#2 (iron)"), labels);
+        assertEquals(2, logged.size());
+    }
+
+    @Test
+    void aDayStartsInTheServersZone() {
+        Times.useZone(() -> ZoneId.of("Europe/Berlin"));
+        try {
+            clock.advance(Duration.ofMinutes(14 * 60 + 30));
+            var rule = rule(fixed("iron", 2.0));
+            rule.everyHours(1);
+            rule.maxOpen(5);
+            rule.lifetimeHours(48);
+            rule.source(new MoneySource(SourceType.MINTED, "", 200));
+
+            assertEquals(Step.PLACED, step(service.run()));
+            clock.advance(Duration.ofHours(1));
+            assertEquals(Step.PLACED, step(service.run()));
+        } finally {
+            Times.useZone(() -> ZoneOffset.UTC);
+        }
+    }
+
+    private SystemDecision onlyDecision() {
+        return system.orderData()
+                .systemDecisions(OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .getFirst();
+    }
+
+    private static void placedAt(int order, LocalDateTime time) {
+        query("UPDATE order_states SET last_update = ? WHERE id = ?")
+                .single(call().bind(time, TimeColumns.SQLITE_TEXT).bind(order))
+                .update();
+    }
+
     private SystemOrderRule fixed(String id, double price) {
         var rule = new SystemOrderRule(id, "IRON_INGOT");
         rule.price(new RulePrice(PriceMode.FIXED, price, 1, 0, 0, 0));
@@ -308,11 +438,14 @@ class SystemOrderServiceTest {
 
         @Override
         public CompletableFuture<SystemOrderService.Placed> place(SystemOrderRule rule, double unitPrice) {
+            if (failPlacement) throw new IllegalStateException("placing failed");
             if (refusal != null) return CompletableFuture.completedFuture(new SystemOrderService.Refused(refusal));
             placements++;
             var order = system.place(0.0);
             system.orderData().systemRule(order.id(), rule.id());
-            return CompletableFuture.completedFuture(new SystemOrderService.Created(order.id()));
+            placedAt(order.id(), LocalDateTime.now(clock));
+            var price = changedPrice != null ? changedPrice : OrderBuilder.total(unitPrice, rule.amount());
+            return CompletableFuture.completedFuture(new SystemOrderService.Created(order.id(), price));
         }
 
         @Override

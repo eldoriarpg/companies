@@ -29,6 +29,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.orders.DeliveryPart;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -760,12 +761,12 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    public void saveSystemDecision(SystemDecision decision) {
+    public boolean saveSystemDecision(SystemDecision decision) {
         @Language("mariadb")
         var insert = """
                 INSERT INTO system_order_decisions(order_id, rule, kind, decided_at, account, paid, record)
                 VALUES (?, ?, ?, ?, ?, ?, ?)""";
-        query(insert)
+        return query(insert)
                 .single(call().bind(decision.order())
                         .bind(decision.rule())
                         .bind(decision.kind())
@@ -773,7 +774,8 @@ public class MariaDbOrderData extends AOrderData {
                         .bind(decision.account())
                         .bind(decision.paid())
                         .bind(decision.record()))
-                .insert();
+                .insert()
+                .changed();
     }
 
     @Override
@@ -797,6 +799,23 @@ public class MariaDbOrderData extends AOrderData {
                 ORDER BY d.decided_at, d.order_id""";
         return query(select)
                 .single(call().bind(min.stateId()).bind(max.stateId()))
+                .map(this::parseDecision)
+                .all();
+    }
+
+    @Override
+    public List<SystemDecision> unclaimedSystemOrders(String rule, LocalDateTime before) {
+        @Language("mariadb")
+        var select = """
+                SELECT d.order_id, d.rule, d.kind, d.decided_at, d.account, d.paid, d.record
+                FROM system_order_decisions d
+                         JOIN order_states s ON d.order_id = s.id
+                WHERE d.rule = ?
+                  AND s.state = ?
+                  AND s.last_update <= ?
+                ORDER BY d.decided_at, d.order_id""";
+        return query(select)
+                .single(call().bind(rule).bind(OrderState.UNCLAIMED.stateId()).bind(before, time()))
                 .map(this::parseDecision)
                 .all();
     }
@@ -1361,7 +1380,7 @@ public class MariaDbOrderData extends AOrderData {
                                      LEFT JOIN order_states s ON c.id = s.id
                                      JOIN orders o ON c.id = o.id
                             WHERE s.state >= 200
-                              AND o.system_rule IS NULL
+                              AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
                               AND NOT c.exact) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg
@@ -1369,6 +1388,6 @@ public class MariaDbOrderData extends AOrderData {
                 ON DUPLICATE KEY UPDATE avg_price = avg.avg_price,
                                         min_price = avg.min_price,
                                         max_price = avg.max_price;""";
-        query(query).single().update();
+        query(query).single(call().bind(SystemOwner.ID, UUID_BYTES)).update();
     }
 }

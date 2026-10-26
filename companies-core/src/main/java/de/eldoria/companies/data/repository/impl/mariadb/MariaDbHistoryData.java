@@ -11,6 +11,7 @@ import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
+import de.eldoria.companies.orders.SystemOwner;
 import org.intellij.lang.annotations.Language;
 import tools.jackson.databind.ObjectMapper;
 
@@ -129,10 +130,13 @@ public class MariaDbHistoryData extends AHistoryData {
     protected List<HistoryEntry> getCompanyEntries(HistoryOutcome outcome, LocalDateTime from, LocalDateTime to) {
         return query(ENTRIES
                         + "WHERE company_id IS NOT NULL AND outcome = ? AND finished >= ? AND finished < ? "
-                        + "AND NOT EXISTS (SELECT 1 FROM system_order_decisions d "
-                        + "WHERE d.order_id = order_history.order_id) "
+                        + "AND NOT EXISTS (SELECT 1 FROM order_history o WHERE o.order_id = order_history.order_id "
+                        + "AND o.owner_uuid = ?) "
                         + "ORDER BY finished, id")
-                .single(call().bind(outcome.id()).bind(from, time()).bind(to, time()))
+                .single(call().bind(outcome.id())
+                        .bind(from, time())
+                        .bind(to, time())
+                        .bind(SystemOwner.ID, UUID_BYTES))
                 .map(this::parseEntry)
                 .all();
     }

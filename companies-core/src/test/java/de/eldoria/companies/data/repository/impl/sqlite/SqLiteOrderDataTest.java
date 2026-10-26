@@ -16,6 +16,7 @@ import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.DeliveryPart;
+import de.eldoria.companies.orders.SystemOwner;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.enchantments.Enchantment;
@@ -69,6 +70,19 @@ class SqLiteOrderDataTest {
 
     private SimpleOrder createOrder(int stone, int dirt) {
         return createOrder(stone, dirt, 0.0);
+    }
+
+    private SimpleOrder createOrder(OfflinePlayer owner, int stone, int dirt) {
+        var contents = List.of(
+                new OrderContent(0, new ItemStack(Material.STONE), false, stone, 100.0),
+                new OrderContent(1, new ItemStack(Material.DIRT), false, dirt, 50.0));
+        orderData
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test", 0.0).toFullOrder(contents))
+                .join();
+        var orders = orderData
+                .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED)
+                .join();
+        return orders.get(orders.size() - 1);
     }
 
     private SimpleOrder createOrder(int stone, int dirt, double fee) {
@@ -303,8 +317,7 @@ class SqLiteOrderDataTest {
 
     @Test
     void ordersOfTheServerAreLeftOutOfTheMarketPrice() {
-        var system = createOrder(10, 5);
-        orderData.systemRule(system.id(), "stone");
+        var system = createOrder(SqLiteTestDatabase.player(SystemOwner.ID), 10, 5);
         SqLiteTestDatabase.setState(system.id(), OrderState.DELIVERED.stateId(), COMPANY);
         var player = createOrder(1, 5);
         SqLiteTestDatabase.setState(player.id(), OrderState.DELIVERED.stateId(), COMPANY);
@@ -314,6 +327,23 @@ class SqLiteOrderDataTest {
         var price = orderData.retrieveMaterialPrice("STONE").join();
         Assertions.assertEquals(100.0, price.minPrice(), 0.0001);
         Assertions.assertEquals(100.0, price.maxPrice(), 0.0001);
+    }
+
+    @Test
+    void ordersOfTheServerAreLeftOutOfTheDashboardMarket() {
+        var system = createOrder(SqLiteTestDatabase.player(SystemOwner.ID), 10, 5);
+        SqLiteTestDatabase.setState(system.id(), OrderState.DELIVERED.stateId(), COMPANY);
+        var player = createOrder(1, 5);
+        SqLiteTestDatabase.setState(player.id(), OrderState.DELIVERED.stateId(), COMPANY);
+
+        var stone = new SqLiteDashboardData()
+                .market().stream()
+                        .filter(row -> row.material().equals("STONE"))
+                        .findFirst()
+                        .orElseThrow();
+
+        Assertions.assertEquals(1, stone.orders());
+        Assertions.assertEquals(100.0, stone.avg(), 0.0001);
     }
 
     @Test

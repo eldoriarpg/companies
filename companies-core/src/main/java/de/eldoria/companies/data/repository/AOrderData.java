@@ -387,8 +387,9 @@ public abstract class AOrderData {
      * Stores why a system order was placed.
      *
      * @param decision the decision
+     * @return true when it was stored
      */
-    public abstract void saveSystemDecision(SystemDecision decision);
+    public abstract boolean saveSystemDecision(SystemDecision decision);
 
     /**
      * @param order the order's id
@@ -404,6 +405,16 @@ public abstract class AOrderData {
      * @return the decisions
      */
     public abstract List<SystemDecision> systemDecisions(OrderState min, OrderState max);
+
+    /**
+     * The decisions of a rule's orders that nobody claimed and that were last placed or extended at or before a point
+     * in time, oldest first.
+     *
+     * @param rule   id of the rule
+     * @param before the orders' last placement or extension lies at or before this
+     * @return the decisions
+     */
+    public abstract List<SystemDecision> unclaimedSystemOrders(String rule, LocalDateTime before);
 
     /**
      * What a rule put into orders since a point in time.

@@ -35,6 +35,6 @@ FROM (SELECT c.material,
                      JOIN companies_schema.orders o ON c.id = o.id
             WHERE s.state >= 200
               AND NOT c.exact
-              AND o.system_rule IS NULL) c
+              AND o.owner_uuid IS DISTINCT FROM '\x0000000000000000000000000005e7e7'::bytea) c
       WHERE c.id < 100
       GROUP BY c.material) avg;

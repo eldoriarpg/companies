@@ -15,18 +15,16 @@ import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.OrderOutcomes;
+import de.eldoria.companies.orders.OrderRefunds;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.orders.SystemOwner;
-import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
-import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -55,43 +53,39 @@ public class ExpiringService implements Runnable, Listener {
     private final ACompanyData companyData;
     private final Configuration configuration;
     private final MessageSender messageSender;
-    private final Economy economy;
     private final NotificationService notificationService;
     private final OrderOutcomes outcomes;
     private final SoloOrderService soloOrders;
-    private final SystemFunding systemFunding;
+    private final OrderRefunds refunds;
 
     /**
      * @param plugin              the plugin
      * @param orderData           order repository
      * @param companyData         company repository
      * @param configuration       configuration of the plugin
-     * @param economy             refunds purged orders
      * @param notificationService warns owners
      * @param outcomes            releases and purges orders and records their history
      * @param soloOrders          releases the orders players work on alone
-     * @param systemFunding       refunds purged system orders to the accounts that paid them
+     * @param refunds             refunds purged orders to their owners, system orders to the accounts that paid them
      */
     public ExpiringService(
             Plugin plugin,
             AOrderData orderData,
             ACompanyData companyData,
             Configuration configuration,
-            Economy economy,
             NotificationService notificationService,
             OrderOutcomes outcomes,
             SoloOrderService soloOrders,
-            SystemFunding systemFunding) {
+            OrderRefunds refunds) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
-        this.economy = economy;
         this.notificationService = notificationService;
         this.outcomes = outcomes;
         this.soloOrders = soloOrders;
-        this.systemFunding = systemFunding;
+        this.refunds = refunds;
     }
 
     /**
@@ -269,13 +263,7 @@ public class ExpiringService implements Runnable, Listener {
             if (!Boolean.TRUE.equals(outcomes.purge(fullOrder).join())) {
                 continue;
             }
-            if (SystemOwner.is(order.owner())) {
-                systemFunding.refund(order.id(), fullOrder.price() + fullOrder.fee());
-                continue;
-            }
-            var owner = plugin.getServer().getOfflinePlayer(order.owner());
-            Threading.mainThread(plugin)
-                    .execute(() -> economy.depositPlayer(owner, fullOrder.price() + fullOrder.fee()));
+            refunds.refund(order, fullOrder.price() + fullOrder.fee());
         }
     }
 

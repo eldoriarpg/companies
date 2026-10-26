@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
 import de.eldoria.companies.data.wrapper.dashboard.MarketRow;
 import de.eldoria.companies.data.wrapper.dashboard.StoredKey;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.web.api.handshake.KeyKind;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
@@ -284,13 +285,15 @@ public class MariaDbDashboardData extends ADashboardData {
                        MAX(c.price / c.amount) AS max_price
                 FROM order_content c
                          JOIN order_states s ON c.id = s.id
+                         JOIN orders o ON c.id = o.id
                 WHERE s.state >= 200
                   AND NOT c.exact
                   AND c.amount > 0
+                  AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
                 GROUP BY c.material""";
         return queries()
                 .query(query)
-                .single()
+                .single(call().bind(SystemOwner.ID, UUID_BYTES))
                 .map(row -> new MarketRow(
                         row.getString("material"),
                         row.getInt("orders"),

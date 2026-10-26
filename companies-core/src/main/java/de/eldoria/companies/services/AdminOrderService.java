@@ -18,6 +18,7 @@ import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
+import de.eldoria.companies.orders.OrderRefunds;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.system.SystemFunding;
@@ -150,16 +151,11 @@ public final class AdminOrderService {
             SeriesService series,
             SystemFunding systemFunding) {
         var collector = new Collector(plugin, economy, configuration);
-        var mainThread = Threading.mainThread(plugin);
+        var refunds = OrderRefunds.of(plugin, economy, systemFunding);
         Funds funds = new Funds() {
             @Override
             public void refund(SimpleOrder order, double amount) {
-                if (SystemOwner.is(order.owner())) {
-                    systemFunding.refund(order.id(), amount);
-                    return;
-                }
-                mainThread.execute(
-                        () -> economy.depositPlayer(plugin.getServer().getOfflinePlayer(order.owner()), amount));
+                refunds.refund(order, amount);
             }
 
             @Override

@@ -16,6 +16,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.orders.HistoryRecorder;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
@@ -83,6 +84,10 @@ class SqLiteHistoryDataTest {
     }
 
     private FullOrder order(int id) {
+        return order(id, owner);
+    }
+
+    private FullOrder order(int id, UUID owner) {
         var sword = new ItemStack(Material.DIAMOND_SWORD);
         sword.addUnsafeEnchantment(Enchantment.SHARPNESS, 5);
         var swords = new OrderContent(0, sword, true, 2, 300.0);
@@ -248,10 +253,10 @@ class SqLiteHistoryDataTest {
         var player = recorder.companyEntry(order(1), COMPANY, HistoryOutcome.DELIVERED, List.of())
                 .join()
                 .orElseThrow();
-        recorder.companyEntry(order(2), COMPANY, HistoryOutcome.DELIVERED, List.of())
+        var server = order(2, SystemOwner.ID);
+        recorder.companyEntry(server, COMPANY, HistoryOutcome.DELIVERED, List.of())
                 .join();
-        new SqLiteOrderData(null, SqLiteTestDatabase.mapper())
-                .saveSystemDecision(new SystemDecision(2, "iron", "DEFINED", NOW, null, 10, "{}"));
+        recorder.ownerEntry(server, HistoryOutcome.RECEIVED).join();
 
         var entries = history.retrieveCompanyEntries(HistoryOutcome.DELIVERED, day, day.plusDays(1))
                 .join();

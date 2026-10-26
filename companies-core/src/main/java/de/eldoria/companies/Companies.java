@@ -106,6 +106,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderReceiveService;
+import de.eldoria.companies.orders.OrderRefunds;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
@@ -371,7 +372,6 @@ public class Companies extends EldoPlugin {
                         outcomes),
                 systemFunding,
                 Times.UTC,
-                Times::zone,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
 
@@ -449,11 +449,10 @@ public class Companies extends EldoPlugin {
                 orderData,
                 companyData,
                 configuration,
-                economy,
                 notificationService,
                 outcomes,
                 soloOrders,
-                systemFunding);
+                OrderRefunds.of(this, economy, systemFunding));
         var alertNotices = new AlertNotices(notificationService::send, economy::format);
         var alertCompanies = AlertCompanies.of(companyData, orderData);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {

@@ -5,10 +5,14 @@
  */
 package de.eldoria.companies.orders.system;
 
+import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.EconomyAccounts;
+import de.eldoria.companies.orders.OrderRefunds;
+import de.eldoria.companies.orders.SystemOwner;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -22,6 +26,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -78,6 +83,34 @@ class SystemFundingTest {
         funding.refund(2, 25);
 
         assertTrue(balances.isEmpty());
+    }
+
+    @Test
+    void refundsGoToTheOwnerOrForTheServerToThePayingAccount() {
+        var owners = new HashMap<UUID, Double>();
+        var refunds = OrderRefunds.of((owner, amount) -> owners.merge(owner, amount, Double::sum), funding);
+        var player = UUID.randomUUID();
+        orderData.saveSystemDecision(decision(7, BANK));
+
+        refunds.refund(order(7, SystemOwner.ID), 25);
+        refunds.refund(order(8, player), 30);
+
+        assertEquals(25.0, balances.get(BANK));
+        assertEquals(Map.of(player, 30.0), owners);
+    }
+
+    @Test
+    void aRefundNeverExceedsWhatTheAccountPaid() {
+        orderData.saveSystemDecision(decision(1, BANK));
+
+        funding.refund(1, 40);
+
+        assertEquals(25.0, balances.get(BANK));
+    }
+
+    private static SimpleOrder order(int id, UUID owner) {
+        var now = LocalDateTime.now();
+        return new SimpleOrder(id, owner, "order", now, -1, now, OrderState.UNCLAIMED, 0, 0, 0);
     }
 
     private static SystemDecision decision(int order, String account) {

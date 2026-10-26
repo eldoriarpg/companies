@@ -407,6 +407,7 @@ export default {
                 market: 'Markt',
                 matching: 'Gegenstandsabgleich',
                 repeating: 'Wiederkehrende Aufträge',
+                systemOrders: 'Systemaufträge',
                 solo: 'Soloaufträge',
             },
             fields: {
@@ -571,6 +572,11 @@ export default {
                 },
                 user: {
                     maxOrders: 'Offene Aufträge pro Spieler',
+                },
+                'system-orders': {
+                    enabled: 'Server erstellt Systemaufträge',
+                    checkMinutes: 'Minuten zwischen Prüfungen auf fällige Systemaufträge',
+                    mintedDailyCap: 'Neues Geld, das alle Regeln pro Tag ausgeben dürfen (0: keins)',
                 },
             },
         },
