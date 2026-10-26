@@ -28,14 +28,16 @@ import java.util.function.DoubleSupplier;
  *     <li><b>Outcomes</b>: an order is {@value #TAKEN} when a company or player accepted it, {@value #REPRICED} when
  *     nobody did and a copy at a higher price replaced it, {@value #EXPIRED} when nobody took the last copy of such a
  *     chain, and {@value #WITHDRAWN} when it made way for players or guessed orders were switched off.</li>
- *     <li><b>Price</b>: a material's factor continues from the factor its latest order was placed with, as that
- *     order's record keeps it, or starts at the configured {@code factor} when no order of the last {@code days} has
- *     one. It then walks through the taken and expired orders that ended since, in the order they ended: each one
- *     taken within {@code fastMinutes} lowers it by {@code step} (it paid too much), each expired one raises it (it
- *     paid too little), slower takes keep it. It never leaves the range from {@code minFactor}, or {@code factor} when
- *     that is lower, to the guessed {@code maxFactor}. So it keeps what it learned for as long as the material is
- *     guessed; one not guessed for {@code days} starts over. An order an underbidding cap held down says nothing about
- *     the factor and does not move it.</li>
+ *     <li><b>Price</b>: a material's factor continues from the factor its latest order placed while learning was on
+ *     started from, as that order's record keeps it, or starts at the configured {@code factor} when no order of the
+ *     last {@code days} has one. It then walks through the taken and expired orders that ended since, in the order
+ *     they ended: each one taken within {@code fastMinutes} lowers it by {@code step} (it paid too much), each expired
+ *     one raises it (it paid too little), slower takes keep it. It never leaves the range from {@code minFactor}, or
+ *     {@code factor} when that is lower, to the guessed {@code maxFactor}. So it keeps what it learned for as long as
+ *     the material is guessed; one not guessed for {@code days} starts over, and only then takes up a changed
+ *     {@code factor}. An order an underbidding cap held down says nothing about the factor and does not move it. A
+ *     take given up again and later noted otherwise may stay in a factor carried forward meanwhile, at most one
+ *     step.</li>
  *     <li><b>Choice</b>: candidates are drawn at random, weighted by their low demand ({@code 1 / (1 + score)}) times
  *     their take rate ({@code (taken + 1) / (taken + expired + 2)}, never below {@code weightFloor}), so every
  *     candidate is still tried now and then.</li>

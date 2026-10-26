@@ -20,6 +20,7 @@ import de.eldoria.companies.orders.system.SystemOrderService.Wanted;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -161,72 +162,72 @@ final class GuessedOrders {
                 rest(settings, material, now);
             }
         }
-        var active = guessed(OrderState.UNCLAIMED, OrderState.CLAIMED).stream()
-                .map(Open::record)
-                .filter(Objects::nonNull)
-                .map(GuessedRecord::material)
-                .collect(Collectors.toCollection(HashSet::new));
-        var openPlayer = orders.openPlayerOrders();
-        var target = GuessedChoice.target(settings, openPlayer);
-        var slots = target - stillOpen;
-        var learning = slots > 0 ? learning(settings, now) : null;
-        var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results, learning);
-        var moneyFailures = 0;
-        for (var at = 0; at < replacements.size(); at++) {
-            var replacement = replacements.get(at);
-            var material = replacement.material();
-            if (slots <= 0 || active.contains(material)) {
-                ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
-                rest(settings, material, now);
-                continue;
-            }
-            active.add(material);
-            var index = ranks.get(material);
-            var replaces = replacement.replaced().decision().order();
-            var step = place(round, ranking.get(index), index, replacement.step(), replaces, stillOpen, null);
-            if (step == Step.PLACED) {
-                ended(replacement.replaced(), GuessedLearning.REPRICED, now);
-                slots--;
-                stillOpen++;
-                continue;
-            }
-            ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
-            if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
-                for (var rest : replacements.subList(at + 1, replacements.size())) {
-                    ended(rest.replaced(), GuessedLearning.EXPIRED, now);
+        var pending = new ArrayDeque<>(replacements);
+        try {
+            var active = guessed(OrderState.UNCLAIMED, OrderState.CLAIMED).stream()
+                    .map(Open::record)
+                    .filter(Objects::nonNull)
+                    .map(GuessedRecord::material)
+                    .collect(Collectors.toCollection(HashSet::new));
+            var openPlayer = orders.openPlayerOrders();
+            var target = GuessedChoice.target(settings, openPlayer);
+            var slots = target - stillOpen;
+            var learning = slots > 0 ? learning(settings, now) : null;
+            var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results, learning);
+            var moneyFailures = 0;
+            while (!pending.isEmpty()) {
+                var replacement = pending.poll();
+                var material = replacement.material();
+                if (slots <= 0 || active.contains(material)) {
+                    ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
+                    rest(settings, material, now);
+                    continue;
                 }
-                return;
+                active.add(material);
+                var index = ranks.get(material);
+                var replaces = replacement.replaced().decision().order();
+                var step = place(round, ranking.get(index), index, replacement.step(), replaces, stillOpen, null);
+                if (step == Step.PLACED) {
+                    ended(replacement.replaced(), GuessedLearning.REPRICED, now);
+                    slots--;
+                    stillOpen++;
+                    continue;
+                }
+                ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
+                if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) return;
+                if (!money(step)) rest(settings, material, now);
             }
-            if (!money(step)) rest(settings, material, now);
-        }
-        var resting = orders.restingMaterials(now);
-        var eligible = new ArrayList<Candidate>();
-        for (var candidate : ranking) {
-            if (resting.contains(candidate.material()) || active.contains(candidate.material())) continue;
-            if (settings.competition() == GuessedSettings.Competition.SKIP && demand.containsKey(candidate.material()))
-                continue;
-            eligible.add(candidate);
-        }
-        while (slots > 0 && !eligible.isEmpty()) {
-            var pick = 0;
-            Double weight = null;
-            if (learning != null) {
-                var weights = eligible.stream()
-                        .map(candidate -> weight(settings, learning, candidate))
-                        .toList();
-                pick = Math.max(0, GuessedLearning.draw(weights, random));
-                weight = weights.get(pick);
+            var resting = orders.restingMaterials(now);
+            var eligible = new ArrayList<Candidate>();
+            for (var candidate : ranking) {
+                if (resting.contains(candidate.material()) || active.contains(candidate.material())) continue;
+                if (settings.competition() == GuessedSettings.Competition.SKIP
+                        && demand.containsKey(candidate.material())) continue;
+                eligible.add(candidate);
             }
-            var candidate = eligible.remove(pick);
-            active.add(candidate.material());
-            var index = ranks.get(candidate.material());
-            var step = place(round, candidate, index, 0, null, stillOpen, weight);
-            if (step == Step.PLACED) {
-                slots--;
-                stillOpen++;
-            } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
-                return;
+            while (slots > 0 && !eligible.isEmpty()) {
+                var pick = 0;
+                Double weight = null;
+                if (learning != null) {
+                    var weights = eligible.stream()
+                            .map(candidate -> weight(settings, learning, candidate))
+                            .toList();
+                    pick = Math.max(0, GuessedLearning.draw(weights, random));
+                    weight = weights.get(pick);
+                }
+                var candidate = eligible.remove(pick);
+                active.add(candidate.material());
+                var index = ranks.get(candidate.material());
+                var step = place(round, candidate, index, 0, null, stillOpen, weight);
+                if (step == Step.PLACED) {
+                    slots--;
+                    stillOpen++;
+                } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
+                    return;
+                }
             }
+        } finally {
+            for (var replacement : pending) ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
         }
     }
 
@@ -529,7 +530,7 @@ final class GuessedOrders {
 
     /**
      * A copy at a higher price that replaces a removed guessed order. The removed order is noted {@code REPRICED} once
-     * the copy is placed, {@code EXPIRED} otherwise.
+     * the copy is placed, {@code EXPIRED} otherwise, also when the check stops or fails before the copy is tried.
      *
      * @param material the material
      * @param step     the next price step

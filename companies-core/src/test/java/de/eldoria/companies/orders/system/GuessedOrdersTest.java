@@ -512,6 +512,36 @@ class GuessedOrdersTest {
     }
 
     @Test
+    void replacementsLeftWhenMoneyStopsTheCheckAreNotedExpired() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        service.run();
+        var first = guessedDecisions().get(0).order();
+        var second = guessedDecisions().get(1).order();
+        settings.guessed().source(new MoneySource(MoneySource.SourceType.ACCOUNT, "", 0));
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(first));
+        assertEquals(GuessedLearning.EXPIRED, outcome(second));
+    }
+
+    @Test
+    void aRepriceIsNotedOnlyOnceItsCopyIsPlaced() {
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        var first = onlyDecision().order();
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.REPRICED, outcome(first));
+        assertEquals(first, only().replaces());
+    }
+
+    @Test
     void whenLearningCannotBeReadOrdersFollowTheRank() {
         failOutcomes = true;
         var drawing = new SystemOrderService(
