@@ -42,11 +42,12 @@ import java.util.stream.Collectors;
  *     <li>An open guessed order nobody took within {@code repriceAfterHours} of its placement or last extension is
  *     removed. While it has reprices left, its material is still a candidate and an underbidding cap did not already
  *     hold its price down, a copy at the next price step replaces it; otherwise its material rests for
- *     {@code restHours}. A replacement that finds no free slot or cannot be placed lets its material rest too.</li>
+ *     {@code restHours}. A replacement that finds no free slot, or cannot be placed for a reason other than money,
+ *     lets its material rest too.</li>
  *     <li>New guessed orders, replacements first, fill up to the target of {@link GuessedChoice#target}, in the order
  *     of {@link GuessedChoice#rank}, one per material, skipping resting materials and, in {@code SKIP} mode, those
- *     players have open orders for. A placement that fails is logged and the next candidate is tried; one that money
- *     stops (budget, minted cap, account) ends the check's placing, as it would stop every other one.</li>
+ *     players have open orders for. A placement that fails is logged and the next candidate is tried, also when money
+ *     stopped it, since a cheaper one may still fit; only a missing account ends the check's placing.</li>
  * </ol>
  * The allow and deny lists are resolved to material names first; entries naming no item are logged. While guessed
  * orders or system orders are disabled, open ones are removed when they would be repriced, and none are placed.
@@ -163,9 +164,10 @@ final class GuessedOrders {
             if (step == Step.PLACED) {
                 slots--;
                 stillOpen++;
-            } else {
+            } else if (step == Step.NO_ACCOUNT) {
+                return;
+            } else if (!money(step)) {
                 rest(settings, material, now);
-                if (affectsAll(step)) return;
             }
         }
         var resting = orders.restingMaterials(now);
@@ -179,7 +181,7 @@ final class GuessedOrders {
             if (step == Step.PLACED) {
                 slots--;
                 stillOpen++;
-            } else if (affectsAll(step)) {
+            } else if (step == Step.NO_ACCOUNT) {
                 return;
             }
         }
@@ -197,14 +199,14 @@ final class GuessedOrders {
     }
 
     /**
-     * Whether a step keeps every further guessed order of this check from being placed, as money does.
+     * Whether money kept an order from being placed, which says nothing about its material.
      *
      * @param step what a placement did
-     * @return true when the check stops placing
+     * @return true for the budget, the minted cap and an account that cannot pay
      */
-    private static boolean affectsAll(Step step) {
+    private static boolean money(Step step) {
         return switch (step) {
-            case BUDGET, MINTED_CAP, NO_ACCOUNT, CANNOT_PAY -> true;
+            case BUDGET, MINTED_CAP, CANNOT_PAY -> true;
             default -> false;
         };
     }

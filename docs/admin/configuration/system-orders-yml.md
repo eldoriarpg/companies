@@ -149,10 +149,12 @@ gaps and never compete with players.
    `maxItems`.
 5. **Repricing:** an order nobody took within `repriceAfterHours` is replaced by one paying `repriceStep` more of the
    average, up to `maxFactor`. After `maxReprices` the order is removed and the material rests for `restHours`. A
-   replacement that finds no free slot, or cannot be placed, lets its material rest as well.
+   replacement that finds no free slot, or cannot be placed for a reason other than money, lets its material rest
+   as well.
 6. **How many:** guessed orders make up at most `share` of all open orders, but `minOpen` stay open even when players
    order nothing, and never more than `maxOpen`. One guessed order per material at a time. When the budget, the
-   minted cap or the account stops one guessed order, no further one is placed in that check.
+   minted cap or the account's balance stops one guessed order, a cheaper one may still be placed; without an
+   account set, none is.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|

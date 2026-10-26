@@ -326,14 +326,44 @@ class GuessedOrdersTest {
     }
 
     @Test
-    void moneyThatStopsOneGuessedOrderStopsTheCheck() {
+    void aCheaperOrderIsStillTriedWhenMoneyStopsOne() {
         settings.guessed().minOpen(2);
         settings.guessed().maxOpen(2);
-        settings.mintedDailyCap(50);
+        settings.mintedDailyCap(80);
 
         var steps = service.run().rules();
 
-        assertEquals(List.of(new SystemOrderService.Result("guessed DIRT", Step.MINTED_CAP)), steps);
+        assertEquals(
+                List.of(
+                        new SystemOrderService.Result("guessed DIRT", Step.MINTED_CAP),
+                        new SystemOrderService.Result("guessed STONE", Step.PLACED)),
+                steps);
+    }
+
+    @Test
+    void withoutAnAccountTheCheckStopsPlacing() {
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        settings.guessed().source(new MoneySource(MoneySource.SourceType.ACCOUNT, "", 0));
+
+        var steps = service.run().rules();
+
+        assertEquals(List.of(new SystemOrderService.Result("guessed DIRT", Step.NO_ACCOUNT)), steps);
+    }
+
+    @Test
+    void aReplacementStoppedByMoneyDoesNotRest() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        service.run();
+        settings.mintedDailyCap(0);
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertTrue(guessedDecisions().isEmpty());
+        assertTrue(orderData.restingMaterials(now()).isEmpty());
     }
 
     @Test

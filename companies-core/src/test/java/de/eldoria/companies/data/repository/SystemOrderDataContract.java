@@ -160,8 +160,14 @@ public abstract class SystemOrderDataContract {
     @Test
     void removedOrdersNoLongerCountAsSpent() {
         var kept = order(server, Material.IRON_INGOT, 10, 20.0);
+        var delivered = order(server, Material.IRON_INGOT, 10, 20.0);
+        var received = order(server, Material.IRON_INGOT, 10, 20.0);
         var removed = order(server, Material.IRON_INGOT, 10, 20.0);
+        state(delivered, OrderState.DELIVERED, NOW);
+        state(received, OrderState.RECEIVED, NOW);
         orders.saveSystemDecision(decision(kept, "iron", NOW, null, 20));
+        orders.saveSystemDecision(decision(delivered, "iron", NOW, null, 5));
+        orders.saveSystemDecision(decision(received, "iron", NOW, "bank", 7));
         orders.saveSystemDecision(decision(removed, "iron", NOW, null, 30));
         for (var table : List.of("order_content", "order_states", "orders")) {
             query("DELETE FROM " + table + " WHERE id = ?")
@@ -169,8 +175,8 @@ public abstract class SystemOrderDataContract {
                     .delete();
         }
 
-        assertEquals(20.0, orders.systemSpent("iron", NOW));
-        assertEquals(20.0, orders.mintedSpent(NOW));
+        assertEquals(32.0, orders.systemSpent("iron", NOW));
+        assertEquals(25.0, orders.mintedSpent(NOW));
     }
 
     @Test
