@@ -11,12 +11,13 @@
   ],
   "packageRules": [
     {
-      "description": "The Playwright image of the frontend job must match the Playwright package",
+      "description": "The Playwright image of the frontend job must match the Playwright package, so both wait the same 14 days",
       "matchPackageNames": [
         "@playwright/test",
         "mcr.microsoft.com/playwright"
       ],
-      "groupName": "playwright"
+      "groupName": "playwright",
+      "minimumReleaseAge": "14 days"
     }
   ]
 }
