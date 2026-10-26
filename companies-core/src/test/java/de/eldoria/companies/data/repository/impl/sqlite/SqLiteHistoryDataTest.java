@@ -266,6 +266,31 @@ class SqLiteHistoryDataTest {
     }
 
     @Test
+    void companyEntriesLeaveOutOrdersWithADecisionBeforeTheServerReceivedThem() {
+        var day = NOW.toLocalDate().atStartOfDay();
+        recorder.companyEntry(order(2), COMPANY, HistoryOutcome.DELIVERED, List.of())
+                .join();
+        new SqLiteOrderData(null, SqLiteTestDatabase.mapper())
+                .saveSystemDecision(new SystemDecision(2, "iron", "DEFINED", NOW, null, 10, "{}"));
+
+        var entries = history.retrieveCompanyEntries(HistoryOutcome.DELIVERED, day, day.plusDays(1))
+                .join();
+
+        Assertions.assertTrue(entries.isEmpty());
+    }
+
+    @Test
+    void aDecisionStaysWhileTheHistoryOfItsOrderStays() {
+        var orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper());
+        orderData.saveSystemDecision(new SystemDecision(3, "iron", "DEFINED", NOW.minusDays(100), null, 10, "{}"));
+        recorder.ownerEntry(order(3, SystemOwner.ID), HistoryOutcome.RECEIVED).join();
+
+        history.submitPurge(NOW.minusDays(90)).join();
+
+        Assertions.assertTrue(orderData.systemDecision(3).isPresent());
+    }
+
+    @Test
     void thePurgeDropsOldDecisionsOfOrdersThatAreGone() {
         var orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper());
         orderData.saveSystemDecision(new SystemDecision(1, "iron", "DEFINED", NOW.minusDays(100), null, 10, "{}"));

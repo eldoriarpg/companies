@@ -122,8 +122,8 @@ public abstract class AHistoryData {
             HistoryOutcome outcome, LocalDateTime from, LocalDateTime to);
 
     /**
-     * Deletes every entry of orders that ended before a point in time, and the decisions of system orders placed before
-     * it whose order is gone.
+     * Deletes every entry of orders that ended before a point in time, and then the decisions of system orders placed
+     * before it whose order and history entries are gone, so a decision never leaves before its history.
      *
      * @param before entries that ended before this are deleted
      * @return number of entries deleted

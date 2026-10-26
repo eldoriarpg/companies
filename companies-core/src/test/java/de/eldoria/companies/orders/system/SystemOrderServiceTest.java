@@ -354,6 +354,32 @@ class SystemOrderServiceTest {
         assertEquals(Step.MINTED_CAP, step(service.run()));
 
         assertEquals(1, removed.size());
+        assertTrue(balances.isEmpty());
+    }
+
+    @Test
+    void aMintedOrderThatCannotBeRemovedAgainSaysSo() {
+        failStore = true;
+        failRemove = true;
+        rule(fixed("iron", 2.0));
+
+        assertEquals(Step.FAILED, step(service.run()));
+
+        assertTrue(balances.isEmpty());
+        assertTrue(logged.stream().anyMatch(message -> message.contains("stays open")));
+    }
+
+    @Test
+    void aRaiseBeyondTheBudgetThatCannotBeRemovedKeepsTheMoneyAndSaysSo() {
+        balances.put(BANK, 1000.0);
+        changedPrice = 250.0;
+        failRemove = true;
+        rule(fixed("iron", 2.0)).source(new MoneySource(SourceType.ACCOUNT, BANK, 200));
+
+        assertEquals(Step.BUDGET, step(service.run()));
+
+        assertEquals(750.0, balances.get(BANK));
+        assertTrue(logged.stream().anyMatch(message -> message.contains("is not given back")));
     }
 
     @Test

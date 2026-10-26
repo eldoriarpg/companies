@@ -155,9 +155,11 @@ public class MariaDbHistoryData extends AHistoryData {
                 DELETE
                 FROM system_order_decisions
                 WHERE decided_at < ?
-                  AND order_id NOT IN (SELECT id FROM orders)""";
+                  AND order_id NOT IN (SELECT id FROM orders)
+                  AND order_id NOT IN (SELECT order_id FROM order_history)""";
+        var purged = query(query).single(call().bind(before, time())).delete().rows();
         query(decisions).single(call().bind(before, time())).delete();
-        return query(query).single(call().bind(before, time())).delete().rows();
+        return purged;
     }
 
     private HistoryEntry parseEntry(Row row) throws SQLException {

@@ -290,6 +290,7 @@ public final class SystemOrderService {
         }
         if (removed) giveBack(account, amount);
         else if (account != null) lost(order, account, amount);
+        else logger.severe("The system order " + order + " could not be removed after a failure and stays open.");
     }
 
     private boolean store(SystemDecision decision) {
