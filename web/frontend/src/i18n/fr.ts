@@ -258,6 +258,8 @@ export default {
         },
         settings: {
             icon: {
+                none: 'Le tableau de bord n\'affiche aucune icône.',
+                overridden: 'Ce serveur définit sa propre icône dans son node.yml et continue de l\'afficher.',
                 shared: 'Chaque serveur affiche l\'icône envoyée.',
                 perServer: 'Chaque serveur affiche son propre {file}.',
                 choose: 'Envoyer une icône pour tous les serveurs',

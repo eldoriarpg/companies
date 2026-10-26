@@ -258,6 +258,8 @@ export default {
         },
         settings: {
             icon: {
+                none: 'The dashboard shows no icon.',
+                overridden: 'This server sets its own icon in its node.yml, which it keeps showing.',
                 shared: 'Every server shows the uploaded icon.',
                 perServer: 'Each server shows its own {file}.',
                 choose: 'Upload an icon for every server',

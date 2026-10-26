@@ -172,10 +172,12 @@ public final class AdminSettingsWrites {
                     new Payloads.AdminSettingsSaved(
                             "invalid", 0, Map.of(ICON_KEY, "icon"), Map.of(), List.of(), List.of(), true));
         }
-        var hash = BrandingSource.hash(bytes);
+        var hash = BrandingSource.sha256(bytes);
         var name = "icon-" + hash.substring(0, 16);
         var nodeData = sources.nodeData().get();
-        nodeData.storeAsset(name, Base64.getEncoder().encodeToString(bytes), hash, admin);
+        if (!nodeData.storeAsset(name, Base64.getEncoder().encodeToString(bytes), hash, admin)) {
+            return answers.refused(request, "companyadmin.settings.error.failed");
+        }
         var values = Map.<String, JsonNode>of(ICON_KEY, StringNode.valueOf(BrandingSource.SHARED + name));
         return saved(request, admin, file, args.path("base").asInt(), values);
     }

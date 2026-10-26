@@ -251,17 +251,12 @@ public class MariaDbNodeData extends ANodeData {
     }
 
     @Override
-    public void storeAsset(String name, String content, String hash, String actor) {
-        @Language("mariadb")
-        var delete = """
-                DELETE FROM settings_asset
-                WHERE name = ?""";
+    protected void insertAsset(String name, String content, String hash, String actor) {
         @Language("mariadb")
         var insert = """
                 INSERT INTO settings_asset(name, content, hash, node_uid, actor, changed_at)
                 VALUES (?, ?, ?, ?, ?, ?)""";
 
-        query(delete).single(call().bind(name)).delete();
         query(insert)
                 .single(call().bind(name)
                         .bind(content)

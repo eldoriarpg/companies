@@ -294,7 +294,7 @@ function value(raw: unknown): string {
       <PlainList :data-testid="`admin-settings-${section.name}`">
         <li v-for="setting in section.entries" :key="setting.key" class="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 text-sm md:px-4" :data-testid="`admin-setting-${setting.key}`">
           <AdminSettingField v-model="draft[setting.key]" :setting="setting" :label="label(setting)" :hint="hint(setting)" :disabled="!editable"/>
-          <AdminSettingsIcon v-if="setting.key === 'dashboard.branding.icon' && editable && changed.length === 0 && settings" :base="settings.revision" :current="String(setting.value ?? '')" @done="iconDone"/>
+          <AdminSettingsIcon v-if="setting.key === 'dashboard.branding.icon' && editable && changed.length === 0 && settings" :base="settings.revision" :current="String(setting.value ?? '')" :overridden="setting.overridden" @done="iconDone"/>
           <span v-if="setting.type === 'SECRET'" class="text-xs text-ink-muted" data-testid="admin-setting-secret">{{ shown(setting) }}</span>
           <span v-if="errors[setting.key]" class="text-xs font-semibold text-problem-ink" role="alert">{{ problem(setting, errors[setting.key] ?? '') }}</span>
           <span v-if="newer && newer.changed.includes(setting.key)" class="text-xs font-semibold" data-testid="admin-setting-newer">{{ t('admin.settings.newerValue', {revision: newer.revision, value: setting.type === 'SECRET' ? t('admin.settings.secretChanged') : value(newer.values[setting.key] ?? setting.value)}) }}</span>

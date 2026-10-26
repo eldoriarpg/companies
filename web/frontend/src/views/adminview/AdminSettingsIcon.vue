@@ -19,6 +19,8 @@ const props = defineProps<{
   base: number
   /** The icon setting as stored: a file name, or `shared:` with an uploaded icon. */
   current: string
+  /** Whether the answering server sets its own icon in its node.yml, which wins over this one. */
+  overridden: boolean
 }>()
 
 const emit = defineEmits<{
@@ -36,6 +38,13 @@ const resetting = useAction()
 const chosen = ref<string | null>(null)
 const problem = ref('')
 const shared = computed(() => props.current.startsWith('shared:'))
+const busy = computed(() => uploading.busy.value || resetting.busy.value)
+const status = computed(() => {
+  if (shared.value) return t('admin.settings.icon.shared')
+  if (props.current === '') return t('admin.settings.icon.none')
+  return t('admin.settings.icon.perServer', {file: props.current})
+})
+let choice = 0
 
 /**
  * Checks the chosen file and shows it.
@@ -43,11 +52,14 @@ const shared = computed(() => props.current.startsWith('shared:'))
  * @param event the change of the file input
  */
 async function choose(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  const current = ++choice
   chosen.value = null
   problem.value = ''
-  const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (file.type !== 'image/png') {
+  if (file.type !== 'image/png' && file.type !== '') {
     problem.value = t('admin.settings.icon.notPng')
     return
   }
@@ -55,9 +67,20 @@ async function choose(event: Event): Promise<void> {
     problem.value = t('admin.settings.icon.tooLarge')
     return
   }
-  const url = await dataUrl(file)
+  let url: string
+  try {
+    url = await dataUrl(file)
+  } catch {
+    if (current === choice) problem.value = t('admin.settings.icon.notPng')
+    return
+  }
   const size = await dimensions(url)
-  if (!size || size.width > MAX_SIZE || size.height > MAX_SIZE) {
+  if (current !== choice) return
+  if (!size) {
+    problem.value = t('admin.settings.icon.notPng')
+    return
+  }
+  if (size.width > MAX_SIZE || size.height > MAX_SIZE) {
     problem.value = t('admin.settings.icon.tooWide')
     return
   }
@@ -109,7 +132,8 @@ async function reset(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-2 text-sm" data-testid="admin-settings-icon">
-    <p>{{ shared ? t('admin.settings.icon.shared') : t('admin.settings.icon.perServer', {file: current || SERVER_ICON}) }}</p>
+    <p>{{ status }}</p>
+    <p v-if="overridden" class="text-xs text-ink-muted">{{ t('admin.settings.icon.overridden') }}</p>
     <label class="flex flex-col gap-1">
       <span class="text-xs font-semibold text-ink-muted">{{ t('admin.settings.icon.choose') }}</span>
       <input type="file" accept="image/png" class="text-sm" @change="choose"/>
@@ -118,8 +142,8 @@ async function reset(): Promise<void> {
     <p v-if="problem" class="text-xs font-semibold text-problem-ink" role="alert">{{ problem }}</p>
     <img v-if="chosen" :src="chosen" :alt="t('admin.settings.icon.preview')" class="size-16 border border-line object-contain" data-testid="admin-settings-icon-preview"/>
     <ButtonRow>
-      <PrimaryButton v-if="chosen" :disabled="uploading.busy.value" @click="upload">{{ t('admin.settings.icon.upload') }}</PrimaryButton>
-      <SecondaryButton v-if="shared" :disabled="resetting.busy.value" @click="reset">{{ t('admin.settings.icon.reset') }}</SecondaryButton>
+      <PrimaryButton v-if="chosen" :disabled="busy" @click="upload">{{ t('admin.settings.icon.upload') }}</PrimaryButton>
+      <SecondaryButton v-if="shared" :disabled="busy" @click="reset">{{ t('admin.settings.icon.reset') }}</SecondaryButton>
     </ButtonRow>
     <ActionNotice :problem="uploading.problem.value ?? resetting.problem.value"/>
   </div>

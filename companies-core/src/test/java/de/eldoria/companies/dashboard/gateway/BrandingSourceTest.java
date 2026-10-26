@@ -75,6 +75,20 @@ class BrandingSourceTest {
     }
 
     @Test
+    void anUploadedIconThatCannotBeReadIsLeftOut() {
+        var source = new BrandingSource(
+                () -> new BrandingSettings("Castle", "shared:icon-abc"),
+                () -> "motd",
+                List.of(plugin, server),
+                asset -> {
+                    throw new IllegalStateException("the database is away");
+                },
+                Logger.getAnonymousLogger());
+
+        assertNull(source.read().orElseThrow().icon());
+    }
+
+    @Test
     void aFileInThePluginFolderComesFirst() throws Exception {
         Files.write(server.resolve("logo.png"), png(64, 64, 200));
         Files.write(plugin.resolve("logo.png"), png(32, 32, 100));

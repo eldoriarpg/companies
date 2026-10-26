@@ -34,6 +34,7 @@ import java.util.Optional;
  */
 public final class SettingsEditor {
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
+    private static final String SHARED_ICON = "shared:";
 
     private SettingsEditor() {}
 
@@ -55,8 +56,9 @@ public final class SettingsEditor {
             String actor) {
         var key = configuration.sharedKey(file).orElseThrow(() -> new IllegalArgumentException(file));
         var errors = new LinkedHashMap<String, String>();
-        values.forEach((name, value) ->
-                problem(configuration, file, name, value).ifPresent(problem -> errors.put(name, problem)));
+        values.forEach((name, value) -> problem(configuration, file, name, value)
+                .or(() -> missingIcon(nodeData, name, value))
+                .ifPresent(problem -> errors.put(name, problem)));
         if (!errors.isEmpty()) return new Result.Invalid(errors);
         var latest = nodeData.settingsRevisions().getOrDefault(file, 0);
         if (base < 0 || base > latest) return new Result.Invalid(Map.of("", "invalid"));
@@ -151,6 +153,15 @@ public final class SettingsEditor {
         return Optional.empty();
     }
 
+    private static Optional<String> missingIcon(ANodeData nodeData, String name, JsonNode value) {
+        if (!name.equals("dashboard.branding.icon") || !value.isString()) return Optional.empty();
+        var icon = value.asString().strip();
+        if (!icon.startsWith(SHARED_ICON)) return Optional.empty();
+        return nodeData.asset(icon.substring(SHARED_ICON.length())).isPresent()
+                ? Optional.empty()
+                : Optional.of("icon");
+    }
+
     private static boolean zone(String name) {
         if (name.isBlank()) return true;
         try {
@@ -196,7 +207,8 @@ public final class SettingsEditor {
          * @param fields the reason by dotted key: the type the value should have ({@code flag}, {@code whole},
          *               {@code decimal}, {@code text}, {@code choice}, {@code choices}, {@code text_list},
          *               {@code flag_map}, {@code secret}), {@code empty} for no value, {@code range} outside its bounds,
-         *               {@code timezone} for a zone that does not exist, {@code unknown}, {@code environment}, or
+         *               {@code timezone} for a zone that does not exist, {@code icon} for an uploaded icon that
+         *               does not exist, {@code unknown}, {@code environment}, or
          *               {@code invalid} under the empty key when the file as a whole could not be read or the
          *               revision edited does not exist
          */

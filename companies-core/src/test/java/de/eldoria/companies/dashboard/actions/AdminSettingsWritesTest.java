@@ -8,6 +8,7 @@ package de.eldoria.companies.dashboard.actions;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.SettingsCatalogue;
 import de.eldoria.companies.dashboard.DashboardWorld;
+import de.eldoria.companies.dashboard.gateway.BrandingSource;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.util.Permission;
@@ -450,5 +451,43 @@ class AdminSettingsWritesTest {
                     result.data().path("fields").path("dashboard.branding.icon").asString());
         }
         assertEquals(1, world.nodeData.settingsRevisions().get("config.yml"));
+    }
+
+    @Test
+    void anUploadNeedsTheReloadPermissionAndARefusedOneStoresNothing() {
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "startup");
+        var icon = png(64, 64, 300);
+        var args = "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + icon + "\"}";
+
+        assertEquals(
+                "companyadmin.error.permission",
+                read(Actions.ADMIN_SETTINGS_ICON, args).reason());
+        change(
+                Actions.ADMIN_SETTINGS_ICON,
+                "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + png(512, 64, 300) + "\"}");
+        var name = "icon-"
+                + BrandingSource.sha256(Base64.getDecoder().decode(icon)).substring(0, 16);
+        assertTrue(world.nodeData.asset(name).isEmpty());
+    }
+
+    @Test
+    void anUploadOnAnOutdatedRevisionIsNewerAndAHandTypedMissingIconIsRefused() {
+        var content = copy(Configuration.CONFIG_YML);
+        world.nodeData.publishSettings("config.yml", content, "startup");
+        world.nodeData.publishSettings(
+                "config.yml", content.replaceFirst("signHeader: \"\\[Companies\\]\"", "signHeader: \"[Shop]\""), "Bo");
+
+        var newer = change(
+                Actions.ADMIN_SETTINGS_ICON,
+                "{\"file\":\"config.yml\",\"base\":1,\"png\":\"" + png(64, 64, 300) + "\"}");
+        assertEquals(
+                "newer", newer.data().path("status").asString(), newer.data().toString());
+
+        var typed = change(
+                Actions.ADMIN_SETTINGS_SAVE,
+                "{\"file\":\"config.yml\",\"base\":2,\"values\":{\"dashboard.branding.icon\":\"shared:icon-nothere\"}}");
+        assertEquals(
+                "icon",
+                typed.data().path("fields").path("dashboard.branding.icon").asString());
     }
 }

@@ -159,21 +159,17 @@ public final class BrandingSource {
         return Optional.empty();
     }
 
-    /**
-     * @param bytes a file's content
-     * @return its SHA-256 as lower-case hex
-     */
-    public static String hash(byte[] bytes) {
-        return sha256(bytes);
-    }
-
     private void report(String file, String problem) {
         if (reported.add(file + problem)) {
             logger.warning("The dashboard icon " + file + " " + problem + ". The dashboard shows no icon.");
         }
     }
 
-    private static String sha256(byte[] bytes) {
+    /**
+     * @param bytes a file's content
+     * @return its SHA-256 as lower-case hex
+     */
+    public static String sha256(byte[] bytes) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException e) {

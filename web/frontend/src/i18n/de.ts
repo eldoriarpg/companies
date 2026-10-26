@@ -258,6 +258,8 @@ export default {
         },
         settings: {
             icon: {
+                none: 'Das Dashboard zeigt kein Symbol.',
+                overridden: 'Dieser Server setzt sein eigenes Symbol in seiner node.yml und zeigt es weiter.',
                 shared: 'Jeder Server zeigt das hochgeladene Symbol.',
                 perServer: 'Jeder Server zeigt sein eigenes {file}.',
                 choose: 'Symbol für alle Server hochladen',
