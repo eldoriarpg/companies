@@ -51,7 +51,8 @@ import java.util.logging.Level;
  *     <li>{@code info <id>} shows why a system order was placed: the rule and the numbers its price and money stood
  *     on. It works for ended orders as long as the order history keeps them;</li>
  *     <li>{@code stats} shows per material what guessed orders learned: how many were placed, taken and expired, the
- *     average minutes until one was taken, and the factor learning moved the price to.</li>
+ *     average minutes until one was taken, and the factor a new order pays: the one learning walked to, or the
+ *     configured one while learning is off.</li>
  * </ul>
  * Removing one is {@code /companyadmin order cancel}, which gives its money back to the account that paid it.
  */
@@ -101,7 +102,8 @@ public final class SystemOrdersCommand {
         deps.requireReady();
         var orderData = deps.orderData();
         var guessed = deps.configuration().systemOrderSettings().guessed();
-        run(sender, () -> GuessedLearning.stats(orderData, guessed.learning()), stats -> {
+        var since = Times.now().minusDays(guessed.learning().days());
+        run(sender, () -> GuessedLearning.stats(orderData, guessed, since), stats -> {
             if (stats.isEmpty()) {
                 deps.messages().sendMessage(sender, PREFIX + "stats.none");
                 return;
@@ -117,8 +119,7 @@ public final class SystemOrdersCommand {
     }
 
     private MenuText statsLine(GuessedSettings guessed, GuessedLearning.Stats stats) {
-        var learning = guessed.learning();
-        var factor = stats.factor(guessed.factor(), learning.minFactor(), guessed.maxFactor());
+        var factor = guessed.learning().enabled() ? stats.factor() : guessed.factor();
         var minutes = stats.minutesToTake();
         return MenuText.create()
                 .locale(

@@ -423,20 +423,23 @@ public abstract class AOrderData {
     /**
      * Notes how a system order ended, unless an outcome was noted before.
      *
-     * @param order   id of the order
-     * @param outcome how it ended
-     * @param at      when it ended
+     * @param order       id of the order
+     * @param outcome     how it ended
+     * @param at          when it ended
+     * @param replaceable an outcome noted before that this one replaces, such as {@code TAKEN} for an order taken and
+     *                    given up again; null to replace none
      * @return true when this noted it
      */
-    public abstract boolean systemOutcome(int order, String outcome, LocalDateTime at);
+    public abstract boolean systemOutcome(int order, String outcome, LocalDateTime at, @Nullable String replaceable);
 
     /**
-     * Every kept decision of a rule with how its order ended, oldest first.
+     * The decisions of a rule placed since a point in time, with how their orders ended, oldest first.
      *
-     * @param rule id of the rule
+     * @param rule  id of the rule
+     * @param since the oldest placement read
      * @return the decisions and outcomes
      */
-    public abstract List<SystemOutcome> systemOutcomes(String rule);
+    public abstract List<SystemOutcome> systemOutcomes(String rule, LocalDateTime since);
 
     /**
      * What players ask for in their orders nobody claimed yet, per material. Orders of the server are left out.

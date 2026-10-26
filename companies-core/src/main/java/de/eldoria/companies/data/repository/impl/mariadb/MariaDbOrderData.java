@@ -826,30 +826,31 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    public boolean systemOutcome(int order, String outcome, LocalDateTime at) {
+    public boolean systemOutcome(int order, String outcome, LocalDateTime at, @Nullable String replaceable) {
         @Language("mariadb")
         var update = """
                 UPDATE system_order_decisions
                 SET outcome  = ?,
                     ended_at = ?
                 WHERE order_id = ?
-                  AND outcome IS NULL""";
+                  AND (outcome IS NULL OR outcome = ?)""";
         return query(update)
-                .single(call().bind(outcome).bind(at, time()).bind(order))
+                .single(call().bind(outcome).bind(at, time()).bind(order).bind(replaceable))
                 .update()
                 .changed();
     }
 
     @Override
-    public List<SystemOutcome> systemOutcomes(String rule) {
+    public List<SystemOutcome> systemOutcomes(String rule, LocalDateTime since) {
         @Language("mariadb")
         var select = """
                 SELECT order_id, rule, kind, decided_at, account, paid, record, outcome, ended_at
                 FROM system_order_decisions
                 WHERE rule = ?
+                  AND decided_at >= ?
                 ORDER BY decided_at, order_id""";
         return query(select)
-                .single(call().bind(rule))
+                .single(call().bind(rule).bind(since, time()))
                 .map(row -> new SystemOutcome(
                         parseDecision(row),
                         row.getString("outcome"),

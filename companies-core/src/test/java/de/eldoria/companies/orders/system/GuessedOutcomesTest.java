@@ -65,7 +65,9 @@ class GuessedOutcomesTest {
         outcomes.onAccept(new OrderAcceptEvent(order(1, SystemOwner.ID), company));
         outcomes.onAccept(new OrderAcceptEvent(order(1, SystemOwner.ID), company));
 
-        var noted = orderData.systemOutcomes("guessed").getFirst();
+        var noted = orderData
+                .systemOutcomes("guessed", LocalDateTime.of(2000, 1, 1, 0, 0))
+                .getFirst();
         assertEquals(GuessedLearning.TAKEN, noted.outcome());
         assertEquals(LocalDateTime.ofInstant(NOW, ZoneOffset.UTC), noted.endedAt());
     }
@@ -79,7 +81,10 @@ class GuessedOutcomesTest {
 
         assertEquals(
                 GuessedLearning.TAKEN,
-                orderData.systemOutcomes("guessed").getFirst().outcome());
+                orderData
+                        .systemOutcomes("guessed", LocalDateTime.of(2000, 1, 1, 0, 0))
+                        .getFirst()
+                        .outcome());
     }
 
     @Test
@@ -89,7 +94,10 @@ class GuessedOutcomesTest {
 
         outcomes.onAccept(new OrderAcceptEvent(order(3, UUID.randomUUID()), company));
 
-        assertNull(orderData.systemOutcomes("guessed").getFirst().outcome());
+        assertNull(orderData
+                .systemOutcomes("guessed", LocalDateTime.of(2000, 1, 1, 0, 0))
+                .getFirst()
+                .outcome());
     }
 
     private void decision(int order) {

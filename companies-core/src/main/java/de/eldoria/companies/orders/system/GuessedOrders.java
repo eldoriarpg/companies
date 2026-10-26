@@ -48,14 +48,16 @@ import java.util.stream.Collectors;
  *     <li>New guessed orders, replacements first, fill up to the target of {@link GuessedChoice#target}, one per
  *     material. While learning is on, each is drawn at random weighted as {@link GuessedLearning} says and priced
  *     from the factor it learned; otherwise they follow the order of {@link GuessedChoice#rank}. Either way they skip
- *     resting materials and, in {@code SKIP} mode, those players have open orders for. A placement that fails is logged and the next candidate is tried, also when money
- *     stopped it, since a cheaper one may still fit; a missing account, or money stopping {@value #MONEY_FAILURES}
- *     placements, ends the check's placing. A replacement money stopped is placed later as a new order.</li>
+ *     resting materials and, in {@code SKIP} mode, those players have open orders for. A placement that fails is
+ *     logged and the next candidate is tried, also when money stopped it, since a cheaper one may still fit; a
+ *     missing account, or money stopping {@value #MONEY_FAILURES} placements, ends the check's placing. A
+ *     replacement money stopped is placed later as a new order.</li>
  * </ol>
  * The allow and deny lists are resolved to material names first; entries naming no item are logged. While guessed
  * orders or system orders are disabled, open ones are removed when they would be repriced, and none are placed.
  * Removed orders give their money back to the account that paid them. How a removed order ended is noted for
- * learning: {@code EXPIRED} when nobody took it before its reprice, {@code WITHDRAWN} when it made way for players or
+ * learning: {@code REPRICED} when a copy at a higher price replaced it, {@code EXPIRED} when nobody took the last
+ * copy of a chain, {@code WITHDRAWN} when it made way for players or
  * guessed orders were switched off.
  */
 final class GuessedOrders {
@@ -119,7 +121,6 @@ final class GuessedOrders {
             }
             return;
         }
-        var learning = learning(settings);
         var demand = demand();
         var ranking = GuessedChoice.rank(
                 settings,
@@ -149,12 +150,16 @@ final class GuessedOrders {
             }
             if (!purchases.remove(order.decision())) continue;
             removed.add(order.decision().order());
-            ended(order, GuessedLearning.EXPIRED, now);
-            if (material == null) continue;
+            if (material == null) {
+                ended(order, GuessedLearning.EXPIRED, now);
+                continue;
+            }
             if (record.step() < settings.maxReprices() && ranks.containsKey(material) && !capped(record)) {
+                ended(order, GuessedLearning.REPRICED, now);
                 replacements.add(new Replacement(
                         material, record.step() + 1, order.decision().order()));
             } else {
+                ended(order, GuessedLearning.EXPIRED, now);
                 rest(settings, material, now);
             }
         }
@@ -165,8 +170,9 @@ final class GuessedOrders {
                 .collect(Collectors.toCollection(HashSet::new));
         var openPlayer = orders.openPlayerOrders();
         var target = GuessedChoice.target(settings, openPlayer);
-        var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results, learning);
         var slots = target - stillOpen;
+        var learning = slots > 0 ? learning(settings, now) : Map.<String, GuessedLearning.Stats>of();
+        var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results, learning);
         var moneyFailures = 0;
         for (var replacement : replacements) {
             var material = replacement.material();
@@ -219,14 +225,22 @@ final class GuessedOrders {
     }
 
     /**
-     * What learning knows of the guessed orders, per material; empty while learning is off.
+     * What learning knows of the guessed orders of the last {@code days}, per material; empty while learning is off or
+     * when it cannot be read, so the check goes on by rank at the configured factor.
      *
      * @param settings the guessed order settings
+     * @param now      the current time
      * @return the statistics per material
      */
-    private Map<String, GuessedLearning.Stats> learning(GuessedSettings settings) {
+    private Map<String, GuessedLearning.Stats> learning(GuessedSettings settings, LocalDateTime now) {
         if (!settings.learning().enabled()) return Map.of();
-        return GuessedLearning.stats(orders, settings.learning());
+        try {
+            return GuessedLearning.stats(
+                    orders, settings, now.minusDays(settings.learning().days()));
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not read what guessed orders learned; placing without it", e);
+            return Map.of();
+        }
     }
 
     private static double weight(
@@ -237,9 +251,13 @@ final class GuessedOrders {
         return takeRate / (1 + candidate.score());
     }
 
+    /**
+     * Notes how an order this check removed ended. The order was unclaimed, so a {@code TAKEN} noted before belongs
+     * to a take given up again and is replaced.
+     */
     private void ended(Open order, String outcome, LocalDateTime now) {
         try {
-            orders.systemOutcome(order.decision().order(), outcome, now);
+            orders.systemOutcome(order.decision().order(), outcome, now, GuessedLearning.TAKEN);
         } catch (RuntimeException e) {
             logger.log(
                     Level.WARNING,
@@ -402,9 +420,7 @@ final class GuessedOrders {
         var material = candidate.material();
         var stats = placing.learning().get(material);
         var learned = settings.learning();
-        var base = stats == null
-                ? settings.factor()
-                : stats.factor(settings.factor(), learned.minFactor(), settings.maxFactor());
+        var base = stats == null ? settings.factor() : stats.factor();
         Step result;
         if (!placement.knows(material)) {
             result = purchases.note(label, Step.UNKNOWN_ITEM, material);
@@ -460,12 +476,16 @@ final class GuessedOrders {
                                         money.budgetLeft(),
                                         money.mintedLeft(),
                                         learned.enabled()
-                                                ? learning(base, stats, weight, priced.factor(), learned)
+                                                ? learning(base, stats, weight, paidFactor(priced), learned)
                                                 : null))
                         .step();
             }
         }
         return result;
+    }
+
+    private static double paidFactor(GuessedChoice.Price priced) {
+        return priced.average() > 0 ? priced.unit() / priced.average() : priced.factor();
     }
 
     private static GuessedRecord.Learning learning(

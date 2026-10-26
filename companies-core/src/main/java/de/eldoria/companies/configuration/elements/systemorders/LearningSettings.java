@@ -12,7 +12,7 @@ package de.eldoria.companies.configuration.elements.systemorders;
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class LearningSettings {
     private boolean enabled = true;
-    private int window = 10;
+    private int days = 30;
     private int fastMinutes = 30;
     private double step = 0.05;
     private double minFactor = 0.5;
@@ -32,14 +32,14 @@ public class LearningSettings {
     }
 
     /**
-     * @return how many of a material's last ended orders move its price, at least 1
+     * @return how many days back guessed orders count for learning, at least 1
      */
-    public int window() {
-        return Math.max(1, window);
+    public int days() {
+        return Math.max(1, days);
     }
 
-    public void window(int window) {
-        this.window = window;
+    public void days(int days) {
+        this.days = days;
     }
 
     /**
@@ -65,7 +65,7 @@ public class LearningSettings {
     }
 
     /**
-     * @return the lowest factor learning may reach, above 0
+     * @return the lowest factor learning may reach, above 0; a lower configured {@code factor} lowers it further
      */
     public double minFactor() {
         return Math.max(0.01, minFactor);

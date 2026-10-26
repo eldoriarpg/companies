@@ -64,7 +64,7 @@ public final class GuessedOutcomes implements Listener {
         var at = LocalDateTime.now(clock);
         executor.execute(() -> {
             try {
-                orders.systemOutcome(order.id(), GuessedLearning.TAKEN, at);
+                orders.systemOutcome(order.id(), GuessedLearning.TAKEN, at, null);
             } catch (RuntimeException e) {
                 logger.log(Level.WARNING, "Could not note that the system order " + order.id() + " was taken", e);
             }

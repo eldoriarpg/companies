@@ -162,14 +162,19 @@ public abstract class SystemOrderDataContract {
         var order = order(server, Material.DIRT, 1, 1.0);
         orders.saveSystemDecision(decision(order, "guessed", NOW, null, 1));
 
-        assertTrue(orders.systemOutcome(order.id(), "TAKEN", NOW.plusMinutes(5)));
-        assertTrue(!orders.systemOutcome(order.id(), "EXPIRED", NOW.plusMinutes(9)));
+        assertTrue(orders.systemOutcome(order.id(), "TAKEN", NOW.plusMinutes(5), null));
+        assertTrue(!orders.systemOutcome(order.id(), "EXPIRED", NOW.plusMinutes(9), null));
 
-        var outcome = orders.systemOutcomes("guessed").getFirst();
+        var outcome = orders.systemOutcomes("guessed", NOW.minusDays(1)).getFirst();
         assertEquals(order.id(), outcome.decision().order());
         assertEquals("TAKEN", outcome.outcome());
         assertEquals(NOW.plusMinutes(5), outcome.endedAt());
-        assertTrue(orders.systemOutcomes("iron").isEmpty());
+        assertTrue(orders.systemOutcomes("iron", NOW.minusDays(1)).isEmpty());
+        assertTrue(orders.systemOutcomes("guessed", NOW.plusMinutes(1)).isEmpty());
+
+        assertTrue(orders.systemOutcome(order.id(), "EXPIRED", NOW.plusHours(3), "TAKEN"));
+        assertEquals("EXPIRED", orders.systemOutcomes("guessed", NOW).getFirst().outcome());
+        assertTrue(!orders.systemOutcome(order.id(), "WITHDRAWN", NOW.plusHours(4), "TAKEN"));
     }
 
     @Test
