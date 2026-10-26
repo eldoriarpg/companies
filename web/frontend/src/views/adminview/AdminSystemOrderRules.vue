@@ -36,6 +36,7 @@ const rules = ref<SystemOrderRule[]>([])
 const chosen = ref(0)
 const errors = ref<Record<string, string>>({})
 const done = ref('')
+const kept = ref(false)
 const rule = computed(() => rules.value[chosen.value])
 const incomplete = computed(() => rules.value.findIndex(entry => !complete(entry)))
 const failing = computed(() => [...new Set(Object.keys(errors.value)
@@ -108,6 +109,7 @@ function complete(entry: SystemOrderRule): boolean {
 /** Saves every rule as the next revision. */
 async function save(): Promise<void> {
   done.value = ''
+  kept.value = false
   errors.value = {}
   const result = await saving.run('admin.systemorders.rules.save', {base: revision.value, rules: rules.value})
   if (!result) return
@@ -125,7 +127,7 @@ async function save(): Promise<void> {
   }
   revision.value = result.revision
   done.value = t(result.result === 'saved' ? 'admin.systemorders.rules.saved' : 'admin.systemorders.rules.unchanged')
-  if (!result.applied) done.value += ` ${t('admin.systemorders.rules.notApplied')}`
+  kept.value = !result.applied
 }
 
 /**
@@ -175,6 +177,7 @@ function problems(index: number): string[] {
           <PrimaryButton :disabled="saving.busy.value || incomplete >= 0" @click="save">{{ t('admin.systemorders.rules.save') }}</PrimaryButton>
         </template>
         <Alert v-if="done" variant="success">{{ done }}</Alert>
+        <Alert v-if="kept" variant="notice">{{ t('admin.systemorders.rules.notApplied') }}</Alert>
         <ActionNotice :problem="saving.problem.value"/>
       </div>
     </PanelBox>

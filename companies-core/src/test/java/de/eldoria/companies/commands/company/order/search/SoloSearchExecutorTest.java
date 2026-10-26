@@ -52,6 +52,9 @@ class SoloSearchExecutorTest {
     private PlayerMock player;
     private SoloSearchExecutor finder;
 
+    private boolean marked;
+    private final SearchQuery query = new SearchQuery();
+
     @BeforeEach
     void setUp() throws Exception {
         server = MockBukkit.mock();
@@ -84,9 +87,6 @@ class SoloSearchExecutorTest {
         var matcher = ItemMatcher.of(new ItemMatchSettings(), Logger.getAnonymousLogger());
         finder = new SoloSearchExecutor(orders.orderData(), () -> service, () -> matcher, () -> marked);
     }
-
-    private boolean marked;
-    private final SearchQuery query = new SearchQuery();
 
     @AfterEach
     void tearDown() {
@@ -162,6 +162,16 @@ class SoloSearchExecutorTest {
         query.serverOrders(SearchQuery.ServerOrders.ONLY);
         assertEquals(List.of(server.id()), ids(search()));
         marked = false;
+        assertEquals(List.of(player.id(), server.id()), ids(search()));
+    }
+
+    @Test
+    void playerOrdersComeFirstAmongEqualsWhileTheServerMarksItsOrders() {
+        marked = true;
+        var server = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        var player = orders.place(0.0);
+        query.sortingType(SortingType.PRICE);
+
         assertEquals(List.of(player.id(), server.id()), ids(search()));
     }
 }

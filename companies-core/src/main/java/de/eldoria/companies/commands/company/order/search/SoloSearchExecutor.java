@@ -39,16 +39,6 @@ public final class SoloSearchExecutor implements OrderFinder {
      * @param orderData  order repository
      * @param soloOrders the solo order service, which knows whether the player may work alone
      * @param matcher    the current item matcher, which decides what the player can deliver
-     */
-    public SoloSearchExecutor(
-            AOrderData orderData, Supplier<SoloOrderService> soloOrders, Supplier<ItemMatcher> matcher) {
-        this(orderData, soloOrders, matcher, () -> false);
-    }
-
-    /**
-     * @param orderData  order repository
-     * @param soloOrders the solo order service, which knows whether the player may work alone
-     * @param matcher    the current item matcher, which decides what the player can deliver
      * @param marked     whether the server marks its own orders, so the search shows or hides them as asked and lists
      *                   player orders first among equals
      */

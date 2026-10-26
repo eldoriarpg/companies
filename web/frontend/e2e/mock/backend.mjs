@@ -535,7 +535,7 @@ function action(name, args, state, story = {}) {
             if (Object.keys(errors).length > 0) return done({result: 'invalid', revision: 0, errors})
             state.rules = args.rules
             state.ruleRevision = (state.ruleRevision ?? 1) + 1
-            return done({result: 'saved', revision: state.ruleRevision, errors: {}})
+            return done({result: 'saved', revision: state.ruleRevision, errors: {}, applied: true})
         }
         case 'admin.nodes.remove':
             state.servers = servers(state).filter(entry => entry.uid !== args.uid)
