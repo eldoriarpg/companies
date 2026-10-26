@@ -158,8 +158,6 @@ public final class SetupCommand {
     private void enterKey(Player admin, String key) {
         try {
             deps.dashboard().enterKey(key).join();
-        } catch (CommandFailure failure) {
-            throw failure;
         } catch (RuntimeException e) {
             var cause = e.getCause() == null ? e : e.getCause();
             deps.plugin()
