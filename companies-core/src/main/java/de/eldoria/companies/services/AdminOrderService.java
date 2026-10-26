@@ -235,8 +235,12 @@ public final class AdminOrderService {
      * @param order  order as it was before the deletion
      * @param refund true to refund the owner
      * @return price and fee for the owner on a refund, otherwise price and fee for the collector
+     * A system order was never charged, so it refunds and keeps nothing.
+     * <p>
+     * TODO refund a system order funded from an account to that account.
      */
     public static CancelMoney cancelMoney(FullOrder order, boolean refund) {
+        if (SystemOwner.is(order.owner())) return new CancelMoney(0, 0);
         var total = BigDecimal.valueOf(order.price())
                 .add(BigDecimal.valueOf(order.fee()))
                 .doubleValue();
@@ -248,8 +252,10 @@ public final class AdminOrderService {
      *
      * @param order delivered order with its deliveries
      * @return the price minus the workers' shares, rounded to cents and never negative
+     * A system order was never charged, so it refunds nothing.
      */
     public static double undeliveredRefund(FullOrder order) {
+        if (SystemOwner.is(order.owner())) return 0;
         var paid = order.payments(PaymentType.STACK).values().stream()
                 .map(BigDecimal::valueOf)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

@@ -88,7 +88,8 @@ class OrderCreationServiceTest {
 
     @Test
     void aSystemOrderBelongsToTheServerChargesNothingAndKeepsItsRule() {
-        var systemOrders = new SystemOrders(service(orderData), orderData, id -> server.getOfflinePlayer(id));
+        var systemOrders =
+                new SystemOrders(service(orderData), orderData, id -> server.getOfflinePlayer(id), plugin.getLogger());
 
         var outcome = systemOrders.place(stone(10, 5.0), "harbour").join();
 

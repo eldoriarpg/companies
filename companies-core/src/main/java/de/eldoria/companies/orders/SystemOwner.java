@@ -11,11 +11,12 @@ import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * The owner of the orders the server places itself. It is a reserved id of version 0, which neither Mojang nor an
- * offline server ever hands out, so it never belongs to a player.
+ * The owner of the orders the server places itself. It is a reserved id of version 0. Mojang and offline servers never
+ * hand out such ids; Floodgate's version-0 ids of Bedrock players carry an XUID far above this one.
  * <p>
  * Everything that would reach the owner of an order skips it: no notifications, no items to receive (a delivered
- * system order is completed at once and its items are removed), and refunds go back to where its money came from.
+ * system order is received at once for the server and its items are removed), and no refunds, since it was never
+ * charged.
  */
 public final class SystemOwner {
     /**

@@ -335,7 +335,14 @@ public class Companies extends EldoPlugin {
         var historyRecorder = new HistoryRecorder(information.history(), Times.UTC);
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
-                this, orderData, information.stats(), historyRecorder, economy, configuration, treasuryService);
+                this,
+                orderData,
+                information.stats(),
+                historyRecorder,
+                economy,
+                configuration,
+                treasuryService,
+                outcomes);
         var soloOrders = SoloOrderService.create(this, orderData, companyData, outcomes, configuration);
 
         var orderCreation = new OrderCreationService(

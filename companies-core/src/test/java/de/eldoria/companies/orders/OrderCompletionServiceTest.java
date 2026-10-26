@@ -18,12 +18,15 @@ import de.eldoria.companies.data.wrapper.stats.MemberStats;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
+import de.eldoria.companies.events.order.OrderReceivedEvent;
 import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
+import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
@@ -46,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,6 +67,7 @@ class OrderCompletionServiceTest {
     private final AtomicReference<Double> collected = new AtomicReference<>(0.0);
     private final AtomicInteger sharePercent = new AtomicInteger();
     private final List<Kept> kept = new CopyOnWriteArrayList<>();
+    private final List<Event> received = new CopyOnWriteArrayList<>();
 
     @TempDir
     Path directory;
@@ -113,7 +118,16 @@ class OrderCompletionServiceTest {
                 level -> 10.0,
                 () -> 5.0,
                 Clock.systemDefaultZone(),
-                executor);
+                executor,
+                order -> new OrderOutcomes(
+                                orders.orderData(),
+                                new HistoryRecorder(history, Clock.systemDefaultZone()),
+                                new ItemReturnService(plugin, orders.orderData()),
+                                received::add,
+                                ISimpleCompany::forId,
+                                Logger.getAnonymousLogger(),
+                                executor)
+                        .receive(order, List.of()));
     }
 
     @AfterEach
@@ -152,6 +166,7 @@ class OrderCompletionServiceTest {
         assertEquals(1, owned.size());
         assertEquals(HistoryOutcome.RECEIVED, owned.get(0).outcome());
         assertEquals(0, SqLiteTestDatabase.count("item_returns", "1 = 1"));
+        assertTrue(received.stream().anyMatch(event -> event instanceof OrderReceivedEvent));
     }
 
     @Test
@@ -287,6 +302,21 @@ class OrderCompletionServiceTest {
         orders.deliver(order, 0, Material.STONE, alice, 10);
         orders.deliver(order, 1, Material.DIRT, alice, 5);
         return orders.reload(order);
+    }
+
+    @Test
+    void aSoloDeliveredSystemOrderIsReceivedAtOnceToo() {
+        var system = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID));
+        var order = system.place(0.0);
+        assertTrue(system.orderData().submitSoloClaim(alice, order, 1).join());
+        system.deliver(order, 0, Material.STONE, alice, 10);
+        system.deliver(order, 1, Material.DIRT, alice, 5);
+
+        service.completeSolo(system.reload(order)).join().orElseThrow();
+
+        assertEquals(OrderState.RECEIVED, system.reload(order).state());
+        assertEquals(
+                1, history.retrieveOwnerHistory(SystemOwner.ID, 1, 10).join().size());
     }
 
     @Test

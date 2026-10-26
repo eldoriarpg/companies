@@ -27,6 +27,7 @@ import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderTable;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.AdminOrderService.Refusal;
 import de.eldoria.companies.services.AdminOrderService.Result;
 import de.eldoria.companies.util.TestExecutors;
@@ -53,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -123,7 +125,8 @@ class AdminOrderServiceTest {
                 level -> 10.0,
                 () -> 5.0,
                 Clock.systemDefaultZone(),
-                executor);
+                executor,
+                order -> CompletableFuture.completedFuture(false));
         var funds = new AdminOrderService.Funds() {
             @Override
             public void refund(UUID owner, double amount) {
@@ -230,6 +233,16 @@ class AdminOrderServiceTest {
         return orders.orderData()
                 .retrieveItemReturnCount(worker, ReturnKind.WORKER)
                 .join();
+    }
+
+    @Test
+    void aSystemOrderWasNeverChargedSoItRefundsAndKeepsNothing() {
+        var system = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID));
+        var order = system.full(system.place(0.0));
+
+        assertEquals(new AdminOrderService.CancelMoney(0, 0), AdminOrderService.cancelMoney(order, true));
+        assertEquals(new AdminOrderService.CancelMoney(0, 0), AdminOrderService.cancelMoney(order, false));
+        assertEquals(0.0, AdminOrderService.undeliveredRefund(order));
     }
 
     @Test

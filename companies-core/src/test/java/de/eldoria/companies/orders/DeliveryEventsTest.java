@@ -82,7 +82,8 @@ class DeliveryEventsTest {
                 level -> 0.0,
                 () -> 5.0,
                 Clock.systemDefaultZone(),
-                executor);
+                executor,
+                order -> CompletableFuture.completedFuture(false));
         service = new DeliveryService(
                 plugin,
                 orders.orderData(),

@@ -20,6 +20,7 @@ import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.menus.admin.AdminOrderActions;
 import de.eldoria.companies.menus.admin.AdminOrderListMenu;
 import de.eldoria.companies.menus.admin.AdminOrderMenu;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.AdminOrderLookup;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.AdminOrderService.Result;
@@ -479,8 +480,8 @@ public final class AdminOrderCommand implements AdminOrderActions {
     }
 
     private String playerName(UUID player) {
-        var name = deps.plugin().getServer().getOfflinePlayer(player).getName();
-        return name == null ? player.toString() : name;
+        return SystemOwner.name(
+                player, id -> deps.plugin().getServer().getOfflinePlayer(id).getName());
     }
 
     private AdminLog.Entry log(Player admin, String action, SimpleOrder order) {

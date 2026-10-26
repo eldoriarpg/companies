@@ -17,6 +17,7 @@ import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.orders.SystemOwner;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -100,6 +101,10 @@ final class OrderApiImpl implements OrderApi {
 
     @Override
     public CompletableFuture<CreateOrderResult> create(OrderRequest request) {
+        if (SystemOwner.is(request.owner())) {
+            return CompletableFuture.failedFuture(
+                    new IllegalArgumentException("The owner id " + request.owner() + " is reserved for the server."));
+        }
         return writes.run(services -> services.orders()
                         .create(
                                 players.apply(request.owner()),
