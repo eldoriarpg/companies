@@ -175,6 +175,11 @@ it.
 | System orders | Edit the defined rules of [system-orders.yml](./configuration/system-orders-yml.md) in a list with a form per rule, and save them together as the next revision. A rule with a missing, reserved or repeated id, or a material that is no item, is marked and nothing is saved; when someone saved the rules meanwhile, their rules are loaded. The other system order settings, guessed orders included, are in the Settings tab. | `companies.admin.orders` and `companies.admin.reload` | editing `system-orders.yml` |
 | Servers | Sync the configuration from the primary, after asking once more. Only the primary does it; while it is not connected, the button answers that the server is offline. The dashboard reconnects for a moment. | `companies.admin` | `/companyadmin syncconfiguration` |
 
+While `markSystemOrders` in [system-orders.yml](./configuration/system-orders-yml.md) is on, the order book shows a
+*Server* badge on the server's own orders and filter chips to show only them or hide them; switching it on or off
+reconnects the dashboard so the chips follow. Set `orders.servermarks` in `dashboard.features` to `false` to keep the
+badge and chips off the dashboard while the game still marks the orders.
+
 Switch a tab off with `dashboard.features` like any other part: set `admin.orders`, `admin.players`,
 `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config`, `admin.settings`, `admin.setup` or
 `admin.systemorders` to `false`. The server picker shows

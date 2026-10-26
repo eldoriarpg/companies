@@ -145,6 +145,10 @@ export default {
             stats: '{posted} placed, {taken} taken, {expired} expired, {minutes} min to take · factor {factor} ({offset}) · take rate {rate} %',
             row: '{rule} · {paid} · {placed} · {state}',
             rules: {
+                hasProblem: 'problem',
+                problems: 'Nothing was saved: {count} rule(s) have a problem; the first is open.',
+                incomplete: 'Fill in every number of {rule} within its range to save.',
+                notApplied: 'This server keeps its own edited file, because a backup of it could not be written; see its log.',
                 title: 'Defined rules',
                 add: 'Add a rule',
                 remove: 'Remove the rule',

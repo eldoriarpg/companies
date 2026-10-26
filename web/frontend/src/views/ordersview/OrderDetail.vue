@@ -62,7 +62,7 @@ async function accept(): Promise<void> {
   <aside :aria-label="t('orders.details')" :class="inSheet ? '' : 'border border-line bg-surface p-4'" class="flex min-w-0 flex-col gap-4">
     <div v-if="!inSheet" class="flex flex-col gap-1">
       <SectionHeader>{{ order.name }}</SectionHeader>
-      <MutedText>{{ order.server ? t('orders.byServer') : t('orders.anonymous') }}</MutedText>
+      <MutedText>{{ order.server && supports(Feature['orders.servermarks']) ? t('orders.byServer') : t('orders.anonymous') }}</MutedText>
     </div>
     <div class="grid grid-cols-3 gap-2">
       <FigureValue :label="t('orders.columnPayout')">{{ money(totals.payout, locale) }}</FigureValue>

@@ -348,6 +348,7 @@ public final class DashboardModule {
                         failure -> PlainText.of(failure.render(null, messages)))),
                 new AdminSystemOrderWrites(new AdminSystemOrderWrites.Sources(
                         data.items().orders(),
+                        plugin.getServer().getOfflinePlayer(SystemOwner.ID),
                         configuration::systemOrderSettings,
                         views::instant,
                         Times::now,

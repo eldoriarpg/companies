@@ -526,7 +526,6 @@ export interface AdminNpcBoards {
     bindings: AdminNpcBinding[]
 }
 
-/** A server registered in the database. */
 /** A system order open or in work, as the admin list shows it. */
 export interface AdminSystemOrder {
     order: number
@@ -592,6 +591,7 @@ export interface AdminSystemLearned {
     takeRate: number
 }
 
+/** A server registered in the database. */
 export interface AdminNode {
     uid: string
     role: string
@@ -815,7 +815,7 @@ export interface WriteActions {
     'admin.systemorders.rules': {args: Record<string, never>, result: {revision: number, editable: boolean, rules: Partial<SystemOrderRule>[]}}
     'admin.systemorders.rules.save': {
         args: {base: number, rules: SystemOrderRule[]}
-        result: {result: 'saved' | 'unchanged' | 'newer' | 'invalid', revision: number, errors: Record<string, string>, rules?: Partial<SystemOrderRule>[] | null}
+        result: {result: 'saved' | 'unchanged' | 'newer' | 'invalid', revision: number, errors: Record<string, string>, rules?: Partial<SystemOrderRule>[] | null, applied: boolean}
     }
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}

@@ -36,8 +36,8 @@ import java.util.Optional;
  * A page of the orders a company order search found.
  * <p>
  * Each order shows its contents and price when hovered, with buttons for its info and, for members who may manage the
- * company's orders, for accepting it. While the server marks its own orders, they carry a badge. Paging runs the search again. As a dialog every order is a button showing its
- * info, next to its {@code [Accept]} button.
+ * company's orders, for accepting it. While the server marks its own orders, they carry a badge. Paging runs the
+ * search again. As a dialog every order is a button showing its info, next to its {@code [Accept]} button.
  */
 public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
     private final OrderSearch search;

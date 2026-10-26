@@ -19,6 +19,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -32,6 +33,7 @@ public final class SoloSearchExecutor implements OrderFinder {
     private final AOrderData orderData;
     private final Supplier<SoloOrderService> soloOrders;
     private final Supplier<ItemMatcher> matcher;
+    private final BooleanSupplier marked;
 
     /**
      * @param orderData  order repository
@@ -40,9 +42,25 @@ public final class SoloSearchExecutor implements OrderFinder {
      */
     public SoloSearchExecutor(
             AOrderData orderData, Supplier<SoloOrderService> soloOrders, Supplier<ItemMatcher> matcher) {
+        this(orderData, soloOrders, matcher, () -> false);
+    }
+
+    /**
+     * @param orderData  order repository
+     * @param soloOrders the solo order service, which knows whether the player may work alone
+     * @param matcher    the current item matcher, which decides what the player can deliver
+     * @param marked     whether the server marks its own orders, so the search shows or hides them as asked and lists
+     *                   player orders first among equals
+     */
+    public SoloSearchExecutor(
+            AOrderData orderData,
+            Supplier<SoloOrderService> soloOrders,
+            Supplier<ItemMatcher> matcher,
+            BooleanSupplier marked) {
         this.orderData = orderData;
         this.soloOrders = soloOrders;
         this.matcher = matcher;
+        this.marked = marked;
     }
 
     @Override
@@ -50,6 +68,8 @@ public final class SoloSearchExecutor implements OrderFinder {
         List<ItemStack> available = query.fillable() ? Deliverable.available(player) : List.of();
         var itemMatcher = matcher.get();
         var service = soloOrders.get();
+        var marks = marked.getAsBoolean();
+        query.playersFirst(marks);
         var orders = orderData
                 .retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
                 .asFuture();
@@ -57,7 +77,11 @@ public final class SoloSearchExecutor implements OrderFinder {
                 .thenCombineAsync(
                         orders,
                         (refusal, found) -> results(
-                                player, service, refusal, SearchExecutor.filled(found, query, itemMatcher, available)),
+                                player,
+                                service,
+                                refusal,
+                                SearchExecutor.shown(
+                                        SearchExecutor.filled(found, query, itemMatcher, available), query, marks)),
                         Threading.VIRTUAL));
     }
 

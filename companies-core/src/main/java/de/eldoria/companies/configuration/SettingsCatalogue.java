@@ -82,12 +82,17 @@ public final class SettingsCatalogue {
     private static final Set<String> PERCENT =
             Set.of("tax.percent", "fee.percent", "solo.taxPercent", "treasury.maxPayoutShare");
 
-    private static final Map<String, Double> LOWEST = Map.of(
-            "placeholders.refreshSeconds", 10.0,
-            "boards.refreshSeconds", 10.0,
-            "market.historyDays", 14.0,
-            "guessed.historyDays", 2.0,
-            "dashboard.sessionIdleMinutes", 5.0);
+    private static final Map<String, Double> LOWEST = Map.ofEntries(
+            Map.entry("placeholders.refreshSeconds", 10.0),
+            Map.entry("boards.refreshSeconds", 10.0),
+            Map.entry("market.historyDays", 14.0),
+            Map.entry("guessed.historyDays", 2.0),
+            Map.entry("guessed.margin", 0.05),
+            Map.entry("guessed.sizeShare", 0.05),
+            Map.entry("guessed.factor", 0.01),
+            Map.entry("guessed.learning.minFactor", 0.01),
+            Map.entry("guessed.learning.weightFloor", 0.01),
+            Map.entry("dashboard.sessionIdleMinutes", 5.0));
 
     private static final Map<String, Double> HIGHEST = Map.ofEntries(
             Map.entry("notifications.pageSize", 50.0),

@@ -145,6 +145,10 @@ export default {
             stats: '{posted} passées, {taken} prises, {expired} expirées, {minutes} min avant d’être prises · facteur {factor} ({offset}) · taux de prise {rate} %',
             row: '{rule} · {paid} · {placed} · {state}',
             rules: {
+                hasProblem: 'problème',
+                problems: 'Rien n’a été enregistré : {count} règle(s) ont un problème ; la première est ouverte.',
+                incomplete: 'Renseignez chaque nombre de {rule} dans sa plage pour enregistrer.',
+                notApplied: 'Ce serveur garde son propre fichier modifié, car sa sauvegarde n’a pas pu être écrite ; voir son journal.',
                 title: 'Règles définies',
                 add: 'Ajouter une règle',
                 remove: 'Retirer la règle',

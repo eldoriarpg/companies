@@ -13,6 +13,7 @@ import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSetti
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.system.GuessedLearning;
 import de.eldoria.companies.util.AdminLog;
@@ -20,6 +21,7 @@ import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -28,6 +30,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,8 +44,8 @@ import java.util.logging.Logger;
  * The dashboard's view of the orders the server places itself, as {@code /companyadmin systemorders} offers it: the
  * system orders open or in work, why one was placed, what guessed orders learned per material, and the defined rules,
  * edited as a whole list by {@link RulesEditor}. The admin needs {@code companies.admin.orders}, and
- * {@code companies.admin.reload} too to save rules. Looking at a decision is written to the admin log under the admin's name with
- * {@code @dashboard}. The methods block and are called off the main thread.
+ * {@code companies.admin.reload} too to save rules. Looking at a decision is written to the admin log under the
+ * admin's name with {@code @dashboard}. The methods block and are called off the main thread.
  */
 public final class AdminSystemOrderWrites {
     /**
@@ -112,9 +115,9 @@ public final class AdminSystemOrderWrites {
                 admin);
         return switch (result) {
             case RulesEditor.Result.Invalid invalid ->
-                answers.data(request, new RulesSaved("invalid", 0, invalid.fields(), null));
+                answers.data(request, new RulesSaved("invalid", 0, invalid.fields(), null, true));
             case RulesEditor.Result.Newer newer ->
-                answers.data(request, new RulesSaved("newer", newer.latest(), Map.of(), newer.rules()));
+                answers.data(request, new RulesSaved("newer", newer.latest(), Map.of(), newer.rules(), true));
             case RulesEditor.Result.Done done ->
                 stored(request, admin, done.outcome(), args.path("rules").size());
         };
@@ -129,12 +132,13 @@ public final class AdminSystemOrderWrites {
                         .with("rules", rules)
                         .write();
                 if (stored.replaced()) apply();
-                yield answers.data(request, new RulesSaved("saved", stored.revision(), Map.of(), null));
+                yield answers.data(
+                        request, new RulesSaved("saved", stored.revision(), Map.of(), null, stored.applied()));
             }
             case Configuration.StoreOutcome.Unchanged unchanged ->
-                answers.data(request, new RulesSaved("unchanged", unchanged.latest(), Map.of(), null));
+                answers.data(request, new RulesSaved("unchanged", unchanged.latest(), Map.of(), null, true));
             case Configuration.StoreOutcome.Newer newer ->
-                answers.data(request, new RulesSaved("newer", newer.latest(), Map.of(), null));
+                answers.data(request, new RulesSaved("newer", newer.latest(), Map.of(), null, true));
         };
     }
 
@@ -147,11 +151,14 @@ public final class AdminSystemOrderWrites {
     }
 
     private List<Row> list() {
+        var server = sources.orders()
+                .retrieveOrdersByPlayer(sources.server(), OrderState.UNCLAIMED, OrderState.CLAIMED)
+                .join();
+        Map<Integer, SimpleOrder> open = new HashMap<>();
+        if (server != null) server.forEach(order -> open.put(order.id(), order));
         return sources.orders().systemDecisions(OrderState.UNCLAIMED, OrderState.CLAIMED).stream()
                 .map(decision -> {
-                    var order =
-                            sources.orders().retrieveOrderById(decision.order()).join();
-                    var simple = order == null ? null : order.orElse(null);
+                    var simple = open.get(decision.order());
                     return new Row(
                             decision.order(),
                             simple == null ? decision.rule() : simple.name(),
@@ -217,6 +224,7 @@ public final class AdminSystemOrderWrites {
      * What the system orders are read with.
      *
      * @param orders        the order repository
+     * @param server        the server as the owner of its orders
      * @param settings      the current system order settings
      * @param instant       turns stored times into instants
      * @param now           the current time as stored
@@ -230,6 +238,7 @@ public final class AdminSystemOrderWrites {
      */
     public record Sources(
             AOrderData orders,
+            OfflinePlayer server,
             Supplier<SystemOrderSettings> settings,
             Function<LocalDateTime, Instant> instant,
             Supplier<LocalDateTime> now,
@@ -257,12 +266,15 @@ public final class AdminSystemOrderWrites {
      * @param revision the revision now latest, 0 when invalid
      * @param errors   the problems by dotted path, such as {@code rules.2.id}
      * @param rules    the rules of the newer revision, when one was stored meanwhile
+     * @param applied  whether this server uses the saved revision; false when its own edited file could not be backed
+     *                 up and it keeps that file
      */
     public record RulesSaved(
             String result,
             int revision,
             Map<String, String> errors,
-            @Nullable JsonNode rules) {}
+            @Nullable JsonNode rules,
+            boolean applied) {}
 
     /**
      * The system orders open or in work.

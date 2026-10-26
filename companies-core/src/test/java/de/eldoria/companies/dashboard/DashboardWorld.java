@@ -77,6 +77,7 @@ import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
@@ -589,6 +590,7 @@ public final class DashboardWorld implements AutoCloseable {
                         failure -> "text of " + failure.localeKey())),
                 new AdminSystemOrderWrites(new AdminSystemOrderWrites.Sources(
                         orders,
+                        SqLiteTestDatabase.player(SystemOwner.ID),
                         () -> systemOrders,
                         views::instant,
                         Times::now,

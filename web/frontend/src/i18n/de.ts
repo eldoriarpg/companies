@@ -145,6 +145,10 @@ export default {
             stats: '{posted} erstellt, {taken} angenommen, {expired} abgelaufen, {minutes} Min. bis zur Annahme · Faktor {factor} ({offset}) · Annahmequote {rate} %',
             row: '{rule} · {paid} · {placed} · {state}',
             rules: {
+                hasProblem: 'Problem',
+                problems: 'Nichts gespeichert: {count} Regel(n) haben ein Problem; die erste ist geöffnet.',
+                incomplete: 'Fülle jede Zahl von {rule} innerhalb ihres Bereichs aus, um zu speichern.',
+                notApplied: 'Dieser Server behält seine eigene bearbeitete Datei, weil keine Sicherung davon geschrieben werden konnte; siehe sein Log.',
                 title: 'Festgelegte Regeln',
                 add: 'Regel hinzufügen',
                 remove: 'Regel entfernen',

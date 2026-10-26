@@ -13,6 +13,7 @@ import PlainList from '@/components/container/PlainList.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import Alert from '@/components/feedback/Alert.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
+import NoticeBadge from '@/components/badge/NoticeBadge.vue'
 import CheckboxInput from '@/components/input/CheckboxInput.vue'
 import DecimalInput from '@/components/input/DecimalInput.vue'
 import NumberInput from '@/components/input/NumberInput.vue'
@@ -36,6 +37,11 @@ const chosen = ref(0)
 const errors = ref<Record<string, string>>({})
 const done = ref('')
 const rule = computed(() => rules.value[chosen.value])
+const incomplete = computed(() => rules.value.findIndex(entry => !complete(entry)))
+const failing = computed(() => [...new Set(Object.keys(errors.value)
+  .map(path => /^rules\.(\d+)/.exec(path)?.[1])
+  .filter((index): index is string => index !== undefined)
+  .map(Number))])
 const modes = computed(() => ['FIXED', 'AVERAGE'].map(value => ({value, label: t(`admin.systemorders.rules.mode.${value}`)})))
 const sources = computed(() => ['MINTED', 'ACCOUNT'].map(value => ({value, label: t(`admin.systemorders.rules.source.${value}`)})))
 
@@ -84,6 +90,19 @@ function add(): void {
 function remove(): void {
   rules.value.splice(chosen.value, 1)
   chosen.value = Math.max(0, chosen.value - 1)
+  errors.value = {}
+}
+
+/**
+ * Whether every number of a rule holds a valid value, since a cleared or out of range field holds none.
+ *
+ * @param entry a rule
+ * @returns true when it can be saved
+ */
+function complete(entry: SystemOrderRule): boolean {
+  const numbers = [entry.amount, entry.everyHours, entry.lifetimeHours, entry.maxOpen, entry.price.jitter, entry.price.min,
+    entry.price.max, entry.source.dailyBudget, entry.price.mode === 'FIXED' ? entry.price.value : entry.price.factor]
+  return numbers.every(value => value !== undefined)
 }
 
 /** Saves every rule as the next revision. */
@@ -94,6 +113,7 @@ async function save(): Promise<void> {
   if (!result) return
   if (result.result === 'invalid') {
     errors.value = result.errors
+    chosen.value = failing.value[0] ?? chosen.value
     return
   }
   if (result.result === 'newer') {
@@ -105,6 +125,7 @@ async function save(): Promise<void> {
   }
   revision.value = result.revision
   done.value = t(result.result === 'saved' ? 'admin.systemorders.rules.saved' : 'admin.systemorders.rules.unchanged')
+  if (!result.applied) done.value += ` ${t('admin.systemorders.rules.notApplied')}`
 }
 
 /**
@@ -136,14 +157,23 @@ function problems(index: number): string[] {
       <PlainList v-else>
         <li v-for="(entry, index) in rules" :key="index">
           <RowButton :selected="chosen === index" class="flex-col items-start text-sm" @click="chosen = index">
-            <span class="font-semibold">{{ entry.name || entry.id || t('admin.systemorders.rules.unnamed') }}</span>
+            <span class="flex items-center gap-2">
+              <span class="font-semibold">{{ entry.name || entry.id || t('admin.systemorders.rules.unnamed') }}</span>
+              <NoticeBadge v-if="failing.includes(index)">{{ t('admin.systemorders.rules.hasProblem') }}</NoticeBadge>
+            </span>
             <span class="text-ink-muted">{{ entry.id }} · {{ entry.material }}</span>
           </RowButton>
         </li>
       </PlainList>
       <div class="flex flex-col gap-2 border-t border-line-soft px-3 py-2.5 md:px-4">
         <Alert v-if="!editable" variant="notice">{{ t('admin.systemorders.rules.readOnly') }}</Alert>
-        <PrimaryButton v-else :disabled="saving.busy.value" @click="save">{{ t('admin.systemorders.rules.save') }}</PrimaryButton>
+        <template v-else>
+          <Alert v-if="failing.length > 0" variant="problem">{{ t('admin.systemorders.rules.problems', {count: failing.length}) }}</Alert>
+          <Alert v-if="incomplete >= 0" variant="notice">
+            {{ t('admin.systemorders.rules.incomplete', {rule: rules[incomplete]?.id || t('admin.systemorders.rules.unnamed')}) }}
+          </Alert>
+          <PrimaryButton :disabled="saving.busy.value || incomplete >= 0" @click="save">{{ t('admin.systemorders.rules.save') }}</PrimaryButton>
+        </template>
         <Alert v-if="done" variant="success">{{ done }}</Alert>
         <ActionNotice :problem="saving.problem.value"/>
       </div>

@@ -4,6 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import {Feature} from '~/api/generated/protocol'
 import InfoBadge from '@/components/badge/InfoBadge.vue'
 import type {OrderListing} from '~/api/gateway'
 import RowButton from '@/components/button/RowButton.vue'
@@ -46,6 +47,8 @@ const rows = computed(() => props.orders.map(order => {
     versus: versus === null ? null : {trend: trendOf(versus), text: `${{up: '+', down: '−', flat: ''}[trendOf(versus)]}${Math.abs(versus).toFixed(1)}%`},
   }
 }))
+const {supports} = useDashboard()
+const marks = computed(() => supports(Feature['orders.servermarks']))
 </script>
 
 <template>
@@ -67,7 +70,7 @@ const rows = computed(() => props.orders.map(order => {
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="flex min-w-0 items-center gap-1.5">
                 <span class="truncate text-sm font-semibold">{{ row.order.name }}</span>
-                <InfoBadge v-if="row.order.server" data-testid="server-badge">{{ t('orders.serverBadge') }}</InfoBadge>
+                <InfoBadge v-if="row.order.server && marks" data-testid="server-badge">{{ t('orders.serverBadge') }}</InfoBadge>
               </span>
               <span class="tabular truncate text-[0.6875rem] text-ink-muted md:hidden">{{ row.items }} ×{{ count(row.totals.amount, locale) }} · {{ money(row.totals.payout, locale) }}</span>
             </span>

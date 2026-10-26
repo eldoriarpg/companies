@@ -132,7 +132,7 @@ public class SearchExecutor implements OrderFinder {
      * @param marked whether the server marks its orders
      * @return the orders shown
      */
-    private static List<FullOrder> shown(List<FullOrder> orders, SearchQuery query, boolean marked) {
+    static List<FullOrder> shown(List<FullOrder> orders, SearchQuery query, boolean marked) {
         if (!marked) return orders;
         return orders.stream().filter(query.serverOrders()::shows).toList();
     }

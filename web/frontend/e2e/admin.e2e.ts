@@ -190,8 +190,13 @@ test.describe('admin', () => {
         await expect(rules.getByText('The rules are saved.')).toBeVisible()
 
         await form.getByLabel('Id').fill('iron-weekly')
+        await rules.getByText('iron-weekly · IRON_INGOT').click()
         await rules.getByRole('button', {name: 'Save the rules'}).click()
+        await expect(rules.getByText('Nothing was saved: 1 rule(s) have a problem; the first is open.')).toBeVisible()
         await expect(form.getByText('Id: is used by an earlier rule')).toBeVisible()
+
+        await form.getByLabel('Items per order').fill('')
+        await expect(rules.getByRole('button', {name: 'Save the rules'})).toBeDisabled()
     })
 
     test('shows the shared settings without their secrets and what a revision changed', async ({page}, info) => {
