@@ -8,27 +8,23 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.util.Threading;
 import net.milkbowl.vault.economy.Economy;
-import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.plugin.Plugin;
 
-import java.util.Optional;
-import java.util.UUID;
 import java.util.logging.Level;
 
 /**
  * Hands collected fees and taxes to the configured collector account.
  * <p>
- * Without a collector account the money is destroyed. An account that is a UUID is the player with that id, anything
- * else is passed to Vault as an account name, which economy plugins use for non-player accounts.
+ * Without a collector account the money is destroyed. The account is named as {@link EconomyAccounts} reads it.
  */
 public class Collector {
     private final Plugin plugin;
-    private final Economy economy;
+    private final EconomyAccounts accounts;
     private final Configuration configuration;
 
     public Collector(Plugin plugin, Economy economy, Configuration configuration) {
         this.plugin = plugin;
-        this.economy = economy;
+        accounts = new EconomyAccounts(plugin.getServer(), economy);
         this.configuration = configuration;
     }
 
@@ -43,7 +39,7 @@ public class Collector {
         var account = configuration.economySettings().collectorAccount();
         if (account.isEmpty()) return;
         Threading.mainThread(plugin).execute(() -> {
-            var response = deposit(account, amount);
+            var response = accounts.deposit(account, amount);
             if (!response.transactionSuccess()) {
                 plugin.getLogger()
                         .log(
@@ -52,20 +48,5 @@ public class Collector {
                                         .formatted(amount, account, response.errorMessage));
             }
         });
-    }
-
-    @SuppressWarnings("deprecation")
-    private EconomyResponse deposit(String account, double amount) {
-        return playerId(account)
-                .map(id -> economy.depositPlayer(plugin.getServer().getOfflinePlayer(id), amount))
-                .orElseGet(() -> economy.depositPlayer(account, amount));
-    }
-
-    private static Optional<UUID> playerId(String account) {
-        try {
-            return Optional.of(UUID.fromString(account));
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
-        }
     }
 }

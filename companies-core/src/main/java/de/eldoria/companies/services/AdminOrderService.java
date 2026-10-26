@@ -20,6 +20,7 @@ import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.PaymentType;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
@@ -133,6 +134,7 @@ public final class AdminOrderService {
      * @param notifications sends the notifications
      * @param itemReturns   reports returned items and tells online workers about them
      * @param series        stops the repeating order of a deleted copy
+     * @param systemFunding  gives the money of system orders back to their accounts
      * @return the service
      */
     public static AdminOrderService create(
@@ -145,15 +147,19 @@ public final class AdminOrderService {
             Configuration configuration,
             NotificationService notifications,
             ItemReturnService itemReturns,
-            SeriesService series) {
+            SeriesService series,
+            SystemFunding systemFunding) {
         var collector = new Collector(plugin, economy, configuration);
         var mainThread = Threading.mainThread(plugin);
         Funds funds = new Funds() {
             @Override
-            public void refund(UUID owner, double amount) {
-                if (SystemOwner.is(owner)) return;
+            public void refund(SimpleOrder order, double amount) {
+                if (SystemOwner.is(order.owner())) {
+                    systemFunding.refund(order.id(), amount);
+                    return;
+                }
                 mainThread.execute(
-                        () -> economy.depositPlayer(plugin.getServer().getOfflinePlayer(owner), amount));
+                        () -> economy.depositPlayer(plugin.getServer().getOfflinePlayer(order.owner()), amount));
             }
 
             @Override
@@ -230,31 +236,26 @@ public final class AdminOrderService {
     }
 
     /**
-     * What a deletion moves. A system order was never charged, so it refunds and keeps nothing.
-     * <p>
-     * TODO refund a system order funded from an account to that account.
+     * What a deletion moves. A system order always refunds, to the account that paid it; minted money goes nowhere.
      *
      * @param order  order as it was before the deletion
      * @param refund true to refund the owner
      * @return price and fee for the owner on a refund, otherwise price and fee for the collector
      */
     public static CancelMoney cancelMoney(FullOrder order, boolean refund) {
-        if (SystemOwner.is(order.owner())) return new CancelMoney(0, 0);
         var total = BigDecimal.valueOf(order.price())
                 .add(BigDecimal.valueOf(order.fee()))
                 .doubleValue();
-        return refund ? new CancelMoney(total, 0) : new CancelMoney(0, total);
+        return refund || SystemOwner.is(order.owner()) ? new CancelMoney(total, 0) : new CancelMoney(0, total);
     }
 
     /**
-     * The price share of the items missing from an order, which is what the workers are not paid for. A system order
-     * was never charged, so it refunds nothing.
+     * The price share of the items missing from an order, which is what the workers are not paid for.
      *
      * @param order delivered order with its deliveries
      * @return the price minus the workers' shares, rounded to cents and never negative
      */
     public static double undeliveredRefund(FullOrder order) {
-        if (SystemOwner.is(order.owner())) return 0;
         var paid = order.payments(PaymentType.STACK).values().stream()
                 .map(BigDecimal::valueOf)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -293,7 +294,7 @@ public final class AdminOrderService {
         var returned = orderData.submitAdminDeletion(order).join();
         if (returned == null || returned.isEmpty()) return Result.refused(Refusal.NOT_OPEN);
         var money = cancelMoney(snapshot, refund);
-        if (money.refund() > 0) funds.refund(order.owner(), money.refund());
+        if (money.refund() > 0) funds.refund(order, money.refund());
         if (money.collected() > 0) funds.collect(money.collected());
         var claimed = order.state() == OrderState.CLAIMED;
         record(() -> history.ownerEntry(snapshot, HistoryOutcome.CANCELLED_BY_ADMIN), id);
@@ -328,7 +329,7 @@ public final class AdminOrderService {
                 .orElseGet(() -> completion.settleSolo(fullOrder))
                 .join();
         if (refund > 0) {
-            funds.refund(order.owner(), refund);
+            funds.refund(order, refund);
             notices.ownerRefunded(order, refund);
         }
         return Result.done(new Delivered(settled, refund));
@@ -496,12 +497,12 @@ public final class AdminOrderService {
      */
     public interface Funds {
         /**
-         * Gives money back to an owner.
+         * Gives money back to the owner of an order, or for a system order to the account that paid it.
          *
-         * @param owner  owner of the order
+         * @param order  the order
          * @param amount amount to refund
          */
-        void refund(UUID owner, double amount);
+        void refund(SimpleOrder order, double amount);
 
         /**
          * Hands kept money to the collector.

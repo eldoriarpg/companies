@@ -17,6 +17,7 @@ import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
@@ -58,6 +59,7 @@ public class ExpiringService implements Runnable, Listener {
     private final NotificationService notificationService;
     private final OrderOutcomes outcomes;
     private final SoloOrderService soloOrders;
+    private final SystemFunding systemFunding;
 
     /**
      * @param plugin              the plugin
@@ -68,6 +70,7 @@ public class ExpiringService implements Runnable, Listener {
      * @param notificationService warns owners
      * @param outcomes            releases and purges orders and records their history
      * @param soloOrders          releases the orders players work on alone
+     * @param systemFunding       refunds purged system orders to the accounts that paid them
      */
     public ExpiringService(
             Plugin plugin,
@@ -77,7 +80,8 @@ public class ExpiringService implements Runnable, Listener {
             Economy economy,
             NotificationService notificationService,
             OrderOutcomes outcomes,
-            SoloOrderService soloOrders) {
+            SoloOrderService soloOrders,
+            SystemFunding systemFunding) {
         messageSender = MessageSender.getPluginMessageSender(plugin);
         this.plugin = plugin;
         this.orderData = orderData;
@@ -87,6 +91,7 @@ public class ExpiringService implements Runnable, Listener {
         this.notificationService = notificationService;
         this.outcomes = outcomes;
         this.soloOrders = soloOrders;
+        this.systemFunding = systemFunding;
     }
 
     /**
@@ -248,10 +253,8 @@ public class ExpiringService implements Runnable, Listener {
     }
 
     /**
-     * Removes orders nobody accepted in time and refunds their price and fee to the owner. A system order is removed
-     * without a refund.
-     * <p>
-     * TODO refund a removed system order funded from an account to that account.
+     * Removes orders nobody accepted in time and refunds their price and fee to the owner, or for a system order to
+     * the account that paid it.
      */
     private void purgeDeadOrders() {
         var expired = orderData
@@ -266,7 +269,10 @@ public class ExpiringService implements Runnable, Listener {
             if (!Boolean.TRUE.equals(outcomes.purge(fullOrder).join())) {
                 continue;
             }
-            if (SystemOwner.is(order.owner())) continue;
+            if (SystemOwner.is(order.owner())) {
+                systemFunding.refund(order.id(), fullOrder.price() + fullOrder.fee());
+                continue;
+            }
             var owner = plugin.getServer().getOfflinePlayer(order.owner());
             Threading.mainThread(plugin)
                     .execute(() -> economy.depositPlayer(owner, fullOrder.price() + fullOrder.fee()));

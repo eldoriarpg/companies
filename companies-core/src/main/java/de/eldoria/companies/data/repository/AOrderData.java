@@ -23,6 +23,7 @@ import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import de.eldoria.eldoutilities.threading.futures.CompletableBukkitFuture;
@@ -381,6 +382,57 @@ public abstract class AOrderData {
      * @return the rule the system order was placed by, empty for a player's order or an unknown one
      */
     public abstract Optional<String> systemRule(int order);
+
+    /**
+     * Stores why a system order was placed.
+     *
+     * @param decision the decision
+     */
+    public abstract void saveSystemDecision(SystemDecision decision);
+
+    /**
+     * @param order the order's id
+     * @return why the system order was placed, empty for a player's order or one placed without a decision
+     */
+    public abstract Optional<SystemDecision> systemDecision(int order);
+
+    /**
+     * The decisions of system orders whose order still exists in a range of states, oldest first.
+     *
+     * @param min lowest state, included
+     * @param max highest state, included
+     * @return the decisions
+     */
+    public abstract List<SystemDecision> systemDecisions(OrderState min, OrderState max);
+
+    /**
+     * What a rule put into orders since a point in time.
+     *
+     * @param rule  id of the rule
+     * @param since start, included
+     * @return the money spent
+     */
+    public abstract double systemSpent(String rule, LocalDateTime since);
+
+    /**
+     * What all rules put into orders from minted money since a point in time.
+     *
+     * @param since start, included
+     * @return the minted money spent
+     */
+    public abstract double mintedSpent(LocalDateTime since);
+
+    /**
+     * @param rule id of the rule
+     * @return when the rule last placed an order, empty when it never did
+     */
+    public abstract Optional<LocalDateTime> lastSystemPlacement(String rule);
+
+    /**
+     * @param rule id of the rule
+     * @return how many orders of the rule are open or in work
+     */
+    public abstract int activeSystemOrders(String rule);
 
     /**
      * Marks a claimed and completely delivered order as delivered.

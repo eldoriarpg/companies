@@ -17,6 +17,7 @@ Companies keeps its files in `plugins/Companies/`. They are created with default
 | [company.yml](./company-yml.md) | Levels, prices, tax, joining, profiles, treasury and order alerts | yes | on reload |
 | [order.yml](./order-yml.md) | Order size, fees, item matching, extensions and repeating orders | yes | on reload, one key on restart |
 | [user.yml](./user-yml.md) | How many orders a player may have | yes | on reload |
+| [system-orders.yml](./system-orders-yml.md) | Orders the server places itself | yes | on reload, one key on restart |
 | [database.yml](./database-yml.md) | Where the data is stored | no | on restart |
 | [node.yml](./node-yml.md) | The role of this server in a network | no | on restart |
 | [boards.yml](./boards-yml.md) | NPCs bound to order boards | no | on reload |
@@ -39,7 +40,8 @@ These need a restart:
 
 - all of `database.yml` and `node.yml`,
 - in `config.yml`: `generalSettings.orderCheckInterval`, `generalSettings.messageBlocking`, `generalSettings.hooks`, `placeholders.offlineCacheSize` and `boards.enabled`,
-- in `order.yml`: `repeating.checkMinutes`.
+- in `order.yml`: `repeating.checkMinutes`,
+- in `system-orders.yml`: `checkMinutes`.
 
 ## How the files are read
 
@@ -52,7 +54,7 @@ These need a restart:
 If a file cannot be read, for example because of a YAML error, a wrong type or an unknown value in a fixed list, the
 server log says so. Check it after editing a file.
 
-- `config.yml`, `company.yml`, `user.yml` and `order.yml` stay as they are, so you can fix them. Until then Companies
+- `config.yml`, `company.yml`, `user.yml`, `order.yml` and `system-orders.yml` stay as they are, so you can fix them. Until then Companies
   keeps their last values, or uses their defaults right after a start, does not save them and does not share them
   with the other servers of a network. Run `/companyadmin reload` once you fixed the file; it names the files that
   still cannot be read. While `company.yml` cannot be read, the level editor refuses changes. Running on defaults

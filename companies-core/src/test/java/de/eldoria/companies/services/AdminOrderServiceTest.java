@@ -129,8 +129,8 @@ class AdminOrderServiceTest {
                 order -> CompletableFuture.completedFuture(false));
         var funds = new AdminOrderService.Funds() {
             @Override
-            public void refund(UUID owner, double amount) {
-                refunded.merge(owner, amount, Double::sum);
+            public void refund(SimpleOrder order, double amount) {
+                refunded.merge(order.owner(), amount, Double::sum);
             }
 
             @Override
@@ -168,8 +168,8 @@ class AdminOrderServiceTest {
         var collector = new Collector(plugin, recordingEconomy(), configuration);
         return service(new AdminOrderService.Funds() {
             @Override
-            public void refund(UUID owner, double amount) {
-                refunded.merge(owner, amount, Double::sum);
+            public void refund(SimpleOrder order, double amount) {
+                refunded.merge(order.owner(), amount, Double::sum);
             }
 
             @Override
@@ -236,13 +236,12 @@ class AdminOrderServiceTest {
     }
 
     @Test
-    void aSystemOrderWasNeverChargedSoItRefundsAndKeepsNothing() {
+    void aSystemOrderAlwaysRefundsToItsSourceAndKeepsNothing() {
         var system = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID));
         var order = system.full(system.place(0.0));
 
-        assertEquals(new AdminOrderService.CancelMoney(0, 0), AdminOrderService.cancelMoney(order, true));
-        assertEquals(new AdminOrderService.CancelMoney(0, 0), AdminOrderService.cancelMoney(order, false));
-        assertEquals(0.0, AdminOrderService.undeliveredRefund(order));
+        assertEquals(new AdminOrderService.CancelMoney(order.price(), 0), AdminOrderService.cancelMoney(order, true));
+        assertEquals(new AdminOrderService.CancelMoney(order.price(), 0), AdminOrderService.cancelMoney(order, false));
     }
 
     @Test

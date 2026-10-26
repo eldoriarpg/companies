@@ -26,6 +26,7 @@ import de.eldoria.companies.data.wrapper.order.ReleasedOrders;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.ReturnedItems;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.companies.util.Times;
@@ -759,6 +760,120 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    public void saveSystemDecision(SystemDecision decision) {
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO system_order_decisions(order_id, rule, kind, decided_at, account, paid, record)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""";
+        query(insert)
+                .single(call().bind(decision.order())
+                        .bind(decision.rule())
+                        .bind(decision.kind())
+                        .bind(decision.decidedAt(), time())
+                        .bind(decision.account())
+                        .bind(decision.paid())
+                        .bind(decision.record()))
+                .insert();
+    }
+
+    @Override
+    public Optional<SystemDecision> systemDecision(int order) {
+        @Language("mariadb")
+        var select = """
+                SELECT order_id, rule, kind, decided_at, account, paid, record
+                FROM system_order_decisions
+                WHERE order_id = ?""";
+        return query(select).single(call().bind(order)).map(this::parseDecision).first();
+    }
+
+    @Override
+    public List<SystemDecision> systemDecisions(OrderState min, OrderState max) {
+        @Language("mariadb")
+        var select = """
+                SELECT d.order_id, d.rule, d.kind, d.decided_at, d.account, d.paid, d.record
+                FROM system_order_decisions d
+                         JOIN order_states s ON d.order_id = s.id
+                WHERE s.state BETWEEN ? AND ?
+                ORDER BY d.decided_at, d.order_id""";
+        return query(select)
+                .single(call().bind(min.stateId()).bind(max.stateId()))
+                .map(this::parseDecision)
+                .all();
+    }
+
+    @Override
+    public double systemSpent(String rule, LocalDateTime since) {
+        @Language("mariadb")
+        var select = """
+                SELECT COALESCE(SUM(paid), 0) AS spent
+                FROM system_order_decisions
+                WHERE rule = ?
+                  AND decided_at >= ?""";
+        return query(select)
+                .single(call().bind(rule).bind(since, time()))
+                .map(row -> row.getDouble("spent"))
+                .first()
+                .orElse(0.0);
+    }
+
+    @Override
+    public double mintedSpent(LocalDateTime since) {
+        @Language("mariadb")
+        var select = """
+                SELECT COALESCE(SUM(paid), 0) AS spent
+                FROM system_order_decisions
+                WHERE account IS NULL
+                  AND decided_at >= ?""";
+        return query(select)
+                .single(call().bind(since, time()))
+                .map(row -> row.getDouble("spent"))
+                .first()
+                .orElse(0.0);
+    }
+
+    @Override
+    public Optional<LocalDateTime> lastSystemPlacement(String rule) {
+        @Language("mariadb")
+        var select = """
+                SELECT decided_at
+                FROM system_order_decisions
+                WHERE rule = ?
+                ORDER BY decided_at DESC
+                LIMIT 1""";
+        return query(select)
+                .single(call().bind(rule))
+                .map(row -> readTime(row, "decided_at"))
+                .first();
+    }
+
+    @Override
+    public int activeSystemOrders(String rule) {
+        @Language("mariadb")
+        var select = """
+                SELECT COUNT(1) AS active
+                FROM orders o
+                         JOIN order_states s ON o.id = s.id
+                WHERE o.system_rule = ?
+                  AND s.state < ?""";
+        return query(select)
+                .single(call().bind(rule).bind(OrderState.DELIVERED.stateId()))
+                .map(row -> row.getInt("active"))
+                .first()
+                .orElse(0);
+    }
+
+    private SystemDecision parseDecision(Row row) throws SQLException {
+        return new SystemDecision(
+                row.getInt("order_id"),
+                row.getString("rule"),
+                row.getString("kind"),
+                readTime(row, "decided_at"),
+                row.getString("account"),
+                row.getDouble("paid"),
+                row.getString("record"));
+    }
+
+    @Override
     protected boolean receiveOrder(SimpleOrder order, List<ItemAmount> pending) {
         @Language("mariadb")
         var receive = """
@@ -1244,7 +1359,9 @@ public class MariaDbOrderData extends AOrderData {
                                    last_update
                             FROM order_content c
                                      LEFT JOIN order_states s ON c.id = s.id
+                                     JOIN orders o ON c.id = o.id
                             WHERE s.state >= 200
+                              AND o.system_rule IS NULL
                               AND NOT c.exact) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg

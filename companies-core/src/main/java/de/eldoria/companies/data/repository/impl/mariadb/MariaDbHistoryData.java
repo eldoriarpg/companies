@@ -129,6 +129,8 @@ public class MariaDbHistoryData extends AHistoryData {
     protected List<HistoryEntry> getCompanyEntries(HistoryOutcome outcome, LocalDateTime from, LocalDateTime to) {
         return query(ENTRIES
                         + "WHERE company_id IS NOT NULL AND outcome = ? AND finished >= ? AND finished < ? "
+                        + "AND NOT EXISTS (SELECT 1 FROM system_order_decisions d "
+                        + "WHERE d.order_id = order_history.order_id) "
                         + "ORDER BY finished, id")
                 .single(call().bind(outcome.id()).bind(from, time()).bind(to, time()))
                 .map(this::parseEntry)
@@ -142,6 +144,13 @@ public class MariaDbHistoryData extends AHistoryData {
                 DELETE
                 FROM order_history
                 WHERE finished < ?""";
+        @Language("mariadb")
+        var decisions = """
+                DELETE
+                FROM system_order_decisions
+                WHERE decided_at < ?
+                  AND order_id NOT IN (SELECT id FROM orders)""";
+        query(decisions).single(call().bind(before, time())).delete();
         return query(query).single(call().bind(before, time())).delete().rows();
     }
 

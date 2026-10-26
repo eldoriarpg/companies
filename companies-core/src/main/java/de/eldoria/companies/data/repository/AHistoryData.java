@@ -104,7 +104,8 @@ public abstract class AHistoryData {
     protected abstract List<HistoryEntry> getByOrder(int order);
 
     /**
-     * The company entries of one outcome that ended in a span of time, such as the orders delivered on one day.
+     * The company entries of one outcome that ended in a span of time, such as the orders delivered on one day. Orders
+     * the server placed are left out, so they never become market data.
      *
      * @param outcome the outcome
      * @param from    the start of the span, included
@@ -120,7 +121,8 @@ public abstract class AHistoryData {
             HistoryOutcome outcome, LocalDateTime from, LocalDateTime to);
 
     /**
-     * Deletes every entry of orders that ended before a point in time.
+     * Deletes every entry of orders that ended before a point in time, and the decisions of system orders placed before
+     * it whose order is gone.
      *
      * @param before entries that ended before this are deleted
      * @return number of entries deleted

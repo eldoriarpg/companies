@@ -26,7 +26,8 @@ import java.util.stream.Stream;
  * their type. Labels and help texts live in the dashboard, keyed by file and key; this list carries only what the
  * plugin checks and what the form needs to pick an input.
  * <p>
- * A key that is not here is edited in the file only: the levels (they have their own editor) and the board presets.
+ * A key that is not here is edited in the file only: the levels (they have their own editor), the board presets and
+ * the rules of the system orders.
  * {@link #FILE_ONLY} names them, so a test can tell a setting that was forgotten from one left out on purpose.
  */
 public final class SettingsCatalogue {
@@ -35,7 +36,8 @@ public final class SettingsCatalogue {
      */
     public static final List<Field> FILE_ONLY = List.of(
             new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false, null, null),
-            new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false, null, null));
+            new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false, null, null),
+            new Field("system-orders.yml", "", "rules", Type.TEXT, List.of(), false, false, null, null));
 
     private static final Set<String> AT_LEAST_ONE = Set.of(
             "generalSettings.historyDays",
@@ -65,6 +67,7 @@ public final class SettingsCatalogue {
             "repeating.maxCopies",
             "repeating.maxDays",
             "repeating.checkMinutes",
+            "checkMinutes",
             "solo.maxActive",
             "solo.deliveryHours");
 
@@ -95,6 +98,7 @@ public final class SettingsCatalogue {
     private static final String COMPANY = "company.yml";
     private static final String ORDER = "order.yml";
     private static final String USER = "user.yml";
+    private static final String SYSTEM_ORDERS = "system-orders.yml";
 
     private SettingsCatalogue() {}
 
@@ -286,6 +290,11 @@ public final class SettingsCatalogue {
         solo.whole("solo.abortCooldownMinutes");
 
         new Section(fields, USER, "orders").whole("maxOrders");
+
+        var system = new Section(fields, SYSTEM_ORDERS, "systemOrders");
+        system.flag("enabled");
+        system.restart(Type.WHOLE, "checkMinutes");
+        system.decimal("mintedDailyCap");
         return List.copyOf(fields);
     }
 

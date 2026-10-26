@@ -36,6 +36,7 @@ import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
@@ -436,7 +437,8 @@ public final class CommandDependencies {
                 configuration,
                 ready.notificationService(),
                 ready.itemReturnService(),
-                ready.series());
+                ready.series(),
+                ready.systemFunding());
     }
 
     /**
@@ -566,5 +568,6 @@ public final class CommandDependencies {
             OwnerOrderService ownerOrders,
             SearchExecutor search,
             SavedItemService savedItems,
-            OrderReceiveService receive) {}
+            OrderReceiveService receive,
+            SystemFunding systemFunding) {}
 }

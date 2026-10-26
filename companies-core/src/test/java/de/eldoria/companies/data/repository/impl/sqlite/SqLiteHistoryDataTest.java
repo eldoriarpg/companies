@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.util.TestExecutors;
@@ -239,6 +240,36 @@ class SqLiteHistoryDataTest {
                         .map(HistoryEntry::id)
                         .toList());
         Assertions.assertTrue(history.retrieveEntry(kept + 1).join().isEmpty());
+    }
+
+    @Test
+    void companyEntriesLeaveOutTheOrdersOfTheServer() {
+        var day = NOW.toLocalDate().atStartOfDay();
+        var player = recorder.companyEntry(order(1), COMPANY, HistoryOutcome.DELIVERED, List.of())
+                .join()
+                .orElseThrow();
+        recorder.companyEntry(order(2), COMPANY, HistoryOutcome.DELIVERED, List.of())
+                .join();
+        new SqLiteOrderData(null, SqLiteTestDatabase.mapper())
+                .saveSystemDecision(new SystemDecision(2, "iron", "DEFINED", NOW, null, 10, "{}"));
+
+        var entries = history.retrieveCompanyEntries(HistoryOutcome.DELIVERED, day, day.plusDays(1))
+                .join();
+
+        Assertions.assertEquals(
+                List.of(player), entries.stream().map(HistoryEntry::id).toList());
+    }
+
+    @Test
+    void thePurgeDropsOldDecisionsOfOrdersThatAreGone() {
+        var orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper());
+        orderData.saveSystemDecision(new SystemDecision(1, "iron", "DEFINED", NOW.minusDays(100), null, 10, "{}"));
+        orderData.saveSystemDecision(new SystemDecision(2, "iron", "DEFINED", NOW.minusDays(10), null, 10, "{}"));
+
+        history.submitPurge(NOW.minusDays(90)).join();
+
+        Assertions.assertTrue(orderData.systemDecision(1).isEmpty());
+        Assertions.assertTrue(orderData.systemDecision(2).isPresent());
     }
 
     @Test

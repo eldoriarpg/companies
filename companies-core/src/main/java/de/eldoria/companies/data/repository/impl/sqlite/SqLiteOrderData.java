@@ -247,7 +247,9 @@ public class SqLiteOrderData extends MariaDbOrderData {
                                    last_update
                             FROM order_content c
                                      LEFT JOIN order_states s ON c.id = s.id
+                                     JOIN orders o ON c.id = o.id
                             WHERE s.state >= 200
+                              AND o.system_rule IS NULL
                               AND c.exact = 0) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg

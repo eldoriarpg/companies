@@ -14,6 +14,7 @@ import de.eldoria.companies.commands.companyadmin.Rename;
 import de.eldoria.companies.commands.companyadmin.SettingsCommand;
 import de.eldoria.companies.commands.companyadmin.SetupCommand;
 import de.eldoria.companies.commands.companyadmin.SyncConfiguration;
+import de.eldoria.companies.commands.companyadmin.SystemOrdersCommand;
 import de.eldoria.companies.commands.companyadmin.TransferOwner;
 import de.eldoria.companies.commands.companyadmin.TreasuryCommand;
 import de.eldoria.companies.commands.companyadmin.board.BoardAdminCommand;
@@ -90,6 +91,9 @@ final class CompanyAdminCommand {
     @Subcommand
     final DashboardAdminCommand dashboard;
 
+    @Subcommand
+    final SystemOrdersCommand systemOrders;
+
     CompanyAdminCommand(CommandDependencies deps) {
         this.deps = deps;
         level = new LevelCommand(deps);
@@ -108,6 +112,7 @@ final class CompanyAdminCommand {
         settings = new SettingsCommand(deps);
         setup = new SetupCommand(deps);
         dashboard = new DashboardAdminCommand(deps);
+        systemOrders = new SystemOrdersCommand(deps);
     }
 
     /**

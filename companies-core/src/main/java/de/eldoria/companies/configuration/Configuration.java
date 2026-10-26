@@ -24,6 +24,7 @@ import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
+import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.SettingsRevision;
@@ -89,6 +90,11 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .name("Company config")
             .strict()
             .build();
+    public static final Key<SystemOrderSettings> SYSTEM_ORDERS = Key.builder(
+                    Path.of("system-orders.yml"), SystemOrderSettings::new)
+            .name("System orders")
+            .strict()
+            .build();
     public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
             .name("Board bindings")
             .build();
@@ -96,7 +102,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     /**
      * The files every node of a network shares, in the order they are synced.
      */
-    public static final List<Key<?>> SHARED = List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, CONFIG_YML);
+    public static final List<Key<?>> SHARED =
+            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, CONFIG_YML);
 
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
@@ -179,7 +186,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Whether a file the network shares ({@code config.yml}, {@code company.yml}, {@code user.yml}, {@code order.yml})
+     * Whether a file the network shares ({@code config.yml}, {@code company.yml}, {@code user.yml}, {@code order.yml},
+     * {@code system-orders.yml})
      * could not be read the last time. Such a file is left as it is instead of being replaced with defaults, is not
      * saved and is not shared with the other nodes, until a reload reads it again.
      *
@@ -238,6 +246,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     public OrderSettings orderSetting() {
         return secondary(ORDER_SETTINGS);
+    }
+
+    /**
+     * @return the orders the server places itself
+     */
+    public SystemOrderSettings systemOrderSettings() {
+        return secondary(SYSTEM_ORDERS);
     }
 
     public GeneralSettings generalSettings() {
@@ -669,7 +684,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
                 ChangeTracker.HOOKS, List.of(hooks.placeholderapi(), hooks.citizens(), hooks.fancynpcs()),
                 ChangeTracker.OFFLINE_CACHE, placeholderSettings().offlineCacheSize(),
                 ChangeTracker.BOARDS_ENABLED, boardsEnabled(),
-                ChangeTracker.REPEATING_CHECK, orderSetting().repeating().checkMinutes());
+                ChangeTracker.REPEATING_CHECK, orderSetting().repeating().checkMinutes(),
+                ChangeTracker.SYSTEM_ORDER_CHECK, systemOrderSettings().checkMinutes());
     }
 
     /**
