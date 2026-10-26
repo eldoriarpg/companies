@@ -7,6 +7,7 @@ package de.eldoria.companies.orders.system;
 
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
+import de.eldoria.companies.configuration.elements.systemorders.LearningSettings;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.PlayerDemand;
@@ -19,6 +20,7 @@ import de.eldoria.companies.orders.system.SystemOrderService.Wanted;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,15 +46,20 @@ import java.util.stream.Collectors;
  *     hold its price down, a copy at the next price step replaces it; otherwise its material rests for
  *     {@code restHours}. A replacement that finds no free slot, or cannot be placed for a reason other than money,
  *     lets its material rest too.</li>
- *     <li>New guessed orders, replacements first, fill up to the target of {@link GuessedChoice#target}, in the order
- *     of {@link GuessedChoice#rank}, one per material, skipping resting materials and, in {@code SKIP} mode, those
- *     players have open orders for. A placement that fails is logged and the next candidate is tried, also when money
- *     stopped it, since a cheaper one may still fit; a missing account, or money stopping {@value #MONEY_FAILURES}
- *     placements, ends the check's placing. A replacement money stopped is placed later as a new order.</li>
+ *     <li>New guessed orders, replacements first, fill up to the target of {@link GuessedChoice#target}, one per
+ *     material. While learning is on, each is drawn at random weighted as {@link GuessedLearning} says and priced
+ *     from the factor it learned; otherwise they follow the order of {@link GuessedChoice#rank}. Either way they skip
+ *     resting materials and, in {@code SKIP} mode, those players have open orders for. A placement that fails is
+ *     logged and the next candidate is tried, also when money stopped it, since a cheaper one may still fit; a
+ *     missing account, or money stopping {@value #MONEY_FAILURES} placements, ends the check's placing. A
+ *     replacement money stopped is placed later as a new order.</li>
  * </ol>
  * The allow and deny lists are resolved to material names first; entries naming no item are logged. While guessed
  * orders or system orders are disabled, open ones are removed when they would be repriced, and none are placed.
- * Removed orders give their money back to the account that paid them.
+ * Removed orders give their money back to the account that paid them. How a removed order ended is noted for
+ * learning: {@code REPRICED} when a copy at a higher price replaced it, {@code EXPIRED} when nobody took the last
+ * copy of a chain, {@code WITHDRAWN} when it made way for players or
+ * guessed orders were switched off.
  */
 final class GuessedOrders {
     /**
@@ -110,6 +117,7 @@ final class GuessedOrders {
             for (var order : open) {
                 if (due.contains(order.decision().order()) && purchases.remove(order.decision())) {
                     removed.add(order.decision().order());
+                    ended(order, GuessedLearning.WITHDRAWN, now);
                 }
             }
             return;
@@ -125,72 +133,142 @@ final class GuessedOrders {
         for (var index = 0; index < ranking.size(); index++) {
             ranks.put(ranking.get(index).material(), index);
         }
-        var replacements = new ArrayList<Replacement>();
-        var stillOpen = 0;
-        for (var order : open) {
-            var record = order.record();
-            var material = record == null ? null : record.material();
-            if (record != null && competes(settings, record, demand.get(material))) {
-                if (purchases.remove(order.decision()))
-                    removed.add(order.decision().order());
-                continue;
+        var pending = new ArrayDeque<Replacement>();
+        try {
+            var stillOpen = 0;
+            for (var order : open) {
+                var record = order.record();
+                var material = record == null ? null : record.material();
+                if (record != null && competes(settings, record, demand.get(material))) {
+                    if (purchases.remove(order.decision())) {
+                        removed.add(order.decision().order());
+                        ended(order, GuessedLearning.WITHDRAWN, now);
+                    }
+                    continue;
+                }
+                if (!due.contains(order.decision().order())) {
+                    stillOpen++;
+                    continue;
+                }
+                if (!purchases.remove(order.decision())) continue;
+                removed.add(order.decision().order());
+                if (material == null) {
+                    ended(order, GuessedLearning.EXPIRED, now);
+                    continue;
+                }
+                if (record.step() < settings.maxReprices() && ranks.containsKey(material) && !capped(record)) {
+                    pending.add(new Replacement(material, record.step() + 1, order));
+                } else {
+                    ended(order, GuessedLearning.EXPIRED, now);
+                    rest(settings, material, now);
+                }
             }
-            if (!due.contains(order.decision().order())) {
-                stillOpen++;
-                continue;
+            var active = guessed(OrderState.UNCLAIMED, OrderState.CLAIMED).stream()
+                    .map(Open::record)
+                    .filter(Objects::nonNull)
+                    .map(GuessedRecord::material)
+                    .collect(Collectors.toCollection(HashSet::new));
+            var openPlayer = orders.openPlayerOrders();
+            var target = GuessedChoice.target(settings, openPlayer);
+            var slots = target - stillOpen;
+            var learning = slots > 0 ? learning(settings, now) : null;
+            var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results, learning);
+            var moneyFailures = 0;
+            while (!pending.isEmpty()) {
+                var replacement = pending.poll();
+                var material = replacement.material();
+                if (slots <= 0 || active.contains(material)) {
+                    ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
+                    rest(settings, material, now);
+                    continue;
+                }
+                active.add(material);
+                var index = ranks.get(material);
+                var replaces = replacement.replaced().decision().order();
+                var step = place(round, ranking.get(index), index, replacement.step(), replaces, stillOpen, null);
+                if (step == Step.PLACED) {
+                    ended(replacement.replaced(), GuessedLearning.REPRICED, now);
+                    slots--;
+                    stillOpen++;
+                    continue;
+                }
+                ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
+                if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) return;
+                if (!money(step)) rest(settings, material, now);
             }
-            if (!purchases.remove(order.decision())) continue;
-            removed.add(order.decision().order());
-            if (material == null) continue;
-            if (record.step() < settings.maxReprices() && ranks.containsKey(material) && !capped(record)) {
-                replacements.add(new Replacement(
-                        material, record.step() + 1, order.decision().order()));
-            } else {
-                rest(settings, material, now);
+            var resting = orders.restingMaterials(now);
+            var eligible = new ArrayList<Candidate>();
+            for (var candidate : ranking) {
+                if (resting.contains(candidate.material()) || active.contains(candidate.material())) continue;
+                if (settings.competition() == GuessedSettings.Competition.SKIP
+                        && demand.containsKey(candidate.material())) continue;
+                eligible.add(candidate);
             }
+            while (slots > 0 && !eligible.isEmpty()) {
+                var pick = 0;
+                Double weight = null;
+                if (learning != null) {
+                    var weights = eligible.stream()
+                            .map(candidate -> weight(settings, learning, candidate))
+                            .toList();
+                    pick = Math.max(0, GuessedLearning.draw(weights, random));
+                    weight = weights.get(pick);
+                }
+                var candidate = eligible.remove(pick);
+                active.add(candidate.material());
+                var index = ranks.get(candidate.material());
+                var step = place(round, candidate, index, 0, null, stillOpen, weight);
+                if (step == Step.PLACED) {
+                    slots--;
+                    stillOpen++;
+                } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
+                    return;
+                }
+            }
+        } finally {
+            for (var replacement : pending) ended(replacement.replaced(), GuessedLearning.EXPIRED, now);
         }
-        var active = guessed(OrderState.UNCLAIMED, OrderState.CLAIMED).stream()
-                .map(Open::record)
-                .filter(Objects::nonNull)
-                .map(GuessedRecord::material)
-                .collect(Collectors.toCollection(HashSet::new));
-        var openPlayer = orders.openPlayerOrders();
-        var target = GuessedChoice.target(settings, openPlayer);
-        var round = new Placing(current, now, dayStart, demand, ranking, openPlayer, target, results);
-        var slots = target - stillOpen;
-        var moneyFailures = 0;
-        for (var replacement : replacements) {
-            var material = replacement.material();
-            if (slots <= 0 || active.contains(material)) {
-                rest(settings, material, now);
-                continue;
-            }
-            active.add(material);
-            var index = ranks.get(material);
-            var step = place(round, ranking.get(index), index, replacement.step(), replacement.replaces(), stillOpen);
-            if (step == Step.PLACED) {
-                slots--;
-                stillOpen++;
-            } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
-                return;
-            } else if (!money(step)) {
-                rest(settings, material, now);
-            }
+    }
+
+    /**
+     * What learning knows of the guessed orders of the last {@code days}, per material; null while learning is off or
+     * when it cannot be read, so the check goes on by rank at the configured factor.
+     *
+     * @param settings the guessed order settings
+     * @param now      the current time
+     * @return the statistics per material, null without learning
+     */
+    private @Nullable Map<String, GuessedLearning.Stats> learning(GuessedSettings settings, LocalDateTime now) {
+        if (!settings.learning().enabled()) return null;
+        try {
+            return GuessedLearning.stats(
+                    orders, settings, now.minusDays(settings.learning().days()));
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not read what guessed orders learned; placing by rank without it", e);
+            return null;
         }
-        var resting = orders.restingMaterials(now);
-        for (var index = 0; index < ranking.size() && slots > 0; index++) {
-            var candidate = ranking.get(index);
-            if (resting.contains(candidate.material()) || active.contains(candidate.material())) continue;
-            if (settings.competition() == GuessedSettings.Competition.SKIP && demand.containsKey(candidate.material()))
-                continue;
-            active.add(candidate.material());
-            var step = place(round, candidate, index, 0, null, stillOpen);
-            if (step == Step.PLACED) {
-                slots--;
-                stillOpen++;
-            } else if (step == Step.NO_ACCOUNT || money(step) && ++moneyFailures >= MONEY_FAILURES) {
-                return;
-            }
+    }
+
+    private static double weight(
+            GuessedSettings settings, Map<String, GuessedLearning.Stats> learning, Candidate candidate) {
+        var stats = learning.get(candidate.material());
+        var floor = settings.learning().weightFloor();
+        var takeRate = stats == null ? Math.max(floor, 0.5) : stats.takeRate(floor);
+        return takeRate / (1 + candidate.score());
+    }
+
+    /**
+     * Notes how an order this check removed ended. The order was unclaimed, so a {@code TAKEN} noted before belongs
+     * to a take given up again and is replaced.
+     */
+    private void ended(Open order, String outcome, LocalDateTime now) {
+        try {
+            orders.systemOutcome(order.decision().order(), outcome, now, GuessedLearning.TAKEN);
+        } catch (RuntimeException e) {
+            logger.log(
+                    Level.WARNING,
+                    "Could not note how the system order " + order.decision().order() + " ended",
+                    e);
         }
     }
 
@@ -302,6 +380,7 @@ final class GuessedOrders {
      * @param openPlayer open player orders
      * @param target     the target of open guessed orders
      * @param results    collects what each placement did
+     * @param learning   what learning knows per material, null without learning
      */
     private record Placing(
             SystemOrderSettings current,
@@ -311,14 +390,21 @@ final class GuessedOrders {
             List<Candidate> ranking,
             int openPlayer,
             int target,
-            List<Result> results) {}
+            List<Result> results,
+            @Nullable Map<String, GuessedLearning.Stats> learning) {}
 
     private Step place(
-            Placing placing, Candidate candidate, int index, int step, @Nullable Integer replaces, int openGuessed) {
+            Placing placing,
+            Candidate candidate,
+            int index,
+            int step,
+            @Nullable Integer replaces,
+            int openGuessed,
+            @Nullable Double weight) {
         var label = GuessedSettings.RULE + " " + candidate.material();
         Step result;
         try {
-            result = placeNow(placing, candidate, index, step, replaces, openGuessed, label);
+            result = placeNow(placing, candidate, index, step, replaces, openGuessed, weight, label);
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "Could not place the guessed system order of " + candidate.material(), e);
             result = Step.FAILED;
@@ -334,9 +420,14 @@ final class GuessedOrders {
             int step,
             @Nullable Integer replaces,
             int openGuessed,
+            @Nullable Double weight,
             String label) {
         var settings = placing.current().guessed();
         var material = candidate.material();
+        var known = placing.learning();
+        var stats = known == null ? null : known.get(material);
+        var learned = settings.learning();
+        var base = stats == null ? settings.factor() : stats.factor();
         Step result;
         if (!placement.knows(material)) {
             result = purchases.note(label, Step.UNKNOWN_ITEM, material);
@@ -345,7 +436,7 @@ final class GuessedOrders {
             var demand = placing.demand().get(material);
             var price = average.isEmpty()
                     ? Optional.<GuessedChoice.Price>empty()
-                    : GuessedChoice.price(settings, average.getAsDouble(), step, demand, random);
+                    : GuessedChoice.price(settings, base, average.getAsDouble(), step, demand, random);
             if (price.isEmpty()) {
                 result = purchases.note(label, Step.NO_PRICE, "");
             } else {
@@ -390,11 +481,42 @@ final class GuessedOrders {
                                         money.source(),
                                         money.account(),
                                         money.budgetLeft(),
-                                        money.mintedLeft()))
+                                        money.mintedLeft(),
+                                        known == null
+                                                ? null
+                                                : learning(base, stats, weight, paidFactor(priced), learned)))
                         .step();
             }
         }
         return result;
+    }
+
+    private static double paidFactor(GuessedChoice.Price priced) {
+        return priced.average() > 0 ? priced.unit() / priced.average() : priced.factor();
+    }
+
+    private static GuessedRecord.Learning learning(
+            double base,
+            GuessedLearning.@Nullable Stats stats,
+            @Nullable Double weight,
+            double factor,
+            LearningSettings settings) {
+        if (stats == null) {
+            return new GuessedRecord.Learning(
+                    base, 0, weight, Math.max(settings.weightFloor(), 0.5), 0, 0, 0, null, 0, 0);
+        }
+        var bucket = stats.bucket(factor);
+        return new GuessedRecord.Learning(
+                base,
+                stats.offset(),
+                weight,
+                stats.takeRate(settings.weightFloor()),
+                stats.posted(),
+                stats.taken(),
+                stats.expired(),
+                stats.minutesToTake(),
+                bucket[0],
+                bucket[1]);
     }
 
     /**
@@ -406,11 +528,12 @@ final class GuessedOrders {
     private record Open(SystemDecision decision, @Nullable GuessedRecord record) {}
 
     /**
-     * A copy at a higher price that replaces a removed guessed order.
+     * A copy at a higher price that replaces a removed guessed order. The removed order is noted {@code REPRICED} once
+     * the copy is placed, {@code EXPIRED} otherwise, also when the check stops or fails before the copy is tried.
      *
      * @param material the material
      * @param step     the next price step
-     * @param replaces the order it replaces
+     * @param replaced the order it replaces
      */
-    private record Replacement(String material, int step, int replaces) {}
+    private record Replacement(String material, int step, Open replaced) {}
 }

@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
+import de.eldoria.companies.data.wrapper.order.SystemOutcome;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.system.SystemOrderService.Step;
@@ -68,14 +69,46 @@ class GuessedOrdersTest {
     private OfflinePlayer player;
     private SystemOrderService service;
     private String failing;
+    private boolean failOutcomes;
+    private boolean failOpenPlayers;
+    private boolean failRest;
     private double balance = Double.MAX_VALUE;
+    private final SystemOrderService.Funding funding = new SystemOrderService.Funding() {
+        @Override
+        public boolean withdraw(String account, double amount) {
+            if (balance < amount) return false;
+            balance -= amount;
+            return true;
+        }
+
+        @Override
+        public void deposit(String account, double amount) {}
+    };
 
     @BeforeEach
     void setUp() throws Exception {
         MockBukkit.mock();
         Times.useZone(() -> ZoneOffset.UTC);
         SqLiteTestDatabase.create(directory);
-        orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper());
+        orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper()) {
+            @Override
+            public void restMaterial(String material, LocalDateTime until) {
+                if (failRest) throw new IllegalStateException("writing failed");
+                super.restMaterial(material, until);
+            }
+
+            @Override
+            public int openPlayerOrders() {
+                if (failOpenPlayers) throw new IllegalStateException("reading failed");
+                return super.openPlayerOrders();
+            }
+
+            @Override
+            public List<SystemOutcome> systemOutcomes(String rule, LocalDateTime since) {
+                if (failOutcomes) throw new IllegalStateException("reading failed");
+                return super.systemOutcomes(rule, since);
+            }
+        };
         system = SqLiteTestDatabase.player(SystemOwner.ID);
         player = SqLiteTestDatabase.player(UUID.randomUUID());
         settings.enabled(true);
@@ -93,23 +126,7 @@ class GuessedOrdersTest {
         var logger = Logger.getAnonymousLogger();
         logger.setUseParentHandlers(false);
         service = new SystemOrderService(
-                () -> settings,
-                orderData,
-                new FakePlacement(),
-                new SystemOrderService.Funding() {
-                    @Override
-                    public boolean withdraw(String account, double amount) {
-                        if (balance < amount) return false;
-                        balance -= amount;
-                        return true;
-                    }
-
-                    @Override
-                    public void deposit(String account, double amount) {}
-                },
-                clock,
-                () -> 0.5,
-                logger);
+                () -> settings, orderData, new FakePlacement(), funding, clock, () -> 0.5, logger);
     }
 
     @AfterEach
@@ -370,6 +387,7 @@ class GuessedOrdersTest {
         var steps = service.run().rules();
 
         assertEquals(GuessedOrders.MONEY_FAILURES, steps.size());
+        assertTrue(steps.stream().allMatch(result -> result.step() == Step.MINTED_CAP));
     }
 
     @Test
@@ -402,6 +420,7 @@ class GuessedOrdersTest {
     void aReplacementWithoutAFreeSlotLetsItsMaterialRest() {
         settings.guessed().repriceAfterHours(2);
         service.run();
+        var first = onlyDecision().order();
         settings.guessed().minOpen(0);
 
         clock.advance(Duration.ofHours(2));
@@ -409,6 +428,7 @@ class GuessedOrdersTest {
 
         assertTrue(guessedDecisions().isEmpty());
         assertTrue(orderData.restingMaterials(now()).contains("DIRT"));
+        assertEquals(GuessedLearning.EXPIRED, outcome(first));
     }
 
     @Test
@@ -425,6 +445,233 @@ class GuessedOrdersTest {
 
         assertTrue(orderData.retrieveOrderById(foreign.id()).join().isPresent());
         assertTrue(!run.removed().contains(foreign.id()));
+    }
+
+    @Test
+    void howAnOrderEndedIsNotedForLearning() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().maxReprices(1);
+        service.run();
+        var repriced = onlyDecision().order();
+        clock.advance(Duration.ofHours(2));
+        service.run();
+        var expired = onlyDecision().order();
+        clock.advance(Duration.ofHours(2));
+        service.run();
+        var withdrawn = onlyDecision().order();
+
+        open(Material.STONE, 10, 30.0);
+        service.run();
+
+        assertEquals(GuessedLearning.REPRICED, outcome(repriced));
+        assertEquals(GuessedLearning.EXPIRED, outcome(expired));
+        assertEquals(GuessedLearning.WITHDRAWN, outcome(withdrawn));
+    }
+
+    @Test
+    void ordersRunningOutWhileDisabledAreNotedAsWithdrawn() {
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        var order = onlyDecision().order();
+        settings.guessed().enabled(false);
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.WITHDRAWN, outcome(order));
+    }
+
+    @Test
+    void aTakeGivenUpAgainIsReplacedByHowTheOrderEnded() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().maxReprices(0);
+        service.run();
+        var order = onlyDecision().order();
+        orderData.systemOutcome(order, GuessedLearning.TAKEN, now().plusMinutes(5), null);
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(order));
+    }
+
+    @Test
+    void theWeightedDrawCanPickALowerRankedMaterial() {
+        var drawing = new SystemOrderService(
+                () -> settings,
+                orderData,
+                new FakePlacement(),
+                funding,
+                clock,
+                () -> 0.99,
+                Logger.getAnonymousLogger());
+
+        drawing.run();
+
+        assertEquals("STONE", only().material());
+        assertEquals(2, only().rank());
+    }
+
+    @Test
+    void aReplacementMoneyStoppedIsNotedExpired() {
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        var first = onlyDecision().order();
+        settings.mintedDailyCap(0);
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(first));
+    }
+
+    @Test
+    void replacementsLeftWhenTheCheckStopsEarlyAreNotedExpired() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        service.run();
+        var first = guessedDecisions().get(0).order();
+        var second = guessedDecisions().get(1).order();
+        settings.guessed().source(new MoneySource(MoneySource.SourceType.ACCOUNT, "", 0));
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(first));
+        assertEquals(GuessedLearning.EXPIRED, outcome(second));
+    }
+
+    @Test
+    void aRemovedOrderIsNotedExpiredWhenTheCheckFailsBeforeItsCopy() {
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        var first = onlyDecision().order();
+        failOpenPlayers = true;
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(first));
+    }
+
+    @Test
+    void aQueuedRepriceIsNotedExpiredWhenRemovingALaterOrderFails() {
+        settings.guessed().repriceAfterHours(2);
+        settings.guessed().minOpen(2);
+        settings.guessed().maxOpen(2);
+        service.run();
+        var dirt = guessedDecisions().stream()
+                .filter(decision -> decision.record().contains("\"DIRT\""))
+                .findFirst()
+                .orElseThrow()
+                .order();
+        settings.guessed().deny(List.of("STONE"));
+        failRest = true;
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.EXPIRED, outcome(dirt));
+    }
+
+    @Test
+    void aRepriceIsNotedOnlyOnceItsCopyIsPlaced() {
+        settings.guessed().repriceAfterHours(2);
+        service.run();
+        var first = onlyDecision().order();
+
+        clock.advance(Duration.ofHours(2));
+        service.run();
+
+        assertEquals(GuessedLearning.REPRICED, outcome(first));
+        assertEquals(first, only().replaces());
+    }
+
+    @Test
+    void whenLearningCannotBeReadOrdersFollowTheRank() {
+        failOutcomes = true;
+        var drawing = new SystemOrderService(
+                () -> settings,
+                orderData,
+                new FakePlacement(),
+                funding,
+                clock,
+                () -> 0.99,
+                Logger.getAnonymousLogger());
+
+        drawing.run();
+
+        assertEquals("DIRT", only().material());
+        assertNull(only().learning());
+    }
+
+    @Test
+    void aRecordWrittenBeforeLearningIsStillRead() {
+        service.run();
+        var stored = (tools.jackson.databind.node.ObjectNode)
+                JsonMapper.builder().build().readTree(onlyDecision().record());
+        stored.remove("learning");
+
+        var record = JsonMapper.builder().build().treeToValue(stored, GuessedRecord.class);
+
+        assertEquals("DIRT", record.material());
+        assertNull(record.learning());
+    }
+
+    @Test
+    void aMaterialTakenFastIsPricedLowerNextTime() {
+        service.run();
+        var first = onlyDecision().order();
+        orderData.systemOutcome(first, GuessedLearning.TAKEN, now().plusMinutes(5), null);
+        removeOrder(first);
+
+        clock.advance(Duration.ofMinutes(10));
+        service.run();
+
+        var record = only();
+        assertEquals("DIRT", record.material());
+        assertEquals(0.75, record.factor(), 0.000_1);
+        assertEquals(1.5, record.unit());
+        var learning = record.learning();
+        assertEquals(-0.05, learning.offset(), 0.000_1);
+        assertEquals(1, learning.taken());
+        assertEquals(5.0, learning.minutesToTake());
+    }
+
+    @Test
+    void withoutLearningOrdersFollowTheRankAndRecordNoLearning() {
+        settings.guessed().learning().enabled(false);
+
+        service.run();
+
+        assertEquals("DIRT", only().material());
+        assertNull(only().learning());
+    }
+
+    @Test
+    void aNewOrderRecordsTheWeightItWasDrawnWith() {
+        service.run();
+
+        var learning = only().learning();
+        assertEquals(0.5, learning.weight(), 0.000_1);
+        assertEquals(0.5, learning.takeRate(), 0.000_1);
+    }
+
+    private String outcome(int order) {
+        return orderData.systemOutcomes(GuessedSettings.RULE, now().minusDays(30)).stream()
+                .filter(entry -> entry.decision().order() == order)
+                .findFirst()
+                .orElseThrow()
+                .outcome();
+    }
+
+    private static void removeOrder(int order) {
+        for (var table : List.of("order_content", "order_states", "orders")) {
+            query("DELETE FROM " + table + " WHERE id = ?")
+                    .single(call().bind(order))
+                    .delete();
+        }
     }
 
     private GuessedRecord only() {
