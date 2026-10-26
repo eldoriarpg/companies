@@ -733,6 +733,32 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    public void systemRule(int order, String rule) {
+        @Language("mariadb")
+        var update = """
+                UPDATE orders
+                SET system_rule = ?
+                WHERE id = ?""";
+
+        query(update).single(call().bind(rule).bind(order)).update();
+    }
+
+    @Override
+    public Optional<String> systemRule(int order) {
+        @Language("mariadb")
+        var select = """
+                SELECT system_rule
+                FROM orders
+                WHERE id = ?
+                  AND system_rule IS NOT NULL""";
+
+        return query(select)
+                .single(call().bind(order))
+                .map(row -> row.getString("system_rule"))
+                .first();
+    }
+
+    @Override
     protected boolean receiveOrder(SimpleOrder order, List<ItemAmount> pending) {
         @Language("mariadb")
         var receive = """

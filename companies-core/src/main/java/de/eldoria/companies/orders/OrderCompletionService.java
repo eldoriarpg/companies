@@ -68,6 +68,7 @@ public final class OrderCompletionService {
     private final DoubleSupplier soloTaxPercent;
     private final Clock clock;
     private final Executor executor;
+    private final SystemReceipt systemReceipt;
 
     /**
      * @param plugin     the plugin, firing the events
@@ -79,6 +80,7 @@ public final class OrderCompletionService {
      * @param soloTaxPercent tax percentage of solo orders
      * @param clock          clock giving the completion time of the payouts
      * @param executor       runs the settlement off the main thread
+     * @param systemReceipt  receives a delivered system order for the server
      */
     public OrderCompletionService(
             Plugin plugin,
@@ -89,7 +91,8 @@ public final class OrderCompletionService {
             IntToDoubleFunction taxPercent,
             DoubleSupplier soloTaxPercent,
             Clock clock,
-            Executor executor) {
+            Executor executor,
+            SystemReceipt systemReceipt) {
         this.plugin = plugin;
         this.orderData = orderData;
         this.statsData = statsData;
@@ -99,6 +102,7 @@ public final class OrderCompletionService {
         this.soloTaxPercent = soloTaxPercent;
         this.clock = clock;
         this.executor = executor;
+        this.systemReceipt = systemReceipt;
     }
 
     /**
@@ -112,6 +116,7 @@ public final class OrderCompletionService {
      * @param economy       economy paying the workers
      * @param configuration configuration of the plugin
      * @param treasuries    the company treasuries
+     * @param outcomes      receives a delivered system order for the server
      * @return the service
      */
     public static OrderCompletionService create(
@@ -121,7 +126,8 @@ public final class OrderCompletionService {
             HistoryRecorder history,
             Economy economy,
             Configuration configuration,
-            TreasuryService treasuries) {
+            TreasuryService treasuries,
+            OrderOutcomes outcomes) {
         var collector = new Collector(plugin, economy, configuration);
         Treasury treasury = new Treasury() {
             @Override
@@ -153,7 +159,8 @@ public final class OrderCompletionService {
                 level -> configuration.companySettings().taxPercent(level),
                 () -> configuration.orderSetting().solo().taxPercent(),
                 Times.UTC,
-                Threading.VIRTUAL);
+                Threading.VIRTUAL,
+                order -> outcomes.receive(order, List.of()));
     }
 
     /**
@@ -178,7 +185,8 @@ public final class OrderCompletionService {
      */
     public CompletableFuture<Completion> settle(FullOrder order, CompanyProfile company) {
         return CompletableFuture.supplyAsync(() -> pay(order, company), executor)
-                .thenCompose(completion -> record(completion, company).thenApply(ignored -> completion));
+                .thenCompose(completion -> record(completion, company).thenApply(ignored -> completion))
+                .thenCompose(this::sinkIfSystem);
     }
 
     /**
@@ -202,7 +210,28 @@ public final class OrderCompletionService {
      */
     public CompletableFuture<Completion> settleSolo(FullOrder order) {
         return CompletableFuture.supplyAsync(() -> paySolo(order), executor)
-                .thenCompose(completion -> recordPayouts(completion).thenApply(ignored -> completion));
+                .thenCompose(completion -> recordPayouts(completion).thenApply(ignored -> completion))
+                .thenCompose(this::sinkIfSystem);
+    }
+
+    /**
+     * Completes a delivered system order at once: nobody receives its items, so they are removed and the order is
+     * received for the server, as an owner receives an order, events and history entry included. One that could not be
+     * received stays delivered and is received by the next expiry check.
+     */
+    private CompletableFuture<Completion> sinkIfSystem(Completion completion) {
+        var order = completion.order();
+        if (!SystemOwner.is(order.owner())) return CompletableFuture.completedFuture(completion);
+        return systemReceipt.receive(order).handle((received, err) -> {
+            if (err != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not complete the system order " + order.id(), err);
+            } else if (!Boolean.TRUE.equals(received)) {
+                plugin.getLogger()
+                        .info("The system order " + order.id()
+                                + " was not received here; it was received already or the next expiry check does it.");
+            }
+            return completion;
+        });
     }
 
     private Completion pay(FullOrder order, CompanyProfile company) {
@@ -389,6 +418,18 @@ public final class OrderCompletionService {
      * @param payouts one record per worker, as written to the ledger
      */
     public record Completion(FullOrder order, List<PayoutRecord> payouts) {}
+
+    /**
+     * Receives a delivered system order for the server.
+     */
+    @FunctionalInterface
+    public interface SystemReceipt {
+        /**
+         * @param order the delivered system order
+         * @return true when it was delivered and is now received
+         */
+        CompletableFuture<Boolean> receive(FullOrder order);
+    }
 
     /**
      * The payment of all workers of an order.

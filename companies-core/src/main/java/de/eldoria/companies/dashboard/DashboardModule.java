@@ -59,6 +59,7 @@ import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
@@ -145,10 +146,8 @@ public final class DashboardModule {
         var userAgent = "Companies/" + version;
         var messages = MessageSender.getPluginMessageSender(plugin);
         var localizer = ILocalizer.getPluginLocalizer(plugin);
-        Function<UUID, String> names = uuid -> {
-            var name = Bukkit.getOfflinePlayer(uuid).getName();
-            return name == null ? uuid.toString() : name;
-        };
+        Function<UUID, String> names =
+                uuid -> SystemOwner.name(uuid, id -> Bukkit.getOfflinePlayer(id).getName());
         Function<String, String> refusal =
                 key -> PlainText.of(CommandFailure.of(key).render(null, messages));
 
@@ -284,10 +283,9 @@ public final class DashboardModule {
                                         Threading.mainThread(plugin))
                                 .join(),
                         data.admin().companyByName(),
-                        uuid -> Optional.ofNullable(plugin.getServer()
-                                        .getOfflinePlayer(uuid)
-                                        .getName())
-                                .orElse(uuid.toString()),
+                        uuid -> SystemOwner.name(
+                                uuid,
+                                id -> plugin.getServer().getOfflinePlayer(id).getName()),
                         views,
                         data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))),
@@ -300,10 +298,9 @@ public final class DashboardModule {
                                         Threading.mainThread(plugin))
                                 .join(),
                         Bukkit::getOfflinePlayer,
-                        uuid -> Optional.ofNullable(plugin.getServer()
-                                        .getOfflinePlayer(uuid)
-                                        .getName())
-                                .orElse(uuid.toString()),
+                        uuid -> SystemOwner.name(
+                                uuid,
+                                id -> plugin.getServer().getOfflinePlayer(id).getName()),
                         data.admin().companies(),
                         data.admin().companyData(),
                         data.items().orders(),

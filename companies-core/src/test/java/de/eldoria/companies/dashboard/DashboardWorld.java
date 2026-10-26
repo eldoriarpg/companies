@@ -405,7 +405,8 @@ public final class DashboardWorld implements AutoCloseable {
                         level -> 0.0,
                         () -> 5.0,
                         Clock.systemUTC(),
-                        executor),
+                        executor,
+                        order -> CompletableFuture.completedFuture(false)),
                 new HistoryRecorder(history, Clock.systemUTC()),
                 new AdminOrderService.Funds() {
                     @Override

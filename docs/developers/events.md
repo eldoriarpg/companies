@@ -85,6 +85,7 @@ change, remove or add lines. `source()` tells where the order comes from:
 | `API`         | A plugin with `orders().create(...)`                         |
 | `REPEATING`   | A copy posted by a [repeating order](../players/repeating-orders.md). The owner pays for it, but the limits of the owner do not apply |
 | `DASHBOARD`   | A player on the web dashboard, who may be offline            |
+| `SYSTEM`      | The server itself. The owner is a reserved id that belongs to no player (`00000000-0000-0000-0000-00000005e7e7`); nothing is charged, and once delivered the order is received for the server at once (`OrderReceivedEvent` fires) while its items are removed. `orders().create(...)` refuses this id as owner |
 
 ```java
 @EventHandler

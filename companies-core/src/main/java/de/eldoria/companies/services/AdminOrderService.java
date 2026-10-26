@@ -19,6 +19,7 @@ import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.PaymentType;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
@@ -150,6 +151,7 @@ public final class AdminOrderService {
         Funds funds = new Funds() {
             @Override
             public void refund(UUID owner, double amount) {
+                if (SystemOwner.is(owner)) return;
                 mainThread.execute(
                         () -> economy.depositPlayer(plugin.getServer().getOfflinePlayer(owner), amount));
             }
@@ -228,13 +230,16 @@ public final class AdminOrderService {
     }
 
     /**
-     * What a deletion moves.
+     * What a deletion moves. A system order was never charged, so it refunds and keeps nothing.
+     * <p>
+     * TODO refund a system order funded from an account to that account.
      *
      * @param order  order as it was before the deletion
      * @param refund true to refund the owner
      * @return price and fee for the owner on a refund, otherwise price and fee for the collector
      */
     public static CancelMoney cancelMoney(FullOrder order, boolean refund) {
+        if (SystemOwner.is(order.owner())) return new CancelMoney(0, 0);
         var total = BigDecimal.valueOf(order.price())
                 .add(BigDecimal.valueOf(order.fee()))
                 .doubleValue();
@@ -242,12 +247,14 @@ public final class AdminOrderService {
     }
 
     /**
-     * The price share of the items missing from an order, which is what the workers are not paid for.
+     * The price share of the items missing from an order, which is what the workers are not paid for. A system order
+     * was never charged, so it refunds nothing.
      *
      * @param order delivered order with its deliveries
      * @return the price minus the workers' shares, rounded to cents and never negative
      */
     public static double undeliveredRefund(FullOrder order) {
+        if (SystemOwner.is(order.owner())) return 0;
         var paid = order.payments(PaymentType.STACK).values().stream()
                 .map(BigDecimal::valueOf)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
