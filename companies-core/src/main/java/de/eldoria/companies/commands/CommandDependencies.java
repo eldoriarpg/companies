@@ -319,6 +319,13 @@ public final class CommandDependencies {
     }
 
     /**
+     * @return whether the services were built, which they are not in the failsafe mode
+     */
+    public boolean servicesReady() {
+        return services.isPresent();
+    }
+
+    /**
      * Refuses commands while the services do not exist.
      *
      * @throws CommandFailure {@code error.notReady} while they do not exist

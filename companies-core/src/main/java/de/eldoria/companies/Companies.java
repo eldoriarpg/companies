@@ -123,6 +123,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.RefreshService;
 import de.eldoria.companies.services.SeriesService;
+import de.eldoria.companies.services.SetupReminder;
 import de.eldoria.companies.services.TreasuryLogRetention;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.alerts.AlertCompanies;
@@ -456,6 +457,10 @@ public class Companies extends EldoPlugin {
         registerListener(levelService);
         registerListener(itemReturnService);
         registerListener(notificationService);
+        var setupReminder =
+                new SetupReminder(this, () -> nodeData, MessageSender.getPluginMessageSender(this), workerPool);
+        registerListener(setupReminder);
+        setupReminder.atStart();
         if (commands != null && configuration.boardsEnabled()) {
             var signBoards = new SignBoards(
                     this,

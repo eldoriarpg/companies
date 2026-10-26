@@ -48,6 +48,16 @@ public class NodeSettings {
     }
 
     /**
+     * Names this node; the dashboard shows the new name after it reconnects.
+     *
+     * @param name the name, at most {@value #MAX_NAME} characters, empty for none
+     */
+    public void name(String name) {
+        var stripped = name == null ? "" : name.strip();
+        this.name = stripped.length() > MAX_NAME ? stripped.substring(0, MAX_NAME) : stripped;
+    }
+
+    /**
      * The dashboard key or server token as configured for this node, see {@link NodeDashboardSettings#serverKey()}.
      *
      * @return the key, empty for none

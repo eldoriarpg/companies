@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.companyadmin.NodeCommand;
 import de.eldoria.companies.commands.companyadmin.Reload;
 import de.eldoria.companies.commands.companyadmin.Rename;
 import de.eldoria.companies.commands.companyadmin.SettingsCommand;
+import de.eldoria.companies.commands.companyadmin.SetupCommand;
 import de.eldoria.companies.commands.companyadmin.SyncConfiguration;
 import de.eldoria.companies.commands.companyadmin.TransferOwner;
 import de.eldoria.companies.commands.companyadmin.TreasuryCommand;
@@ -84,6 +85,9 @@ final class CompanyAdminCommand {
     final SettingsCommand settings;
 
     @Subcommand
+    final SetupCommand setup;
+
+    @Subcommand
     final DashboardAdminCommand dashboard;
 
     CompanyAdminCommand(CommandDependencies deps) {
@@ -102,6 +106,7 @@ final class CompanyAdminCommand {
         treasury = new TreasuryCommand(deps);
         node = new NodeCommand(deps);
         settings = new SettingsCommand(deps);
+        setup = new SetupCommand(deps);
         dashboard = new DashboardAdminCommand(deps);
     }
 
