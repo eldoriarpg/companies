@@ -137,7 +137,12 @@ public final class ReadRelay {
             Actions.ADMIN_SETTINGS_ROLLBACK,
             Actions.ADMIN_SETTINGS_ICON,
             Actions.ADMIN_SETUP_GET,
-            Actions.ADMIN_SETUP_MARK);
+            Actions.ADMIN_SETUP_MARK,
+            Actions.ADMIN_SYSTEM_ORDERS_LIST,
+            Actions.ADMIN_SYSTEM_ORDERS_INFO,
+            Actions.ADMIN_SYSTEM_ORDERS_STATS,
+            Actions.ADMIN_SYSTEM_ORDERS_RULES,
+            Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE);
 
     /**
      * The admin actions on what each node keeps for itself, its board signs and NPC links. They go to the node named

@@ -159,6 +159,46 @@ test.describe('admin', () => {
         await expect(page.getByText('The configuration is synced.')).toBeVisible()
     })
 
+    test('lists the server\'s own orders, shows why one was placed and what guessed orders learned', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'System orders'}).click()
+
+        const orders = page.getByTestId('admin-system-orders')
+        await expect(orders.getByRole('listitem')).toHaveCount(2)
+        await orders.getByRole('button', {name: /#802 Dirt/}).click()
+        const decision = page.getByTestId('admin-system-decision')
+        await expect(decision.getByText('Demand score')).toBeVisible()
+        await expect(decision.getByText('Learned factor')).toBeVisible()
+        await expect(decision.getByText('Paid 102.4 with minted money.')).toBeVisible()
+
+        await expect(page.getByTestId('admin-system-learned').getByText('DIRT')).toBeVisible()
+    })
+
+    test('adds a rule of the server\'s own orders and refuses one with an id in use', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'System orders'}).click()
+
+        const rules = page.getByTestId('admin-system-rules')
+        await expect(rules.getByText('iron-weekly · IRON_INGOT')).toBeVisible()
+        await rules.getByRole('button', {name: 'Add a rule'}).click()
+        const form = page.getByTestId('admin-system-rule')
+        await form.getByLabel('Id').fill('sand-daily')
+        await form.getByLabel('Material').fill('SAND')
+        await rules.getByRole('button', {name: 'Save the rules'}).click()
+        await expect(rules.getByText('The rules are saved.')).toBeVisible()
+
+        await form.getByLabel('Id').fill('iron-weekly')
+        await rules.getByText('iron-weekly · IRON_INGOT').click()
+        await rules.getByRole('button', {name: 'Save the rules'}).click()
+        await expect(rules.getByText('Nothing was saved: 1 rule(s) have a problem; the first is open.')).toBeVisible()
+        await expect(form.getByText('Id: is used by an earlier rule')).toBeVisible()
+
+        await form.getByLabel('Items per order').fill('')
+        await expect(rules.getByRole('button', {name: 'Save the rules'})).toBeDisabled()
+    })
+
     test('shows the shared settings without their secrets and what a revision changed', async ({page}, info) => {
         await openDashboard(page, 'ADMN01')
         await openAdmin(page, info)
@@ -297,7 +337,7 @@ test.describe('admin', () => {
 
         await expect(page.getByTestId('admin-setup-summary')).toContainText('The setup is done.')
         await expect(page.getByTestId('admin-setup-steps')).toContainText('skipped')
-        await page.getByRole('tab', {name: 'Orders'}).click()
+        await page.getByRole('tab', {name: 'Orders', exact: true}).click()
         await expect(page.getByTestId('admin-setup-reminder')).toHaveCount(0)
     })
 

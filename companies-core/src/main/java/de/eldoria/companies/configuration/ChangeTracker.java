@@ -42,11 +42,14 @@ public final class ChangeTracker {
     public static final Setting DASHBOARD = Setting.of(CONFIG, "dashboard");
     /** The ranking caches. */
     public static final Setting TOP = Setting.of(CONFIG, "top");
+    /** Whether the server marks its own orders, which the dashboard offers its filter for. */
+    public static final Setting SYSTEM_ORDER_MARKS = Setting.of("system-orders.yml", "markSystemOrders");
 
     /**
      * The settings reload work depends on.
      */
-    public static final List<Setting> HOOKED = List.of(TIMEZONE, UPDATES, NOTIFICATIONS, DISCORD, DASHBOARD, TOP);
+    public static final List<Setting> HOOKED =
+            List.of(TIMEZONE, UPDATES, NOTIFICATIONS, DISCORD, DASHBOARD, TOP, SYSTEM_ORDER_MARKS);
 
     /** Whether chat is held back while a chat menu is open. */
     public static final Setting MESSAGE_BLOCKING = Setting.of(CONFIG, "generalSettings.messageBlocking");

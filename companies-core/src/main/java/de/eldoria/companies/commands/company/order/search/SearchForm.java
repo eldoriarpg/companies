@@ -27,6 +27,8 @@ import java.util.Locale;
  * @param sorting        lower case name of the sorting
  * @param direction      {@link #ASC} or {@link #DESC}
  * @param fillable       whether only orders the player can deliver to are shown
+ * @param serverOrders   {@link #ALL}, {@link #ONLY} or {@link #HIDE}: which orders of the server are shown, while the
+ *                       server marks them; empty counts as {@link #ALL}
  */
 public record SearchForm(
         String name,
@@ -39,7 +41,8 @@ public record SearchForm(
         String maxSize,
         String sorting,
         String direction,
-        boolean fillable) {
+        boolean fillable,
+        String serverOrders) {
     public static final String NAME = "name";
     public static final String MATERIALS = "materials";
     public static final String MATERIAL_SEARCH = "material_search";
@@ -51,6 +54,7 @@ public record SearchForm(
     public static final String SORTING = "sorting";
     public static final String DIRECTION = "direction";
     public static final String FILLABLE = "fillable";
+    public static final String SERVER_ORDERS = "server_orders";
 
     public static final String ANY = "any";
     public static final String ALL = "all";
@@ -58,6 +62,8 @@ public record SearchForm(
     public static final String EXACT = "exact";
     public static final String ASC = "asc";
     public static final String DESC = "desc";
+    public static final String ONLY = "only";
+    public static final String HIDE = "hide";
 
     /**
      * The form filled in with a query.
@@ -77,7 +83,18 @@ public record SearchForm(
                 query.maxOrderSize() == Integer.MAX_VALUE ? "" : String.valueOf(query.maxOrderSize()),
                 sortingId(query.sortingType()),
                 query.isAsc() ? ASC : DESC,
-                query.fillable());
+                query.fillable(),
+                serverOrdersId(query.serverOrders()));
+    }
+
+    /**
+     * The id of a choice of server orders in the form.
+     *
+     * @param serverOrders the choice
+     * @return its lower case name
+     */
+    public static String serverOrdersId(SearchQuery.ServerOrders serverOrders) {
+        return serverOrders.name().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -114,6 +131,12 @@ public record SearchForm(
         if (sortingType.isEmpty()) return new Invalid(SORTING);
         query.sortingType(sortingType.get());
         query.fillable(fillable);
+        var shown = serverOrders == null || serverOrders.isBlank() ? ALL : serverOrders;
+        var choice = Arrays.stream(SearchQuery.ServerOrders.values())
+                .filter(value -> serverOrdersId(value).equals(shown))
+                .findFirst();
+        if (choice.isEmpty()) return new Invalid(SERVER_ORDERS);
+        query.serverOrders(choice.get());
         return ranges(query);
     }
 

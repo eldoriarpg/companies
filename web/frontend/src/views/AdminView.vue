@@ -20,6 +20,7 @@ import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import AdminSettings from './adminview/AdminSettings.vue'
+import AdminSystemOrders from './adminview/AdminSystemOrders.vue'
 import AdminSetupView from './adminview/AdminSetup.vue'
 
 /**
@@ -41,6 +42,7 @@ const tabs = computed(() => [
   {key: 'boards', label: t('admin.tabs.boards'), features: [Feature['admin.boards']]},
   {key: 'servers', label: t('admin.tabs.servers'), features: [Feature['admin.nodes'], Feature['admin.config']]},
   {key: 'settings', label: t('admin.tabs.settings'), features: [Feature['admin.settings']]},
+  {key: 'systemorders', label: t('admin.tabs.systemorders'), features: [Feature['admin.systemorders']]},
 ].filter(tab => tab.features.some(feature => supports(feature))))
 const canSetup = computed(() => supports(Feature['admin.setup']) && supports(Feature['admin.settings']))
 const allTabs = computed(() => (canSetup.value ? [{key: 'setup', label: t('admin.tabs.setup'), features: [Feature['admin.setup']]}, ...tabs.value] : tabs.value))
@@ -84,6 +86,7 @@ async function dismiss(): Promise<void> {
         <AdminBoards v-else-if="tab === 'boards'"/>
         <AdminServers v-else-if="tab === 'servers'"/>
         <AdminSettings v-else-if="tab === 'settings'"/>
+        <AdminSystemOrders v-else-if="tab === 'systemorders'"/>
         <AdminSetupView v-else-if="tab === 'setup'" @open="tab = $event" @changed="setup = $event"/>
       </div>
     </template>

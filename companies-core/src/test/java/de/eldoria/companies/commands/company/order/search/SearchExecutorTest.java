@@ -10,12 +10,14 @@ import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
+import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.OrderTable;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.TestExecutors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +45,7 @@ class SearchExecutorTest {
     private ExecutorService executor;
     private OrderTable orders;
     private SearchExecutor search;
+    private final SystemOrderSettings systemOrders = new SystemOrderSettings();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -63,6 +66,11 @@ class SearchExecutorTest {
             @Override
             public CompanySettings companySettings() {
                 return settings;
+            }
+
+            @Override
+            public SystemOrderSettings systemOrderSettings() {
+                return systemOrders;
             }
         };
         search = new SearchExecutor(
@@ -111,5 +119,47 @@ class SearchExecutorTest {
 
         assertFalse(results.canAccept());
         assertFalse(results.companyMember());
+    }
+
+    @Test
+    void whileTheServerMarksItsOrdersTheSearchShowsOrHidesThem() {
+        systemOrders.markSystemOrders(true);
+        var player = orders.place(0.0);
+        var server = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        var query = new SearchQuery();
+
+        query.serverOrders(SearchQuery.ServerOrders.HIDE);
+        assertEquals(List.of(player.id()), ids(search.search(manager, query).join()));
+        query.serverOrders(SearchQuery.ServerOrders.ONLY);
+        assertEquals(List.of(server.id()), ids(search.search(manager, query).join()));
+    }
+
+    @Test
+    void withoutMarkingTheChoiceOfServerOrdersIsIgnored() {
+        var player = orders.place(0.0);
+        var server = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        var query = new SearchQuery();
+        query.serverOrders(SearchQuery.ServerOrders.HIDE);
+
+        assertEquals(
+                List.of(player.id(), server.id()),
+                ids(search.search(manager, query).join()));
+    }
+
+    @Test
+    void playerOrdersComeFirstAmongEqualsWhileTheServerMarksItsOrders() {
+        systemOrders.markSystemOrders(true);
+        var server = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        var player = orders.place(0.0);
+        var query = new SearchQuery();
+        query.sortingType(SortingType.PRICE);
+
+        assertEquals(
+                List.of(player.id(), server.id()),
+                ids(search.search(manager, query).join()));
+        query.asc(false);
+        assertEquals(
+                List.of(player.id(), server.id()),
+                ids(search.search(manager, query).join()));
     }
 }

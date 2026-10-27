@@ -132,6 +132,8 @@ export interface OrderSearchArgs {
     /** The in-game sorting: `AGE`, `NAME`, `PRICE`, `SIZE` or `UNIT_PRICE`. */
     sort?: string
     asc?: boolean
+    /** Which orders of the server to show while the server marks them: `only` or `hide`; every order without. */
+    serverOrders?: 'only' | 'hide'
     page: number
     pageSize: number
 }
@@ -156,6 +158,8 @@ export interface OrderListing {
     amount?: number
     /** When it was claimed, for the company working on it. */
     claimed?: string | null
+    /** Whether the server placed it; only set while the server marks its orders. */
+    server?: boolean
     /** Items delivered and waiting for the owner, for the owner of a delivered order. */
     waiting?: ItemView[] | null
 }
@@ -522,6 +526,71 @@ export interface AdminNpcBoards {
     bindings: AdminNpcBinding[]
 }
 
+/** A system order open or in work, as the admin list shows it. */
+export interface AdminSystemOrder {
+    order: number
+    name: string
+    /** The rule that placed it, `guessed` for a guessed order. */
+    rule: string
+    /** How it was decided: `DEFINED` or `GUESSED`. */
+    kind: string
+    /** Its state, missing when it was removed meanwhile. */
+    state?: string | null
+    placed: string
+    paid: number
+    /** The economy account that paid it, missing for minted money. */
+    account?: string | null
+}
+
+/** Why the server placed one of its orders, with the numbers its decision stood on as stored. */
+export interface AdminSystemDecision {
+    order: number
+    rule: string
+    kind: string
+    placed: string
+    paid: number
+    account?: string | null
+    record?: Record<string, unknown> | null
+}
+
+/** A defined rule of the server's own orders, as the rules editor edits it. */
+export interface SystemOrderRule {
+    id: string
+    name: string
+    enabled: boolean
+    /** A material name such as `IRON_INGOT`. */
+    material: string
+    amount?: number
+    price: {
+        mode: string
+        value?: number
+        factor?: number
+        jitter?: number
+        min?: number
+        max?: number
+    }
+    everyHours?: number
+    lifetimeHours?: number
+    maxOpen?: number
+    source: {
+        type: string
+        account: string
+        dailyBudget?: number
+    }
+}
+
+/** What the guessed orders of one material learned. */
+export interface AdminSystemLearned {
+    material: string
+    posted: number
+    taken: number
+    expired: number
+    minutesToTake?: number | null
+    factor: number
+    offset: number
+    takeRate: number
+}
+
 /** A server registered in the database. */
 export interface AdminNode {
     uid: string
@@ -740,6 +809,14 @@ export interface WriteActions {
     'admin.boards.npc.link': {args: NodeChoice & {hook: string, npc: string, board: string}, result: AdminNpcBinding}
     'admin.boards.npc.unlink': {args: NodeChoice & {hook: string, npc: string}, result: AdminNpcBinding}
     'admin.nodes.list': {args: Record<string, never>, result: {nodes: AdminNode[]}}
+    'admin.systemorders.list': {args: Record<string, never>, result: {orders: AdminSystemOrder[]}}
+    'admin.systemorders.info': {args: {order: number}, result: AdminSystemDecision}
+    'admin.systemorders.stats': {args: Record<string, never>, result: {materials: AdminSystemLearned[]}}
+    'admin.systemorders.rules': {args: Record<string, never>, result: {revision: number, editable: boolean, rules: Partial<SystemOrderRule>[]}}
+    'admin.systemorders.rules.save': {
+        args: {base: number, rules: SystemOrderRule[]}
+        result: {result: 'saved' | 'unchanged' | 'newer' | 'invalid', revision: number, errors: Record<string, string>, rules?: Partial<SystemOrderRule>[] | null, applied: boolean}
+    }
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}
     'admin.settings.get': {args: {file: SettingsFileName}, result: AdminSettingsFile}

@@ -28,11 +28,13 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
+import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminServerWrites;
 import de.eldoria.companies.dashboard.actions.AdminSettingsWrites;
 import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
+import de.eldoria.companies.dashboard.actions.AdminSystemOrderWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
@@ -75,6 +77,7 @@ import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
@@ -154,6 +157,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final FakeHook citizens = new FakeHook("Citizens", Set.of("4", "5"));
     public SqLiteNodeData nodeData;
     public Configuration settings;
+    public final SystemOrderSettings systemOrders = new SystemOrderSettings();
     public final AtomicInteger settingsApplied = new AtomicInteger();
     private final Path directory;
     public AdminLog adminLog;
@@ -212,11 +216,17 @@ public final class DashboardWorld implements AutoCloseable {
                 () -> orderSettings,
                 this::name,
                 ZoneOffset.UTC,
-                Clock.systemUTC()));
+                Clock.systemUTC(),
+                systemOrders::markSystemOrders));
         var configuration = new Configuration(MockBukkit.createMockPlugin()) {
             @Override
             public CompanySettings companySettings() {
                 return companySettings;
+            }
+
+            @Override
+            public SystemOrderSettings systemOrderSettings() {
+                return systemOrders;
             }
         };
         history = new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor);
@@ -577,6 +587,19 @@ public final class DashboardWorld implements AutoCloseable {
                         adminLog,
                         Logger.getAnonymousLogger(),
                         views::instant,
+                        failure -> "text of " + failure.localeKey())),
+                new AdminSystemOrderWrites(new AdminSystemOrderWrites.Sources(
+                        orders,
+                        SqLiteTestDatabase.player(SystemOwner.ID),
+                        () -> systemOrders,
+                        views::instant,
+                        Times::now,
+                        adminLog,
+                        settings,
+                        () -> nodeData,
+                        settingsApplied::incrementAndGet,
+                        material -> !material.equals("NOT_AN_ITEM"),
+                        Logger.getAnonymousLogger(),
                         failure -> "text of " + failure.localeKey())));
     }
 

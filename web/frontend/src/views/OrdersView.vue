@@ -62,7 +62,7 @@ const sheetOpen = computed({
       </div>
       <OrderDetail v-if="wide && book.detail.value" :order="book.detail.value" :averages="market.averages.value" :can-accept="book.result.value?.canAccept ?? false" class="sticky top-4" @accepted="book.load()"/>
     </div>
-    <BottomSheet v-if="book.detail.value" v-model:open="sheetOpen" :title="book.detail.value.name" :description="t('orders.anonymous')">
+    <BottomSheet v-if="book.detail.value" v-model:open="sheetOpen" :title="book.detail.value.name" :description="book.detail.value.server && supports(Feature['orders.servermarks']) ? t('orders.byServer') : t('orders.anonymous')">
       <OrderDetail :order="book.detail.value" :averages="market.averages.value" :can-accept="book.result.value?.canAccept ?? false" in-sheet @accepted="book.load()"/>
     </BottomSheet>
   </ViewContent>

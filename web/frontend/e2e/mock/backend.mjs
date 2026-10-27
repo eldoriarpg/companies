@@ -125,13 +125,34 @@ function route(method, path, body, session) {
             return {status: 200, body: story.company === false ? companyless(session.id) : snapshot(session.id, state.delivered)}
         case 'POST /api/v1/me/actions':
             if (story.offline) return error(504, 'SERVER_OFFLINE', {message: 'The server did not answer in time'})
-            return {status: 200, body: action(body.name, body.args ?? {}, state)}
+            return {status: 200, body: action(body.name, body.args ?? {}, state, story)}
         case 'POST /api/v1/me/logout':
             return {status: 204, headers: {'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`}}
         default:
             return error(404, 'UNKNOWN_SESSION')
     }
 }
+
+/** The order of the book the server placed itself, marked while the session's server marks such orders. */
+const SERVER_ORDER = 12
+
+/** The orders the server placed itself, as the admin list shows them. */
+const SYSTEM_ORDERS = [
+    {order: 801, name: 'Royal smithy', rule: 'iron-weekly', kind: 'DEFINED', state: 'UNCLAIMED', placed: '2026-10-26T08:00:00Z', paid: 512, account: 'Collector'},
+    {order: 802, name: 'Dirt', rule: 'guessed', kind: 'GUESSED', state: 'CLAIMED', placed: '2026-10-26T09:00:00Z', paid: 102.4, account: null},
+]
+
+/** Why the server placed its orders, by order id. */
+const SYSTEM_DECISIONS = {
+    801: {order: 801, rule: 'iron-weekly', kind: 'DEFINED', placed: '2026-10-26T08:00:00Z', paid: 512, account: 'Collector', record: {rule: 'iron-weekly', material: 'IRON_INGOT', amount: 256, mode: 'FIXED', unit: 2, total: 512}},
+    802: {order: 802, rule: 'guessed', kind: 'GUESSED', placed: '2026-10-26T09:00:00Z', paid: 102.4, account: null, record: {material: 'DIRT', amount: 64, score: 0.1, rank: 1, unit: 1.6, learning: {base: 0.8, takeRate: 0.5}}},
+}
+
+/** The defined rules of the server's own orders. */
+const SYSTEM_RULES = [{id: 'iron-weekly', name: 'Royal smithy', material: 'IRON_INGOT', amount: 256, price: {mode: 'FIXED', value: 2}}]
+
+/** What guessed orders learned per material. */
+const SYSTEM_LEARNED = [{material: 'DIRT', posted: 6, taken: 4, expired: 1, minutesToTake: 42, factor: 0.75, offset: -0.05, takeRate: 0.71}]
 
 /**
  * The server of a session as `GET /api/v1/me/server` and the `server` stream event send it.
@@ -143,7 +164,7 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup', 'admin.systemorders']
         : session.story.features ?? FEATURES
     const nodes = admin ? [{uid: PRIMARY_NODE, role: 'PRIMARY', name: 'survival'}, {uid: SECONDARY_NODE, role: 'SECONDARY'}] : []
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin, nodes}
@@ -412,7 +433,7 @@ function levels(state) {
  * @param state the session's state, which keeps the muted inbox categories
  * @returns the action result
  */
-function action(name, args, state) {
+function action(name, args, state, story = {}) {
     const page = data => ({type: 'action.result', v: 1, ok: true, data: {page: args.page ?? 1, pages: 1, ...data}})
     const done = data => ({type: 'action.result', v: 1, ok: true, data})
     const refused = message => ({type: 'action.result', v: 1, ok: false, reason: 'error.refused', message})
@@ -495,6 +516,27 @@ function action(name, args, state) {
             return done({hook: args.hook, npc: args.npc, board: ''})
         case 'admin.nodes.list':
             return done({nodes: servers(state)})
+        case 'admin.systemorders.list':
+            return done({orders: SYSTEM_ORDERS})
+        case 'admin.systemorders.info':
+            return SYSTEM_DECISIONS[args.order] ? done(SYSTEM_DECISIONS[args.order]) : refused('companyadmin.systemorders.error.unknown')
+        case 'admin.systemorders.stats':
+            return done({materials: SYSTEM_LEARNED})
+        case 'admin.systemorders.rules':
+            return done({revision: state.ruleRevision ?? 1, editable: true, rules: state.rules ?? SYSTEM_RULES})
+        case 'admin.systemorders.rules.save': {
+            const errors = {}
+            const ids = new Set()
+            args.rules.forEach((rule, index) => {
+                if (!rule.id) errors[`rules.${index}.id`] = 'missing'
+                else if (ids.has(rule.id)) errors[`rules.${index}.id`] = 'duplicate'
+                ids.add(rule.id)
+            })
+            if (Object.keys(errors).length > 0) return done({result: 'invalid', revision: 0, errors})
+            state.rules = args.rules
+            state.ruleRevision = (state.ruleRevision ?? 1) + 1
+            return done({result: 'saved', revision: state.ruleRevision, errors: {}, applied: true})
+        }
         case 'admin.nodes.remove':
             state.servers = servers(state).filter(entry => entry.uid !== args.uid)
             return done({nodes: state.servers})
@@ -609,7 +651,11 @@ function action(name, args, state) {
             if (args.percent > 25) return refused('The share may be at most 25%.')
             return done({share: args.percent, balance: 18450})
         case 'orders.browse.search': {
+            const marks = (story.features ?? FEATURES).includes('orders.servermarks')
             const orders = BOOK
+                .map(order => (marks && order.id === SERVER_ORDER ? {...order, server: true} : order))
+                .filter(order => args.serverOrders !== 'only' || order.server)
+                .filter(order => args.serverOrders !== 'hide' || !order.server)
                 .filter(order => !args.name || order.name.toLowerCase().includes(args.name.toLowerCase()))
                 .filter(order => args.maxOrderSize === undefined || order.lines[0].item.amount <= args.maxOrderSize)
                 .filter(order => args.minPrice === undefined || order.lines[0].price >= args.minPrice)

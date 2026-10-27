@@ -9,8 +9,9 @@ Orders the server places itself. Each rule orders one item again and again, at a
 you choose. Guessed orders pick items and prices from the market on their own, to give companies work when players
 order little. Companies deliver system orders like any order. The items are removed when the order is complete.
 
-In a network, this file is shared. Edit it on the primary server. See [Configuration](./index.md#in-a-network). Only
-the primary server places and removes system orders.
+In a network, this file is shared. Edit it on the primary server, or on the [dashboard](../dashboard.md#admin-tools):
+the rules in the *System orders* tab, everything else in the *Settings* tab. See
+[Configuration](./index.md#in-a-network). Only the primary server places and removes system orders.
 
 System orders are off by default.
 
@@ -20,6 +21,7 @@ System orders are off by default.
 enabled: false
 checkMinutes: 5
 mintedDailyCap: 10000.0
+markSystemOrders: false
 rules: []
 guessed:
   enabled: false
@@ -67,6 +69,7 @@ guessed:
 | `mintedDailyCap` | number | `10000.0` | How much new money all rules together may put into orders per day. Orders removed again do not count. `0` allows no new money. | reload |
 | `rules` | list | empty | The rules, see below. | reload |
 | `guessed` | section | off | Orders the server guesses, see [Guessed orders](#guessed-orders). | reload |
+| `markSystemOrders` | true/false | `false` | Whether players see which orders the server placed: a badge in the search results and the order book, a search filter to show only server orders or hide them, and player orders listed first when the sorting is otherwise equal. When off, system orders look like any order. | reload |
 
 A day is a day of the server's calendar, in the time zone of `generalSettings.timezone` in
 [config.yml](./config-yml.md#generalsettings).
@@ -127,7 +130,8 @@ or in work. The order is placed only when its price fits the budget of the day, 
 
 With `AVERAGE`, a material that nobody delivered lately has no market average, and the rule waits until it has one.
 
-No fee is charged on system orders. Players see them like any order, with the rule's name as the order name.
+No fee is charged on system orders. Players see them like any order, with the rule's name as the order name, unless
+`markSystemOrders` marks them.
 Deliveries count for company levels and rankings like any order. They are left out of the market prices, the market
 list of the dashboard and its price history, so the server's own orders never move the averages they are priced by.
 

@@ -63,7 +63,8 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
             Map.entry(SearchForm.MAX_SIZE, SETTING + "maxSize"),
             Map.entry(SearchForm.SORTING, "words.sorting"),
             Map.entry(SearchForm.DIRECTION, "words.ordering"),
-            Map.entry(SearchForm.FILLABLE, SETTING + "fillable"));
+            Map.entry(SearchForm.FILLABLE, SETTING + "fillable"),
+            Map.entry(SearchForm.SERVER_ORDERS, SETTING + "serverOrders"));
 
     private final OrderSearch search;
     private final MessageSender messages;
@@ -95,7 +96,8 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                 text(response, SearchForm.MAX_SIZE),
                 text(response, SearchForm.SORTING),
                 text(response, SearchForm.DIRECTION),
-                Boolean.TRUE.equals(response.getBoolean(SearchForm.FILLABLE)));
+                Boolean.TRUE.equals(response.getBoolean(SearchForm.FILLABLE)),
+                text(response, SearchForm.SERVER_ORDERS));
     }
 
     @Override
@@ -110,6 +112,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                 .append(rangeLines(query))
                 .append(sortingLines(query, actions))
                 .append(fillableLine(query, actions))
+                .append(search.marksServerOrders() ? serverLine(query, actions) : MenuText.create())
                 .text(
                         "<act_search><show>[<i18n:words.search>]</act_search>",
                         actions.chatAction("act_search", p -> search.showPage(p, 0)))
@@ -133,7 +136,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                                 Values.component("field", texts.locale(Objects.requireNonNull(LABELS.get(input))))))
                 .ifPresent(error -> body.add(DialogBody.plainMessage(texts.error(error))));
         body.add(DialogBody.plainMessage(texts.locale("company.order.search.dialog.limits")));
-        List<DialogInput> inputs = List.of(
+        List<DialogInput> inputs = new ArrayList<>(List.of(
                 textInput(texts, SearchForm.NAME, form.name(), MAX_NAME_LENGTH),
                 textInput(texts, SearchForm.MATERIALS, form.materials(), MAX_MATERIALS_LENGTH),
                 options(
@@ -158,7 +161,17 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                         Map.of(SearchForm.ASC, "words.ascending", SearchForm.DESC, "words.descending")),
                 DialogInput.bool(SearchForm.FILLABLE, label(texts, SearchForm.FILLABLE))
                         .initial(form.fillable())
-                        .build());
+                        .build()));
+        if (search.marksServerOrders()) {
+            inputs.add(options(
+                    texts,
+                    SearchForm.SERVER_ORDERS,
+                    form.serverOrders().isBlank() ? SearchForm.ALL : form.serverOrders(),
+                    Map.of(
+                            SearchForm.ALL, SETTING + "serverOrders.all",
+                            SearchForm.ONLY, SETTING + "serverOrders.only",
+                            SearchForm.HIDE, SETTING + "serverOrders.hide")));
+        }
         List<ActionButton> buttons = new ArrayList<>(List.of(
                 actions.button(
                         texts.locale("words.search"),
@@ -290,6 +303,30 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                         List.of(
                                 new Choice("asc", "words.ascending", query.isAsc(), q -> q.asc(true)),
                                 new Choice("desc", "words.descending", !query.isAsc(), q -> q.asc(false)))));
+    }
+
+    private MenuText serverLine(SearchQuery query, MenuActions actions) {
+        var current = query.serverOrders();
+        return toggle(
+                "<name><i18n:" + SETTING + "serverOrders> ",
+                actions,
+                "server",
+                List.of(
+                        new Choice(
+                                SearchForm.ALL,
+                                SETTING + "serverOrders.all",
+                                current == SearchQuery.ServerOrders.ALL,
+                                q -> q.serverOrders(SearchQuery.ServerOrders.ALL)),
+                        new Choice(
+                                SearchForm.ONLY,
+                                SETTING + "serverOrders.only",
+                                current == SearchQuery.ServerOrders.ONLY,
+                                q -> q.serverOrders(SearchQuery.ServerOrders.ONLY)),
+                        new Choice(
+                                SearchForm.HIDE,
+                                SETTING + "serverOrders.hide",
+                                current == SearchQuery.ServerOrders.HIDE,
+                                q -> q.serverOrders(SearchQuery.ServerOrders.HIDE))));
     }
 
     private MenuText fillableLine(SearchQuery query, MenuActions actions) {

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SearchFormTest {
     private static SearchForm form(String minPrice, String maxPrice, String minSize, String maxSize) {
-        return new SearchForm("", "", "any", "part", minPrice, maxPrice, minSize, maxSize, "age", "asc", false);
+        return new SearchForm("", "", "any", "part", minPrice, maxPrice, minSize, maxSize, "age", "asc", false, "");
     }
 
     private static SearchQuery valid(SearchForm form) {
@@ -25,6 +25,13 @@ class SearchFormTest {
 
     private static String invalid(SearchForm form) {
         return assertInstanceOf(SearchForm.Invalid.class, form.toQuery()).input();
+    }
+
+    @Test
+    void anUnknownChoiceOfServerOrdersIsInvalid() {
+        var form = new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "some");
+
+        assertEquals(SearchForm.SERVER_ORDERS, invalid(form));
     }
 
     @Test
@@ -40,9 +47,11 @@ class SearchFormTest {
                 "64",
                 "unit_price",
                 "desc",
-                true));
+                true,
+                "hide"));
 
         assertEquals("Wood", query.name());
+        assertEquals(SearchQuery.ServerOrders.HIDE, query.serverOrders());
         assertEquals(List.of("oak_log", "birch_log"), query.materials());
         assertFalse(query.isAnyMaterial());
         assertTrue(query.isExactMatch());
@@ -78,12 +87,12 @@ class SearchFormTest {
 
     @Test
     void unknownOptionsNameTheirInput() {
-        var form = new SearchForm("", "", "any", "part", "", "", "", "", "colour", "asc", false);
+        var form = new SearchForm("", "", "any", "part", "", "", "", "", "colour", "asc", false, "");
 
         assertEquals(SearchForm.SORTING, invalid(form));
         assertEquals(
                 SearchForm.MATERIAL_SEARCH,
-                invalid(new SearchForm("", "", "some", "part", "", "", "", "", "age", "asc", false)));
+                invalid(new SearchForm("", "", "some", "part", "", "", "", "", "age", "asc", false, "")));
     }
 
     @Test
@@ -113,6 +122,6 @@ class SearchFormTest {
     void aNewQueryGivesAnEmptyForm() {
         var form = SearchForm.of(new SearchQuery());
 
-        assertEquals(new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false), form);
+        assertEquals(new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "all"), form);
     }
 }

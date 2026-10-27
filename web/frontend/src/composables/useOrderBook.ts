@@ -7,7 +7,7 @@ import {watchDebounced} from '@vueuse/core'
 import {gatewayApi, type GatewayApi, type OrderListing, type OrderSearchArgs, type OrderSearchPage} from '~/api/gateway'
 
 /** The quick filters of the order book. */
-export type OrderFilter = 'all' | 'small' | 'large-payout'
+export type OrderFilter = 'all' | 'small' | 'large-payout' | 'server' | 'players'
 
 /** The sortings of the in-game search the order book offers. */
 export const ORDER_SORTINGS = ['AGE', 'PRICE', 'UNIT_PRICE', 'SIZE', 'NAME'] as const
@@ -34,6 +34,7 @@ export function searchArgs(name: string, filter: OrderFilter, sort: OrderSorting
         name: name.trim() === '' ? undefined : name.trim(),
         maxOrderSize: filter === 'small' ? SMALL_ORDER : undefined,
         minPrice: filter === 'large-payout' ? LARGE_PAYOUT : undefined,
+        serverOrders: filter === 'server' ? 'only' : filter === 'players' ? 'hide' : undefined,
         sort,
         asc: sort === 'NAME',
         page,

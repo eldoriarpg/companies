@@ -17,6 +17,7 @@ import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.TestExecutors;
@@ -51,6 +52,9 @@ class SoloSearchExecutorTest {
     private PlayerMock player;
     private SoloSearchExecutor finder;
 
+    private boolean marked;
+    private final SearchQuery query = new SearchQuery();
+
     @BeforeEach
     void setUp() throws Exception {
         server = MockBukkit.mock();
@@ -81,7 +85,7 @@ class SoloSearchExecutorTest {
                 Clock.systemDefaultZone(),
                 executor);
         var matcher = ItemMatcher.of(new ItemMatchSettings(), Logger.getAnonymousLogger());
-        finder = new SoloSearchExecutor(orders.orderData(), () -> service, () -> matcher);
+        finder = new SoloSearchExecutor(orders.orderData(), () -> service, () -> matcher, () -> marked);
     }
 
     @AfterEach
@@ -91,7 +95,7 @@ class SoloSearchExecutorTest {
     }
 
     private SearchResults search() {
-        return finder.execute(player, new SearchQuery()).join();
+        return finder.execute(player, query).join();
     }
 
     private static List<Integer> ids(SearchResults results) {
@@ -145,5 +149,29 @@ class SoloSearchExecutorTest {
 
         assertEquals(1, results.orders().size());
         assertFalse(results.canAccept());
+    }
+
+    @Test
+    void whileTheServerMarksItsOrdersAloneSearchesShowOrHideThem() {
+        marked = true;
+        var player = orders.place(0.0);
+        var server = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+
+        query.serverOrders(SearchQuery.ServerOrders.HIDE);
+        assertEquals(List.of(player.id()), ids(search()));
+        query.serverOrders(SearchQuery.ServerOrders.ONLY);
+        assertEquals(List.of(server.id()), ids(search()));
+        marked = false;
+        assertEquals(List.of(player.id(), server.id()), ids(search()));
+    }
+
+    @Test
+    void playerOrdersComeFirstAmongEqualsWhileTheServerMarksItsOrders() {
+        marked = true;
+        var server = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        var player = orders.place(0.0);
+        query.sortingType(SortingType.PRICE);
+
+        assertEquals(List.of(player.id(), server.id()), ids(search()));
     }
 }

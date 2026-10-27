@@ -70,10 +70,12 @@ public final class WorkCommand {
         this.deps = deps;
         this.views = new SoloOrderViews(deps);
         this.aborts = ConfirmFlow.create(deps.plugin(), this::abortConfirmed);
-        var finder =
-                new SoloSearchExecutor(deps.orderData(), () -> deps.services().soloOrders(), () -> deps.services()
-                        .deliveryService()
-                        .matcher());
+        var finder = new SoloSearchExecutor(
+                deps.orderData(),
+                () -> deps.services().soloOrders(),
+                () -> deps.services().deliveryService().matcher(),
+                () -> deps.configuration() != null
+                        && deps.configuration().systemOrderSettings().markSystemOrders());
         this.search = new CompanyOrderSearchCommand(new OrderSearch(
                 deps, SearchMode.SOLO, finder, (player, id) -> info(player, id), (player, id) -> accept(player, id)));
         views.bind(this);

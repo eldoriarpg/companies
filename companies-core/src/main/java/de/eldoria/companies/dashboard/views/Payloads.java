@@ -42,6 +42,7 @@ public final class Payloads {
      * @param amount  the number of ordered items
      * @param claimed when it was claimed, for the company working on it
      * @param waiting items delivered and waiting for the owner, for the owner of a delivered order
+     * @param server  whether the server placed it, only shown while the server marks its orders
      */
     public record OrderSummary(
             int id,
@@ -54,7 +55,8 @@ public final class Payloads {
             double price,
             int amount,
             @Nullable Instant claimed,
-            @Nullable List<ItemView> waiting) {}
+            @Nullable List<ItemView> waiting,
+            boolean server) {}
 
     /**
      * A page of orders.

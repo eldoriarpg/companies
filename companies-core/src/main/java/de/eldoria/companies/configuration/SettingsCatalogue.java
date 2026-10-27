@@ -6,6 +6,8 @@
 package de.eldoria.companies.configuration;
 
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
+import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.integrations.discord.WebhookEvent;
 import de.eldoria.companies.menus.MenuMode;
 import org.jetbrains.annotations.Nullable;
@@ -27,7 +29,7 @@ import java.util.stream.Stream;
  * plugin checks and what the form needs to pick an input.
  * <p>
  * A key that is not here is edited in the file only: the levels (they have their own editor), the board presets and
- * the rules and guessed orders of the system orders.
+ * the rules of the system orders, which have their own editor.
  * {@link #FILE_ONLY} names them, so a test can tell a setting that was forgotten from one left out on purpose.
  */
 public final class SettingsCatalogue {
@@ -37,8 +39,7 @@ public final class SettingsCatalogue {
     public static final List<Field> FILE_ONLY = List.of(
             new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false, null, null),
             new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false, null, null),
-            new Field("system-orders.yml", "", "rules", Type.TEXT, List.of(), false, false, null, null),
-            new Field("system-orders.yml", "", "guessed", Type.TEXT, List.of(), false, false, null, null));
+            new Field("system-orders.yml", "", "rules", Type.TEXT, List.of(), false, false, null, null));
 
     private static final Set<String> AT_LEAST_ONE = Set.of(
             "generalSettings.historyDays",
@@ -70,25 +71,42 @@ public final class SettingsCatalogue {
             "repeating.checkMinutes",
             "checkMinutes",
             "solo.maxActive",
-            "solo.deliveryHours");
+            "solo.deliveryHours",
+            "guessed.recentDays",
+            "guessed.minOrders",
+            "guessed.maxItems",
+            "guessed.repriceAfterHours",
+            "guessed.learning.days",
+            "guessed.learning.fastMinutes");
 
     private static final Set<String> PERCENT =
             Set.of("tax.percent", "fee.percent", "solo.taxPercent", "treasury.maxPayoutShare");
 
-    private static final Map<String, Double> LOWEST = Map.of(
-            "placeholders.refreshSeconds", 10.0,
-            "boards.refreshSeconds", 10.0,
-            "market.historyDays", 14.0,
-            "dashboard.sessionIdleMinutes", 5.0);
+    private static final Map<String, Double> LOWEST = Map.ofEntries(
+            Map.entry("placeholders.refreshSeconds", 10.0),
+            Map.entry("boards.refreshSeconds", 10.0),
+            Map.entry("market.historyDays", 14.0),
+            Map.entry("guessed.historyDays", 2.0),
+            Map.entry("guessed.margin", 0.05),
+            Map.entry("guessed.sizeShare", 0.05),
+            Map.entry("guessed.factor", 0.01),
+            Map.entry("guessed.learning.minFactor", 0.01),
+            Map.entry("guessed.learning.weightFloor", 0.01),
+            Map.entry("dashboard.sessionIdleMinutes", 5.0));
 
-    private static final Map<String, Double> HIGHEST = Map.of(
-            "notifications.pageSize", 50.0,
-            "treasury.logPageSize", 50.0,
-            "discord.maxPerMinute", 60.0,
-            "discord.queueSize", 1000.0,
-            "profile.tagLength.max", 5.0,
-            "dashboard.sessionIdleMinutes", 10080.0,
-            "dashboard.sessionMaxHours", 720.0);
+    private static final Map<String, Double> HIGHEST = Map.ofEntries(
+            Map.entry("notifications.pageSize", 50.0),
+            Map.entry("treasury.logPageSize", 50.0),
+            Map.entry("discord.maxPerMinute", 60.0),
+            Map.entry("discord.queueSize", 1000.0),
+            Map.entry("profile.tagLength.max", 5.0),
+            Map.entry("dashboard.sessionIdleMinutes", 10080.0),
+            Map.entry("dashboard.sessionMaxHours", 720.0),
+            Map.entry("guessed.margin", 0.95),
+            Map.entry("guessed.jitter", 0.9),
+            Map.entry("guessed.share", 0.9),
+            Map.entry("guessed.sizeShare", 1.0),
+            Map.entry("guessed.learning.weightFloor", 1.0));
 
     /**
      * Every field, grouped by file and section in the order they are shown.
@@ -296,6 +314,41 @@ public final class SettingsCatalogue {
         system.flag("enabled");
         system.restart(Type.WHOLE, "checkMinutes");
         system.decimal("mintedDailyCap");
+        system.flag("markSystemOrders");
+        var guessed = new Section(fields, SYSTEM_ORDERS, "guessedOrders");
+        guessed.flag("guessed.enabled");
+        guessed.whole("guessed.historyDays");
+        guessed.whole("guessed.recentDays");
+        guessed.whole("guessed.minOrders");
+        guessed.add(Type.TEXT_LIST, "guessed.allow", List.of(), false);
+        guessed.add(Type.TEXT_LIST, "guessed.deny", List.of(), false);
+        guessed.choice("guessed.competition", names(GuessedSettings.Competition.values()));
+        guessed.decimal("guessed.margin");
+        guessed.decimal("guessed.factor");
+        guessed.decimal("guessed.maxFactor");
+        guessed.decimal("guessed.jitter");
+        guessed.decimal("guessed.minPrice");
+        guessed.decimal("guessed.maxPrice");
+        guessed.decimal("guessed.sizeShare");
+        guessed.whole("guessed.maxItems");
+        guessed.whole("guessed.repriceAfterHours");
+        guessed.decimal("guessed.repriceStep");
+        guessed.whole("guessed.maxReprices");
+        guessed.whole("guessed.restHours");
+        guessed.decimal("guessed.share");
+        guessed.whole("guessed.minOpen");
+        guessed.whole("guessed.maxOpen");
+        guessed.whole("guessed.perCompanyDaily");
+        guessed.choice("guessed.source.type", names(MoneySource.SourceType.values()));
+        guessed.text("guessed.source.account");
+        guessed.decimal("guessed.source.dailyBudget");
+        var learning = new Section(fields, SYSTEM_ORDERS, "guessedLearning");
+        learning.flag("guessed.learning.enabled");
+        learning.whole("guessed.learning.days");
+        learning.whole("guessed.learning.fastMinutes");
+        learning.decimal("guessed.learning.step");
+        learning.decimal("guessed.learning.minFactor");
+        learning.decimal("guessed.learning.weightFloor");
         return List.copyOf(fields);
     }
 

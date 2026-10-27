@@ -89,7 +89,7 @@ public final class SettingsEditor {
         return new Result.Done(outcome, restart);
     }
 
-    private static <T> String normalized(Key<T> key, Configuration configuration, ANodeData nodeData, String yaml) {
+    static <T> String normalized(Key<T> key, Configuration configuration, ANodeData nodeData, String yaml) {
         return nodeData.writeSettings(key, configuration, nodeData.readSettings(key, configuration, yaml));
     }
 
@@ -189,7 +189,7 @@ public final class SettingsEditor {
                         : value);
     }
 
-    private static JsonNode tree(String content) {
+    static JsonNode tree(String content) {
         try {
             return YAML.readTree(content);
         } catch (JacksonException e) {
