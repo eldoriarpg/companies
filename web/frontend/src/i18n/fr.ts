@@ -730,6 +730,7 @@ export default {
                         minOpen: 'Commandes estimées ouvertes au moins',
                         maxOpen: 'Commandes estimées ouvertes au plus',
                         perCompanyDaily: 'Commandes estimées par entreprise et par jour (0 : sans limite)',
+                        perPlayerDaily: 'Commandes estimées par joueur en solo et par jour (0 : sans limite)',
                         source: {
                             type: 'Source d’argent des commandes estimées',
                             account: 'Compte économique qui les paie',

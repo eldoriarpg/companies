@@ -351,7 +351,9 @@ public class Companies extends EldoPlugin {
                 configuration,
                 treasuryService,
                 outcomes);
-        var soloOrders = SoloOrderService.create(this, orderData, companyData, outcomes, configuration);
+        var guessedLimit = new GuessedLimit(
+                orderData, () -> configuration.systemOrderSettings().guessed(), Times.UTC);
+        var soloOrders = SoloOrderService.create(this, orderData, companyData, outcomes, configuration, guessedLimit);
 
         var orderCreation = new OrderCreationService(
                 orderData,
@@ -403,8 +405,7 @@ public class Companies extends EldoPlugin {
                 getServer().getPluginManager()::callEvent,
                 uuid -> Optional.ofNullable(getServer().getPlayer(uuid)),
                 Threading.VIRTUAL,
-                new GuessedLimit(
-                        orderData, () -> configuration.systemOrderSettings().guessed(), Times.UTC));
+                guessedLimit);
         var ownerOrders = OwnerOrderService.create(
                 this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
         var search = new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher);

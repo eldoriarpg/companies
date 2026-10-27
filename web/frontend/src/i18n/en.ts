@@ -730,6 +730,7 @@ export default {
                         minOpen: 'Guessed orders kept open at least',
                         maxOpen: 'Guessed orders open at most',
                         perCompanyDaily: 'Guessed orders a company may take per day (0: no limit)',
+                        perPlayerDaily: 'Guessed orders a player working alone may take per day (0: no limit)',
                         source: {
                             type: 'Money source of guessed orders',
                             account: 'Economy account paying them',

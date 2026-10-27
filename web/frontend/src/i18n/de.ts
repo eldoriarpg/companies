@@ -730,6 +730,7 @@ export default {
                         minOpen: 'Mindestens offen gehaltene geschätzte Aufträge',
                         maxOpen: 'Höchstens offene geschätzte Aufträge',
                         perCompanyDaily: 'Geschätzte Aufträge pro Unternehmen und Tag (0: unbegrenzt)',
+                        perPlayerDaily: 'Geschätzte Aufträge pro Spieler allein und Tag (0: unbegrenzt)',
                         source: {
                             type: 'Geldquelle geschätzter Aufträge',
                             account: 'Wirtschaftskonto, das sie bezahlt',

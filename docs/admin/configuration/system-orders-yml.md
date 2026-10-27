@@ -47,6 +47,7 @@ guessed:
   minOpen: 3
   maxOpen: 10
   perCompanyDaily: 5
+  perPlayerDaily: 5
   source:
     type: MINTED
     account: ""
@@ -193,9 +194,8 @@ gaps and never compete with players.
 | `minOpen` | number | `3` | Guessed orders kept open even when players order nothing. |
 | `maxOpen` | number | `10` | Most guessed orders open at once. |
 | `perCompanyDaily` | number | `5` | Guessed orders one company may take per day. It counts the guessed orders the company holds or finished that day. Two members accepting at the very same moment can go one past it. `0` means no limit. |
+| `perPlayerDaily` | number | `5` | Guessed orders one player working alone may take per day. It counts the guessed orders the player holds or finished alone that day. `0` means no limit. |
 | `source` | section | minted | Where the money comes from, as `source` of a rule. Its `dailyBudget` counts all guessed orders together. |
-
-Players working alone are not limited by `perCompanyDaily`.
 
 ### Learning
 

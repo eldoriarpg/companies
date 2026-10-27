@@ -489,6 +489,16 @@ public abstract class AOrderData {
     public abstract int systemOrdersTaken(int company, String rule, LocalDateTime since);
 
     /**
+     * How many orders of a rule a player working alone holds or finished since a point in time.
+     *
+     * @param player the solo worker
+     * @param rule   id of the rule
+     * @param since  start, included
+     * @return the orders
+     */
+    public abstract int systemOrdersTakenAlone(UUID player, String rule, LocalDateTime since);
+
+    /**
      * What a rule put into orders since a point in time. Orders removed since gave their money back and do not count.
      *
      * @param rule  id of the rule

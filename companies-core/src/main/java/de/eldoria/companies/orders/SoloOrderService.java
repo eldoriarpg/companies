@@ -63,6 +63,7 @@ public final class SoloOrderService {
     private final Consumer<Event> events;
     private final Clock clock;
     private final Executor executor;
+    private final Limit limit;
 
     /**
      * @param orderData order repository
@@ -83,6 +84,30 @@ public final class SoloOrderService {
             Consumer<Event> events,
             Clock clock,
             Executor executor) {
+        this(orderData, outcomes, settings, inCompany, players, events, clock, executor, Limit.NONE);
+    }
+
+    /**
+     * @param orderData order repository
+     * @param outcomes  releases aborted and expired orders and returns their items
+     * @param settings  the current solo settings
+     * @param inCompany whether a player is a member of a company; called off the main thread
+     * @param players   looks up a player by id
+     * @param events    fires the events
+     * @param clock     clock of the cooldowns
+     * @param executor  runs the actions off the main thread
+     * @param limit     refuses orders a player may not take for reasons of their own, such as a daily cap
+     */
+    public SoloOrderService(
+            AOrderData orderData,
+            OrderOutcomes outcomes,
+            Supplier<SoloSettings> settings,
+            Predicate<Player> inCompany,
+            Function<UUID, OfflinePlayer> players,
+            Consumer<Event> events,
+            Clock clock,
+            Executor executor,
+            Limit limit) {
         this.orderData = orderData;
         this.outcomes = outcomes;
         this.settings = settings;
@@ -91,6 +116,7 @@ public final class SoloOrderService {
         this.events = events;
         this.clock = clock;
         this.executor = executor;
+        this.limit = limit;
     }
 
     /**
@@ -101,6 +127,7 @@ public final class SoloOrderService {
      * @param companyData   company repository, telling whether a player is in a company
      * @param outcomes      releases aborted and expired orders
      * @param configuration configuration with the solo settings
+     * @param limit         refuses orders a player may not take for reasons of their own
      * @return the service
      */
     public static SoloOrderService create(
@@ -108,7 +135,8 @@ public final class SoloOrderService {
             AOrderData orderData,
             ACompanyData companyData,
             OrderOutcomes outcomes,
-            Configuration configuration) {
+            Configuration configuration,
+            Limit limit) {
         return new SoloOrderService(
                 orderData,
                 outcomes,
@@ -120,7 +148,8 @@ public final class SoloOrderService {
                 plugin.getServer()::getOfflinePlayer,
                 plugin.getServer().getPluginManager()::callEvent,
                 Times.UTC,
-                Threading.VIRTUAL);
+                Threading.VIRTUAL,
+                limit);
     }
 
     /**
@@ -239,6 +268,8 @@ public final class SoloOrderService {
         var order = found.get();
         if (order.state() != OrderState.UNCLAIMED) return refused("error.orderNotClaimable");
         if (order.owner().equals(player.getUniqueId())) return refused("solo.error.ownOrder");
+        var limited = limit.refusal(player.getUniqueId(), order);
+        if (limited.isPresent()) return Result.refused(limited.get());
         var fullOrder = orderData.retrieveFullOrder(order).join();
         if (fullOrder == null) return refused("error.unknownOrder");
         if (solo.exceedsOrderSize(fullOrder.amount())) {
@@ -389,5 +420,23 @@ public final class SoloOrderService {
          * @param <T>     type of the value of a performed action
          */
         record Refused<T>(CommandFailure failure) implements Result<T> {}
+    }
+
+    /**
+     * Refuses orders a player working alone may not take for reasons of their own.
+     */
+    @FunctionalInterface
+    public interface Limit {
+        /**
+         * No limit.
+         */
+        Limit NONE = (player, order) -> Optional.empty();
+
+        /**
+         * @param player the player claiming alone
+         * @param order  the order
+         * @return why the player may not take it, empty when it may
+         */
+        Optional<CommandFailure> refusal(UUID player, SimpleOrder order);
     }
 }

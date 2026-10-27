@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.ordersettings.SoloSettings;
@@ -57,6 +58,7 @@ class SoloOrderServiceTest {
     private final MovingClock clock = new MovingClock();
     private boolean inCompany;
     private Consumer<PreSoloOrderAcceptEvent> listener = event -> {};
+    private SoloOrderService.Limit limit = SoloOrderService.Limit.NONE;
 
     @TempDir
     Path directory;
@@ -101,7 +103,8 @@ class SoloOrderServiceTest {
                     if (event instanceof PreSoloOrderAcceptEvent pre) listener.accept(pre);
                 },
                 clock(),
-                executor);
+                executor,
+                (worker, order) -> limit.refusal(worker, order));
     }
 
     @AfterEach
@@ -195,6 +198,16 @@ class SoloOrderServiceTest {
         var own = new OrderTable(orders.orderData(), player).place(0.0);
 
         assertEquals("solo.error.ownOrder", refusal(accept(own)));
+    }
+
+    @Test
+    void aLimitRefusesTheClaimAndLeavesTheOrderUnclaimed() {
+        limit = (worker, order) -> Optional.of(CommandFailure.actionBar("solo.error.guessedLimit"));
+        var order = orders.place(0.0);
+
+        assertEquals("solo.error.guessedLimit", refusal(accept(order)));
+        assertEquals(OrderState.UNCLAIMED, orders.reload(order).state());
+        assertTrue(events.of(SoloOrderAcceptEvent.class).isEmpty());
     }
 
     @Test

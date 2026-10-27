@@ -976,6 +976,27 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    public int systemOrdersTakenAlone(UUID player, String rule, LocalDateTime since) {
+        @Language("mariadb")
+        var select = """
+                SELECT COUNT(1) AS taken
+                FROM orders o
+                         JOIN order_states s ON o.id = s.id
+                WHERE o.system_rule = ?
+                  AND s.solo_worker = ?
+                  AND s.state >= ?
+                  AND s.last_update >= ?""";
+        return query(select)
+                .single(call().bind(rule)
+                        .bind(player, UUID_BYTES)
+                        .bind(OrderState.CLAIMED.stateId())
+                        .bind(since, time()))
+                .map(row -> row.getInt("taken"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
     public double systemSpent(String rule, LocalDateTime since) {
         @Language("mariadb")
         var select = """
