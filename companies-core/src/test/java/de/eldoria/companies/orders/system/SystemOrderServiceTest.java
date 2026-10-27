@@ -5,9 +5,11 @@
  */
 package de.eldoria.companies.orders.system;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
+import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
 import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
 import de.eldoria.companies.configuration.elements.systemorders.RulePrice.PriceMode;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderRule;
@@ -22,6 +24,10 @@ import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.system.SystemOrderService.Step;
 import de.eldoria.companies.util.Times;
+import org.bukkit.Material;
+import org.bukkit.Tag;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,6 +69,7 @@ class SystemOrderServiceTest {
     private final Map<String, Double> balances = new HashMap<>();
     private final Map<String, Double> averages = new HashMap<>();
     private final List<Integer> removed = new ArrayList<>();
+    private final List<SystemOrderService.Wanted> wanted = new ArrayList<>();
     private final List<String> logged = new CopyOnWriteArrayList<>();
     private OrderTable system;
     private String refusal;
@@ -497,6 +504,98 @@ class SystemOrderServiceTest {
                 .update();
     }
 
+    @Test
+    void aRotatingRuleTakesItsEntriesInTurn() {
+        var rule = rule(fixed("smithy", 2.0));
+        rule.items(List.of(
+                RuleEntry.material("IRON_INGOT"),
+                RuleEntry.material("GOLD_INGOT"),
+                RuleEntry.criteria("#logs", RuleEntry.Resolve.ANY)));
+        rule.pick(SystemOrderRule.Pick.ROTATE);
+        rule.everyHours(1);
+        rule.maxOpen(10);
+
+        for (var hour = 0; hour < 4; hour++) {
+            assertEquals(Step.PLACED, step(service.run()));
+            clock.advance(Duration.ofHours(1));
+        }
+
+        assertEquals("IRON_INGOT", wanted.get(0).material());
+        assertNull(wanted.get(0).line());
+        assertEquals("GOLD_INGOT", wanted.get(1).material());
+        var logs = wanted.get(2).line();
+        assertEquals(ItemCriteria.of("#minecraft:logs"), logs.criteria());
+        assertEquals("#Logs", wanted.get(2).material());
+        assertEquals("IRON_INGOT", wanted.get(3).material());
+        assertEquals(2, record(2).entry());
+    }
+
+    @Test
+    void aRandomRuleTakesTheEntryTheDrawFalls() {
+        rule(fixed("smithy", 2.0))
+                .items(List.of(
+                        RuleEntry.material("IRON_INGOT"),
+                        RuleEntry.material("GOLD_INGOT"),
+                        RuleEntry.material("COPPER_INGOT")));
+
+        service.run();
+
+        assertEquals("GOLD_INGOT", wanted.getFirst().material());
+        assertEquals(1, record(0).entry());
+    }
+
+    @Test
+    void oneMaterialPickedFromASetIsPricedByItsAverage() {
+        for (var log : Tag.LOGS.getValues()) averages.put(log.name(), 3.0);
+        var rule = rule(new SystemOrderRule("logs", ""));
+        rule.price(new RulePrice(PriceMode.AVERAGE, 0, 1, 0, 0, 0));
+        rule.items(List.of(RuleEntry.criteria("#logs", RuleEntry.Resolve.ONE)));
+
+        assertEquals(Step.PLACED, step(service.run()));
+
+        var order = wanted.getFirst();
+        assertNull(order.line());
+        assertTrue(Tag.LOGS.isTagged(Material.valueOf(order.material())));
+        assertEquals(3.0, order.unit());
+    }
+
+    @Test
+    void criteriaAndExactItemsNeedAFixedPrice() {
+        var rule = rule(new SystemOrderRule("logs", ""));
+        rule.price(new RulePrice(PriceMode.AVERAGE, 0, 1, 0, 0, 0));
+        rule.items(List.of(RuleEntry.criteria("#logs", RuleEntry.Resolve.ANY)));
+
+        assertEquals(Step.NO_PRICE, step(service.run()));
+        assertEquals(0, placements);
+    }
+
+    @Test
+    void anExactItemIsOrderedExactly() {
+        var sword = new ItemStack(Material.DIAMOND_SWORD);
+        sword.addUnsafeEnchantment(Enchantment.SHARPNESS, 5);
+        rule(fixed("blades", 50.0)).items(List.of(RuleEntry.item(sword, "Royal blade")));
+
+        assertEquals(Step.PLACED, step(service.run()));
+
+        var line = wanted.getFirst().line();
+        assertTrue(line.exact());
+        assertEquals(Material.DIAMOND_SWORD, line.template().getType());
+        assertEquals("Royal blade", record(0).material());
+    }
+
+    @Test
+    void entriesThatNameNothingAreNoted() {
+        rule(fixed("broken", 2.0)).items(List.of(RuleEntry.criteria("#minecraft:no_such_tag", RuleEntry.Resolve.ANY)));
+
+        assertEquals(Step.UNKNOWN_ITEM, step(service.run()));
+        assertTrue(logged.stream().anyMatch(line -> line.contains("no_such_tag")));
+    }
+
+    private DefinedRecord record(int index) {
+        var decisions = system.orderData().systemDecisions(OrderState.UNCLAIMED, OrderState.RECEIVED);
+        return JsonMapper.builder().build().readValue(decisions.get(index).record(), DefinedRecord.class);
+    }
+
     private SystemOrderRule fixed(String id, double price) {
         var rule = new SystemOrderRule(id, "IRON_INGOT");
         rule.price(new RulePrice(PriceMode.FIXED, price, 1, 0, 0, 0));
@@ -545,6 +644,7 @@ class SystemOrderServiceTest {
             if (failPlacement) throw new IllegalStateException("placing failed");
             if (refusal != null) return CompletableFuture.completedFuture(new SystemOrderService.Refused(refusal));
             placements++;
+            SystemOrderServiceTest.this.wanted.add(wanted);
             var order = system.place(0.0);
             system.orderData().systemRule(order.id(), wanted.rule());
             placedAt(order.id(), LocalDateTime.now(clock));

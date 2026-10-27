@@ -6,14 +6,18 @@
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.RulesEditor;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
+import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.system.DefinedRecord;
 import de.eldoria.companies.orders.system.GuessedLearning;
 import de.eldoria.companies.orders.system.GuessedRecord;
@@ -25,12 +29,15 @@ import net.milkbowl.vault.economy.Economy;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.IntArg;
+import net.strokkur.commands.arguments.StringArg;
+import net.strokkur.commands.arguments.StringArgType;
 import net.strokkur.commands.permission.Permission;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -152,6 +159,70 @@ public final class SystemOrdersCommand {
             deps.adminLog().entry(sender, "system order info").with("id", id).write();
             for (var line : lines(found.get())) deps.messages().sendMessage(sender, line);
         });
+    }
+
+    /**
+     * Adds the item in the sender's hand to a defined rule, stored as the next revision of {@code system-orders.yml}.
+     * An item with data becomes an exact entry, a plain one a material entry. Needs the reload permission, as saving
+     * the rules on the dashboard does.
+     *
+     * @param sender sender of the command, holding the item
+     * @param rule   id of the rule
+     */
+    @Executes("item add")
+    public void addItem(CommandSender sender, @StringArg(StringArgType.WORD) String rule) {
+        deps.requireReady();
+        var player = Senders.player(sender);
+        if (!player.hasPermission(Admin.RELOAD)) {
+            deps.messages().sendError(player, "companyadmin.error.permission");
+            return;
+        }
+        var hand = player.getInventory().getItemInMainHand();
+        var requested = hand.isEmpty()
+                ? Optional.<OrderDraftService.RequestedItem>empty()
+                : deps.drafts().request(hand);
+        if (requested.isEmpty()) {
+            deps.messages().sendError(player, "order.draft.error.notOrderable");
+            return;
+        }
+        var template = requested.get().template();
+        var entry = JsonNodeFactory.instance.objectNode();
+        if (requested.get().exact()) {
+            entry.set("item", deps.configuration().storageMapper().valueToTree(template));
+            entry.put("name", PlainText.of(template.effectiveName()));
+        } else {
+            entry.put("material", template.getType().name());
+        }
+        var actor = player.getName();
+        run(
+                sender,
+                () -> RulesEditor.addEntry(
+                        deps.configuration(), deps.nodeData(), rule, entry, RulesEditor::knownMaterial, actor),
+                result -> {
+                    switch (result) {
+                        case RulesEditor.Result.Done done -> {
+                            deps.adminLog()
+                                    .entry(sender, "system order rule item add")
+                                    .with("rule", rule)
+                                    .with("item", template.getType().name())
+                                    .write();
+                            deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
+                            deps.messages()
+                                    .sendMessage(
+                                            sender,
+                                            PREFIX + "itemAdded",
+                                            Values.text("rule", rule),
+                                            Values.component("item", template.effectiveName()));
+                        }
+                        case RulesEditor.Result.Invalid invalid
+                        when invalid.fields().containsKey("id") ->
+                            deps.messages().sendError(sender, PREFIX + "error.unknownRule", Values.text("rule", rule));
+                        case RulesEditor.Result.Invalid invalid ->
+                            deps.messages().sendError(sender, PREFIX + "error.invalidRules");
+                        case RulesEditor.Result.Newer newer ->
+                            deps.messages().sendError(sender, PREFIX + "error.newer");
+                    }
+                });
     }
 
     private MenuText entry(SystemDecision decision) {

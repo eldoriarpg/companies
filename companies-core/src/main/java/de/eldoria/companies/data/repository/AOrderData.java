@@ -526,6 +526,12 @@ public abstract class AOrderData {
 
     /**
      * @param rule id of the rule
+     * @return the decision of the rule's latest order, empty when it never placed one
+     */
+    public abstract Optional<SystemDecision> lastSystemDecision(String rule);
+
+    /**
+     * @param rule id of the rule
      * @return how many orders of the rule are open or in work
      */
     public abstract int activeSystemOrders(String rule);

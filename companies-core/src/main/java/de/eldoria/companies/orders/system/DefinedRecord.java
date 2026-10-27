@@ -14,7 +14,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * @param rule       id of the rule
  * @param name       name of the rule
- * @param material   material ordered
+ * @param material   what was ordered: the material, the criteria or the exact item's name
  * @param amount     items ordered
  * @param mode       how the price was found
  * @param average    market average per item, null for a fixed price
@@ -30,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
  * @param account    economy account that paid, null for minted money
  * @param budgetLeft what the rule may still spend today, null without a budget of its own
  * @param mintedLeft minted money all rules may still spend today, null for an account
+ * @param entry      the index of the rule's entry the order took, null for orders placed before rules had entries
  */
 public record DefinedRecord(
         String rule,
@@ -49,7 +50,8 @@ public record DefinedRecord(
         MoneySource.SourceType source,
         @Nullable String account,
         @Nullable Double budgetLeft,
-        @Nullable Double mintedLeft) {
+        @Nullable Double mintedLeft,
+        @Nullable Integer entry) {
     /**
      * The kind stored with a decision of a defined rule.
      */

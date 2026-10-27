@@ -103,7 +103,9 @@ rules:
 | `id` | text | none | Names the rule. Each order remembers it. Use each id once, at most 64 characters. A rule without an id, with the id of an earlier rule, or with the id `guessed`, which guessed orders use, places nothing. |
 | `name` | text | the id | The name of the orders. |
 | `enabled` | true/false | `true` | Whether the rule places orders. |
-| `material` | material | none | The item ordered, for example `IRON_INGOT`. |
+| `material` | material | none | The item ordered, for example `IRON_INGOT`. Leave it out when the rule has `items`. |
+| `items` | list | empty | Several things the rule may order, one per order, see [Several items](#several-items). |
+| `pick` | `RANDOM` or `ROTATE` | `RANDOM` | How an order picks one of the `items`: at random, or the one after the last order's. |
 | `amount` | number | `64` | How many items one order asks for. |
 | `price.mode` | `FIXED` or `AVERAGE` | `AVERAGE` | `FIXED` pays `price.value` per item. `AVERAGE` pays the market average per item times `price.factor`. |
 | `price.value` | number | `1.0` | Price per item for `FIXED`. |
@@ -138,6 +140,38 @@ list of the dashboard and its price history, so the server's own orders never mo
 
 When a rule places nothing, the server log says why, once until the reason changes. A rule without a usable id is
 named by its position in the list, for example `#3`.
+
+### Several items
+
+Instead of one `material`, a rule may name a list of `items`. Each order takes one entry, picked as `pick` says. An
+entry sets exactly one of:
+
+```yaml
+rules:
+  - id: wood
+    items:
+      - material: OAK_LOG
+      - criteria: "#logs"
+        resolve: ANY
+      - criteria: "#logs bamboo_block"
+        resolve: ONE
+      - criteria: "diamond_sword enchants:2 sharpness:3"
+      - item: "<captured>"
+        name: "Royal blade"
+    pick: ROTATE
+```
+
+| Entry | Meaning |
+|---|---|
+| `material` | Any item of the material, as `material` of a rule. |
+| `criteria` | Items meeting [criteria](../../players/orders.md#criteria-lines), written as players type them. |
+| `resolve` | For `criteria`: `ANY` (default) orders any item of the set, mixed. `ONE` picks one material of the set for the order, leaving out materials that rest or cannot meet the enchantments. |
+| `item` | An exact item, as the server stores it. Add it in game with `/companyadmin systemorders item add <rule>` while you hold the item; `name` keeps its name for the dashboard. |
+
+`AVERAGE` prices need a market average, which only plain materials have: a `material` entry, or a `criteria` entry
+with `resolve: ONE` and no enchantment conditions. An order of any other entry under `AVERAGE` places nothing and
+the log says it needs a fixed price; give such rules a `FIXED` price. `maxOpen` and the budget count the whole rule,
+whatever entry an order took.
 
 ## Guessed orders
 

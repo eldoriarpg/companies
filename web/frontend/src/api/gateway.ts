@@ -576,12 +576,31 @@ export interface AdminSystemDecision {
 }
 
 /** A defined rule of the server's own orders, as the rules editor edits it. */
+/**
+ * One thing a rule orders: a material, criteria in the text form players type, or an exact item captured in game,
+ * which the editor keeps as it is.
+ */
+export interface SystemOrderRuleItem {
+    material?: string
+    criteria?: string
+    /** Whether a criteria order takes any item of the set or one material picked from it. */
+    resolve?: 'ANY' | 'ONE'
+    /** An exact item as the plugin stores it. */
+    item?: unknown
+    /** The name of an exact item. */
+    name?: string
+}
+
 export interface SystemOrderRule {
     id: string
     name: string
     enabled: boolean
-    /** A material name such as `IRON_INGOT`. */
+    /** A material name such as `IRON_INGOT`, for a rule written before `items`. */
     material: string
+    /** What the rule orders; one entry is picked per order. */
+    items: SystemOrderRuleItem[]
+    /** How an order picks one of several entries. */
+    pick: 'RANDOM' | 'ROTATE'
     amount?: number
     price: {
         mode: string

@@ -199,6 +199,24 @@ test.describe('admin', () => {
         await expect(rules.getByRole('button', {name: 'Save the rules'})).toBeDisabled()
     })
 
+    test('orders one of several entries of a rule and keeps a captured item', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'System orders'}).click()
+
+        const rules = page.getByTestId('admin-system-rules')
+        await rules.getByText('armoury · IRON_SWORD, Royal blade').click()
+        const items = page.getByTestId('admin-system-rule-items')
+        await expect(items.getByText('Royal blade')).toBeVisible()
+        await page.getByRole('button', {name: 'Add criteria'}).click()
+        await items.getByLabel('Criteria').fill('#logs enchants:2')
+        await items.getByLabel('An order asks for').selectOption('ONE')
+        await rules.getByRole('button', {name: 'Save the rules'}).click()
+
+        await expect(rules.getByText('The rules are saved.')).toBeVisible()
+        await expect(rules.getByText('armoury · IRON_SWORD, Royal blade, #logs enchants:2')).toBeVisible()
+    })
+
     test('shows the shared settings without their secrets and what a revision changed', async ({page}, info) => {
         await openDashboard(page, 'ADMN01')
         await openAdmin(page, info)

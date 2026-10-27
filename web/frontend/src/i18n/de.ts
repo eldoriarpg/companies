@@ -145,6 +145,24 @@ export default {
             stats: '{posted} erstellt, {taken} angenommen, {expired} abgelaufen, {minutes} Min. bis zur Annahme · Faktor {factor} ({offset}) · Annahmequote {rate} %',
             row: '{rule} · {paid} · {placed} · {state}',
             rules: {
+                exactItem: 'Genaues Item',
+                itemsNote: 'Pro Auftrag wird eines davon bestellt',
+                removeItem: '{item} entfernen',
+                addMaterial: 'Material hinzufügen',
+                addCriteria: 'Kriterien hinzufügen',
+                captureNote: 'Genaue Items werden im Spiel mit dem Item in der Hand hinzugefügt: {command}',
+                kind: {
+                    material: 'Material',
+                    criteria: 'Kriterien',
+                },
+                resolve: {
+                    ANY: 'Jedes aus der Menge, gemischt',
+                    ONE: 'Ein Material aus der Menge',
+                },
+                pick: {
+                    RANDOM: 'Zufällig',
+                    ROTATE: 'Der Reihe nach',
+                },
                 hasProblem: 'Problem',
                 problems: 'Nichts gespeichert: {count} Regel(n) haben ein Problem; die erste ist geöffnet.',
                 incomplete: 'Fülle jede Zahl von {rule} innerhalb ihres Bereichs aus, um zu speichern.',
@@ -170,6 +188,12 @@ export default {
                     ACCOUNT: 'Wirtschaftskonto',
                 },
                 fields: {
+                    items: 'Was sie bestellt',
+                    kind: 'Art',
+                    criteria: 'Kriterien',
+                    resolve: 'Ein Auftrag verlangt',
+                    pick: 'Nächster Eintrag',
+                    entry: 'Eintrag {number}',
                     id: 'Id',
                     name: 'Name',
                     enabled: 'Erstellt Aufträge',

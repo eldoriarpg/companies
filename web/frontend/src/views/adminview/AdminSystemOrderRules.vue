@@ -4,7 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import type {SystemOrderRule} from '~/api/gateway'
+import type {SystemOrderRule, SystemOrderRuleItem} from '~/api/gateway'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import RowButton from '@/components/button/RowButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
@@ -20,12 +20,14 @@ import NumberInput from '@/components/input/NumberInput.vue'
 import SelectInput from '@/components/input/SelectInput.vue'
 import TextInput from '@/components/input/TextInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
+import RuleItemsEditor from './RuleItemsEditor.vue'
 
 /**
  * The defined rules of the server's own orders, edited as one list: a rule is chosen from the list and changed in its
  * form, rules are added and removed, and all of them are saved together as the next revision of
- * `system-orders.yml`. A save refused for a problem names the rule and the field; one refused because someone saved
- * meanwhile shows the rules saved then.
+ * `system-orders.yml`. A rule orders one of its entries per order: a material, criteria such as `#logs enchants:2`, or
+ * an exact item, which is captured in game and only shown and removed here. A save refused for a problem names the
+ * rule and the field; one refused because someone saved meanwhile shows the rules saved then.
  */
 const {t} = useI18n()
 const loading = useAction()
@@ -45,6 +47,17 @@ const failing = computed(() => [...new Set(Object.keys(errors.value)
   .map(Number))])
 const modes = computed(() => ['FIXED', 'AVERAGE'].map(value => ({value, label: t(`admin.systemorders.rules.mode.${value}`)})))
 const sources = computed(() => ['MINTED', 'ACCOUNT'].map(value => ({value, label: t(`admin.systemorders.rules.source.${value}`)})))
+
+/**
+ * How an entry reads in the list of rules.
+ *
+ * @param item the entry
+ * @returns the label
+ */
+function itemLabel(item: SystemOrderRuleItem): string {
+  if (item.item !== undefined) return item.name || t('admin.systemorders.rules.exactItem')
+  return item.criteria ?? item.material ?? ''
+}
 
 onMounted(() => {
   void load()
@@ -71,7 +84,11 @@ function filled(rule: Partial<SystemOrderRule>): SystemOrderRule {
     id: rule.id ?? '',
     name: rule.name ?? '',
     enabled: rule.enabled ?? true,
-    material: rule.material ?? '',
+    material: '',
+    items: rule.items && rule.items.length > 0
+      ? rule.items.map(entry => ({...entry}))
+      : [{material: rule.material ?? ''}],
+    pick: rule.pick ?? 'RANDOM',
     amount: rule.amount ?? 64,
     price: {mode: 'AVERAGE', value: 1, factor: 1, jitter: 0, min: 0, max: 0, ...rule.price},
     everyHours: rule.everyHours ?? 24,
@@ -104,6 +121,8 @@ function complete(entry: SystemOrderRule): boolean {
   const numbers = [entry.amount, entry.everyHours, entry.lifetimeHours, entry.maxOpen, entry.price.jitter, entry.price.min,
     entry.price.max, entry.source.dailyBudget, entry.price.mode === 'FIXED' ? entry.price.value : entry.price.factor]
   return numbers.every(value => value !== undefined)
+    && entry.items.length > 0
+    && entry.items.every(item => item.item !== undefined || (item.criteria ?? item.material ?? '').trim() !== '')
 }
 
 /** Saves every rule as the next revision. */
@@ -141,9 +160,21 @@ function problems(index: number): string[] {
   return Object.entries(errors.value)
     .filter(([path]) => path === prefix || path.startsWith(`${prefix}.`) || path === 'rules' || path === '')
     .map(([path, problem]) => t('admin.systemorders.rules.problem', {
-      field: path.startsWith(`${prefix}.`) ? t(`admin.systemorders.rules.fields.${path.slice(prefix.length + 1)}`) : '-',
+      field: path.startsWith(`${prefix}.`) ? fieldName(path.slice(prefix.length + 1)) : '-',
       problem: t(`admin.systemorders.rules.errors.${problem}`),
     }))
+}
+
+/**
+ * The name of a field of a rule, an entry named by its place.
+ *
+ * @param field the field's path within the rule, such as `price.mode` or `items.2`
+ * @returns the name
+ */
+function fieldName(field: string): string {
+  const entry = /^items\.(\d+)$/.exec(field)
+  if (entry) return t('admin.systemorders.rules.fields.entry', {number: Number(entry[1]) + 1})
+  return t(`admin.systemorders.rules.fields.${field}`)
 }
 </script>
 
@@ -163,7 +194,7 @@ function problems(index: number): string[] {
               <span class="font-semibold">{{ entry.name || entry.id || t('admin.systemorders.rules.unnamed') }}</span>
               <NoticeBadge v-if="failing.includes(index)">{{ t('admin.systemorders.rules.hasProblem') }}</NoticeBadge>
             </span>
-            <span class="text-ink-muted">{{ entry.id }} · {{ entry.material }}</span>
+            <span class="text-ink-muted">{{ entry.id }} · {{ entry.items.map(itemLabel).join(', ') }}</span>
           </RowButton>
         </li>
       </PlainList>
@@ -191,9 +222,9 @@ function problems(index: number): string[] {
         <div class="grid gap-3 sm:grid-cols-2">
           <TextInput v-model="rule.id" :label="t('admin.systemorders.rules.fields.id')" :maxlength="64" :disabled="!editable"/>
           <TextInput v-model="rule.name" :label="t('admin.systemorders.rules.fields.name')" :disabled="!editable"/>
-          <TextInput v-model="rule.material" :label="t('admin.systemorders.rules.fields.material')" placeholder="IRON_INGOT" :disabled="!editable"/>
           <NumberInput v-model="rule.amount" :label="t('admin.systemorders.rules.fields.amount')" :min="1" :disabled="!editable"/>
         </div>
+        <RuleItemsEditor v-model:rule="rules[chosen]!" :editable="editable"/>
         <CheckboxInput v-model="rule.enabled" :label="t('admin.systemorders.rules.fields.enabled')" :disabled="!editable"/>
         <div class="grid gap-3 sm:grid-cols-3">
           <SelectInput v-model="rule.price.mode" :label="t('admin.systemorders.rules.fields.price.mode')" :options="modes" :disabled="!editable"/>

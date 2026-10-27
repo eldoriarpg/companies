@@ -12,6 +12,7 @@ import de.eldoria.companies.boards.npc.NpcBoards;
 import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.Configuration;
+import de.eldoria.companies.configuration.RulesEditor;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
@@ -87,7 +88,6 @@ import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -356,10 +356,7 @@ public final class DashboardModule {
                         configuration,
                         data.admin().nodeData(),
                         data.admin().applyChanges(),
-                        material -> {
-                            var found = Material.matchMaterial(material);
-                            return found != null && found.isItem() && !found.isAir();
-                        },
+                        RulesEditor::knownMaterial,
                         plugin.getLogger(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);

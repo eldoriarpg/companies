@@ -7,9 +7,11 @@ package de.eldoria.companies.orders.system;
 
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
+import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderRule;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
@@ -19,6 +21,8 @@ import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -54,6 +58,7 @@ import java.util.logging.Logger;
  * Guessed orders are kept running by {@link GuessedOrders} after the defined rules.
  */
 public final class SystemOrderService {
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private final Supplier<SystemOrderSettings> settings;
     private final AOrderData orders;
     private final Placement placement;
@@ -171,14 +176,27 @@ public final class SystemOrderService {
     private Step handle(SystemOrderSettings current, SystemOrderRule rule, LocalDateTime now, LocalDateTime dayStart) {
         var id = rule.id();
         if (!rule.enabled()) return Step.DISABLED;
-        if (!placement.knows(rule.material())) return purchases.note(id, Step.UNKNOWN_ITEM, rule.material());
-        var last = orders.lastSystemPlacement(id);
-        if (last.isPresent() && now.isBefore(last.get().plusHours(rule.everyHours()))) return Step.NOT_DUE;
+        var entries = rule.entries();
+        if (entries.isEmpty()) return purchases.note(id, Step.UNKNOWN_ITEM, "");
+        var last = orders.lastSystemDecision(id);
+        if (last.isPresent() && now.isBefore(last.get().decidedAt().plusHours(rule.everyHours()))) {
+            return Step.NOT_DUE;
+        }
         if (orders.activeSystemOrders(id) >= rule.maxOpen()) return Step.FULL;
-        var found = RulePricing.price(rule.price(), placement.average(rule.material()), random);
+        var index = RuleItems.pick(rule, entries.size(), last.map(this::entryOf).orElse(null), random);
+        var resolved =
+                RuleItems.resolve(entries.get(index), index, placement::knows, orders.restingMaterials(now), random);
+        if (resolved instanceof RuleItems.Problem(var entry)) return purchases.note(id, Step.UNKNOWN_ITEM, entry);
+        var chosen = (RuleItems.Chosen) resolved;
+        var material = chosen.material();
+        if (material == null && rule.price().mode() == RulePrice.PriceMode.AVERAGE) {
+            return purchases.note(id, Step.NO_PRICE, chosen.label() + " needs a fixed price");
+        }
+        var average = material == null ? OptionalDouble.empty() : placement.average(material);
+        var found = RulePricing.price(rule.price(), average, random);
         if (found.isEmpty()) return purchases.note(id, Step.NO_PRICE, "");
         var priced = found.get();
-        var wanted = new Wanted(id, rule.name(), rule.material(), rule.amount(), priced.unit());
+        var wanted = new Wanted(id, rule.name(), chosen.label(), rule.amount(), priced.unit(), chosen.line());
         return purchases
                 .buy(
                         id,
@@ -191,7 +209,7 @@ public final class SystemOrderService {
                         money -> new DefinedRecord(
                                 id,
                                 rule.name(),
-                                rule.material(),
+                                chosen.label(),
                                 rule.amount(),
                                 rule.price().mode(),
                                 priced.average(),
@@ -206,8 +224,18 @@ public final class SystemOrderService {
                                 money.source(),
                                 money.account(),
                                 money.budgetLeft(),
-                                money.mintedLeft()))
+                                money.mintedLeft(),
+                                chosen.entry()))
                 .step();
+    }
+
+    private @Nullable Integer entryOf(SystemDecision decision) {
+        if (!DefinedRecord.KIND.equals(decision.kind())) return null;
+        try {
+            return MAPPER.readValue(decision.record(), DefinedRecord.class).entry();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private LocalDateTime dayStart() {
@@ -255,8 +283,19 @@ public final class SystemOrderService {
 
             @Override
             public CompletableFuture<Placed> place(Wanted wanted) {
-                var item = Objects.requireNonNull(item(wanted.material()));
-                var line = new OrderBuilder.DraftLine(new ItemStack(item), false, wanted.amount(), wanted.unit());
+                var ordered = wanted.line();
+                var line = ordered == null
+                        ? new OrderBuilder.DraftLine(
+                                new ItemStack(Objects.requireNonNull(item(wanted.material()))),
+                                false,
+                                wanted.amount(),
+                                wanted.unit())
+                        : new OrderBuilder.DraftLine(
+                                ordered.template(),
+                                ordered.exact(),
+                                wanted.amount(),
+                                wanted.unit(),
+                                ordered.criteria());
                 var draft = OrderDraftService.toDraft(wanted.name(), List.of(line));
                 return systemOrders.place(draft, wanted.rule()).thenApply(outcome -> switch (outcome) {
                     case OrderCreationService.Created created ->
@@ -350,11 +389,26 @@ public final class SystemOrderService {
      *
      * @param rule     id of the rule placing it
      * @param name     name of the order
-     * @param material material ordered, as a rule writes it
+     * @param material material ordered, as a rule writes it; for another line what it orders, as admins see it
      * @param amount   items ordered
      * @param unit     price per item
+     * @param line     the line when it is no plain material: an exact item or criteria
      */
-    public record Wanted(String rule, String name, String material, int amount, double unit) {}
+    public record Wanted(
+            String rule, String name, String material, int amount, double unit, RuleItems.@Nullable Line line) {
+        /**
+         * An order of a plain material.
+         *
+         * @param rule     id of the rule placing it
+         * @param name     name of the order
+         * @param material material ordered, as a rule writes it
+         * @param amount   items ordered
+         * @param unit     price per item
+         */
+        public Wanted(String rule, String name, String material, int amount, double unit) {
+            this(rule, name, material, amount, unit, null);
+        }
+    }
 
     /**
      * What came of placing an order.

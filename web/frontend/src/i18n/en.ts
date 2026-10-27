@@ -145,6 +145,24 @@ export default {
             stats: '{posted} placed, {taken} taken, {expired} expired, {minutes} min to take · factor {factor} ({offset}) · take rate {rate} %',
             row: '{rule} · {paid} · {placed} · {state}',
             rules: {
+                exactItem: 'Exact item',
+                itemsNote: 'One of them is ordered per order',
+                removeItem: 'Remove {item}',
+                addMaterial: 'Add a material',
+                addCriteria: 'Add criteria',
+                captureNote: 'Exact items are added in game with the item in hand: {command}',
+                kind: {
+                    material: 'Material',
+                    criteria: 'Criteria',
+                },
+                resolve: {
+                    ANY: 'Any of the set, mixed',
+                    ONE: 'One material of the set',
+                },
+                pick: {
+                    RANDOM: 'At random',
+                    ROTATE: 'In turn',
+                },
                 hasProblem: 'problem',
                 problems: 'Nothing was saved: {count} rule(s) have a problem; the first is open.',
                 incomplete: 'Fill in every number of {rule} within its range to save.',
@@ -170,6 +188,12 @@ export default {
                     ACCOUNT: 'Economy account',
                 },
                 fields: {
+                    items: 'What it orders',
+                    kind: 'Kind',
+                    criteria: 'Criteria',
+                    resolve: 'An order asks for',
+                    pick: 'Next entry',
+                    entry: 'Entry {number}',
                     id: 'Id',
                     name: 'Name',
                     enabled: 'Places orders',

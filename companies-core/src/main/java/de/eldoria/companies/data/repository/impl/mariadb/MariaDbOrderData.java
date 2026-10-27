@@ -1069,6 +1069,18 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
+    public Optional<SystemDecision> lastSystemDecision(String rule) {
+        @Language("mariadb")
+        var select = """
+                SELECT order_id, rule, kind, decided_at, account, paid, record
+                FROM system_order_decisions
+                WHERE rule = ?
+                ORDER BY decided_at DESC, order_id DESC
+                LIMIT 1""";
+        return query(select).single(call().bind(rule)).map(this::parseDecision).first();
+    }
+
+    @Override
     public int activeSystemOrders(String rule) {
         @Language("mariadb")
         var select = """

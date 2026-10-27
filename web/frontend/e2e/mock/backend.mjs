@@ -149,7 +149,17 @@ const SYSTEM_DECISIONS = {
 }
 
 /** The defined rules of the server's own orders. */
-const SYSTEM_RULES = [{id: 'iron-weekly', name: 'Royal smithy', material: 'IRON_INGOT', amount: 256, price: {mode: 'FIXED', value: 2}}]
+const SYSTEM_RULES = [
+    {id: 'iron-weekly', name: 'Royal smithy', material: 'IRON_INGOT', amount: 256, price: {mode: 'FIXED', value: 2}},
+    {
+        id: 'armoury',
+        name: 'Royal armoury',
+        items: [{material: 'IRON_SWORD'}, {item: 'AAECAw==', name: 'Royal blade'}],
+        pick: 'ROTATE',
+        amount: 1,
+        price: {mode: 'FIXED', value: 300},
+    },
+]
 
 /** What guessed orders learned per material. */
 const SYSTEM_LEARNED = [{material: 'DIRT', posted: 6, taken: 4, expired: 1, minutesToTake: 42, factor: 0.75, offset: -0.05, takeRate: 0.71}]
