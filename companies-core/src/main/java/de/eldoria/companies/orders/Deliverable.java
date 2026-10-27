@@ -33,8 +33,8 @@ public final class Deliverable {
     }
 
     /**
-     * The amount of items of an order the player could deliver. Every item counts for one line only, and material and
-     * exact lines are filled before criteria lines, so items only a criteria line accepts are left for it.
+     * The amount of items of an order the player could deliver: what a delivery of everything would take, see
+     * {@link ItemSources#fill(List, List, ItemMatcher)}. Every item counts for one line only.
      *
      * @param matcher   decides which items match a line
      * @param available items the player carries
@@ -42,18 +42,8 @@ public final class Deliverable {
      * @return sum over all lines of what is missing and available
      */
     public static int amount(ItemMatcher matcher, List<ItemStack> available, FullOrder order) {
-        var left = available.stream().mapToInt(ItemStack::getAmount).toArray();
-        var total = 0;
-        for (var content : DeliveryOrder.narrowFirst(order.contents())) {
-            var missing = Math.max(0, content.missing());
-            for (var index = 0; index < left.length && missing > 0; index++) {
-                if (left[index] <= 0 || !matcher.matches(content, available.get(index))) continue;
-                var counted = Math.min(missing, left[index]);
-                left[index] -= counted;
-                missing -= counted;
-                total += counted;
-            }
-        }
-        return total;
+        return ItemSources.fill(ItemSources.copies(available), order.contents(), matcher).stream()
+                .mapToInt(DeliveryPart::amount)
+                .sum();
     }
 }

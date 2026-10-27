@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.IOrderContent;
 import de.eldoria.companies.components.order.ItemCriteria;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemContainerContents;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  * Finds the items a worker can deliver and takes them out. Used on the main thread only.
@@ -99,12 +101,72 @@ public final class ItemSources {
             @Nullable ItemCriteria criteria,
             ItemMatcher matcher,
             int limit) {
+        return take(slots, line, template, criteria, matcher, limit, stack -> false);
+    }
+
+    /**
+     * Takes items for all lines of an order that still miss items, as a delivery of everything the worker carries
+     * does. Exact lines are filled first, then material lines, then criteria lines, see
+     * {@link DeliveryOrder#narrowFirst(List)}. Among items a line ranks alike, it takes those no later line accepts
+     * first, so they stay for the lines that need them.
+     *
+     * @param slots   slots to take from; they are changed
+     * @param lines   lines of the order
+     * @param matcher decides which items match
+     * @return the taken items, per line in the order the lines were filled
+     */
+    public static List<DeliveryPart> fill(
+            List<ItemSlot> slots, List<? extends IOrderContent> lines, ItemMatcher matcher) {
+        var open = DeliveryOrder.narrowFirst(lines).stream()
+                .filter(line -> line.missing() > 0)
+                .toList();
+        List<DeliveryPart> parts = new ArrayList<>();
+        for (var index = 0; index < open.size(); index++) {
+            var line = open.get(index);
+            var later = open.subList(index + 1, open.size());
+            parts.addAll(take(
+                    slots,
+                    line.line(),
+                    line.stack(),
+                    line.criteria().orElse(null),
+                    matcher,
+                    line.missing(),
+                    stack -> later.stream().anyMatch(other -> matcher.matches(other, stack))));
+        }
+        return parts;
+    }
+
+    /**
+     * Slots holding copies of items, to work out a delivery without changing anything.
+     *
+     * @param stacks the items
+     * @return one slot per item
+     */
+    public static List<ItemSlot> copies(List<ItemStack> stacks) {
+        List<ItemSlot> slots = new ArrayList<>();
+        for (var stack : stacks) slots.add(new CopySlot(stack.clone()));
+        return slots;
+    }
+
+    private static List<DeliveryPart> take(
+            List<ItemSlot> slots,
+            int line,
+            ItemStack template,
+            @Nullable ItemCriteria criteria,
+            ItemMatcher matcher,
+            int limit,
+            Predicate<ItemStack> wantedLater) {
         var candidates = slots.stream()
                 .filter(slot -> !isEmpty(slot.stack()))
                 .filter(slot -> matcher.matches(template, criteria, slot.stack()))
                 .map(slot -> new Candidate(
-                        slot, matcher.extras(template, criteria, slot.stack()), matcher.damage(slot.stack())))
-                .sorted(Comparator.comparingInt(Candidate::extras).thenComparingDouble(Candidate::damage))
+                        slot,
+                        matcher.extras(template, criteria, slot.stack()),
+                        matcher.damage(slot.stack()),
+                        wantedLater.test(slot.stack())))
+                .sorted(Comparator.comparingInt(Candidate::extras)
+                        .thenComparingDouble(Candidate::damage)
+                        .thenComparing(Candidate::wantedLater))
                 .toList();
         List<DeliveryPart> parts = new ArrayList<>();
         var remaining = limit;
@@ -154,7 +216,30 @@ public final class ItemSources {
         return stack == null || stack.getType().isAir() || stack.getAmount() <= 0;
     }
 
-    private record Candidate(ItemSlot slot, int extras, double damage) {}
+    private record Candidate(ItemSlot slot, int extras, double damage, boolean wantedLater) {}
+
+    /**
+     * A slot holding a copy of an item, for working out a delivery.
+     */
+    private static final class CopySlot implements ItemSlot {
+        private ItemStack stack;
+
+        private CopySlot(ItemStack stack) {
+            this.stack = stack;
+        }
+
+        @Override
+        public ItemStack stack() {
+            return stack;
+        }
+
+        @Override
+        public void take(int amount) {
+            var left = stack.clone();
+            left.setAmount(stack.getAmount() - amount);
+            stack = left.getAmount() <= 0 ? ItemStack.empty() : left;
+        }
+    }
 
     /**
      * A storage slot of a player inventory.

@@ -65,7 +65,7 @@ public final class CriteriaRules {
                 return refused("order.criteria.error.enchantmentNotApplicable", entry.enchantment());
             }
             for (var other : required) {
-                if (other.conflictsWith(enchantment.get())) {
+                if (conflict(other, enchantment.get())) {
                     return refused("order.criteria.error.enchantmentConflict", entry.enchantment());
                 }
             }
@@ -81,7 +81,7 @@ public final class CriteriaRules {
                             .map(ItemCriteria.Required::enchantment)
                             .collect(Collectors.joining(", ")));
         }
-        if (criteria.minEnchantments() > 0 && criteria.minEnchantments() > mostEnchantments(fitting, required)) {
+        if (!carriesCount(fitting, required, criteria.minEnchantments())) {
             return refused("order.criteria.error.enchantmentCount", String.valueOf(criteria.minEnchantments()));
         }
         return Optional.empty();
@@ -95,49 +95,56 @@ public final class CriteriaRules {
         return holdsAny(material) || enchantment.canEnchantItem(new ItemStack(material));
     }
 
-    private static int mostEnchantments(List<Material> materials, List<Enchantment> required) {
+    private static boolean carriesCount(List<Material> materials, List<Enchantment> required, int count) {
+        var needed = count - required.size();
+        if (needed <= 0) return true;
         var registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT);
-        var most = 0;
         for (var material : materials) {
             List<Enchantment> candidates = new ArrayList<>();
             for (var enchantment : registry) {
                 if (required.contains(enchantment) || !carries(material, enchantment)) continue;
-                if (required.stream().anyMatch(other -> other.conflictsWith(enchantment))) continue;
+                if (required.stream().anyMatch(other -> conflict(other, enchantment))) continue;
                 candidates.add(enchantment);
             }
-            most = Math.max(most, required.size() + compatible(candidates));
+            if (compatible(candidates, needed)) return true;
         }
-        return most;
+        return false;
     }
 
     /**
-     * The size of the largest group of enchantments of which no two conflict.
+     * Whether a number of the enchantments can go on one item together, no two of them conflicting.
      *
      * @param enchantments the enchantments to choose from
-     * @return the size of the group, the number of enchantments when there are too many to search
+     * @param needed       how many are needed
+     * @return true when that many fit together; with too many enchantments to search, whether there are enough
      */
-    private static int compatible(List<Enchantment> enchantments) {
+    private static boolean compatible(List<Enchantment> enchantments, int needed) {
         var count = enchantments.size();
-        if (count >= Long.SIZE) return count;
+        if (count < needed) return false;
+        if (count >= Long.SIZE) return true;
         var conflicts = new long[count];
         for (var first = 0; first < count; first++) {
             for (var second = 0; second < count; second++) {
-                if (first != second && enchantments.get(first).conflictsWith(enchantments.get(second))) {
+                if (first != second && conflict(enchantments.get(first), enchantments.get(second))) {
                     conflicts[first] |= 1L << second;
                 }
             }
         }
-        return largest(count == 0 ? 0 : -1L >>> (Long.SIZE - count), conflicts);
+        return fits(-1L >>> (Long.SIZE - count), conflicts, needed);
     }
 
-    private static int largest(long open, long[] conflicts) {
-        if (open == 0) return 0;
+    private static boolean fits(long open, long[] conflicts, int needed) {
+        if (needed <= 0) return true;
+        if (Long.bitCount(open) < needed) return false;
         var first = Long.numberOfTrailingZeros(open);
         var rest = open & ~(1L << first);
         var excluded = conflicts[first] & rest;
-        var with = 1 + largest(rest & ~excluded, conflicts);
-        if (excluded == 0) return with;
-        return Math.max(with, largest(rest, conflicts));
+        if (fits(rest & ~excluded, conflicts, needed - 1)) return true;
+        return excluded != 0 && fits(rest, conflicts, needed);
+    }
+
+    private static boolean conflict(Enchantment first, Enchantment second) {
+        return first.conflictsWith(second) || second.conflictsWith(first);
     }
 
     private static boolean holdsAny(Material material) {

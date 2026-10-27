@@ -7,6 +7,7 @@ package de.eldoria.companies.orders;
 
 import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
+import de.eldoria.companies.data.wrapper.order.OrderContent;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemContainerContents;
 import io.papermc.paper.datacomponent.item.ItemEnchantments;
@@ -206,6 +207,47 @@ class ItemSourcesTest {
             left.setAmount(stack.getAmount() - amount);
             stack = left.getAmount() <= 0 ? ItemStack.empty() : left;
         }
+    }
+
+    @Test
+    void fillingLeavesItemsLaterLinesNeedWhenTheyRankAlike() {
+        var sharp = ItemCriteria.of("DIAMOND_SWORD").withEnchantment("sharpness", 1);
+        var lines = List.of(
+                new OrderContent(0, sharp.template(), false, sharp, 1, 1.0),
+                new OrderContent(1, new ComponentStack(Material.DIAMOND_SWORD), false, 1, 1.0));
+        var slots = slots(swordWith(Enchantment.SHARPNESS), swordWith(Enchantment.UNBREAKING));
+
+        var parts = ItemSources.fill(slots, lines, matcher(false));
+
+        Assertions.assertEquals(2, parts.size());
+        Assertions.assertEquals(1, parts.get(0).line());
+        Assertions.assertTrue(parts.get(0).stack().isSimilar(swordWith(Enchantment.UNBREAKING)));
+        Assertions.assertEquals(0, parts.get(1).line());
+        Assertions.assertTrue(parts.get(1).stack().isSimilar(swordWith(Enchantment.SHARPNESS)));
+    }
+
+    @Test
+    void exactLinesAreFilledBeforeMaterialLines() {
+        var sharpSword = swordWith(Enchantment.SHARPNESS);
+        var lines = List.of(
+                new OrderContent(0, new ComponentStack(Material.DIAMOND_SWORD), false, 1, 1.0),
+                new OrderContent(1, sharpSword, true, 1, 1.0));
+        var slots = slots(swordWith(Enchantment.SHARPNESS), sword());
+
+        var parts = ItemSources.fill(slots, lines, matcher(false));
+
+        Assertions.assertEquals(2, parts.size());
+        Assertions.assertEquals(1, parts.get(0).line());
+        Assertions.assertEquals(0, parts.get(1).line());
+        Assertions.assertTrue(parts.get(1).stack().isSimilar(sword()));
+    }
+
+    private static ComponentStack swordWith(Enchantment enchantment) {
+        var stack = new ComponentStack(Material.DIAMOND_SWORD);
+        stack.setData(
+                DataComponentTypes.ENCHANTMENTS,
+                ItemEnchantments.itemEnchantments().add(enchantment, 1).build());
+        return stack;
     }
 
     @Test

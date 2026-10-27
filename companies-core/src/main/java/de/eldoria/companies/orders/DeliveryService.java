@@ -152,19 +152,7 @@ public final class DeliveryService {
 
     private List<DeliveryPart> allParts(Player worker, FullOrder order) {
         var matcher = matcher();
-        var slots = ItemSources.collect(worker);
-        List<DeliveryPart> parts = new ArrayList<>();
-        for (var content : DeliveryOrder.narrowFirst(order.contents())) {
-            if (content.missing() <= 0) continue;
-            parts.addAll(ItemSources.take(
-                    slots,
-                    content.line(),
-                    content.stack(),
-                    content.criteria().orElse(null),
-                    matcher,
-                    content.missing()));
-        }
-        return parts;
+        return ItemSources.fill(ItemSources.collect(worker), order.contents(), matcher);
     }
 
     /**

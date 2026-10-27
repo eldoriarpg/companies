@@ -6,7 +6,6 @@
 package de.eldoria.companies.orders;
 
 import de.eldoria.companies.components.order.IOrderContent;
-import de.eldoria.companies.components.order.LineKind;
 
 import java.util.Comparator;
 import java.util.List;
@@ -20,8 +19,8 @@ public final class DeliveryOrder {
     }
 
     /**
-     * Puts material and exact lines before criteria lines and keeps the order within each. A criteria line accepts
-     * more items than the others, so filling it last leaves it what the narrower lines can not take.
+     * Puts exact lines first, then material lines, then criteria lines, and keeps the order within each. The lines
+     * accepting the fewest items go first, so the wider lines get what the narrower ones can not take.
      *
      * @param lines the lines of an order
      * @param <T>   the type of the lines
@@ -29,7 +28,15 @@ public final class DeliveryOrder {
      */
     public static <T extends IOrderContent> List<T> narrowFirst(List<T> lines) {
         return lines.stream()
-                .sorted(Comparator.comparing(line -> line.kind() == LineKind.CRITERIA))
+                .sorted(Comparator.comparingInt(DeliveryOrder::rank))
                 .toList();
+    }
+
+    private static int rank(IOrderContent line) {
+        return switch (line.kind()) {
+            case EXACT -> 0;
+            case MATERIAL -> 1;
+            case CRITERIA -> 2;
+        };
     }
 }

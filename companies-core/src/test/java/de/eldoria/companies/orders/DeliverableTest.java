@@ -145,6 +145,24 @@ class DeliverableTest {
     }
 
     @Test
+    void theCountTakesItemsAsADeliveryWould() {
+        var sharp = ItemCriteria.of("DIAMOND_SWORD").withEnchantment("sharpness", 1);
+        var order = order(
+                new OrderContent(0, sharp.template(), false, sharp, 1, 10.0),
+                content(1, new ComponentStack(Material.DIAMOND_SWORD), 1, 0));
+        var enchanted = new ComponentStack(Material.DIAMOND_SWORD);
+        enchanted.setData(
+                DataComponentTypes.ENCHANTMENTS,
+                ItemEnchantments.itemEnchantments()
+                        .add(Enchantment.SHARPNESS, 1)
+                        .build());
+
+        var amount = Deliverable.amount(MATCHER, items(enchanted, new ComponentStack(Material.DIAMOND_SWORD)), order);
+
+        Assertions.assertEquals(2, amount);
+    }
+
+    @Test
     void criteriaLinesCountEveryItemOfTheirSet() {
         var logs = ItemCriteria.of("#minecraft:logs");
         var line = new OrderContent(0, logs.template(), false, logs, 20, 10.0);

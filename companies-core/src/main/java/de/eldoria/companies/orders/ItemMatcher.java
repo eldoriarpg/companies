@@ -11,7 +11,6 @@ import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import io.papermc.paper.datacomponent.DataComponentType;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.inventory.ItemStack;
@@ -23,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -44,7 +42,6 @@ public final class ItemMatcher {
 
     private final Set<DataComponentType> ignored;
     private final boolean allowDamaged;
-    private final Map<ItemCriteria, Set<Material>> resolved = new ConcurrentHashMap<>();
 
     private ItemMatcher(Set<DataComponentType> ignored, boolean allowDamaged) {
         this.ignored = Set.copyOf(ignored);
@@ -129,7 +126,7 @@ public final class ItemMatcher {
      */
     public boolean matches(ItemStack template, @Nullable ItemCriteria criteria, ItemStack offered) {
         if (criteria == null) return matches(template, offered);
-        if (!resolved.computeIfAbsent(criteria, ItemCriteria::materials).contains(offered.getType())) return false;
+        if (!criteria.accepts(offered.getType())) return false;
         if (hasContent(offered)) return false;
         if (!allowDamaged && isDamaged(offered)) return false;
         return meets(criteria, enchantments(offered));
