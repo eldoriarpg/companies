@@ -339,6 +339,7 @@ public final class SettingsCatalogue {
         guessed.whole("guessed.minOpen");
         guessed.whole("guessed.maxOpen");
         guessed.whole("guessed.perCompanyDaily");
+        guessed.whole("guessed.perPlayerDaily");
         guessed.choice("guessed.source.type", names(MoneySource.SourceType.values()));
         guessed.text("guessed.source.account");
         guessed.decimal("guessed.source.dailyBudget");

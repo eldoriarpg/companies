@@ -50,6 +50,7 @@ import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -268,6 +269,33 @@ class GuessedOrdersTest {
         assertTrue(limit.refusal(company, defined).isEmpty());
         settings.guessed().perCompanyDaily(0);
         assertTrue(limit.refusal(company, guessed).isEmpty());
+    }
+
+    @Test
+    void aPlayerAloneMayTakeOnlySoManyGuessedOrdersADay() {
+        settings.guessed().perPlayerDaily(1);
+        var limit = new GuessedLimit(orderData, settings::guessed, clock);
+        var worker = UUID.randomUUID();
+        service.run();
+        var guessed = orderData.retrieveOrderById(onlyDecision().order()).join().orElseThrow();
+        var playerOrder = open(Material.SAND, 1, 1.0);
+
+        assertTrue(limit.refusal(worker, guessed).isEmpty());
+        query("UPDATE order_states SET state = ?, solo_worker = ? WHERE id = ?")
+                .single(call().bind(OrderState.CLAIMED.stateId())
+                        .bind(worker, UUID_BYTES)
+                        .bind(guessed.id()))
+                .update();
+        at(guessed.id(), now());
+
+        assertTrue(limit.refusal(worker, guessed).isPresent());
+        assertTrue(limit.refusal(UUID.randomUUID(), guessed).isEmpty());
+        assertTrue(limit.refusal(worker, playerOrder).isEmpty());
+        settings.guessed().perPlayerDaily(0);
+        assertTrue(limit.refusal(worker, guessed).isEmpty());
+        settings.guessed().perPlayerDaily(1);
+        clock.advance(Duration.ofDays(1));
+        assertTrue(limit.refusal(worker, guessed).isEmpty());
     }
 
     @Test

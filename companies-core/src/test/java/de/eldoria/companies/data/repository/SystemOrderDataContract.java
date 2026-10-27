@@ -42,6 +42,7 @@ import javax.sql.DataSource;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -314,6 +315,29 @@ public abstract class SystemOrderDataContract {
         assertEquals(1, orders.systemOrdersTaken(COMPANY, "guessed", NOW.minusHours(1)));
         assertEquals(2, orders.systemOrdersTaken(COMPANY, "guessed", NOW.minusDays(2)));
         assertEquals(0, orders.systemOrdersTaken(COMPANY + 1, "guessed", NOW.minusDays(2)));
+    }
+
+    @Test
+    void ordersTakenByAPlayerAloneCountSinceAPointInTime() {
+        var worker = UUID.randomUUID();
+        var taken = order(server, Material.DIRT, 1, 1.0);
+        var earlier = order(server, Material.DIRT, 1, 1.0);
+        var other = order(server, Material.DIRT, 1, 1.0);
+        for (var order : List.of(taken, earlier, other)) orders.systemRule(order.id(), "guessed");
+        state(taken, OrderState.CLAIMED, NOW);
+        state(earlier, OrderState.DELIVERED, NOW.minusDays(1));
+        state(other, OrderState.CLAIMED, NOW);
+        query("UPDATE order_states SET solo_worker = ? WHERE id IN (?, ?)")
+                .single(call().bind(worker, UUID_BYTES).bind(taken.id()).bind(earlier.id()))
+                .update();
+        query("UPDATE order_states SET company = ? WHERE id = ?")
+                .single(call().bind(COMPANY).bind(other.id()))
+                .update();
+
+        assertEquals(1, orders.systemOrdersTakenAlone(worker, "guessed", NOW.minusHours(1)));
+        assertEquals(2, orders.systemOrdersTakenAlone(worker, "guessed", NOW.minusDays(2)));
+        assertEquals(0, orders.systemOrdersTakenAlone(UUID.randomUUID(), "guessed", NOW.minusDays(2)));
+        assertEquals(0, orders.systemOrdersTakenAlone(worker, "iron", NOW.minusDays(2)));
     }
 
     private SimpleOrder order(OfflinePlayer owner, Material material, int amount, double price) {

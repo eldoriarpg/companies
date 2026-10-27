@@ -14,8 +14,6 @@ import java.util.stream.Collectors;
 /**
  * Orders the server guesses from the market data, the {@code guessed} section of {@code system-orders.yml}. They fill
  * gaps and never compete with players: an item players want is skipped, or paid clearly less.
- * <p>
- * TODO cap the guessed orders one player may take alone per day, as companies are capped.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class GuessedSettings {
@@ -47,6 +45,7 @@ public class GuessedSettings {
     private int minOpen = 3;
     private int maxOpen = 10;
     private int perCompanyDaily = 5;
+    private int perPlayerDaily = 5;
     private MoneySource source = new MoneySource();
     private LearningSettings learning = new LearningSettings();
 
@@ -279,6 +278,17 @@ public class GuessedSettings {
 
     public void perCompanyDaily(int perCompanyDaily) {
         this.perCompanyDaily = perCompanyDaily;
+    }
+
+    /**
+     * @return guessed orders one player working alone may take per day, 0 for no limit
+     */
+    public int perPlayerDaily() {
+        return Math.max(0, perPlayerDaily);
+    }
+
+    public void perPlayerDaily(int perPlayerDaily) {
+        this.perPlayerDaily = perPlayerDaily;
     }
 
     /**
