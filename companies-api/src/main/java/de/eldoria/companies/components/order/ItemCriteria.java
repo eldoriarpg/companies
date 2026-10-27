@@ -69,6 +69,8 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     }
 
     /**
+     * Criteria like these with another enchantment count.
+     *
      * @param minEnchantments the fewest enchantments an item must carry
      * @return a copy with the new count
      */
@@ -77,6 +79,8 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     }
 
     /**
+     * Criteria like these that also require an enchantment.
+     *
      * @param enchantment key of the enchantment, such as {@code minecraft:sharpness}
      * @param minLevel    the lowest level accepted
      * @return a copy that also requires the enchantment

@@ -28,6 +28,7 @@ import java.util.List;
  * @param price       total price of the line
  * @param damaged     how many delivered items are damaged
  * @param worstDamage wear of the most worn delivered item, from 0 to 1
+ * @param criteria    what a criteria line accepts, null for material and exact lines
  */
 public record OrderLineView(
         int number,
