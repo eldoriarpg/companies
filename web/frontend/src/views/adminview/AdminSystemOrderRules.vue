@@ -99,7 +99,7 @@ function filled(rule: Partial<SystemOrderRule>): SystemOrderRule {
 }
 
 /**
- * An entry with only the fields of its kind, since the plugin stores every field of an entry.
+ * An entry with only the fields of its kind, as older revisions store every field of an entry.
  *
  * @param entry an entry as the file writes it
  * @returns the entry for the form

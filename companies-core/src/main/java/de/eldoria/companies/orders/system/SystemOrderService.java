@@ -187,6 +187,7 @@ public final class SystemOrderService {
         var start = RuleItems.pick(rule, entries.size(), last.map(this::entryOf).orElse(null), random);
         var resting = Suppliers.memoize(() -> orders.restingMaterials(now));
         RuleItems.Chosen chosen = null;
+        RulePricing.Priced priced = null;
         Step skipped = null;
         var reason = "";
         for (var offset = 0; offset < entries.size() && chosen == null; offset++) {
@@ -205,17 +206,23 @@ public final class SystemOrderService {
                     reason = found.label() + " needs a fixed price";
                 }
             } else {
-                chosen = (RuleItems.Chosen) resolved;
+                var candidate = (RuleItems.Chosen) resolved;
+                var material = candidate.material();
+                var average = material == null ? OptionalDouble.empty() : placement.average(material);
+                var found = RulePricing.price(rule.price(), average, random);
+                if (found.isPresent()) {
+                    chosen = candidate;
+                    priced = found.get();
+                } else if (skipped == null) {
+                    skipped = Step.NO_PRICE;
+                    reason = candidate.label();
+                }
             }
         }
-        if (chosen == null) return purchases.note(id, Objects.requireNonNull(skipped), reason);
+        if (chosen == null || priced == null) return purchases.note(id, Objects.requireNonNull(skipped), reason);
         var picked = chosen;
-        var material = picked.material();
-        var average = material == null ? OptionalDouble.empty() : placement.average(material);
-        var found = RulePricing.price(rule.price(), average, random);
-        if (found.isEmpty()) return purchases.note(id, Step.NO_PRICE, "");
-        var priced = found.get();
-        var wanted = new Wanted(id, rule.name(), picked.label(), rule.amount(), priced.unit(), picked.line());
+        var price = priced;
+        var wanted = new Wanted(id, rule.name(), picked.label(), rule.amount(), price.unit(), picked.line());
         return purchases
                 .buy(
                         id,
@@ -231,14 +238,14 @@ public final class SystemOrderService {
                                 picked.label(),
                                 rule.amount(),
                                 rule.price().mode(),
-                                priced.average(),
+                                price.average(),
                                 rule.price().factor(),
-                                priced.base(),
-                                priced.jitter(),
+                                price.base(),
+                                price.jitter(),
                                 rule.price().min(),
                                 rule.price().max(),
-                                priced.bounded(),
-                                priced.unit(),
+                                price.bounded(),
+                                price.unit(),
                                 money.paid(),
                                 money.source(),
                                 money.account(),

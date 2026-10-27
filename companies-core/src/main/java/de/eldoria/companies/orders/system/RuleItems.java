@@ -102,7 +102,9 @@ public final class RuleItems {
         var single = candidates.get(
                 Math.min(candidates.size() - 1, (int) Math.floor(random.getAsDouble() * candidates.size())));
         var material = single.items().getFirst();
-        if (single.minEnchantments() == 0) return new Chosen(index, material, null, material);
+        if (single.minEnchantments() == 0 && single.enchantments().isEmpty()) {
+            return new Chosen(index, material, null, material);
+        }
         return new Chosen(index, CriteriaText.plain(single), new Line(single.template(), false, single), null);
     }
 

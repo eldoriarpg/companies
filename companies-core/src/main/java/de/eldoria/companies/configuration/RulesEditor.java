@@ -85,7 +85,7 @@ public final class RulesEditor {
         if (latest != base) return new Result.Newer(latest, rules(tree(configuration, nodeData, latest)));
         var tree = tree(configuration, nodeData, base);
         var edited = tree.isObject() ? ((ObjectNode) tree).deepCopy() : JsonNodeFactory.instance.objectNode();
-        edited.set(RULES, rules.deepCopy());
+        edited.set(RULES, upperCased(rules));
         String content;
         try {
             content = SettingsEditor.normalized(
@@ -179,8 +179,23 @@ public final class RulesEditor {
         }
         if (CriteriaRules.problem(parsed).isPresent()) return Optional.of("unknown");
         var one = upper(resolve).equals(RuleEntry.Resolve.ONE.name());
-        if (average && (!one || parsed.minEnchantments() > 0)) return Optional.of("fixedPrice");
+        var conditions = parsed.minEnchantments() > 0 || !parsed.enchantments().isEmpty();
+        if (average && (!one || conditions)) return Optional.of("fixedPrice");
         return Optional.empty();
+    }
+
+    private static JsonNode upperCased(JsonNode rules) {
+        var copy = rules.deepCopy();
+        for (var rule : copy) {
+            if (!(rule instanceof ObjectNode object)) continue;
+            if (object.path("pick").isString()) object.put("pick", upper(object.path("pick")));
+            for (var entry : object.path("items")) {
+                if (entry instanceof ObjectNode item && item.path("resolve").isString()) {
+                    item.put("resolve", upper(item.path("resolve")));
+                }
+            }
+        }
+        return copy;
     }
 
     private static JsonNode sparse(JsonNode entry) {

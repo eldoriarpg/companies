@@ -224,6 +224,13 @@ public final class SystemOrdersCommand {
                             }
                         }
                         case RulesEditor.Result.Invalid invalid
+                        when invalid.fields().containsKey("item") ->
+                            deps.messages()
+                                    .sendError(sender, PREFIX + "error.duplicateItem", Values.text("rule", rule));
+                        case RulesEditor.Result.Invalid invalid
+                        when invalid.fields().containsValue("fixedPrice") ->
+                            deps.messages().sendError(sender, PREFIX + "error.fixedPrice", Values.text("rule", rule));
+                        case RulesEditor.Result.Invalid invalid
                         when invalid.fields().containsKey("id") ->
                             deps.messages().sendError(sender, PREFIX + "error.unknownRule", Values.text("rule", rule));
                         case RulesEditor.Result.Invalid invalid ->

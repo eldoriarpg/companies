@@ -608,6 +608,42 @@ class SystemOrderServiceTest {
     }
 
     @Test
+    void aRotatingRulePassesOverAMaterialWithoutAnAverage() {
+        averages.put("IRON_INGOT", 2.0);
+        averages.put("GOLD_INGOT", 5.0);
+        var rule = rule(new SystemOrderRule("smithy", ""));
+        rule.price(new RulePrice(PriceMode.AVERAGE, 0, 1, 0, 0, 0));
+        rule.items(List.of(
+                RuleEntry.material("IRON_INGOT"),
+                RuleEntry.material("NETHERITE_SCRAP"),
+                RuleEntry.material("GOLD_INGOT")));
+        rule.pick(SystemOrderRule.Pick.ROTATE);
+        rule.everyHours(1);
+        rule.maxOpen(10);
+
+        for (var hour = 0; hour < 2; hour++) {
+            assertEquals(Step.PLACED, step(service.run()));
+            clock.advance(Duration.ofHours(1));
+        }
+
+        assertEquals(
+                List.of("IRON_INGOT", "GOLD_INGOT"),
+                wanted.stream().map(SystemOrderService.Wanted::material).toList());
+    }
+
+    @Test
+    void oneMaterialPickedFromASetKeepsTheRequiredEnchantments() {
+        rule(fixed("blades", 50.0))
+                .items(List.of(RuleEntry.criteria("diamond_sword sharpness:5", RuleEntry.Resolve.ONE)));
+
+        assertEquals(Step.PLACED, step(service.run()));
+
+        var line = wanted.getFirst().line();
+        assertEquals(List.of("DIAMOND_SWORD"), line.criteria().items());
+        assertEquals(1, line.criteria().enchantments().size());
+    }
+
+    @Test
     void entriesThatNameNothingAreNoted() {
         rule(fixed("broken", 2.0)).items(List.of(RuleEntry.criteria("#minecraft:no_such_tag", RuleEntry.Resolve.ANY)));
 

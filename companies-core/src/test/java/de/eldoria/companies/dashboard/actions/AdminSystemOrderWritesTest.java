@@ -219,6 +219,26 @@ class AdminSystemOrderWritesTest {
     }
 
     @Test
+    void lowerCaseChoicesAreSavedInUpperCase() {
+        var rule = "{\"id\":\"wood\",\"pick\":\"rotate\",\"items\":["
+                + "{\"material\":\"OAK_LOG\"},{\"criteria\":\"#logs\",\"resolve\":\"one\"}],"
+                + "\"price\":{\"mode\":\"FIXED\",\"value\":2.0}}";
+
+        var saved = perform(
+                Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
+                "{\"base\":0,\"rules\":[" + rule + "]}",
+                Permission.Admin.ORDERS,
+                Permission.Admin.RELOAD);
+
+        assertEquals(
+                "saved", saved.data().path("result").asString(), saved.data().toString());
+        var read = RulesEditor.read(world.settings, world.nodeData).rules().get(0);
+        assertEquals("ROTATE", read.path("pick").asString());
+        assertEquals("ONE", read.path("items").get(1).path("resolve").asString());
+        assertTrue(read.path("items").get(0).path("resolve").isMissingNode());
+    }
+
+    @Test
     void aCapturedItemIsAddedToARuleAndReadBack() {
         perform(
                 Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,

@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 public class RuleEntry {
     private String material = "";
     private String criteria = "";
-    private Resolve resolve = Resolve.ANY;
+    private @Nullable Resolve resolve = null;
     private @Nullable ItemStack item = null;
     private String name = "";
 
