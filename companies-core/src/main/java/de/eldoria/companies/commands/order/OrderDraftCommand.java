@@ -18,6 +18,7 @@ import de.eldoria.companies.menus.order.OrderBuilderController;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.Repetition;
+import de.eldoria.companies.orders.criteria.CriteriaSyntax;
 import de.eldoria.companies.services.ActionResult;
 import de.eldoria.companies.util.Permission.Orders;
 import de.eldoria.companies.util.Threading;
@@ -84,6 +85,24 @@ public final class OrderDraftCommand {
             @IntArg(min = 1) int amount,
             @UnitPrices @DoubleArg(min = 0, max = Double.MAX_VALUE) double unitPrice) {
         edit(sender, (player, draft) -> drafts().add(draft, item, amount, unitPrice));
+    }
+
+    /**
+     * Adds a line accepting every item that meets criteria, typed as {@link CriteriaSyntax} reads them, such as
+     * {@code #logs bamboo_block} or {@code diamond_sword enchants:2 sharpness:3}.
+     *
+     * @param sender    sender of the command
+     * @param amount    number of items
+     * @param unitPrice price of one item
+     * @param criteria  what the line accepts
+     */
+    @Executes("add criteria")
+    public void addCriteria(
+            CommandSender sender,
+            @IntArg(min = 1) int amount,
+            @DoubleArg(min = 0, max = Double.MAX_VALUE) double unitPrice,
+            @StringArg(StringArgType.GREEDY) String criteria) {
+        edit(sender, (player, draft) -> drafts().add(draft, CriteriaSyntax.parse(criteria), amount, unitPrice));
     }
 
     /**

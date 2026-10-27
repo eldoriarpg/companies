@@ -263,12 +263,28 @@ export interface OrderLineView {
   item: ItemView;
   delivered: number;
   price: number;
+  criteria?: CriteriaView;
 }
 export interface ItemView {
   material: string;
   name: string;
   amount: number;
   icon: string;
+}
+export interface CriteriaView {
+  items: Entry[];
+  minEnchantments: number;
+  enchantments: Required[];
+}
+export interface Entry {
+  key: string;
+  name: string;
+  tag: boolean;
+}
+export interface Required {
+  key: string;
+  name: string;
+  minLevel: number;
 }
 export interface AlertView {
   name: string;

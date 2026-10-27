@@ -5,7 +5,7 @@
  */
 import {describe, expect, it} from 'vitest'
 import {catalogue, knownItems, material} from '~/test/catalogue'
-import {type DraftRepetition, definable, detailsOf, excluded, orderArgs, trimmed} from './orderDraft'
+import {type DraftRepetition, conditionsOf, criteriaSource, definable, detailsOf, excluded, itemOf, orderArgs, trimmed} from './orderDraft'
 
 const ONCE: DraftRepetition = {enabled: false, interval: 'weekly', end: 'times', times: undefined, until: ''}
 
@@ -70,5 +70,31 @@ describe('an order draft', () => {
     it('offers the editor only for a material that can be given something', () => {
         expect(definable(material('stone', 'Stone'))).toBe(false)
         expect(definable(material('potion', 'Potion', {potion: true}))).toBe(true)
+    })
+
+    it('stands a criteria line for by the first item of its set, named after the set', () => {
+        const criteria = {items: ['#minecraft:swords', 'minecraft:stone'], minEnchantments: 2, enchantments: {'minecraft:sharpness': 3}}
+        const source = criteriaSource(criteria, catalogue())
+
+        expect(source).not.toBeNull()
+        expect(itemOf(source!).material).toBe('minecraft:diamond_sword')
+        expect(itemOf(source!).name).toBe('#Swords / Stone')
+        expect(detailsOf(source!, catalogue())).toEqual(['✦ ≥2', 'Sharpness III+'])
+        expect(criteriaSource({items: ['#minecraft:unknown']}, catalogue())).toBeNull()
+    })
+
+    it('sends a criteria line with its criteria', () => {
+        const criteria = {items: ['#minecraft:swords'], minEnchantments: 0, enchantments: {}}
+        const source = criteriaSource(criteria, catalogue())!
+
+        expect(orderArgs('Swords', [{id: 1, source, amount: 4, unitPrice: 50}], ONCE)).toEqual({
+            name: 'Swords',
+            lines: [{criteria, amount: 4, unitPrice: 50}],
+        })
+    })
+
+    it('names a count condition only when it asks for more than the required enchantments', () => {
+        expect(conditionsOf({items: [], minEnchantments: 1, enchantments: {'minecraft:sharpness': 1}}, catalogue())).toEqual(['Sharpness'])
+        expect(conditionsOf({items: [], minEnchantments: 3, enchantments: {}}, null)).toEqual(['✦ ≥3'])
     })
 })

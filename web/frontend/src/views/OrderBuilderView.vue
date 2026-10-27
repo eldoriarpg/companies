@@ -18,6 +18,7 @@ import ViewContent from '@/components/layout/ViewContent.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import AddLineDialog from './orderbuilder/AddLineDialog.vue'
+import CriteriaDialog from './orderbuilder/CriteriaDialog.vue'
 import BuilderLine from './orderbuilder/BuilderLine.vue'
 import RepetitionFields from './orderbuilder/RepetitionFields.vue'
 import {Feature} from '~/api/generated/protocol'
@@ -39,8 +40,10 @@ const market = useMarket()
 const {supports} = useDashboard()
 const offered = computed(() => supports(Feature['orders.create']))
 const adding = ref(false)
+const addingCriteria = ref(false)
 const editing = ref<number | null>(null)
 const editedSource = computed(() => builder.lines.value.find(line => line.id === editing.value)?.source ?? null)
+const editedCriteria = computed(() => (editedSource.value?.kind === 'criteria' ? editedSource.value.criteria : null))
 
 watch(offered, isOffered => {
   if (!isOffered) return
@@ -55,7 +58,24 @@ watch(offered, isOffered => {
  */
 function openDialog(id: number | null): void {
   editing.value = id
-  adding.value = true
+  if (editedSource.value?.kind === 'criteria') addingCriteria.value = true
+  else adding.value = true
+}
+
+/** Opens the dialog for a new criteria line. */
+function openCriteria(): void {
+  editing.value = null
+  addingCriteria.value = true
+}
+
+/**
+ * The market's average for a line, which only plain items have.
+ *
+ * @param source the line's item
+ * @returns the average, none for criteria or an item the market does not know
+ */
+function averageOf(source: LineSource): number | undefined {
+  return source.kind === 'criteria' ? undefined : market.averages.value.get(itemOf(source).material)
 }
 
 /**
@@ -65,7 +85,7 @@ function openDialog(id: number | null): void {
  */
 function add(source: LineSource): void {
   if (editing.value !== null) builder.replaceLine(editing.value, source)
-  else builder.addLine(source, market.averages.value.get(itemOf(source).material))
+  else builder.addLine(source, averageOf(source))
 }
 
 /** Places the order and opens the player's orders. */
@@ -93,7 +113,10 @@ async function place(): Promise<void> {
       <PanelBox :aria-label="t('builder.lines')">
         <template #head>
           <SectionHeader :note="t('builder.linesNote')">{{ t('builder.lines') }}</SectionHeader>
-          <SecondaryButton icon="plus" @click="openDialog(null)">{{ t('builder.addLine') }}</SecondaryButton>
+          <ButtonRow>
+            <SecondaryButton icon="plus" @click="openDialog(null)">{{ t('builder.addLine') }}</SecondaryButton>
+            <SecondaryButton icon="plus" data-add-criteria @click="openCriteria">{{ t('builder.addCriteria') }}</SecondaryButton>
+          </ButtonRow>
         </template>
         <EmptyState v-if="builder.lines.value.length === 0">{{ t('builder.noLines') }}</EmptyState>
         <PlainList v-else>
@@ -102,7 +125,7 @@ async function place(): Promise<void> {
               :key="line.id"
               v-model="builder.lines.value[index]!"
               :catalogue="builder.catalogue.value"
-              :average="market.averages.value.get(itemOf(line.source).material)"
+              :average="averageOf(line.source)"
               @remove="builder.removeLine(line.id)"
               @edit="openDialog(line.id)"
           />
@@ -141,6 +164,7 @@ async function place(): Promise<void> {
         <MutedText tag="p">{{ t('builder.placeNote') }}</MutedText>
       </PanelBox>
       <AddLineDialog v-model:open="adding" :editing="editedSource" :catalogue="builder.catalogue.value" :known="builder.known.value" @add="add"/>
+      <CriteriaDialog v-model:open="addingCriteria" :editing="editedCriteria" :catalogue="builder.catalogue.value" @add="add"/>
     </template>
   </ViewContent>
 </template>

@@ -10,10 +10,12 @@ import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.commands.support.Checks;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.IOrderDraft;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.criteria.CriteriaRules;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import org.bukkit.entity.Player;
@@ -141,6 +143,30 @@ public final class OrderDraftService {
         if (draft.amount() >= settings.maxItems()) throw CommandFailure.actionBar("order.create.error.itemLimit");
         var capped = Math.min(Math.max(amount, 1), settings.maxItems() - draft.amount());
         return draft.add(requested.template(), requested.exact(), capped, Math.max(0.0, unitPrice));
+    }
+
+    /**
+     * Adds a criteria line, or adds the amount to a line with equal criteria. The criteria have to pass
+     * {@link CriteriaRules}; the amount is capped by the item limit.
+     *
+     * @param draft     draft of the player
+     * @param criteria  what the line accepts
+     * @param amount    number of items
+     * @param unitPrice price of one item
+     * @return number of the line, starting at 1
+     */
+    public int add(OrderBuilder draft, ItemCriteria criteria, int amount, double unitPrice) {
+        var problem = CriteriaRules.problem(criteria);
+        if (problem.isPresent()) throw problem.get();
+        var line = new OrderBuilder.DraftLine(criteria.template(), false, 1, 0, criteria);
+        var settings = configuration.orderSetting();
+        var merged = draft.similarLine(line).isPresent();
+        if (!merged && draft.lineCount() >= settings.maxMaterials()) {
+            throw CommandFailure.actionBar("order.create.error.materialLimit");
+        }
+        if (draft.amount() >= settings.maxItems()) throw CommandFailure.actionBar("order.create.error.itemLimit");
+        var capped = Math.min(Math.max(amount, 1), settings.maxItems() - draft.amount());
+        return draft.add(criteria, capped, Math.max(0.0, unitPrice));
     }
 
     /**
@@ -278,8 +304,9 @@ public final class OrderDraftService {
     public static IOrderDraft toDraft(String name, List<OrderBuilder.DraftLine> lines) {
         var draft = IOrderDraft.of(name);
         for (var line : lines) {
-            if (line.criteria() != null) {
-                draft.addLine(line.criteria(), line.amount(), line.unitPrice());
+            var criteria = line.criteria();
+            if (criteria != null) {
+                draft.addLine(criteria, line.amount(), line.unitPrice());
             } else if (line.exact()) {
                 draft.addLine(line.template(), line.amount(), line.unitPrice());
             } else {

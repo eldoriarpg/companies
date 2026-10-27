@@ -13,6 +13,7 @@ import de.eldoria.companies.components.company.ICompanyRank;
 import de.eldoria.companies.components.order.IFullOrder;
 import de.eldoria.companies.components.order.IOrderContent;
 import de.eldoria.companies.components.order.ISimpleOrder;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.elements.CompanySettings;
@@ -27,6 +28,7 @@ import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
 import de.eldoria.companies.web.api.snapshot.ClaimedOrderView;
 import de.eldoria.companies.web.api.snapshot.CompanyView;
+import de.eldoria.companies.web.api.snapshot.CriteriaView;
 import de.eldoria.companies.web.api.snapshot.InviteView;
 import de.eldoria.companies.web.api.snapshot.ItemView;
 import de.eldoria.companies.web.api.snapshot.JoinMode;
@@ -475,8 +477,34 @@ public final class Views {
     public List<OrderLineView> lines(IFullOrder order) {
         return order.contents().stream()
                 .sorted(Comparator.comparingInt(IOrderContent::line))
-                .map(line -> new OrderLineView(item(line, line.amount()), line.delivered(), line.price()))
+                .map(line -> new OrderLineView(
+                        item(line, line.amount()),
+                        line.delivered(),
+                        line.price(),
+                        line.criteria().map(Views::criteria).orElse(null)))
                 .toList();
+    }
+
+    /**
+     * Describes criteria for the web app.
+     *
+     * @param criteria the criteria
+     * @return the view, with plain English names
+     */
+    public static CriteriaView criteria(ItemCriteria criteria) {
+        var items = criteria.items().stream()
+                .map(item -> ItemCriteria.isTag(item)
+                        ? new CriteriaView.Entry(item, CriteriaText.itemName(item), true)
+                        : new CriteriaView.Entry(
+                                "minecraft:" + item.toLowerCase(Locale.ROOT), CriteriaText.itemName(item), false))
+                .toList();
+        var enchantments = criteria.enchantments().stream()
+                .map(required -> new CriteriaView.Required(
+                        required.enchantment(),
+                        CriteriaText.enchantmentName(required.enchantment()),
+                        required.minLevel()))
+                .toList();
+        return new CriteriaView(items, criteria.minEnchantments(), enchantments);
     }
 
     /**

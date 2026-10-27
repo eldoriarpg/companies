@@ -6,9 +6,11 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.order.HistoryOutcome;
+import de.eldoria.companies.components.order.LineKind;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.dashboard.DashboardWorld;
+import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
@@ -249,6 +251,71 @@ class OrderCreateWritesTest {
         assertTrue(sharpness.path("conflicts").valueStream().anyMatch(key -> key.asString()
                 .equals("minecraft:smite")));
         assertEquals(16, catalogue.path("dyes").size());
+    }
+
+    @Test
+    void criteriaLinesArePlacedWithTheirCriteria() {
+        var created = create(
+                "[{\"criteria\":{\"items\":[\"#minecraft:logs\",\"minecraft:bamboo_block\"]},"
+                        + "\"amount\":10,\"unitPrice\":1}]",
+                MAY_CREATE);
+
+        assertTrue(created.ok(), created.reason());
+        var order = world.orders
+                .retrieveOrderById(created.data().path("order").asInt())
+                .asFuture()
+                .join()
+                .orElseThrow();
+        var line = world.orders
+                .retrieveFullOrder(order)
+                .asFuture()
+                .join()
+                .contents()
+                .getFirst();
+        assertEquals(LineKind.CRITERIA, line.kind());
+        assertEquals(
+                List.of("#minecraft:logs", "BAMBOO_BLOCK"),
+                line.criteria().orElseThrow().items());
+        var view = Views.criteria(line.criteria().orElseThrow());
+        assertEquals("#Logs", view.items().getFirst().name());
+        assertTrue(view.items().getFirst().tag());
+        assertEquals("minecraft:bamboo_block", view.items().get(1).key());
+    }
+
+    @Test
+    void criteriaNoItemCanMeetOrThatCanNotBeReadAreRefused() {
+        assertEquals(
+                "order.criteria.error.enchantmentNotApplicable",
+                create(
+                                "[{\"criteria\":{\"items\":[\"#minecraft:logs\"],"
+                                        + "\"enchantments\":{\"sharpness\":1}},\"amount\":1,\"unitPrice\":1}]",
+                                MAY_CREATE)
+                        .reason());
+        assertEquals(
+                "dashboard.invalid",
+                create("[{\"criteria\":{\"items\":[1]},\"amount\":1,\"unitPrice\":1}]", MAY_CREATE)
+                        .reason());
+        assertEquals(
+                "dashboard.invalid",
+                create("[{\"criteria\":{\"items\":[]},\"amount\":1,\"unitPrice\":1}]", MAY_CREATE)
+                        .reason());
+        assertEquals(10_000.0, world.wallets.get(owner));
+    }
+
+    @Test
+    void theCatalogueOffersTheTagsWhoseItemsCanAllBeOrdered() {
+        var tags = perform(Actions.ORDERS_CATALOGUE, "{}", MAY_CREATE).data().path("tags");
+
+        var logs = tags.valueStream()
+                .filter(tag -> tag.path("key").asString().equals("#minecraft:logs"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("#Logs", logs.path("name").asString());
+        assertTrue(logs.path("materials").valueStream().anyMatch(key -> key.asString()
+                .equals("minecraft:oak_log")));
+        assertFalse(tags.valueStream()
+                .flatMap(tag -> tag.path("materials").valueStream())
+                .anyMatch(key -> key.asString().equals("minecraft:bedrock")));
     }
 
     @Test

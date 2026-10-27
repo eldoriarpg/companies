@@ -136,7 +136,13 @@ public final class CriteriaText {
         return name + " " + roman(required.minLevel()) + "+";
     }
 
-    private static String enchantmentName(String enchantment) {
+    /**
+     * The English name of an enchantment, made from its key.
+     *
+     * @param enchantment the key, such as {@code minecraft:fire_aspect}
+     * @return the name, such as {@code Fire Aspect}
+     */
+    public static String enchantmentName(String enchantment) {
         var key = NamespacedKey.fromString(enchantment);
         return key == null ? enchantment : PlainText.keyName(key);
     }

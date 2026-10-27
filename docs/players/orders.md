@@ -40,10 +40,10 @@ the `Cancel` button throws the draft away. A draft you leave alone for 15 minute
 The builder looks different depending on your server and your game version.
 
 - **Dialog.** A window with buttons and input fields. `Add` opens a small form with the material, an amount slider and
-  the price per item. `Add item in hand` does the same for the item you hold. Click a line to change its amount or
+  the price per item. Instead of a material you can type [criteria](#criteria-lines), such as `#logs`. `Add item in hand` does the same for the item you hold. Click a line to change its amount or
   price, or to remove it. `Repeat` sets up a [repeating order](./repeating-orders.md).
-- **Chat.** A menu in chat. Buttons like `[Add]`, `[Amount]` and `[Price]` put the matching `/order draft` command into
-  your chat line, so you only type the numbers. `[Remove]` removes a line at once.
+- **Chat.** A menu in chat. Buttons like `[Add]`, `[Add by criteria]`, `[Amount]` and `[Price]` put the matching
+  `/order draft` command into your chat line, so you only type the numbers. `[Remove]` removes a line at once.
 
 Dialogs need Minecraft 1.21.6 or newer. Players on older game versions always get the chat menu. While a chat menu is
 open, other chat messages are held back. You get them once you close the menu with `[x]`.
@@ -57,6 +57,7 @@ You can do everything with commands too. Line numbers start at 1.
 | `/order draft add <item> <amount> <unit price>` | Add a line |
 | `/order draft add hand <amount> <unit price>` | Add the item in your main hand |
 | `/order draft add saved <name> <amount> <unit price>` | Add one of your [saved items](#saved-items) |
+| `/order draft add criteria <amount> <unit price> <criteria>` | Add a [criteria line](#criteria-lines) |
 | `/order draft amount <line> <amount>` | Change the amount. `0` removes the line. |
 | `/order draft price <line> <unit price>` | Change the price for one item |
 | `/order draft price <line> market` | Use the market average as the price |
@@ -67,14 +68,15 @@ You can do everything with commands too. Line numbers start at 1.
 
 All order commands are listed on the [Commands](../reference/commands.md) page.
 
-## Material lines and exact lines
+## Material lines, exact lines and criteria lines
 
-Each line is one of two kinds.
+Each line is one of three kinds.
 
 - **Material line.** Any item of that material counts, for example any stone or any iron ingot.
   `/order draft add stone 64 0.5` makes one.
 - **Exact line.** The item needs the same data as the item you ordered, such as its enchantments. You get one when
   the item has extra data, for example `diamond_sword[enchantments={sharpness:5}]` or an enchanted sword in your hand.
+- **Criteria line.** Any item of a set counts, mixed, and it may need enchantments. See [Criteria lines](#criteria-lines).
 
 `/order draft add hand` looks at the item you hold. A plain item becomes a material line. An item with extra data
 becomes an exact line.
@@ -93,6 +95,31 @@ Your server decides which item data counts. See `matching` in [order.yml](../adm
 Adding the same item twice merges it into the existing line. An order has a limit of lines and of items in total. The
 builder shows both, for example `Lines: 2/5` and `Items: 192/512`. If you ask for more items than fit, the amount is
 lowered to what fits.
+
+### Criteria lines
+
+A criteria line asks for any item of a set instead of one material. The amount may be filled with a mix:
+`64 logs` may be 40 oak logs and 24 birch logs. Write the criteria as entries separated by spaces:
+
+| Entry | Meaning |
+|---|---|
+| `oak_log` | A material |
+| `#logs` | Every item of an item tag, here all logs |
+| `enchants:2` | Every item needs at least two enchantments |
+| `sharpness:3` | Every item needs Sharpness III or higher |
+
+Some examples:
+
+- `/order draft add criteria 64 0.8 #logs` takes any logs.
+- `/order draft add criteria 32 1 oak_planks birch_planks` takes oak and birch planks, mixed.
+- `/order draft add criteria 1 300 diamond_sword netherite_sword enchants:3 sharpness:4` takes one diamond or
+  netherite sword with at least three enchantments, one of them Sharpness IV or higher.
+
+Enchanted books count the enchantments they store. Any other data, such as a name, does not matter. The order is
+refused when no single item of the set could meet the conditions, for example Sharpness on logs.
+
+A criteria line counts as one line towards your limit, however many items it accepts. Orders with criteria lines are
+found in the order search under every material they accept. They have no market average, so set the price yourself.
 
 ## Saved items
 

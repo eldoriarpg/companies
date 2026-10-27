@@ -3,14 +3,18 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-import type {CatalogueMaterial, ItemDefinition, KnownItem, OrderCatalogue, OrderCreateArgs, OrderLineArgs, RepetitionArgs} from '~/api/gateway'
+import type {CatalogueMaterial, CriteriaArgs, ItemDefinition, KnownItem, OrderCatalogue, OrderCreateArgs, OrderLineArgs, RepetitionArgs} from '~/api/gateway'
 import type {ItemView} from '~/api/generated/protocol'
 
-/** Where a line's item comes from: a plain material, a saved or earlier item, or an item defined in the browser. */
+/**
+ * Where a line's item comes from: a plain material, a saved or earlier item, an item defined in the browser, or
+ * criteria any of a set of items meets. A criteria line keeps the item that stands for it, named after the set.
+ */
 export type LineSource =
     | {kind: 'material', material: CatalogueMaterial}
     | {kind: 'known', known: KnownItem}
     | {kind: 'defined', material: CatalogueMaterial, definition: ItemDefinition}
+    | {kind: 'criteria', criteria: CriteriaArgs, item: ItemView}
 
 /** One line of the order being built. Amount and unit price are empty until the player types a readable one. */
 export interface DraftLine {
@@ -36,7 +40,68 @@ export interface DraftRepetition {
  * @returns the item
  */
 export function itemOf(source: LineSource): ItemView {
-    return source.kind === 'known' ? source.known.item : source.material.item
+    if (source.kind === 'known') return source.known.item
+    if (source.kind === 'criteria') return source.item
+    return source.material.item
+}
+
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
+
+/**
+ * A level as the game writes it.
+ *
+ * @param level the level
+ * @returns the Roman numeral, the number itself above ten
+ */
+export function roman(level: number): string {
+    return ROMAN[level] ?? String(level)
+}
+
+/**
+ * The name of an entry of a criteria set: the catalogue's name of a material or tag, else the key.
+ *
+ * @param entry a material key or a tag such as `#minecraft:logs`
+ * @param catalogue the names
+ * @returns the name
+ */
+export function entryName(entry: string, catalogue: OrderCatalogue | null): string {
+    if (entry.startsWith('#')) return catalogue?.tags?.find(tag => tag.key === entry)?.name ?? entry
+    return catalogue?.materials.find(material => material.item.material === entry)?.item.name ?? entry
+}
+
+/**
+ * The conditions of criteria as short lines: the enchantment count and each required enchantment with its level.
+ *
+ * @param criteria the criteria
+ * @param catalogue the enchantment names
+ * @returns the lines, empty without conditions
+ */
+export function conditionsOf(criteria: CriteriaArgs, catalogue: OrderCatalogue | null): string[] {
+    const required = Object.entries(criteria.enchantments ?? {})
+    const lines: string[] = []
+    if ((criteria.minEnchantments ?? 0) > required.length) lines.push(`✦ ≥${criteria.minEnchantments}`)
+    for (const [key, level] of required) {
+        const name = catalogue?.enchantments.find(entry => entry.key === key)?.name ?? key
+        lines.push(level > 1 ? `${name} ${roman(level)}+` : name)
+    }
+    return lines
+}
+
+/**
+ * The line source of criteria: the item standing for them is the first material of the set, named after the set.
+ *
+ * @param criteria the criteria
+ * @param catalogue the materials, tags and names
+ * @returns the source, or null when the set names nothing the catalogue knows
+ */
+export function criteriaSource(criteria: CriteriaArgs, catalogue: OrderCatalogue): LineSource | null {
+    const first = criteria.items
+        .flatMap(entry => (entry.startsWith('#') ? catalogue.tags?.find(tag => tag.key === entry)?.materials ?? [] : [entry]))
+        .map(key => catalogue.materials.find(material => material.item.material === key))
+        .find(material => material !== undefined)
+    if (!first) return null
+    const name = criteria.items.map(entry => entryName(entry, catalogue)).join(' / ')
+    return {kind: 'criteria', criteria, item: {...first.item, name}}
 }
 
 /**
@@ -50,6 +115,7 @@ export function itemOf(source: LineSource): ItemView {
 export function detailsOf(source: LineSource, catalogue: OrderCatalogue | null): string[] {
     if (source.kind === 'known') return source.known.details
     if (source.kind === 'material') return []
+    if (source.kind === 'criteria') return conditionsOf(source.criteria, catalogue)
     const {definition} = source
     const named = (entries: {key: string, name: string}[] | undefined, key: string) =>
         entries?.find(entry => entry.key === key)?.name ?? key
@@ -117,6 +183,7 @@ export function lineArgs(line: DraftLine): OrderLineArgs | null {
     const {source} = line
     if (source.kind === 'known') return {item: source.known.ref, amount: line.amount, unitPrice: line.unitPrice}
     if (source.kind === 'defined') return {define: source.definition, amount: line.amount, unitPrice: line.unitPrice}
+    if (source.kind === 'criteria') return {criteria: source.criteria, amount: line.amount, unitPrice: line.unitPrice}
     return {item: source.material.item.material, amount: line.amount, unitPrice: line.unitPrice}
 }
 

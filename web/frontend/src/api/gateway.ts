@@ -335,6 +335,17 @@ export interface OrderCatalogue {
     dyes: CatalogueDye[]
     trimPatterns: CatalogueEntry[]
     trimMaterials: CatalogueEntry[]
+    /** The item tags whose items can all be ordered. Missing from servers before criteria lines. */
+    tags?: CatalogueTag[]
+}
+
+/** An item tag a criteria line can name. */
+export interface CatalogueTag {
+    /** The tag as a criteria entry, e.g. `#minecraft:logs`. */
+    key: string
+    name: string
+    /** The material keys of its items. */
+    materials: string[]
 }
 
 /** An exact item the player can order again: a saved item or one of an earlier order. */
@@ -364,10 +375,21 @@ export interface ItemDefinition {
     trim?: {pattern: string, material: string}
 }
 
-/** One line of an order to place: a material key, a known item's ref, or a defined item. */
+/**
+ * What a criteria line accepts: any item of a set of materials (`minecraft:oak_log`) and tags (`#minecraft:logs`), with
+ * at least `minEnchantments` enchantments and each of `enchantments` at a minimum level.
+ */
+export interface CriteriaArgs {
+    items: string[]
+    minEnchantments?: number
+    enchantments?: Record<string, number>
+}
+
+/** One line of an order to place: a material key, a known item's ref, a defined item, or criteria. */
 export interface OrderLineArgs {
     item?: string
     define?: ItemDefinition
+    criteria?: CriteriaArgs
     amount: number
     unitPrice: number
 }

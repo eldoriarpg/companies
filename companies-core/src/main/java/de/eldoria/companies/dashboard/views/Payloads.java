@@ -281,6 +281,7 @@ public final class Payloads {
      * @param dyes         the dye colours a leather item can take
      * @param trimPatterns the armour trim patterns
      * @param trimMaterials the armour trim materials
+     * @param tags         the item tags whose items can all be ordered, for criteria lines
      */
     public record Catalogue(
             List<CatalogueMaterial> materials,
@@ -288,7 +289,17 @@ public final class Payloads {
             List<CatalogueEntry> potions,
             List<CatalogueDye> dyes,
             List<CatalogueEntry> trimPatterns,
-            List<CatalogueEntry> trimMaterials) {}
+            List<CatalogueEntry> trimMaterials,
+            List<CatalogueTag> tags) {}
+
+    /**
+     * An item tag a criteria line can name.
+     *
+     * @param key       the tag as a criteria entry, e.g. {@code #minecraft:logs}
+     * @param name      the plain name, e.g. {@code #Logs}
+     * @param materials the material keys of its items, e.g. {@code minecraft:oak_log}
+     */
+    public record CatalogueTag(String key, String name, List<String> materials) {}
 
     /**
      * An orderable material.

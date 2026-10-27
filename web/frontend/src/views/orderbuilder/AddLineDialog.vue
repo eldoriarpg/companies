@@ -74,7 +74,7 @@ watch(picked, value => {
 })
 watch(open, isOpen => {
   if (!isOpen) return
-  const source = props.editing
+  const source = props.editing?.kind === 'criteria' ? null : props.editing
   picked.value = source ? (source.kind === 'known' ? source.known.ref : source.material.item.material) : ''
   definition.value = source?.kind === 'defined' ? {...source.definition} : {material: picked.value}
 }, {immediate: true})

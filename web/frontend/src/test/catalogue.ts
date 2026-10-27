@@ -46,6 +46,7 @@ export function catalogue(): OrderCatalogue {
         dyes: [{key: 'red', name: 'Red', color: '#b02e26'}],
         trimPatterns: [{key: 'minecraft:coast', name: 'Coast'}],
         trimMaterials: [{key: 'minecraft:gold', name: 'Gold'}],
+        tags: [{key: '#minecraft:swords', name: '#Swords', materials: ['minecraft:diamond_sword']}],
     }
 }
 

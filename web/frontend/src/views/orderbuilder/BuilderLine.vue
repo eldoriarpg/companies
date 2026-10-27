@@ -16,7 +16,7 @@ import {type DraftLine, definable, detailsOf, itemOf} from '~/util/orderDraft'
 /**
  * One line of the order being built: its item with what it carries, the amount and the price of one item, with the
  * market's average beside the price where the market knows the material. An item that can be given something can be
- * changed in the item editor again.
+ * changed in the item editor again, and a criteria line in its dialog.
  */
 const line = defineModel<DraftLine>({required: true})
 
@@ -33,7 +33,11 @@ defineEmits<{
 const {t, locale} = useI18n()
 const item = computed(() => itemOf(line.value.source))
 const details = computed(() => detailsOf(line.value.source, props.catalogue))
-const editable = computed(() => line.value.source.kind !== 'known' && definable(line.value.source.material))
+const editable = computed(() => {
+  const {source} = line.value
+  if (source.kind === 'known') return false
+  return source.kind === 'criteria' || definable(source.material)
+})
 const amount = computed({
   get: () => line.value.amount,
   set: value => {

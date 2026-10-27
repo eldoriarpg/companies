@@ -6,6 +6,7 @@
 package de.eldoria.companies.menus.order;
 
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.series.RepeatInterval;
 import de.eldoria.companies.menus.Keys;
@@ -17,6 +18,7 @@ import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.PriceLines;
 import de.eldoria.companies.orders.Repetition;
+import de.eldoria.companies.orders.criteria.CriteriaSyntax;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.dialog.DialogResponseView;
@@ -65,6 +67,8 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
      * Key of the material input.
      */
     static final String MATERIAL = "material";
+
+    private static final int CRITERIA_LENGTH = 256;
 
     /**
      * Key of the amount slider.
@@ -132,6 +136,8 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
                     .locale("words.add")
                     .text("]</click> <click:suggest_command:" + DRAFT + " add hand ><add>[")
                     .locale("order.draft.addHand")
+                    .text("]</click> <click:suggest_command:" + DRAFT + " add criteria ><add>[")
+                    .locale("order.draft.addCriteria")
                     .text("]</click>");
         }
         for (var line : draft.lines()) {
@@ -372,8 +378,9 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
         if (add.hand().isPresent()) {
             body.add(DialogBody.item(add.hand().get().template()).build());
         } else {
-            inputs.add(DialogInput.text(MATERIAL, locale(player, "words.material"))
+            inputs.add(DialogInput.text(MATERIAL, locale(player, "order.draft.itemOrCriteria"))
                     .initial(add.material())
+                    .maxLength(CRITERIA_LENGTH)
                     .build());
         }
         var remaining = view.draft().remainingItems();
@@ -385,7 +392,12 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
             var entered = add.entered(response, remaining);
             controller.apply(viewer, entered, (p, current) -> {
                 var price = unitPrice(entered.unitPrice());
-                controller.drafts().add(current, entered.item(), entered.amount(), price);
+                var criteria = entered.criteria();
+                if (criteria.isPresent()) {
+                    controller.drafts().add(current, criteria.get(), entered.amount(), price);
+                } else {
+                    controller.drafts().add(current, entered.item(), entered.amount(), price);
+                }
                 return new Screen.Main();
             });
         }));
@@ -630,6 +642,19 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
              */
             Add withUnitPrice(double price) {
                 return new Add(hand, material, amount, DraftInput.unitPrice(price));
+            }
+
+            /**
+             * The criteria entered instead of a material, see {@link CriteriaSyntax}. A single material name is read as
+             * that material, not as criteria.
+             *
+             * @return the criteria, empty for the held item or a single material
+             * @throws CommandFailure when the text is meant as criteria but can not be read
+             */
+            Optional<ItemCriteria> criteria() {
+                if (hand.isPresent() || DraftInput.material(material).isPresent()) return Optional.empty();
+                if (!CriteriaSyntax.isCriteria(material)) return Optional.empty();
+                return Optional.of(CriteriaSyntax.parse(material));
             }
 
             /**

@@ -46,6 +46,7 @@ Commands for players who place orders. Read [Orders](../players/orders.md) and [
 | `/order draft add <item> <amount> <unitPrice>` | `companies.orders.create` | Adds a line. A plain material makes a material line. An item with components makes an exact line. |
 | `/order draft add hand <amount> <unitPrice>` | `companies.orders.create` | Adds the item in your main hand. A plain item makes a material line. An item with components makes an exact line. |
 | `/order draft add saved <name> <amount> <unitPrice>` | `companies.orders.create` | Adds a saved item. An item with components makes an exact line, a plain one a material line. |
+| `/order draft add criteria <amount> <unitPrice> <criteria>` | `companies.orders.create` | Adds a line any item of a set fills, such as `#logs oak_planks enchants:2 sharpness:3`. See [Criteria lines](../players/orders.md#criteria-lines). |
 | `/order draft remove <line>` | `companies.orders.create` | Removes a line. |
 | `/order draft amount <line> <amount>` | `companies.orders.create` | Changes the amount of a line. |
 | `/order draft price <line> <unitPrice>` | `companies.orders.create` | Changes the price per item of a line. |

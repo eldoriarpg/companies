@@ -1507,9 +1507,11 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
                     .delete();
             if (!unclaimed.changed()) return false;
-            conf.query("DELETE FROM order_line_materials WHERE id = ?")
-                    .single(call().bind(order.id()))
-                    .delete();
+            for (var table : List.of("order_line_materials", "order_content")) {
+                conf.query("DELETE FROM %s WHERE id = ?", table)
+                        .single(call().bind(order.id()))
+                        .delete();
+            }
             conf.query(deleteOrder).single(call().bind(order.id())).delete();
         }
         return conf.context().exceptions().isEmpty();
