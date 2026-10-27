@@ -110,6 +110,13 @@ public class MariaDbOrderData extends AOrderData {
             });
             conf.query(query).batch(calls).insert();
 
+            var lineMaterials = lineMaterials(orderId, contents);
+            if (!lineMaterials.isEmpty()) {
+                query = """
+                        INSERT INTO order_line_materials(id, line, material) VALUES (?, ?, ?)""";
+                conf.query(query).batch(lineMaterials.stream()).insert();
+            }
+
             query = """
                     INSERT INTO order_states(id, state, last_update) VALUES(?, ?, ?)""";
             conf.query(query)
@@ -120,6 +127,26 @@ public class MariaDbOrderData extends AOrderData {
         }
         if (!conf.context().exceptions().isEmpty()) return Optional.empty();
         return optOrderId;
+    }
+
+    /**
+     * One row per material a criteria line accepts, its tags resolved, so searches and demand find the line under
+     * every material it takes.
+     *
+     * @param orderId id of the order
+     * @param contents lines of the order
+     * @return the rows to insert
+     */
+    private static List<Call> lineMaterials(int orderId, List<OrderContent> contents) {
+        List<Call> rows = new ArrayList<>();
+        for (var line = 0; line < contents.size(); line++) {
+            var criteria = contents.get(line).criteria();
+            if (criteria.isEmpty()) continue;
+            for (var material : criteria.get().materials()) {
+                rows.add(call().bind(orderId).bind(line).bind(material.name()));
+            }
+        }
+        return rows;
     }
 
     @Override
@@ -855,18 +882,20 @@ public class MariaDbOrderData extends AOrderData {
     public Map<String, PlayerDemand> openPlayerDemand() {
         @Language("mariadb")
         var select = """
-                SELECT c.material,
-                       COUNT(DISTINCT c.id)    AS orders,
+                SELECT w.material,
+                       COUNT(DISTINCT w.id)    AS orders,
                        SUM(c.amount)           AS items,
                        MIN(c.price / c.amount) AS lowest
-                FROM order_content c
+                FROM (SELECT id, line, material FROM order_content WHERE criteria IS NULL
+                      UNION
+                      SELECT id, line, material FROM order_line_materials) w
+                         JOIN order_content c ON c.id = w.id AND c.line = w.line
                          JOIN order_states s ON c.id = s.id
                          JOIN orders o ON c.id = o.id
                 WHERE s.state = ?
                   AND c.amount > 0
-                  AND c.criteria IS NULL
                   AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
-                GROUP BY c.material""";
+                GROUP BY w.material""";
         var demand = new HashMap<String, PlayerDemand>();
         query(select)
                 .single(call().bind(OrderState.UNCLAIMED.stateId()).bind(SystemOwner.ID, UUID_BYTES))
@@ -1488,14 +1517,20 @@ public class MariaDbOrderData extends AOrderData {
         var query = """
                 SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
                 FROM orders o
-                         LEFT JOIN (SELECT c.id, GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price
+                         LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c
                                     GROUP BY id) oc
                                    ON o.id = oc.id
+                         LEFT JOIN (SELECT m.id, GROUP_CONCAT(m.material, ' ') AS materials
+                                    FROM (SELECT id, material FROM order_content WHERE criteria IS NULL
+                                          UNION
+                                          SELECT id, material FROM order_line_materials) m
+                                    GROUP BY m.id) om
+                                   ON o.id = om.id
                          LEFT JOIN order_states os
                                    ON o.id = os.id
                 WHERE o.name LIKE ?
-                  AND oc.materials REGEXP ?
+                  AND om.materials REGEXP ?
                   AND oc.price >= ?
                   AND oc.price <= ?
                   AND oc.amount >= ?

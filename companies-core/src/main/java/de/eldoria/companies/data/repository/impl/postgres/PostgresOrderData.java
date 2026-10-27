@@ -126,14 +126,20 @@ public class PostgresOrderData extends MariaDbOrderData {
         var query = """
                 SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
                 FROM orders o
-                         LEFT JOIN (SELECT c.id, string_agg(c.material, ' ') AS materials, sum(amount) AS amount, sum(price) AS price
+                         LEFT JOIN (SELECT c.id, sum(amount) AS amount, sum(price) AS price
                                     FROM order_content c
                                     GROUP BY id) oc
                                    ON o.id = oc.id
+                         LEFT JOIN (SELECT m.id, string_agg(m.material, ' ') AS materials
+                                    FROM (SELECT id, material FROM order_content WHERE criteria IS NULL
+                                          UNION
+                                          SELECT id, material FROM order_line_materials) m
+                                    GROUP BY m.id) om
+                                   ON o.id = om.id
                          LEFT JOIN order_states os
                                    ON o.id = os.id
                 WHERE o.name ~~* ?
-                  AND oc.materials ~* ?
+                  AND om.materials ~* ?
                   AND oc.price >= ?
                   AND oc.price <= ?
                   AND oc.amount >= ?

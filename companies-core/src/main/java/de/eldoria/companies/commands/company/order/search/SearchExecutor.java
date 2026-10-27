@@ -23,7 +23,9 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -149,10 +151,14 @@ public class SearchExecutor implements OrderFinder {
     static List<FullOrder> filled(
             List<FullOrder> orders, SearchQuery query, ItemMatcher matcher, List<ItemStack> available) {
         if (!query.fillable()) return orders;
-        var fillable = new ArrayList<>(orders.stream()
-                .filter(order -> Deliverable.amount(matcher, available, order) > 0)
-                .toList());
-        fillable.sort(Comparator.comparingInt((FullOrder order) -> Deliverable.amount(matcher, available, order))
+        Map<FullOrder, Integer> amounts = new IdentityHashMap<>();
+        for (var order : orders) {
+            var amount = Deliverable.amount(matcher, available, order);
+            if (amount > 0) amounts.put(order, amount);
+        }
+        var fillable =
+                new ArrayList<>(orders.stream().filter(amounts::containsKey).toList());
+        fillable.sort(Comparator.comparingInt((FullOrder order) -> amounts.getOrDefault(order, 0))
                 .reversed());
         return fillable;
     }

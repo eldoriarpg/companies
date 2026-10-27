@@ -7,6 +7,7 @@ package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
+import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.LineKind;
 import de.eldoria.companies.components.order.OrderState;
@@ -91,7 +92,13 @@ public abstract class OrderLineDataContract {
     @BeforeEach
     void setUp() {
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
-        for (var table : List.of("item_returns", "order_deliveries", "order_content", "order_states", "orders")) {
+        for (var table : List.of(
+                "item_returns",
+                "order_deliveries",
+                "order_line_materials",
+                "order_content",
+                "order_states",
+                "orders")) {
             query("DELETE FROM " + table).single().delete();
         }
         orders = orders();
@@ -124,7 +131,7 @@ public abstract class OrderLineDataContract {
     }
 
     @Test
-    void criteriaLinesStayOutOfPricesVolumesAndDemand() {
+    void criteriaLinesStayOutOfPricesAndVolumes() {
         var delivered = place(criteriaLine(10, 1000.0), plainLine(Material.OAK_LOG, 10, 20.0));
         state(delivered, OrderState.DELIVERED);
         place(criteriaLine(64, 64.0));
@@ -133,13 +140,47 @@ public abstract class OrderLineDataContract {
         var price = orders.retrieveMaterialPrice("oak_log").join();
         var volume = orders.deliveredVolume(NOW.minusDays(1), NOW.minusHours(1), NOW.plusDays(1));
         var market = dashboard.market();
-        var demand = orders.openPlayerDemand();
 
         assertEquals(2.0, price.avgPrice(), 0.001);
         assertEquals(1, volume.size());
         assertEquals(10, volume.getFirst().items());
         assertEquals(10, market.stream().mapToLong(row -> row.volume()).sum());
-        assertFalse(demand.containsKey(LOGS.template().getType().name()));
+    }
+
+    @Test
+    void demandCountsACriteriaLineForEveryMaterialItAccepts() {
+        place(criteriaLine(64, 64.0));
+        place(plainLine(Material.OAK_LOG, 10, 50.0));
+
+        var demand = orders.openPlayerDemand();
+
+        assertEquals(2, demand.get("OAK_LOG").orders());
+        assertEquals(74, demand.get("OAK_LOG").items());
+        assertEquals(1.0, demand.get("OAK_LOG").lowestPrice(), 0.001);
+        assertEquals(64, demand.get("BIRCH_LOG").items());
+        assertFalse(demand.containsKey("OAK_PLANKS"));
+    }
+
+    @Test
+    void searchFindsCriteriaLinesUnderEveryMaterialTheyAccept() {
+        var logs = place(criteriaLine(10, 50.0));
+        var stone = place(plainLine(Material.STONE, 5, 10.0));
+
+        assertEquals(List.of(logs.id()), search(false, "birch_log"));
+        assertEquals(List.of(logs.id()), search(true, "oak_log"));
+        assertEquals(List.of(logs.id()), search(false, "spruce"));
+        assertEquals(List.of(stone.id()), search(true, "stone"));
+        assertEquals(List.of(), search(true, "oak_planks"));
+    }
+
+    private List<Integer> search(boolean exact, String material) {
+        var query = new SearchQuery();
+        query.materials(List.of(material));
+        query.exactMatch(exact);
+        return orders.retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED).join().stream()
+                .map(order -> order.id())
+                .sorted()
+                .toList();
     }
 
     @Test
