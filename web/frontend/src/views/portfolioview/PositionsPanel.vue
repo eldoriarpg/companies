@@ -18,7 +18,7 @@ import PositionAbort from './PositionAbort.vue'
 import PositionDeliver from './PositionDeliver.vue'
 import {count, hoursLeft, money} from '~/util/format'
 import {holds} from '~/util/permissions'
-import {itemsText, totalsOf} from '~/util/orders'
+import {itemsText, lineName, totalsOf} from '~/util/orders'
 
 /**
  * The positions: the orders the company is processing, with their progress, payout and the time left. They update in
@@ -39,12 +39,13 @@ const manages = computed(() => {
 const delivers = computed(() => supports(Feature['orders.deliver']))
 const done = ref('')
 const now = useNow({interval: 60_000})
-const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => line.item.name)])
+const enchantments = (value: number) => t('builder.atLeastEnchantments', {count: value})
+const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => lineName(line, enchantments))])
 
 const rows = computed(() => found.value.map(order => ({
   order,
   totals: totalsOf(order.lines),
-  items: itemsText(order.lines, value => count(value, locale.value)),
+  items: itemsText(order.lines, value => count(value, locale.value), enchantments),
   left: order.deadline ? t('portfolio.hoursLeft', {hours: hoursLeft(order.deadline, now.value)}) : '',
 })))
 </script>

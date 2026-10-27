@@ -118,7 +118,7 @@ public class OrderBuilder {
 
     /**
      * Finds the line a new line would be merged into: one of the same kind with a similar template, or for a criteria
-     * line one with equal criteria.
+     * line one with the same criteria in any order.
      *
      * @param line the new line
      * @return the number of the similar line, starting at 1

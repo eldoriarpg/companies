@@ -90,6 +90,7 @@ class CriteriaSyntaxTest {
         assertFalse(CriteriaSyntax.isCriteria("oak_log"));
         assertFalse(CriteriaSyntax.isCriteria("minecraft:oak_log"));
         assertFalse(CriteriaSyntax.isCriteria("  "));
+        assertTrue(CriteriaSyntax.isCriteria("enchants:two"));
     }
 
     @Test

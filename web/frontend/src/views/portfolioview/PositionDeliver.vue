@@ -10,6 +10,7 @@ import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import {count} from '~/util/format'
+import {lineName} from '~/util/orders'
 
 /**
  * Delivers to an order the company works on from the player's inventory, exactly as `/company order deliver` does:
@@ -31,7 +32,11 @@ const {playerOnline} = useDashboard()
 const action = useAction()
 
 const open = computed(() => props.order.lines
-  .map((line, index) => ({line: index + 1, name: line.item.name, missing: line.item.amount - line.delivered}))
+  .map((line, index) => ({
+    line: index + 1,
+    name: lineName(line, value => t('builder.atLeastEnchantments', {count: value})),
+    missing: line.item.amount - line.delivered,
+  }))
   .filter(line => line.missing > 0))
 
 /**

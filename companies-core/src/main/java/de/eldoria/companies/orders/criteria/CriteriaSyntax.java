@@ -19,7 +19,8 @@ import java.util.regex.Pattern;
  * <p>
  * Entries are separated by spaces or commas. An entry starting with {@code #} is an item tag, {@code enchants:<n>} is
  * the fewest enchantments an item must carry, {@code <enchantment>:<level>} requires an enchantment at a minimum level,
- * and every other entry is a material. A count or level that is no number, negative or given twice is refused. Keys may carry a namespace, such as {@code minecraft:sharpness:3}.
+ * and every other entry is a material. A count or level that is no number, negative or given twice is refused. Keys
+ * may carry a namespace, such as {@code minecraft:sharpness:3}.
  */
 public final class CriteriaSyntax {
     /**
@@ -44,9 +45,11 @@ public final class CriteriaSyntax {
     public static boolean isCriteria(String text) {
         var entries = entries(text);
         if (entries.size() > 1) return true;
-        return entries.size() == 1
-                && (ItemCriteria.isTag(entries.getFirst())
-                        || LEVELLED.matcher(entries.getFirst()).matches());
+        if (entries.size() != 1) return false;
+        var entry = entries.getFirst();
+        return ItemCriteria.isTag(entry)
+                || LEVELLED.matcher(entry).matches()
+                || COUNTED.matcher(entry).matches();
     }
 
     /**

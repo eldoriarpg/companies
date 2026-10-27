@@ -808,7 +808,7 @@ export default {
         conditions: 'Verzauberungen',
         conditionsNote: 'Leer lassen, um die Items zu nehmen, wie sie kommen.',
         minEnchantments: 'Mindestens so viele Verzauberungen',
-        atLeastEnchantments: 'Mindestens {count} Verzauberungen',
+        atLeastEnchantments: 'Verzauberungen: {count} oder mehr',
         requiredEnchantment: 'Geforderte Verzauberung',
         minLevel: 'Ab Stufe',
         require: 'Fordern',

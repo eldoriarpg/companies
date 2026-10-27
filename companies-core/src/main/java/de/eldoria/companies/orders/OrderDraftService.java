@@ -146,7 +146,7 @@ public final class OrderDraftService {
     }
 
     /**
-     * Adds a criteria line, or adds the amount to a line with equal criteria. The criteria have to pass
+     * Adds a criteria line, or adds the amount to a line with the same criteria. The criteria have to pass
      * {@link CriteriaRules}; the amount is capped by the item limit.
      *
      * @param draft     draft of the player

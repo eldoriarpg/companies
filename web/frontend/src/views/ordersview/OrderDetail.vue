@@ -85,7 +85,7 @@ async function accept(): Promise<void> {
       </FigureValue>
     </div>
     <ul class="m-0 list-none border border-line bg-ground px-3 py-0.5">
-      <li v-for="line in order.lines" :key="line.item.material + line.item.name" class="flex items-center justify-between gap-3 border-b border-line-soft py-2.5 text-sm last:border-b-0">
+      <li v-for="(line, index) in order.lines" :key="index" class="flex items-center justify-between gap-3 border-b border-line-soft py-2.5 text-sm last:border-b-0">
         <span class="flex min-w-0 items-center gap-2">
           <ItemMark :item="line.item" size="small"/>
           <span class="flex min-w-0 flex-col">
