@@ -113,6 +113,24 @@ class CriteriaTest {
     }
 
     @Test
+    void oneItemHasToMeetAllConditionsAtOnce() {
+        assertEquals(
+                "order.criteria.error.enchantmentsApart",
+                problem(ItemCriteria.of("DIAMOND_SWORD", "BOW")
+                        .withEnchantment("sharpness", 1)
+                        .withEnchantment("power", 1)));
+        assertEquals(
+                "order.criteria.error.enchantmentCount",
+                problem(new ItemCriteria(List.of("DIAMOND_SWORD"), 10, List.of())));
+        assertEquals("none", problem(new ItemCriteria(List.of("DIAMOND_SWORD"), 3, List.of())));
+        assertEquals(
+                "none",
+                problem(ItemCriteria.of("DIAMOND_SWORD", "BOW")
+                        .withEnchantment("power", 1)
+                        .withEnchantment("unbreaking", 1)));
+    }
+
+    @Test
     void thePlainTextNamesItemsAndConditions() {
         var criteria = new ItemCriteria(List.of("#minecraft:logs", "BAMBOO_BLOCK"), 3, List.of())
                 .withEnchantment("sharpness", 3)

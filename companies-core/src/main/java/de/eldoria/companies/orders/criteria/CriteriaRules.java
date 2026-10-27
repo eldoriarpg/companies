@@ -18,14 +18,15 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Checks criteria before an order with them is created.
  * <p>
  * Every material has to be a known item, every tag a known item tag, and the set must accept at least one item. Every
  * required enchantment has to be known, its level within the enchantment's maximum, and some item of the set has to
- * be able to carry it; two required enchantments may not conflict. The count may not exceed the number of
- * enchantments any item of the set can carry, leaving conflicts aside.
+ * be able to carry it; two required enchantments may not conflict. Some single item of the set has to be able to carry
+ * all required enchantments together, and as many enchantments as the count asks for without any two conflicting.
  */
 public final class CriteriaRules {
     private CriteriaRules() {
@@ -70,30 +71,73 @@ public final class CriteriaRules {
             }
             required.add(enchantment.get());
         }
-        if (criteria.minEnchantments() > maxEnchantments(materials)) {
+        var fitting = materials.stream()
+                .filter(material -> required.stream().allMatch(enchantment -> carries(material, enchantment)))
+                .toList();
+        if (fitting.isEmpty()) {
+            return refused(
+                    "order.criteria.error.enchantmentsApart",
+                    criteria.enchantments().stream()
+                            .map(ItemCriteria.Required::enchantment)
+                            .collect(Collectors.joining(", ")));
+        }
+        if (criteria.minEnchantments() > 0 && criteria.minEnchantments() > mostEnchantments(fitting, required)) {
             return refused("order.criteria.error.enchantmentCount", String.valueOf(criteria.minEnchantments()));
         }
         return Optional.empty();
     }
 
     private static boolean applicable(Enchantment enchantment, List<Material> materials) {
-        for (var material : materials) {
-            if (holdsAny(material) || enchantment.canEnchantItem(new ItemStack(material))) return true;
-        }
-        return false;
+        return materials.stream().anyMatch(material -> carries(material, enchantment));
     }
 
-    private static int maxEnchantments(List<Material> materials) {
+    private static boolean carries(Material material, Enchantment enchantment) {
+        return holdsAny(material) || enchantment.canEnchantItem(new ItemStack(material));
+    }
+
+    private static int mostEnchantments(List<Material> materials, List<Enchantment> required) {
         var registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT);
         var most = 0;
         for (var material : materials) {
-            var count = 0;
+            List<Enchantment> candidates = new ArrayList<>();
             for (var enchantment : registry) {
-                if (holdsAny(material) || enchantment.canEnchantItem(new ItemStack(material))) count++;
+                if (required.contains(enchantment) || !carries(material, enchantment)) continue;
+                if (required.stream().anyMatch(other -> other.conflictsWith(enchantment))) continue;
+                candidates.add(enchantment);
             }
-            most = Math.max(most, count);
+            most = Math.max(most, required.size() + compatible(candidates));
         }
         return most;
+    }
+
+    /**
+     * The size of the largest group of enchantments of which no two conflict.
+     *
+     * @param enchantments the enchantments to choose from
+     * @return the size of the group, the number of enchantments when there are too many to search
+     */
+    private static int compatible(List<Enchantment> enchantments) {
+        var count = enchantments.size();
+        if (count >= Long.SIZE) return count;
+        var conflicts = new long[count];
+        for (var first = 0; first < count; first++) {
+            for (var second = 0; second < count; second++) {
+                if (first != second && enchantments.get(first).conflictsWith(enchantments.get(second))) {
+                    conflicts[first] |= 1L << second;
+                }
+            }
+        }
+        return largest(count == 0 ? 0 : -1L >>> (Long.SIZE - count), conflicts);
+    }
+
+    private static int largest(long open, long[] conflicts) {
+        if (open == 0) return 0;
+        var first = Long.numberOfTrailingZeros(open);
+        var rest = open & ~(1L << first);
+        var excluded = conflicts[first] & rest;
+        var with = 1 + largest(rest & ~excluded, conflicts);
+        if (excluded == 0) return with;
+        return Math.max(with, largest(rest, conflicts));
     }
 
     private static boolean holdsAny(Material material) {

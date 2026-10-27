@@ -164,7 +164,7 @@ public class FullOrder extends SimpleOrder implements de.eldoria.companies.compo
     @Deprecated
     public Optional<OrderContent> content(Material material) {
         return contents.stream()
-                .filter(content -> !content.exact() && content.material() == material)
+                .filter(content -> !content.exact() && content.criteria().isEmpty() && content.material() == material)
                 .findFirst();
     }
 

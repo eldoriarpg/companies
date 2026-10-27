@@ -154,7 +154,7 @@ public final class DeliveryService {
         var matcher = matcher();
         var slots = ItemSources.collect(worker);
         List<DeliveryPart> parts = new ArrayList<>();
-        for (var content : order.contents()) {
+        for (var content : DeliveryOrder.narrowFirst(order.contents())) {
             if (content.missing() <= 0) continue;
             parts.addAll(ItemSources.take(
                     slots,

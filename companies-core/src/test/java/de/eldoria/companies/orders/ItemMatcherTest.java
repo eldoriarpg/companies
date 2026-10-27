@@ -287,6 +287,17 @@ class ItemMatcherTest {
     }
 
     @Test
+    void criteriaPreferPlainItems() {
+        var matcher = matcher(false);
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var modelled = plain(Material.OAK_LOG);
+        modelled.setData(DataComponentTypes.ITEM_NAME, Component.text("Special log"));
+
+        Assertions.assertEquals(0, matcher.extras(logs.template(), logs, plain(Material.OAK_LOG)));
+        Assertions.assertEquals(1, matcher.extras(logs.template(), logs, modelled));
+    }
+
+    @Test
     void criteriaExtrasAreTheEnchantmentsBeyondTheCount() {
         var matcher = matcher(false);
         var swords = new ItemCriteria(List.of("DIAMOND_SWORD"), 1, List.of());

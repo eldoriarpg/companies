@@ -132,6 +132,19 @@ class DeliverableTest {
     }
 
     @Test
+    void narrowLinesAreFilledBeforeCriteriaLines() {
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var order = order(
+                new OrderContent(0, logs.template(), false, logs, 64, 10.0),
+                content(1, new ComponentStack(Material.OAK_LOG), 64, 0));
+
+        var amount =
+                Deliverable.amount(MATCHER, items(stack(Material.OAK_LOG, 64), stack(Material.BIRCH_LOG, 64)), order);
+
+        Assertions.assertEquals(128, amount);
+    }
+
+    @Test
     void criteriaLinesCountEveryItemOfTheirSet() {
         var logs = ItemCriteria.of("#minecraft:logs");
         var line = new OrderContent(0, logs.template(), false, logs, 20, 10.0);

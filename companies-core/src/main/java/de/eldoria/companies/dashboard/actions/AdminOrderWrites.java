@@ -208,7 +208,7 @@ public final class AdminOrderWrites {
                             .forEach((worker, amount) ->
                                     workers.put(details.names().getOrDefault(worker, worker.toString()), amount));
                     return new Payloads.AdminOrderLine(
-                            Views.item(content.stack(), content.amount()),
+                            sources.views().item(content, content.amount()),
                             content.delivered(),
                             content.price(),
                             workers);

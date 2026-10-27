@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import io.papermc.paper.datacomponent.DataComponentType;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.inventory.ItemStack;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -37,8 +39,12 @@ import java.util.stream.Collectors;
  */
 @SuppressWarnings("UnstableApiUsage")
 public final class ItemMatcher {
+    private static final Set<DataComponentType> ENCHANTMENT_TYPES =
+            Set.of(DataComponentTypes.ENCHANTMENTS, DataComponentTypes.STORED_ENCHANTMENTS);
+
     private final Set<DataComponentType> ignored;
     private final boolean allowDamaged;
+    private final Map<ItemCriteria, Set<Material>> resolved = new ConcurrentHashMap<>();
 
     private ItemMatcher(Set<DataComponentType> ignored, boolean allowDamaged) {
         this.ignored = Set.copyOf(ignored);
@@ -123,15 +129,16 @@ public final class ItemMatcher {
      */
     public boolean matches(ItemStack template, @Nullable ItemCriteria criteria, ItemStack offered) {
         if (criteria == null) return matches(template, offered);
-        if (!criteria.accepts(offered.getType())) return false;
+        if (!resolved.computeIfAbsent(criteria, ItemCriteria::materials).contains(offered.getType())) return false;
         if (hasContent(offered)) return false;
         if (!allowDamaged && isDamaged(offered)) return false;
         return meets(criteria, enchantments(offered));
     }
 
     /**
-     * Counts what an offer brings beyond a request: the extra components for a template, the enchantments beyond the
-     * required count for criteria.
+     * Counts what an offer brings beyond a request: the extra components for a template; for criteria the enchantments
+     * beyond the required count and every other component the item carries, leaving out ignored components and
+     * damage.
      *
      * @param template template of the order line
      * @param criteria criteria of a criteria line, null for material and exact lines
@@ -140,7 +147,12 @@ public final class ItemMatcher {
      */
     public int extras(ItemStack template, @Nullable ItemCriteria criteria, ItemStack offered) {
         if (criteria == null) return extras(template, offered);
-        return Math.max(0, enchantments(offered).size() - criteria.minEnchantments());
+        var components = (int) offered.getDataTypes().stream()
+                .filter(offered::isDataOverridden)
+                .filter(type -> !ignored.contains(type))
+                .filter(type -> !ENCHANTMENT_TYPES.contains(type) && !type.equals(DataComponentTypes.DAMAGE))
+                .count();
+        return components + Math.max(0, enchantments(offered).size() - criteria.minEnchantments());
     }
 
     /**
