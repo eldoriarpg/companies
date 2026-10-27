@@ -69,7 +69,7 @@ export function entryName(entry: string, catalogue: OrderCatalogue | null): stri
     return catalogue?.materials.find(material => material.item.material === entry)?.item.name ?? entry
 }
 
-/** Writes the enchantment count of criteria, such as "At least 2 enchantments". */
+/** Writes the enchantment count of criteria, such as "Enchantments: 2 or more". */
 export type CountText = (count: number) => string
 
 /**

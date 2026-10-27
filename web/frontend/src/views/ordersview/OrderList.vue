@@ -15,7 +15,7 @@ import TrendText from '@/components/display/TrendText.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
 import {count, money, trendOf} from '~/util/format'
-import {totalsOf, versusAverage} from '~/util/orders'
+import {lineName, totalsOf, versusAverage} from '~/util/orders'
 
 /**
  * The orders of the book's page as rows of a ticker: the item, the amount, the payout, the price per item and how it
@@ -38,12 +38,14 @@ const COLUMNS = 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_5rem_5rem_5
 const rows = computed(() => props.orders.map(order => {
   const totals = totalsOf(order.lines)
   const versus = versusAverage(order.lines, props.averages)
-  const first = order.lines[0]?.item
+  const first = order.lines[0]
   return {
     order,
     totals,
-    item: first,
-    items: order.lines.length > 1 ? t('orders.lines', {count: order.lines.length}) : first?.name ?? '',
+    item: first?.item,
+    items: order.lines.length > 1
+      ? t('orders.lines', {count: order.lines.length})
+      : first ? lineName(first, value => t('builder.atLeastEnchantments', {count: value})) : '',
     versus: versus === null ? null : {trend: trendOf(versus), text: `${{up: '+', down: '−', flat: ''}[trendOf(versus)]}${Math.abs(versus).toFixed(1)}%`},
   }
 }))
