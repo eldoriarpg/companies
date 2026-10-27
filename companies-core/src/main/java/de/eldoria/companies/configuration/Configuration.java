@@ -381,7 +381,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * through an environment variable is part of no revision.
      * <p>
      * The primary compares and stores under the copy lock, so a rollback or edit on this node that is stored and not yet
-     * taken is never read as its base.
+     * taken is never read as its base. A file the primary cannot read is neither stored nor taken; the revision this
+     * node applied before stays its base, so its own announcement of that revision does not overwrite a fix the admin
+     * reloads.
      *
      * @param nodeData  the node repository holding the copies
      * @param configKey the file
@@ -392,6 +394,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         secondary(configKey);
         if (unreadable(configKey)) {
             plugin().getLogger().warning("Not syncing " + configKey.path() + " to database, since it cannot be read.");
+            var path = configKey.path().toString();
+            nodeData.appliedRevision(path).ifPresent(revision -> applied.put(path, revision));
             return false;
         }
         synchronized (copying) {
@@ -845,8 +849,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     /**
      * Takes a shared file's revision another node stored, unless this node applied it or a later one already. A primary
-     * takes nothing over a file it cannot read: that file stays as it is on disk until a reload reads it, also when
-     * the primary hears its own announcement of the revision.
+     * takes no revision over a file it cannot read, its own or a newer one: that file stays as it is on disk until a
+     * reload reads it.
      *
      * @param nodeData the node repository holding the revisions
      * @param path     the file
@@ -856,8 +860,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     public boolean takeIfNewer(ANodeData nodeData, String path, int revision) {
         var key = sharedKey(path);
         if (key.isEmpty() || applied.getOrDefault(path, 0) >= revision) return false;
-        if (primary() && unreadable(key.get())) return false;
-        return takePrimaryCopy(nodeData, key.get());
+        synchronized (copying) {
+            if (primary() && unreadable(key.get())) return false;
+            return takePrimaryCopy(nodeData, key.get());
+        }
     }
 
     /**

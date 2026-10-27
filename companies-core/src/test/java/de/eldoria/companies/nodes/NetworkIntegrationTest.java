@@ -484,6 +484,26 @@ class NetworkIntegrationTest {
     }
 
     @Test
+    void aPrimaryKeepsAFixReloadedForAFileItStartedWithBroken() throws Exception {
+        var a = primary();
+        a.configuration.companySettings().level(1).orElseThrow().levelName("CustomOne");
+        a.configuration.save(Configuration.COMPANY_SETTINGS);
+        a.configuration.syncConfigurations(a.nodeData).join();
+        var file = folder.resolve("A").resolve("company.yml");
+        var good = Files.readString(file);
+        Files.writeString(file, "level: [ {levelName: Broken");
+        var restarted = primary();
+
+        Files.writeString(file, good.replace("CustomOne", "FixedByAdmin"));
+        restarted.configuration.reload(Configuration.COMPANY_SETTINGS);
+        var latest = restarted.nodeData.settingsRevisions().get("company.yml");
+
+        assertFalse(restarted.configuration.unreadable(Configuration.COMPANY_SETTINGS));
+        assertFalse(restarted.configuration.takeIfNewer(restarted.nodeData, "company.yml", latest));
+        assertTrue(Files.readString(file).contains("FixedByAdmin"));
+    }
+
+    @Test
     void aSecondaryKeepsNoBackupWhenOnlyThePrimaryChanged() throws Exception {
         var a = primary();
         var b = secondary();
