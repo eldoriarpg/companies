@@ -94,8 +94,8 @@ public class MariaDbOrderData extends AOrderData {
             var orderId = optOrderId.get();
 
             query = """
-                    INSERT INTO order_content(id, line, material, stack, exact, amount, price)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)""";
+                    INSERT INTO order_content(id, line, material, stack, exact, criteria, amount, price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""";
             var contents = order.contents();
             Stream<Call> calls = IntStream.range(0, contents.size()).mapToObj(line -> {
                 var content = contents.get(line);
@@ -104,10 +104,18 @@ public class MariaDbOrderData extends AOrderData {
                         .bind(content.stack().getType().name())
                         .bind(toJson(content.stack()))
                         .bind(content.exact())
+                        .bind(content.criteria().map(this::toJson).orElse(null))
                         .bind(content.amount())
                         .bind(content.price());
             });
             conf.query(query).batch(calls).insert();
+
+            var lineMaterials = lineMaterials(orderId, contents);
+            if (!lineMaterials.isEmpty()) {
+                query = """
+                        INSERT INTO order_line_materials(id, line, material, with_conditions) VALUES (?, ?, ?, ?)""";
+                conf.query(query).batch(lineMaterials.stream()).insert();
+            }
 
             query = """
                     INSERT INTO order_states(id, state, last_update) VALUES(?, ?, ?)""";
@@ -119,6 +127,27 @@ public class MariaDbOrderData extends AOrderData {
         }
         if (!conf.context().exceptions().isEmpty()) return Optional.empty();
         return optOrderId;
+    }
+
+    /**
+     * One row per material a criteria line accepts, its tags resolved, so searches and demand find the line under
+     * every material it takes. A line with enchantment conditions is marked, as it is no demand for the plain items.
+     *
+     * @param orderId id of the order
+     * @param contents lines of the order
+     * @return the rows to insert
+     */
+    private static List<Call> lineMaterials(int orderId, List<OrderContent> contents) {
+        List<Call> rows = new ArrayList<>();
+        for (var line = 0; line < contents.size(); line++) {
+            var criteria = contents.get(line).criteria();
+            if (criteria.isEmpty()) continue;
+            var conditions = criteria.get().minEnchantments() > 0;
+            for (var material : criteria.get().materials()) {
+                rows.add(call().bind(orderId).bind(line).bind(material.name()).bind(conditions));
+            }
+        }
+        return rows;
     }
 
     @Override
@@ -490,21 +519,6 @@ public class MariaDbOrderData extends AOrderData {
                   AND amount > 0
                 ORDER BY id""";
         @Language("mariadb")
-        var returnItems = """
-                INSERT INTO item_returns(worker_uuid, material, stack, amount, created)
-                SELECT d.worker_uuid,
-                       c.material,
-                       d.stack,
-                       d.amount,
-                       ?
-                FROM order_deliveries d
-                         JOIN order_content c
-                              ON c.id = d.order_id
-                                  AND c.line = d.line
-                WHERE d.order_id = ?
-                  AND d.amount > 0
-                ORDER BY d.id""";
-        @Language("mariadb")
         var delete = """
                 DELETE FROM order_deliveries WHERE order_id = ?""";
         var stacks = conf.query(deliveryQuery)
@@ -513,9 +527,16 @@ public class MariaDbOrderData extends AOrderData {
                         row.get("worker_uuid", UUID_BYTES),
                         new ReturnedStack(toItemStack(row.getString("stack")), row.getInt("amount"))))
                 .all();
-        conf.query(returnItems)
-                .single(call().bind(Times.now(), time()).bind(order.id()))
-                .insert();
+        if (!stacks.isEmpty()) {
+            conf.query(itemReturnInsert())
+                    .batch(stacks.stream()
+                            .map(entry -> itemReturnCall(
+                                    entry.getKey(),
+                                    ReturnKind.WORKER,
+                                    entry.getValue().stack(),
+                                    entry.getValue().amount())))
+                    .insert();
+        }
         conf.query(delete).single(call().bind(order.id())).delete();
         return ReturnedItems.of(stacks);
     }
@@ -563,7 +584,7 @@ public class MariaDbOrderData extends AOrderData {
         } else if (!lockOrder(conf, order, OrderState.UNCLAIMED)) {
             return Optional.empty();
         }
-        for (var table : List.of("order_content", "order_states", "orders")) {
+        for (var table : List.of("order_line_materials", "order_content", "order_states", "orders")) {
             conf.query("DELETE FROM %s WHERE id = ?", table)
                     .single(call().bind(order.id()))
                     .delete();
@@ -862,20 +883,23 @@ public class MariaDbOrderData extends AOrderData {
     public Map<String, PlayerDemand> openPlayerDemand() {
         @Language("mariadb")
         var select = """
-                SELECT c.material,
-                       COUNT(DISTINCT c.id)    AS orders,
+                SELECT w.material,
+                       COUNT(DISTINCT w.id)    AS orders,
                        SUM(c.amount)           AS items,
                        MIN(c.price / c.amount) AS lowest
-                FROM order_content c
+                FROM (SELECT id, line, material FROM order_content WHERE criteria IS NULL
+                      UNION ALL
+                      SELECT id, line, material FROM order_line_materials WHERE with_conditions = ?) w
+                         JOIN order_content c ON c.id = w.id AND c.line = w.line
                          JOIN order_states s ON c.id = s.id
                          JOIN orders o ON c.id = o.id
                 WHERE s.state = ?
                   AND c.amount > 0
                   AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
-                GROUP BY c.material""";
+                GROUP BY w.material""";
         var demand = new HashMap<String, PlayerDemand>();
         query(select)
-                .single(call().bind(OrderState.UNCLAIMED.stateId()).bind(SystemOwner.ID, UUID_BYTES))
+                .single(call().bind(false).bind(OrderState.UNCLAIMED.stateId()).bind(SystemOwner.ID, UUID_BYTES))
                 .map(row -> new PlayerDemand(
                         row.getString("material"), row.getInt("orders"), row.getLong("items"), row.getDouble("lowest")))
                 .all()
@@ -899,6 +923,7 @@ public class MariaDbOrderData extends AOrderData {
                   AND s.last_update < ?
                   AND c.amount > 0
                   AND NOT c.exact
+                  AND c.criteria IS NULL
                   AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
                 GROUP BY c.material""";
         return query(select)
@@ -1041,6 +1066,18 @@ public class MariaDbOrderData extends AOrderData {
                 .single(call().bind(rule))
                 .map(row -> readTime(row, "decided_at"))
                 .first();
+    }
+
+    @Override
+    public Optional<SystemDecision> lastSystemDecision(String rule) {
+        @Language("mariadb")
+        var select = """
+                SELECT order_id, rule, kind, decided_at, account, paid, record
+                FROM system_order_decisions
+                WHERE rule = ?
+                ORDER BY decided_at DESC, order_id DESC
+                LIMIT 1""";
+        return query(select).single(call().bind(rule)).map(this::parseDecision).first();
     }
 
     @Override
@@ -1407,7 +1444,7 @@ public class MariaDbOrderData extends AOrderData {
     protected List<OrderContent> getOrderContent(SimpleOrder order) {
         @Language("mariadb")
         var query = """
-                SELECT line, stack, exact, amount, price
+                SELECT line, stack, exact, criteria, amount, price
                 FROM order_content
                 WHERE id = ?
                 ORDER BY line""";
@@ -1417,6 +1454,7 @@ public class MariaDbOrderData extends AOrderData {
                         row.getInt("line"),
                         toItemStack(row.getString("stack")),
                         row.getBoolean("exact"),
+                        toCriteria(row.getString("criteria")),
                         row.getInt("amount"),
                         row.getDouble("price")))
                 .all();
@@ -1481,6 +1519,11 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
                     .delete();
             if (!unclaimed.changed()) return false;
+            for (var table : List.of("order_line_materials", "order_content")) {
+                conf.query("DELETE FROM %s WHERE id = ?", table)
+                        .single(call().bind(order.id()))
+                        .delete();
+            }
             conf.query(deleteOrder).single(call().bind(order.id())).delete();
         }
         return conf.context().exceptions().isEmpty();
@@ -1492,14 +1535,20 @@ public class MariaDbOrderData extends AOrderData {
         var query = """
                 SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
                 FROM orders o
-                         LEFT JOIN (SELECT c.id, GROUP_CONCAT(c.material, ' ') AS materials, SUM(amount) AS amount, SUM(price) AS price
+                         LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c
                                     GROUP BY id) oc
                                    ON o.id = oc.id
+                         LEFT JOIN (SELECT m.id, GROUP_CONCAT(m.material, ' ') AS materials
+                                    FROM (SELECT id, material FROM order_content WHERE criteria IS NULL
+                                          UNION ALL
+                                          SELECT id, material FROM order_line_materials) m
+                                    GROUP BY m.id) om
+                                   ON o.id = om.id
                          LEFT JOIN order_states os
                                    ON o.id = os.id
                 WHERE o.name LIKE ?
-                  AND oc.materials REGEXP ?
+                  AND COALESCE(om.materials, '') REGEXP ?
                   AND oc.price >= ?
                   AND oc.price <= ?
                   AND oc.amount >= ?
@@ -1559,7 +1608,8 @@ public class MariaDbOrderData extends AOrderData {
                                      JOIN orders o ON c.id = o.id
                             WHERE s.state >= 200
                               AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
-                              AND NOT c.exact) c
+                              AND NOT c.exact
+                              AND c.criteria IS NULL) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE

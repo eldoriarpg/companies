@@ -109,6 +109,9 @@ as the command does.
 3. For a material that can carry something, set what survival can give it: enchantments up to their highest
    survival level (never two that exclude each other), a potion type, a leather dye colour or an armour trim. Leave
    it empty to order the plain item.
+   **Add by criteria** adds a [criteria line](orders.md#criteria-lines) instead: pick materials and item tags, and
+   optionally a minimum number of enchantments and enchantments every item needs from a level on. Any item of the set
+   fills the line, mixed.
 4. Give each line an amount and a price per item. Where the market knows the material, its average is filled in and
    shown beside the price.
 5. Switch on *Repeat this order* for a [repeating order](repeating-orders.md): every day or week, for a number of

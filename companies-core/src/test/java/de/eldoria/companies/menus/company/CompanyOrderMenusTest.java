@@ -123,7 +123,7 @@ class CompanyOrderMenusTest {
 
     @Test
     void finishedLinesAreDoneAndShowTheirDamage() {
-        var line = new OrderLineView(1, new ItemStack(Material.IRON_PICKAXE), false, 4, 4, 8, 2, 0.5);
+        var line = new OrderLineView(1, new ItemStack(Material.IRON_PICKAXE), false, 4, 4, 8, 2, 0.5, null);
         var model = new CompanyOrderMenu.Model(
                 3, "Tools", OrderState.CLAIMED, List.of(line), 8, 0, Duration.ofHours(1), true);
 

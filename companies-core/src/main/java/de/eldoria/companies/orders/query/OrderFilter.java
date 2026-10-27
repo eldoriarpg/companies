@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 /**
  * Which orders a search shows: the filter part of a search without its sorting.
@@ -61,8 +62,8 @@ public record OrderFilter(
 
     /**
      * Whether an order passes this filter, with the semantics of the SQL search: the name contains the name part
-     * ignoring case, the materials match per line, and price and item count lie inside the inclusive ranges. An order
-     * without lines never matches, as it has no price in the search.
+     * ignoring case, the materials match per line (a criteria line by every material it accepts), and price and item
+     * count lie inside the inclusive ranges. An order without lines never matches, as it has no price in the search.
      *
      * @param order order to check
      * @return true when the order passes
@@ -79,9 +80,15 @@ public record OrderFilter(
 
     private boolean matchesMaterials(List<OrderContent> contents) {
         if (materials.isEmpty()) return true;
-        var lines = contents.stream().map(OrderContent::materialIdentifier).toList();
+        var lines = contents.stream().flatMap(OrderFilter::identifiers).toList();
         if (anyMaterial) return materials.stream().anyMatch(material -> matchedByLine(lines, material));
         return materials.stream().allMatch(material -> matchedByLine(lines, material));
+    }
+
+    private static Stream<String> identifiers(OrderContent content) {
+        return content.criteria()
+                .map(criteria -> criteria.materials().stream().map(material -> material.name()))
+                .orElseGet(() -> Stream.of(content.materialIdentifier()));
     }
 
     private boolean matchedByLine(List<String> lines, String material) {

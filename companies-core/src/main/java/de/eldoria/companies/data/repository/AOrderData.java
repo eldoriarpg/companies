@@ -11,6 +11,7 @@ import de.chojo.sadu.mapper.wrapper.Row;
 import de.eldoria.companies.Companies;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
@@ -442,7 +443,9 @@ public abstract class AOrderData {
     public abstract List<SystemOutcome> systemOutcomes(String rule, LocalDateTime since);
 
     /**
-     * What players ask for in their orders nobody claimed yet, per material. Orders of the server are left out.
+     * What players ask for in their orders nobody claimed yet, per material. Orders of the server are left out. A
+     * criteria line counts, with its whole amount and price, for every material it accepts, unless it has enchantment
+     * conditions: those ask for other items than the plain ones guessed orders buy.
      *
      * @return the demand per material, keyed as order lines store the material
      */
@@ -520,6 +523,12 @@ public abstract class AOrderData {
      * @return when the rule last placed an order, empty when it never did
      */
     public abstract Optional<LocalDateTime> lastSystemPlacement(String rule);
+
+    /**
+     * @param rule id of the rule
+     * @return the decision of the rule's latest order, empty when it never placed one
+     */
+    public abstract Optional<SystemDecision> lastSystemDecision(String rule);
 
     /**
      * @param rule id of the rule
@@ -1001,6 +1010,23 @@ public abstract class AOrderData {
             return mapper.writeValueAsString(stack);
         } catch (JacksonException e) {
             throw new RuntimeException("Could not parse item stack to json", e);
+        }
+    }
+
+    protected String toJson(ItemCriteria criteria) {
+        try {
+            return mapper.writeValueAsString(criteria);
+        } catch (JacksonException e) {
+            throw new RuntimeException("Could not write criteria as json", e);
+        }
+    }
+
+    protected @Nullable ItemCriteria toCriteria(@Nullable String json) throws SQLException {
+        if (json == null) return null;
+        try {
+            return mapper.readValue(json, ItemCriteria.class);
+        } catch (JacksonException e) {
+            throw new SQLException("Could not parse json to criteria", e);
         }
     }
 }

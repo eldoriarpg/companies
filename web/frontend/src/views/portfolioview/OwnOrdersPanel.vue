@@ -20,7 +20,7 @@ import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import {count, money, when} from '~/util/format'
 import {openLabel} from '~/util/labels'
-import {itemsText, totalsOf} from '~/util/orders'
+import {itemsText, lineName, totalsOf} from '~/util/orders'
 
 /**
  * The orders the player placed: their state, how far they are, what they pay and what waits to be collected in game.
@@ -50,12 +50,13 @@ async function collect(): Promise<void> {
 }
 const done = ref('')
 const now = useNow({interval: 60_000})
-const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => line.item.name)])
+const enchantments = (value: number) => t('builder.atLeastEnchantments', {count: value})
+const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => lineName(line, enchantments))])
 
 const rows = computed(() => found.value.map(order => ({
   order,
   totals: totalsOf(order.lines),
-  items: itemsText(order.lines, value => count(value, locale.value)),
+  items: itemsText(order.lines, value => count(value, locale.value), enchantments),
   state: openLabel({t, te}, `orderState.${order.state}`, order.state),
   waiting: order.waiting.reduce((sum, item) => sum + item.amount, 0),
 })))

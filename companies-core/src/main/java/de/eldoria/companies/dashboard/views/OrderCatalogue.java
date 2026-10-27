@@ -9,13 +9,16 @@ import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.SavedItemService;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 import de.eldoria.companies.orders.definition.ItemDefinitions;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
+import org.bukkit.Bukkit;
 import org.bukkit.DyeColor;
 import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Tag;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ArmorMeta;
@@ -33,6 +36,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
@@ -118,7 +122,31 @@ public final class OrderCatalogue {
                         })
                         .toList(),
                 names(entries(RegistryKey.TRIM_PATTERN)),
-                names(entries(RegistryKey.TRIM_MATERIAL)));
+                names(entries(RegistryKey.TRIM_MATERIAL)),
+                tags(materials));
+    }
+
+    /**
+     * The item tags of the server whose items can all be ordered, by key.
+     *
+     * @param materials the orderable materials
+     * @return the tags
+     */
+    private static List<Payloads.CatalogueTag> tags(List<Payloads.CatalogueMaterial> materials) {
+        var orderable =
+                materials.stream().map(material -> material.item().material()).collect(Collectors.toSet());
+        List<Payloads.CatalogueTag> tags = new ArrayList<>();
+        for (var tag : Bukkit.getTags(Tag.REGISTRY_ITEMS, Material.class)) {
+            var members = tag.getValues().stream()
+                    .map(material -> material.getKey().toString())
+                    .sorted()
+                    .toList();
+            if (members.isEmpty() || !orderable.containsAll(members)) continue;
+            var entry = "#" + tag.getKey();
+            tags.add(new Payloads.CatalogueTag(entry, CriteriaText.itemName(entry), members));
+        }
+        tags.sort(Comparator.comparing(Payloads.CatalogueTag::key));
+        return tags;
     }
 
     /**

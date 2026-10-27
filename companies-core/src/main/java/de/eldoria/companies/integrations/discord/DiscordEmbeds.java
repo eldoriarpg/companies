@@ -6,6 +6,7 @@
 package de.eldoria.companies.integrations.discord;
 
 import de.eldoria.companies.components.order.IFullOrder;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 
 import java.time.InstantSource;
 import java.util.ArrayList;
@@ -44,7 +45,11 @@ public final class DiscordEmbeds {
      */
     public static List<Line> lines(IFullOrder order) {
         return order.contents().stream()
-                .map(content -> new Line(content.amount(), DiscordText.itemName(content.materialIdentifier())))
+                .map(content -> new Line(
+                        content.amount(),
+                        content.criteria()
+                                .map(CriteriaText::plain)
+                                .orElseGet(() -> DiscordText.itemName(content.materialIdentifier()))))
                 .toList();
     }
 

@@ -5,7 +5,9 @@
  */
 package de.eldoria.companies.data.wrapper.history;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -59,13 +61,33 @@ public record HistorySnapshot(
     /**
      * One line of the order.
      *
-     * @param template  ordered item
+     * @param template  ordered item, for a criteria line the item standing for it
      * @param exact     whether the item had to match exactly
      * @param amount    ordered amount
      * @param delivered delivered amount
      * @param price     price of the line
+     * @param criteria  what a criteria line accepted, null for material and exact lines
      */
-    public record Line(ItemStack template, boolean exact, int amount, int delivered, double price) {}
+    public record Line(
+            ItemStack template,
+            boolean exact,
+            int amount,
+            int delivered,
+            double price,
+            @Nullable ItemCriteria criteria) {
+        /**
+         * A material or exact line.
+         *
+         * @param template  ordered item
+         * @param exact     whether the item had to match exactly
+         * @param amount    ordered amount
+         * @param delivered delivered amount
+         * @param price     price of the line
+         */
+        public Line(ItemStack template, boolean exact, int amount, int delivered, double price) {
+            this(template, exact, amount, delivered, price, null);
+        }
+    }
 
     /**
      * What one worker contributed.

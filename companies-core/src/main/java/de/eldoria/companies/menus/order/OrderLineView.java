@@ -5,11 +5,14 @@
  */
 package de.eldoria.companies.menus.order;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.orders.ItemMatcher;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 import net.kyori.adventure.text.Component;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -25,6 +28,7 @@ import java.util.List;
  * @param price       total price of the line
  * @param damaged     how many delivered items are damaged
  * @param worstDamage wear of the most worn delivered item, from 0 to 1
+ * @param criteria    what a criteria line accepts, null for material and exact lines
  */
 public record OrderLineView(
         int number,
@@ -34,7 +38,8 @@ public record OrderLineView(
         int delivered,
         double price,
         int damaged,
-        double worstDamage) {
+        double worstDamage,
+        @Nullable ItemCriteria criteria) {
     /**
      * The lines of an order without their damage.
      *
@@ -68,7 +73,8 @@ public record OrderLineView(
                 content.delivered(),
                 content.price(),
                 0,
-                0);
+                0,
+                content.criteria().orElse(null));
     }
 
     private static OrderLineView withDamage(OrderContent content, ItemMatcher matcher) {
@@ -88,7 +94,8 @@ public record OrderLineView(
                 content.delivered(),
                 content.price(),
                 damaged,
-                worst);
+                worst,
+                content.criteria().orElse(null));
     }
 
     /**
@@ -98,6 +105,7 @@ public record OrderLineView(
      * @return name of the item, to be inserted as a placeholder
      */
     public Component itemName() {
+        if (criteria != null) return CriteriaText.component(criteria);
         if (!exact) return Component.translatable(template);
         return template.effectiveName().hoverEvent(template.asHoverEvent());
     }

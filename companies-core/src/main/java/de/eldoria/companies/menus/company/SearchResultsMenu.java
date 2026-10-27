@@ -200,7 +200,11 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
             var price = Keys.of("line", i, "price");
             text.text(
                             "<yellow><" + item + "> <blue><" + amount + ">x <gold><" + price + ">",
-                            Values.component(item, content.stack().effectiveName()),
+                            Values.component(
+                                    item,
+                                    content.criteria().isPresent()
+                                            ? content.itemName()
+                                            : content.stack().effectiveName()),
                             Values.number(amount, content.amount()),
                             Values.money(price, economy, content.price()))
                     .newLine();

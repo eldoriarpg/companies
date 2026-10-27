@@ -6,6 +6,8 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.RulesEditor;
+import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
@@ -21,19 +23,23 @@ import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -171,6 +177,99 @@ class AdminSystemOrderWritesTest {
         assertEquals("duplicate", errors.path("rules.1.id").asString());
         assertEquals("reserved", errors.path("rules.2.id").asString());
         assertEquals("unknown", errors.path("rules.2.material").asString());
+    }
+
+    @Test
+    void rulesWithEntriesAreCheckedEntryByEntry() {
+        var rule = "{\"id\":\"wood\",\"pick\":\"SIDEWAYS\",\"items\":["
+                + "{\"material\":\"OAK_LOG\"},"
+                + "{\"criteria\":\"#logs\",\"resolve\":\"ONE\"},"
+                + "{\"criteria\":\"#logs sharpness:1\"},"
+                + "{\"material\":\"OAK_LOG\",\"criteria\":\"#logs\"},"
+                + "{\"criteria\":\"#logs\",\"resolve\":\"SOME\"},"
+                + "{\"criteria\":\"#logs enchants:x\"},"
+                + "{\"material\":\"NOT_AN_ITEM\"},"
+                + "{\"criteria\":\"#logs\",\"resolve\":\"one\"}],"
+                + "\"price\":{\"mode\":\"FIXED\",\"value\":2.0}}";
+        var averaged = "{\"id\":\"logs\",\"pick\":\"rotate\",\"items\":["
+                + "{\"material\":\"OAK_LOG\"},"
+                + "{\"criteria\":\"#logs\",\"resolve\":\"ONE\"},"
+                + "{\"criteria\":\"#logs\"}]}";
+
+        var saved = perform(
+                Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
+                "{\"base\":0,\"rules\":[" + rule + "," + averaged + "]}",
+                Permission.Admin.ORDERS,
+                Permission.Admin.RELOAD);
+
+        var errors = saved.data().path("errors");
+        assertEquals("invalid", saved.data().path("result").asString());
+        assertEquals("invalid", errors.path("rules.0.pick").asString());
+        assertTrue(errors.path("rules.0.items.0").isMissingNode());
+        assertTrue(errors.path("rules.0.items.1").isMissingNode());
+        assertEquals("unknown", errors.path("rules.0.items.2").asString());
+        assertEquals("invalid", errors.path("rules.0.items.3").asString());
+        assertEquals("invalid", errors.path("rules.0.items.4").asString());
+        assertEquals("invalid", errors.path("rules.0.items.5").asString());
+        assertEquals("unknown", errors.path("rules.0.items.6").asString());
+        assertTrue(errors.path("rules.0.items.7").isMissingNode());
+        assertTrue(errors.path("rules.1.pick").isMissingNode());
+        assertTrue(errors.path("rules.1.items.1").isMissingNode());
+        assertEquals("fixedPrice", errors.path("rules.1.items.2").asString());
+    }
+
+    @Test
+    void lowerCaseChoicesAreSavedInUpperCase() {
+        var rule = "{\"id\":\"wood\",\"pick\":\"rotate\",\"items\":["
+                + "{\"material\":\"OAK_LOG\"},{\"criteria\":\"#logs\",\"resolve\":\"one\"}],"
+                + "\"price\":{\"mode\":\"FIXED\",\"value\":2.0}}";
+
+        var saved = perform(
+                Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
+                "{\"base\":0,\"rules\":[" + rule + "]}",
+                Permission.Admin.ORDERS,
+                Permission.Admin.RELOAD);
+
+        assertEquals(
+                "saved", saved.data().path("result").asString(), saved.data().toString());
+        var read = RulesEditor.read(world.settings, world.nodeData).rules().get(0);
+        assertEquals("ROTATE", read.path("pick").asString());
+        assertEquals("ONE", read.path("items").get(1).path("resolve").asString());
+        assertTrue(read.path("items").get(0).path("resolve").isMissingNode());
+    }
+
+    @Test
+    void aCapturedItemIsAddedToARuleAndReadBack() {
+        perform(
+                Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
+                "{\"base\":0,\"rules\":[" + RULE + "]}",
+                Permission.Admin.ORDERS,
+                Permission.Admin.RELOAD);
+        var sword = new ItemStack(Material.DIAMOND_SWORD);
+        sword.addUnsafeEnchantment(Enchantment.SHARPNESS, 5);
+        var mapper = world.settings.storageMapper();
+        var entry = JsonNodeFactory.instance.objectNode();
+        entry.set("item", mapper.valueToTree(sword));
+        entry.put("name", "Royal blade");
+
+        var result =
+                RulesEditor.addEntry(world.settings, world.nodeData, "iron", entry, RulesEditor::knownMaterial, "Ada");
+        var unknown = RulesEditor.addEntry(
+                world.settings, world.nodeData, "copper", entry, RulesEditor::knownMaterial, "Ada");
+        var again =
+                RulesEditor.addEntry(world.settings, world.nodeData, "iron", entry, RulesEditor::knownMaterial, "Ada");
+
+        assertInstanceOf(RulesEditor.Result.Done.class, result);
+        assertInstanceOf(RulesEditor.Result.Invalid.class, unknown);
+        assertEquals(Map.of("item", "duplicate"), ((RulesEditor.Result.Invalid) again).fields());
+        var rule = RulesEditor.read(world.settings, world.nodeData).rules().get(0);
+        assertTrue(rule.path("material").asString("").isEmpty());
+        assertEquals("IRON_INGOT", rule.path("items").get(0).path("material").asString());
+        assertTrue(rule.path("items").get(0).path("criteria").isMissingNode());
+        assertTrue(rule.path("items").get(0).path("item").isMissingNode());
+        var read = mapper.treeToValue(rule.path("items").get(1), RuleEntry.class);
+        assertEquals("Royal blade", read.name());
+        assertEquals(5, read.item().getEnchantmentLevel(Enchantment.SHARPNESS));
     }
 
     @Test

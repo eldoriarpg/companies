@@ -7,10 +7,12 @@ package de.eldoria.companies.components.order;
 
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * The draft handed to the listeners of {@link de.eldoria.companies.events.order.PreOrderCreateEvent}. Not thread-safe;
@@ -53,6 +55,14 @@ final class OrderDraft implements IOrderDraft {
     }
 
     @Override
+    public IDraftLine addLine(ItemCriteria criteria, int amount, double unitPrice) {
+        Objects.requireNonNull(criteria, "criteria");
+        var line = new Line(criteria.template(), false, criteria, checkedAmount(amount), checkedPrice(unitPrice));
+        lines.add(line);
+        return line;
+    }
+
+    @Override
     public int amount() {
         return lines.stream().mapToInt(Line::amount).sum();
     }
@@ -63,7 +73,7 @@ final class OrderDraft implements IOrderDraft {
     }
 
     private Line add(ItemStack template, boolean exact, int amount, double unitPrice) {
-        var line = new Line(template, exact, checkedAmount(amount), checkedPrice(unitPrice));
+        var line = new Line(template, exact, null, checkedAmount(amount), checkedPrice(unitPrice));
         lines.add(line);
         return line;
     }
@@ -96,13 +106,15 @@ final class OrderDraft implements IOrderDraft {
     private final class Line implements IDraftLine {
         private final ItemStack template;
         private final boolean exact;
+        private final @Nullable ItemCriteria criteria;
         private int amount;
         private double unitPrice;
         private boolean removed;
 
-        private Line(ItemStack template, boolean exact, int amount, double unitPrice) {
+        private Line(ItemStack template, boolean exact, @Nullable ItemCriteria criteria, int amount, double unitPrice) {
             this.template = template;
             this.exact = exact;
+            this.criteria = criteria;
             this.amount = amount;
             this.unitPrice = unitPrice;
         }
@@ -115,6 +127,11 @@ final class OrderDraft implements IOrderDraft {
         @Override
         public boolean exact() {
             return exact;
+        }
+
+        @Override
+        public Optional<ItemCriteria> criteria() {
+            return Optional.ofNullable(criteria);
         }
 
         @Override

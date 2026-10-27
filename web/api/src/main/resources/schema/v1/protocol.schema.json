@@ -231,6 +231,27 @@
       },
       "required" : [ "kind", "key" ]
     },
+    "CriteriaView" : {
+      "type" : "object",
+      "properties" : {
+        "items" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Entry"
+          }
+        },
+        "minEnchantments" : {
+          "type" : "integer"
+        },
+        "enchantments" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/Required"
+          }
+        }
+      },
+      "required" : [ "items", "minEnchantments", "enchantments" ]
+    },
     "DeprecatedPart" : {
       "type" : "object",
       "properties" : {
@@ -256,6 +277,21 @@
         }
       },
       "required" : [ "kind", "name", "since", "removedAt" ]
+    },
+    "Entry" : {
+      "type" : "object",
+      "properties" : {
+        "key" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "tag" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "key", "name", "tag" ]
     },
     "ErrorCode" : {
       "type" : "string",
@@ -522,6 +558,9 @@
         },
         "price" : {
           "type" : "number"
+        },
+        "criteria" : {
+          "$ref" : "#/$defs/CriteriaView"
         }
       },
       "required" : [ "item", "delivered", "price" ]
@@ -782,6 +821,21 @@
         }
       },
       "required" : [ "ranking", "range", "page", "pages", "entries" ]
+    },
+    "Required" : {
+      "type" : "object",
+      "properties" : {
+        "key" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "minLevel" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "key", "name", "minLevel" ]
     },
     "SessionClosed" : {
       "type" : "object",

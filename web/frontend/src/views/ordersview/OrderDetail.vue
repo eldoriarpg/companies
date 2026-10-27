@@ -17,6 +17,8 @@ import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {count, hoursLeft, money, percentChange, trendOf, when} from '~/util/format'
 import {totalsOf, versusAverage} from '~/util/orders'
+import {viewConditions} from '~/util/orderDraft'
+import type {CriteriaView} from '~/api/generated/protocol'
 
 /**
  * The details of an order: what it pays in total and per item, how that compares with the market, and every line
@@ -36,6 +38,16 @@ const emit = defineEmits<{
 }>()
 
 const {t, locale} = useI18n()
+
+/**
+ * The conditions of a criteria line, in the reader's language.
+ *
+ * @param criteria the line's criteria
+ * @returns the conditions, empty without any
+ */
+function conditions(criteria: CriteriaView): string[] {
+  return viewConditions(criteria, value => t('builder.atLeastEnchantments', {count: value}))
+}
 const now = useNow({interval: 60_000})
 const totals = computed(() => totalsOf(props.order.lines))
 const versus = computed(() => versusAverage(props.order.lines, props.averages))
@@ -73,10 +85,13 @@ async function accept(): Promise<void> {
       </FigureValue>
     </div>
     <ul class="m-0 list-none border border-line bg-ground px-3 py-0.5">
-      <li v-for="line in order.lines" :key="line.item.material + line.item.name" class="flex items-center justify-between gap-3 border-b border-line-soft py-2.5 text-sm last:border-b-0">
+      <li v-for="(line, index) in order.lines" :key="index" class="flex items-center justify-between gap-3 border-b border-line-soft py-2.5 text-sm last:border-b-0">
         <span class="flex min-w-0 items-center gap-2">
           <ItemMark :item="line.item" size="small"/>
-          <span class="truncate">{{ line.item.name }}</span>
+          <span class="flex min-w-0 flex-col">
+            <span class="truncate">{{ line.item.name }}</span>
+            <MutedText v-if="line.criteria && conditions(line.criteria).length > 0">{{ conditions(line.criteria).join(', ') }}</MutedText>
+          </span>
         </span>
         <span class="tabular">{{ count(line.item.amount, locale) }}</span>
       </li>

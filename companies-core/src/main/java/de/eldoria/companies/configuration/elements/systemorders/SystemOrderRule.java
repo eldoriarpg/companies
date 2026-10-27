@@ -5,6 +5,9 @@
  */
 package de.eldoria.companies.configuration.elements.systemorders;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * One rule of {@code system-orders.yml}: an item the server orders again and again, at a price and from a money
  * source of its own. Such an order may compete with the orders of players.
@@ -20,6 +23,8 @@ public class SystemOrderRule {
     private String name = "";
     private boolean enabled = true;
     private String material = "";
+    private List<RuleEntry> items = new ArrayList<>();
+    private Pick pick = Pick.RANDOM;
     private int amount = 64;
     private RulePrice price = new RulePrice();
     private int everyHours = 24;
@@ -75,14 +80,39 @@ public class SystemOrderRule {
     }
 
     /**
-     * The item ordered, a material name such as {@code IRON_INGOT}.
-     * <p>
-     * TODO allow an exact item template saved in game.
+     * The item ordered, a material name such as {@code IRON_INGOT}, for a rule written before {@code items}.
      *
      * @return the material name as written
      */
     public String material() {
         return material == null ? "" : material.trim();
+    }
+
+    /**
+     * What the rule orders: its {@code items}, or the single {@code material} of a rule that has none.
+     *
+     * @return the entries, empty when the rule names nothing
+     */
+    public List<RuleEntry> entries() {
+        if (items != null && !items.isEmpty()) return List.copyOf(items);
+        return material().isEmpty() ? List.of() : List.of(RuleEntry.material(material()));
+    }
+
+    public void items(List<RuleEntry> items) {
+        this.items = new ArrayList<>(items);
+    }
+
+    /**
+     * How an order picks one of several entries.
+     *
+     * @return the way of picking
+     */
+    public Pick pick() {
+        return pick == null ? Pick.RANDOM : pick;
+    }
+
+    public void pick(Pick pick) {
+        this.pick = pick;
     }
 
     /**
@@ -161,5 +191,19 @@ public class SystemOrderRule {
 
     public void source(MoneySource source) {
         this.source = source;
+    }
+
+    /**
+     * How an order picks one of several entries.
+     */
+    public enum Pick {
+        /**
+         * Any entry, at random.
+         */
+        RANDOM,
+        /**
+         * The entry after the one the rule's last order took.
+         */
+        ROTATE
     }
 }

@@ -9,11 +9,14 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * One line of an order: an item and the amount and total price requested for it.
  * <p>
- * A material line accepts every item of its material. An exact line requests the data of its template as well.
+ * A material line accepts every item of its material. An exact line requests the data of its template as well. A
+ * criteria line accepts every item meeting its {@link ItemCriteria}; its template only stands for it where one item
+ * has to be shown.
  */
 public interface IOrderContent {
     /**
@@ -29,6 +32,24 @@ public interface IOrderContent {
      * @return true for an exact line
      */
     boolean exact();
+
+    /**
+     * What the line accepts.
+     *
+     * @return the kind of the line
+     */
+    default LineKind kind() {
+        return LineKind.of(exact(), criteria().isPresent());
+    }
+
+    /**
+     * The criteria of a criteria line.
+     *
+     * @return the criteria, empty for material and exact lines
+     */
+    default Optional<ItemCriteria> criteria() {
+        return Optional.empty();
+    }
 
     /**
      * The price of one item of this line.

@@ -166,11 +166,13 @@ public class SqLiteOrderData extends MariaDbOrderData {
             for (var material : searchQuery.materials()) {
                 @Language("sqlite")
                 var select = """
-                        SELECT DISTINCT c.id
-                        FROM order_content c
+                        SELECT DISTINCT m.id
+                        FROM (SELECT id, material FROM order_content WHERE criteria IS NULL
+                              UNION ALL
+                              SELECT id, material FROM order_line_materials) m
                                  LEFT JOIN order_states s
-                                           ON s.id = c.id
-                        WHERE material LIKE ?
+                                           ON s.id = m.id
+                        WHERE m.material LIKE ?
                           AND s.state >= ?
                           AND s.state <= ?""";
                 var ids = query(select)
@@ -251,7 +253,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                                      JOIN orders o ON c.id = o.id
                             WHERE s.state >= 200
                               AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
-                              AND c.exact = 0) c
+                              AND c.exact = 0
+                              AND c.criteria IS NULL) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE

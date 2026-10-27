@@ -84,4 +84,25 @@ test.describe('order builder', () => {
         await expect(page.getByText('An order may hold at most 512 items.')).toBeVisible()
         await expect(page.getByRole('button', {name: 'Place order'})).toBeDisabled()
     })
+
+    test('adds a line any item of a tag fills', async ({page}, info) => {
+        await openBuilder(page, info)
+        await page.getByLabel('Name', {exact: true}).fill('Logs')
+        await page.getByRole('button', {name: 'Add by criteria'}).click()
+        const dialog = page.getByRole('dialog', {name: 'Add by criteria'})
+        await dialog.getByRole('button', {name: /Items and tags/}).click()
+        await page.getByPlaceholder('Search materials and tags').fill('#Logs')
+        await page.keyboard.press('Enter')
+        await expect(dialog.locator('[data-criteria-items]')).toContainText('#Logs')
+        await dialog.getByRole('button', {name: 'Add', exact: true}).click()
+        await expect(dialog).toBeHidden()
+
+        await expect(page.getByText('#Logs', {exact: true})).toBeVisible()
+        await expect(page.getByLabel('Price per item')).toHaveValue('')
+        await page.getByLabel('Price per item').fill('2')
+        await page.getByLabel('Amount').fill('10')
+        await page.getByRole('button', {name: /Place order for/}).click()
+
+        await expect(page.getByText('Your order Logs is placed.')).toBeVisible()
+    })
 })

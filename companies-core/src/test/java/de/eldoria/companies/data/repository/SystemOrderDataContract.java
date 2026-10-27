@@ -148,6 +148,9 @@ public abstract class SystemOrderDataContract {
         assertEquals(25.0, orders.systemSpent("iron", NOW));
         assertEquals(5.0, orders.mintedSpent(NOW));
         assertEquals(NOW.plusHours(1), orders.lastSystemPlacement("iron").orElseThrow());
+        assertEquals(
+                delivered.id(), orders.lastSystemDecision("iron").orElseThrow().order());
+        assertTrue(orders.lastSystemDecision("copper").isEmpty());
         assertEquals(2, orders.activeSystemOrders("iron"));
         assertEquals(
                 List.of(open.id(), claimed.id()),

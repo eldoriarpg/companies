@@ -174,6 +174,7 @@ public final class OrderProviders {
         if (line.isPresent()) {
             return drafts.draft(player.getUniqueId())
                     .flatMap(draft -> draft.line(line.get()))
+                    .filter(draftLine -> draftLine.criteria() == null)
                     .map(draftLine -> new OrderDraftService.RequestedItem(draftLine.template(), draftLine.exact()));
         }
         var item = argument(context, "item", ItemStack.class)

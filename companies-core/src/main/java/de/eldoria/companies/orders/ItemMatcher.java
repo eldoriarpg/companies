@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.IOrderContent;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import io.papermc.paper.datacomponent.DataComponentType;
 import io.papermc.paper.datacomponent.DataComponentTypes;
@@ -12,8 +14,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -31,6 +37,9 @@ import java.util.stream.Collectors;
  */
 @SuppressWarnings("UnstableApiUsage")
 public final class ItemMatcher {
+    private static final Set<DataComponentType> ENCHANTMENT_TYPES =
+            Set.of(DataComponentTypes.ENCHANTMENTS, DataComponentTypes.STORED_ENCHANTMENTS);
+
     private final Set<DataComponentType> ignored;
     private final boolean allowDamaged;
 
@@ -90,6 +99,84 @@ public final class ItemMatcher {
         excluded.add(DataComponentTypes.DAMAGE);
         excluded.addAll(added(requested, offered));
         return requested.matchesWithoutData(offered, excluded, true);
+    }
+
+    /**
+     * Checks whether an offered item may be delivered for a line of any kind.
+     *
+     * @param line    the order line
+     * @param offered item offered by a worker
+     * @return true when the offer satisfies the line
+     */
+    public boolean matches(IOrderContent line, ItemStack offered) {
+        return matches(line.stack(), line.criteria().orElse(null), offered);
+    }
+
+    /**
+     * Checks whether an offered item may be delivered for a request.
+     * <p>
+     * Without criteria the template decides, see {@link #matches(ItemStack, ItemStack)}. With criteria the item's
+     * material has to be in their set and the item has to meet their enchantment conditions; other data does not
+     * matter. Items with container content and, unless allowed, damaged items never match.
+     *
+     * @param template template of the order line
+     * @param criteria criteria of a criteria line, null for material and exact lines
+     * @param offered  item offered by a worker
+     * @return true when the offer satisfies the request
+     */
+    public boolean matches(ItemStack template, @Nullable ItemCriteria criteria, ItemStack offered) {
+        if (criteria == null) return matches(template, offered);
+        if (!criteria.accepts(offered.getType())) return false;
+        if (hasContent(offered)) return false;
+        if (!allowDamaged && isDamaged(offered)) return false;
+        return meets(criteria, enchantments(offered));
+    }
+
+    /**
+     * Counts what an offer brings beyond a request: the extra components for a template; for criteria the enchantments
+     * beyond the required count and every other component the item carries, leaving out ignored components and
+     * damage.
+     *
+     * @param template template of the order line
+     * @param criteria criteria of a criteria line, null for material and exact lines
+     * @param offered  item offered by a worker
+     * @return number of extras
+     */
+    public int extras(ItemStack template, @Nullable ItemCriteria criteria, ItemStack offered) {
+        if (criteria == null) return extras(template, offered);
+        var components = (int) offered.getDataTypes().stream()
+                .filter(offered::isDataOverridden)
+                .filter(type -> !ignored.contains(type))
+                .filter(type -> !ENCHANTMENT_TYPES.contains(type) && !type.equals(DataComponentTypes.DAMAGE))
+                .count();
+        return components + Math.max(0, enchantments(offered).size() - criteria.minEnchantments());
+    }
+
+    /**
+     * The enchantments an item carries, with those an enchanted book stores.
+     *
+     * @param stack the item
+     * @return level per enchantment key, such as {@code minecraft:sharpness}
+     */
+    public static Map<String, Integer> enchantments(ItemStack stack) {
+        Map<String, Integer> levels = new HashMap<>();
+        for (var type : List.of(DataComponentTypes.ENCHANTMENTS, DataComponentTypes.STORED_ENCHANTMENTS)) {
+            var enchantments = stack.getData(type);
+            if (enchantments == null) continue;
+            enchantments
+                    .enchantments()
+                    .forEach((enchantment, level) ->
+                            levels.merge(enchantment.getKey().toString(), level, Math::max));
+        }
+        return levels;
+    }
+
+    private static boolean meets(ItemCriteria criteria, Map<String, Integer> enchantments) {
+        if (enchantments.size() < criteria.minEnchantments()) return false;
+        for (var required : criteria.enchantments()) {
+            if (enchantments.getOrDefault(required.enchantment(), 0) < required.minLevel()) return false;
+        }
+        return true;
     }
 
     /**

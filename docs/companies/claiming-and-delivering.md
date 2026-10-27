@@ -17,7 +17,7 @@ Orders are anonymous. You see the items, the price and the time left, but never 
 | Filter | What it does |
 |---|---|
 | Name | Only orders whose name contains this text |
-| Materials | Only orders with these materials. Separate several materials with spaces. |
+| Materials | Only orders with these materials. Separate several materials with spaces. An order line that accepts a set of items, such as any log, is found under every material it accepts. |
 | Material match | `Part` finds every material whose name contains the text, so `log` finds all logs. `Exact` needs the whole material name. |
 | Material search | `Any` needs one of the materials, `All` needs all of them |
 | Min price, max price | The price range of the whole order |

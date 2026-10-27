@@ -253,6 +253,7 @@ public final class OrderBuilderController {
     }
 
     private String marketMaterial(Screen.Add screen) {
+        if (screen.criteria().isPresent()) throw noMarketPrice();
         return drafts().request(screen.item())
                 .filter(requested -> !requested.exact())
                 .map(requested -> requested.template().getType().name().toLowerCase(Locale.ROOT))

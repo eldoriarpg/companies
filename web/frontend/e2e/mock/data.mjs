@@ -328,6 +328,7 @@ export const CATALOGUE = {
     dyes: [{key: 'red', name: 'Red', color: '#b02e26'}],
     trimPatterns: [{key: 'minecraft:coast', name: 'Coast'}],
     trimMaterials: [{key: 'minecraft:gold', name: 'Gold'}],
+    tags: [{key: '#minecraft:logs', name: '#Logs', materials: ['minecraft:oak_log']}],
 }
 
 /** The mock player's saved items and earlier exact items. */

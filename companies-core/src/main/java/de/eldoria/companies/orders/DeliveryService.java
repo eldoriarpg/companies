@@ -117,7 +117,12 @@ public final class DeliveryService {
         var slots = ItemSources.collect(worker);
         return order.line(line)
                 .map(content -> ItemSources.take(
-                        slots, content.line(), content.stack(), matcher, Math.min(amount, content.missing())))
+                        slots,
+                        content.line(),
+                        content.stack(),
+                        content.criteria().orElse(null),
+                        matcher,
+                        Math.min(amount, content.missing())))
                 .orElse(List.of());
     }
 
@@ -147,13 +152,7 @@ public final class DeliveryService {
 
     private List<DeliveryPart> allParts(Player worker, FullOrder order) {
         var matcher = matcher();
-        var slots = ItemSources.collect(worker);
-        List<DeliveryPart> parts = new ArrayList<>();
-        for (var content : order.contents()) {
-            if (content.missing() <= 0) continue;
-            parts.addAll(ItemSources.take(slots, content.line(), content.stack(), matcher, content.missing()));
-        }
-        return parts;
+        return ItemSources.fill(ItemSources.collect(worker), order.contents(), matcher);
     }
 
     /**

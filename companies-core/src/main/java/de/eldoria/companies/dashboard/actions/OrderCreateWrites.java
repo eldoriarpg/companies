@@ -7,6 +7,7 @@ package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.IOrderDraft;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.dashboard.views.OrderCatalogue;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
@@ -14,6 +15,7 @@ import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.Repetition;
+import de.eldoria.companies.orders.criteria.CriteriaRules;
 import de.eldoria.companies.orders.definition.ItemDefinition;
 import de.eldoria.companies.orders.definition.ItemDefinitions;
 import de.eldoria.companies.services.SeriesService;
@@ -23,6 +25,7 @@ import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 import java.time.LocalDate;
@@ -184,11 +187,19 @@ public final class OrderCreateWrites {
                     || price.asDouble() < 0) {
                 throw CommandFailure.of(INVALID);
             }
+            if (line.path("criteria").isObject()) {
+                var criteria = criteria(line.path("criteria"));
+                var problem = CriteriaRules.problem(criteria);
+                if (problem.isPresent()) throw problem.get();
+                var requested = new OrderDraftService.RequestedItem(criteria.template(), false);
+                result.add(new Line(requested, amount.asInt(), price.asDouble(), criteria));
+                continue;
+            }
             var stack = item(player, line);
             var requested = sources.requests()
                     .apply(stack)
                     .orElseThrow(() -> CommandFailure.of("order.draft.error.notOrderable"));
-            result.add(new Line(requested, amount.asInt(), price.asDouble()));
+            result.add(new Line(requested, amount.asInt(), price.asDouble(), null));
         }
         return result;
     }
@@ -205,6 +216,29 @@ public final class OrderCreateWrites {
                     .orElseThrow(() -> CommandFailure.of("dashboard.item.unknownItem"));
         }
         return new ItemStack(ItemDefinitions.material(key));
+    }
+
+    private static ItemCriteria criteria(JsonNode criteria) {
+        List<String> items = new ArrayList<>();
+        for (var item : criteria.path("items")) {
+            if (!item.isString()) throw CommandFailure.of(INVALID);
+            items.add(item.asString());
+        }
+        var count = criteria.path("minEnchantments");
+        if (!count.isMissingNode() && !count.isNull() && !whole(count)) throw CommandFailure.of(INVALID);
+        var required = criteria.path("enchantments");
+        if (!required.isMissingNode() && !required.isNull() && !required.isObject()) throw CommandFailure.of(INVALID);
+        try {
+            List<ItemCriteria.Required> enchantments = new ArrayList<>();
+            for (var entry : required.properties()) {
+                if (!whole(entry.getValue())) throw CommandFailure.of(INVALID);
+                enchantments.add(new ItemCriteria.Required(
+                        entry.getKey(), entry.getValue().asInt()));
+            }
+            return new ItemCriteria(items, whole(count) ? count.asInt() : 0, enchantments);
+        } catch (IllegalArgumentException e) {
+            throw CommandFailure.of(INVALID);
+        }
     }
 
     private static ItemDefinition definition(JsonNode define) {
@@ -254,7 +288,10 @@ public final class OrderCreateWrites {
     private static IOrderDraft draft(String name, List<Line> lines) {
         var draft = IOrderDraft.of(name);
         for (var line : lines) {
-            if (line.requested().exact()) {
+            var criteria = line.criteria();
+            if (criteria != null) {
+                draft.addLine(criteria, line.amount(), line.unitPrice());
+            } else if (line.requested().exact()) {
                 draft.addLine(line.requested().template(), line.amount(), line.unitPrice());
             } else {
                 draft.addLine(line.requested().template().getType(), line.amount(), line.unitPrice());
@@ -266,7 +303,12 @@ public final class OrderCreateWrites {
     private static OrderBuilder builder(UUID player, String name, List<Line> lines) {
         var builder = new OrderBuilder(player, name);
         for (var line : lines) {
-            builder.add(line.requested().template(), line.requested().exact(), line.amount(), line.unitPrice());
+            var criteria = line.criteria();
+            if (criteria != null) {
+                builder.add(criteria, line.amount(), line.unitPrice());
+            } else {
+                builder.add(line.requested().template(), line.requested().exact(), line.amount(), line.unitPrice());
+            }
         }
         return builder;
     }
@@ -274,11 +316,16 @@ public final class OrderCreateWrites {
     /**
      * A line of the order as the item rules requested it.
      *
-     * @param requested the requested item
+     * @param requested the requested item, for a criteria line the item standing for it
      * @param amount    the amount
      * @param unitPrice the price of one item
+     * @param criteria  what a criteria line accepts, null for material and exact lines
      */
-    private record Line(OrderDraftService.RequestedItem requested, int amount, double unitPrice) {}
+    private record Line(
+            OrderDraftService.RequestedItem requested,
+            int amount,
+            double unitPrice,
+            @Nullable ItemCriteria criteria) {}
 
     /**
      * What orders are placed with.

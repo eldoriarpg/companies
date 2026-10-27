@@ -335,6 +335,17 @@ export interface OrderCatalogue {
     dyes: CatalogueDye[]
     trimPatterns: CatalogueEntry[]
     trimMaterials: CatalogueEntry[]
+    /** The item tags whose items can all be ordered. Missing from servers before criteria lines. */
+    tags?: CatalogueTag[]
+}
+
+/** An item tag a criteria line can name. */
+export interface CatalogueTag {
+    /** The tag as a criteria entry, e.g. `#minecraft:logs`. */
+    key: string
+    name: string
+    /** The material keys of its items. */
+    materials: string[]
 }
 
 /** An exact item the player can order again: a saved item or one of an earlier order. */
@@ -364,10 +375,21 @@ export interface ItemDefinition {
     trim?: {pattern: string, material: string}
 }
 
-/** One line of an order to place: a material key, a known item's ref, or a defined item. */
+/**
+ * What a criteria line accepts: any item of a set of materials (`minecraft:oak_log`) and tags (`#minecraft:logs`), with
+ * at least `minEnchantments` enchantments and each of `enchantments` at a minimum level.
+ */
+export interface CriteriaArgs {
+    items: string[]
+    minEnchantments?: number
+    enchantments?: Record<string, number>
+}
+
+/** One line of an order to place: a material key, a known item's ref, a defined item, or criteria. */
 export interface OrderLineArgs {
     item?: string
     define?: ItemDefinition
+    criteria?: CriteriaArgs
     amount: number
     unitPrice: number
 }
@@ -553,13 +575,32 @@ export interface AdminSystemDecision {
     record?: Record<string, unknown> | null
 }
 
+/**
+ * One thing a rule orders: a material, criteria in the text form players type, or an exact item captured in game,
+ * which the editor keeps as it is.
+ */
+export interface SystemOrderRuleItem {
+    material?: string
+    criteria?: string
+    /** Whether a criteria order takes any item of the set or one material picked from it. */
+    resolve?: 'ANY' | 'ONE'
+    /** An exact item as the plugin stores it. */
+    item?: unknown
+    /** The name of an exact item. */
+    name?: string
+}
+
 /** A defined rule of the server's own orders, as the rules editor edits it. */
 export interface SystemOrderRule {
     id: string
     name: string
     enabled: boolean
-    /** A material name such as `IRON_INGOT`. */
+    /** A material name such as `IRON_INGOT`, for a rule written before `items`. */
     material: string
+    /** What the rule orders; one entry is picked per order. */
+    items: SystemOrderRuleItem[]
+    /** How an order picks one of several entries. */
+    pick: 'RANDOM' | 'ROTATE'
     amount?: number
     price: {
         mode: string

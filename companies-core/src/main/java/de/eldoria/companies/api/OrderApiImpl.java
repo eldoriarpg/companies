@@ -135,7 +135,10 @@ final class OrderApiImpl implements OrderApi {
     private static IOrderDraft draft(OrderRequest request) {
         var draft = IOrderDraft.of(request.name());
         for (OrderLineRequest line : request.lines()) {
-            if (line.exact()) {
+            var criteria = line.criteria();
+            if (criteria != null) {
+                draft.addLine(criteria, line.amount(), line.unitPrice());
+            } else if (line.exact()) {
                 draft.addLine(line.template(), line.amount(), line.unitPrice());
             } else {
                 draft.addLine(line.template().getType(), line.amount(), line.unitPrice());

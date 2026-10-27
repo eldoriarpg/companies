@@ -7,6 +7,7 @@ package de.eldoria.companies.orders.query;
 
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.commands.company.order.search.SortingType;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.TestMappers;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
@@ -129,6 +130,32 @@ class OrderFilterTest {
     void javaMatchingEqualsTheSqlSearch() {
         Assertions.assertEquals(6, orders.size());
         for (var filter : filters()) {
+            Assertions.assertEquals(sqlMatches(filter), javaMatches(filter), filter.toString());
+        }
+    }
+
+    @Test
+    void criteriaLinesMatchEveryMaterialTheyAcceptInJavaAndSql() {
+        var planks = ItemCriteria.of("#minecraft:planks");
+        orderData
+                .submitOrder(
+                        owner,
+                        new SimpleOrder(owner.getUniqueId(), "Any planks", 0.0)
+                                .toFullOrder(List.of(new OrderContent(0, planks.template(), false, planks, 64, 64.0))))
+                .join();
+        orders = orderData.toFullOrders(orderData
+                .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .join());
+        var all = OrderFilter.ALL;
+        var planksOnly = all.withMaterials(List.of("spruce_planks")).withMaterialMode(true, true);
+
+        Assertions.assertEquals(1, javaMatches(planksOnly).size());
+        for (var filter : List.of(
+                planksOnly,
+                all.withMaterials(List.of("planks")),
+                all.withMaterials(List.of("oak")),
+                all.withMaterials(List.of("oak_log", "oak_planks")).withMaterialMode(true, true),
+                all.withMaterials(List.of("oak_log", "oak_planks")).withMaterialMode(false, true))) {
             Assertions.assertEquals(sqlMatches(filter), javaMatches(filter), filter.toString());
         }
     }

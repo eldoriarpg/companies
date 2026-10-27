@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
@@ -128,5 +129,50 @@ class DeliverableTest {
         Assertions.assertEquals(
                 9, Deliverable.amount(MATCHER, items(stack(Material.STONE, 64), stack(Material.DIRT, 3)), order));
         Assertions.assertEquals(0, Deliverable.amount(MATCHER, items(stack(Material.GRAVEL, 64)), order));
+    }
+
+    @Test
+    void narrowLinesAreFilledBeforeCriteriaLines() {
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var order = order(
+                new OrderContent(0, logs.template(), false, logs, 64, 10.0),
+                content(1, new ComponentStack(Material.OAK_LOG), 64, 0));
+
+        var amount =
+                Deliverable.amount(MATCHER, items(stack(Material.OAK_LOG, 64), stack(Material.BIRCH_LOG, 64)), order);
+
+        Assertions.assertEquals(128, amount);
+    }
+
+    @Test
+    void theCountTakesItemsAsADeliveryWould() {
+        var sharp = ItemCriteria.of("DIAMOND_SWORD").withEnchantment("sharpness", 1);
+        var order = order(
+                new OrderContent(0, sharp.template(), false, sharp, 1, 10.0),
+                content(1, new ComponentStack(Material.DIAMOND_SWORD), 1, 0));
+        var enchanted = new ComponentStack(Material.DIAMOND_SWORD);
+        enchanted.setData(
+                DataComponentTypes.ENCHANTMENTS,
+                ItemEnchantments.itemEnchantments()
+                        .add(Enchantment.SHARPNESS, 1)
+                        .build());
+
+        var amount = Deliverable.amount(MATCHER, items(enchanted, new ComponentStack(Material.DIAMOND_SWORD)), order);
+
+        Assertions.assertEquals(2, amount);
+    }
+
+    @Test
+    void criteriaLinesCountEveryItemOfTheirSet() {
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var line = new OrderContent(0, logs.template(), false, logs, 20, 10.0);
+        var order = order(line);
+
+        var amount = Deliverable.amount(
+                MATCHER,
+                items(stack(Material.OAK_LOG, 6), stack(Material.DIRT, 5), stack(Material.SPRUCE_LOG, 9)),
+                order);
+
+        Assertions.assertEquals(15, amount);
     }
 }
