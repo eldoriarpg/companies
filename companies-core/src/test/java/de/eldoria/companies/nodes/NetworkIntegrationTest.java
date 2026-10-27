@@ -474,6 +474,13 @@ class NetworkIntegrationTest {
                 .orElseThrow()
                 .contains("CustomOne"));
         assertTrue(Files.readString(folder.resolve("A").resolve("company.yml")).contains("Broken"));
+        var latest = restarted.nodeData.settingsRevisions().get("company.yml");
+        assertFalse(restarted.configuration.takeIfNewer(restarted.nodeData, "company.yml", latest));
+        assertTrue(Files.readString(folder.resolve("A").resolve("company.yml")).contains("Broken"));
+        try (var files = Files.list(folder.resolve("A"))) {
+            assertTrue(files.noneMatch(file -> file.getFileName().toString().endsWith("company.yml")
+                    && file.getFileName().toString().startsWith("backup_")));
+        }
     }
 
     @Test

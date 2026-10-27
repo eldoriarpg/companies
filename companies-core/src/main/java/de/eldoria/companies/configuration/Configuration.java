@@ -844,7 +844,9 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     }
 
     /**
-     * Takes a shared file's revision another node stored, unless this node applied it or a later one already.
+     * Takes a shared file's revision another node stored, unless this node applied it or a later one already. A primary
+     * takes nothing over a file it cannot read: that file stays as it is on disk until a reload reads it, also when
+     * the primary hears its own announcement of the revision.
      *
      * @param nodeData the node repository holding the revisions
      * @param path     the file
@@ -854,6 +856,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     public boolean takeIfNewer(ANodeData nodeData, String path, int revision) {
         var key = sharedKey(path);
         if (key.isEmpty() || applied.getOrDefault(path, 0) >= revision) return false;
+        if (primary() && unreadable(key.get())) return false;
         return takePrimaryCopy(nodeData, key.get());
     }
 
