@@ -228,7 +228,7 @@ public final class SystemOrdersCommand {
                             deps.messages()
                                     .sendError(sender, PREFIX + "error.duplicateItem", Values.text("rule", rule));
                         case RulesEditor.Result.Invalid invalid
-                        when invalid.fields().containsValue("fixedPrice") ->
+                        when invalid.fields().size() == 1 && invalid.fields().containsValue("fixedPrice") ->
                             deps.messages().sendError(sender, PREFIX + "error.fixedPrice", Values.text("rule", rule));
                         case RulesEditor.Result.Invalid invalid
                         when invalid.fields().containsKey("id") ->

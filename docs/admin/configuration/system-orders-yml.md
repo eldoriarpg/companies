@@ -174,8 +174,9 @@ with `resolve: ONE` and no enchantment conditions. The dashboard refuses to save
 took.
 
 An entry that cannot be ordered right now, such as a material that is no item or has no market average yet under
-`AVERAGE`, a `ONE` entry whose materials all rest, or a criteria entry under `AVERAGE` written by hand, is passed over for the next entry in the list, so the rule
-keeps ordering the others. Only when no entry can be ordered does the log say why.
+`AVERAGE`, a `ONE` entry whose materials all rest, or a criteria entry under `AVERAGE` written by hand, is passed
+over for the next entry in the list, so the rule keeps ordering the others. Only when no entry can be ordered does
+the log say why.
 
 A captured `item` is stored in the item format of the server that captured it. Servers of a network on an older game
 version cannot read it; capture items on the oldest version you run.
