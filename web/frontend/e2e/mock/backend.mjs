@@ -154,8 +154,11 @@ const SYSTEM_RULES = [
     {
         id: 'armoury',
         name: 'Royal armoury',
-        items: [{material: 'IRON_SWORD'}, {item: 'AAECAw==', name: 'Royal blade'}],
-        pick: 'ROTATE',
+        items: [
+            {material: 'IRON_SWORD', criteria: '', item: null, name: '', resolve: 'ANY'},
+            {material: '', criteria: '', item: 'AAECAw==', name: 'Royal blade', resolve: 'ANY'},
+        ],
+        pick: 'rotate',
         amount: 1,
         price: {mode: 'FIXED', value: 300},
     },

@@ -6,8 +6,10 @@
 package de.eldoria.companies.configuration;
 
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
 import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
+import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderRule;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.orders.criteria.CriteriaRules;
@@ -33,7 +35,9 @@ import java.util.function.Predicate;
  * edits them. Saving checks every rule first: an id that is set, at most {@value SystemOrderRule#MAX_ID_LENGTH}
  * characters, not {@value GuessedSettings#RULE} and not used by an earlier rule, and what it orders: either a material
  * that names an item, or {@code items} whose entries each set exactly one of a known {@code material}, readable and
- * usable {@code criteria} or an {@code item}, with a known {@code resolve} and {@code pick}.
+ * usable {@code criteria} or an {@code item}, with a known {@code resolve} and {@code pick}. A rule priced by the
+ * market average may only hold entries that order a plain material. An entry equal to one the rule has is not added
+ * again.
  * Then the list replaces the rules of the revision the admin saw and is stored as the next revision, like a settings
  * change; a revision stored meanwhile refuses the save and hands back its rules.
  */
@@ -125,13 +129,13 @@ public final class RulesEditor {
             var pick = rule.path("pick");
             if (!pick.isMissingNode()
                     && !pick.isNull()
-                    && !names(SystemOrderRule.Pick.values()).contains(pick.asString(""))) {
+                    && !names(SystemOrderRule.Pick.values()).contains(upper(pick))) {
                 errors.put(path + "pick", "invalid");
             }
             var items = rule.path("items");
             if (items.isArray() && !items.isEmpty()) {
                 for (var entry = 0; entry < items.size(); entry++) {
-                    var problem = entryProblem(items.get(entry), knows);
+                    var problem = entryProblem(items.get(entry), knows, average(rule));
                     if (problem.isPresent()) errors.put(path + "items." + entry, problem.get());
                 }
                 continue;
@@ -142,7 +146,16 @@ public final class RulesEditor {
         return errors;
     }
 
-    private static Optional<String> entryProblem(JsonNode entry, Predicate<String> knows) {
+    private static boolean average(JsonNode rule) {
+        var mode = rule.path("price").path("mode");
+        return mode.isMissingNode() || mode.isNull() || upper(mode).equals(RulePrice.PriceMode.AVERAGE.name());
+    }
+
+    private static String upper(JsonNode value) {
+        return value.asString("").trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static Optional<String> entryProblem(JsonNode entry, Predicate<String> knows, boolean average) {
         if (!entry.isObject()) return Optional.of("invalid");
         var material = entry.path("material").asString("").trim();
         var criteria = entry.path("criteria").asString("").trim();
@@ -153,16 +166,32 @@ public final class RulesEditor {
         var resolve = entry.path("resolve");
         if (!resolve.isMissingNode()
                 && !resolve.isNull()
-                && !names(RuleEntry.Resolve.values()).contains(resolve.asString(""))) {
+                && !names(RuleEntry.Resolve.values()).contains(upper(resolve))) {
             return Optional.of("invalid");
         }
         if (!material.isEmpty()) return knows.test(material) ? Optional.empty() : Optional.of("unknown");
-        if (criteria.isEmpty()) return Optional.empty();
+        if (criteria.isEmpty()) return average ? Optional.of("fixedPrice") : Optional.empty();
+        ItemCriteria parsed;
         try {
-            return CriteriaRules.problem(CriteriaSyntax.parse(criteria)).map(problem -> "unknown");
+            parsed = CriteriaSyntax.parse(criteria);
         } catch (CommandFailure failure) {
             return Optional.of("invalid");
         }
+        if (CriteriaRules.problem(parsed).isPresent()) return Optional.of("unknown");
+        var one = upper(resolve).equals(RuleEntry.Resolve.ONE.name());
+        if (average && (!one || parsed.minEnchantments() > 0)) return Optional.of("fixedPrice");
+        return Optional.empty();
+    }
+
+    private static JsonNode sparse(JsonNode entry) {
+        if (!(entry instanceof ObjectNode object)) return entry;
+        var copy = object.deepCopy();
+        copy.properties()
+                .removeIf(field -> field.getValue().isNull()
+                        || (field.getValue().isString()
+                                && field.getValue().asString().isBlank()));
+        if (!copy.has("criteria")) copy.remove("resolve");
+        return copy;
     }
 
     private static Set<String> names(Enum<?>[] values) {
@@ -207,6 +236,9 @@ public final class RulesEditor {
             var material = target.path("material").asString("").trim();
             if (!material.isEmpty())
                 items.add(JsonNodeFactory.instance.objectNode().put("material", material));
+        }
+        for (var existing : items) {
+            if (sparse(existing).equals(sparse(entry))) return new Result.Invalid(Map.of("item", "duplicate"));
         }
         items.add(entry);
         target.set("items", items);

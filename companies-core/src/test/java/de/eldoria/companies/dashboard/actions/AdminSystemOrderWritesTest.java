@@ -33,6 +33,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -187,12 +188,17 @@ class AdminSystemOrderWritesTest {
                 + "{\"material\":\"OAK_LOG\",\"criteria\":\"#logs\"},"
                 + "{\"criteria\":\"#logs\",\"resolve\":\"SOME\"},"
                 + "{\"criteria\":\"#logs enchants:x\"},"
-                + "{\"material\":\"NOT_AN_ITEM\"}],"
+                + "{\"material\":\"NOT_AN_ITEM\"},"
+                + "{\"criteria\":\"#logs\",\"resolve\":\"one\"}],"
                 + "\"price\":{\"mode\":\"FIXED\",\"value\":2.0}}";
+        var averaged = "{\"id\":\"logs\",\"pick\":\"rotate\",\"items\":["
+                + "{\"material\":\"OAK_LOG\"},"
+                + "{\"criteria\":\"#logs\",\"resolve\":\"ONE\"},"
+                + "{\"criteria\":\"#logs\"}]}";
 
         var saved = perform(
                 Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
-                "{\"base\":0,\"rules\":[" + rule + "]}",
+                "{\"base\":0,\"rules\":[" + rule + "," + averaged + "]}",
                 Permission.Admin.ORDERS,
                 Permission.Admin.RELOAD);
 
@@ -206,6 +212,10 @@ class AdminSystemOrderWritesTest {
         assertEquals("invalid", errors.path("rules.0.items.4").asString());
         assertEquals("invalid", errors.path("rules.0.items.5").asString());
         assertEquals("unknown", errors.path("rules.0.items.6").asString());
+        assertTrue(errors.path("rules.0.items.7").isMissingNode());
+        assertTrue(errors.path("rules.1.pick").isMissingNode());
+        assertTrue(errors.path("rules.1.items.1").isMissingNode());
+        assertEquals("fixedPrice", errors.path("rules.1.items.2").asString());
     }
 
     @Test
@@ -226,12 +236,17 @@ class AdminSystemOrderWritesTest {
                 RulesEditor.addEntry(world.settings, world.nodeData, "iron", entry, RulesEditor::knownMaterial, "Ada");
         var unknown = RulesEditor.addEntry(
                 world.settings, world.nodeData, "copper", entry, RulesEditor::knownMaterial, "Ada");
+        var again =
+                RulesEditor.addEntry(world.settings, world.nodeData, "iron", entry, RulesEditor::knownMaterial, "Ada");
 
         assertInstanceOf(RulesEditor.Result.Done.class, result);
         assertInstanceOf(RulesEditor.Result.Invalid.class, unknown);
+        assertEquals(Map.of("item", "duplicate"), ((RulesEditor.Result.Invalid) again).fields());
         var rule = RulesEditor.read(world.settings, world.nodeData).rules().get(0);
         assertTrue(rule.path("material").asString("").isEmpty());
         assertEquals("IRON_INGOT", rule.path("items").get(0).path("material").asString());
+        assertTrue(rule.path("items").get(0).path("criteria").isMissingNode());
+        assertTrue(rule.path("items").get(0).path("item").isMissingNode());
         var read = mapper.treeToValue(rule.path("items").get(1), RuleEntry.class);
         assertEquals("Royal blade", read.name());
         assertEquals(5, read.item().getEnchantmentLevel(Enchantment.SHARPNESS));

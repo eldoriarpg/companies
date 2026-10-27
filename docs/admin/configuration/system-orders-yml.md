@@ -105,7 +105,7 @@ rules:
 | `enabled` | true/false | `true` | Whether the rule places orders. |
 | `material` | material | none | The item ordered, for example `IRON_INGOT`. Leave it out when the rule has `items`. |
 | `items` | list | empty | Several things the rule may order, one per order, see [Several items](#several-items). |
-| `pick` | `RANDOM` or `ROTATE` | `RANDOM` | How an order picks one of the `items`: at random, or the one after the last order's. |
+| `pick` | `RANDOM` or `ROTATE` | `RANDOM` | How an order picks one of the `items`: at random, or the one after the last order's. Adding the same item twice is refused. |
 | `amount` | number | `64` | How many items one order asks for. |
 | `price.mode` | `FIXED` or `AVERAGE` | `AVERAGE` | `FIXED` pays `price.value` per item. `AVERAGE` pays the market average per item times `price.factor`. |
 | `price.value` | number | `1.0` | Price per item for `FIXED`. |
@@ -169,9 +169,16 @@ rules:
 | `item` | An exact item, as the server stores it. Add it in game with `/companyadmin systemorders item add <rule>` while you hold the item; `name` keeps its name for the dashboard. |
 
 `AVERAGE` prices need a market average, which only plain materials have: a `material` entry, or a `criteria` entry
-with `resolve: ONE` and no enchantment conditions. An order of any other entry under `AVERAGE` places nothing and
-the log says it needs a fixed price; give such rules a `FIXED` price. `maxOpen` and the budget count the whole rule,
-whatever entry an order took.
+with `resolve: ONE` and no enchantment conditions. The dashboard refuses to save any other entry in a rule priced by
+`AVERAGE`; give such rules a `FIXED` price. `maxOpen` and the budget count the whole rule, whatever entry an order
+took.
+
+An entry that cannot be ordered right now, such as a material that is no item, a `ONE` entry whose materials all
+rest, or a criteria entry under `AVERAGE` written by hand, is passed over for the next entry in the list, so the rule
+keeps ordering the others. Only when no entry can be ordered does the log say why.
+
+A captured `item` is stored in the item format of the server that captured it. Servers of a network on an older game
+version cannot read it; capture items on the oldest version you run.
 
 ## Guessed orders
 

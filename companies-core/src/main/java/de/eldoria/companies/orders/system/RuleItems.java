@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.DoubleSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Turns an entry of a defined rule into what one order asks for.
@@ -30,7 +31,8 @@ import java.util.function.Predicate;
  *     that material, which its market average can price; with them a criteria line of that one material.</li>
  *     <li>An item entry orders exactly the captured item.</li>
  * </ul>
- * Only orders of a single plain material have a market average, so the others need a fixed price.
+ * Only orders of a single plain material have a market average, so the others need a fixed price. An entry that can
+ * not be ordered is passed over for the next one, so a rule never stalls on one entry.
  */
 public final class RuleItems {
     private RuleItems() {
@@ -58,12 +60,12 @@ public final class RuleItems {
      * @param entry   the entry
      * @param index   its place in the rule
      * @param knows   whether a material name names an item that can be ordered
-     * @param resting the materials that rest
+     * @param resting the materials that rest, read only when a {@code ONE} entry needs them
      * @param random  a random number from 0 included to 1 excluded
      * @return what the order asks for, or why the entry can not be ordered
      */
     public static Resolved resolve(
-            RuleEntry entry, int index, Predicate<String> knows, Set<String> resting, DoubleSupplier random) {
+            RuleEntry entry, int index, Predicate<String> knows, Supplier<Set<String>> resting, DoubleSupplier random) {
         var item = entry.item();
         if (item != null) {
             var name = entry.name().isBlank() ? item.getType().name() : entry.name();
@@ -76,7 +78,7 @@ public final class RuleItems {
     }
 
     private static Resolved criteria(
-            RuleEntry entry, int index, Predicate<String> knows, Set<String> resting, DoubleSupplier random) {
+            RuleEntry entry, int index, Predicate<String> knows, Supplier<Set<String>> resting, DoubleSupplier random) {
         ItemCriteria criteria;
         try {
             criteria = CriteriaSyntax.parse(entry.criteria());
@@ -91,7 +93,7 @@ public final class RuleItems {
         List<ItemCriteria> candidates = criteria.materials().stream()
                 .map(material -> material.name())
                 .filter(knows)
-                .filter(material -> !resting.contains(material))
+                .filter(material -> !resting.get().contains(material))
                 .map(material ->
                         new ItemCriteria(List.of(material), criteria.minEnchantments(), criteria.enchantments()))
                 .filter(single -> CriteriaRules.problem(single).isEmpty())

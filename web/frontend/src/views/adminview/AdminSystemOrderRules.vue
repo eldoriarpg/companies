@@ -55,7 +55,7 @@ const sources = computed(() => ['MINTED', 'ACCOUNT'].map(value => ({value, label
  * @returns the label
  */
 function itemLabel(item: SystemOrderRuleItem): string {
-  if (item.item !== undefined) return item.name || t('admin.systemorders.rules.exactItem')
+  if (item.item != null) return item.name || t('admin.systemorders.rules.exactItem')
   return item.criteria ?? item.material ?? ''
 }
 
@@ -86,9 +86,9 @@ function filled(rule: Partial<SystemOrderRule>): SystemOrderRule {
     enabled: rule.enabled ?? true,
     material: '',
     items: rule.items && rule.items.length > 0
-      ? rule.items.map(entry => ({...entry}))
+      ? rule.items.map(sparse)
       : [{material: rule.material ?? ''}],
-    pick: rule.pick ?? 'RANDOM',
+    pick: String(rule.pick ?? '').toUpperCase() === 'ROTATE' ? 'ROTATE' : 'RANDOM',
     amount: rule.amount ?? 64,
     price: {mode: 'AVERAGE', value: 1, factor: 1, jitter: 0, min: 0, max: 0, ...rule.price},
     everyHours: rule.everyHours ?? 24,
@@ -96,6 +96,18 @@ function filled(rule: Partial<SystemOrderRule>): SystemOrderRule {
     maxOpen: rule.maxOpen ?? 1,
     source: {type: 'MINTED', account: '', dailyBudget: 0, ...rule.source},
   }
+}
+
+/**
+ * An entry with only the fields of its kind, since the plugin stores every field of an entry.
+ *
+ * @param entry an entry as the file writes it
+ * @returns the entry for the form
+ */
+function sparse(entry: SystemOrderRuleItem): SystemOrderRuleItem {
+  if (entry.item !== undefined && entry.item !== null) return {item: entry.item, name: entry.name ?? ''}
+  if (entry.criteria) return {criteria: entry.criteria, resolve: String(entry.resolve ?? '').toUpperCase() === 'ONE' ? 'ONE' : 'ANY'}
+  return {material: entry.material ?? ''}
 }
 
 /** Adds a rule and opens it. */
@@ -122,7 +134,7 @@ function complete(entry: SystemOrderRule): boolean {
     entry.price.max, entry.source.dailyBudget, entry.price.mode === 'FIXED' ? entry.price.value : entry.price.factor]
   return numbers.every(value => value !== undefined)
     && entry.items.length > 0
-    && entry.items.every(item => item.item !== undefined || (item.criteria ?? item.material ?? '').trim() !== '')
+    && entry.items.every(item => item.item != null || (item.criteria ?? item.material ?? '').trim() !== '')
 }
 
 /** Saves every rule as the next revision. */

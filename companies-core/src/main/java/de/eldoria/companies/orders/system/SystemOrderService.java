@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders.system;
 
+import com.google.common.base.Suppliers;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
 import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
@@ -183,20 +184,38 @@ public final class SystemOrderService {
             return Step.NOT_DUE;
         }
         if (orders.activeSystemOrders(id) >= rule.maxOpen()) return Step.FULL;
-        var index = RuleItems.pick(rule, entries.size(), last.map(this::entryOf).orElse(null), random);
-        var resolved =
-                RuleItems.resolve(entries.get(index), index, placement::knows, orders.restingMaterials(now), random);
-        if (resolved instanceof RuleItems.Problem(var entry)) return purchases.note(id, Step.UNKNOWN_ITEM, entry);
-        var chosen = (RuleItems.Chosen) resolved;
-        var material = chosen.material();
-        if (material == null && rule.price().mode() == RulePrice.PriceMode.AVERAGE) {
-            return purchases.note(id, Step.NO_PRICE, chosen.label() + " needs a fixed price");
+        var start = RuleItems.pick(rule, entries.size(), last.map(this::entryOf).orElse(null), random);
+        var resting = Suppliers.memoize(() -> orders.restingMaterials(now));
+        RuleItems.Chosen chosen = null;
+        Step skipped = null;
+        var reason = "";
+        for (var offset = 0; offset < entries.size() && chosen == null; offset++) {
+            var index = (start + offset) % entries.size();
+            var resolved = RuleItems.resolve(entries.get(index), index, placement::knows, resting, random);
+            if (resolved instanceof RuleItems.Problem(var entry)) {
+                if (skipped == null) {
+                    skipped = Step.UNKNOWN_ITEM;
+                    reason = entry;
+                }
+            } else if (resolved instanceof RuleItems.Chosen found
+                    && found.material() == null
+                    && rule.price().mode() == RulePrice.PriceMode.AVERAGE) {
+                if (skipped == null) {
+                    skipped = Step.NO_PRICE;
+                    reason = found.label() + " needs a fixed price";
+                }
+            } else {
+                chosen = (RuleItems.Chosen) resolved;
+            }
         }
+        if (chosen == null) return purchases.note(id, Objects.requireNonNull(skipped), reason);
+        var picked = chosen;
+        var material = picked.material();
         var average = material == null ? OptionalDouble.empty() : placement.average(material);
         var found = RulePricing.price(rule.price(), average, random);
         if (found.isEmpty()) return purchases.note(id, Step.NO_PRICE, "");
         var priced = found.get();
-        var wanted = new Wanted(id, rule.name(), chosen.label(), rule.amount(), priced.unit(), chosen.line());
+        var wanted = new Wanted(id, rule.name(), picked.label(), rule.amount(), priced.unit(), picked.line());
         return purchases
                 .buy(
                         id,
@@ -209,7 +228,7 @@ public final class SystemOrderService {
                         money -> new DefinedRecord(
                                 id,
                                 rule.name(),
-                                chosen.label(),
+                                picked.label(),
                                 rule.amount(),
                                 rule.price().mode(),
                                 priced.average(),
@@ -225,7 +244,7 @@ public final class SystemOrderService {
                                 money.account(),
                                 money.budgetLeft(),
                                 money.mintedLeft(),
-                                chosen.entry()))
+                                picked.entry()))
                 .step();
     }
 

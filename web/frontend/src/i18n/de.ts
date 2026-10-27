@@ -217,6 +217,7 @@ export default {
                     },
                 },
                 errors: {
+                    fixedPrice: 'braucht einen festen Preis',
                     missing: 'braucht einen Wert',
                     tooLong: 'ist länger als 64 Zeichen',
                     reserved: 'ist für geschätzte Aufträge reserviert',

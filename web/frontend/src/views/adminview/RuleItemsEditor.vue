@@ -86,7 +86,7 @@ function setKind(item: SystemOrderRuleItem, kind: string): void {
  * @returns the label
  */
 function label(item: SystemOrderRuleItem): string {
-  if (item.item !== undefined) return item.name || t('admin.systemorders.rules.exactItem')
+  if (item.item != null) return item.name || t('admin.systemorders.rules.exactItem')
   return text(item)
 }
 </script>
@@ -96,7 +96,7 @@ function label(item: SystemOrderRuleItem): string {
     <SectionHeader :note="t('admin.systemorders.rules.itemsNote')">{{ t('admin.systemorders.rules.fields.items') }}</SectionHeader>
     <ul class="m-0 flex list-none flex-col gap-2 p-0" data-testid="admin-system-rule-items">
       <li v-for="(item, index) in rule.items" :key="index" class="flex flex-wrap items-end gap-3">
-        <template v-if="item.item !== undefined">
+        <template v-if="item.item != null">
           <span class="grow text-sm">{{ label(item) }}</span>
           <MutedText>{{ t('admin.systemorders.rules.exactItem') }}</MutedText>
         </template>

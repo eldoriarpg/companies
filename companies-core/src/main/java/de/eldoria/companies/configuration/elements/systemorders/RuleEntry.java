@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements.systemorders;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,11 +16,12 @@ import org.jetbrains.annotations.Nullable;
  *     <li>{@code criteria}: criteria in the text form players type, such as {@code #logs bamboo_block enchants:2}.
  *     {@code resolve} decides whether the order accepts any item of the set ({@code ANY}) or asks for one material
  *     picked from it ({@code ONE}).</li>
- *     <li>{@code item}: an exact item, captured in game with {@code /companyadmin systemorders rule <id> add hand}.
+ *     <li>{@code item}: an exact item, captured in game with {@code /companyadmin systemorders item add <rule>}.
  *     {@code name} keeps its name for the rules editor.</li>
  * </ul>
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class RuleEntry {
     private String material = "";
     private String criteria = "";

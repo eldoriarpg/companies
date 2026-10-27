@@ -8,6 +8,7 @@ package de.eldoria.companies.commands.companyadmin;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.RulesEditor;
 import de.eldoria.companies.configuration.elements.systemorders.GuessedSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
@@ -57,6 +58,7 @@ import java.util.logging.Level;
  *     placed;</li>
  *     <li>{@code info <id>} shows why a system order was placed: the rule and the numbers its price and money stood
  *     on. It works for ended orders as long as the order history keeps them;</li>
+ *     <li>{@code item add <rule>} adds the held item to a defined rule;</li>
  *     <li>{@code stats} shows per material what guessed orders learned: how many were placed, taken and expired, the
  *     average minutes until one was taken, and the factor a new order pays: the one learning walked to, or the
  *     configured one while learning is off.</li>
@@ -201,18 +203,25 @@ public final class SystemOrdersCommand {
                 result -> {
                     switch (result) {
                         case RulesEditor.Result.Done done -> {
+                            var stored =
+                                    done.outcome() instanceof Configuration.StoreOutcome.Stored found ? found : null;
                             deps.adminLog()
                                     .entry(sender, "system order rule item add")
                                     .with("rule", rule)
                                     .with("item", template.getType().name())
                                     .write();
-                            deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
+                            if (stored == null || stored.replaced()) {
+                                deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
+                            }
                             deps.messages()
                                     .sendMessage(
                                             sender,
                                             PREFIX + "itemAdded",
                                             Values.text("rule", rule),
                                             Values.component("item", template.effectiveName()));
+                            if (stored != null && !stored.applied()) {
+                                deps.messages().sendError(sender, PREFIX + "error.notApplied");
+                            }
                         }
                         case RulesEditor.Result.Invalid invalid
                         when invalid.fields().containsKey("id") ->

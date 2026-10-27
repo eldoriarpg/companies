@@ -575,7 +575,6 @@ export interface AdminSystemDecision {
     record?: Record<string, unknown> | null
 }
 
-/** A defined rule of the server's own orders, as the rules editor edits it. */
 /**
  * One thing a rule orders: a material, criteria in the text form players type, or an exact item captured in game,
  * which the editor keeps as it is.
@@ -591,6 +590,7 @@ export interface SystemOrderRuleItem {
     name?: string
 }
 
+/** A defined rule of the server's own orders, as the rules editor edits it. */
 export interface SystemOrderRule {
     id: string
     name: string

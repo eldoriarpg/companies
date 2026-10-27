@@ -217,6 +217,7 @@ export default {
                     },
                 },
                 errors: {
+                    fixedPrice: 'needs a fixed price',
                     missing: 'needs a value',
                     tooLong: 'is longer than 64 characters',
                     reserved: 'is reserved for guessed orders',
