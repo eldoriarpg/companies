@@ -8,6 +8,8 @@ package de.eldoria.companies.orders;
 import de.eldoria.companies.api.write.RejectReason;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.IOrderDraft;
+import de.eldoria.companies.components.order.ItemCriteria;
+import de.eldoria.companies.components.order.LineKind;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.OrderSettings;
@@ -281,6 +283,46 @@ class OrderCreationServiceTest {
 
         assertEquals(RejectReason.INVALID, rejected.reason());
         assertEquals("order.draft.error.notOrderable", rejected.failure().localeKey());
+    }
+
+    @Test
+    void criteriaLinesAreCreatedWithTheirCriteria() {
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var draft = IOrderDraft.of("logs");
+        draft.addLine(logs, 32, 2.0);
+        draft.addLine(logs, 32, 3.0);
+
+        var order = assertInstanceOf(OrderCreationService.Created.class, create(draft, OrderSource.API, true, true));
+
+        var contents = orderData.retrieveFullOrder(order.order()).join().contents();
+        assertEquals(1, contents.size());
+        assertEquals(LineKind.CRITERIA, contents.getFirst().kind());
+        assertEquals(logs, contents.getFirst().criteria().orElseThrow());
+        assertEquals(64, contents.getFirst().amount());
+        assertEquals(192.0, contents.getFirst().price());
+    }
+
+    @Test
+    void criteriaNoItemCanMeetAreRejectedAsInvalid() {
+        var draft = IOrderDraft.of("logs");
+        draft.addLine(ItemCriteria.of("#minecraft:logs").withEnchantment("sharpness", 1), 10, 1.0);
+
+        var rejected = rejected(create(draft, OrderSource.API, true, false));
+
+        assertEquals(RejectReason.INVALID, rejected.reason());
+        assertEquals(
+                "order.criteria.error.enchantmentNotApplicable",
+                rejected.failure().localeKey());
+        assertEquals(0, orderCount());
+    }
+
+    @Test
+    void aCriteriaLineCountsAsOneMaterial() {
+        var draft = IOrderDraft.of("logs");
+        draft.addLine(ItemCriteria.of("#minecraft:logs", "#minecraft:planks"), 10, 1.0);
+        draft.addLine(Material.STONE, 10, 1.0);
+
+        assertInstanceOf(OrderCreationService.Created.class, create(draft, OrderSource.API, true, true));
     }
 
     private OrderCreationService.Outcome create(

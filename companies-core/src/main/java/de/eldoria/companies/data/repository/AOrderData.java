@@ -11,6 +11,7 @@ import de.chojo.sadu.mapper.wrapper.Row;
 import de.eldoria.companies.Companies;
 import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
@@ -1001,6 +1002,23 @@ public abstract class AOrderData {
             return mapper.writeValueAsString(stack);
         } catch (JacksonException e) {
             throw new RuntimeException("Could not parse item stack to json", e);
+        }
+    }
+
+    protected String toJson(ItemCriteria criteria) {
+        try {
+            return mapper.writeValueAsString(criteria);
+        } catch (JacksonException e) {
+            throw new RuntimeException("Could not write criteria as json", e);
+        }
+    }
+
+    protected @Nullable ItemCriteria toCriteria(@Nullable String json) throws SQLException {
+        if (json == null) return null;
+        try {
+            return mapper.readValue(json, ItemCriteria.class);
+        } catch (JacksonException e) {
+            throw new SQLException("Could not parse json to criteria", e);
         }
     }
 }

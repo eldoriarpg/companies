@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.BundleContents;
@@ -23,6 +24,7 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -217,5 +219,80 @@ class ItemMatcherTest {
         var named = book(5);
         named.setData(DataComponentTypes.CUSTOM_NAME, Component.text("Signed"));
         Assertions.assertEquals(0, matcher.extras(book(5), named));
+    }
+
+    private static ComponentStack enchanted(Material material, Map<Enchantment, Integer> levels) {
+        var stack = plain(material);
+        var enchantments = ItemEnchantments.itemEnchantments();
+        levels.forEach(enchantments::add);
+        stack.setData(DataComponentTypes.ENCHANTMENTS, enchantments.build());
+        return stack;
+    }
+
+    @Test
+    void criteriaAcceptEveryItemOfTheirSet() {
+        var matcher = matcher(false);
+        var logs = ItemCriteria.of("#minecraft:logs", "BAMBOO_BLOCK");
+        var template = logs.template();
+
+        Assertions.assertTrue(matcher.matches(template, logs, plain(Material.OAK_LOG)));
+        Assertions.assertTrue(matcher.matches(template, logs, plain(Material.BIRCH_LOG)));
+        Assertions.assertTrue(matcher.matches(template, logs, plain(Material.BAMBOO_BLOCK)));
+        Assertions.assertFalse(matcher.matches(template, logs, plain(Material.OAK_PLANKS)));
+    }
+
+    @Test
+    void criteriaAllowAnyOtherData() {
+        var matcher = matcher(false);
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var named = plain(Material.OAK_LOG);
+        named.setData(DataComponentTypes.ITEM_NAME, Component.text("Old log"));
+
+        Assertions.assertTrue(matcher.matches(logs.template(), logs, named));
+    }
+
+    @Test
+    void criteriaCheckTheEnchantmentCountAndTheRequiredLevels() {
+        var matcher = matcher(false);
+        var swords = new ItemCriteria(List.of("DIAMOND_SWORD"), 2, List.of()).withEnchantment("sharpness", 3);
+        var template = swords.template();
+
+        Assertions.assertFalse(matcher.matches(template, swords, enchanted(Material.DIAMOND_SWORD, 3)));
+        Assertions.assertFalse(matcher.matches(
+                template,
+                swords,
+                enchanted(Material.DIAMOND_SWORD, Map.of(Enchantment.SHARPNESS, 2, Enchantment.LOOTING, 1))));
+        Assertions.assertTrue(matcher.matches(
+                template,
+                swords,
+                enchanted(Material.DIAMOND_SWORD, Map.of(Enchantment.SHARPNESS, 4, Enchantment.LOOTING, 1))));
+        Assertions.assertFalse(matcher.matches(template, swords, plain(Material.DIAMOND_SWORD)));
+    }
+
+    @Test
+    void booksCountTheirStoredEnchantments() {
+        var matcher = matcher(false);
+        var books = ItemCriteria.of("ENCHANTED_BOOK").withEnchantment("sharpness", 5);
+
+        Assertions.assertTrue(matcher.matches(books.template(), books, book(5)));
+        Assertions.assertFalse(matcher.matches(books.template(), books, book(4)));
+    }
+
+    @Test
+    void criteriaRefuseDamagedItemsUnlessAllowed() {
+        var swords = ItemCriteria.of("DIAMOND_SWORD");
+
+        Assertions.assertFalse(matcher(false).matches(swords.template(), swords, damaged(10)));
+        Assertions.assertTrue(matcher(true).matches(swords.template(), swords, damaged(10)));
+    }
+
+    @Test
+    void criteriaExtrasAreTheEnchantmentsBeyondTheCount() {
+        var matcher = matcher(false);
+        var swords = new ItemCriteria(List.of("DIAMOND_SWORD"), 1, List.of());
+        var two = enchanted(Material.DIAMOND_SWORD, Map.of(Enchantment.SHARPNESS, 2, Enchantment.LOOTING, 1));
+
+        Assertions.assertEquals(1, matcher.extras(swords.template(), swords, two));
+        Assertions.assertEquals(0, matcher.extras(swords.template(), swords, enchanted(Material.DIAMOND_SWORD, 1)));
     }
 }

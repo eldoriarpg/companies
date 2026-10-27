@@ -15,6 +15,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.PreOrderCreateEvent;
+import de.eldoria.companies.orders.criteria.CriteriaRules;
 import de.eldoria.companies.util.Money;
 import de.eldoria.eldoutilities.messages.Replacement;
 import net.milkbowl.vault.economy.Economy;
@@ -202,6 +203,10 @@ public final class OrderCreationService {
         var broken = draft.lines().stream()
                 .anyMatch(line -> line.amount() < 1 || line.unitPrice() < 0 || !Double.isFinite(line.unitPrice()));
         if (broken) return rejected(RejectReason.INVALID, "error.integrationDraftInvalid");
+        for (var line : draft.lines()) {
+            var problem = line.criteria().flatMap(CriteriaRules::problem);
+            if (problem.isPresent()) return Optional.of(new Rejected(RejectReason.INVALID, problem.get()));
+        }
         var items = draft.lines().stream().mapToLong(IDraftLine::amount).sum();
         var total = draft.lines().stream()
                 .mapToDouble(line -> line.amount() * line.unitPrice())
@@ -224,6 +229,11 @@ public final class OrderCreationService {
             OfflinePlayer owner, IOrderDraft draft, boolean respectLimits, ToIntFunction<OfflinePlayer> limitOf) {
         var builder = new OrderBuilder(owner.getUniqueId(), draft.name());
         for (var line : draft.lines()) {
+            var criteria = line.criteria();
+            if (criteria.isPresent()) {
+                builder.add(criteria.get(), line.amount(), line.unitPrice());
+                continue;
+            }
             var requested = requested(line)
                     .orElseThrow(() -> new Rejection(
                             new Rejected(RejectReason.INVALID, CommandFailure.of("order.draft.error.notOrderable"))));

@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import io.papermc.paper.datacomponent.DataComponentTypes;
@@ -157,5 +158,26 @@ class OrderBuilderTest {
         assertTrue(OrderBuilder.offeredMarketPrice(false, withData).isPresent());
         assertFalse(OrderBuilder.offeredMarketPrice(true, withData).isPresent());
         assertFalse(OrderBuilder.offeredMarketPrice(false, withoutData).isPresent());
+    }
+
+    @Test
+    void criteriaLinesMergeOnlyWithEqualCriteria() {
+        var logs = ItemCriteria.of("#minecraft:logs");
+
+        assertEquals(1, builder.add(logs, 10, 1.0));
+        assertEquals(1, builder.add(ItemCriteria.of("#logs"), 5, 2.0));
+        assertEquals(2, builder.add(logs.withMinEnchantments(1), 5, 2.0));
+        assertEquals(3, builder.add(plain(Material.OAK_LOG), false, 5, 2.0));
+
+        var first = builder.line(1).orElseThrow();
+        assertEquals(15, first.amount());
+        assertEquals(2.0, first.unitPrice());
+        assertEquals(logs, first.criteria());
+        assertTrue(builder.amount(1, 20));
+        assertTrue(builder.unitPrice(1, 3.0));
+        assertEquals(logs, builder.line(1).orElseThrow().criteria());
+        var built = builder.build(0).contents();
+        assertEquals(logs, built.getFirst().criteria().orElseThrow());
+        assertTrue(built.get(2).criteria().isEmpty());
     }
 }

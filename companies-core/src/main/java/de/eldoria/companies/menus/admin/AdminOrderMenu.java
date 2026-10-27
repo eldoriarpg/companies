@@ -274,7 +274,9 @@ public final class AdminOrderMenu implements Menu<AdminOrderMenu.Model> {
         var text = MenuText.create()
                 .text(
                         "<yellow><" + item + "> <blue><" + delivered + ">/<" + amount + "> <gold><" + price + ">",
-                        Values.item(item, content.stack()),
+                        content.criteria().isPresent()
+                                ? Values.component(item, content.itemName())
+                                : Values.item(item, content.stack()),
                         Values.number(delivered, content.delivered()),
                         Values.number(amount, content.amount()),
                         Values.money(price, economy, content.price()));

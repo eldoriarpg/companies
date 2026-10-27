@@ -1,0 +1,2 @@
+ALTER TABLE order_content
+    ADD COLUMN IF NOT EXISTS criteria TEXT NULL;

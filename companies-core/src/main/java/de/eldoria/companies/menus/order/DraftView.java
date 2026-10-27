@@ -153,7 +153,7 @@ public record DraftView(
          * @return the view of the line
          */
         static Line of(int number, OrderBuilder.DraftLine line, Function<String, MaterialPrice> prices) {
-            if (line.exact()) return new Line(number, line, Optional.empty());
+            if (line.exact() || line.criteria() != null) return new Line(number, line, Optional.empty());
             return new Line(
                     number, line, OrderBuilder.offeredMarketPrice(line, prices.apply(line.materialIdentifier())));
         }

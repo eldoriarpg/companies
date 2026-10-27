@@ -5,8 +5,10 @@
  */
 package de.eldoria.companies.api.write;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -14,19 +16,26 @@ import java.util.Objects;
  * One line of an {@link OrderRequest}: the requested item, how many of it and the price of one.
  * <p>
  * A material line accepts every item of its material. An exact line accepts only items that match its template,
- * following the item matching settings of the server.
+ * following the item matching settings of the server. A criteria line accepts every item meeting its criteria.
  *
- * @param template  requested item with an amount of one; a copy is returned
+ * @param template  requested item with an amount of one; a copy is returned. For a criteria line the item standing
+ *                  for it
  * @param exact     whether the data of the template is requested as well, not only its material
  * @param amount    number of items, at least 1
  * @param unitPrice price of one item, not negative
+ * @param criteria  what a criteria line accepts, null for material and exact lines
  */
-public record OrderLineRequest(ItemStack template, boolean exact, int amount, double unitPrice) {
+public record OrderLineRequest(
+        ItemStack template,
+        boolean exact,
+        int amount,
+        double unitPrice,
+        @Nullable ItemCriteria criteria) {
     /**
      * Validates and copies the line.
      *
-     * @throws IllegalArgumentException when the template is air or not an item, the amount is below 1 or the unit
-     *                                  price is negative or not finite
+     * @throws IllegalArgumentException when the template is air or not an item, the amount is below 1, the unit
+     *                                  price is negative or not finite or a criteria line is exact
      */
     public OrderLineRequest {
         Objects.requireNonNull(template, "template");
@@ -37,7 +46,21 @@ public record OrderLineRequest(ItemStack template, boolean exact, int amount, do
         if (!Double.isFinite(unitPrice) || unitPrice < 0) {
             throw new IllegalArgumentException("The unit price must be finite and not negative, was " + unitPrice);
         }
+        if (criteria != null && exact) throw new IllegalArgumentException("A criteria line can not be exact");
         template = template.asOne();
+    }
+
+    /**
+     * A material or exact line.
+     *
+     * @param template  requested item with an amount of one
+     * @param exact     whether the data of the template is requested as well, not only its material
+     * @param amount    number of items, at least 1
+     * @param unitPrice price of one item, not negative
+     * @throws IllegalArgumentException when a value is out of range
+     */
+    public OrderLineRequest(ItemStack template, boolean exact, int amount, double unitPrice) {
+        this(template, exact, amount, unitPrice, null);
     }
 
     /**
@@ -68,6 +91,20 @@ public record OrderLineRequest(ItemStack template, boolean exact, int amount, do
      */
     public static OrderLineRequest exact(ItemStack template, int amount, double unitPrice) {
         return new OrderLineRequest(template, true, amount, unitPrice);
+    }
+
+    /**
+     * A line that accepts every item meeting criteria. The server checks the criteria when the order is created.
+     *
+     * @param criteria  what the line accepts
+     * @param amount    number of items, at least 1
+     * @param unitPrice price of one item, not negative
+     * @return the line
+     * @throws IllegalArgumentException when a value is out of range
+     */
+    public static OrderLineRequest criteria(ItemCriteria criteria, int amount, double unitPrice) {
+        Objects.requireNonNull(criteria, "criteria");
+        return new OrderLineRequest(criteria.template(), false, amount, unitPrice, criteria);
     }
 
     /**

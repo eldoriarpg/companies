@@ -7,6 +7,8 @@ package de.eldoria.companies.components.order;
 
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Optional;
+
 /**
  * One line of an {@link IOrderDraft}.
  */
@@ -24,6 +26,24 @@ public interface IDraftLine {
      * @return true for an exact line
      */
     boolean exact();
+
+    /**
+     * What the line accepts.
+     *
+     * @return the kind of the line
+     */
+    default LineKind kind() {
+        return LineKind.of(exact(), criteria().isPresent());
+    }
+
+    /**
+     * The criteria of a criteria line.
+     *
+     * @return the criteria, empty for material and exact lines
+     */
+    default Optional<ItemCriteria> criteria() {
+        return Optional.empty();
+    }
 
     /**
      * The number of requested items.

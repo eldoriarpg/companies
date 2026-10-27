@@ -5,12 +5,14 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemContainerContents;
 import org.bukkit.Tag;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -75,10 +77,33 @@ public final class ItemSources {
      */
     public static List<DeliveryPart> take(
             List<ItemSlot> slots, int line, ItemStack template, ItemMatcher matcher, int limit) {
+        return take(slots, line, template, null, matcher, limit);
+    }
+
+    /**
+     * Takes up to an amount of items matching a line of any kind from the slots, as
+     * {@link #take(List, int, ItemStack, ItemMatcher, int)} does.
+     *
+     * @param slots    slots to take from; they are changed
+     * @param line     line of the order
+     * @param template requested item of the line
+     * @param criteria criteria of a criteria line, null for material and exact lines
+     * @param matcher  decides which items match
+     * @param limit    the most items to take
+     * @return the taken items per distinct item
+     */
+    public static List<DeliveryPart> take(
+            List<ItemSlot> slots,
+            int line,
+            ItemStack template,
+            @Nullable ItemCriteria criteria,
+            ItemMatcher matcher,
+            int limit) {
         var candidates = slots.stream()
                 .filter(slot -> !isEmpty(slot.stack()))
-                .filter(slot -> matcher.matches(template, slot.stack()))
-                .map(slot -> new Candidate(slot, matcher.extras(template, slot.stack()), matcher.damage(slot.stack())))
+                .filter(slot -> matcher.matches(template, criteria, slot.stack()))
+                .map(slot -> new Candidate(
+                        slot, matcher.extras(template, criteria, slot.stack()), matcher.damage(slot.stack())))
                 .sorted(Comparator.comparingInt(Candidate::extras).thenComparingDouble(Candidate::damage))
                 .toList();
         List<DeliveryPart> parts = new ArrayList<>();

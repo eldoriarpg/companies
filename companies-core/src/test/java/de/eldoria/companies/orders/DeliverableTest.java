@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
@@ -128,5 +129,19 @@ class DeliverableTest {
         Assertions.assertEquals(
                 9, Deliverable.amount(MATCHER, items(stack(Material.STONE, 64), stack(Material.DIRT, 3)), order));
         Assertions.assertEquals(0, Deliverable.amount(MATCHER, items(stack(Material.GRAVEL, 64)), order));
+    }
+
+    @Test
+    void criteriaLinesCountEveryItemOfTheirSet() {
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var line = new OrderContent(0, logs.template(), false, logs, 20, 10.0);
+        var order = order(line);
+
+        var amount = Deliverable.amount(
+                MATCHER,
+                items(stack(Material.OAK_LOG, 6), stack(Material.DIRT, 5), stack(Material.SPRUCE_LOG, 9)),
+                order);
+
+        Assertions.assertEquals(15, amount);
     }
 }

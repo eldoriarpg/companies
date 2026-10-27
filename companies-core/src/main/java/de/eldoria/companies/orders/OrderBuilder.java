@@ -5,12 +5,15 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 import net.kyori.adventure.text.Component;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -18,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -67,15 +71,38 @@ public class OrderBuilder {
      * @return number of the line, starting at 1
      */
     public int add(ItemStack template, boolean exact, int amount, double unitPrice) {
-        var similar = similarLine(template, exact);
+        return add(new DraftLine(template, exact, amount, unitPrice));
+    }
+
+    /**
+     * Adds a criteria line, or adds the amount to a line with equal criteria and takes the new unit price.
+     *
+     * @param criteria  what the line accepts
+     * @param amount    number of items
+     * @param unitPrice price of one item
+     * @return number of the line, starting at 1
+     */
+    public int add(ItemCriteria criteria, int amount, double unitPrice) {
+        return add(new DraftLine(criteria.template(), false, amount, unitPrice, criteria));
+    }
+
+    /**
+     * Adds a line, or adds its amount to a similar line and takes its unit price.
+     *
+     * @param line the line to add
+     * @return number of the line, starting at 1
+     */
+    public int add(DraftLine line) {
+        var similar = similarLine(line);
         if (similar.isPresent()) {
             var existing = lines.get(similar.get() - 1);
             lines.set(
                     similar.get() - 1,
-                    new DraftLine(existing.template(), exact, Math.addExact(existing.amount(), amount), unitPrice));
+                    existing.withAmount(Math.addExact(existing.amount(), line.amount()))
+                            .withUnitPrice(line.unitPrice()));
             return similar.get();
         }
-        lines.add(new DraftLine(template, exact, amount, unitPrice));
+        lines.add(line);
         return lines.size();
     }
 
@@ -87,9 +114,19 @@ public class OrderBuilder {
      * @return the number of the similar line, starting at 1
      */
     public Optional<Integer> similarLine(ItemStack template, boolean exact) {
+        return similarLine(new DraftLine(template, exact, 1, 0));
+    }
+
+    /**
+     * Finds the line a new line would be merged into: one of the same kind with a similar template, or for a criteria
+     * line one with equal criteria.
+     *
+     * @param line the new line
+     * @return the number of the similar line, starting at 1
+     */
+    public Optional<Integer> similarLine(DraftLine line) {
         for (var index = 0; index < lines.size(); index++) {
-            var existing = lines.get(index);
-            if (existing.exact() == exact && existing.template().isSimilar(template)) return Optional.of(index + 1);
+            if (lines.get(index).similar(line)) return Optional.of(index + 1);
         }
         return Optional.empty();
     }
@@ -114,7 +151,7 @@ public class OrderBuilder {
     public boolean amount(int line, int amount) {
         if (!hasLine(line)) return false;
         var current = lines.get(line - 1);
-        lines.set(line - 1, new DraftLine(current.template(), current.exact(), amount, current.unitPrice()));
+        lines.set(line - 1, current.withAmount(amount));
         return true;
     }
 
@@ -128,7 +165,7 @@ public class OrderBuilder {
     public boolean unitPrice(int line, double unitPrice) {
         if (!hasLine(line)) return false;
         var current = lines.get(line - 1);
-        lines.set(line - 1, new DraftLine(current.template(), current.exact(), current.amount(), unitPrice));
+        lines.set(line - 1, current.withUnitPrice(unitPrice));
         return true;
     }
 
@@ -227,7 +264,8 @@ public class OrderBuilder {
         List<OrderContent> contents = new ArrayList<>();
         for (var index = 0; index < lines.size(); index++) {
             var line = lines.get(index);
-            contents.add(new OrderContent(index, line.template(), line.exact(), line.amount(), line.total()));
+            contents.add(new OrderContent(
+                    index, line.template(), line.exact(), line.criteria(), line.amount(), line.total()));
         }
         return new SimpleOrder(order.owner(), order.name(), fee).toFullOrder(contents);
     }
@@ -240,7 +278,7 @@ public class OrderBuilder {
      * @return the price when it may be offered
      */
     public static Optional<MaterialPrice> offeredMarketPrice(DraftLine line, MaterialPrice price) {
-        return offeredMarketPrice(line.exact(), price);
+        return offeredMarketPrice(line.exact() || line.criteria() != null, price);
     }
 
     /**
@@ -262,12 +300,58 @@ public class OrderBuilder {
     /**
      * One line of a draft.
      *
-     * @param template  requested item with an amount of one
+     * @param template  requested item with an amount of one, for a criteria line the item standing for it
      * @param exact     whether the data of the item is requested as well
      * @param amount    number of items
      * @param unitPrice price of one item
+     * @param criteria  what a criteria line accepts, null for material and exact lines
      */
-    public record DraftLine(ItemStack template, boolean exact, int amount, double unitPrice) {
+    public record DraftLine(
+            ItemStack template,
+            boolean exact,
+            int amount,
+            double unitPrice,
+            @Nullable ItemCriteria criteria) {
+        /**
+         * A material or exact line.
+         *
+         * @param template  requested item with an amount of one
+         * @param exact     whether the data of the item is requested as well
+         * @param amount    number of items
+         * @param unitPrice price of one item
+         */
+        public DraftLine(ItemStack template, boolean exact, int amount, double unitPrice) {
+            this(template, exact, amount, unitPrice, null);
+        }
+
+        /**
+         * @param amount new number of items
+         * @return a copy with the amount
+         */
+        public DraftLine withAmount(int amount) {
+            return new DraftLine(template, exact, amount, unitPrice, criteria);
+        }
+
+        /**
+         * @param unitPrice new price of one item
+         * @return a copy with the unit price
+         */
+        public DraftLine withUnitPrice(double unitPrice) {
+            return new DraftLine(template, exact, amount, unitPrice, criteria);
+        }
+
+        /**
+         * Whether another line asks for the same: equal criteria for criteria lines, otherwise the same kind and a
+         * similar template.
+         *
+         * @param other the other line
+         * @return true when the lines may be merged
+         */
+        public boolean similar(DraftLine other) {
+            if (criteria != null || other.criteria != null) return Objects.equals(criteria, other.criteria);
+            return exact == other.exact && template.isSimilar(other.template);
+        }
+
         /**
          * @return unit price times amount, rounded to two decimals
          */
@@ -283,11 +367,13 @@ public class OrderBuilder {
         }
 
         /**
-         * The translated material for material lines, the name of the item with the item as hover for exact lines.
+         * The translated material for material lines, the name of the item with the item as hover for exact lines, the
+         * criteria for criteria lines.
          *
          * @return name of the item, to be inserted as placeholder
          */
         public Component itemName() {
+            if (criteria != null) return CriteriaText.component(criteria);
             if (!exact) return Component.translatable(template);
             return template.effectiveName().hoverEvent(template.asHoverEvent());
         }

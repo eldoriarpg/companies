@@ -6,15 +6,19 @@
 package de.eldoria.companies.data.wrapper.order;
 
 import de.eldoria.companies.components.order.IOrderContent;
+import de.eldoria.companies.components.order.ItemCriteria;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -26,6 +30,7 @@ public class OrderContent implements IOrderContent {
     private final int line;
     private final ItemStack stack;
     private final boolean exact;
+    private final @Nullable ItemCriteria criteria;
     private int amount;
     private List<DeliveredStack> deliveries = new ArrayList<>();
     private double price;
@@ -40,9 +45,25 @@ public class OrderContent implements IOrderContent {
      * @param price  total price of the line
      */
     public OrderContent(int line, ItemStack stack, boolean exact, int amount, double price) {
+        this(line, stack, exact, null, amount, price);
+    }
+
+    /**
+     * Creates a line that may have criteria.
+     *
+     * @param line     position of the line in its order
+     * @param stack    requested item with an amount of one, for a criteria line the item standing for it
+     * @param exact    whether the data of the item is requested as well
+     * @param criteria what a criteria line accepts, null for material and exact lines
+     * @param amount   requested amount
+     * @param price    total price of the line
+     */
+    public OrderContent(
+            int line, ItemStack stack, boolean exact, @Nullable ItemCriteria criteria, int amount, double price) {
         this.line = line;
         this.stack = stack;
         this.exact = exact;
+        this.criteria = criteria;
         this.amount = amount;
         this.price = price;
     }
@@ -69,6 +90,11 @@ public class OrderContent implements IOrderContent {
     @Override
     public boolean exact() {
         return exact;
+    }
+
+    @Override
+    public Optional<ItemCriteria> criteria() {
+        return Optional.ofNullable(criteria);
     }
 
     @Override
@@ -137,12 +163,13 @@ public class OrderContent implements IOrderContent {
      * The name of the requested item.
      * <p>
      * A material line shows the translated material. An exact line shows the name of its template with the item as
-     * hover. The component has to be inserted as a placeholder, never as MiniMessage text, since a custom name may
-     * contain tags.
+     * hover. A criteria line shows its criteria, see {@link CriteriaText}. The component has to be inserted as a
+     * placeholder, never as MiniMessage text, since a custom name may contain tags.
      *
      * @return name of the item
      */
     public Component itemName() {
+        if (criteria != null) return CriteriaText.component(criteria);
         if (!exact) return Component.translatable(stack);
         return stack.effectiveName().hoverEvent(stack.asHoverEvent());
     }

@@ -46,7 +46,7 @@ public final class Deliverable {
         for (var content : order.contents()) {
             var missing = Math.max(0, content.missing());
             for (var index = 0; index < left.length && missing > 0; index++) {
-                if (left[index] <= 0 || !matcher.matches(content.stack(), available.get(index))) continue;
+                if (left[index] <= 0 || !matcher.matches(content, available.get(index))) continue;
                 var counted = Math.min(missing, left[index]);
                 left[index] -= counted;
                 missing -= counted;

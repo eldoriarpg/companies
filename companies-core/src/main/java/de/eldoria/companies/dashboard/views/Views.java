@@ -22,6 +22,7 @@ import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
 import de.eldoria.companies.web.api.snapshot.ClaimedOrderView;
@@ -486,6 +487,11 @@ public final class Views {
      * @return the item
      */
     public ItemView item(IOrderContent line, int amount) {
+        var criteria = line.criteria();
+        if (criteria.isPresent()) {
+            var view = item(line.material(), amount);
+            return new ItemView(view.material(), CriteriaText.plain(criteria.get()), amount, view.icon());
+        }
         return line.exact() ? item(line.stack(), amount) : item(line.material(), amount);
     }
 

@@ -121,7 +121,12 @@ public final class HistoryRecorder {
         List<HistorySnapshot.Line> lines = new ArrayList<>();
         for (var content : order.contents()) {
             lines.add(new HistorySnapshot.Line(
-                    content.stack(), content.exact(), content.amount(), content.delivered(), content.price()));
+                    content.stack(),
+                    content.exact(),
+                    content.amount(),
+                    content.delivered(),
+                    content.price(),
+                    content.criteria().orElse(null)));
         }
         return lines;
     }

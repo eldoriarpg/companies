@@ -247,8 +247,9 @@ api.orders().byOwner(player.getUniqueId(), OrderState.UNCLAIMED, OrderState.DELI
         .thenAccept(orders -> getLogger().info(player.getName() + " has " + orders.size() + " active orders"));
 ```
 
-An `IFullOrder` has its lines in `contents()`. Each line (`IOrderContent`) tells its item, whether it is an exact
-line, the amount, the unit price and what was delivered so far.
+An `IFullOrder` has its lines in `contents()`. Each line (`IOrderContent`) tells its item, its `kind()` (`MATERIAL`,
+`EXACT` or `CRITERIA`), the amount, the unit price and what was delivered so far. A criteria line has its
+`ItemCriteria` in `criteria()`; its `stack()` is only the first item of its set, for showing it.
 
 An order is claimed by a company or by a single player working alone, never by both. `company()` is the id of the
 company, or a value below 1 when no company claimed it. `soloWorker()` is the id of the player working on it alone,
@@ -262,6 +263,7 @@ or empty. See [Working alone](../players/working-alone.md) and the [solo order e
 OrderRequest request = OrderRequest.builder(owner, "Castle stone")
         .line(OrderLineRequest.material(Material.STONE_BRICKS, 512, 2.5))
         .line(OrderLineRequest.exact(enchantedPickaxe, 1, 500))
+        .line(OrderLineRequest.criteria(ItemCriteria.of("#minecraft:logs"), 256, 1.5))
         .charge(false)
         .respectLimits(false)
         .build();
@@ -289,6 +291,20 @@ api.orders().create(request).thenAccept(result -> {
 - `OrderLineRequest.material(material, amount, unitPrice)` accepts every item of the material.
 - `OrderLineRequest.exact(template, amount, unitPrice)` accepts only items that match the template. The server's
   item matching settings decide what matches. The amount of the template stack is ignored.
+- `OrderLineRequest.criteria(criteria, amount, unitPrice)` accepts every item meeting the criteria, in any mix: 256
+  of `#minecraft:logs` may be oak and birch logs together.
+
+`ItemCriteria` names materials and item tags, and may add enchantment conditions:
+
+```java
+ItemCriteria swords = ItemCriteria.of("DIAMOND_SWORD", "NETHERITE_SWORD")
+        .withMinEnchantments(2)
+        .withEnchantment("minecraft:sharpness", 3);
+```
+
+This accepts diamond and netherite swords with at least two enchantments, one of them Sharpness III or higher.
+Materials are written as their name, tags with a leading `#`. Enchanted books count their stored enchantments. Other
+data of an item does not matter.
 
 The amount must be at least 1. The unit price must be a finite number and not negative. The item must be an item,
 not air. A line that breaks one of these rules throws an `IllegalArgumentException` when you create it.
@@ -312,7 +328,8 @@ not air. A line that breaks one of these rules throws an `IllegalArgumentExcepti
 - `respectLimits(false)`: none of these limits apply.
 
 Some checks apply either way. The name may have at most 31 characters. Every line needs an amount of at least 1 and
-a valid price. An exact item must be something players can order.
+a valid price. An exact item must be something players can order. Criteria must name known items, tags and
+enchantments, at levels the enchantments have, on items that can carry them.
 
 **What happens**
 
@@ -337,7 +354,7 @@ A rule the order breaks does not fail the future. The future completes with a `C
 | `TOO_MANY_ITEMS`     | The order requests more items than the server allows                            |
 | `INSUFFICIENT_FUNDS` | The owner cannot pay the price and the fee                                     |
 | `CANCELLED`          | A listener cancelled the `PreOrderCreateEvent`                                  |
-| `INVALID`            | The name is too long, a line is invalid, an exact item cannot be ordered, or a listener left the order broken or empty |
+| `INVALID`            | The name is too long, a line is invalid, an exact item cannot be ordered, criteria no item can meet, or a listener left the order broken or empty |
 
 If the order cannot be saved, the money is refunded and the future fails. The cause is an
 `IllegalStateException` with the message "The order could not be saved".

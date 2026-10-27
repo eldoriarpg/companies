@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
+import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemContainerContents;
@@ -205,5 +206,20 @@ class ItemSourcesTest {
             left.setAmount(stack.getAmount() - amount);
             stack = left.getAmount() <= 0 ? ItemStack.empty() : left;
         }
+    }
+
+    @Test
+    void criteriaLinesTakeAMixOfTheirItems() {
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var slots = slots(stack(Material.OAK_LOG, 5), stack(Material.OAK_PLANKS, 5), stack(Material.BIRCH_LOG, 7));
+
+        var parts = ItemSources.take(slots, 0, logs.template(), logs, matcher(false), 10);
+
+        Assertions.assertEquals(2, parts.size());
+        Assertions.assertEquals(Material.OAK_LOG, parts.get(0).stack().getType());
+        Assertions.assertEquals(5, parts.get(0).amount());
+        Assertions.assertEquals(Material.BIRCH_LOG, parts.get(1).stack().getType());
+        Assertions.assertEquals(5, parts.get(1).amount());
+        Assertions.assertEquals(5, slots.get(1).stack().getAmount());
     }
 }

@@ -13,6 +13,8 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.components.join.JoinResult;
+import de.eldoria.companies.components.order.ItemCriteria;
+import de.eldoria.companies.components.order.LineKind;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.components.ranking.TimeRange;
@@ -385,6 +387,28 @@ class CompaniesApiImplTest {
                 executor,
                 Logger.getLogger("test"));
         api.open(new CompaniesApiImpl.Writes(creation, memberships, new ItemReturnService(plugin, orderData)));
+    }
+
+    @Test
+    void criteriaLinesAreCreatedThroughTheApi() throws Exception {
+        open();
+        var logs = ItemCriteria.of("#minecraft:logs");
+        var request = OrderRequest.builder(owner.getUniqueId(), "Logs")
+                .line(OrderLineRequest.criteria(logs, 10, 1.0))
+                .charge(false)
+                .build();
+
+        var result = api.orders().create(request).get(5, TimeUnit.SECONDS);
+
+        var order = assertInstanceOf(CreateOrderResult.Created.class, result).order();
+        var line = orderData
+                .retrieveFullOrder(
+                        orderData.retrieveOrderById(order.id()).join().orElseThrow())
+                .join()
+                .contents()
+                .getFirst();
+        assertEquals(LineKind.CRITERIA, line.kind());
+        assertEquals(logs, line.criteria().orElseThrow());
     }
 
     private OrderRequest stoneRequest(boolean charge) {

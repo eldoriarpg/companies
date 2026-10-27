@@ -10,6 +10,7 @@ import de.eldoria.companies.data.wrapper.alert.OrderAlert;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.Payout;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
 
@@ -97,7 +98,8 @@ public final class AlertNotices {
     static String contents(FullOrder order) {
         var lines = order.contents().stream()
                 .limit(SHOWN_LINES)
-                .map(line -> line.amount() + " " + line.materialIdentifier())
+                .map(line -> line.amount() + " "
+                        + line.criteria().map(CriteriaText::plain).orElseGet(line::materialIdentifier))
                 .collect(Collectors.joining(", "));
         return order.contents().size() > SHOWN_LINES ? lines + ", …" : lines;
     }

@@ -7,6 +7,7 @@ package de.eldoria.companies.menus;
 
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
+import de.eldoria.companies.orders.criteria.CriteriaText;
 import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
 
@@ -136,10 +137,13 @@ public final class HistoryTexts {
         var delivered = Keys.of("line", index, "delivered");
         var amount = Keys.of("line", index, "amount");
         var price = Keys.of("line", index, "price");
+        var criteria = line.criteria();
         return MenuText.create()
                 .text(
                         "<yellow><" + item + "> <blue><" + delivered + ">/<" + amount + "> <gold><" + price + ">",
-                        Values.item(item, line.template()),
+                        criteria == null
+                                ? Values.item(item, line.template())
+                                : Values.component(item, CriteriaText.component(criteria)),
                         Values.number(delivered, line.delivered()),
                         Values.number(amount, line.amount()),
                         Values.money(price, economy, line.price()));

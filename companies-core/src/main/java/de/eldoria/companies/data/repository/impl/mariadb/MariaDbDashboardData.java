@@ -288,6 +288,7 @@ public class MariaDbDashboardData extends ADashboardData {
                          JOIN orders o ON c.id = o.id
                 WHERE s.state >= 200
                   AND NOT c.exact
+                  AND c.criteria IS NULL
                   AND c.amount > 0
                   AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
                 GROUP BY c.material""";

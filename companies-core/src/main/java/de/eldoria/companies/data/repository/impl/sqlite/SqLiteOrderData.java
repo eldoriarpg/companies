@@ -251,7 +251,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                                      JOIN orders o ON c.id = o.id
                             WHERE s.state >= 200
                               AND (o.owner_uuid IS NULL OR o.owner_uuid <> ?)
-                              AND c.exact = 0) c
+                              AND c.exact = 0
+                              AND c.criteria IS NULL) c
                       WHERE c.id < 100
                       GROUP BY c.material) avg
                 WHERE TRUE

@@ -117,7 +117,7 @@ public final class MarketHistory {
     }
 
     /**
-     * Adds up the orders delivered on one day per material, without exact lines.
+     * Adds up the orders delivered on one day per material, without exact and criteria lines.
      *
      * @param day     the day
      * @param entries the company entries of the orders delivered that day
@@ -127,7 +127,7 @@ public final class MarketHistory {
         Map<String, Totals> totals = new HashMap<>();
         for (var entry : entries) {
             for (var line : entry.snapshot().lines()) {
-                if (line.amount() <= 0 || line.exact()) continue;
+                if (line.amount() <= 0 || line.exact() || line.criteria() != null) continue;
                 totals.computeIfAbsent(line.template().getType().name(), material -> new Totals())
                         .add(entry.order(), line.amount(), line.price() / line.amount());
             }

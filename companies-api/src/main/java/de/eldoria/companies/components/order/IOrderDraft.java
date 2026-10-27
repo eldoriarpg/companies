@@ -76,6 +76,18 @@ public interface IOrderDraft {
     IDraftLine addLine(ItemStack template, int amount, double unitPrice);
 
     /**
+     * Adds a line that accepts every item meeting criteria. The server checks the criteria when the order is created
+     * and refuses unknown items, tags and enchantments.
+     *
+     * @param criteria  what the line accepts
+     * @param amount    number of items, at least 1
+     * @param unitPrice price of one item, not negative
+     * @return the added line
+     * @throws IllegalArgumentException when a value is out of range
+     */
+    IDraftLine addLine(ItemCriteria criteria, int amount, double unitPrice);
+
+    /**
      * The number of items over all lines.
      *
      * @return number of items

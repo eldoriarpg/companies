@@ -278,7 +278,9 @@ public final class OrderDraftService {
     public static IOrderDraft toDraft(String name, List<OrderBuilder.DraftLine> lines) {
         var draft = IOrderDraft.of(name);
         for (var line : lines) {
-            if (line.exact()) {
+            if (line.criteria() != null) {
+                draft.addLine(line.criteria(), line.amount(), line.unitPrice());
+            } else if (line.exact()) {
                 draft.addLine(line.template(), line.amount(), line.unitPrice());
             } else {
                 draft.addLine(line.template().getType(), line.amount(), line.unitPrice());
