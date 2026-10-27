@@ -113,7 +113,7 @@ public class MariaDbOrderData extends AOrderData {
             var lineMaterials = lineMaterials(orderId, contents);
             if (!lineMaterials.isEmpty()) {
                 query = """
-                        INSERT INTO order_line_materials(id, line, material) VALUES (?, ?, ?)""";
+                        INSERT INTO order_line_materials(id, line, material, with_conditions) VALUES (?, ?, ?, ?)""";
                 conf.query(query).batch(lineMaterials.stream()).insert();
             }
 
@@ -131,7 +131,7 @@ public class MariaDbOrderData extends AOrderData {
 
     /**
      * One row per material a criteria line accepts, its tags resolved, so searches and demand find the line under
-     * every material it takes.
+     * every material it takes. A line with enchantment conditions is marked, as it is no demand for the plain items.
      *
      * @param orderId id of the order
      * @param contents lines of the order
@@ -142,8 +142,9 @@ public class MariaDbOrderData extends AOrderData {
         for (var line = 0; line < contents.size(); line++) {
             var criteria = contents.get(line).criteria();
             if (criteria.isEmpty()) continue;
+            var conditions = criteria.get().minEnchantments() > 0;
             for (var material : criteria.get().materials()) {
-                rows.add(call().bind(orderId).bind(line).bind(material.name()));
+                rows.add(call().bind(orderId).bind(line).bind(material.name()).bind(conditions));
             }
         }
         return rows;
@@ -583,7 +584,7 @@ public class MariaDbOrderData extends AOrderData {
         } else if (!lockOrder(conf, order, OrderState.UNCLAIMED)) {
             return Optional.empty();
         }
-        for (var table : List.of("order_content", "order_states", "orders")) {
+        for (var table : List.of("order_line_materials", "order_content", "order_states", "orders")) {
             conf.query("DELETE FROM %s WHERE id = ?", table)
                     .single(call().bind(order.id()))
                     .delete();
@@ -887,8 +888,8 @@ public class MariaDbOrderData extends AOrderData {
                        SUM(c.amount)           AS items,
                        MIN(c.price / c.amount) AS lowest
                 FROM (SELECT id, line, material FROM order_content WHERE criteria IS NULL
-                      UNION
-                      SELECT id, line, material FROM order_line_materials) w
+                      UNION ALL
+                      SELECT id, line, material FROM order_line_materials WHERE with_conditions = ?) w
                          JOIN order_content c ON c.id = w.id AND c.line = w.line
                          JOIN order_states s ON c.id = s.id
                          JOIN orders o ON c.id = o.id
@@ -898,7 +899,7 @@ public class MariaDbOrderData extends AOrderData {
                 GROUP BY w.material""";
         var demand = new HashMap<String, PlayerDemand>();
         query(select)
-                .single(call().bind(OrderState.UNCLAIMED.stateId()).bind(SystemOwner.ID, UUID_BYTES))
+                .single(call().bind(false).bind(OrderState.UNCLAIMED.stateId()).bind(SystemOwner.ID, UUID_BYTES))
                 .map(row -> new PlayerDemand(
                         row.getString("material"), row.getInt("orders"), row.getLong("items"), row.getDouble("lowest")))
                 .all()
@@ -1506,6 +1507,9 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(order.id()).bind(OrderState.UNCLAIMED.stateId()))
                     .delete();
             if (!unclaimed.changed()) return false;
+            conf.query("DELETE FROM order_line_materials WHERE id = ?")
+                    .single(call().bind(order.id()))
+                    .delete();
             conf.query(deleteOrder).single(call().bind(order.id())).delete();
         }
         return conf.context().exceptions().isEmpty();
@@ -1523,14 +1527,14 @@ public class MariaDbOrderData extends AOrderData {
                                    ON o.id = oc.id
                          LEFT JOIN (SELECT m.id, GROUP_CONCAT(m.material, ' ') AS materials
                                     FROM (SELECT id, material FROM order_content WHERE criteria IS NULL
-                                          UNION
+                                          UNION ALL
                                           SELECT id, material FROM order_line_materials) m
                                     GROUP BY m.id) om
                                    ON o.id = om.id
                          LEFT JOIN order_states os
                                    ON o.id = os.id
                 WHERE o.name LIKE ?
-                  AND om.materials REGEXP ?
+                  AND COALESCE(om.materials, '') REGEXP ?
                   AND oc.price >= ?
                   AND oc.price <= ?
                   AND oc.amount >= ?

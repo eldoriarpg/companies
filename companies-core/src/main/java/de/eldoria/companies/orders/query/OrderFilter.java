@@ -63,8 +63,7 @@ public record OrderFilter(
     /**
      * Whether an order passes this filter, with the semantics of the SQL search: the name contains the name part
      * ignoring case, the materials match per line (a criteria line by every material it accepts), and price and item
-     * count lie inside the inclusive ranges. An order
-     * without lines never matches, as it has no price in the search.
+     * count lie inside the inclusive ranges. An order without lines never matches, as it has no price in the search.
      *
      * @param order order to check
      * @return true when the order passes

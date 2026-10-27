@@ -444,7 +444,8 @@ public abstract class AOrderData {
 
     /**
      * What players ask for in their orders nobody claimed yet, per material. Orders of the server are left out. A
-     * criteria line counts, with its whole amount and price, for every material it accepts.
+     * criteria line counts, with its whole amount and price, for every material it accepts, unless it has enchantment
+     * conditions: those ask for other items than the plain ones guessed orders buy.
      *
      * @return the demand per material, keyed as order lines store the material
      */

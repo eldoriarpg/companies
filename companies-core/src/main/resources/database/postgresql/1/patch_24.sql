@@ -3,18 +3,16 @@ ALTER TABLE companies_schema.order_content
 
 CREATE TABLE IF NOT EXISTS companies_schema.order_line_materials
 (
-    id       INTEGER NOT NULL
+    id              INTEGER NOT NULL
         CONSTRAINT order_line_materials_orders_id_fk
             REFERENCES companies_schema.orders
             ON DELETE CASCADE,
-    line     INTEGER NOT NULL,
-    material TEXT    NOT NULL,
+    line            INTEGER NOT NULL,
+    material        TEXT    NOT NULL,
+    with_conditions BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT order_line_materials_pk
         PRIMARY KEY (id, line, material)
 );
-
-CREATE INDEX IF NOT EXISTS order_line_materials_material_index
-    ON companies_schema.order_line_materials (material);
 
 DROP MATERIALIZED VIEW IF EXISTS companies_schema.material_price;
 

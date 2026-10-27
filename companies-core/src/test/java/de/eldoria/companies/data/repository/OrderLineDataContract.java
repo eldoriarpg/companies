@@ -149,7 +149,8 @@ public abstract class OrderLineDataContract {
 
     @Test
     void demandCountsACriteriaLineForEveryMaterialItAccepts() {
-        place(criteriaLine(64, 64.0));
+        var logs = ItemCriteria.of("#minecraft:logs");
+        place(new OrderContent(0, logs.template(), false, logs, 64, 64.0));
         place(plainLine(Material.OAK_LOG, 10, 50.0));
 
         var demand = orders.openPlayerDemand();
@@ -159,6 +160,37 @@ public abstract class OrderLineDataContract {
         assertEquals(1.0, demand.get("OAK_LOG").lowestPrice(), 0.001);
         assertEquals(64, demand.get("BIRCH_LOG").items());
         assertFalse(demand.containsKey("OAK_PLANKS"));
+    }
+
+    @Test
+    void criteriaWithEnchantmentConditionsAreNoDemandForThePlainItems() {
+        var swords = ItemCriteria.of("DIAMOND_SWORD").withEnchantment("sharpness", 5);
+        place(new OrderContent(0, swords.template(), false, swords, 1, 0.01));
+
+        var demand = orders.openPlayerDemand();
+
+        assertFalse(demand.containsKey("DIAMOND_SWORD"));
+        assertEquals(1, search(true, "diamond_sword").size());
+    }
+
+    @Test
+    void deletingAnOrderRemovesItsLineMaterials() {
+        var order = place(criteriaLine(10, 50.0));
+
+        assertTrue(orders.submitAdminDeletion(order).join().isPresent());
+
+        assertEquals(0, lineMaterialRows());
+        var cancelled = place(criteriaLine(10, 50.0));
+        assertTrue(orders.submitOrderDeletion(cancelled).join());
+        assertEquals(0, lineMaterialRows());
+    }
+
+    private int lineMaterialRows() {
+        return query("SELECT COUNT(1) AS count FROM order_line_materials")
+                .single()
+                .map(row -> row.getInt("count"))
+                .first()
+                .orElse(0);
     }
 
     @Test

@@ -132,14 +132,14 @@ public class PostgresOrderData extends MariaDbOrderData {
                                    ON o.id = oc.id
                          LEFT JOIN (SELECT m.id, string_agg(m.material, ' ') AS materials
                                     FROM (SELECT id, material FROM order_content WHERE criteria IS NULL
-                                          UNION
+                                          UNION ALL
                                           SELECT id, material FROM order_line_materials) m
                                     GROUP BY m.id) om
                                    ON o.id = om.id
                          LEFT JOIN order_states os
                                    ON o.id = os.id
                 WHERE o.name ~~* ?
-                  AND om.materials ~* ?
+                  AND COALESCE(om.materials, '') ~* ?
                   AND oc.price >= ?
                   AND oc.price <= ?
                   AND oc.amount >= ?

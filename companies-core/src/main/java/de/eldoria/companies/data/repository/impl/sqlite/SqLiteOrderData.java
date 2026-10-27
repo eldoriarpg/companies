@@ -168,7 +168,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 var select = """
                         SELECT DISTINCT m.id
                         FROM (SELECT id, material FROM order_content WHERE criteria IS NULL
-                              UNION
+                              UNION ALL
                               SELECT id, material FROM order_line_materials) m
                                  LEFT JOIN order_states s
                                            ON s.id = m.id
