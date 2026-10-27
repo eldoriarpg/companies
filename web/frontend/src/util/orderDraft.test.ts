@@ -5,7 +5,9 @@
  */
 import {describe, expect, it} from 'vitest'
 import {catalogue, knownItems, material} from '~/test/catalogue'
-import {type DraftRepetition, conditionsOf, criteriaSource, definable, detailsOf, excluded, itemOf, orderArgs, trimmed} from './orderDraft'
+import {type DraftRepetition, conditionsOf, criteriaSource, definable, detailsOf, excluded, itemOf, orderArgs, trimmed, viewConditions} from './orderDraft'
+
+const COUNT = (count: number) => `at least ${count}`
 
 const ONCE: DraftRepetition = {enabled: false, interval: 'weekly', end: 'times', times: undefined, until: ''}
 
@@ -54,13 +56,13 @@ describe('an order draft', () => {
         const tunic = material('leather_chestplate', 'Leather Tunic', {dye: true, trim: true})
         expect(detailsOf({kind: 'defined', material: tunic, definition: {
             material: 'minecraft:leather_chestplate', dye: 'red', trim: {pattern: 'minecraft:coast', material: 'minecraft:gold'},
-        }}, catalogue())).toEqual(['Red', 'Coast (Gold)'])
+        }}, catalogue(), COUNT)).toEqual(['Red', 'Coast (Gold)'])
     })
 
     it('names an enchantment of a single level without it', () => {
         const book = material('enchanted_book', 'Enchanted Book', {enchantments: ['minecraft:mending']})
         const withMending = {...catalogue(), enchantments: [{key: 'minecraft:mending', name: 'Mending', max: 1, conflicts: []}]}
-        expect(detailsOf({kind: 'defined', material: book, definition: {material: 'minecraft:enchanted_book', enchantments: {'minecraft:mending': 1}}}, withMending)).toEqual(['Mending'])
+        expect(detailsOf({kind: 'defined', material: book, definition: {material: 'minecraft:enchanted_book', enchantments: {'minecraft:mending': 1}}}, withMending, COUNT)).toEqual(['Mending'])
     })
 
     it('excludes what conflicts with a chosen enchantment', () => {
@@ -79,7 +81,7 @@ describe('an order draft', () => {
         expect(source).not.toBeNull()
         expect(itemOf(source!).material).toBe('minecraft:diamond_sword')
         expect(itemOf(source!).name).toBe('#Swords / Stone')
-        expect(detailsOf(source!, catalogue())).toEqual(['✦ ≥2', 'Sharpness III+'])
+        expect(detailsOf(source!, catalogue(), COUNT)).toEqual(['at least 2', 'Sharpness III+'])
         expect(criteriaSource({items: ['#minecraft:unknown']}, catalogue())).toBeNull()
     })
 
@@ -94,7 +96,13 @@ describe('an order draft', () => {
     })
 
     it('names a count condition only when it asks for more than the required enchantments', () => {
-        expect(conditionsOf({items: [], minEnchantments: 1, enchantments: {'minecraft:sharpness': 1}}, catalogue())).toEqual(['Sharpness'])
-        expect(conditionsOf({items: [], minEnchantments: 3, enchantments: {}}, null)).toEqual(['✦ ≥3'])
+        expect(conditionsOf({items: [], minEnchantments: 1, enchantments: {'minecraft:sharpness': 1}}, catalogue(), COUNT)).toEqual(['Sharpness'])
+        expect(conditionsOf({items: [], minEnchantments: 3, enchantments: {}}, null, COUNT)).toEqual(['at least 3'])
+    })
+
+    it('writes the conditions the plugin sent for a line', () => {
+        const criteria = {items: [], minEnchantments: 3, enchantments: [{key: 'minecraft:looting', name: 'Looting', minLevel: 2}]}
+
+        expect(viewConditions(criteria, COUNT)).toEqual(['at least 3', 'Looting II+'])
     })
 })

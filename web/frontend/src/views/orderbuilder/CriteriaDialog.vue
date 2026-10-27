@@ -53,7 +53,7 @@ const enchantmentOptions = computed(() => props.catalogue.enchantments
 const chosenEnchantment = computed(() => props.catalogue.enchantments.find(entry => entry.key === pickedEnchantment.value))
 const criteria = computed<CriteriaArgs>(() => ({
   items: items.value,
-  minEnchantments: minEnchantments.value ?? 0,
+  minEnchantments: Math.max(0, minEnchantments.value ?? 0),
   enchantments: enchantments.value,
 }))
 const source = computed(() => (items.value.length > 0 ? criteriaSource(criteria.value, props.catalogue) : null))
@@ -141,7 +141,7 @@ function add(): void {
       <ul v-if="Object.keys(enchantments).length > 0" class="m-0 flex list-none flex-col gap-1 p-0" data-criteria-enchantments>
         <li v-for="(minLevel, key) in enchantments" :key="key" class="flex items-center gap-2 text-sm">
           <span class="grow truncate">{{ catalogue.enchantments.find(entry => entry.key === key)?.name ?? key }} {{ roman(minLevel) }}+</span>
-          <IconButton icon="trash" :label="t('builder.remove', {name: String(key)})" @click="removeEnchantment(String(key))"/>
+          <IconButton icon="trash" :label="t('builder.remove', {name: catalogue.enchantments.find(entry => entry.key === key)?.name ?? String(key)})" @click="removeEnchantment(String(key))"/>
         </li>
       </ul>
       <ButtonRow>

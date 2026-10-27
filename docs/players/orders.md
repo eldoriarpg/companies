@@ -40,7 +40,8 @@ the `Cancel` button throws the draft away. A draft you leave alone for 15 minute
 The builder looks different depending on your server and your game version.
 
 - **Dialog.** A window with buttons and input fields. `Add` opens a small form with the material, an amount slider and
-  the price per item. Instead of a material you can type [criteria](#criteria-lines), such as `#logs`. `Add item in hand` does the same for the item you hold. Click a line to change its amount or
+  the price per item. `Add item in hand` does the same for the item you hold. Instead of a material you can type
+  [criteria](#criteria-lines), such as `#logs`. Click a line to change its amount or
   price, or to remove it. `Repeat` sets up a [repeating order](./repeating-orders.md).
 - **Chat.** A menu in chat. Buttons like `[Add]`, `[Add by criteria]`, `[Amount]` and `[Price]` put the matching
   `/order draft` command into your chat line, so you only type the numbers. `[Remove]` removes a line at once.

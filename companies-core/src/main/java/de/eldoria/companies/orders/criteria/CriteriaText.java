@@ -70,12 +70,7 @@ public final class CriteriaText {
      * @return the text
      */
     public static String plain(ItemCriteria criteria) {
-        List<String> items = new ArrayList<>();
-        var named = criteria.items().stream().limit(SHOWN).toList();
-        for (var item : named) items.add(itemName(item));
-        var more = criteria.items().size() - named.size();
-        if (more > 0) items.add("+" + more);
-        var text = new StringBuilder(String.join(" / ", items));
+        var text = new StringBuilder(plainItems(criteria));
         List<String> conditions = new ArrayList<>();
         if (criteria.minEnchantments() > criteria.enchantments().size()) {
             conditions.add("✦ ≥" + criteria.minEnchantments());
@@ -84,6 +79,21 @@ public final class CriteriaText {
         if (!conditions.isEmpty())
             text.append(" (").append(String.join(", ", conditions)).append(')');
         return text.toString();
+    }
+
+    /**
+     * The items of criteria as plain English text, without the conditions: {@code #Logs / Bamboo Block}.
+     *
+     * @param criteria the criteria
+     * @return the text
+     */
+    public static String plainItems(ItemCriteria criteria) {
+        List<String> items = new ArrayList<>();
+        var named = criteria.items().stream().limit(SHOWN).toList();
+        for (var item : named) items.add(itemName(item));
+        var more = criteria.items().size() - named.size();
+        if (more > 0) items.add("+" + more);
+        return String.join(" / ", items);
     }
 
     /**

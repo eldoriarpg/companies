@@ -88,6 +88,18 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     }
 
     /**
+     * Whether other criteria accept the same: the same items and enchantments in any order, and the same count.
+     *
+     * @param other the other criteria
+     * @return true when both accept the same items
+     */
+    public boolean sameAs(ItemCriteria other) {
+        return minEnchantments == other.minEnchantments
+                && Set.copyOf(items).equals(Set.copyOf(other.items))
+                && Set.copyOf(enchantments).equals(Set.copyOf(other.enchantments));
+    }
+
+    /**
      * Whether an entry names a tag.
      *
      * @param item an entry of {@link #items()}

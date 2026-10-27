@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -299,6 +300,16 @@ class OrderCreateWritesTest {
                 "dashboard.invalid",
                 create("[{\"criteria\":{\"items\":[]},\"amount\":1,\"unitPrice\":1}]", MAY_CREATE)
                         .reason());
+        for (var enchantments : List.of("{\"sharpness\":0}", "{\"\":1}", "[1]")) {
+            assertEquals(
+                    "dashboard.invalid",
+                    create(
+                                    "[{\"criteria\":{\"items\":[\"diamond_sword\"],\"enchantments\":" + enchantments
+                                            + "},\"amount\":1,\"unitPrice\":1}]",
+                                    MAY_CREATE)
+                            .reason(),
+                    enchantments);
+        }
         assertEquals(10_000.0, world.wallets.get(owner));
     }
 
@@ -313,9 +324,15 @@ class OrderCreateWritesTest {
         assertEquals("#Logs", logs.path("name").asString());
         assertTrue(logs.path("materials").valueStream().anyMatch(key -> key.asString()
                 .equals("minecraft:oak_log")));
-        assertFalse(tags.valueStream()
+        var orderable = perform(Actions.ORDERS_CATALOGUE, "{}", MAY_CREATE)
+                .data()
+                .path("materials")
+                .valueStream()
+                .map(material -> material.path("item").path("material").asString())
+                .collect(Collectors.toSet());
+        assertTrue(tags.valueStream()
                 .flatMap(tag -> tag.path("materials").valueStream())
-                .anyMatch(key -> key.asString().equals("minecraft:bedrock")));
+                .allMatch(key -> orderable.contains(key.asString())));
     }
 
     @Test

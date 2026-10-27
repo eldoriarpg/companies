@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * <p>
  * Entries are separated by spaces or commas. An entry starting with {@code #} is an item tag, {@code enchants:<n>} is
  * the fewest enchantments an item must carry, {@code <enchantment>:<level>} requires an enchantment at a minimum level,
- * and every other entry is a material. Keys may carry a namespace, such as {@code minecraft:sharpness:3}.
+ * and every other entry is a material. A count or level that is no number, negative or given twice is refused. Keys may carry a namespace, such as {@code minecraft:sharpness:3}.
  */
 public final class CriteriaSyntax {
     /**
@@ -28,7 +28,8 @@ public final class CriteriaSyntax {
     public static final String COUNT = "enchants";
 
     private static final Pattern SEPARATOR = Pattern.compile("[\\s,]+");
-    private static final Pattern LEVELLED = Pattern.compile("(.+):(\\d+)");
+    private static final Pattern LEVELLED = Pattern.compile("(.+):(-?\\d+)");
+    private static final Pattern COUNTED = Pattern.compile(COUNT + ":.*", Pattern.CASE_INSENSITIVE);
 
     private CriteriaSyntax() {
         throw new UnsupportedOperationException("This is a utility class.");
@@ -58,9 +59,10 @@ public final class CriteriaSyntax {
     public static ItemCriteria parse(String text) {
         List<String> items = new ArrayList<>();
         List<ItemCriteria.Required> enchantments = new ArrayList<>();
-        var count = 0;
+        Integer count = null;
         for (var entry : entries(text)) {
             var levelled = LEVELLED.matcher(entry);
+            if (!levelled.matches() && COUNTED.matcher(entry).matches()) throw failure(entry);
             if (ItemCriteria.isTag(entry) || !levelled.matches()) {
                 items.add(entry);
                 continue;
@@ -73,6 +75,7 @@ public final class CriteriaSyntax {
                 throw failure(entry);
             }
             if (key.equalsIgnoreCase(COUNT)) {
+                if (count != null || level < 0) throw failure(entry);
                 count = level;
             } else if (level < 1 || enchantments.stream().anyMatch(other -> sameKey(other.enchantment(), key))) {
                 throw failure(entry);
@@ -82,7 +85,7 @@ public final class CriteriaSyntax {
         }
         if (items.isEmpty()) throw failure(text.strip());
         try {
-            return new ItemCriteria(items, count, enchantments);
+            return new ItemCriteria(items, count == null ? 0 : count, enchantments);
         } catch (IllegalArgumentException e) {
             throw failure(text.strip());
         }

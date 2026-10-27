@@ -508,17 +508,34 @@ public final class Views {
     }
 
     /**
-     * Describes the item of a line.
+     * Describes the item of a line. A criteria line is named after the items of its set; the web app shows its
+     * conditions from {@link #criteria(ItemCriteria)}.
      *
      * @param line   the line
      * @param amount the amount to show
      * @return the item
      */
     public ItemView item(IOrderContent line, int amount) {
+        return item(line, amount, false);
+    }
+
+    /**
+     * Describes the item of a line, a criteria line with its conditions in its name, for views without the criteria.
+     *
+     * @param line   the line
+     * @param amount the amount to show
+     * @return the item
+     */
+    public ItemView itemWithConditions(IOrderContent line, int amount) {
+        return item(line, amount, true);
+    }
+
+    private ItemView item(IOrderContent line, int amount, boolean conditions) {
         var criteria = line.criteria();
         if (criteria.isPresent()) {
             var view = item(line.material(), amount);
-            return new ItemView(view.material(), CriteriaText.plain(criteria.get()), amount, view.icon());
+            var name = conditions ? CriteriaText.plain(criteria.get()) : CriteriaText.plainItems(criteria.get());
+            return new ItemView(view.material(), name, amount, view.icon());
         }
         return line.exact() ? item(line.stack(), amount) : item(line.material(), amount);
     }

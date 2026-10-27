@@ -4,7 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 import type {CatalogueMaterial, CriteriaArgs, ItemDefinition, KnownItem, OrderCatalogue, OrderCreateArgs, OrderLineArgs, RepetitionArgs} from '~/api/gateway'
-import type {ItemView} from '~/api/generated/protocol'
+import type {CriteriaView, ItemView} from '~/api/generated/protocol'
 
 /**
  * Where a line's item comes from: a plain material, a saved or earlier item, an item defined in the browser, or
@@ -69,21 +69,48 @@ export function entryName(entry: string, catalogue: OrderCatalogue | null): stri
     return catalogue?.materials.find(material => material.item.material === entry)?.item.name ?? entry
 }
 
+/** Writes the enchantment count of criteria, such as "At least 2 enchantments". */
+export type CountText = (count: number) => string
+
 /**
  * The conditions of criteria as short lines: the enchantment count and each required enchantment with its level.
  *
  * @param criteria the criteria
  * @param catalogue the enchantment names
+ * @param countText writes the count
  * @returns the lines, empty without conditions
  */
-export function conditionsOf(criteria: CriteriaArgs, catalogue: OrderCatalogue | null): string[] {
-    const required = Object.entries(criteria.enchantments ?? {})
+export function conditionsOf(criteria: CriteriaArgs, catalogue: OrderCatalogue | null, countText: CountText): string[] {
+    const required = Object.entries(criteria.enchantments ?? {}).map(([key, level]) => ({
+        name: catalogue?.enchantments.find(entry => entry.key === key)?.name ?? key,
+        minLevel: level,
+    }))
+    return conditionLines(criteria.minEnchantments ?? 0, required, countText)
+}
+
+/**
+ * The conditions of a criteria line as the plugin sent them, as short lines.
+ *
+ * @param criteria the criteria of the line
+ * @param countText writes the count
+ * @returns the lines, empty without conditions
+ */
+export function viewConditions(criteria: CriteriaView, countText: CountText): string[] {
+    return conditionLines(criteria.minEnchantments, criteria.enchantments, countText)
+}
+
+/**
+ * Writes conditions: the count when it asks for more than the required enchantments, then each of them.
+ *
+ * @param count the fewest enchantments
+ * @param required the required enchantments with their names
+ * @param countText writes the count
+ * @returns the lines
+ */
+function conditionLines(count: number, required: {name: string, minLevel: number}[], countText: CountText): string[] {
     const lines: string[] = []
-    if ((criteria.minEnchantments ?? 0) > required.length) lines.push(`✦ ≥${criteria.minEnchantments}`)
-    for (const [key, level] of required) {
-        const name = catalogue?.enchantments.find(entry => entry.key === key)?.name ?? key
-        lines.push(level > 1 ? `${name} ${roman(level)}+` : name)
-    }
+    if (count > required.length) lines.push(countText(count))
+    for (const {name, minLevel} of required) lines.push(minLevel > 1 ? `${name} ${roman(minLevel)}+` : name)
     return lines
 }
 
@@ -110,12 +137,13 @@ export function criteriaSource(criteria: CriteriaArgs, catalogue: OrderCatalogue
  *
  * @param source where the item comes from
  * @param catalogue the names of the properties
+ * @param countText writes the enchantment count of criteria
  * @returns the lines, empty for a plain material
  */
-export function detailsOf(source: LineSource, catalogue: OrderCatalogue | null): string[] {
+export function detailsOf(source: LineSource, catalogue: OrderCatalogue | null, countText: CountText): string[] {
     if (source.kind === 'known') return source.known.details
     if (source.kind === 'material') return []
-    if (source.kind === 'criteria') return conditionsOf(source.criteria, catalogue)
+    if (source.kind === 'criteria') return conditionsOf(source.criteria, catalogue, countText)
     const {definition} = source
     const named = (entries: {key: string, name: string}[] | undefined, key: string) =>
         entries?.find(entry => entry.key === key)?.name ?? key

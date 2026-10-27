@@ -226,13 +226,15 @@ public final class OrderCreateWrites {
         }
         var count = criteria.path("minEnchantments");
         if (!count.isMissingNode() && !count.isNull() && !whole(count)) throw CommandFailure.of(INVALID);
-        List<ItemCriteria.Required> enchantments = new ArrayList<>();
-        for (var entry : criteria.path("enchantments").properties()) {
-            if (!whole(entry.getValue())) throw CommandFailure.of(INVALID);
-            enchantments.add(
-                    new ItemCriteria.Required(entry.getKey(), entry.getValue().asInt()));
-        }
+        var required = criteria.path("enchantments");
+        if (!required.isMissingNode() && !required.isNull() && !required.isObject()) throw CommandFailure.of(INVALID);
         try {
+            List<ItemCriteria.Required> enchantments = new ArrayList<>();
+            for (var entry : required.properties()) {
+                if (!whole(entry.getValue())) throw CommandFailure.of(INVALID);
+                enchantments.add(new ItemCriteria.Required(
+                        entry.getKey(), entry.getValue().asInt()));
+            }
             return new ItemCriteria(items, whole(count) ? count.asInt() : 0, enchantments);
         } catch (IllegalArgumentException e) {
             throw CommandFailure.of(INVALID);

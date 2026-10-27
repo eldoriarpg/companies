@@ -808,6 +808,7 @@ export default {
         conditions: 'Enchantments',
         conditionsNote: 'Leave them empty to take the items as they come.',
         minEnchantments: 'At least this many enchantments',
+        atLeastEnchantments: 'At least {count} enchantments',
         requiredEnchantment: 'Required enchantment',
         minLevel: 'From level',
         require: 'Require',

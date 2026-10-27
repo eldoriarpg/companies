@@ -32,7 +32,7 @@ defineEmits<{
 
 const {t, locale} = useI18n()
 const item = computed(() => itemOf(line.value.source))
-const details = computed(() => detailsOf(line.value.source, props.catalogue))
+const details = computed(() => detailsOf(line.value.source, props.catalogue, count => t('builder.atLeastEnchantments', {count})))
 const editable = computed(() => {
   const {source} = line.value
   if (source.kind === 'known') return false

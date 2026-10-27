@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * One line of an order.
  *
- * @param item the ordered item and amount; for a criteria line the first item of its set, named after the criteria
+ * @param item the ordered item and amount; for a criteria line the first item of its set, named after the set
  * @param delivered how many were delivered
  * @param price the price of the whole line
  * @param criteria what a criteria line accepts, null for other lines

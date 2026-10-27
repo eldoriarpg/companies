@@ -99,6 +99,10 @@ class CriteriaSyntaxTest {
         assertEquals("order.criteria.error.syntax", refusal("stone sharpness:1 sharpness:2"));
         assertEquals("order.criteria.error.syntax", refusal("stone enchants:99999999999"));
         assertEquals("order.criteria.error.syntax", refusal("   "));
+        assertEquals("order.criteria.error.syntax", refusal("stone enchants:-1"));
+        assertEquals("order.criteria.error.syntax", refusal("stone enchants:two"));
+        assertEquals("order.criteria.error.syntax", refusal("stone enchants:1 enchants:2"));
+        assertEquals("order.criteria.error.syntax", refusal("diamond_sword sharpness:-2"));
     }
 
     @Test
@@ -107,14 +111,16 @@ class CriteriaSyntaxTest {
         var logs = CriteriaSyntax.parse("#logs");
 
         assertEquals(1, drafts.add(draft, logs, 40, 1.0));
-        assertEquals(1, drafts.add(draft, CriteriaSyntax.parse("#minecraft:logs"), 80, 2.0));
+        assertEquals(1, drafts.add(draft, CriteriaSyntax.parse("#minecraft:logs"), 30, 2.0));
+        assertEquals(2, drafts.add(draft, CriteriaSyntax.parse("oak_planks birch_planks"), 10, 1.0));
+        assertEquals(2, drafts.add(draft, CriteriaSyntax.parse("birch_planks, oak_planks"), 40, 1.0));
         assertEquals(100, draft.amount());
         assertEquals(logs, draft.line(1).orElseThrow().criteria());
 
         var refused = assertThrows(
                 CommandFailure.class, () -> drafts.add(draft, CriteriaSyntax.parse("#logs sharpness:1"), 1, 1.0));
         assertEquals("order.criteria.error.enchantmentNotApplicable", refused.localeKey());
-        assertEquals(1, draft.lineCount());
+        assertEquals(2, draft.lineCount());
     }
 
     private static String refusal(String text) {

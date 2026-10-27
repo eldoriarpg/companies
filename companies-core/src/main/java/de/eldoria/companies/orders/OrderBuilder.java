@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -75,7 +74,7 @@ public class OrderBuilder {
     }
 
     /**
-     * Adds a criteria line, or adds the amount to a line with equal criteria and takes the new unit price.
+     * Adds a criteria line, or adds the amount to a line with the same criteria and takes the new unit price.
      *
      * @param criteria  what the line accepts
      * @param amount    number of items
@@ -341,14 +340,17 @@ public class OrderBuilder {
         }
 
         /**
-         * Whether another line asks for the same: equal criteria for criteria lines, otherwise the same kind and a
-         * similar template.
+         * Whether another line asks for the same: the same criteria in any order for criteria lines, otherwise the same
+         * kind and a similar template.
          *
          * @param other the other line
          * @return true when the lines may be merged
          */
         public boolean similar(DraftLine other) {
-            if (criteria != null || other.criteria != null) return Objects.equals(criteria, other.criteria);
+            var mine = criteria;
+            var theirs = other.criteria;
+            if (mine != null && theirs != null) return mine.sameAs(theirs);
+            if (mine != null || theirs != null) return false;
             return exact == other.exact && template.isSimilar(other.template);
         }
 
