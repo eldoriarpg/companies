@@ -36,7 +36,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -61,6 +63,12 @@ import java.util.stream.Collectors;
  * account that paid them; chunks already taken may still be delivered until their own delivery time and count for the
  * offer. A chunk that is aborted or expires is open again like any order and is withdrawn when its offer no longer
  * runs.
+ * <p>
+ * The {@link Announcer} hears when a goal or contest starts for the first time, when a goal is reached, and the highest
+ * threshold of 25, 50, 75 and 100 % a goal's progress passed since the last check, while the goal runs or is paused
+ * or in the check that reached it; each threshold is stored with the goal, so it is announced once, also across
+ * restarts. The first start of a goal is noted like that of a contest, so a goal paused before its start and resumed
+ * waits for the next check, which starts and announces it.
  * <p>
  * Contests are started, closed and settled by {@link ContestJob}.
  */
@@ -203,6 +211,12 @@ public final class EventOfferService {
         var current = offers.offer(offer.id()).orElse(null);
         if (current == null) return;
         current = advance(current, now, run);
+        var state = current.state();
+        if (state == OfferState.ACTIVE
+                || state == OfferState.PAUSED
+                || run.changed().get(current.id()) == OfferState.REACHED) {
+            progress(current);
+        }
         var open = offers.openChunks(current.id());
         if (current.state() != OfferState.ACTIVE) {
             refused.remove(current.id());
@@ -238,10 +252,18 @@ public final class EventOfferService {
         var current = offer;
         while (true) {
             var next = next(current, now);
-            if (next == null || !offers.state(current.id(), current.state(), next, now)) return current;
+            if (next == null) return current;
+            // The first start of a goal notes when it started, so a resume never announces it again.
+            var first =
+                    current.state() == OfferState.SCHEDULED && next == OfferState.ACTIVE && current.started() == null;
+            var changed = first
+                    ? offers.activate(current.id(), 0, now)
+                    : offers.state(current.id(), current.state(), next, now);
+            if (!changed) return current;
             run.changed().put(current.id(), next);
             current = offers.offer(current.id()).orElse(current);
             if (next == OfferState.REACHED) announce(current);
+            if (first) started(current);
         }
     }
 
@@ -260,6 +282,43 @@ public final class EventOfferService {
             }
             default -> null;
         };
+    }
+
+    /**
+     * The thresholds of a goal's progress that are announced, each at most once.
+     */
+    static final int[] THRESHOLDS = {25, 50, 75, 100};
+
+    /**
+     * Announces the highest threshold the progress of a goal passed since the last announcement. A goal that passed
+     * several thresholds since then announces the highest one only.
+     */
+    private void progress(EventOffer offer) {
+        var threshold = threshold(offer.percent());
+        if (threshold == 0 || !offers.progressPosted(offer.id(), threshold)) return;
+        try {
+            announcer.goalProgress(offer, threshold);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not announce the progress of the event offer #" + offer.id(), e);
+        }
+    }
+
+    /**
+     * @param percent the share delivered
+     * @return the highest threshold it passed, 0 for none
+     */
+    static int threshold(int percent) {
+        var passed = 0;
+        for (var threshold : THRESHOLDS) if (percent >= threshold) passed = threshold;
+        return passed;
+    }
+
+    private void started(EventOffer offer) {
+        try {
+            announcer.started(offer);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not announce the start of the event offer #" + offer.id(), e);
+        }
     }
 
     private void announce(EventOffer offer) {
@@ -422,6 +481,21 @@ public final class EventOfferService {
         void reached(EventOffer offer);
 
         /**
+         * Announces that a goal or a contest started, the first time it runs.
+         *
+         * @param offer the offer
+         */
+        default void started(EventOffer offer) {}
+
+        /**
+         * Announces that the progress of a goal passed a threshold.
+         *
+         * @param offer     the goal
+         * @param threshold the threshold in percent: 25, 50, 75 or 100
+         */
+        default void goalProgress(EventOffer offer, int threshold) {}
+
+        /**
          * Announces the result of a closed contest.
          *
          * @param offer   the contest, settled
@@ -436,6 +510,52 @@ public final class EventOfferService {
          * @param offer the contest
          */
         default void contestCancelled(EventOffer offer) {}
+
+        /**
+         * @param announcers the announcers, each asked in turn; one that fails does not stop the others
+         * @return an announcer telling all of them
+         */
+        static Announcer all(List<Supplier<@Nullable Announcer>> announcers) {
+            return new Announcer() {
+                private void each(Consumer<Announcer> call) {
+                    for (var supplier : announcers) {
+                        var announcer = supplier.get();
+                        if (announcer == null) continue;
+                        try {
+                            call.accept(announcer);
+                        } catch (RuntimeException e) {
+                            Logger.getLogger(Announcer.class.getName())
+                                    .log(Level.WARNING, "An announcer of event offers failed", e);
+                        }
+                    }
+                }
+
+                @Override
+                public void reached(EventOffer offer) {
+                    each(announcer -> announcer.reached(offer));
+                }
+
+                @Override
+                public void started(EventOffer offer) {
+                    each(announcer -> announcer.started(offer));
+                }
+
+                @Override
+                public void goalProgress(EventOffer offer, int threshold) {
+                    each(announcer -> announcer.goalProgress(offer, threshold));
+                }
+
+                @Override
+                public void contestClosed(EventOffer offer, List<ContestEntry> ranking, List<ContestPrize> prizes) {
+                    each(announcer -> announcer.contestClosed(offer, ranking, prizes));
+                }
+
+                @Override
+                public void contestCancelled(EventOffer offer) {
+                    each(announcer -> announcer.contestCancelled(offer));
+                }
+            };
+        }
     }
 
     /**

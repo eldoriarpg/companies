@@ -551,6 +551,42 @@ public abstract class OfferDataContract {
         assertEquals(PrizeState.FAILED, offers.prizes(id).getFirst().state());
     }
 
+    @Test
+    void unclaimedChunksAreCountedForAllGoalsOrOne() {
+        var first = active();
+        var second = active();
+        var waiting = order();
+        var taken = order();
+        var other = order();
+        order();
+        offers.addChunk(first, waiting.id(), 100, 250.0, null, NOW);
+        offers.addChunk(first, taken.id(), 100, 250.0, null, NOW);
+        offers.addChunk(second, other.id(), 100, 250.0, null, NOW);
+        claim(taken, company("Iron Works"));
+
+        assertEquals(2, offers.unclaimedChunks(0));
+        assertEquals(1, offers.unclaimedChunks(first));
+        assertEquals(1, offers.unclaimedChunks(second));
+        assertEquals(0, offers.unclaimedChunks(second + 100));
+    }
+
+    @Test
+    void progressThresholdsAreNotedOnceAndRunningOffersListedByTheirEnd() {
+        var goal = active();
+        var contest = contest(100, 1.0, List.of(), 100.0);
+        var closed = active();
+        offers.state(closed, OfferState.ACTIVE, OfferState.ENDED, NOW);
+
+        assertTrue(offers.progressPosted(goal, 25));
+        assertFalse(offers.progressPosted(goal, 25));
+        assertTrue(offers.progressPosted(goal, 75));
+        assertFalse(offers.progressPosted(goal, 50));
+
+        assertEquals(
+                List.of(contest, goal),
+                offers.running().stream().map(EventOffer::id).toList());
+    }
+
     private int contest(int amount, double unit, List<Double> prizes, double budget) {
         return offers.create(EventOffer.contest(
                         "Race",

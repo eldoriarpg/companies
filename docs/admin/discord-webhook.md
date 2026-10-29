@@ -18,7 +18,7 @@ reaches a higher level. It uses a Discord webhook, so you need no bot.
    discord:
      enabled: true
      url: ''
-     events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP]
+     events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP, OFFER_STARTED, GOAL_PROGRESS, CONTEST_RESULT]
      username: Companies
      avatarUrl: ''
      maxPerMinute: 20
@@ -63,11 +63,18 @@ If something is wrong, the webhook does not start and the console tells you why,
 | `ORDER_CREATED` | An order is placed | Order name, items, price |
 | `ORDER_COMPLETED` | An order is fully delivered | Order name, items, price |
 | `LEVEL_UP` | A company reaches a higher level | Company name, new level |
+| `OFFER_STARTED` | An [event offer](./admin-commands.md#event-offers), goal or contest, starts | Name, kind, items asked for, price per item, end |
+| `GOAL_PROGRESS` | A goal passes 25, 50, 75 or 100 % (100 % is posted as "Goal reached") | Name, progress, items delivered |
+| `CONTEST_RESULT` | A contest closes, or is cancelled | Name, the first 10 places with their items and paid prizes |
 
 Order messages never show who placed the order or which company delivered it. They also show no fees, taxes or
 payouts. Text written by players is escaped, so an order name cannot format text, post links or ping anyone.
 
-Each event is posted by the one server it happens on. On a network, nothing is posted twice.
+Each event is posted by the one server it happens on. On a network, nothing is posted twice. Event offers are posted
+by the primary server. Each progress threshold of a goal is posted once, also across restarts; a goal that passed
+several thresholds between two checks posts the highest one only.
+
+A config written before the event offers keeps its list; add the three new events to post them.
 
 ## Name and picture
 

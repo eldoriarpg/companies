@@ -17,6 +17,8 @@ A board is one of these:
 - **A preset.** A named filter from `boards.presets` in `config.yml`, such as `iron`.
 - **Materials.** One or more materials, separated by spaces, such as `oak_log birch_log`. Each one matches every
   material whose name contains it, so `iron` matches `iron_ingot`, `iron_block`, `raw_iron` and more.
+- **Event offers.** `event` shows the chunks of every [event offer](./admin-commands.md#event-offers) goal, `event <id>`
+  only those of one goal. Contests are no orders, so no board shows them; `/company events` lists them.
 - **Nothing.** An empty board shows every open order.
 
 A board opens the first page of results. Players can press **[Change]** to adjust the search from there. Members with
@@ -46,6 +48,9 @@ boards:
       label: Cheap wood
       materials: [log]
       maxPrice: 500
+    harbour:
+      label: Harbour goal
+      offers: 12
 ```
 
 | Key | Default | Meaning |
@@ -59,6 +64,7 @@ boards:
 | `maxPrice` | `0` | Highest order price. `0` means no limit |
 | `minSize` | `0` | Fewest items in the order |
 | `maxSize` | `0` | Most items in the order. `0` means no limit |
+| `offers` | empty | `all`: only the chunks of event offer goals. An offer's number: only the chunks of that goal. Empty means any order |
 
 Preset names ignore case. If two presets have the same name, the first one counts.
 
@@ -77,7 +83,7 @@ To make a sign board:
 
 1. Place a sign.
 2. Write `[Companies]` on the first line. Case does not matter. You can change this text with `boards.signHeader`.
-3. Write a preset name or materials on the second line. Leave it empty for every open order.
+3. Write a preset name, `event`, `event <id>` or materials on the second line. Leave it empty for every open order.
 4. Finish editing.
 
 You need `companies.admin.boards` for this. The sign turns into a board right away: it is waxed, and both sides show

@@ -146,7 +146,15 @@ final class ContestJob {
             }
         }
         run.changed().put(offer.id(), OfferState.ACTIVE);
-        return offers.offer(offer.id()).orElse(null);
+        var started = offers.offer(offer.id()).orElse(null);
+        if (started != null && offer.started() == null) {
+            try {
+                announcer.started(started);
+            } catch (RuntimeException e) {
+                logger.log(Level.WARNING, "Could not announce the start of contest " + offer.id(), e);
+            }
+        }
+        return started;
     }
 
     private static @Nullable String accountOf(EventOffer offer) {

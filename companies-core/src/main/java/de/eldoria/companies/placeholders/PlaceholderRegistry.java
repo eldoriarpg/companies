@@ -8,11 +8,16 @@ package de.eldoria.companies.placeholders;
 import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
+import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.util.ProfileColors;
+import de.eldoria.companies.util.Texts;
+import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.DoubleFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -32,13 +38,19 @@ import java.util.function.ToIntFunction;
  * Player ids describe the requesting player, company ids the player's company and are empty (or zero for counts)
  * without one. Leaderboard ids read {@code top_<order>[_<range>]_<place>_<field>} and company ranks
  * {@code company_rank_<order>[_<range>]}; the range is {@code all}, {@code 30d} or {@code 7d} and all time when left
- * out. While a value is loaded for the first time the loading text is answered. No id names a company working on a
+ * out. Event offer ids read {@code offer_active_count} and {@code offer_<n>_<field>} for the n-th running goal or
+ * contest, the soonest end first. While a value is loaded for the first time the loading text is answered. No id names a company working on a
  * player's order or the owner of an order a company works on. Ids are matched ignoring case; an unknown id resolves
  * to null.
  */
 public final class PlaceholderRegistry {
     private static final String TOP = "top_";
     private static final String COMPANY_RANK = "company_rank_";
+    private static final String OFFER = "offer_";
+    private static final String OFFER_COUNT = "offer_active_count";
+    private static final List<String> OFFER_FIELDS =
+            List.of("name", "kind", "progress", "delivered", "amount", "item", "ends", "left", "id");
+    private static final DateTimeFormatter ENDS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final List<String> TOP_FIELDS = List.of("tag_colored", "name", "tag", "value");
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.builder()
             .character(LegacyComponentSerializer.SECTION_CHAR)
@@ -51,6 +63,8 @@ public final class PlaceholderRegistry {
     private final PlayerPlaceholderCache players;
     private final CompanyPlaceholderCache companies;
     private final LeaderboardCache leaderboards;
+    private final OfferPlaceholderCache offers;
+    private final Function<String, String> translate;
     private final DoubleFunction<String> money;
     private final Supplier<String> loadingText;
 
@@ -69,9 +83,38 @@ public final class PlaceholderRegistry {
             DoubleFunction<String> money,
             Function<String, String> translate,
             Supplier<String> loadingText) {
+        this(
+                players,
+                companies,
+                leaderboards,
+                new OfferPlaceholderCache(() -> CompletableFuture.completedFuture(List.of())),
+                money,
+                translate,
+                loadingText);
+    }
+
+    /**
+     * @param players      values of the players
+     * @param companies    values of the companies
+     * @param leaderboards the rankings
+     * @param offers       the event offers that run
+     * @param money        formats an amount of money
+     * @param translate    translates a locale key into the server language
+     * @param loadingText  text answered while a value is loaded for the first time
+     */
+    public PlaceholderRegistry(
+            PlayerPlaceholderCache players,
+            CompanyPlaceholderCache companies,
+            LeaderboardCache leaderboards,
+            OfferPlaceholderCache offers,
+            DoubleFunction<String> money,
+            Function<String, String> translate,
+            Supplier<String> loadingText) {
         this.players = players;
         this.companies = companies;
         this.leaderboards = leaderboards;
+        this.offers = offers;
+        this.translate = translate;
         this.money = money;
         this.loadingText = loadingText;
         playerIds.put("player_open_orders", view -> String.valueOf(view.openOrders()));
@@ -109,6 +152,8 @@ public final class PlaceholderRegistry {
         ids.add(COMPANY_RANK + "<order>[_<range>]");
         ids.addAll(playerIds.keySet());
         ids.add(TOP + "<order>[_<range>]_<place>_<name|tag|tag_colored|value>");
+        ids.add(OFFER_COUNT);
+        ids.add(OFFER + "<n>_<" + String.join("|", OFFER_FIELDS) + ">");
         return ids;
     }
 
@@ -122,6 +167,7 @@ public final class PlaceholderRegistry {
     public @Nullable String resolve(@Nullable UUID player, String id) {
         var key = id.toLowerCase(Locale.ROOT);
         if (key.startsWith(TOP)) return top(key.substring(TOP.length()));
+        if (key.startsWith(OFFER)) return offer(key);
         var playerId = playerIds.get(key);
         if (playerId != null)
             return player == null ? "" : players.get(player).map(playerId).orElseGet(loadingText);
@@ -150,6 +196,44 @@ public final class PlaceholderRegistry {
             var place = leaderboards.place(view.id(), order, range);
             return place.isPresent() ? String.valueOf(place.getAsInt()) : "";
         });
+    }
+
+    /**
+     * Resolves {@code offer_active_count} and {@code offer_<n>_<field>}, the n-th running offer by its end.
+     */
+    private @Nullable String offer(String key) {
+        if (!offers.loaded()) return key.equals(OFFER_COUNT) || offerField(key) != null ? loadingText.get() : null;
+        if (key.equals(OFFER_COUNT)) return String.valueOf(offers.count());
+        var field = offerField(key);
+        if (field == null) return null;
+        var number = key.substring(OFFER.length(), key.length() - field.length() - 1);
+        var place = place(number);
+        if (place.isEmpty()) return null;
+        var offer = offers.at(place.getAsInt());
+        if (offer.isEmpty()) return "";
+        var found = offer.get();
+        return switch (field) {
+            case "name" -> found.name();
+            case "kind" ->
+                translate.apply(found.kind() == OfferKind.CONTEST ? "offers.kind.contest" : "offers.kind.goal");
+            case "progress" -> String.valueOf(found.percent());
+            case "delivered" -> String.valueOf(found.delivered());
+            case "amount" -> String.valueOf(found.amount());
+            case "item" -> found.line().label();
+            case "ends" -> ENDS.format(Times.local(found.ends()));
+            case "left" -> {
+                var left = Duration.between(Times.now(), found.ends());
+                yield Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left);
+            }
+            default -> String.valueOf(found.id());
+        };
+    }
+
+    private static @Nullable String offerField(String key) {
+        for (var field : OFFER_FIELDS) {
+            if (key.endsWith("_" + field) && key.length() > OFFER.length() + field.length() + 1) return field;
+        }
+        return null;
     }
 
     private @Nullable String top(String spec) {

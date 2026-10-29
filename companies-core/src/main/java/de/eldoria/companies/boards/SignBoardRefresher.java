@@ -5,8 +5,6 @@
  */
 package de.eldoria.companies.boards;
 
-import de.eldoria.companies.orders.query.OrderFilter;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -28,7 +26,7 @@ import java.util.logging.Logger;
 public final class SignBoardRefresher {
     private final SignBoardIndex index;
     private final Function<String, Optional<BoardTarget>> resolve;
-    private final Function<OrderFilter, CompletableFuture<Integer>> count;
+    private final Function<BoardTarget, CompletableFuture<Integer>> count;
     private final SignWriter writer;
     private final RefreshSchedule schedule;
     private final Executor mainThread;
@@ -48,7 +46,7 @@ public final class SignBoardRefresher {
     public SignBoardRefresher(
             SignBoardIndex index,
             Function<String, Optional<BoardTarget>> resolve,
-            Function<OrderFilter, CompletableFuture<Integer>> count,
+            Function<BoardTarget, CompletableFuture<Integer>> count,
             SignWriter writer,
             RefreshSchedule schedule,
             Executor mainThread,
@@ -123,7 +121,7 @@ public final class SignBoardRefresher {
     }
 
     private CompletableFuture<Optional<Integer>> countSafely(String spec, BoardTarget target) {
-        return count.apply(target.filter()).thenApply(Optional::of).exceptionally(err -> {
+        return count.apply(target).thenApply(Optional::of).exceptionally(err -> {
             logger.log(Level.WARNING, "Could not count the open orders of board '" + spec + "'.", err);
             return Optional.empty();
         });

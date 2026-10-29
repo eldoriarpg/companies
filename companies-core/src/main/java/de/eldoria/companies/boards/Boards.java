@@ -10,8 +10,10 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.orders.offers.OfferMarks;
 import de.eldoria.companies.orders.query.OrderFilter;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Threading;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -31,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -39,8 +42,9 @@ import java.util.stream.Collectors;
 /**
  * Resolves boards and opens them.
  * <p>
- * A board is given as a preset name of the configuration, as materials separated by spaces (matched by a part of
- * their name), or as nothing for every open order. A material has to be part of the name of at least one material, so
+ * A board is given as a preset name of the configuration, as {@code event} or {@code event <id>} for the chunks of
+ * all event offers or of one, as materials separated by spaces (matched by a part of their name), or as nothing for
+ * every open order. Contests are no orders and show on no board; {@code /company events} lists them. A material has to be part of the name of at least one material, so
  * a mistyped preset name is refused instead of showing an empty board.
  * <p>
  * Opening needs {@link Permission.Boards#USE} and replaces the player's search query with the board's filter. A player
@@ -60,6 +64,8 @@ public final class Boards implements BoardOpener {
     private final AtomicReference<ResultsView> view = new AtomicReference<>();
     private final List<Runnable> presetListeners = new CopyOnWriteArrayList<>();
     private final Map<UUID, Instant> lastOpened = new ConcurrentHashMap<>();
+    private volatile OfferMarks offerMarks = OfferMarks.NONE;
+    private volatile IntFunction<Integer> unclaimedChunks = offer -> 0;
 
     /**
      * @param settings      the current board settings
@@ -97,6 +103,17 @@ public final class Boards implements BoardOpener {
     }
 
     /**
+     * Lets the boards of event offers count their chunks, once the offers can be read.
+     *
+     * @param marks  finds the event offers of orders, for boards that filter more than the offer
+     * @param chunks counts the chunks of an offer waiting to be taken, 0 for every offer
+     */
+    public void useOffers(OfferMarks marks, IntFunction<Integer> chunks) {
+        offerMarks = marks;
+        unclaimedChunks = chunks;
+    }
+
+    /**
      * Resolves what a board shows.
      *
      * @param presetOrMaterials a preset name, materials separated by spaces, or null or blank for every open order
@@ -107,13 +124,34 @@ public final class Boards implements BoardOpener {
         var text = presetOrMaterials.strip().toLowerCase(Locale.ROOT);
         var preset = settings.get().preset(text);
         if (preset.isPresent()) {
-            return Optional.of(
-                    new BoardTarget(text, preset.get().filter(), preset.get().label(text)));
+            return Optional.of(new BoardTarget(
+                    text,
+                    preset.get().filter(),
+                    preset.get().label(text),
+                    preset.get().offers()));
         }
+        var event = event(text);
+        if (event != null) return Optional.of(event);
         var materials = List.of(SPACES.split(text));
         if (!materials.stream().allMatch(this::isMaterial)) return Optional.empty();
         return Optional.of(
                 new BoardTarget(null, OrderFilter.ALL.withMaterials(materials), String.join(" ", materials)));
+    }
+
+    /**
+     * @param text a board text in lower case
+     * @return the board of event offers it names, {@code event} or {@code event <id>}, null for another text
+     */
+    private static @Nullable BoardTarget event(String text) {
+        if (text.equals(BoardTarget.EVENT)) return new BoardTarget(null, OrderFilter.ALL, BoardTarget.EVENT, 0);
+        if (!text.startsWith(BoardTarget.EVENT + " ")) return null;
+        try {
+            var id = Integer.parseInt(
+                    text.substring(BoardTarget.EVENT.length() + 1).strip());
+            return id > 0 ? new BoardTarget(null, OrderFilter.ALL, BoardTarget.EVENT + " " + id, id) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private boolean isMaterial(String part) {
@@ -146,6 +184,33 @@ public final class Boards implements BoardOpener {
      * @param filter filter of the board
      * @return number of open orders matching the filter
      */
+    public CompletableFuture<Integer> openCount(BoardTarget target) {
+        var offers = target.offers();
+        if (offers == null) return openCount(target.filter());
+        if (target.filter().equals(OrderFilter.ALL)) {
+            var chunks = unclaimedChunks;
+            return CompletableFuture.supplyAsync(() -> chunks.apply(offers), Threading.VIRTUAL);
+        }
+        var query = target.query();
+        var marks = offerMarks;
+        return orderData
+                .retrieveOrdersByQuery(query, OrderState.UNCLAIMED, OrderState.UNCLAIMED)
+                .asFuture()
+                .thenApply(found -> {
+                    var shown =
+                            marks.marks(found.stream().map(order -> order.id()).toList());
+                    return (int) found.stream()
+                            .filter(order -> query.showsOffer(shown.get(order.id())))
+                            .count();
+                });
+    }
+
+    /**
+     * Counts the open orders matching a filter.
+     *
+     * @param filter filter of the board
+     * @return number of open orders matching the filter
+     */
     public CompletableFuture<Integer> openCount(OrderFilter filter) {
         return orderData
                 .retrieveOrdersByQuery(SearchQuery.of(filter), OrderState.UNCLAIMED, OrderState.UNCLAIMED)
@@ -159,7 +224,7 @@ public final class Boards implements BoardOpener {
         var results = view.get();
         if (results == null) throw CommandFailure.of("error.notReady");
         if (!startOpening(player.getUniqueId())) return;
-        results.show(player, SearchQuery.of(target.filter()));
+        results.show(player, target.query());
     }
 
     private boolean startOpening(UUID player) {

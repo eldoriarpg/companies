@@ -76,7 +76,7 @@ boards:
 discord:
   enabled: false
   url: ''
-  events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP]
+  events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP, OFFER_STARTED, GOAL_PROGRESS, CONTEST_RESULT]
   username: Companies
   avatarUrl: ''
   maxPerMinute: 20
@@ -223,7 +223,7 @@ Posts new orders, completed orders and level ups to a Discord channel. See [Disc
 |---|---|---|---|---|
 | `enabled` | true/false | `false` | Post to the webhook. | reload |
 | `url` | text | `''` | The webhook URL. It must start with `https://`. The environment variable `COMPANIES_DISCORD_WEBHOOK` wins over it, see [Secrets from the environment](./index.md#secrets-from-the-environment). | reload |
-| `events` | list | `[ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP]` | What is posted. `ORDER_CREATED`: a new order. `ORDER_COMPLETED`: an order was fully delivered. `LEVEL_UP`: a company reached a higher level. | reload |
+| `events` | list | `[ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP, OFFER_STARTED, GOAL_PROGRESS, CONTEST_RESULT]` | What is posted. `ORDER_CREATED`: a new order. `ORDER_COMPLETED`: an order was fully delivered. `LEVEL_UP`: a company reached a higher level. `OFFER_STARTED`, `GOAL_PROGRESS`, `CONTEST_RESULT`: [event offers](../discord-webhook.md#events). | reload |
 | `username` | text | `Companies` | Name of the posts. When empty, the webhook's own name is used. | reload |
 | `avatarUrl` | text | `''` | Picture of the posts. When empty, the webhook's own picture is used. | reload |
 | `maxPerMinute` | number | `20` | Requests per minute from each server. From 1 to 60. | reload |

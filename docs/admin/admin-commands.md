@@ -113,7 +113,7 @@ Event offers are offers the server makes for an event or a shared goal. There ar
 
 - **Goals**: a large amount the server needs, such as 10,000 oak logs for the harbour, split into ordinary orders
   (chunks) that every company and every player working alone can take. Players see them with an
-  `[Event #<id>: <name>]` badge and can filter and sort the order search by them.
+  `[Event #<id>: <name>]` badge and can filter and sort the order search by them, and `event` boards show them.
 - **Contests**: one offer several companies join at once and race to deliver into, each delivery paid at once per
   item, with optional prizes for the first places.
 
@@ -195,8 +195,8 @@ How a contest runs:
   server then ranks the companies that delivered and still exist by their delivered items (the earlier one first
   among equals; a deleted company gets no place), pays each prize into the treasury of the company on that place (to
   its owner while treasuries are switched off), gives back to the account what was not spent, and announces the first
-  places to the players on the primary server. A prize no company reached, or that could not be paid, stays with the
-  contest and goes back to the account. Each prize is paid at most once, also when the server stops halfway: the
+  places to the players of every server, like a reached goal. A prize no company reached, or that could not be paid,
+  stays with the contest and goes back to the account. Each prize is paid at most once, also when the server stops halfway: the
   places and prizes are written in one step before any money moves, the next check finishes what is left, and a prize
   whose payment stopped without a known result is not paid again (`info` shows it, and the log names it); check the
   company's treasury log and note the outcome with `/companyadmin offers prize <id> <place> paid|failed`; `failed`
@@ -223,12 +223,15 @@ The primary server looks after the goals every minute, and at once after you cha
   in time is removed like any order, and its amount is placed again.
 - The **progress** of a goal is the items delivered to its chunks, counted the moment a chunk is completed. It is
   stored with the goal, so it stays when the orders are purged later. `info` shows who delivered most.
-- When the whole amount is delivered, the goal is **reached** within a minute, and every player on the primary
-  server gets a message. In a network, players on the other servers do not see it yet. Server-wide rewards for a
-  reached goal and announcements on every server come with server events.
+- When the whole amount is delivered, the goal is **reached** within a minute, and every player gets a message. In
+  a network the message reaches every server while the servers exchange messages (Redis, PostgreSQL notify or low
+  latency mode); without that only the players on the primary server see it. Server-wide rewards for a reached goal
+  come with server events.
+- When a goal or contest **starts**, players are told the same way, and `/company events` lists it.
 - When its end passes first, it **ends**: the chunks waiting to be taken are withdrawn, and chunks already taken may
   still be delivered until their own delivery time. They still count for the progress.
-- `pause` and `cancel` withdraw the waiting chunks the same way; `resume` places them again.
+- `pause` and `cancel` withdraw the waiting chunks the same way; `resume` places them again. A goal paused before it
+  started waits for the next check after `resume`, which starts and announces it.
 - When the budget cannot pay one more item while items are missing and no chunk is open, the goal closes early as
   **out of money**. With the default budget this only happens when a plugin raises the price of the chunks while
   they are placed: a chunk whose raised price the budget cannot pay is removed again, and the goal waits for its open

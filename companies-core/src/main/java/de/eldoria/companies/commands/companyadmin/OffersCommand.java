@@ -818,8 +818,8 @@ public final class OffersCommand {
 
     /**
      * Moves an offer into a state from one of the states it may come from. A paused offer whose start has not come
-     * yet goes back to waiting for it, and so does a paused contest that never started, so the primary takes its money
-     * when it starts.
+     * yet goes back to waiting for it, and so does a paused offer that never started, so the primary starts and
+     * announces it, and takes the money of a contest.
      *
      * @param data offer repository
      * @param id   id of the offer
@@ -833,7 +833,7 @@ public final class OffersCommand {
         var current = offer.get().state();
         if (!from.contains(current)) return Transition.REFUSED;
         var target = to;
-        var notStarted = offer.get().kind() == OfferKind.CONTEST && offer.get().started() == null;
+        var notStarted = offer.get().started() == null;
         if (current == OfferState.PAUSED
                 && to == OfferState.ACTIVE
                 && (notStarted

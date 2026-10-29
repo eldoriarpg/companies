@@ -60,6 +60,10 @@ class EventOfferServiceTest {
     private final List<SystemOrderService.Wanted> wanted = new ArrayList<>();
     private final List<Integer> removed = new ArrayList<>();
     private final List<EventOffer> announced = new ArrayList<>();
+    private final List<Integer> started = new ArrayList<>();
+    private final List<String> progressed = new ArrayList<>();
+    private Logger logger;
+    private SqLiteOrderData orderData;
     private OrderTable system;
     private SqLiteOfferData offers;
     private EventOfferService service;
@@ -93,8 +97,123 @@ class EventOfferServiceTest {
         };
         var logger = Logger.getAnonymousLogger();
         logger.setUseParentHandlers(false);
-        service = new EventOfferService(
-                offers, orderData, new FakePlacement(), new FakeFunding(), announced::add, clock, () -> 0.5, logger);
+        this.logger = logger;
+        this.orderData = orderData;
+        service = service();
+    }
+
+    private EventOfferService service() {
+        return new EventOfferService(
+                offers,
+                orderData,
+                new FakePlacement(),
+                new FakeFunding(),
+                new EventOfferService.Announcer() {
+                    @Override
+                    public void reached(EventOffer offer) {
+                        announced.add(offer);
+                    }
+
+                    @Override
+                    public void started(EventOffer offer) {
+                        started.add(offer.id());
+                    }
+
+                    @Override
+                    public void goalProgress(EventOffer offer, int threshold) {
+                        progressed.add(offer.id() + ":" + threshold);
+                    }
+                },
+                clock,
+                () -> 0.5,
+                logger);
+    }
+
+    @Test
+    void aGoalAnnouncesItsStartOnceAndNotWhenResumed() {
+        var id = goal(500, 2.0, 100, 1, SourceType.MINTED, null, 1000.0, 1, 24);
+
+        service.run();
+        assertTrue(started.isEmpty());
+        clock.advance(Duration.ofHours(1));
+        service.run();
+        offers.state(id, OfferState.ACTIVE, OfferState.PAUSED, LocalDateTime.now(clock));
+        service.run();
+        offers.state(id, OfferState.PAUSED, OfferState.ACTIVE, LocalDateTime.now(clock));
+        service.run();
+
+        assertEquals(List.of(id), started);
+    }
+
+    @Test
+    void eachProgressThresholdIsAnnouncedOnceAlsoAfterARestart() {
+        var id = goal(400, 1.0, 100, 4, SourceType.MINTED, null, 400.0);
+        var placed = service.run().placed();
+        claim(placed.get(0));
+        deliver(placed.get(0), 100);
+
+        service.run();
+        service.run();
+        assertEquals(List.of(id + ":25"), progressed);
+
+        service = service();
+        service.run();
+        assertEquals(List.of(id + ":25"), progressed);
+
+        for (var order : placed.subList(1, 3)) {
+            claim(order);
+            deliver(order, 100);
+        }
+        service.run();
+        assertEquals(List.of(id + ":25", id + ":75"), progressed);
+
+        claim(placed.get(3));
+        deliver(placed.get(3), 100);
+        service.run();
+        assertEquals(List.of(id + ":25", id + ":75", id + ":100"), progressed);
+        assertEquals(1, announced.size());
+    }
+
+    @Test
+    void aGoalPausedBeforeItsStartAndResumedAfterItIsStartedAndAnnounced() {
+        var id = goal(500, 2.0, 100, 1, SourceType.MINTED, null, 1000.0, 1, 24);
+        offers.state(id, OfferState.SCHEDULED, OfferState.PAUSED, LocalDateTime.now(clock));
+        clock.advance(Duration.ofHours(2));
+        service.run();
+        assertTrue(started.isEmpty());
+
+        // Resuming an offer that never started sends it back to wait for its start.
+        offers.state(id, OfferState.PAUSED, OfferState.SCHEDULED, LocalDateTime.now(clock));
+        var run = service.run();
+
+        assertEquals(OfferState.ACTIVE, run.changed().get(id));
+        assertEquals(List.of(id), started);
+        assertEquals(LocalDateTime.now(clock), offer(id).started());
+        assertEquals(1, run.placed().size());
+    }
+
+    @Test
+    void anEndedGoalPostsNoMoreProgress() {
+        var id = goal(400, 1.0, 100, 1, SourceType.MINTED, null, 400.0, 0, 24);
+        var first = service.run().placed().getFirst();
+        claim(first);
+        clock.advance(Duration.ofHours(24));
+        service.run();
+        assertEquals(OfferState.ENDED, offer(id).state());
+
+        deliver(first, 100);
+        service.run();
+
+        assertEquals(100, offer(id).delivered());
+        assertTrue(progressed.isEmpty());
+    }
+
+    @Test
+    void thresholdsArePassedAtTheirPercent() {
+        assertEquals(0, EventOfferService.threshold(24));
+        assertEquals(25, EventOfferService.threshold(25));
+        assertEquals(50, EventOfferService.threshold(74));
+        assertEquals(100, EventOfferService.threshold(100));
     }
 
     @AfterEach

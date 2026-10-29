@@ -14,6 +14,7 @@ import de.eldoria.companies.commands.company.ContestCommand;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.DashboardCommand;
 import de.eldoria.companies.commands.company.Disband;
+import de.eldoria.companies.commands.company.EventsCommand;
 import de.eldoria.companies.commands.company.HistoryCommand;
 import de.eldoria.companies.commands.company.InboxCommand;
 import de.eldoria.companies.commands.company.InviteCommand;
@@ -123,6 +124,9 @@ final class CompanyCommand {
     @Subcommand
     final ContestCommand contest;
 
+    @Subcommand
+    final EventsCommand events;
+
     CompanyCommand(CommandDependencies deps) {
         order = new CompanyOrderCommand(deps);
         permission = new Permission(deps);
@@ -149,6 +153,7 @@ final class CompanyCommand {
         alerts = new AlertsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
         dashboard = new DashboardCommand(deps);
         contest = new ContestCommand(deps);
+        events = new EventsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept), contest);
     }
 
     /**

@@ -20,5 +20,17 @@ public enum WebhookEvent {
     /**
      * A company reached a higher level.
      */
-    LEVEL_UP
+    LEVEL_UP,
+    /**
+     * An event offer, a goal or a contest, started.
+     */
+    OFFER_STARTED,
+    /**
+     * The progress of a goal passed 25, 50, 75 or 100 %.
+     */
+    GOAL_PROGRESS,
+    /**
+     * A contest closed with its ranking, or was cancelled.
+     */
+    CONTEST_RESULT
 }

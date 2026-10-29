@@ -51,7 +51,7 @@ class OffersCommandTest {
     @Test
     void pauseResumeAndCancelMoveOnlyFromTheirStates() {
         var id = goal(0);
-        offers.state(id, OfferState.SCHEDULED, OfferState.ACTIVE, Times.now());
+        offers.activate(id, 0, Times.now());
 
         assertEquals(OffersCommand.Transition.REFUSED, resume(id));
         assertEquals(OffersCommand.Transition.DONE, pause(id));
@@ -75,6 +75,19 @@ class OffersCommandTest {
         assertEquals(OffersCommand.Transition.REFUSED, OffersCommand.limit(offers, id, 7));
         assertEquals(5, offers.offer(id).orElseThrow().openChunks());
         assertEquals(OffersCommand.Transition.UNKNOWN, OffersCommand.limit(offers, id + 1, 7));
+    }
+
+    @Test
+    void aResumedGoalThatNeverStartedWaitsForTheNextCheck() {
+        var id = goal(0);
+
+        assertEquals(OffersCommand.Transition.DONE, pause(id));
+        assertEquals(OffersCommand.Transition.DONE, resume(id));
+        assertEquals(OfferState.SCHEDULED, state(id));
+        offers.activate(id, 0, Times.now());
+        assertEquals(OffersCommand.Transition.DONE, pause(id));
+        assertEquals(OffersCommand.Transition.DONE, resume(id));
+        assertEquals(OfferState.ACTIVE, state(id));
     }
 
     @Test

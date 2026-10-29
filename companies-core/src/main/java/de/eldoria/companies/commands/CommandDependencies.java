@@ -7,6 +7,7 @@ package de.eldoria.companies.commands;
 
 import de.eldoria.companies.boards.Boards;
 import de.eldoria.companies.boards.npc.NpcBoards;
+import de.eldoria.companies.commands.company.order.search.OrderSearch;
 import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.company.order.search.SearchSessions;
 import de.eldoria.companies.commands.support.CommandFailure;
@@ -97,6 +98,7 @@ public final class CommandDependencies {
     private final EconomyData economy;
     private final OrderDraftService drafts;
     private final SearchSessions searches = new SearchSessions();
+    private volatile Optional<OrderSearch> soloSearch = Optional.empty();
     private final Boards boards;
     private final NpcBoards npcBoards;
     private final List<Hook> reloadHooks = new CopyOnWriteArrayList<>();
@@ -493,6 +495,22 @@ public final class CommandDependencies {
      */
     public AdminLog adminLog() {
         return new AdminLog(plugin.getLogger());
+    }
+
+    /**
+     * Hands in the search of orders to work on alone, which {@code /order work} owns.
+     *
+     * @param search the search
+     */
+    public void useSoloSearch(OrderSearch search) {
+        soloSearch = Optional.of(search);
+    }
+
+    /**
+     * @return the search of orders to work on alone, empty before {@code /order work} was built
+     */
+    public Optional<OrderSearch> soloSearch() {
+        return soloSearch;
     }
 
     /**

@@ -469,6 +469,47 @@ public class MariaDbOfferData extends AOfferData {
     }
 
     @Override
+    public List<EventOffer> running() {
+        return query(OFFER + "WHERE state IN (?, ?, ?) ORDER BY ends, id")
+                .single(call().bind(OfferState.SCHEDULED.name())
+                        .bind(OfferState.ACTIVE.name())
+                        .bind(OfferState.PAUSED.name()))
+                .map(this::parseOffer)
+                .all();
+    }
+
+    @Override
+    public boolean progressPosted(int offer, int threshold) {
+        @Language("mariadb")
+        var update = """
+                UPDATE event_offers
+                SET posted_progress = ?
+                WHERE id = ?
+                  AND posted_progress < ?""";
+        return query(update)
+                .single(call().bind(threshold).bind(offer).bind(threshold))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public int unclaimedChunks(int offer) {
+        @Language("mariadb")
+        var select = """
+                SELECT COUNT(1) AS chunks
+                FROM orders o
+                         JOIN order_states s ON s.id = o.id
+                WHERE o.offer_id IS NOT NULL
+                  AND (? = 0 OR o.offer_id = ?)
+                  AND s.state = ?""";
+        return query(select)
+                .single(call().bind(offer).bind(offer).bind(OrderState.UNCLAIMED.stateId()))
+                .map(row -> row.getInt("chunks"))
+                .first()
+                .orElse(0);
+    }
+
+    @Override
     public List<EventOffer> contests() {
         return query(OFFER + "WHERE kind = ? AND state IN (?, ?, ?) ORDER BY id")
                 .single(call().bind(OfferKind.CONTEST.name())

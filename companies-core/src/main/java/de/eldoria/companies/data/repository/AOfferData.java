@@ -150,6 +150,29 @@ public abstract class AOfferData {
     public abstract Map<Integer, OfferMark> marks(Collection<Integer> orders);
 
     /**
+     * @return the goals and contests that run, wait for their start or are paused, the soonest end first
+     */
+    public abstract List<EventOffer> running();
+
+    /**
+     * Notes that the progress of a goal reached a threshold, once: a threshold is noted only when it is above the one
+     * noted before, so every threshold is announced at most once, also across restarts.
+     *
+     * @param offer     id of the goal
+     * @param threshold the threshold in percent
+     * @return true when the threshold is above the one noted before and is noted now
+     */
+    public abstract boolean progressPosted(int offer, int threshold);
+
+    /**
+     * Counts the chunks of goals waiting to be taken, for the boards of event offers.
+     *
+     * @param offer id of the goal, 0 for every goal
+     * @return the unclaimed orders that are chunks of the goal or of any goal
+     */
+    public abstract int unclaimedChunks(int offer);
+
+    /**
      * @return the contests that run, wait for their start or are paused, oldest first
      */
     public abstract List<EventOffer> contests();
@@ -215,10 +238,11 @@ public abstract class AOfferData {
     public abstract ContestDelivery deliver(int offer, int company, UUID worker, int offered, LocalDateTime at);
 
     /**
-     * Starts a scheduled contest that never ran, noting the money its account paid in.
+     * Starts a scheduled offer that never ran, noting when it started and, for a contest, the money its account paid
+     * in.
      *
-     * @param offer id of the contest
-     * @param held  what the account paid in, 0 for minted money
+     * @param offer id of the offer
+     * @param held  what the account of a contest paid in, 0 for minted money and goals
      * @param at    the current time
      * @return true when it waited and runs now
      */

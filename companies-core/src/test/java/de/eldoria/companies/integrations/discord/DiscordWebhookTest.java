@@ -87,6 +87,7 @@ class DiscordWebhookTest {
                 this::connect,
                 new DiscordEmbeds(key -> key, InstantSource.fixed(Instant.EPOCH)),
                 amount -> "$" + amount,
+                key -> key,
                 Logger.getAnonymousLogger());
     }
 

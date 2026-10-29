@@ -99,6 +99,7 @@ import de.eldoria.companies.nodes.NodeBuses;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.nodes.NodeConnection;
 import de.eldoria.companies.nodes.NodeMessage;
+import de.eldoria.companies.nodes.OfferNetwork;
 import de.eldoria.companies.nodes.SettingsSync;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -119,6 +120,7 @@ import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ChunkDeliveries;
 import de.eldoria.companies.orders.offers.ContestService;
 import de.eldoria.companies.orders.offers.EventOfferService;
+import de.eldoria.companies.orders.offers.NetworkAnnouncer;
 import de.eldoria.companies.orders.offers.OfferAnnouncer;
 import de.eldoria.companies.orders.system.GuessedLimit;
 import de.eldoria.companies.orders.system.GuessedOutcomes;
@@ -214,6 +216,7 @@ public class Companies extends EldoPlugin {
     private OrderDraftService drafts;
     private CompaniesApiImpl api;
     private DiscordWebhook discord;
+    private volatile @Nullable Placeholders placeholders;
     private NodeBus bus = new DatabaseBus();
     private final NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private NodeCaches caches;
@@ -388,13 +391,24 @@ public class Companies extends EldoPlugin {
                 Times.UTC,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
+        var offerAnnouncer = new OfferAnnouncer(this, MessageSender.getPluginMessageSender(this), economy, offerData);
+        var offerNetwork = new OfferNetwork(
+                        bus,
+                        message -> Threading.VIRTUAL.execute(() -> {
+                            offerAnnouncer.handle(message);
+                            var current = placeholders;
+                            if (current != null) current.offersChanged();
+                        }))
+                .start();
+        var networkAnnouncer = new NetworkAnnouncer(offerNetwork, getLogger());
         var eventOffers = new EventOfferService(
                 offerData,
                 orderData,
                 systemPlacement,
                 systemFunding,
                 ContestService.prizes(companyData, treasuryService),
-                new OfferAnnouncer(this, MessageSender.getPluginMessageSender(this), economy),
+                EventOfferService.Announcer.all(
+                        List.of(() -> networkAnnouncer, () -> discord == null ? null : discord.offers())),
                 Times.UTC,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
@@ -475,6 +489,7 @@ public class Companies extends EldoPlugin {
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));
         registerListener(new ChunkDeliveries(offerData, Times.UTC, Threading.VIRTUAL, getLogger()));
+        if (commands != null) commands.boards().useOffers(offerData::marks, offerData::unclaimedChunks);
         var expiringService = new ExpiringService(
                 this,
                 orderData,
@@ -569,9 +584,11 @@ public class Companies extends EldoPlugin {
                     orderData,
                     information.stats(),
                     this.economy.treasury(),
+                    offerData,
                     economy,
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();
+            this.placeholders = placeholders;
             registerListener(placeholders.events());
             if (commands != null) commands.onReload(placeholders::reload);
             registerPlaceholderCaches(placeholders);

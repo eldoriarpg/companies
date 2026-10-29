@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 
 /**
@@ -34,6 +35,7 @@ public final class DiscordWebhook {
     private final Function<DiscordSettings, Optional<WebhookClient>> connect;
     private final Logger logger;
     private final DiscordListener listener;
+    private final DiscordOffers offers;
     private final AtomicReference<WebhookClient> client = new AtomicReference<>();
 
     /**
@@ -48,11 +50,13 @@ public final class DiscordWebhook {
             Function<DiscordSettings, Optional<WebhookClient>> connect,
             DiscordEmbeds embeds,
             DoubleFunction<String> prices,
+            UnaryOperator<String> texts,
             Logger logger) {
         this.current = current;
         this.connect = connect;
         this.logger = logger;
         listener = new DiscordListener(current, embeds, prices, this::enqueue);
+        offers = new DiscordOffers(current, embeds, prices, texts, this::enqueue);
     }
 
     /**
@@ -73,6 +77,7 @@ public final class DiscordWebhook {
                 settings -> connect(settings, logger),
                 new DiscordEmbeds(localizer::localize, InstantSource.system()),
                 economy::format,
+                localizer::localize,
                 logger);
         webhook.restart();
         return webhook;
@@ -127,6 +132,13 @@ public final class DiscordWebhook {
      */
     public Listener listener() {
         return listener;
+    }
+
+    /**
+     * @return posts what happens to event offers; only the primary announces them
+     */
+    public DiscordOffers offers() {
+        return offers;
     }
 
     /**

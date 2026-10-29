@@ -106,4 +106,13 @@ public sealed interface NodeMessage {
      * The sending node shuts down. Its players count as offline.
      */
     record NodeStopped() implements NodeMessage {}
+
+    /**
+     * Something happened to an event offer that every node announces to its players. Receivers read the offer from the
+     * database, so the message only names it.
+     *
+     * @param offer id of the offer
+     * @param event what happened: {@code STARTED}, {@code REACHED}, {@code CLOSED} or {@code CANCELLED}
+     */
+    record OfferAnnounced(int offer, String event) implements NodeMessage {}
 }

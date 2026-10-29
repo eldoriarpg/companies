@@ -10,6 +10,7 @@ import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.Heartbeat;
 import de.eldoria.companies.nodes.NodeMessage.InboxNew;
 import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
+import de.eldoria.companies.nodes.NodeMessage.OfferAnnounced;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
 import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
@@ -51,7 +52,8 @@ public final class NodeMessageCodec {
             BoardsChanged.class, "boards.changed",
             SettingsChanged.class, "settings.changed",
             Heartbeat.class, "node.heartbeat",
-            NodeStopped.class, "node.stopped");
+            NodeStopped.class, "node.stopped",
+            OfferAnnounced.class, "offer.announced");
     private static final Map<String, Class<? extends NodeMessage>> CLASSES =
             TYPES.entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
 

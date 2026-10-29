@@ -58,6 +58,7 @@ class ContestJobTest {
     private final List<Integer> announced = new ArrayList<>();
     private final List<List<Integer>> rankings = new ArrayList<>();
     private final List<Integer> cancelled = new ArrayList<>();
+    private final List<Integer> contestsStarted = new ArrayList<>();
     private final List<List<String>> paidPrizes = new ArrayList<>();
     private Integer failingWinner;
     private boolean failOutcome;
@@ -114,6 +115,11 @@ class ContestJobTest {
                     public void reached(EventOffer offer) {}
 
                     @Override
+                    public void started(EventOffer offer) {
+                        contestsStarted.add(offer.id());
+                    }
+
+                    @Override
                     public void contestClosed(EventOffer offer, List<ContestEntry> ranking, List<ContestPrize> prizes) {
                         announced.add(offer.id());
                         rankings.add(ranking.stream().map(ContestEntry::company).toList());
@@ -149,6 +155,7 @@ class ContestJobTest {
         var run = service.run();
 
         assertEquals(OfferState.ACTIVE, run.changed().get(id));
+        assertEquals(List.of(id), contestsStarted);
         assertEquals(700.0, balances.get(BANK));
         var started = offers.offer(id).orElseThrow();
         assertEquals(300.0, started.held());
@@ -372,6 +379,10 @@ class ContestJobTest {
 
         assertEquals(OfferState.ACTIVE, offers.offer(id).orElseThrow().state());
         assertEquals(900.0, balances.get(BANK));
+        offers.state(id, OfferState.ACTIVE, OfferState.PAUSED, LocalDateTime.now(clock));
+        offers.state(id, OfferState.PAUSED, OfferState.SCHEDULED, LocalDateTime.now(clock));
+        service.run();
+        assertEquals(List.of(id), contestsStarted);
     }
 
     private static int company(String name) {

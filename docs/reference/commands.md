@@ -205,6 +205,13 @@ See [Inbox](../players/inbox.md) and [Rankings and history](../companies/ranking
 
 See [Order boards](../players/order-boards.md) for a guide.
 
+### Event offers
+
+| Command | Permission | Company permission | What it does |
+|---|---|---|---|
+| `/company events` | none | none | Lists the event offers, goals and contests, that run, are paused or start within a day: progress, time left and, for a contest, your company's place. |
+| `/company events open <id>` | none | none | Opens an offer: the order search with only the chunks of a goal (the search of orders to work on alone when you have no company and may work alone), or the info of a contest. The `[Open]` button of the list runs it. |
+
 ### Contests
 
 | Command | Permission | Company permission | What it does |

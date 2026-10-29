@@ -5,10 +5,13 @@
  */
 package de.eldoria.companies.orders.offers;
 
+import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.nodes.NodeMessage.OfferAnnounced;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.milkbowl.vault.economy.Economy;
@@ -17,11 +20,12 @@ import org.bukkit.plugin.Plugin;
 import java.util.List;
 
 /**
- * Announces reached goals and the first places of closed contests to every player online on this server, each in
- * their own language, and in the log.
+ * Shows the announcements of event offers to every player online on this server, each in their own language: started
+ * offers, reached goals, the first places of closed contests and cancelled contests.
  * <p>
- * The primary announces, so in a network only the players on the primary see it; announcements on every server come
- * with server events, which bring broadcasts, inbox entries and Discord posts.
+ * Every node runs one. The primary sends what happened through the {@link de.eldoria.companies.nodes.OfferNetwork},
+ * and each node reads the offer from the database when the announcement arrives, see {@link #handle}. The primary
+ * also logs it.
  */
 public final class OfferAnnouncer implements EventOfferService.Announcer {
     private static final int PLACES = 3;
@@ -29,23 +33,82 @@ public final class OfferAnnouncer implements EventOfferService.Announcer {
     private final Plugin plugin;
     private final MessageSender messages;
     private final Economy economy;
+    private final AOfferData offers;
 
     /**
      * @param plugin   the plugin
      * @param messages sends the announcement
      * @param economy  formats the prizes
+     * @param offers   offer repository, read when an announcement arrives
      */
-    public OfferAnnouncer(Plugin plugin, MessageSender messages, Economy economy) {
+    public OfferAnnouncer(Plugin plugin, MessageSender messages, Economy economy, AOfferData offers) {
         this.plugin = plugin;
         this.messages = messages;
         this.economy = economy;
+        this.offers = offers;
+    }
+
+    /**
+     * Shows an announcement that arrived from the primary. Reads the offer, and for a closed contest its places and
+     * prizes, from the database; call it off the main thread.
+     *
+     * @param message the announcement
+     */
+    public void handle(OfferAnnounced message) {
+        var offer = offers.offer(message.offer()).orElse(null);
+        if (offer == null) return;
+        switch (message.event()) {
+            case STARTED -> started(offer);
+            case REACHED -> reached(offer);
+            case CLOSED ->
+                contestClosed(
+                        offer,
+                        offers.ranking(offer.id()).stream()
+                                .filter(entry -> entry.delivered() > 0 && entry.name() != null)
+                                .toList(),
+                        offers.prizes(offer.id()));
+            case CANCELLED -> contestCancelled(offer);
+            default -> plugin.getLogger().fine("Unknown offer announcement " + message.event());
+        }
+    }
+
+    /**
+     * The event of an announcement that a goal or contest started.
+     */
+    public static final String STARTED = "STARTED";
+
+    /**
+     * The event of an announcement that a goal was reached.
+     */
+    public static final String REACHED = "REACHED";
+
+    /**
+     * The event of an announcement that a contest closed with a result.
+     */
+    public static final String CLOSED = "CLOSED";
+
+    /**
+     * The event of an announcement that a contest was cancelled.
+     */
+    public static final String CANCELLED = "CANCELLED";
+
+    @Override
+    public void started(EventOffer offer) {
+        Threading.mainThread(plugin).execute(() -> {
+            for (var player : plugin.getServer().getOnlinePlayers()) {
+                messages.sendMessage(
+                        player,
+                        offer.kind() == OfferKind.CONTEST ? "offers.contestStarted" : "offers.goalStarted",
+                        Values.text("offer_name", offer.name()),
+                        Values.number("amount", offer.amount()),
+                        Values.text("item", offer.line().label()),
+                        Values.money("unit", economy, offer.unitPrice()));
+            }
+        });
     }
 
     @Override
     public void reached(EventOffer offer) {
-        plugin.getLogger()
-                .info("The event offer #" + offer.id() + " (" + offer.name() + ") reached its goal of " + offer.amount()
-                        + " items.");
         Threading.mainThread(plugin).execute(() -> {
             for (var player : plugin.getServer().getOnlinePlayers()) {
                 messages.sendMessage(
@@ -64,9 +127,6 @@ public final class OfferAnnouncer implements EventOfferService.Announcer {
      */
     @Override
     public void contestClosed(EventOffer offer, List<ContestEntry> ranking, List<ContestPrize> prizes) {
-        plugin.getLogger()
-                .info("The contest #" + offer.id() + " (" + offer.name() + ") closed as " + offer.state() + " with "
-                        + offer.delivered() + " of " + offer.amount() + " items.");
         var shown = ranking.subList(0, Math.min(PLACES, ranking.size()));
         Threading.mainThread(plugin).execute(() -> {
             for (var player : plugin.getServer().getOnlinePlayers()) {
@@ -111,7 +171,6 @@ public final class OfferAnnouncer implements EventOfferService.Announcer {
      */
     @Override
     public void contestCancelled(EventOffer offer) {
-        plugin.getLogger().info("The contest #" + offer.id() + " (" + offer.name() + ") was cancelled.");
         Threading.mainThread(plugin).execute(() -> {
             for (var player : plugin.getServer().getOnlinePlayers()) {
                 messages.sendMessage(player, "offers.contestCancelled", Values.text("offer_name", offer.name()));
