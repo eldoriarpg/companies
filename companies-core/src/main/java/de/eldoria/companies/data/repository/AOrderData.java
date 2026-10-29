@@ -511,7 +511,8 @@ public abstract class AOrderData {
     public abstract double systemSpent(String rule, LocalDateTime since);
 
     /**
-     * What all rules put into orders from minted money since a point in time. Orders removed since do not count.
+     * What all rules put into orders from minted money since a point in time. Orders removed since do not count, and
+     * neither do the chunks of event offers, which have budgets of their own.
      *
      * @param since start, included
      * @return the minted money spent

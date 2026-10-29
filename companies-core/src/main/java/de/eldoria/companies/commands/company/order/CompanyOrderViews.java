@@ -73,7 +73,14 @@ public final class CompanyOrderViews implements CompanyOrderActions {
                 member.hasPermission(CompanyPermission.MANAGE_ORDERS),
                 services.deliveryService().matcher(),
                 Times.now());
-        services.menus().show(player, new CompanyOrderMenu(this, deps.messages(), services.economy()), model);
+        deps.withOfferOf(order.id(), offer -> {
+            if (!player.isOnline()) return;
+            services.menus()
+                    .show(
+                            player,
+                            new CompanyOrderMenu(this, deps.messages(), services.economy()),
+                            model.withOffer(offer));
+        });
     }
 
     /**

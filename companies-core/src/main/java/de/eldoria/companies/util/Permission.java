@@ -112,6 +112,10 @@ public final class Permission {
          * The permission to show the dashboard connection, end a player's dashboard sessions and enter the key.
          */
         public static final String DASHBOARD = ADMIN + ".dashboard";
+        /**
+         * The permission to create, look at, pause, resume and cancel event offers.
+         */
+        public static final String OFFERS = ADMIN + ".offers";
 
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");

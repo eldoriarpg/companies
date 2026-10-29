@@ -11,6 +11,7 @@ import de.eldoria.companies.menus.Page;
 import de.eldoria.companies.menus.company.AlertNameMenu;
 import de.eldoria.companies.menus.company.SearchMenu;
 import de.eldoria.companies.menus.company.SearchResultsMenu;
+import de.eldoria.companies.orders.offers.OfferMarks;
 import de.eldoria.companies.orders.query.OrderFilter;
 import de.eldoria.companies.util.Permission;
 import org.bukkit.entity.Player;
@@ -48,9 +49,12 @@ public final class OrderSearch {
         this(
                 deps,
                 SearchMode.COMPANY,
-                new SearchExecutor(deps.orderData(), deps.companyData(), deps.configuration(), () -> deps.services()
-                        .deliveryService()
-                        .matcher()),
+                new SearchExecutor(
+                        deps.orderData(),
+                        deps.companyData(),
+                        deps.configuration(),
+                        () -> deps.services().deliveryService().matcher(),
+                        (OfferMarks) orders -> deps.services().offerData().marks(orders)),
                 info,
                 accept);
     }
@@ -140,6 +144,17 @@ public final class OrderSearch {
     public void change(Player player, Consumer<SearchQuery> change) {
         change.accept(query(player));
         showForm(player);
+    }
+
+    /**
+     * Narrows the player's search to the chunks of one event offer and shows the first page of results.
+     *
+     * @param player player searching
+     * @param offer  id of the offer
+     */
+    public void showOffer(Player player, int offer) {
+        query(player).offer(offer);
+        showPage(player, 0);
     }
 
     /**

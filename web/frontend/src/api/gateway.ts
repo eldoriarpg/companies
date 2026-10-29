@@ -552,9 +552,9 @@ export interface AdminNpcBoards {
 export interface AdminSystemOrder {
     order: number
     name: string
-    /** The rule that placed it, `guessed` for a guessed order. */
+    /** The rule that placed it, `guessed` for a guessed order, `event-offer` for a chunk of an event offer. */
     rule: string
-    /** How it was decided: `DEFINED` or `GUESSED`. */
+    /** How it was decided: `DEFINED`, `GUESSED` or `OFFER` for a chunk of an event offer. */
     kind: string
     /** Its state, missing when it was removed meanwhile. */
     state?: string | null

@@ -220,7 +220,7 @@ export default {
                     fixedPrice: 'braucht einen festen Preis',
                     missing: 'braucht einen Wert',
                     tooLong: 'ist länger als 64 Zeichen',
-                    reserved: 'ist für geschätzte Aufträge reserviert',
+                    reserved: 'ist für geschätzte Aufträge oder Event-Angebote reserviert',
                     duplicate: 'wird von einer früheren Regel benutzt',
                     unknown: 'nennt kein Item',
                     invalid: 'ist nicht gültig',
@@ -229,8 +229,11 @@ export default {
             kind: {
                 DEFINED: 'Festgelegt',
                 GUESSED: 'Geschätzt',
+                OFFER: 'Teil eines Event-Angebots',
             },
             fields: {
+                offer: 'Event-Angebot',
+                item: 'Bestellt',
                 rule: 'Regel',
                 name: 'Name',
                 material: 'Material',

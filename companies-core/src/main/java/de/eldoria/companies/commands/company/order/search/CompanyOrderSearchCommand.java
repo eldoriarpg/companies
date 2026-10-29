@@ -109,6 +109,28 @@ public final class CompanyOrderSearchCommand {
     }
 
     /**
+     * Shows every order or only the chunks of event offers.
+     *
+     * @param sender sender of the command
+     * @param which  {@code all} or {@code only}
+     */
+    @Executes("query offers")
+    public void offers(CommandSender sender, @Literal({"all", "only"}) String which) {
+        change(sender, query -> query.eventOffers(SearchQuery.EventOffers.valueOf(which.toUpperCase(Locale.ROOT))));
+    }
+
+    /**
+     * Shows only the chunks of one event offer, or every order again for 0.
+     *
+     * @param sender sender of the command
+     * @param offer  id of the offer, 0 for every order
+     */
+    @Executes("query offer")
+    public void offer(CommandSender sender, @IntArg(min = 0) int offer) {
+        change(sender, query -> query.offer(offer));
+    }
+
+    /**
      * Adds a material to search for.
      *
      * @param sender   sender of the command

@@ -12,6 +12,7 @@ import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.Deliverable;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.offers.OfferMarks;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.threading.futures.BukkitFutureResult;
 import org.bukkit.entity.Player;
@@ -34,6 +35,7 @@ public final class SoloSearchExecutor implements OrderFinder {
     private final Supplier<SoloOrderService> soloOrders;
     private final Supplier<ItemMatcher> matcher;
     private final BooleanSupplier marked;
+    private final OfferMarks offers;
 
     /**
      * @param orderData  order repository
@@ -47,10 +49,28 @@ public final class SoloSearchExecutor implements OrderFinder {
             Supplier<SoloOrderService> soloOrders,
             Supplier<ItemMatcher> matcher,
             BooleanSupplier marked) {
+        this(orderData, soloOrders, matcher, marked, OfferMarks.NONE);
+    }
+
+    /**
+     * @param orderData  order repository
+     * @param soloOrders the solo order service, which knows whether the player may work alone
+     * @param matcher    the current item matcher, which decides what the player can deliver
+     * @param marked     whether the server marks its own orders, so the search shows or hides them as asked and lists
+     *                   player orders first among equals
+     * @param offers     finds the event offers of the found orders, which are always marked
+     */
+    public SoloSearchExecutor(
+            AOrderData orderData,
+            Supplier<SoloOrderService> soloOrders,
+            Supplier<ItemMatcher> matcher,
+            BooleanSupplier marked,
+            OfferMarks offers) {
         this.orderData = orderData;
         this.soloOrders = soloOrders;
         this.matcher = matcher;
         this.marked = marked;
+        this.offers = offers;
     }
 
     @Override
@@ -66,12 +86,16 @@ public final class SoloSearchExecutor implements OrderFinder {
         return BukkitFutureResult.of(service.eligibility(player)
                 .thenCombineAsync(
                         orders,
-                        (refusal, found) -> results(
-                                player,
-                                service,
-                                refusal,
-                                SearchExecutor.shown(
-                                        SearchExecutor.filled(found, query, itemMatcher, available), query, marks)),
+                        (refusal, found) -> {
+                            var listed = SearchExecutor.filled(found, query, itemMatcher, available);
+                            var offerMarks = SearchExecutor.marks(offers, listed);
+                            return results(
+                                            player,
+                                            service,
+                                            refusal,
+                                            SearchExecutor.shown(listed, query, marks, offerMarks))
+                                    .withOffers(offerMarks);
+                        },
                         Threading.VIRTUAL));
     }
 

@@ -14,6 +14,8 @@ import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSetti
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.offer.OfferMark;
+import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.OrderTable;
@@ -26,10 +28,15 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -46,6 +53,7 @@ class SearchExecutorTest {
     private OrderTable orders;
     private SearchExecutor search;
     private final SystemOrderSettings systemOrders = new SystemOrderSettings();
+    private final Map<Integer, OfferMark> marks = new HashMap<>();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -78,7 +86,10 @@ class SearchExecutorTest {
                 companyData,
                 configuration,
                 () -> ItemMatcher.of(new ItemMatchSettings()),
-                SqLiteTestDatabase::player);
+                SqLiteTestDatabase::player,
+                ids -> ids.stream()
+                        .filter(marks::containsKey)
+                        .collect(Collectors.toMap(Function.identity(), marks::get)));
     }
 
     @AfterEach
@@ -161,5 +172,77 @@ class SearchExecutorTest {
         assertEquals(
                 List.of(player.id(), server.id()),
                 ids(search.search(manager, query).join()));
+    }
+
+    @Test
+    void eventOffersAreAlwaysMarkedAndTheirFilterKeepsThem() {
+        var player = orders.place(0.0);
+        var harbour = chunk(1, "Harbour", 10);
+        var mine = chunk(2, "Mine", 20);
+        var query = new SearchQuery();
+
+        var all = search.search(manager, query).join();
+        assertEquals(List.of(player.id(), harbour, mine), ids(all));
+        assertEquals("Harbour", all.offer(harbour).orElseThrow().name());
+        assertTrue(all.offer(player.id()).isEmpty());
+
+        query.eventOffers(SearchQuery.EventOffers.ONLY);
+        assertEquals(List.of(harbour, mine), ids(search.search(manager, query).join()));
+        query.offer(2);
+        assertEquals(List.of(mine), ids(search.search(manager, query).join()));
+        query.offer(3);
+        assertTrue(ids(search.search(manager, query).join()).isEmpty());
+        query.offer(0);
+        assertEquals(3, ids(search.search(manager, query).join()).size());
+    }
+
+    @Test
+    void hidingTheServersOrdersKeepsEventOffers() {
+        systemOrders.markSystemOrders(true);
+        var player = orders.place(0.0);
+        var server = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        var harbour = chunk(1, "Harbour", 10);
+        var query = new SearchQuery();
+
+        query.serverOrders(SearchQuery.ServerOrders.HIDE);
+        assertEquals(
+                List.of(player.id(), harbour), ids(search.search(manager, query).join()));
+        query.serverOrders(SearchQuery.ServerOrders.ONLY);
+        assertEquals(
+                List.of(server.id(), harbour), ids(search.search(manager, query).join()));
+    }
+
+    @Test
+    void ordersSortByTheEndOfTheirOfferTheOthersLast() {
+        var player = orders.place(0.0);
+        var later = chunk(1, "Harbour", 48);
+        var sooner = chunk(2, "Mine", 5);
+        var query = new SearchQuery();
+        query.sortingType(SortingType.OFFER_END);
+
+        assertEquals(
+                List.of(sooner, later, player.id()),
+                ids(search.search(manager, query).join()));
+        query.asc(false);
+        assertEquals(
+                List.of(later, sooner, player.id()),
+                ids(search.search(manager, query).join()));
+    }
+
+    /**
+     * Places a server order as a chunk of an offer ending in some hours.
+     */
+    private int chunk(int offer, String name, int hours) {
+        var order = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        marks.put(
+                order.id(),
+                new OfferMark(
+                        offer,
+                        name,
+                        LocalDateTime.of(2026, 10, 29, 12, 0).plusHours(hours),
+                        OfferState.ACTIVE,
+                        100,
+                        0));
+        return order.id();
     }
 }

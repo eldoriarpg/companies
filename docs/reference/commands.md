@@ -241,6 +241,8 @@ Commands to find, claim and deliver orders. Read [Claiming and delivering](../co
 | `/company order search query execute` | none | none | Runs the search and shows the first page of results. |
 | `/company order search query fillable true\|false` | none | none | Shows only orders you can deliver to. |
 | `/company order search query server all\|only\|hide` | none | none | Shows every order, only the orders the server placed, or only orders of players. Works while the server marks its orders (`markSystemOrders` in [system-orders.yml](../admin/configuration/system-orders-yml.md)). |
+| `/company order search query offers all\|only` | none | none | Shows every order, or only the chunks of [event offers](../players/event-offers.md). |
+| `/company order search query offer <id>` | none | none | Shows only the chunks of one event offer; `0` shows every order again. |
 | `/company order search query material_add <material>` | none | none | Adds a material to the search. |
 | `/company order search query material_remove [material]` | none | none | Removes a material. Without a material, it removes all. |
 | `/company order search query material_match exact\|part` | none | none | Matches whole material names or parts of them. |
@@ -249,7 +251,7 @@ Commands to find, claim and deliver orders. Read [Claiming and delivering](../co
 | `/company order search query order asc\|desc` | none | none | Sorts up or down. |
 | `/company order search query min_price\|max_price <price>` | none | none | Sets the lowest or highest price. |
 | `/company order search query min_size\|max_size <size>` | none | none | Sets the lowest or highest number of items. |
-| `/company order search query sorting age\|name\|price\|size\|unit_price` | none | none | Sets what the results are sorted by. |
+| `/company order search query sorting age\|name\|price\|size\|unit_price\|offer_end` | none | none | Sets what the results are sorted by. `offer_end` puts the chunks of the event offers that end soonest first, the other orders after them. |
 
 You move between result pages with the buttons of the result list. There is no command for it. The results show an `[Accept]` button only to members with `manage_orders`.
 
@@ -311,6 +313,22 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin grant money <player> <amount>` | `companies.admin.grant` | no | Gives money to a player. |
 
 The confirm commands take no id. They confirm the last request you made.
+
+### Event offers
+
+| Command | Permission | Console | What it does |
+|---|---|---|---|
+| `/companyadmin offers goal material <name> <money> <amount> <price> <chunk> <start> <hours> <material> [budget]` | `companies.admin.offers` | yes | Creates a goal for any item of a material. `<money>` is `minted` or an economy account, `<start>` the hours until it starts, `<hours>` how long it runs (each at most 8760), `[budget]` what it may spend, by default what its chunks cost. |
+| `/companyadmin offers goal hand <name> <money> <amount> <price> <chunk> <start> <hours> [budget]` | `companies.admin.offers` | no | Creates a goal for the item in your main hand. |
+| `/companyadmin offers goal criteria <name> <money> <amount> <price> <chunk> <start> <hours> [budget <budget>] <criteria>` | `companies.admin.offers` | yes | Creates a goal for every item meeting the criteria. |
+| `/companyadmin offers list` | `companies.admin.offers` | yes | Lists the newest offers with state, progress and end. |
+| `/companyadmin offers info <id>` | `companies.admin.offers` | yes | Shows who created an offer, its money and budget, its progress and top contributors. |
+| `/companyadmin offers open <id> <count>` | `companies.admin.offers` | yes | Changes how many chunks wait to be taken at once, while the offer is not closed. |
+| `/companyadmin offers pause <id>` | `companies.admin.offers` | yes | Pauses an offer and withdraws its waiting chunks. |
+| `/companyadmin offers resume <id>` | `companies.admin.offers` | yes | Resumes a paused offer. |
+| `/companyadmin offers cancel <id>` | `companies.admin.offers` | yes | Closes an offer and withdraws its waiting chunks. |
+
+See [Event offers](../admin/admin-commands.md#event-offers).
 
 ### Boards
 

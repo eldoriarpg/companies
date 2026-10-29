@@ -64,7 +64,8 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
             Map.entry(SearchForm.SORTING, "words.sorting"),
             Map.entry(SearchForm.DIRECTION, "words.ordering"),
             Map.entry(SearchForm.FILLABLE, SETTING + "fillable"),
-            Map.entry(SearchForm.SERVER_ORDERS, SETTING + "serverOrders"));
+            Map.entry(SearchForm.SERVER_ORDERS, SETTING + "serverOrders"),
+            Map.entry(SearchForm.OFFERS, SETTING + "offers"));
 
     private final OrderSearch search;
     private final MessageSender messages;
@@ -97,7 +98,8 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                 text(response, SearchForm.SORTING),
                 text(response, SearchForm.DIRECTION),
                 Boolean.TRUE.equals(response.getBoolean(SearchForm.FILLABLE)),
-                text(response, SearchForm.SERVER_ORDERS));
+                text(response, SearchForm.SERVER_ORDERS),
+                text(response, SearchForm.OFFERS));
     }
 
     @Override
@@ -113,6 +115,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                 .append(sortingLines(query, actions))
                 .append(fillableLine(query, actions))
                 .append(search.marksServerOrders() ? serverLine(query, actions) : MenuText.create())
+                .append(offersLine(query, actions))
                 .text(
                         "<act_search><show>[<i18n:words.search>]</act_search>",
                         actions.chatAction("act_search", p -> search.showPage(p, 0)))
@@ -172,6 +175,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                             SearchForm.ONLY, SETTING + "serverOrders.only",
                             SearchForm.HIDE, SETTING + "serverOrders.hide")));
         }
+        inputs.add(offersInput(texts, form.offers().isBlank() ? SearchForm.ALL : form.offers()));
         List<ActionButton> buttons = new ArrayList<>(List.of(
                 actions.button(
                         texts.locale("words.search"),
@@ -329,6 +333,47 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                                 q -> q.serverOrders(SearchQuery.ServerOrders.HIDE))));
     }
 
+    private MenuText offersLine(SearchQuery query, MenuActions actions) {
+        var current = query.eventOffers();
+        var one = query.offer();
+        var text = buttons(
+                MenuText.create().text("<name><i18n:" + SETTING + "offers> "),
+                actions,
+                "offers",
+                List.of(
+                        new Choice(
+                                SearchForm.ALL,
+                                SETTING + "offers.all",
+                                current == SearchQuery.EventOffers.ALL,
+                                q -> q.eventOffers(SearchQuery.EventOffers.ALL)),
+                        new Choice(
+                                SearchForm.ONLY,
+                                SETTING + "offers.only",
+                                current == SearchQuery.EventOffers.ONLY && one == 0,
+                                q -> q.eventOffers(SearchQuery.EventOffers.ONLY))));
+        if (one > 0) {
+            text.text(
+                    "<" + Colors.active(true) + ">[<i18n:" + SETTING + "offers.one>]", Values.number("offer_id", one));
+        }
+        return text.newLine();
+    }
+
+    private static DialogInput offersInput(SearchTexts texts, String selected) {
+        var entries = new ArrayList<SingleOptionDialogInput.OptionEntry>();
+        entries.add(SingleOptionDialogInput.OptionEntry.create(
+                SearchForm.ALL, texts.locale(SETTING + "offers.all"), SearchForm.ALL.equals(selected)));
+        entries.add(SingleOptionDialogInput.OptionEntry.create(
+                SearchForm.ONLY, texts.locale(SETTING + "offers.only"), SearchForm.ONLY.equals(selected)));
+        if (!SearchForm.ALL.equals(selected) && !SearchForm.ONLY.equals(selected)) {
+            entries.add(SingleOptionDialogInput.OptionEntry.create(
+                    selected,
+                    texts.of(MenuText.create().locale(SETTING + "offers.one", Values.text("offer_id", selected))),
+                    true));
+        }
+        return DialogInput.singleOption(SearchForm.OFFERS, label(texts, SearchForm.OFFERS), entries)
+                .build();
+    }
+
     private MenuText fillableLine(SearchQuery query, MenuActions actions) {
         return toggle(
                 "<name><i18n:" + SETTING + "fillable> ",
@@ -343,7 +388,13 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
      * A line of buttons of which one is active, each changing the query when clicked.
      */
     private MenuText toggle(String prefix, MenuActions actions, String group, List<Choice> choices) {
-        var text = MenuText.create().text(prefix);
+        return buttons(MenuText.create().text(prefix), actions, group, choices).newLine();
+    }
+
+    /**
+     * Appends a button per choice, the active one highlighted, each changing the query when clicked.
+     */
+    private MenuText buttons(MenuText text, MenuActions actions, String group, List<Choice> choices) {
         for (var choice : choices) {
             var key = Keys.of("act", group, choice.id());
             text.text(
@@ -351,7 +402,7 @@ public final class SearchMenu implements Menu<SearchMenu.Model> {
                             + "> ",
                     actions.chatAction(key, p -> search.change(p, choice.change())));
         }
-        return text.newLine();
+        return text;
     }
 
     private static DialogInput textInput(SearchTexts texts, String key, String initial, int maxLength) {

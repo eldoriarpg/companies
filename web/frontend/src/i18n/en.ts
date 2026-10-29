@@ -220,7 +220,7 @@ export default {
                     fixedPrice: 'needs a fixed price',
                     missing: 'needs a value',
                     tooLong: 'is longer than 64 characters',
-                    reserved: 'is reserved for guessed orders',
+                    reserved: 'is reserved for guessed orders or event offers',
                     duplicate: 'is used by an earlier rule',
                     unknown: 'names no item',
                     invalid: 'is not valid',
@@ -229,8 +229,11 @@ export default {
             kind: {
                 DEFINED: 'Defined',
                 GUESSED: 'Guessed',
+                OFFER: 'Event offer chunk',
             },
             fields: {
+                offer: 'Event offer',
+                item: 'Ordered',
                 rule: 'Rule',
                 name: 'Name',
                 material: 'Material',

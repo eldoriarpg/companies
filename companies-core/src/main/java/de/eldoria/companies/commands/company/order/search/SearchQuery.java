@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands.company.order.search;
 
+import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.query.OrderFilter;
@@ -15,8 +16,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * The order search of one player: an editable {@link OrderFilter} plus sorting, the fillable switch and, while the
- * server marks its own orders, which of them to show.
+ * The order search of one player: an editable {@link OrderFilter} plus sorting, the fillable switch, the event offer
+ * filter and, while the server marks its own orders, which of them to show.
  */
 public class SearchQuery {
     private String name;
@@ -31,6 +32,8 @@ public class SearchQuery {
     private boolean asc = true;
     private boolean fillable;
     private ServerOrders serverOrders = ServerOrders.ALL;
+    private EventOffers eventOffers = EventOffers.ALL;
+    private int offer;
     private boolean playersFirst;
 
     /**
@@ -85,6 +88,63 @@ public class SearchQuery {
      */
     public void playersFirst(boolean playersFirst) {
         this.playersFirst = playersFirst;
+    }
+
+    /**
+     * @return whether the search shows every order or only the chunks of event offers
+     */
+    public EventOffers eventOffers() {
+        return eventOffers == null ? EventOffers.ALL : eventOffers;
+    }
+
+    /**
+     * Shows every order or only the chunks of event offers, and forgets a chosen offer.
+     *
+     * @param eventOffers which orders to show
+     */
+    public void eventOffers(EventOffers eventOffers) {
+        this.eventOffers = eventOffers;
+        offer = 0;
+    }
+
+    /**
+     * @return the event offer whose chunks alone the search shows, 0 for any
+     */
+    public int offer() {
+        return offer;
+    }
+
+    /**
+     * Shows only the chunks of one event offer.
+     *
+     * @param offer id of the offer, 0 to show every order again
+     */
+    public void offer(int offer) {
+        this.offer = Math.max(0, offer);
+        eventOffers = this.offer > 0 ? EventOffers.ONLY : EventOffers.ALL;
+    }
+
+    /**
+     * @param mark the event offer an order belongs to, null when it belongs to none
+     * @return whether the event offer filter shows the order
+     */
+    public boolean showsOffer(@Nullable OfferMark mark) {
+        if (offer > 0) return mark != null && mark.offer() == offer;
+        return eventOffers() == EventOffers.ALL || mark != null;
+    }
+
+    /**
+     * Which orders a search shows by their event offers.
+     */
+    public enum EventOffers {
+        /**
+         * Every order.
+         */
+        ALL,
+        /**
+         * Only the chunks of event offers.
+         */
+        ONLY
     }
 
     /**

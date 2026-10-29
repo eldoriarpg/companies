@@ -65,7 +65,14 @@ public final class SoloOrderViews implements CompanyOrderActions {
                 canAccept,
                 services.deliveryService().matcher(),
                 Times.now());
-        services.menus().show(player, new CompanyOrderMenu(this, deps.messages(), services.economy()), model);
+        deps.withOfferOf(order.id(), offer -> {
+            if (!player.isOnline()) return;
+            services.menus()
+                    .show(
+                            player,
+                            new CompanyOrderMenu(this, deps.messages(), services.economy()),
+                            model.withOffer(offer));
+        });
     }
 
     /**

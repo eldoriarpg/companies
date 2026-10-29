@@ -75,7 +75,8 @@ public final class WorkCommand {
                 () -> deps.services().soloOrders(),
                 () -> deps.services().deliveryService().matcher(),
                 () -> deps.configuration() != null
-                        && deps.configuration().systemOrderSettings().markSystemOrders());
+                        && deps.configuration().systemOrderSettings().markSystemOrders(),
+                orders -> deps.services().offerData().marks(orders));
         this.search = new CompanyOrderSearchCommand(new OrderSearch(
                 deps, SearchMode.SOLO, finder, (player, id) -> info(player, id), (player, id) -> accept(player, id)));
         views.bind(this);

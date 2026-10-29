@@ -220,7 +220,7 @@ export default {
                     fixedPrice: 'demande un prix fixe',
                     missing: 'nécessite une valeur',
                     tooLong: 'dépasse 64 caractères',
-                    reserved: 'est réservé aux commandes estimées',
+                    reserved: 'est réservé aux commandes estimées ou aux offres d’événement',
                     duplicate: 'est utilisé par une règle précédente',
                     unknown: 'ne désigne aucun objet',
                     invalid: 'n’est pas valide',
@@ -229,8 +229,11 @@ export default {
             kind: {
                 DEFINED: 'Définie',
                 GUESSED: 'Estimée',
+                OFFER: 'Part d’offre d’événement',
             },
             fields: {
+                offer: 'Offre d’événement',
+                item: 'Commandé',
                 rule: 'Règle',
                 name: 'Nom',
                 material: 'Matériau',

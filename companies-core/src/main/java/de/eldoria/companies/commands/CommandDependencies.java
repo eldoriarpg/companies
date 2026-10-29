@@ -16,9 +16,11 @@ import de.eldoria.companies.dashboard.Dashboard;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
+import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
@@ -36,6 +38,7 @@ import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
@@ -52,6 +55,7 @@ import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
+import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -63,10 +67,12 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -510,6 +516,36 @@ public final class CommandDependencies {
     }
 
     /**
+     * Finds the event offer an order is a chunk of. Blocks; call it off the main thread.
+     *
+     * @param order id of the order
+     * @return the offer, null when the order belongs to none or it could not be read, which is logged
+     */
+    public @Nullable OfferMark offerOf(int order) {
+        try {
+            return services().offerData().marks(List.of(order)).get(order);
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.WARNING, "Could not read the event offer of order " + order, e);
+            return null;
+        }
+    }
+
+    /**
+     * Looks up the event offer an order is a chunk of off the main thread, then hands it over on the main thread.
+     *
+     * @param order id of the order
+     * @param then  takes the offer, null when the order belongs to none; runs on the main thread
+     */
+    public void withOfferOf(int order, Consumer<@Nullable OfferMark> then) {
+        CompletableFuture.supplyAsync(() -> offerOf(order), Threading.VIRTUAL)
+                .thenAcceptAsync(then, Threading.mainThread(plugin))
+                .exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Could not show order " + order, err);
+                    return null;
+                });
+    }
+
+    /**
      * @return the message sender of the plugin, styled by the configuration
      */
     public MessageSender messages() {
@@ -543,6 +579,9 @@ public final class CommandDependencies {
      * @param search              searches the orders a company could accept
      * @param savedItems          the items players saved to order again
      * @param receive             hands delivered orders to their owners
+     * @param systemFunding       moves the money of system orders between their accounts and the orders
+     * @param offerData           event offers and the chunks of goals
+     * @param offers              runs the goals of event offers on the primary
      */
     public record Services(
             Economy economy,
@@ -569,5 +608,7 @@ public final class CommandDependencies {
             SearchExecutor search,
             SavedItemService savedItems,
             OrderReceiveService receive,
-            SystemFunding systemFunding) {}
+            SystemFunding systemFunding,
+            AOfferData offerData,
+            EventOfferService offers) {}
 }

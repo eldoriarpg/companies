@@ -12,6 +12,7 @@ import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderRule;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderCreationService;
@@ -52,7 +53,8 @@ import java.util.logging.Logger;
  * {@code maxOpen} orders open or in work. The price is found by {@link RulePricing}, the money by {@link Purchases}.
  * Each placed order stores its {@link DefinedRecord}, which is what budgets, caps and the schedule count. A rule that
  * cannot place its order is skipped until the next check, and the reason is logged once until it changes. A rule
- * without a usable id, or with the id {@value GuessedSettings#RULE} the guessed orders use, is logged by its position.
+ * without a usable id, or with the id {@value GuessedSettings#RULE} the guessed orders or {@value EventOffer#RULE} the
+ * chunks of event offers use, is logged by its position.
  * An order nobody claimed within {@code lifetimeHours} of its placement or its last extension is removed and gives its
  * money back to the account that paid it. Orders of a rule that is no longer in the file run out as player orders do.
  * <p>
@@ -159,7 +161,8 @@ public final class SystemOrderService {
     private static boolean usable(String id) {
         return !id.isEmpty()
                 && id.length() <= SystemOrderRule.MAX_ID_LENGTH
-                && !id.equalsIgnoreCase(GuessedSettings.RULE);
+                && !id.equalsIgnoreCase(GuessedSettings.RULE)
+                && !id.equalsIgnoreCase(EventOffer.RULE);
     }
 
     private void expire(SystemOrderSettings current, LocalDateTime now, List<Integer> removed) {
@@ -487,7 +490,7 @@ public final class SystemOrderService {
          */
         FULL,
         /**
-         * Its id is missing, too long, reserved for guessed orders, or used by an earlier rule.
+         * Its id is missing, too long, reserved for guessed orders or event offers, or used by an earlier rule.
          */
         INVALID_ID,
         /**

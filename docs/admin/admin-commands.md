@@ -104,6 +104,80 @@ You need `companies.admin.orders`. These commands also work from the console.
 that paid it, whether you choose `refund` or `keep`; minted money goes nowhere. See
 [system-orders.yml](./configuration/system-orders-yml.md).
 
+## Event offers
+
+You need `companies.admin.offers`. These commands also work from the console, except `goal hand`.
+
+Event offers are offers the server makes for an event or a shared goal. So far there are **goals**: a large amount
+the server needs, such as 10,000 oak logs for the harbour, split into ordinary orders (chunks) that every company and
+every player working alone can take. Players see them with an `[Event #<id>: <name>]` badge and can filter and sort the
+order search by them, see [Event offers](../players/event-offers.md).
+
+| Command | What it does |
+|---|---|
+| `/companyadmin offers goal material <name> <money> <amount> <price> <chunk> <start> <hours> <material> [budget]` | Creates a goal for any item of a material |
+| `/companyadmin offers goal hand <name> <money> <amount> <price> <chunk> <start> <hours> [budget]` | Creates a goal for the item in your main hand: exactly that item when it has data (name, enchantments, ...), otherwise any item of its material |
+| `/companyadmin offers goal criteria <name> <money> <amount> <price> <chunk> <start> <hours> [budget <budget>] <criteria>` | Creates a goal for every item that meets the criteria, written as in [criteria lines](../players/orders.md#criteria-lines). The criteria come last, so a budget is given as the word `budget` and the amount before them |
+| `/companyadmin offers list` | Lists the 20 newest offers with their state, progress and end |
+| `/companyadmin offers info <id>` | Shows who created an offer and when, what it orders, where its money comes from, its budget, what it spent and what is left, its progress, the items in open chunks and the top contributors |
+| `/companyadmin offers open <id> <count>` | Changes how many chunks wait to be taken at once, 1 to 100. Only while the offer runs, is scheduled or paused |
+| `/companyadmin offers pause <id>` | Pauses a running or scheduled offer |
+| `/companyadmin offers resume <id>` | Resumes a paused offer |
+| `/companyadmin offers cancel <id>` | Closes an offer for good |
+
+The values of `goal`:
+
+- `<name>`: the name players see, at most 31 characters. It is also the name of every chunk. Put it in quotes when it
+  has spaces.
+- `<money>`: `minted`, or the name of an economy account that pays the chunks (in quotes when it has spaces). Like
+  [system orders](./configuration/system-orders-yml.md), an account pays a chunk when it is placed and gets the money
+  back when the chunk is withdrawn or removed. Minted money is created when the workers are paid.
+- `<amount>`: the items the goal asks for in all. `<price>`: the price per item, more than 0 and at most 1,000,000.
+- `<chunk>`: the items per chunk, for example 256. The last chunk is the rest. Keep it within the order size your
+  company levels allow, or small companies cannot take the chunks.
+- `<start>`: hours from now until the goal starts, `0` for now. `<hours>`: how long it runs from its start. Both are
+  at most 8760 hours (a year).
+- `[budget]`: what the whole goal may spend. Without it, the budget is what its chunks cost at its price, each
+  rounded to cents like any order. A budget must pay at least one item and may be at most 1,000,000,000,000. A
+  smaller budget than the cost makes the goal close as **out of money** once it is spent.
+
+A goal keeps 3 chunks waiting to be taken at once; change it with `open`. Example:
+
+```bash
+/companyadmin offers goal material "Harbour logs" minted 10000 0.8 256 0 72 oak_log
+/companyadmin offers goal criteria "Any logs" "orders/Collector" 5000 0.5 128 2 48 budget 2000 #logs
+```
+
+### How a goal runs
+
+The primary server looks after the goals every minute, and at once after you changed one there:
+
+- At its start, a goal places chunks until the set number waits to be taken. When a chunk is taken, the next one is
+  placed, until the whole amount is placed.
+- Chunks are ordinary orders. A company or a player working alone takes one, delivers it and is paid as usual;
+  extensions, aborts and expiry work as for any order. An aborted chunk waits to be taken again. A chunk nobody took
+  in time is removed like any order, and its amount is placed again.
+- The **progress** of a goal is the items delivered to its chunks, counted the moment a chunk is completed. It is
+  stored with the goal, so it stays when the orders are purged later. `info` shows who delivered most.
+- When the whole amount is delivered, the goal is **reached** within a minute, and every player on the primary
+  server gets a message. In a network, players on the other servers do not see it yet. Server-wide rewards for a
+  reached goal and announcements on every server come with server events.
+- When its end passes first, it **ends**: the chunks waiting to be taken are withdrawn, and chunks already taken may
+  still be delivered until their own delivery time. They still count for the progress.
+- `pause` and `cancel` withdraw the waiting chunks the same way; `resume` places them again.
+- When the budget cannot pay one more item while items are missing and no chunk is open, the goal closes early as
+  **out of money**. With the default budget this only happens when a plugin raises the price of the chunks while
+  they are placed: a chunk whose raised price the budget cannot pay is removed again, and the goal waits for its open
+  chunks and then closes.
+- An account that cannot pay a chunk places nothing; the goal tries again a minute later. The reason is logged once.
+
+Chunks are system orders of the reserved rule `event-offer`. `/companyadmin systemorders list` lists them too, and
+`/companyadmin systemorders info <id>` names the goal a chunk belongs to. They do not count for the caps and budgets
+of the [system order rules](./configuration/system-orders-yml.md), nor for the network cap of minted money, and
+guessed orders do not treat them as player orders. A chunk is always marked, whether `markSystemOrders` is on or not.
+
+Every change is written to the [admin log](#the-admin-log).
+
 ## Players
 
 | Command | Permission | What it does |
@@ -192,7 +266,7 @@ Every admin action writes one line to the server log. It names the admin and wha
 [admin] Steve order cancel id=42 refund=true owner=Alex company="Iron Works"
 ```
 
-This covers the order, player, grant, treasury, company, level, board and node commands, as well as `reload`,
+This covers the order, player, grant, treasury, company, level, board, node and offer commands, as well as `reload`,
 `syncconfiguration` and `calclevel`. Looking things up is logged too: `order info`, `order search` and `player`.
 
 Use the log to check what your staff did. Search your `latest.log` for `[admin]`.

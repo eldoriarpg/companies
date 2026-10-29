@@ -168,7 +168,8 @@ class AdminSystemOrderWritesTest {
         var saved = perform(
                 Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
                 "{\"base\":0,\"rules\":[" + RULE + "," + RULE + ","
-                        + "{\"id\":\"guessed\",\"material\":\"NOT_AN_ITEM\"}]}",
+                        + "{\"id\":\"guessed\",\"material\":\"NOT_AN_ITEM\"},"
+                        + "{\"id\":\"Event-Offer\",\"material\":\"IRON_INGOT\"}]}",
                 Permission.Admin.ORDERS,
                 Permission.Admin.RELOAD);
 
@@ -177,6 +178,7 @@ class AdminSystemOrderWritesTest {
         assertEquals("duplicate", errors.path("rules.1.id").asString());
         assertEquals("reserved", errors.path("rules.2.id").asString());
         assertEquals("unknown", errors.path("rules.2.material").asString());
+        assertEquals("reserved", errors.path("rules.3.id").asString());
     }
 
     @Test

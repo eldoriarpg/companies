@@ -6,6 +6,7 @@
 package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.menus.Keys;
 import de.eldoria.companies.menus.Menu;
@@ -13,6 +14,7 @@ import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.order.OfferTexts;
 import de.eldoria.companies.menus.order.OrderLineView;
 import de.eldoria.companies.menus.order.OrderTexts;
 import de.eldoria.companies.orders.ItemMatcher;
@@ -25,6 +27,7 @@ import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -34,7 +37,8 @@ import java.util.Optional;
 
 /**
  * One order as a company member sees it: the lines with their progress, deliver buttons and the damage of delivered
- * items, the price with the company's tax, the time left and the actions the member may take.
+ * items, the price with the company's tax, the time left and the actions the member may take. A chunk of an event
+ * offer names its offer with the offer's progress and end.
  * <p>
  * The owner of the order is never shown; the model does not even hold it. In chat every line has buttons delivering
  * 1, 8, 32, 64 or the missing items, and {@code [Add]} suggests the typed deliver command for another amount. As
@@ -61,10 +65,9 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
 
     @Override
     public MenuText chat(Player player, Model model, MenuActions buttons) {
-        var text = OrderTexts.title("", model.id(), model.name())
-                .newLine()
-                .append(OrderTexts.status(model.state()))
-                .newLine();
+        var text = OrderTexts.title("", model.id(), model.name()).newLine();
+        if (model.offer() != null) text.append(OfferTexts.line(model.offer())).newLine();
+        text.append(OrderTexts.status(model.state())).newLine();
         for (var line : model.lines()) {
             text.append(lineText(model, line));
             if (model.deliverable(line)) {
@@ -105,6 +108,7 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
     public Optional<Dialog> dialog(Player player, Model model, MenuActions buttons) {
         var components = new MenuComponents(messages, player);
         List<DialogBody> body = new ArrayList<>();
+        if (model.offer() != null) body.add(DialogBody.plainMessage(components.of(OfferTexts.line(model.offer()))));
         body.add(DialogBody.plainMessage(components.of(OrderTexts.status(model.state()))));
         for (var line : model.lines()) {
             body.add(DialogBody.item(line.template())
@@ -211,6 +215,7 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
      * @param taxPercent tax of the member's company, where 5 means 5 %
      * @param timeLeft   until a claimed order is due; zero otherwise
      * @param canManage  whether the member may accept and abort orders
+     * @param offer      the event offer the order is a chunk of, null when it belongs to none
      */
     public record Model(
             int id,
@@ -220,7 +225,40 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
             double price,
             double taxPercent,
             Duration timeLeft,
-            boolean canManage) {
+            boolean canManage,
+            @Nullable OfferMark offer) {
+        /**
+         * An order of no event offer.
+         *
+         * @param id         id of the order
+         * @param name       name of the order
+         * @param state      state of the order
+         * @param lines      lines with their progress and damage
+         * @param price      price of the order
+         * @param taxPercent tax of the member's company, where 5 means 5 %
+         * @param timeLeft   until a claimed order is due; zero otherwise
+         * @param canManage  whether the member may accept and abort orders
+         */
+        public Model(
+                int id,
+                String name,
+                OrderState state,
+                List<OrderLineView> lines,
+                double price,
+                double taxPercent,
+                Duration timeLeft,
+                boolean canManage) {
+            this(id, name, state, lines, price, taxPercent, timeLeft, canManage, null);
+        }
+
+        /**
+         * @param offer the event offer the order is a chunk of, null when it belongs to none
+         * @return this model marked with the offer
+         */
+        public Model withOffer(@Nullable OfferMark offer) {
+            return new Model(id, name, state, lines, price, taxPercent, timeLeft, canManage, offer);
+        }
+
         /**
          * @param order         order to show
          * @param deliveryHours hours the company has to deliver once it accepted the order

@@ -38,11 +38,12 @@ import java.util.logging.Logger;
  * cannot be stored is removed again, so no order exists that budgets and refunds do not know. A reason an order was not
  * placed is logged once per label until it changes.
  */
-final class Purchases {
+public final class Purchases {
     private final AOrderData orders;
     private final Placement placement;
     private final Funding funding;
     private final Logger logger;
+    private final String subject;
     private final ObjectMapper mapper = JsonMapper.builder().build();
     private final Map<String, String> notes = new ConcurrentHashMap<>();
 
@@ -52,15 +53,28 @@ final class Purchases {
      * @param funding   moves the money of accounts
      * @param logger    reports skipped orders and failures
      */
-    Purchases(AOrderData orders, Placement placement, Funding funding, Logger logger) {
+    public Purchases(AOrderData orders, Placement placement, Funding funding, Logger logger) {
+        this(orders, placement, funding, logger, "system order rule");
+    }
+
+    /**
+     * @param orders    order repository
+     * @param placement places and removes the orders
+     * @param funding   moves the money of accounts
+     * @param logger    reports skipped orders and failures
+     * @param subject   what the labels of the log name, such as {@code event offer}
+     */
+    public Purchases(AOrderData orders, Placement placement, Funding funding, Logger logger, String subject) {
         this.orders = orders;
         this.placement = placement;
         this.funding = funding;
         this.logger = logger;
+        this.subject = subject;
     }
 
     /**
-     * Pays for an order and places it.
+     * Pays for an order of a rule and places it, within the rule's daily budget and, for minted money, the daily cap
+     * all rules share.
      *
      * @param label      names the order in the log
      * @param wanted     the order
@@ -88,15 +102,62 @@ final class Purchases {
             if (exceeds(total, budget)) return skipped(label, Step.BUDGET, "");
         }
         Double minted = null;
-        String account = null;
         if (source.type() == MoneySource.SourceType.MINTED) {
             minted = mintedCap - orders.mintedSpent(dayStart);
             if (exceeds(total, minted)) return skipped(label, Step.MINTED_CAP, "");
-        } else {
-            account = source.account();
-            if (account.isEmpty()) return skipped(label, Step.NO_ACCOUNT, "");
-            if (!funding.withdraw(account, total)) return skipped(label, Step.CANNOT_PAY, account);
         }
+        return buy(label, wanted, source.type(), source.account(), budget, minted, now, kind, record);
+    }
+
+    /**
+     * Pays for an order and places it, within the budget and the minted money left that the caller counted.
+     *
+     * @param label      names the order in the log
+     * @param wanted     the order
+     * @param type       where its money comes from
+     * @param account    the economy account paying it, used for {@link MoneySource.SourceType#ACCOUNT}
+     * @param budget     what may still be spent, null for no budget
+     * @param minted     minted money that may still be spent, null for no cap; used for minted money only
+     * @param now        the current time
+     * @param kind       the kind of decision stored with it
+     * @param record     the decision record of the money it was paid with
+     * @return what came of it, with the order and its price when it was placed
+     */
+    public Bought buy(
+            String label,
+            Wanted wanted,
+            MoneySource.SourceType type,
+            String account,
+            @Nullable Double budget,
+            @Nullable Double minted,
+            LocalDateTime now,
+            String kind,
+            Function<Money, Object> record) {
+        var total = OrderBuilder.total(wanted.unit(), wanted.amount());
+        if (budget != null && exceeds(total, budget)) return skipped(label, Step.BUDGET, "");
+        String paying = null;
+        if (type == MoneySource.SourceType.MINTED) {
+            if (minted != null && exceeds(total, minted)) return skipped(label, Step.MINTED_CAP, "");
+        } else {
+            minted = null;
+            paying = account.trim();
+            if (paying.isEmpty()) return skipped(label, Step.NO_ACCOUNT, "");
+            if (!funding.withdraw(paying, total)) return skipped(label, Step.CANNOT_PAY, paying);
+        }
+        return place(label, wanted, type, paying, budget, minted, total, now, kind, record);
+    }
+
+    private Bought place(
+            String label,
+            Wanted wanted,
+            MoneySource.SourceType type,
+            @Nullable String account,
+            @Nullable Double budget,
+            @Nullable Double minted,
+            double total,
+            LocalDateTime now,
+            String kind,
+            Function<Money, Object> record) {
         Placed placed;
         try {
             placed = placement.place(wanted).join();
@@ -124,11 +185,7 @@ final class Purchases {
             return skipped(label, Step.MINTED_CAP, "raised by a listener");
         }
         var money = new Money(
-                paid,
-                source.type(),
-                account,
-                budget == null ? null : budget - paid,
-                minted == null ? null : minted - paid);
+                paid, type, account, budget == null ? null : budget - paid, minted == null ? null : minted - paid);
         var decision = new SystemDecision(
                 order, wanted.rule(), kind, now, account, paid, mapper.writeValueAsString(record.apply(money)));
         if (!store(decision)) {
@@ -136,7 +193,7 @@ final class Purchases {
             return skipped(label, Step.FAILED, "decision not stored, order removed");
         }
         notes.remove(label);
-        return new Bought(Step.PLACED, OptionalInt.of(order));
+        return new Bought(Step.PLACED, OptionalInt.of(order), paid);
     }
 
     /**
@@ -145,7 +202,7 @@ final class Purchases {
      * @param decision the decision of the order
      * @return true when it was unclaimed and is now removed
      */
-    boolean remove(SystemDecision decision) {
+    public boolean remove(SystemDecision decision) {
         try {
             if (!placement.remove(decision.order())) return false;
         } catch (RuntimeException e) {
@@ -180,16 +237,16 @@ final class Purchases {
      * @param detail what it concerned, may be empty
      * @return the step
      */
-    Step note(String label, Step step, String detail) {
+    public Step note(String label, Step step, String detail) {
         var text = step.text(detail);
         if (!Objects.equals(notes.put(label, text), text)) {
-            logger.info("The system order rule " + label + " placed nothing: " + text);
+            logger.info("The " + subject + " " + label + " placed nothing: " + text);
         }
         return step;
     }
 
     private Bought skipped(String label, Step step, String detail) {
-        return new Bought(note(label, step, detail), OptionalInt.empty());
+        return new Bought(note(label, step, detail), OptionalInt.empty(), 0);
     }
 
     /**
@@ -267,8 +324,9 @@ final class Purchases {
      *
      * @param step  what happened
      * @param order the placed order, when it was placed
+     * @param paid  what was put into the placed order, 0 when none was placed
      */
-    record Bought(Step step, OptionalInt order) {}
+    public record Bought(Step step, OptionalInt order, double paid) {}
 
     /**
      * The money an order was paid with.
@@ -279,7 +337,7 @@ final class Purchases {
      * @param budgetLeft what the rule may still spend that day, null without a budget
      * @param mintedLeft minted money all rules may still spend that day, null for an account
      */
-    record Money(
+    public record Money(
             double paid,
             MoneySource.SourceType source,
             @Nullable String account,

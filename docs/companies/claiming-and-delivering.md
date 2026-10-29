@@ -22,7 +22,8 @@ Orders are anonymous. You see the items, the price and the time left, but never 
 | Material search | `Any` needs one of the materials, `All` needs all of them |
 | Min price, max price | The price range of the whole order |
 | Min size, max size | The number of items in the order |
-| Sorting | By age, name, price, size or price per item, ascending or descending |
+| Sorting | By age, name, price, size, price per item or the end of their [event offer](../players/event-offers.md), ascending or descending |
+| Event offers | `Only these` shows only the chunks of [event offers](../players/event-offers.md), which always carry an `[Event #<id>: <name>]` badge |
 | I can fill this | Only orders you can deliver something to with the items you carry. The orders you can fill most come first. |
 
 **In the dialog**, the search is one form with a `Search` button. Leave prices and sizes empty for no limit.
