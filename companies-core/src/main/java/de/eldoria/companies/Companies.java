@@ -117,6 +117,7 @@ import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.orders.SystemOrders;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ChunkDeliveries;
+import de.eldoria.companies.orders.offers.ContestService;
 import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.offers.OfferAnnouncer;
 import de.eldoria.companies.orders.system.GuessedLimit;
@@ -392,7 +393,8 @@ public class Companies extends EldoPlugin {
                 orderData,
                 systemPlacement,
                 systemFunding,
-                new OfferAnnouncer(this, MessageSender.getPluginMessageSender(this)),
+                ContestService.prizes(companyData, treasuryService),
+                new OfferAnnouncer(this, MessageSender.getPluginMessageSender(this), economy),
                 Times.UTC,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
@@ -466,7 +468,8 @@ public class Companies extends EldoPlugin {
                             orderData, outcomes, itemReturnService, Threading.mainThread(this), getLogger()),
                     systemFunding,
                     offerData,
-                    eventOffers));
+                    eventOffers,
+                    ContestService.create(this, offerData, orderData, economy, configuration, treasuryService)));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 

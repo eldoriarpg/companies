@@ -5,11 +5,15 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.data.wrapper.offer.ContestDelivery;
+import de.eldoria.companies.data.wrapper.offer.ContestEntry;
+import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.Contributor;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.offer.OpenChunk;
+import de.eldoria.companies.data.wrapper.offer.PrizeState;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.core.JacksonException;
@@ -21,9 +25,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Event offers and the chunks of goals.
+ * Event offers, the chunks of goals and the entries, deliveries and prizes of contests.
  * <p>
  * An offer keeps what its chunks hold ({@code spent}) and what was delivered to them ({@code delivered}) in its own row,
  * changed in the same transaction as the chunk, so the progress and the money of an offer survive the purge of its
@@ -62,7 +67,8 @@ public abstract class AOfferData {
     public abstract List<EventOffer> offers(int limit);
 
     /**
-     * The offers the primary looks after: those still running, and closed ones whose chunks are not all settled yet.
+     * The offers the primary looks after: those still running, closed ones whose chunks are not all settled yet, and
+     * closed contests that did not give back their rest yet.
      *
      * @return the offers, oldest first
      */
@@ -142,6 +148,127 @@ public abstract class AOfferData {
      * @return the offer of each order that belongs to one, by order id
      */
     public abstract Map<Integer, OfferMark> marks(Collection<Integer> orders);
+
+    /**
+     * @return the contests that run, wait for their start or are paused, oldest first
+     */
+    public abstract List<EventOffer> contests();
+
+    /**
+     * Lets a company take part in a contest that has not closed, or take part again after it left. Its delivered items
+     * stay.
+     *
+     * @param offer   id of the contest
+     * @param company id of the company
+     * @param at      the current time
+     * @return true when the company takes part now and did not before
+     */
+    public abstract boolean join(int offer, int company, LocalDateTime at);
+
+    /**
+     * Lets a company leave a contest. It keeps its delivered items and its place, and its order slot is free again.
+     *
+     * @param offer   id of the contest
+     * @param company id of the company
+     * @param at      the current time
+     * @return true when the company took part and left now
+     */
+    public abstract boolean leave(int offer, int company, LocalDateTime at);
+
+    /**
+     * @param offer   id of the contest
+     * @param company id of the company
+     * @return the company's entry, also after it left; empty when it never joined
+     */
+    public abstract Optional<ContestEntry> entry(int offer, int company);
+
+    /**
+     * @param company id of the company
+     * @return the ids of the contests that have not closed and the company takes part in
+     */
+    public abstract List<Integer> joined(int company);
+
+    /**
+     * The places of a contest: every company that joined, most items first; of two with as many items the one that
+     * got there first ranks higher, then the one that joined first.
+     *
+     * @param offer id of the contest
+     * @return the entries in order of their places
+     */
+    public abstract List<ContestEntry> ranking(int offer);
+
+    /**
+     * Takes items of a worker of a company into a running contest, as many as it misses and its money, less the
+     * prizes kept back, can pay; at most what was offered. The contest's delivered items and spent money, the company's
+     * entry and a delivery row change together, and only when nobody delivered meanwhile, so two companies delivering
+     * the last items at once never take more than the contest misses: the one that lost the race reads again and takes
+     * what is left. A delivery that fills the contest closes it as {@link OfferState#REACHED}; one that leaves less
+     * money than one more item costs closes it as {@link OfferState#DEPLETED}.
+     *
+     * @param offer   id of the contest
+     * @param company id of the delivering company
+     * @param worker  the delivering player
+     * @param offered items offered
+     * @param at      the current time
+     * @return what was taken and what it is paid
+     */
+    public abstract ContestDelivery deliver(int offer, int company, UUID worker, int offered, LocalDateTime at);
+
+    /**
+     * Starts a scheduled contest that never ran, noting the money its account paid in.
+     *
+     * @param offer id of the contest
+     * @param held  what the account paid in, 0 for minted money
+     * @param at    the current time
+     * @return true when it waited and runs now
+     */
+    public abstract boolean activate(int offer, double held, LocalDateTime at);
+
+    /**
+     * Settles a closed contest once across all nodes: claims it, writes its prizes and reserves the money of those
+     * waiting to be paid, all in one transaction, so a contest is either settled with all its prizes or not at all.
+     *
+     * @param offer  id of the contest
+     * @param prizes its prizes, each {@link PrizeState#PENDING} with its company or {@link PrizeState#NONE}
+     * @param at     the current time
+     * @return true when this call settled it
+     */
+    public abstract boolean settle(int offer, List<ContestPrize> prizes, LocalDateTime at);
+
+    /**
+     * Claims a waiting prize for paying, once.
+     *
+     * @param offer id of the contest
+     * @param place the place
+     * @return true when it waited and is claimed now
+     */
+    public abstract boolean claimPrize(int offer, int place);
+
+    /**
+     * Notes how paying a claimed prize went. A refused prize gives its reserved money back to the contest.
+     *
+     * @param offer id of the contest
+     * @param place the place
+     * @param paid  whether the money reached the company
+     * @return true when the prize was claimed and is noted now
+     */
+    public abstract boolean prizeOutcome(int offer, int place, boolean paid);
+
+    /**
+     * Claims giving back the rest of a settled contest and announcing its result, once.
+     *
+     * @param offer  id of the contest
+     * @param amount what goes back to its account
+     * @param at     the current time
+     * @return true when this call claimed it
+     */
+    public abstract boolean refund(int offer, double amount, LocalDateTime at);
+
+    /**
+     * @param offer id of the contest
+     * @return the prizes noted when it was settled, first place first
+     */
+    public abstract List<ContestPrize> prizes(int offer);
 
     /**
      * @param item an item

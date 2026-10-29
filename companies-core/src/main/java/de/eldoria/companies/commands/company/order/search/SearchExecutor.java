@@ -249,7 +249,7 @@ public class SearchExecutor implements OrderFinder {
                 .map(member -> member.hasPermission(CompanyPermission.MANAGE_ORDERS))
                 .orElse(false);
         var level = settings.levelSettings(company.level());
-        var accepted = orderData.retrieveCompanyOrderCount(company).join();
+        var accepted = orderData.retrieveCompanySlotCount(company).join();
         if (accepted != null && accepted >= level.maxOrders()) {
             return new SearchResults(List.of(), taxPercent, canAccept, true, true);
         }

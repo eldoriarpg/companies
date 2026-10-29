@@ -875,6 +875,24 @@ public abstract class AOrderData {
 
     protected abstract Integer getPlayerOrderCount(OfflinePlayer player);
 
+    /**
+     * The order slots a company uses, which its level limits: the orders it works on and the contests of event offers
+     * it takes part in that run or are paused. A contest the company joined before its start uses no slot until it
+     * starts.
+     *
+     * @param company the company
+     * @return the slots in use
+     */
+    public BukkitFutureResult<Integer> retrieveCompanySlotCount(ISimpleCompany company) {
+        return CompletableBukkitFuture.supplyAsync(() -> getCompanySlotCount(company), VIRTUAL);
+    }
+
+    protected abstract int getCompanySlotCount(ISimpleCompany company);
+
+    /**
+     * @param company the company
+     * @return the orders the company works on
+     */
     public BukkitFutureResult<Integer> retrieveCompanyOrderCount(ISimpleCompany company) {
         return CompletableBukkitFuture.supplyAsync(() -> getCompanyOrderCount(company), VIRTUAL);
     }

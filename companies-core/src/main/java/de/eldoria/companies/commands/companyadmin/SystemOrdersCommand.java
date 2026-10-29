@@ -383,7 +383,7 @@ public final class SystemOrdersCommand {
                 .locale(
                         PREFIX + "info.offer",
                         Values.number("offer", record.offer()),
-                        Values.text("name", record.name()),
+                        Values.text("offer_name", record.name()),
                         Values.number("amount", record.amount()),
                         Values.text("material", record.item()),
                         Values.money("unit", economy(), record.unit()),
@@ -404,7 +404,7 @@ public final class SystemOrdersCommand {
         return MenuText.create()
                 .locale(
                         PREFIX + "info.item",
-                        Values.text("name", record.name()),
+                        Values.text("rule_name", record.name()),
                         Values.number("amount", record.amount()),
                         Values.text("material", record.material()));
     }

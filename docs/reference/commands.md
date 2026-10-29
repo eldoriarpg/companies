@@ -205,6 +205,19 @@ See [Inbox](../players/inbox.md) and [Rankings and history](../companies/ranking
 
 See [Order boards](../players/order-boards.md) for a guide.
 
+### Contests
+
+| Command | Permission | Company permission | What it does |
+|---|---|---|---|
+| `/company contest` | none | none | Lists the contests that have not closed, with what they take, their progress and time left. |
+| `/company contest info <id>` | none | none | Shows what a contest still misses, its price per item, its prizes, your company's part and place, and the ranking. |
+| `/company contest join <id>` | none | `manage_orders` | Lets your company take part, once the contest started. It uses one of the company's order slots. |
+| `/company contest leave <id>` | none | `manage_orders` | Lets your company stop taking part. It keeps its items and place, and the slot is free again. |
+| `/company contest deliver <id> <amount>` | none | member | Delivers up to `amount` matching items; you are paid at once. |
+| `/company contest deliver <id> all` | none | member | Delivers every matching item you carry, up to what the contest misses. |
+
+See [Event offers](../players/event-offers.md#contests) for a guide.
+
 ### Web dashboard
 
 New in 2.1. Works while the server owner enabled the [web dashboard](../admin/dashboard.md).
@@ -321,12 +334,16 @@ The confirm commands take no id. They confirm the last request you made.
 | `/companyadmin offers goal material <name> <money> <amount> <price> <chunk> <start> <hours> <material> [budget]` | `companies.admin.offers` | yes | Creates a goal for any item of a material. `<money>` is `minted` or an economy account, `<start>` the hours until it starts, `<hours>` how long it runs (each at most 8760), `[budget]` what it may spend, by default what its chunks cost. |
 | `/companyadmin offers goal hand <name> <money> <amount> <price> <chunk> <start> <hours> [budget]` | `companies.admin.offers` | no | Creates a goal for the item in your main hand. |
 | `/companyadmin offers goal criteria <name> <money> <amount> <price> <chunk> <start> <hours> [budget <budget>] <criteria>` | `companies.admin.offers` | yes | Creates a goal for every item meeting the criteria. |
+| `/companyadmin offers contest material <name> <money> <amount> <price> <prizes> <start> <hours> <material> [budget]` | `companies.admin.offers` | yes | Creates a contest for any item of a material. `<price>` is paid per delivered item, `<prizes>` is `none` or the money of the first places like `500+250+100`, `[budget]` by default the cost of the whole amount plus the prizes. |
+| `/companyadmin offers contest hand <name> <money> <amount> <price> <prizes> <start> <hours> [budget]` | `companies.admin.offers` | no | Creates a contest for the item in your main hand. |
+| `/companyadmin offers contest criteria <name> <money> <amount> <price> <prizes> <start> <hours> [budget <budget>] <criteria>` | `companies.admin.offers` | yes | Creates a contest for every item meeting the criteria. |
 | `/companyadmin offers list` | `companies.admin.offers` | yes | Lists the newest offers with state, progress and end. |
-| `/companyadmin offers info <id>` | `companies.admin.offers` | yes | Shows who created an offer, its money and budget, its progress and top contributors. |
-| `/companyadmin offers open <id> <count>` | `companies.admin.offers` | yes | Changes how many chunks wait to be taken at once, while the offer is not closed. |
+| `/companyadmin offers info <id>` | `companies.admin.offers` | yes | Shows who created an offer, its money and budget, its progress and top contributors, or for a contest its ranking, payouts and prizes. |
+| `/companyadmin offers open <id> <count>` | `companies.admin.offers` | yes | Changes how many chunks of a goal wait to be taken at once, while the goal is not closed. |
 | `/companyadmin offers pause <id>` | `companies.admin.offers` | yes | Pauses an offer and withdraws its waiting chunks. |
 | `/companyadmin offers resume <id>` | `companies.admin.offers` | yes | Resumes a paused offer. |
-| `/companyadmin offers cancel <id>` | `companies.admin.offers` | yes | Closes an offer and withdraws its waiting chunks. |
+| `/companyadmin offers cancel <id>` | `companies.admin.offers` | yes | Closes an offer and withdraws its waiting chunks; a cancelled contest pays no prizes. |
+| `/companyadmin offers prize <id> <place> paid\|failed` | `companies.admin.offers` | yes | Notes the outcome of a contest prize whose payment stopped without a known result. |
 
 See [Event offers](../admin/admin-commands.md#event-offers).
 

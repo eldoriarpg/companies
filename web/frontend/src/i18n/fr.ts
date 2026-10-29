@@ -1195,6 +1195,7 @@ export default {
             WITHDRAWAL: 'a retiré',
             PAYOUT_SHARE: 'Part d’un paiement',
             SHARE_CHANGED: 'Part modifiée',
+            CONTEST_PRIZE: 'Prix de concours',
         },
     },
     rankings: {

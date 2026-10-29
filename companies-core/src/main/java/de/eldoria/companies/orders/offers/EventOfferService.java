@@ -9,11 +9,12 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.offer.ContestEntry;
+import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.offer.OpenChunk;
-import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.system.Purchases;
 import de.eldoria.companies.orders.system.RuleItems;
 import de.eldoria.companies.orders.system.SystemOrderService.Funding;
@@ -41,8 +42,8 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * Runs the goals of the event offers. Only the primary node runs it, every {@value #CHECK_MINUTES} minute and right
- * after an admin changed an offer on this node.
+ * Runs the goals and contests of the event offers. Only the primary node runs it, every {@value #CHECK_MINUTES}
+ * minute and right after an admin changed an offer on this node.
  * <p>
  * Each check first settles the open chunks of every offer it looks after: a chunk whose order was delivered counts its
  * items for the offer and for whoever delivered it, a chunk whose order is gone without being delivered gives its amount
@@ -61,7 +62,7 @@ import java.util.stream.Collectors;
  * offer. A chunk that is aborted or expires is open again like any order and is withdrawn when its offer no longer
  * runs.
  * <p>
- * Contests use the same offers and money; they are not run yet and are left alone.
+ * Contests are started, closed and settled by {@link ContestJob}.
  */
 public final class EventOfferService {
     /**
@@ -79,6 +80,7 @@ public final class EventOfferService {
     private final Placement placement;
     private final Funding funding;
     private final Purchases purchases;
+    private final ContestJob contests;
     private final Announcer announcer;
     private final Clock clock;
     private final DoubleSupplier random;
@@ -105,6 +107,30 @@ public final class EventOfferService {
             Clock clock,
             DoubleSupplier random,
             Logger logger) {
+        this(offers, orders, placement, funding, (company, offer, amount) -> false, announcer, clock, random, logger);
+    }
+
+    /**
+     * @param offers    offer repository
+     * @param orders    order repository, holding the decisions of the chunks
+     * @param placement places and removes the chunks
+     * @param funding   moves the money of accounts
+     * @param prizes    pays the prizes of contests
+     * @param announcer tells the server about reached goals and closed contests
+     * @param clock     clock giving the current time in UTC
+     * @param random    a random number from 0 included to 1 excluded, picking a material of a criteria set
+     * @param logger    reports chunks that could not be placed and failures
+     */
+    public EventOfferService(
+            AOfferData offers,
+            AOrderData orders,
+            Placement placement,
+            Funding funding,
+            Prizes prizes,
+            Announcer announcer,
+            Clock clock,
+            DoubleSupplier random,
+            Logger logger) {
         this.offers = offers;
         this.placement = placement;
         this.funding = funding;
@@ -113,6 +139,7 @@ public final class EventOfferService {
         this.random = random;
         this.logger = logger;
         purchases = new Purchases(orders, placement, funding, logger, "event offer");
+        contests = new ContestJob(offers, funding, prizes, announcer, purchases, logger);
     }
 
     /**
@@ -154,11 +181,16 @@ public final class EventOfferService {
     public synchronized Run run() {
         var now = LocalDateTime.now(clock);
         var run = new Run(
-                new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new LinkedHashMap<>());
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new LinkedHashMap<>(),
+                new ArrayList<>());
         for (var offer : offers.working()) {
-            if (offer.kind() != OfferKind.GOAL) continue;
             try {
-                handle(offer, now, run);
+                if (offer.kind() == OfferKind.CONTEST) contests.handle(offer, now, run);
+                else handle(offer, now, run);
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not look after the event offer #" + offer.id(), e);
             }
@@ -274,7 +306,7 @@ public final class EventOfferService {
         if (missing > 0 && waiting < offer.openChunks() && chunks.equals(refused.get(offer.id()))) return;
         refused.remove(offer.id());
         while (waiting < offer.openChunks() && missing > 0) {
-            var amount = affordable(offer.unitPrice(), (int) Math.min(offer.chunkSize(), missing), budget);
+            var amount = EventOffer.affordable(offer.unitPrice(), (int) Math.min(offer.chunkSize(), missing), budget);
             if (amount <= 0) {
                 outOfMoney(offer, inWork, now, run, label);
                 return;
@@ -307,20 +339,6 @@ public final class EventOfferService {
         } else {
             purchases.note(label, Step.BUDGET, "");
         }
-    }
-
-    /**
-     * @param unit   price per item
-     * @param wanted items wanted
-     * @param budget money left
-     * @return the most of the wanted items the money pays for, at the price an order rounds to
-     */
-    static int affordable(double unit, int wanted, double budget) {
-        if (wanted <= 0) return 0;
-        if (!(unit > 0)) return wanted;
-        var amount = (int) Math.min(wanted, Math.floor((budget + 0.000_001) / unit));
-        while (amount > 0 && OrderBuilder.total(unit, amount) > budget + 0.000_001) amount--;
-        return Math.max(0, amount);
     }
 
     /**
@@ -402,6 +420,38 @@ public final class EventOfferService {
          * @param offer the goal
          */
         void reached(EventOffer offer);
+
+        /**
+         * Announces the result of a closed contest.
+         *
+         * @param offer   the contest, settled
+         * @param ranking the companies that delivered and still exist, in the order of their places
+         * @param prizes  the prizes of its places as they were paid
+         */
+        default void contestClosed(EventOffer offer, List<ContestEntry> ranking, List<ContestPrize> prizes) {}
+
+        /**
+         * Announces that a running contest was cancelled, without prizes.
+         *
+         * @param offer the contest
+         */
+        default void contestCancelled(EventOffer offer) {}
+    }
+
+    /**
+     * Pays the prizes of contests.
+     */
+    @FunctionalInterface
+    public interface Prizes {
+        /**
+         * Pays a prize to a company.
+         *
+         * @param company id of the company
+         * @param offer   id of the contest
+         * @param amount  the prize
+         * @return true when the money reached the company
+         */
+        boolean pay(int company, int offer, double amount);
     }
 
     /**
@@ -412,11 +462,13 @@ public final class EventOfferService {
      * @param delivered the chunks settled as delivered
      * @param returned  the chunks settled as gone without being delivered
      * @param changed   the offers that changed their state, with the last state they reached
+     * @param settled   the contests settled: their places fixed and their prizes reserved
      */
     public record Run(
             List<Integer> placed,
             List<Integer> withdrawn,
             List<Integer> delivered,
             List<Integer> returned,
-            Map<Integer, OfferState> changed) {}
+            Map<Integer, OfferState> changed,
+            List<Integer> settled) {}
 }

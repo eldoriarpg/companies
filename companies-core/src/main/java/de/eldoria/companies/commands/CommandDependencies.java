@@ -38,6 +38,7 @@ import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
+import de.eldoria.companies.orders.offers.ContestService;
 import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.services.AdminOrderService;
@@ -581,7 +582,8 @@ public final class CommandDependencies {
      * @param receive             hands delivered orders to their owners
      * @param systemFunding       moves the money of system orders between their accounts and the orders
      * @param offerData           event offers and the chunks of goals
-     * @param offers              runs the goals of event offers on the primary
+     * @param offers              runs the goals and contests of event offers on the primary
+     * @param contests            lets companies join contests and pays their deliveries
      */
     public record Services(
             Economy economy,
@@ -610,5 +612,6 @@ public final class CommandDependencies {
             OrderReceiveService receive,
             SystemFunding systemFunding,
             AOfferData offerData,
-            EventOfferService offers) {}
+            EventOfferService offers,
+            ContestService contests) {}
 }

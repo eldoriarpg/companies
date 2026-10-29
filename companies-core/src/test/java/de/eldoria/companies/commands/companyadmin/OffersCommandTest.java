@@ -8,9 +8,13 @@ package de.eldoria.companies.commands.companyadmin;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
+import de.eldoria.companies.data.wrapper.offer.PrizeState;
+import de.eldoria.companies.menus.Keys;
+import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.util.Times;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,9 +23,12 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OffersCommandTest {
     @TempDir
@@ -114,5 +121,136 @@ class OffersCommandTest {
                         "Admin",
                         now))
                 .orElseThrow();
+    }
+
+    @Test
+    void aPausedContestThatNeverStartedResumesIntoWaitingAndHasNoChunks() {
+        var now = Times.now();
+        var id = offers.create(EventOffer.contest(
+                        "Race",
+                        OfferLine.material("OAK_LOG"),
+                        100,
+                        1.0,
+                        List.of(),
+                        SourceType.MINTED,
+                        null,
+                        100,
+                        now.minusHours(1),
+                        now.plusDays(1),
+                        "Admin",
+                        now))
+                .orElseThrow();
+
+        assertEquals(OffersCommand.Transition.DONE, pause(id));
+        assertEquals(OffersCommand.Transition.DONE, resume(id));
+        assertEquals(OfferState.SCHEDULED, state(id));
+        assertEquals(OffersCommand.Transition.WRONG_KIND, OffersCommand.limit(offers, id, 3));
+        offers.activate(id, 0, now);
+        assertEquals(OffersCommand.Transition.DONE, pause(id));
+        assertEquals(OffersCommand.Transition.DONE, resume(id));
+        assertEquals(OfferState.ACTIVE, state(id));
+    }
+
+    @Test
+    void theOfferTextsUseNoKeyThatShadowsATag() {
+        for (var key : List.of(
+                "offer_name",
+                "company_name",
+                "rule_name",
+                "offer_id",
+                "offer_ends",
+                "offer_percent",
+                "item",
+                "items",
+                "time",
+                "place",
+                "prize",
+                "prizes",
+                "missing",
+                "gross",
+                "net",
+                "held",
+                "budget",
+                "spent",
+                "left",
+                "unit",
+                "starts",
+                "ends",
+                "by",
+                "created",
+                "closed",
+                "delivered",
+                "amount",
+                "percent",
+                "companies",
+                "waiting",
+                "taken",
+                "chunk",
+                "chunks",
+                "open",
+                "rank",
+                "count",
+                "account",
+                "material",
+                "total",
+                "paid",
+                "price",
+                "max")) {
+            assertEquals(key, Keys.require(key));
+        }
+    }
+
+    @Test
+    void aStuckPrizeIsNotedOnceAndAFailedOneGoesBackToTheAccountAfterTheRefund() {
+        var now = Times.now();
+        var id = offers.create(EventOffer.contest(
+                        "Race",
+                        OfferLine.material("OAK_LOG"),
+                        100,
+                        1.0,
+                        List.of(50.0, 20.0),
+                        SourceType.ACCOUNT,
+                        "Bank",
+                        170,
+                        now.minusHours(1),
+                        now.plusDays(1),
+                        "Admin",
+                        now))
+                .orElseThrow();
+        offers.activate(id, 170, now);
+        offers.state(id, OfferState.ACTIVE, OfferState.ENDED, now);
+        offers.settle(
+                id,
+                List.of(
+                        new ContestPrize(1, 50.0, 1, null, PrizeState.PENDING),
+                        new ContestPrize(2, 20.0, 2, null, PrizeState.PENDING)),
+                now);
+        offers.claimPrize(id, 1);
+        offers.claimPrize(id, 2);
+        offers.refund(id, 100, now);
+        Map<String, Double> deposits = new HashMap<>();
+        var funding = new SystemOrderService.Funding() {
+            @Override
+            public boolean withdraw(String account, double amount) {
+                return false;
+            }
+
+            @Override
+            public void deposit(String account, double amount) {
+                deposits.merge(account, amount, Double::sum);
+            }
+        };
+
+        assertEquals(OffersCommand.Transition.UNKNOWN, OffersCommand.resolve(offers, funding, id, 3, true));
+        assertEquals(OffersCommand.Transition.UNKNOWN, OffersCommand.resolve(offers, funding, id + 1, 1, true));
+        assertEquals(OffersCommand.Transition.DONE, OffersCommand.resolve(offers, funding, id, 1, true));
+        assertEquals(OffersCommand.Transition.REFUSED, OffersCommand.resolve(offers, funding, id, 1, false));
+        assertEquals(PrizeState.PAID, offers.prizes(id).get(0).state());
+        assertTrue(deposits.isEmpty());
+
+        assertEquals(OffersCommand.Transition.DONE, OffersCommand.resolve(offers, funding, id, 2, false));
+        assertEquals(PrizeState.FAILED, offers.prizes(id).get(1).state());
+        assertEquals(Map.of("Bank", 20.0), deposits);
+        assertEquals(50.0, offers.offer(id).orElseThrow().spent());
     }
 }

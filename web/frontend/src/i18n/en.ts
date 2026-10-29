@@ -1195,6 +1195,7 @@ export default {
             WITHDRAWAL: 'took out',
             PAYOUT_SHARE: 'Share of a payout',
             SHARE_CHANGED: 'Share changed',
+            CONTEST_PRIZE: 'Contest prize',
         },
     },
     rankings: {

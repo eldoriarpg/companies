@@ -55,7 +55,7 @@ Only operators have these by default.
 | `companies.admin.grant` | op | Give items and money to players with `/companyadmin grant`. |
 | `companies.admin.level` | op | Edit the company levels with `/companyadmin level`. |
 | `companies.admin.nodes` | op | List and remove the servers registered in the database with `/companyadmin node`. |
-| `companies.admin.offers` | op | Create, look at, pause, resume and cancel event offers with `/companyadmin offers`. |
+| `companies.admin.offers` | op | Create, look at, pause, resume and cancel event offers, goals and contests, with `/companyadmin offers`. Joining and delivering into contests needs no server permission: joining needs the company permission `manage_orders`, delivering membership in a company that takes part. |
 | `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. |
 | `companies.admin.player` | op | Look up the company, orders, items and notifications of a player with `/companyadmin player`. |
 | `companies.admin.reload` | op | Reload and share the configuration with `/companyadmin reload`, and roll back a shared file with `/companyadmin settings rollback`, together with `companies.admin`. |

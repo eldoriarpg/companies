@@ -61,7 +61,7 @@ public interface AlertCompanies {
 
             @Override
             public CompletableFuture<Integer> acceptedOrders(CompanyProfile company) {
-                return orderData.retrieveCompanyOrderCount(company).asFuture();
+                return orderData.retrieveCompanySlotCount(company).asFuture();
             }
         };
     }

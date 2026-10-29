@@ -439,11 +439,11 @@ class EventOfferServiceTest {
 
     @Test
     void affordableItemsStayWithinTheBudgetAtTheRoundedPrice() {
-        assertEquals(100, EventOfferService.affordable(2.0, 100, 1000));
-        assertEquals(33, EventOfferService.affordable(3.0, 100, 100));
-        assertEquals(0, EventOfferService.affordable(3.0, 100, 2.99));
-        assertEquals(2, EventOfferService.affordable(0.335, 10, 0.67));
-        assertEquals(0, EventOfferService.affordable(2.0, 0, 1000));
+        assertEquals(100, EventOffer.affordable(2.0, 100, 1000));
+        assertEquals(33, EventOffer.affordable(3.0, 100, 100));
+        assertEquals(0, EventOffer.affordable(3.0, 100, 2.99));
+        assertEquals(2, EventOffer.affordable(0.335, 10, 0.67));
+        assertEquals(0, EventOffer.affordable(2.0, 0, 1000));
     }
 
     private int goal(

@@ -8,6 +8,7 @@ package de.eldoria.companies.orders.offers;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
+import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import org.junit.jupiter.api.AfterEach;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -126,5 +128,42 @@ class GoalDraftTest {
                         () -> GoalDraft.goal(
                                 name, money, LOGS, amount, price, chunk, start, hours, budget, "Admin", NOW))
                 .localeKey();
+    }
+
+    @Test
+    void aContestBudgetsItsItemsAndPrizes() {
+        var contest =
+                GoalDraft.contest("Race", "minted", LOGS, 100, 2, List.of(500.0, 250.0), 1, 24, null, "Admin", NOW);
+
+        assertEquals(OfferKind.CONTEST, contest.kind());
+        assertEquals(950.0, contest.budget());
+        assertEquals(List.of(500.0, 250.0), contest.prizes());
+        assertEquals(NOW.plusHours(1), contest.starts());
+        assertEquals(NOW.plusHours(25), contest.ends());
+        assertEquals(
+                "companyadmin.offers.error.budgetPrizes",
+                assertThrows(
+                                CommandFailure.class,
+                                () -> GoalDraft.contest(
+                                        "Race", "minted", LOGS, 100, 2, List.of(500.0), 0, 24, 501.0, "Admin", NOW))
+                        .localeKey());
+        assertEquals(
+                502.0,
+                GoalDraft.contest("Race", "Bank", LOGS, 100, 2, List.of(500.0), 0, 24, 502.0, "Admin", NOW)
+                        .budget());
+    }
+
+    @Test
+    void prizesAreReadFromTheirPlaces() {
+        assertEquals(List.of(), GoalDraft.prizes("None"));
+        assertEquals(List.of(500.0, 250.5, 100.0), GoalDraft.prizes("500+250.5,100"));
+        assertEquals(List.of(0.01), GoalDraft.prizes("0.005"));
+        for (var bad : List.of("0", "-5", "abc", "1+2+3+4+5+6+7+8+9+10+11", "", "5,,6")) {
+            assertEquals(
+                    "companyadmin.offers.error.prizes",
+                    assertThrows(CommandFailure.class, () -> GoalDraft.prizes(bad))
+                            .localeKey(),
+                    bad);
+        }
     }
 }

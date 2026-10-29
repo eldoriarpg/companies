@@ -67,7 +67,7 @@ guessed:
 |---|---|---|---|---|
 | `enabled` | true/false | `false` | Whether the server places system orders. When off, open system orders still run out at the end of their lifetime. | reload |
 | `checkMinutes` | number (minutes) | `5` | How often the primary server places due orders and removes the ones past their lifetime. At least 1. | restart |
-| `mintedDailyCap` | number | `10000.0` | How much new money all rules together may put into orders per day. Orders removed again do not count, nor do the chunks of [event offers](../admin-commands.md#event-offers), which have their own budgets. `0` allows no new money. | reload |
+| `mintedDailyCap` | number | `10000.0` | How much new money all rules together may put into orders per day. Orders removed again do not count, nor does the money of [event offers](../admin-commands.md#event-offers), goals and contests, which have their own budgets. `0` allows no new money. | reload |
 | `rules` | list | empty | The rules, see below. | reload |
 | `guessed` | section | off | Orders the server guesses, see [Guessed orders](#guessed-orders). | reload |
 | `markSystemOrders` | true/false | `false` | Whether players see which orders the server placed: a badge in the search results and the order book, a search filter to show only server orders or hide them, and player orders listed first when the sorting is otherwise equal. When off, system orders look like any order. The chunks of [event offers](../admin-commands.md#event-offers) carry their event badge either way, and hiding server orders does not hide them. | reload |
