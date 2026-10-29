@@ -14,6 +14,7 @@ import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.util.Times;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
 import java.util.function.Supplier;
@@ -56,9 +57,7 @@ public final class DiscordOffers implements EventOfferService.Announcer {
     }
 
     @Override
-    public void reached(EventOffer offer) {
-        // Posted as the 100 % threshold of its progress.
-    }
+    public void reached(EventOffer offer) {}
 
     @Override
     public void started(EventOffer offer) {
@@ -84,7 +83,7 @@ public final class DiscordOffers implements EventOfferService.Announcer {
         if (!settings.get().posts(WebhookEvent.CONTEST_RESULT)) return;
         var places = ranking.stream().limit(PLACES).map(entry -> {
             var prize = prizes.stream()
-                    .filter(found -> found.paid() && found.company() != null && found.company() == entry.company())
+                    .filter(found -> found.paid() && Objects.equals(found.company(), entry.company()))
                     .findFirst()
                     .map(found -> prices.apply(found.amount()));
             return new DiscordEmbeds.Place(

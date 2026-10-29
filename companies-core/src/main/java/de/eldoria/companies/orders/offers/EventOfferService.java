@@ -223,7 +223,6 @@ public final class EventOfferService {
             withdraw(open, now, run);
             return;
         }
-        // Read after the chunks: a chunk settled in between then counts twice and places less, never more.
         var counted = offers.offer(current.id()).orElse(null);
         if (counted == null || counted.state() != OfferState.ACTIVE) return;
         place(counted, open, now, run);
@@ -253,7 +252,6 @@ public final class EventOfferService {
         while (true) {
             var next = next(current, now);
             if (next == null) return current;
-            // The first start of a goal notes when it started, so a resume never announces it again.
             var first =
                     current.state() == OfferState.SCHEDULED && next == OfferState.ACTIVE && current.started() == null;
             var changed = first

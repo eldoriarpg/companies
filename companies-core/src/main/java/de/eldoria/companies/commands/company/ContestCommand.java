@@ -39,6 +39,7 @@ import org.bukkit.entity.Player;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -241,7 +242,6 @@ public final class ContestCommand {
                                 .deliver(target.company(), player.getUniqueId(), contest.id(), offered),
                         Threading.VIRTUAL)
                 .exceptionally(err -> {
-                    // The service does not fail once the contest took the items, so the items were not taken here.
                     deps.plugin().getLogger().log(Level.SEVERE, "Could not deliver into contest " + contest.id(), err);
                     return new ContestService.Paid(
                             ContestDelivery.refused(ContestDelivery.Outcome.BUSY, OfferState.ACTIVE), null);
@@ -423,7 +423,8 @@ public final class ContestCommand {
                                 PREFIX + "info.place",
                                 Values.number("place", index + 1),
                                 Values.text(
-                                        "company_name", found.name() == null ? "#" + found.company() : found.name()),
+                                        "company_name",
+                                        Objects.requireNonNullElse(found.name(), "#" + found.company())),
                                 Values.number("items", found.delivered())));
             }
         }

@@ -219,7 +219,6 @@ public final class ContestService {
         if (items <= 0) return new Paid(ContestDelivery.refused(ContestDelivery.Outcome.FULL, OfferState.ACTIVE), null);
         var delivery = offers.deliver(offer, company.id(), worker, items, now());
         if (delivery.outcome() != ContestDelivery.Outcome.DELIVERED) return new Paid(delivery, null);
-        // The items are taken now; nothing after this may undo the delivery, a failed payment is only logged.
         Payout payout = null;
         try {
             payout = Payout.split(delivery.gross(), payments.taxPercent(company), payments.share(company));
@@ -255,7 +254,8 @@ public final class ContestService {
                 return Optional.empty();
             }
         }
-        var material = line.material() == null ? null : Material.matchMaterial(line.material());
+        var name = line.material();
+        var material = name == null ? null : Material.matchMaterial(name);
         if (material == null || !material.isItem() || material.isAir()) return Optional.empty();
         return Optional.of(new Wanted(new ItemStack(material), null));
     }

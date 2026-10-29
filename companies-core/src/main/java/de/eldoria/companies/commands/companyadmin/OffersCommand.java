@@ -48,6 +48,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -746,7 +747,6 @@ public final class OffersCommand {
                 data.prizes(id).stream().filter(found -> found.place() == place).findFirst();
         if (prize.isEmpty()) return Transition.UNKNOWN;
         if (prize.get().state() != PrizeState.PAYING) return Transition.REFUSED;
-        // A failed prize goes back with the rest; before the rest is given back, the job's refund could miss it.
         if (!paid && offer.get().refunded() == null) return Transition.REFUSED;
         if (!data.prizeOutcome(id, place, paid)) return Transition.REFUSED;
         var contest = data.offer(id).orElse(offer.get());
@@ -982,7 +982,8 @@ public final class OffersCommand {
                                 entry.active() ? PREFIX + "info.entry" : PREFIX + "info.entryLeft",
                                 Values.number("place", place++),
                                 Values.text(
-                                        "company_name", entry.name() == null ? "#" + entry.company() : entry.name()),
+                                        "company_name",
+                                        Objects.requireNonNullElse(entry.name(), "#" + entry.company())),
                                 Values.number("items", entry.delivered()),
                                 Values.money("paid", economy(), entry.paid())));
             }
@@ -1019,7 +1020,7 @@ public final class OffersCommand {
                             items,
                             chunks);
         }
-        var name = contributor.name() == null ? "#" + contributor.company() : contributor.name();
+        var name = Objects.requireNonNullElse(contributor.name(), "#" + contributor.company());
         return MenuText.create()
                 .locale(
                         PREFIX + "info.contributor",

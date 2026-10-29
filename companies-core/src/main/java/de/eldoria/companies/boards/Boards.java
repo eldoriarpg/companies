@@ -179,10 +179,11 @@ public final class Boards implements BoardOpener {
     }
 
     /**
-     * Counts the orders a board shows: the open orders matching its filter, regardless of who looks.
+     * Counts the orders a board shows: the open orders matching its filter, regardless of who looks, and for a board of
+     * event offers only the chunks of those offers.
      *
-     * @param filter filter of the board
-     * @return number of open orders matching the filter
+     * @param target what the board shows
+     * @return number of open orders the board shows
      */
     public CompletableFuture<Integer> openCount(BoardTarget target) {
         var offers = target.offers();

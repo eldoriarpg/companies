@@ -66,7 +66,8 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
     @Override
     public MenuText chat(Player player, Model model, MenuActions buttons) {
         var text = OrderTexts.title("", model.id(), model.name()).newLine();
-        if (model.offer() != null) text.append(OfferTexts.line(model.offer())).newLine();
+        var offer = model.offer();
+        if (offer != null) text.append(OfferTexts.line(offer)).newLine();
         text.append(OrderTexts.status(model.state())).newLine();
         for (var line : model.lines()) {
             text.append(lineText(model, line));
@@ -108,7 +109,8 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
     public Optional<Dialog> dialog(Player player, Model model, MenuActions buttons) {
         var components = new MenuComponents(messages, player);
         List<DialogBody> body = new ArrayList<>();
-        if (model.offer() != null) body.add(DialogBody.plainMessage(components.of(OfferTexts.line(model.offer()))));
+        var offer = model.offer();
+        if (offer != null) body.add(DialogBody.plainMessage(components.of(OfferTexts.line(offer))));
         body.add(DialogBody.plainMessage(components.of(OrderTexts.status(model.state()))));
         for (var line : model.lines()) {
             body.add(DialogBody.item(line.template())

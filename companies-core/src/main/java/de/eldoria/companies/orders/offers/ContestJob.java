@@ -217,7 +217,6 @@ final class ContestJob {
                         + " was paid (" + paid + "); it is not paid again.");
             }
         }
-        // A prize still waiting, or prizes that could not be read, keep the rest until a later check paid them.
         var after = offers.prizes(offer.id());
         if (after.size() != offer.prizes().size()
                 || after.stream().anyMatch(prize -> prize.state() == PrizeState.PENDING)) {

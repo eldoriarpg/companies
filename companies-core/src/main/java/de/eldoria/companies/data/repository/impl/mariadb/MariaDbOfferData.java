@@ -606,7 +606,6 @@ public class MariaDbOfferData extends AOfferData {
 
     @Override
     public List<ContestEntry> ranking(int offer) {
-        // A company that never delivered sorts after every one that did, whatever the dialect does with nulls.
         return query(ENTRY + """
                         WHERE e.offer_id = ?
                         ORDER BY e.delivered DESC,

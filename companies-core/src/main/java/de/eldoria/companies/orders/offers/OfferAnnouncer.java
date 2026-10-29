@@ -18,6 +18,7 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.Plugin;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Shows the announcements of event offers to every player online on this server, each in their own language: started
@@ -141,10 +142,10 @@ public final class OfferAnnouncer implements EventOfferService.Announcer {
                     var entry = shown.get(index);
                     var place = index + 1;
                     var prize = prizes.stream()
-                            .filter(found ->
-                                    found.paid() && found.company() != null && found.company() == entry.company())
+                            .filter(found -> found.paid() && Objects.equals(found.company(), entry.company()))
                             .findFirst();
-                    var company = Values.text("company", entry.name() == null ? "#" + entry.company() : entry.name());
+                    var company =
+                            Values.text("company", Objects.requireNonNullElse(entry.name(), "#" + entry.company()));
                     if (prize.isPresent()) {
                         messages.sendMessage(
                                 player,

@@ -182,7 +182,6 @@ class EventOfferServiceTest {
         service.run();
         assertTrue(started.isEmpty());
 
-        // Resuming an offer that never started sends it back to wait for its start.
         offers.state(id, OfferState.PAUSED, OfferState.SCHEDULED, LocalDateTime.now(clock));
         var run = service.run();
 

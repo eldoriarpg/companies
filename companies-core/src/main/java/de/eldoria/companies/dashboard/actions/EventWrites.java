@@ -278,12 +278,15 @@ public final class EventWrites {
      * @return the item as the dashboard shows it
      */
     static OfferItem item(OfferLine line) {
-        if (line.criteria() != null) return new OfferItem(line.label(), null, line.criteria());
-        if (line.item() != null) {
-            var view = Views.item(line.item(), 1);
+        var criteria = line.criteria();
+        if (criteria != null) return new OfferItem(line.label(), null, criteria);
+        var stack = line.item();
+        if (stack != null) {
+            var view = Views.item(stack, 1);
             return new OfferItem(view.name(), view.icon(), null);
         }
-        var material = line.material() == null ? null : Material.matchMaterial(line.material());
+        var name = line.material();
+        var material = name == null ? null : Material.matchMaterial(name);
         if (material == null) return new OfferItem(line.label(), null, null);
         return new OfferItem(PlainText.materialName(material), material.getKey().getKey(), null);
     }
