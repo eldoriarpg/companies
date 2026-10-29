@@ -104,6 +104,148 @@ You need `companies.admin.orders`. These commands also work from the console.
 that paid it, whether you choose `refund` or `keep`; minted money goes nowhere. See
 [system-orders.yml](./configuration/system-orders-yml.md).
 
+## Event offers
+
+You need `companies.admin.offers`. These commands also work from the console, except `goal hand` and
+`contest hand`.
+
+Event offers are offers the server makes for an event or a shared goal. There are two kinds:
+
+- **Goals**: a large amount the server needs, such as 10,000 oak logs for the harbour, split into ordinary orders
+  (chunks) that every company and every player working alone can take. Players see them with an
+  `[Event #<id>: <name>]` badge and can filter and sort the order search by them, and `event` boards show them.
+- **Contests**: one offer several companies join at once and race to deliver into, each delivery paid at once per
+  item, with optional prizes for the first places.
+
+See [Event offers](../players/event-offers.md) for what players see. The same tools are in the *Event offers* tab of the
+[dashboard](./dashboard.md#admin-tools).
+
+| Command | What it does |
+|---|---|
+| `/companyadmin offers goal material <name> <money> <amount> <price> <chunk> <start> <hours> <material> [budget]` | Creates a goal for any item of a material |
+| `/companyadmin offers goal hand <name> <money> <amount> <price> <chunk> <start> <hours> [budget]` | Creates a goal for the item in your main hand: exactly that item when it has data (name, enchantments, ...), otherwise any item of its material |
+| `/companyadmin offers goal criteria <name> <money> <amount> <price> <chunk> <start> <hours> [budget <budget>] <criteria>` | Creates a goal for every item that meets the criteria, written as in [criteria lines](../players/orders.md#criteria-lines). The criteria come last, so a budget is given as the word `budget` and the amount before them |
+| `/companyadmin offers contest material <name> <money> <amount> <price> <prizes> <start> <hours> <material> [budget]` | Creates a contest for any item of a material |
+| `/companyadmin offers contest hand <name> <money> <amount> <price> <prizes> <start> <hours> [budget]` | Creates a contest for the item in your main hand |
+| `/companyadmin offers contest criteria <name> <money> <amount> <price> <prizes> <start> <hours> [budget <budget>] <criteria>` | Creates a contest for every item that meets the criteria |
+| `/companyadmin offers list` | Lists the 20 newest offers with their state, progress and end |
+| `/companyadmin offers info <id>` | Shows who created an offer and when, what it orders, where its money comes from, its budget, what it spent and what is left and its progress. For a goal also the items in open chunks and the top contributors; for a contest the money its account paid in, the prizes, the ranking with what each company was paid, and after the close who got which prize |
+| `/companyadmin offers open <id> <count>` | Changes how many chunks of a goal wait to be taken at once, 1 to 100. Only while the goal runs, is scheduled or paused |
+| `/companyadmin offers pause <id>` | Pauses a running or scheduled offer |
+| `/companyadmin offers resume <id>` | Resumes a paused offer |
+| `/companyadmin offers cancel <id>` | Closes an offer for good |
+| `/companyadmin offers prize <id> <place> paid\|failed` | Notes the outcome of a contest prize whose payment stopped without a known result, after you checked the company's treasury log. `failed` gives the prize's money back to the contest, or straight to its account when the contest gave back its rest already |
+
+The values of `goal`:
+
+- `<name>`: the name players see, at most 31 characters. It is also the name of every chunk. Put it in quotes when it
+  has spaces.
+- `<money>`: `minted`, or the name of an economy account that pays the chunks (in quotes when it has spaces). Like
+  [system orders](./configuration/system-orders-yml.md), an account pays a chunk when it is placed and gets the money
+  back when the chunk is withdrawn or removed. Minted money is created when the workers are paid.
+- `<amount>`: the items the goal asks for in all. `<price>`: the price per item, more than 0 and at most 1,000,000.
+- `<chunk>`: the items per chunk, for example 256. The last chunk is the rest. Keep it within the order size your
+  company levels allow, or small companies cannot take the chunks.
+- `<start>`: hours from now until the goal starts, `0` for now. `<hours>`: how long it runs from its start. Both are
+  at most 8760 hours (a year).
+- `[budget]`: what the whole goal may spend. Without it, the budget is what its chunks cost at its price, each
+  rounded to cents like any order. A budget must pay at least one item and may be at most 1,000,000,000,000. A
+  smaller budget than the cost makes the goal close as **out of money** once it is spent.
+
+A goal keeps 3 chunks waiting to be taken at once; change it with `open`. Example:
+
+```bash
+/companyadmin offers goal material "Harbour logs" minted 10000 0.8 256 0 72 oak_log
+/companyadmin offers goal criteria "Any logs" "orders/Collector" 5000 0.5 128 2 48 budget 2000 #logs
+```
+
+### Contests
+
+The values of `contest` are those of `goal`, with `<prizes>` instead of `<chunk>`:
+
+- `<price>`: what a delivery is paid per item.
+- `<prizes>`: `none`, or the money of the first places, first place first, separated by `+` (or by commas in quotes),
+  at most 10 places: `500+250+100`.
+- `[budget]`: what the whole contest may spend, deliveries and prizes. Without it, it is what the whole amount costs
+  at its price plus the prizes. The prizes are always kept back from the budget, so deliveries never use their money
+  and they can always be paid. A budget must hold the prizes and one item.
+
+```bash
+/companyadmin offers contest material "Harvest race" "orders/Collector" 20000 0.4 500+250+100 0 48 wheat
+```
+
+How a contest runs:
+
+- **Money.** With an account, the primary server takes the whole budget from the account when the contest starts.
+  When the account cannot pay it, the contest waits and is tried again a minute later; the reason is logged once.
+  After the close, what was not spent goes back to the account. Minted money is created when it is paid out.
+- **Joining.** A member with the company permission `manage_orders` joins with `/company contest join <id>`, once the
+  contest started. Taking part uses one of the company's order slots, like an order it works on, until the company
+  leaves or the contest closes. Only companies take part, not players working alone. A company that leaves keeps its
+  items and its place.
+- **Delivering.** Any member of a company that takes part delivers with `/company contest deliver <id> <amount|all>`,
+  from the inventory and a held shulker box, matched like a delivery to an order line (material, exact item or
+  criteria). The items are removed. The worker is paid at once, per item at the contest's price, like a payout of an
+  order: the tax of the company's level goes to the collector, the company's treasury share into its treasury. Each
+  delivery is paid the rounded price of all items delivered so far less that of the items before, so all deliveries
+  together cost exactly the price of the whole amount. A delivery never takes more than the contest misses or its
+  money, less the prizes, can pay; when two companies deliver the last items at once, the one that comes second gets
+  what is left and the rest of its items back.
+- **Closing.** A contest closes when it misses nothing (**reached**, at once with the last delivery), when its money
+  cannot pay one more item (**out of money**), when its end passes (**ended**) or when you cancel it. The primary
+  server then ranks the companies that delivered and still exist by their delivered items (the earlier one first
+  among equals; a deleted company gets no place), pays each prize into the treasury of the company on that place (to
+  its owner while treasuries are switched off), gives back to the account what was not spent, and announces the first
+  places to the players of every server, like a reached goal. A prize no company reached, or that could not be paid,
+  stays with the contest and goes back to the account. Each prize is paid at most once, also when the server stops halfway: the
+  places and prizes are written in one step before any money moves, the next check finishes what is left, and a prize
+  whose payment stopped without a known result is not paid again (`info` shows it, and the log names it); check the
+  company's treasury log and note the outcome with `/companyadmin offers prize <id> <place> paid|failed`; `failed`
+  works once the contest gave back its rest, and then gives the prize back to the account too. The rest is given back
+  only once no prize waits to be paid.
+- **Cancel** closes a contest **without prizes**: every delivery was paid already, the money not spent on deliveries
+  goes back to the account, and players are told it was cancelled. A contest cancelled before it started announces
+  nothing.
+- `pause` stops deliveries; joined companies stay. A contest paused before it started takes its money only when it
+  starts after `resume`.
+- Deliveries into contests do not count for company levels, rankings or member statistics, which are built from
+  orders. Their payouts and prizes show in the company treasury log.
+- Goals and contests have budgets of their own: their minted money does not count for `mintedDailyCap` of
+  [system-orders.yml](./configuration/system-orders-yml.md).
+
+### How a goal runs
+
+The primary server looks after the goals every minute, and at once after you changed one there:
+
+- At its start, a goal places chunks until the set number waits to be taken. When a chunk is taken, the next one is
+  placed, until the whole amount is placed.
+- Chunks are ordinary orders. A company or a player working alone takes one, delivers it and is paid as usual;
+  extensions, aborts and expiry work as for any order. An aborted chunk waits to be taken again. A chunk nobody took
+  in time is removed like any order, and its amount is placed again.
+- The **progress** of a goal is the items delivered to its chunks, counted the moment a chunk is completed. It is
+  stored with the goal, so it stays when the orders are purged later. `info` shows who delivered most.
+- When the whole amount is delivered, the goal is **reached** within a minute, and every player gets a message. In
+  a network the message reaches every server while the servers exchange messages (Redis, PostgreSQL notify or low
+  latency mode); without that only the players on the primary server see it. Server-wide rewards for a reached goal
+  come with server events.
+- When a goal or contest **starts**, players are told the same way, and `/company events` lists it.
+- When its end passes first, it **ends**: the chunks waiting to be taken are withdrawn, and chunks already taken may
+  still be delivered until their own delivery time. They still count for the progress.
+- `pause` and `cancel` withdraw the waiting chunks the same way; `resume` places them again. A goal paused before it
+  started waits for the next check after `resume`, which starts and announces it.
+- When the budget cannot pay one more item while items are missing and no chunk is open, the goal closes early as
+  **out of money**. With the default budget this only happens when a plugin raises the price of the chunks while
+  they are placed: a chunk whose raised price the budget cannot pay is removed again, and the goal waits for its open
+  chunks and then closes.
+- An account that cannot pay a chunk places nothing; the goal tries again a minute later. The reason is logged once.
+
+Chunks are system orders of the reserved rule `event-offer`. `/companyadmin systemorders list` lists them too, and
+`/companyadmin systemorders info <id>` names the goal a chunk belongs to. They do not count for the caps and budgets
+of the [system order rules](./configuration/system-orders-yml.md), nor for the network cap of minted money, and
+guessed orders do not treat them as player orders. A chunk is always marked, whether `markSystemOrders` is on or not.
+
+Every change is written to the [admin log](#the-admin-log).
+
 ## Players
 
 | Command | Permission | What it does |
@@ -192,7 +334,7 @@ Every admin action writes one line to the server log. It names the admin and wha
 [admin] Steve order cancel id=42 refund=true owner=Alex company="Iron Works"
 ```
 
-This covers the order, player, grant, treasury, company, level, board and node commands, as well as `reload`,
+This covers the order, player, grant, treasury, company, level, board, node and offer commands, as well as `reload`,
 `syncconfiguration` and `calclevel`. Looking things up is logged too: `order info`, `order search` and `player`.
 
 Use the log to check what your staff did. Search your `latest.log` for `[admin]`.

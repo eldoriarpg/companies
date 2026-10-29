@@ -7,10 +7,10 @@ import {watchDebounced} from '@vueuse/core'
 import {gatewayApi, type GatewayApi, type OrderListing, type OrderSearchArgs, type OrderSearchPage} from '~/api/gateway'
 
 /** The quick filters of the order book. */
-export type OrderFilter = 'all' | 'small' | 'large-payout' | 'server' | 'players'
+export type OrderFilter = 'all' | 'small' | 'large-payout' | 'server' | 'players' | 'events'
 
 /** The sortings of the in-game search the order book offers. */
-export const ORDER_SORTINGS = ['AGE', 'PRICE', 'UNIT_PRICE', 'SIZE', 'NAME'] as const
+export const ORDER_SORTINGS = ['AGE', 'PRICE', 'UNIT_PRICE', 'SIZE', 'NAME', 'OFFER_END'] as const
 
 /** One sorting of the order book. */
 export type OrderSorting = (typeof ORDER_SORTINGS)[number]
@@ -27,16 +27,19 @@ const LARGE_PAYOUT = 3000
  * @param filter the quick filter
  * @param sort the sorting
  * @param page the page
+ * @param offer the event offer whose chunks alone are shown, none for any
  * @returns the arguments
  */
-export function searchArgs(name: string, filter: OrderFilter, sort: OrderSorting, page: number): OrderSearchArgs {
+export function searchArgs(name: string, filter: OrderFilter, sort: OrderSorting, page: number, offer: number | null = null): OrderSearchArgs {
     return {
         name: name.trim() === '' ? undefined : name.trim(),
         maxOrderSize: filter === 'small' ? SMALL_ORDER : undefined,
         minPrice: filter === 'large-payout' ? LARGE_PAYOUT : undefined,
         serverOrders: filter === 'server' ? 'only' : filter === 'players' ? 'hide' : undefined,
+        offers: filter === 'events' && offer === null ? 'only' : undefined,
+        offer: offer ?? undefined,
         sort,
-        asc: sort === 'NAME',
+        asc: sort === 'NAME' || sort === 'OFFER_END',
         page,
         pageSize: PAGE_SIZE,
     }
@@ -44,7 +47,7 @@ export function searchArgs(name: string, filter: OrderFilter, sort: OrderSorting
 
 /**
  * The order book: the open orders the plugin finds for a search, a page at a time, and the details of one. Results
- * are not live; a new search shows what changed.
+ * are not live; a new search shows what changed. A chosen event offer narrows the search to its chunks.
  *
  * @param api the gateway's calls, for tests
  * @returns the search, its results and the details
@@ -53,6 +56,7 @@ export function useOrderBook(api: GatewayApi = gatewayApi()) {
     const query = ref('')
     const filter = ref<OrderFilter>('all')
     const sort = ref<OrderSorting>('AGE')
+    const offer = ref<number | null>(null)
     const pageNumber = ref(1)
     const result = shallowRef<OrderSearchPage | null>(null)
     const status = ref<'loading' | 'ready' | 'failed'>('loading')
@@ -65,7 +69,7 @@ export function useOrderBook(api: GatewayApi = gatewayApi()) {
         const ticket = latest.next()
         status.value = 'loading'
         try {
-            const page = await api.read('orders.browse.search', searchArgs(query.value, filter.value, sort.value, pageNumber.value))
+            const page = await api.read('orders.browse.search', searchArgs(query.value, filter.value, sort.value, pageNumber.value, offer.value))
             if (!latest.is(ticket)) return
             result.value = page
             status.value = 'ready'
@@ -99,11 +103,11 @@ export function useOrderBook(api: GatewayApi = gatewayApi()) {
         pageNumber.value = 1
         void load()
     }, {debounce: SEARCH_DELAY_MILLIS})
-    watch([filter, sort], () => {
+    watch([filter, sort, offer], () => {
         pageNumber.value = 1
         void load()
     })
     watch(pageNumber, () => void load())
 
-    return {query, filter, sort, page: pageNumber, result, status: readonly(status), detail, load, open}
+    return {query, filter, sort, offer, page: pageNumber, result, status: readonly(status), detail, load, open}
 }

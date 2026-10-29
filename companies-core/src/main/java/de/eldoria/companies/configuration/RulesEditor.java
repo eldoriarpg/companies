@@ -12,6 +12,7 @@ import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
 import de.eldoria.companies.configuration.elements.systemorders.RulePrice;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderRule;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.orders.criteria.CriteriaRules;
 import de.eldoria.companies.orders.criteria.CriteriaSyntax;
 import org.bukkit.Material;
@@ -33,11 +34,11 @@ import java.util.function.Predicate;
 /**
  * Reads and saves the defined rules of {@code system-orders.yml} as a whole list, the way the dashboard's rules editor
  * edits them. Saving checks every rule first: an id that is set, at most {@value SystemOrderRule#MAX_ID_LENGTH}
- * characters, not {@value GuessedSettings#RULE} and not used by an earlier rule, and what it orders: either a material
- * that names an item, or {@code items} whose entries each set exactly one of a known {@code material}, readable and
- * usable {@code criteria} or an {@code item}, with a known {@code resolve} and {@code pick}. A rule priced by the
- * market average may only hold entries that order a plain material. An entry equal to one the rule has is not added
- * again.
+ * characters, not {@value GuessedSettings#RULE} or {@value EventOffer#RULE} and not used by an earlier rule, and what
+ * it orders: either a material that names an item, or {@code items} whose entries each set exactly one of a known
+ * {@code material}, readable and usable {@code criteria} or an {@code item}, with a known {@code resolve} and
+ * {@code pick}. A rule priced by the market average may only hold entries that order a plain material. An entry equal
+ * to one the rule has is not added again.
  * Then the list replaces the rules of the revision the admin saw and is stored as the next revision, like a settings
  * change; a revision stored meanwhile refuses the save and hands back its rules.
  */
@@ -101,6 +102,15 @@ public final class RulesEditor {
     }
 
     /**
+     * @param id the id of a rule
+     * @return whether the id is kept for the guessed orders or the chunks of event offers
+     */
+    private static boolean reserved(String id) {
+        var lower = id.toLowerCase(Locale.ROOT);
+        return lower.equals(GuessedSettings.RULE) || lower.equals(EventOffer.RULE);
+    }
+
+    /**
      * What is wrong with the rules, by the dotted path of the value, such as {@code rules.2.id}.
      *
      * @param rules the rules
@@ -124,7 +134,7 @@ public final class RulesEditor {
             var id = rule.path("id").asString("").trim();
             if (id.isEmpty()) errors.put(path + "id", "missing");
             else if (id.length() > SystemOrderRule.MAX_ID_LENGTH) errors.put(path + "id", "tooLong");
-            else if (id.toLowerCase(Locale.ROOT).equals(GuessedSettings.RULE)) errors.put(path + "id", "reserved");
+            else if (reserved(id)) errors.put(path + "id", "reserved");
             else if (!ids.add(id)) errors.put(path + "id", "duplicate");
             var pick = rule.path("pick");
             if (!pick.isMissingNode()

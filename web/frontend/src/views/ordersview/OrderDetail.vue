@@ -12,6 +12,7 @@ import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import Alert from '@/components/feedback/Alert.vue'
 import FigureValue from '@/components/display/FigureValue.vue'
 import ItemMark from '@/components/display/ItemMark.vue'
+import PrimaryBadge from '@/components/badge/PrimaryBadge.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
@@ -96,6 +97,12 @@ async function accept(): Promise<void> {
         <span class="tabular">{{ count(line.item.amount, locale) }}</span>
       </li>
     </ul>
+    <p v-if="order.offer" class="flex flex-wrap items-center gap-2 text-sm" data-testid="order-offer">
+      <PrimaryBadge>{{ t('orders.eventBadge') }}</PrimaryBadge>
+      <NuxtLink v-if="supports(Feature.events)" :to="{name: 'events', query: {offer: String(order.offer.id)}}" class="font-semibold text-accent underline-offset-2 hover:underline">{{ order.offer.name }}</NuxtLink>
+      <span v-else class="font-semibold">{{ order.offer.name }}</span>
+      <MutedText>{{ t('orders.offerEnds', {hours: hoursLeft(order.offer.ends, now)}) }}</MutedText>
+    </p>
     <MutedText tag="p">{{ t('orders.created', {time: when(order.created, now, locale)}) }}</MutedText>
     <MutedText v-if="order.expires" tag="p">{{ t('orders.expires', {hours: hoursLeft(order.expires, now)}) }}</MutedText>
     <MutedText v-else-if="order.deadline" tag="p">{{ t('orders.due', {hours: hoursLeft(order.deadline, now)}) }}</MutedText>

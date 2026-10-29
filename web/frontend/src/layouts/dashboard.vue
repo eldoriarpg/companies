@@ -16,11 +16,13 @@ import PlayerCard from '@/components/layout/PlayerCard.vue'
 import TickerStrip from '@/components/layout/TickerStrip.vue'
 import TopBar from '@/components/layout/TopBar.vue'
 import VersionBanner from '@/components/layout/VersionBanner.vue'
+import {gatewayApi, type EventRow} from '~/api/gateway'
+import {Feature} from '~/api/generated/protocol'
 
 /**
  * The frame of the dashboard. On a phone: the bar with the server and the live state on top, the ticker below it, the
  * tab bar at the bottom and a menu sheet for the rest. From tablet width: the sidebar on the left and the ticker above
- * the page. It opens the session, sends a reader without one to the login, and shows only the explanation for a
+ * the page. The ticker leads with the event offers that run. It opens the session, sends a reader without one to the login, and shows only the explanation for a
  * discontinued server.
  */
 const {t} = useI18n()
@@ -29,6 +31,7 @@ const {status, server, snapshot, company, live, problem} = dashboard
 const shell = useShell()
 const market = useMarket()
 const menuOpen = ref(false)
+const offers = shallowRef<EventRow[]>([])
 
 onMounted(() => dashboard.start())
 useEventListener(document, 'visibilitychange', () => {
@@ -39,8 +42,22 @@ const {show} = useBranding()
 watch(server, value => show(value?.server ?? null), {immediate: true})
 watch(status, value => {
   if (value === 'gone') void navigateTo('/', {replace: true})
-  if (value === 'ready') void market.loadTop()
+  if (value === 'ready') {
+    void market.loadTop()
+    void loadOffers()
+  }
 }, {immediate: true})
+
+/** Loads the event offers that run for the ticker, where the server offers the Events page; a failure shows none. */
+async function loadOffers(): Promise<void> {
+  if (!dashboard.supports(Feature.events)) return
+  try {
+    const list = await gatewayApi().read('events.list', {})
+    offers.value = list.offers.filter(offer => offer.state === 'active')
+  } catch {
+    offers.value = []
+  }
+}
 
 /** Logs out and goes to the login. */
 async function logout(): Promise<void> {
@@ -58,7 +75,7 @@ async function logout(): Promise<void> {
     </AppSidebar>
     <div class="flex min-w-0 grow flex-col">
       <TopBar v-if="server" :server="server.server" :title="shell.title.value" :live="live" @menu="menuOpen = true"/>
-      <TickerStrip v-if="market.top.value.length > 0" :items="market.top.value"/>
+      <TickerStrip v-if="market.top.value.length > 0 || offers.length > 0" :items="market.top.value" :offers="offers"/>
       <main class="px-safe flex grow flex-col gap-4 pt-4 pb-28 md:px-6 md:pt-6 md:pb-8">
         <VersionBanner v-if="server && status !== 'discontinued'" :version="server.version" :deprecated="server.deprecated"/>
         <Alert v-if="server && !server.online && status === 'ready'" variant="problem">{{ t('dashboard.serverOffline') }}</Alert>

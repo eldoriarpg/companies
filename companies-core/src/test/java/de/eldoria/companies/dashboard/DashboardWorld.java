@@ -28,8 +28,10 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
+import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
+import de.eldoria.companies.dashboard.actions.AdminOfferWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminServerWrites;
 import de.eldoria.companies.dashboard.actions.AdminSettingsWrites;
@@ -37,6 +39,7 @@ import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.AdminSystemOrderWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.actions.EventWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
 import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.market.MarketHistory;
@@ -51,6 +54,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
@@ -59,6 +63,8 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -78,6 +84,8 @@ import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.offers.ContestService;
+import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
@@ -109,6 +117,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
@@ -188,6 +197,11 @@ public final class DashboardWorld implements AutoCloseable {
     public final List<UUID> changedInboxes = new CopyOnWriteArrayList<>();
     public final CompanySettings companySettings = new CompanySettings();
     public final OrderSettings orderSettings = new OrderSettings();
+    public final SqLiteOfferData offers;
+    public final ContestService contests;
+    public final AtomicInteger offerChecks = new AtomicInteger();
+    public final Map<String, Double> accounts = new ConcurrentHashMap<>();
+    public volatile int contestSlots = 5;
 
     private DashboardWorld(Path directory) throws Exception {
         this.directory = directory;
@@ -199,6 +213,7 @@ public final class DashboardWorld implements AutoCloseable {
         memberships = new SqLiteMembershipData(executor);
         inbox = new SqLiteInboxData(executor);
         dashboard = new SqLiteDashboardData();
+        offers = new SqLiteOfferData(SqLiteTestDatabase.mapper());
         var stats = new SqLiteStatsData(executor);
         var alerts = new SqLiteAlertData(SqLiteTestDatabase.mapper(), executor);
         api = new CompaniesApiImpl(
@@ -217,7 +232,8 @@ public final class DashboardWorld implements AutoCloseable {
                 this::name,
                 ZoneOffset.UTC,
                 Clock.systemUTC(),
-                systemOrders::markSystemOrders));
+                systemOrders::markSystemOrders,
+                offers::marks));
         var configuration = new Configuration(MockBukkit.createMockPlugin()) {
             @Override
             public CompanySettings companySettings() {
@@ -269,7 +285,8 @@ public final class DashboardWorld implements AutoCloseable {
                 companies,
                 configuration,
                 () -> ItemMatcher.of(new ItemMatchSettings()),
-                SqLiteTestDatabase::player);
+                SqLiteTestDatabase::player,
+                offers::marks);
         reads = new DashboardReads(
                 views,
                 new DashboardReads.Sources(
@@ -466,6 +483,34 @@ public final class DashboardWorld implements AutoCloseable {
             public void close() {}
         });
         adminLog = new AdminLog(adminLogger);
+        contests = new ContestService(
+                offers,
+                orders,
+                new ContestService.Payments() {
+                    @Override
+                    public double taxPercent(CompanyProfile company) {
+                        return 0;
+                    }
+
+                    @Override
+                    public int share(CompanyProfile company) {
+                        return 0;
+                    }
+
+                    @Override
+                    public void pay(UUID worker, double amount) {
+                        wallets.merge(worker, amount, Double::sum);
+                    }
+
+                    @Override
+                    public void collect(double amount) {}
+
+                    @Override
+                    public void keep(CompanyProfile company, int offer, long cents) {}
+                },
+                profile -> contestSlots,
+                Clock.systemUTC(),
+                Logger.getAnonymousLogger());
         writes = new DashboardWrites(
                 new DashboardWrites.Sources(
                         player -> companies
@@ -599,6 +644,36 @@ public final class DashboardWorld implements AutoCloseable {
                         () -> nodeData,
                         settingsApplied::incrementAndGet,
                         material -> !material.equals("NOT_AN_ITEM"),
+                        Logger.getAnonymousLogger(),
+                        failure -> "text of " + failure.localeKey())),
+                new EventWrites(new EventWrites.Sources(
+                        offers,
+                        contests,
+                        player -> companies
+                                .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
+                                .asFuture(),
+                        views::instant,
+                        Times::now,
+                        failure -> "text of " + failure.localeKey())),
+                new AdminOfferWrites(new AdminOfferWrites.Sources(
+                        offers,
+                        new SystemOrderService.Funding() {
+                            @Override
+                            public boolean withdraw(String account, double amount) {
+                                accounts.merge(account, -amount, Double::sum);
+                                return true;
+                            }
+
+                            @Override
+                            public void deposit(String account, double amount) {
+                                accounts.merge(account, amount, Double::sum);
+                            }
+                        },
+                        offerChecks::incrementAndGet,
+                        this::name,
+                        views::instant,
+                        Times::now,
+                        adminLog,
                         Logger.getAnonymousLogger(),
                         failure -> "text of " + failure.localeKey())));
     }
@@ -789,6 +864,90 @@ public final class DashboardWorld implements AutoCloseable {
                         .bind(amount))
                 .insert();
         orders.forgetFullOrder(order.id());
+    }
+
+    /**
+     * Creates a goal for oak logs paid with minted money: 100 items at 2 each in chunks of 10, running for a day.
+     *
+     * @param name   the goal's name
+     * @param starts hours from now until it starts, negative for a start in the past
+     * @param active whether it runs already, started as the primary starts it
+     * @return the goal's id
+     */
+    public int goal(String name, int starts, boolean active) {
+        var now = Times.now();
+        var id = offers.create(EventOffer.goal(
+                        name,
+                        OfferLine.material("OAK_LOG"),
+                        100,
+                        2,
+                        10,
+                        3,
+                        MoneySource.SourceType.MINTED,
+                        null,
+                        200,
+                        now.plusHours(starts),
+                        now.plusHours(starts + 24L),
+                        "Ada",
+                        now))
+                .orElseThrow();
+        if (active) offers.activate(id, 0, now);
+        return id;
+    }
+
+    /**
+     * Creates a contest for oak logs paid from the account {@code bank}: 100 items at 1 each with prizes of 50 and 20,
+     * running for a day.
+     *
+     * @param name   the contest's name
+     * @param starts hours from now until it starts
+     * @param active whether it runs already, which also takes its money
+     * @return the contest's id
+     */
+    public int contest(String name, int starts, boolean active) {
+        var now = Times.now();
+        var id = offers.create(EventOffer.contest(
+                        name,
+                        OfferLine.material("OAK_LOG"),
+                        100,
+                        1,
+                        List.of(50.0, 20.0),
+                        MoneySource.SourceType.ACCOUNT,
+                        "bank",
+                        170,
+                        now.plusHours(starts),
+                        now.plusHours(starts + 24L),
+                        "Ada",
+                        now))
+                .orElseThrow();
+        if (active) offers.activate(id, 170, now);
+        return id;
+    }
+
+    /**
+     * Records a delivered chunk of a goal.
+     *
+     * @param offer   the goal
+     * @param order   the chunk's order
+     * @param company the company that delivered it, 0 for a player alone
+     * @param solo    the player who delivered it alone, null for a company
+     * @param items   the items delivered
+     */
+    public void deliveredChunk(int offer, int order, int company, @Nullable UUID solo, int items) {
+        query("""
+                INSERT INTO event_offer_chunks(order_id, offer_id, amount, delivered, paid, state, company, solo_worker,
+                                               placed, ended)
+                VALUES (?, ?, ?, ?, ?, 'DELIVERED', ?, ?, ?, ?)""")
+                .single(call().bind(order)
+                        .bind(offer)
+                        .bind(items)
+                        .bind(items)
+                        .bind(items * 2.0)
+                        .bind(company == 0 ? null : company)
+                        .bind(solo, UUID_BYTES)
+                        .bind(SqLiteAdapter.format(Times.now()))
+                        .bind(SqLiteAdapter.format(Times.now())))
+                .insert();
     }
 
     /**

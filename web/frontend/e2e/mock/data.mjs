@@ -39,6 +39,12 @@ export const SESSIONS = {
             return [...FEATURES, 'orders.servermarks']
         },
     },
+    EVNT01: {
+        version: SUPPORTED,
+        get features() {
+            return [...FEATURES, 'events']
+        },
+    },
     DEPR01: {
         version: {
             status: 'DEPRECATED',

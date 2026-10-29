@@ -174,6 +174,7 @@ bukkit {
                 "companies.admin.grant",
                 "companies.admin.level",
                 "companies.admin.nodes",
+                "companies.admin.offers",
                 "companies.admin.orders",
                 "companies.admin.player",
                 "companies.admin.reload",
@@ -209,6 +210,9 @@ bukkit {
         }
         register("companies.admin.nodes") {
             description = "Allows listing and removing the nodes registered in the database"
+        }
+        register("companies.admin.offers") {
+            description = "Allows creating, inspecting, pausing, resuming and cancelling event offers"
         }
         register("companies.admin.orders") {
             description = "Allows inspecting, releasing, cancelling, completing and extending any order"

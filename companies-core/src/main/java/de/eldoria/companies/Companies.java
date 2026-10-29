@@ -42,6 +42,7 @@ import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANodeMessageData;
+import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
@@ -53,6 +54,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeMessageData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOfferData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSavedItemData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSeriesData;
@@ -66,6 +68,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeMessageData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresOfferData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSavedItemData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSeriesData;
@@ -79,6 +82,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeMessageData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
@@ -95,6 +99,7 @@ import de.eldoria.companies.nodes.NodeBuses;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.nodes.NodeConnection;
 import de.eldoria.companies.nodes.NodeMessage;
+import de.eldoria.companies.nodes.OfferNetwork;
 import de.eldoria.companies.nodes.SettingsSync;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -112,6 +117,11 @@ import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.orders.SystemOrders;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.offers.ChunkDeliveries;
+import de.eldoria.companies.orders.offers.ContestService;
+import de.eldoria.companies.orders.offers.EventOfferService;
+import de.eldoria.companies.orders.offers.NetworkAnnouncer;
+import de.eldoria.companies.orders.offers.OfferAnnouncer;
 import de.eldoria.companies.orders.system.GuessedLimit;
 import de.eldoria.companies.orders.system.GuessedOutcomes;
 import de.eldoria.companies.orders.system.SystemFunding;
@@ -193,6 +203,7 @@ public class Companies extends EldoPlugin {
     private HikariDataSource dataSource;
     private ACompanyData companyData;
     private AOrderData orderData;
+    private AOfferData offerData;
     private InformationData information;
     private EconomyData economy;
     private ANodeData nodeData;
@@ -205,6 +216,7 @@ public class Companies extends EldoPlugin {
     private OrderDraftService drafts;
     private CompaniesApiImpl api;
     private DiscordWebhook discord;
+    private volatile @Nullable Placeholders placeholders;
     private NodeBus bus = new DatabaseBus();
     private final NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private NodeCaches caches;
@@ -367,14 +379,36 @@ public class Companies extends EldoPlugin {
 
         var systemFunding = new SystemFunding(
                 new EconomyAccounts(getServer(), economy), orderData, Threading.mainThread(this), getLogger());
+        var systemPlacement = SystemOrderService.placement(
+                orderData,
+                new SystemOrders(orderCreation, orderData, getServer()::getOfflinePlayer, getLogger()),
+                outcomes);
         var systemOrders = new SystemOrderService(
                 configuration::systemOrderSettings,
                 orderData,
-                SystemOrderService.placement(
-                        orderData,
-                        new SystemOrders(orderCreation, orderData, getServer()::getOfflinePlayer, getLogger()),
-                        outcomes),
+                systemPlacement,
                 systemFunding,
+                Times.UTC,
+                () -> ThreadLocalRandom.current().nextDouble(),
+                getLogger());
+        var offerAnnouncer = new OfferAnnouncer(this, MessageSender.getPluginMessageSender(this), economy, offerData);
+        var offerNetwork = new OfferNetwork(
+                        bus,
+                        message -> Threading.VIRTUAL.execute(() -> {
+                            offerAnnouncer.handle(message);
+                            var current = placeholders;
+                            if (current != null) current.offersChanged();
+                        }))
+                .start();
+        var networkAnnouncer = new NetworkAnnouncer(offerNetwork, getLogger());
+        var eventOffers = new EventOfferService(
+                offerData,
+                orderData,
+                systemPlacement,
+                systemFunding,
+                ContestService.prizes(companyData, treasuryService),
+                EventOfferService.Announcer.all(
+                        List.of(() -> networkAnnouncer, () -> discord == null ? null : discord.offers())),
                 Times.UTC,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
@@ -408,7 +442,8 @@ public class Companies extends EldoPlugin {
                 guessedLimit);
         var ownerOrders = OwnerOrderService.create(
                 this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
-        var search = new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher);
+        var search =
+                new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher, offerData::marks);
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -445,11 +480,16 @@ public class Companies extends EldoPlugin {
                             .savedItems()),
                     new OrderReceiveService(
                             orderData, outcomes, itemReturnService, Threading.mainThread(this), getLogger()),
-                    systemFunding));
+                    systemFunding,
+                    offerData,
+                    eventOffers,
+                    ContestService.create(this, offerData, orderData, economy, configuration, treasuryService)));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));
+        registerListener(new ChunkDeliveries(offerData, Times.UTC, Threading.VIRTUAL, getLogger()));
+        if (commands != null) commands.boards().useOffers(offerData::marks, offerData::unclaimedChunks);
         var expiringService = new ExpiringService(
                 this,
                 orderData,
@@ -469,6 +509,7 @@ public class Companies extends EldoPlugin {
             membershipService.start(workerPool);
             seriesService.schedule(workerPool);
             systemOrders.schedule(workerPool);
+            eventOffers.schedule(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
             new HistoryRetention(
                             information.history(),
@@ -543,9 +584,11 @@ public class Companies extends EldoPlugin {
                     orderData,
                     information.stats(),
                     this.economy.treasury(),
+                    offerData,
                     economy,
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();
+            this.placeholders = placeholders;
             registerListener(placeholders.events());
             if (commands != null) commands.onReload(placeholders::reload);
             registerPlaceholderCaches(placeholders);
@@ -643,7 +686,12 @@ public class Companies extends EldoPlugin {
                                 () -> nodeData,
                                 node -> NodeCommand.bus(commands, nodeData, node),
                                 this::syncConfigurationFromDashboard,
-                                this::applyChangesFromDashboard)),
+                                this::applyChangesFromDashboard),
+                        new DashboardModule.OfferServices(
+                                commands.services().offerData(),
+                                commands.services().contests(),
+                                commands.services().systemFunding(),
+                                () -> commands.services().offers().checkSoon())),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
@@ -833,6 +881,7 @@ public class Companies extends EldoPlugin {
             case SQLITE -> {
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
+                offerData = new SqLiteOfferData(mapper);
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -850,6 +899,7 @@ public class Companies extends EldoPlugin {
             case MARIADB -> {
                 companyData = new MariaDbCompanyData(workerPool);
                 orderData = new MariaDbOrderData(mapper);
+                offerData = new MariaDbOfferData(mapper);
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -867,6 +917,7 @@ public class Companies extends EldoPlugin {
             case POSTGRES -> {
                 companyData = new PostgresCompanyData(workerPool);
                 orderData = new PostgresOrderData(workerPool, mapper);
+                offerData = new PostgresOfferData(mapper);
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

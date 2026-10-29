@@ -17,14 +17,26 @@ const sort = defineModel<OrderSorting>('sort', {required: true})
 
 defineProps<{
   total?: number
+  /** The event offer whose chunks alone are shown, none for any. */
+  offerName?: string | null
+}>()
+
+defineEmits<{
+  'clear-offer': []
 }>()
 
 const {t} = useI18n()
 const {supports} = useDashboard()
-const filters = computed<readonly OrderFilter[]>(() => (supports(Feature['orders.servermarks'])
-  ? ['all', 'small', 'large-payout', 'players', 'server']
-  : ['all', 'small', 'large-payout']))
-const sortings = computed(() => ORDER_SORTINGS.map(value => ({value, label: t(`orders.sort.${value}`)})))
+const filters = computed<readonly OrderFilter[]>(() => [
+  'all',
+  'small',
+  'large-payout',
+  ...(supports(Feature['orders.servermarks']) ? ['players', 'server'] as const : []),
+  ...(supports(Feature.events) ? ['events'] as const : []),
+])
+const sortings = computed(() => ORDER_SORTINGS
+  .filter(value => value !== 'OFFER_END' || supports(Feature.events))
+  .map(value => ({value, label: t(`orders.sort.${value}`)})))
 const sortChoice = computed({
   get: () => sort.value as string,
   set: (value: string) => {
@@ -39,7 +51,10 @@ const sortChoice = computed({
       <SearchInput v-model="query" :label="t('orders.search')" :placeholder="total === undefined ? t('orders.search') : t('orders.searchCount', {count: total})"/>
     </div>
     <div class="flex gap-1.5 overflow-x-auto" role="group" :aria-label="t('orders.filters')">
-      <ChipButton v-for="choice in filters" :key="choice" :pressed="filter === choice" @click="filter = choice">{{ t(`orders.filter.${choice}`) }}</ChipButton>
+      <ChipButton v-if="offerName" pressed data-testid="offer-filter" :aria-label="t('orders.offerFilterClear', {name: offerName})" @click="$emit('clear-offer')">{{ t('orders.offerFilter', {name: offerName}) }} ×</ChipButton>
+      <template v-else>
+        <ChipButton v-for="choice in filters" :key="choice" :pressed="filter === choice" @click="filter = choice">{{ t(`orders.filter.${choice}`) }}</ChipButton>
+      </template>
     </div>
     <SelectInput v-model="sortChoice" :label="t('orders.sortBy')" :options="sortings" class="md:ml-auto"/>
   </div>

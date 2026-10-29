@@ -14,6 +14,7 @@ import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Page;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.order.OfferTexts;
 import de.eldoria.companies.orders.Payout;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.Texts;
@@ -36,8 +37,10 @@ import java.util.Optional;
  * A page of the orders a company order search found.
  * <p>
  * Each order shows its contents and price when hovered, with buttons for its info and, for members who may manage the
- * company's orders, for accepting it. While the server marks its own orders, they carry a badge. Paging runs the
- * search again. As a dialog every order is a button showing its info, next to its {@code [Accept]} button.
+ * company's orders, for accepting it. The chunks of event offers always carry the event badge with the offer's id and
+ * name, and their hover shows its progress and end; in chat a click on the badge shows only that offer's chunks.
+ * While the server marks its own orders, the others carry the server badge. Paging runs the search again. As a dialog
+ * every order is a button showing its info, next to its {@code [Accept]} button.
  */
 public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
     private final OrderSearch search;
@@ -104,11 +107,12 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
         for (var order : page.items()) {
             var id = order.id();
             var label = texts.of(MenuText.create()
+                    .append(badge(order, results, "offer_name"))
                     .text(
-                            badge(order) + "<name><order_id> | <value><order_name>",
+                            "<name><order_id> | <value><order_name>",
                             Values.number("order_id", id),
                             Values.text("order_name", order.name())));
-            buttons.add(actions.button(label, texts.of(details(order, results.taxPercent())), (clicker, response) -> {
+            buttons.add(actions.button(label, texts.of(details(order, results)), (clicker, response) -> {
                 clicker.closeDialog();
                 search.info(clicker, id);
             }));
@@ -150,14 +154,40 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
     }
 
     /**
-     * The badge of an order the server placed, while the server marks its orders.
+     * The badge of an order: the event badge with the offer's name for a chunk of an event offer, always; the server
+     * badge for another order the server placed, while the server marks its orders.
      *
-     * @param order the order
+     * @param order   the order
+     * @param results the results holding the event offers of the orders
+     * @param key     the placeholder key of the offer's name, unique within the message
      * @return the badge and a space, or nothing
      */
-    private String badge(FullOrder order) {
-        if (!search.marksServerOrders() || !SystemOwner.is(order.owner())) return "";
-        return "<neutral><i18n:company.order.search.serverBadge> ";
+    private MenuText badge(FullOrder order, SearchResults results, String key) {
+        var offer = results.offer(order.id());
+        if (offer.isPresent()) {
+            return MenuText.create()
+                    .text(
+                            "<neutral>[<i18n:company.order.search.eventBadge> #<" + key + "_id>: <" + key + ">] ",
+                            Values.number(key + "_id", offer.get().offer()),
+                            Values.text(key, offer.get().name()));
+        }
+        if (!search.marksServerOrders() || !SystemOwner.is(order.owner())) return MenuText.create();
+        return MenuText.create().text("<neutral><i18n:company.order.search.serverBadge> ");
+    }
+
+    /**
+     * The badge of an order in chat: clicking the event badge narrows the search to the offer's chunks.
+     */
+    private MenuText chatBadge(int index, FullOrder order, SearchResults results, MenuActions actions) {
+        var key = Keys.of("order", index, "offer");
+        var offer = results.offer(order.id());
+        if (offer.isEmpty()) return badge(order, results, key);
+        var click = Keys.of("act_offer", index);
+        var id = offer.get().offer();
+        return MenuText.create()
+                .text("<" + click + ">", actions.chatAction(click, p -> search.showOffer(p, id)))
+                .append(badge(order, results, key))
+                .text("</" + click + ">");
     }
 
     private MenuText orderLine(
@@ -168,10 +198,11 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
         var nameKey = Keys.of("order", index, "name");
         var infoKey = Keys.of("act_info", index);
         var text = MenuText.create()
+                .append(chatBadge(index, order, results, actions))
                 .text(
-                        badge(order) + "<hover:show_text:'<" + detailsKey + ">'><name><" + idKey + "> | <value><"
-                                + nameKey + "></hover> ",
-                        Values.component(detailsKey, texts.of(details(order, results.taxPercent()))),
+                        "<hover:show_text:'<" + detailsKey + ">'><name><" + idKey + "> | <value><" + nameKey
+                                + "></hover> ",
+                        Values.component(detailsKey, texts.of(details(order, results))),
                         Values.number(idKey, id),
                         Values.text(nameKey, order.name()))
                 .text(
@@ -188,10 +219,14 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
     }
 
     /**
-     * The contents and the price of an order, with the tax and the net payout when the company pays tax.
+     * The contents and the price of an order, with the tax and the net payout when the company pays tax, and for a
+     * chunk of an event offer the offer's progress and end.
      */
-    private MenuText details(FullOrder order, double taxPercent) {
+    private MenuText details(FullOrder order, SearchResults results) {
+        var taxPercent = results.taxPercent();
         var text = MenuText.create();
+        results.offer(order.id())
+                .ifPresent(offer -> text.append(OfferTexts.line(offer)).newLine());
         var contents = order.contents();
         for (var i = 0; i < contents.size(); i++) {
             var content = contents.get(i);

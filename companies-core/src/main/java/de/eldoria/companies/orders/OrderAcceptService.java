@@ -131,7 +131,7 @@ public final class OrderAcceptService {
         }
         var companySettings = settings.get();
         var levelSettings = companySettings.levelSettings(company.level());
-        var count = orderData.retrieveCompanyOrderCount(company).join();
+        var count = orderData.retrieveCompanySlotCount(company).join();
         if (count == null) return refused("error.couldNotClaim");
         if (count >= levelSettings.maxOrders()) return refused("error.orderLimit");
 

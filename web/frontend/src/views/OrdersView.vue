@@ -19,7 +19,8 @@ import {orderIdOf} from '~/composables/useSelection'
 /**
  * The order book: the open orders of the server, searched and filtered by the plugin, a page at a time. An order's
  * details open beside the list from tablet width and as a sheet on a phone; the address names the open order, so
- * the back gesture closes it. The owner of an order is never shown.
+ * the back gesture closes it. The owner of an order is never shown. The address may name an event offer, from its page
+ * on the Events page, to show only its chunks.
  */
 const {t} = useI18n()
 const book = useOrderBook()
@@ -27,6 +28,22 @@ const market = useMarket()
 const selection = useSelection('order', orderIdOf)
 const wide = useMediaQuery('(min-width: 1024px)')
 const {supports} = useDashboard()
+const route = useRoute()
+const router = useRouter()
+
+watch(() => route.query.offer, raw => {
+  book.offer.value = typeof raw === 'string' ? orderIdOf(raw) : null
+}, {immediate: true})
+const offerName = computed(() => {
+  const chosen = book.offer.value
+  if (chosen === null) return null
+  return book.result.value?.orders.find(order => order.offer?.id === chosen)?.offer?.name ?? `#${chosen}`
+})
+
+/** Shows every order again instead of the chunks of one event offer. */
+function clearOffer(): void {
+  void router.replace({query: {...route.query, offer: undefined}})
+}
 
 onMounted(() => {
   void book.load()
@@ -47,7 +64,7 @@ const sheetOpen = computed({
     <div v-if="supports(Feature['orders.create'])" class="flex justify-end">
       <ButtonLink :to="{name: 'order-new'}" icon="plus">{{ t('builder.newOrder') }}</ButtonLink>
     </div>
-    <OrderFilters v-model:query="book.query.value" v-model:filter="book.filter.value" v-model:sort="book.sort.value" :total="book.result.value?.total"/>
+    <OrderFilters v-model:query="book.query.value" v-model:filter="book.filter.value" v-model:sort="book.sort.value" :total="book.result.value?.total" :offer-name="offerName" @clear-offer="clearOffer"/>
     <Alert v-if="book.status.value === 'failed'" variant="problem">{{ t('orders.failed') }}</Alert>
     <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
       <div class="flex min-w-0 flex-col gap-3">

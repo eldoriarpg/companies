@@ -62,6 +62,24 @@ an exact item are not part of them.
 An item or a day with fewer delivered orders than the server's minimum shows no price, and such days do not count
 towards a change, so no single order can be traced back to the player who placed it.
 
+## Events
+
+Where the server runs [event offers](event-offers.md), the **Events** page lists the goals and contests that run, are
+paused or start within a day, as `/company events` does: what each asks for, a progress bar, the time until it starts
+or ends, and for a contest your company's place. The running offers also lead the ticker at the top; a click opens
+their page.
+
+- A **goal** shows its chunk size and the companies that delivered most; players working alone are not named.
+  **Show its orders** opens the order book with only that goal's chunks.
+- A **contest** shows its prizes, the ranking of the companies that delivered, and your company's part: whether it
+  takes part, what it delivered, what its workers were paid and its place. Members with the *manage orders*
+  permission join or leave the contest for the company there. Delivering stays in game with
+  `/company contest deliver <id>`, as it takes the items from your inventory.
+
+In the order book, chunks of goals carry an **Event** badge, and the order's details name the goal with a link to its
+page. The **Event offers** filter shows only chunks, and **Offer ends** sorts them by the end of their goal, as the
+in-game search does.
+
 ## What you can do
 
 Everything is checked by the server as if you typed the command, so the dashboard allows exactly what you may do in
@@ -89,6 +107,7 @@ game. When the server refuses, the dashboard shows its reason.
 | Company | Edit description, tag and colour, change how players join (needs *edit profile*) | `/company profile edit`, `/company joinmode` |
 | Company | Rename the company, paid by you or from the treasury; the dashboard shows the price first (owner only) | `/company rename <name>` |
 | Company | Pay into the treasury, take money out, set the share of payouts it keeps (needs *treasury*) | `/company bank deposit`, `withdraw`, `share` |
+| Events | Let your company join a contest or leave it (needs *manage orders*) | `/company contest join <id>`, `leave <id>` |
 
 A server owner can switch single parts of the dashboard off; their buttons then do not appear.
 

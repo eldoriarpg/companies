@@ -92,6 +92,33 @@ More examples:
 - `%companies_top_items_delivered_7d_3_value%`: items the third company delivered in the last 7 days.
 - `%companies_company_rank_earned_30d%`: place of your company by money earned in the last 30 days.
 
+## Event offer placeholders
+
+These show the [event offers](../players/event-offers.md), goals and contests, that run right now. They are the
+same for every player.
+
+| Placeholder | Value | Example |
+|---|---|---|
+| `%companies_offer_active_count%` | Number of goals and contests that run | `2` |
+| `%companies_offer_<n>_<field>%` | A field of the n-th running offer, the one that ends soonest first. Empty when fewer offers run. | `%companies_offer_1_name%` reads `Harbour logs` |
+
+`<field>` is one of:
+
+| Field | Value | Example |
+|---|---|---|
+| `name` | Name of the offer | `Harbour logs` |
+| `kind` | Goal or contest, in the server language | `Goal` |
+| `progress` | Share delivered, in percent | `45` |
+| `delivered` | Items delivered | `4500` |
+| `amount` | Items asked for | `10000` |
+| `item` | What is asked for | `OAK_LOG` |
+| `ends` | When it ends, in the server's time zone | `2026-11-02 18:30` |
+| `left` | Time left | `2d 4h` |
+| `id` | Number of the offer, as `/company events` and boards use it | `12` |
+
+Offers that wait for their start or are paused do not count. The list is loaded again with the other values, every
+`placeholders.refreshSeconds`.
+
 ## Loading and refresh
 
 Placeholders never wait for the database. They read values that Companies keeps in memory.

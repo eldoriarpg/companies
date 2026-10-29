@@ -10,6 +10,8 @@ import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.SoloSettings;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.offer.OfferMark;
+import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -31,10 +33,15 @@ import org.mockbukkit.mockbukkit.entity.PlayerMock;
 
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,6 +60,7 @@ class SoloSearchExecutorTest {
     private SoloSearchExecutor finder;
 
     private boolean marked;
+    private final Map<Integer, OfferMark> marks = new HashMap<>();
     private final SearchQuery query = new SearchQuery();
 
     @BeforeEach
@@ -85,7 +93,10 @@ class SoloSearchExecutorTest {
                 Clock.systemDefaultZone(),
                 executor);
         var matcher = ItemMatcher.of(new ItemMatchSettings(), Logger.getAnonymousLogger());
-        finder = new SoloSearchExecutor(orders.orderData(), () -> service, () -> matcher, () -> marked);
+        finder = new SoloSearchExecutor(
+                orders.orderData(), () -> service, () -> matcher, () -> marked, ids -> ids.stream()
+                        .filter(marks::containsKey)
+                        .collect(Collectors.toMap(Function.identity(), marks::get)));
     }
 
     @AfterEach
@@ -173,5 +184,21 @@ class SoloSearchExecutorTest {
         query.sortingType(SortingType.PRICE);
 
         assertEquals(List.of(player.id(), server.id()), ids(search()));
+    }
+
+    @Test
+    void aloneSearchesMarkAndFilterEventOffers() {
+        var open = orders.place(0.0);
+        var chunk = new OrderTable(orders.orderData(), SqLiteTestDatabase.player(SystemOwner.ID)).place(0.0);
+        marks.put(
+                chunk.id(),
+                new OfferMark(4, "Harbour", LocalDateTime.of(2026, 11, 1, 12, 0), OfferState.ACTIVE, 500, 0));
+
+        var all = search();
+        assertEquals(List.of(open.id(), chunk.id()), ids(all));
+        assertEquals(4, all.offer(chunk.id()).orElseThrow().offer());
+
+        query.offer(4);
+        assertEquals(List.of(chunk.id()), ids(search()));
     }
 }

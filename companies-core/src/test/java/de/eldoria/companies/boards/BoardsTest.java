@@ -183,4 +183,72 @@ class BoardsTest {
         assertEquals(List.of("signs"), told);
         assertEquals(List.of("iron"), boards.presetNames());
     }
+
+    @Test
+    void eventBoardsShowTheChunksOfAllOffersOrOfOne() {
+        var all = boards.resolve("Event").orElseThrow();
+        var one = boards.resolve("event 7").orElseThrow();
+
+        assertEquals(0, all.offers());
+        assertEquals("event", all.spec());
+        assertEquals(SearchQuery.EventOffers.ONLY, all.query().eventOffers());
+        assertEquals(7, one.offers());
+        assertEquals("event 7", one.spec());
+        assertEquals(7, one.query().offer());
+        assertEquals(one, boards.resolve(one.spec()).orElseThrow());
+        assertTrue(boards.resolve("event x").isEmpty());
+        assertTrue(boards.resolve("event 0").isEmpty());
+        assertNull(boards.resolve("iron").orElseThrow().offers());
+    }
+
+    @Test
+    void anEventBoardCountsOnlyTheChunksOfItsOffers() {
+        var plain = orders.place(0.0);
+        var chunk = orders.place(0.0);
+        var other = orders.place(0.0);
+        var ends = java.time.LocalDateTime.of(2026, 11, 1, 12, 0);
+        boards.useOffers(
+                ids -> {
+                    var marks = new java.util.HashMap<Integer, de.eldoria.companies.data.wrapper.offer.OfferMark>();
+                    if (ids.contains(chunk.id())) {
+                        marks.put(
+                                chunk.id(),
+                                new de.eldoria.companies.data.wrapper.offer.OfferMark(
+                                        3,
+                                        "Logs",
+                                        ends,
+                                        de.eldoria.companies.data.wrapper.offer.OfferState.ACTIVE,
+                                        10,
+                                        0));
+                    }
+                    if (ids.contains(other.id())) {
+                        marks.put(
+                                other.id(),
+                                new de.eldoria.companies.data.wrapper.offer.OfferMark(
+                                        4,
+                                        "Stone",
+                                        ends,
+                                        de.eldoria.companies.data.wrapper.offer.OfferState.ACTIVE,
+                                        10,
+                                        0));
+                    }
+                    return marks;
+                },
+                offer -> offer == 0 ? 2 : offer == 3 ? 1 : 0);
+
+        assertEquals(2, boards.openCount(boards.resolve("event").orElseThrow()).join());
+        assertEquals(
+                1, boards.openCount(boards.resolve("event 3").orElseThrow()).join());
+        assertEquals(3, boards.openCount(BoardTarget.ALL).join());
+        assertTrue(plain.id() > 0);
+    }
+
+    @Test
+    void anEventBoardOpensTheSearchOfItsOffers() {
+        boards.bind((player, query) -> shown.add(query));
+
+        boards.open(server.addPlayer(), boards.resolve("event 5").orElseThrow());
+
+        assertEquals(5, shown.getFirst().offer());
+    }
 }

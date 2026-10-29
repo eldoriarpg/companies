@@ -29,6 +29,8 @@ import java.util.Locale;
  * @param fillable       whether only orders the player can deliver to are shown
  * @param serverOrders   {@link #ALL}, {@link #ONLY} or {@link #HIDE}: which orders of the server are shown, while the
  *                       server marks them; empty counts as {@link #ALL}
+ * @param offers         {@link #ALL}, {@link #ONLY} for the chunks of event offers only, or the id of the one event
+ *                       offer whose chunks are shown; empty counts as {@link #ALL}
  */
 public record SearchForm(
         String name,
@@ -42,7 +44,8 @@ public record SearchForm(
         String sorting,
         String direction,
         boolean fillable,
-        String serverOrders) {
+        String serverOrders,
+        String offers) {
     public static final String NAME = "name";
     public static final String MATERIALS = "materials";
     public static final String MATERIAL_SEARCH = "material_search";
@@ -55,6 +58,7 @@ public record SearchForm(
     public static final String DIRECTION = "direction";
     public static final String FILLABLE = "fillable";
     public static final String SERVER_ORDERS = "server_orders";
+    public static final String OFFERS = "offers";
 
     public static final String ANY = "any";
     public static final String ALL = "all";
@@ -84,7 +88,19 @@ public record SearchForm(
                 sortingId(query.sortingType()),
                 query.isAsc() ? ASC : DESC,
                 query.fillable(),
-                serverOrdersId(query.serverOrders()));
+                serverOrdersId(query.serverOrders()),
+                offersId(query));
+    }
+
+    /**
+     * The id of the event offer filter of a query in the form.
+     *
+     * @param query the query
+     * @return the offer's id when it shows one offer, otherwise the lower case name of the choice
+     */
+    public static String offersId(SearchQuery query) {
+        if (query.offer() > 0) return String.valueOf(query.offer());
+        return query.eventOffers().name().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -137,7 +153,27 @@ public record SearchForm(
                 .findFirst();
         if (choice.isEmpty()) return new Invalid(SERVER_ORDERS);
         query.serverOrders(choice.get());
+        if (!offers(query)) return new Invalid(OFFERS);
         return ranges(query);
+    }
+
+    /**
+     * @return false when the event offer filter is none of the choices and no offer id
+     */
+    private boolean offers(SearchQuery query) {
+        var shown = offers == null || offers.isBlank() ? ALL : offers.trim();
+        if (ALL.equals(shown)) {
+            query.eventOffers(SearchQuery.EventOffers.ALL);
+            return true;
+        }
+        if (ONLY.equals(shown)) {
+            query.eventOffers(SearchQuery.EventOffers.ONLY);
+            return true;
+        }
+        var id = size(shown, -1);
+        if (id <= 0) return false;
+        query.offer(id);
+        return true;
     }
 
     private Outcome ranges(SearchQuery query) {

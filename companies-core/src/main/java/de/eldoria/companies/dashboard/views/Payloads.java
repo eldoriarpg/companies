@@ -42,7 +42,9 @@ public final class Payloads {
      * @param amount  the number of ordered items
      * @param claimed when it was claimed, for the company working on it
      * @param waiting items delivered and waiting for the owner, for the owner of a delivered order
-     * @param server  whether the server placed it, only shown while the server marks its orders
+     * @param server  whether the server placed it, only shown while the server marks its orders and never for the chunk
+     *                of an event offer, which carries its offer instead
+     * @param offer   the event offer it is a chunk of, null for any other order
      */
     public record OrderSummary(
             int id,
@@ -56,7 +58,18 @@ public final class Payloads {
             int amount,
             @Nullable Instant claimed,
             @Nullable List<ItemView> waiting,
-            boolean server) {}
+            boolean server,
+            @Nullable OfferBadge offer) {}
+
+    /**
+     * The event offer an order is a chunk of, shown as its Event badge.
+     *
+     * @param id    id of the offer
+     * @param name  name of the offer
+     * @param ends  when the offer ends
+     * @param state state of the offer in lower case
+     */
+    public record OfferBadge(int id, String name, Instant ends, String state) {}
 
     /**
      * A page of orders.

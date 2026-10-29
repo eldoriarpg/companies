@@ -451,6 +451,14 @@ class SystemOrderServiceTest {
     }
 
     @Test
+    void theOfferIdIsReservedForEventOffers() {
+        rule(fixed("event-offer", 2.0));
+
+        assertEquals(Step.INVALID_ID, step(service.run()));
+        assertEquals(0, placements);
+    }
+
+    @Test
     void aDayStartsInTheServersZone() {
         Times.useZone(() -> ZoneId.of("Europe/Berlin"));
         try {

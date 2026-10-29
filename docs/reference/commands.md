@@ -205,6 +205,26 @@ See [Inbox](../players/inbox.md) and [Rankings and history](../companies/ranking
 
 See [Order boards](../players/order-boards.md) for a guide.
 
+### Event offers
+
+| Command | Permission | Company permission | What it does |
+|---|---|---|---|
+| `/company events` | none | none | Lists the event offers, goals and contests, that run, are paused or start within a day: progress, time left and, for a contest, your company's place. |
+| `/company events open <id>` | none | none | Opens an offer: the order search with only the chunks of a goal (the search of orders to work on alone when you have no company and may work alone), or the info of a contest. The `[Open]` button of the list runs it. |
+
+### Contests
+
+| Command | Permission | Company permission | What it does |
+|---|---|---|---|
+| `/company contest` | none | none | Lists the contests that have not closed, with what they take, their progress and time left. |
+| `/company contest info <id>` | none | none | Shows what a contest still misses, its price per item, its prizes, your company's part and place, and the ranking. |
+| `/company contest join <id>` | none | `manage_orders` | Lets your company take part, once the contest started. It uses one of the company's order slots. |
+| `/company contest leave <id>` | none | `manage_orders` | Lets your company stop taking part. It keeps its items and place, and the slot is free again. |
+| `/company contest deliver <id> <amount>` | none | member | Delivers up to `amount` matching items; you are paid at once. |
+| `/company contest deliver <id> all` | none | member | Delivers every matching item you carry, up to what the contest misses. |
+
+See [Event offers](../players/event-offers.md#contests) for a guide.
+
 ### Web dashboard
 
 New in 2.1. Works while the server owner enabled the [web dashboard](../admin/dashboard.md).
@@ -241,6 +261,8 @@ Commands to find, claim and deliver orders. Read [Claiming and delivering](../co
 | `/company order search query execute` | none | none | Runs the search and shows the first page of results. |
 | `/company order search query fillable true\|false` | none | none | Shows only orders you can deliver to. |
 | `/company order search query server all\|only\|hide` | none | none | Shows every order, only the orders the server placed, or only orders of players. Works while the server marks its orders (`markSystemOrders` in [system-orders.yml](../admin/configuration/system-orders-yml.md)). |
+| `/company order search query offers all\|only` | none | none | Shows every order, or only the chunks of [event offers](../players/event-offers.md). |
+| `/company order search query offer <id>` | none | none | Shows only the chunks of one event offer; `0` shows every order again. |
 | `/company order search query material_add <material>` | none | none | Adds a material to the search. |
 | `/company order search query material_remove [material]` | none | none | Removes a material. Without a material, it removes all. |
 | `/company order search query material_match exact\|part` | none | none | Matches whole material names or parts of them. |
@@ -249,7 +271,7 @@ Commands to find, claim and deliver orders. Read [Claiming and delivering](../co
 | `/company order search query order asc\|desc` | none | none | Sorts up or down. |
 | `/company order search query min_price\|max_price <price>` | none | none | Sets the lowest or highest price. |
 | `/company order search query min_size\|max_size <size>` | none | none | Sets the lowest or highest number of items. |
-| `/company order search query sorting age\|name\|price\|size\|unit_price` | none | none | Sets what the results are sorted by. |
+| `/company order search query sorting age\|name\|price\|size\|unit_price\|offer_end` | none | none | Sets what the results are sorted by. `offer_end` puts the chunks of the event offers that end soonest first, the other orders after them. |
 
 You move between result pages with the buttons of the result list. There is no command for it. The results show an `[Accept]` button only to members with `manage_orders`.
 
@@ -311,6 +333,26 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin grant money <player> <amount>` | `companies.admin.grant` | no | Gives money to a player. |
 
 The confirm commands take no id. They confirm the last request you made.
+
+### Event offers
+
+| Command | Permission | Console | What it does |
+|---|---|---|---|
+| `/companyadmin offers goal material <name> <money> <amount> <price> <chunk> <start> <hours> <material> [budget]` | `companies.admin.offers` | yes | Creates a goal for any item of a material. `<money>` is `minted` or an economy account, `<start>` the hours until it starts, `<hours>` how long it runs (each at most 8760), `[budget]` what it may spend, by default what its chunks cost. |
+| `/companyadmin offers goal hand <name> <money> <amount> <price> <chunk> <start> <hours> [budget]` | `companies.admin.offers` | no | Creates a goal for the item in your main hand. |
+| `/companyadmin offers goal criteria <name> <money> <amount> <price> <chunk> <start> <hours> [budget <budget>] <criteria>` | `companies.admin.offers` | yes | Creates a goal for every item meeting the criteria. |
+| `/companyadmin offers contest material <name> <money> <amount> <price> <prizes> <start> <hours> <material> [budget]` | `companies.admin.offers` | yes | Creates a contest for any item of a material. `<price>` is paid per delivered item, `<prizes>` is `none` or the money of the first places like `500+250+100`, `[budget]` by default the cost of the whole amount plus the prizes. |
+| `/companyadmin offers contest hand <name> <money> <amount> <price> <prizes> <start> <hours> [budget]` | `companies.admin.offers` | no | Creates a contest for the item in your main hand. |
+| `/companyadmin offers contest criteria <name> <money> <amount> <price> <prizes> <start> <hours> [budget <budget>] <criteria>` | `companies.admin.offers` | yes | Creates a contest for every item meeting the criteria. |
+| `/companyadmin offers list` | `companies.admin.offers` | yes | Lists the newest offers with state, progress and end. |
+| `/companyadmin offers info <id>` | `companies.admin.offers` | yes | Shows who created an offer, its money and budget, its progress and top contributors, or for a contest its ranking, payouts and prizes. |
+| `/companyadmin offers open <id> <count>` | `companies.admin.offers` | yes | Changes how many chunks of a goal wait to be taken at once, while the goal is not closed. |
+| `/companyadmin offers pause <id>` | `companies.admin.offers` | yes | Pauses an offer and withdraws its waiting chunks. |
+| `/companyadmin offers resume <id>` | `companies.admin.offers` | yes | Resumes a paused offer. |
+| `/companyadmin offers cancel <id>` | `companies.admin.offers` | yes | Closes an offer and withdraws its waiting chunks; a cancelled contest pays no prizes. |
+| `/companyadmin offers prize <id> <place> paid\|failed` | `companies.admin.offers` | yes | Notes the outcome of a contest prize whose payment stopped without a known result. |
+
+See [Event offers](../admin/admin-commands.md#event-offers).
 
 ### Boards
 

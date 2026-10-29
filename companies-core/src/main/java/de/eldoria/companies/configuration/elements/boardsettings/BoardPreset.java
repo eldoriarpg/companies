@@ -6,6 +6,7 @@
 package de.eldoria.companies.configuration.elements.boardsettings;
 
 import de.eldoria.companies.orders.query.OrderFilter;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +14,9 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * A named board filter of the {@code boards.presets} section. A highest price or size of zero means no limit.
+ * A named board filter of the {@code boards.presets} section. A highest price or size of zero means no limit. With
+ * {@code offers} set to {@code all} or an offer's id, the board shows only the chunks of event offers, or of that
+ * offer.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "CanBeFinal"})
 public class BoardPreset {
@@ -26,6 +29,7 @@ public class BoardPreset {
     private double maxPrice;
     private int minSize;
     private int maxSize;
+    private String offers = "";
 
     public BoardPreset() {}
 
@@ -48,6 +52,22 @@ public class BoardPreset {
      */
     public String label(String fallback) {
         return label == null || label.isBlank() ? fallback : label.strip();
+    }
+
+    /**
+     * @return the event offers whose chunks alone the preset shows: 0 for {@code all}, an offer's id, null for any
+     *     order, also when the value is neither
+     */
+    public @Nullable Integer offers() {
+        if (offers == null || offers.isBlank()) return null;
+        var value = offers.strip();
+        if (value.equalsIgnoreCase("all")) return 0;
+        try {
+            var id = Integer.parseInt(value);
+            return id > 0 ? id : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

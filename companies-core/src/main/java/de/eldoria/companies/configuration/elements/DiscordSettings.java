@@ -33,8 +33,13 @@ public class DiscordSettings {
     @Overwrite(env = @Env("COMPANIES_DISCORD_WEBHOOK"))
     private String urlOverride;
 
-    private List<WebhookEvent> events =
-            new ArrayList<>(List.of(WebhookEvent.ORDER_CREATED, WebhookEvent.ORDER_COMPLETED, WebhookEvent.LEVEL_UP));
+    private List<WebhookEvent> events = new ArrayList<>(List.of(
+            WebhookEvent.ORDER_CREATED,
+            WebhookEvent.ORDER_COMPLETED,
+            WebhookEvent.LEVEL_UP,
+            WebhookEvent.OFFER_STARTED,
+            WebhookEvent.GOAL_PROGRESS,
+            WebhookEvent.CONTEST_RESULT));
     private String username = "Companies";
     private String avatarUrl = "";
     private int maxPerMinute = 20;

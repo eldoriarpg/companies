@@ -323,6 +323,46 @@ public final class TreasuryService {
     }
 
     /**
+     * Credits the company's share of the payout of a delivery into a contest. A failed credit is logged with the
+     * amount; the money is lost then.
+     *
+     * @param company company that delivered
+     * @param offer   id of the contest
+     * @param cents   the share in cents
+     * @return the outcome with the new balance
+     */
+    public CompletableFuture<Result> keepContestShare(ISimpleCompany company, int offer, long cents) {
+        if (cents <= 0) return CompletableFuture.completedFuture(Result.of(Outcome.INVALID_AMOUNT));
+        return credit(company, cents, entry(TreasuryKind.PAYOUT_SHARE, null, null, "contest #" + offer))
+                .thenApply(balance -> balance.map(Result::done).orElseGet(() -> {
+                    logger.severe("Could not credit the treasury share of %s of contest %d to company %d. Lost."
+                            .formatted(Money.fromCents(cents), offer, company.id()));
+                    return Result.of(Outcome.FAILED);
+                }));
+    }
+
+    /**
+     * Pays the prize of a contest place to a company: into its treasury, or to its owner while treasuries are off.
+     *
+     * @param company the company of the place
+     * @param offer   id of the contest
+     * @param cents   the prize in cents
+     * @return true when the money reached the treasury or the owner
+     */
+    public CompletableFuture<Boolean> prize(CompanyProfile company, int offer, long cents) {
+        if (cents <= 0) return CompletableFuture.completedFuture(false);
+        if (!settings.get().enabled()) return payOwner(company, cents);
+        return credit(company, cents, entry(TreasuryKind.CONTEST_PRIZE, null, null, "contest #" + offer))
+                .thenApply(balance -> {
+                    if (balance.isEmpty()) {
+                        logger.severe("Could not credit the prize of %s of contest %d to company %d."
+                                .formatted(Money.fromCents(cents), offer, company.id()));
+                    }
+                    return balance.isPresent();
+                });
+    }
+
+    /**
      * Empties the treasury of a company that is about to be disbanded or deleted.
      *
      * @param company company to empty

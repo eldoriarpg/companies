@@ -470,6 +470,66 @@ public final class Actions {
     public static final String ADMIN_SYSTEM_ORDERS_RULES_SAVE = "admin.systemorders.rules.save";
 
     /**
+     * Lists the event offers a player sees: running or paused, and those starting within a day.
+     */
+    public static final String EVENTS_LIST = "events.list";
+
+    /**
+     * Reads an event offer: the top contributors of a goal, the ranking, prizes and own place of a contest.
+     */
+    public static final String EVENTS_INFO = "events.info";
+
+    /**
+     * Lets the player's company take part in a contest.
+     */
+    public static final String EVENTS_JOIN = "events.join";
+
+    /**
+     * Lets the player's company leave a contest; it keeps its place.
+     */
+    public static final String EVENTS_LEAVE = "events.leave";
+
+    /**
+     * Lists the newest event offers with their state, progress and money.
+     */
+    public static final String ADMIN_OFFERS_LIST = "admin.offers.list";
+
+    /**
+     * Reads an event offer as admins see it: who created it, its money, contributors, ranking and prizes.
+     */
+    public static final String ADMIN_OFFERS_INFO = "admin.offers.info";
+
+    /**
+     * Creates a goal or a contest.
+     */
+    public static final String ADMIN_OFFERS_CREATE = "admin.offers.create";
+
+    /**
+     * Pauses a running event offer.
+     */
+    public static final String ADMIN_OFFERS_PAUSE = "admin.offers.pause";
+
+    /**
+     * Resumes a paused event offer.
+     */
+    public static final String ADMIN_OFFERS_RESUME = "admin.offers.resume";
+
+    /**
+     * Closes an event offer for good.
+     */
+    public static final String ADMIN_OFFERS_CANCEL = "admin.offers.cancel";
+
+    /**
+     * Changes how many chunks of a goal wait to be taken at once.
+     */
+    public static final String ADMIN_OFFERS_OPEN = "admin.offers.open";
+
+    /**
+     * Settles a contest prize whose payment stopped without a known outcome.
+     */
+    public static final String ADMIN_OFFERS_PRIZE = "admin.offers.prize";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -562,7 +622,19 @@ public final class Actions {
             ADMIN_SYSTEM_ORDERS_INFO,
             ADMIN_SYSTEM_ORDERS_STATS,
             ADMIN_SYSTEM_ORDERS_RULES,
-            ADMIN_SYSTEM_ORDERS_RULES_SAVE);
+            ADMIN_SYSTEM_ORDERS_RULES_SAVE,
+            EVENTS_LIST,
+            EVENTS_INFO,
+            EVENTS_JOIN,
+            EVENTS_LEAVE,
+            ADMIN_OFFERS_LIST,
+            ADMIN_OFFERS_INFO,
+            ADMIN_OFFERS_CREATE,
+            ADMIN_OFFERS_PAUSE,
+            ADMIN_OFFERS_RESUME,
+            ADMIN_OFFERS_CANCEL,
+            ADMIN_OFFERS_OPEN,
+            ADMIN_OFFERS_PRIZE);
 
     private Actions() {}
 

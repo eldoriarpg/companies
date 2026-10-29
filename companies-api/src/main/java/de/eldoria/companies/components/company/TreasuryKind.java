@@ -50,7 +50,11 @@ public enum TreasuryKind implements Translatable {
     /**
      * A member changed the payout share. No money moves.
      */
-    SHARE_CHANGED(8);
+    SHARE_CHANGED(8),
+    /**
+     * A prize of a contest of an event offer, for the company's place.
+     */
+    CONTEST_PRIZE(9);
 
     private final int id;
 

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SearchFormTest {
     private static SearchForm form(String minPrice, String maxPrice, String minSize, String maxSize) {
-        return new SearchForm("", "", "any", "part", minPrice, maxPrice, minSize, maxSize, "age", "asc", false, "");
+        return new SearchForm("", "", "any", "part", minPrice, maxPrice, minSize, maxSize, "age", "asc", false, "", "");
     }
 
     private static SearchQuery valid(SearchForm form) {
@@ -29,7 +29,7 @@ class SearchFormTest {
 
     @Test
     void anUnknownChoiceOfServerOrdersIsInvalid() {
-        var form = new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "some");
+        var form = new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "some", "");
 
         assertEquals(SearchForm.SERVER_ORDERS, invalid(form));
     }
@@ -48,9 +48,11 @@ class SearchFormTest {
                 "unit_price",
                 "desc",
                 true,
-                "hide"));
+                "hide",
+                "only"));
 
         assertEquals("Wood", query.name());
+        assertEquals(SearchQuery.EventOffers.ONLY, query.eventOffers());
         assertEquals(SearchQuery.ServerOrders.HIDE, query.serverOrders());
         assertEquals(List.of("oak_log", "birch_log"), query.materials());
         assertFalse(query.isAnyMaterial());
@@ -87,12 +89,12 @@ class SearchFormTest {
 
     @Test
     void unknownOptionsNameTheirInput() {
-        var form = new SearchForm("", "", "any", "part", "", "", "", "", "colour", "asc", false, "");
+        var form = new SearchForm("", "", "any", "part", "", "", "", "", "colour", "asc", false, "", "");
 
         assertEquals(SearchForm.SORTING, invalid(form));
         assertEquals(
                 SearchForm.MATERIAL_SEARCH,
-                invalid(new SearchForm("", "", "some", "part", "", "", "", "", "age", "asc", false, "")));
+                invalid(new SearchForm("", "", "some", "part", "", "", "", "", "age", "asc", false, "", "")));
     }
 
     @Test
@@ -119,9 +121,25 @@ class SearchFormTest {
     }
 
     @Test
+    void theEventOfferFilterTakesAChoiceOrTheIdOfAnOffer() {
+        var one = valid(new SearchForm("", "", "any", "part", "", "", "", "", "offer_end", "asc", false, "", " 7 "));
+
+        assertEquals(7, one.offer());
+        assertEquals(SearchQuery.EventOffers.ONLY, one.eventOffers());
+        assertEquals(SortingType.OFFER_END, one.sortingType());
+        assertEquals("7", SearchForm.of(one).offers());
+        assertEquals(
+                SearchForm.OFFERS,
+                invalid(new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "", "-3")));
+        assertEquals(
+                SearchForm.OFFERS,
+                invalid(new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "", "some")));
+    }
+
+    @Test
     void aNewQueryGivesAnEmptyForm() {
         var form = SearchForm.of(new SearchQuery());
 
-        assertEquals(new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "all"), form);
+        assertEquals(new SearchForm("", "", "any", "part", "", "", "", "", "age", "asc", false, "all", "all"), form);
     }
 }

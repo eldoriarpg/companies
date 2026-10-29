@@ -54,7 +54,7 @@ public final class BoardAdminCommand {
         var boards = deps.boards();
         Map<BoardTarget, CompletableFuture<Integer>> counts = new LinkedHashMap<>();
         for (var name : boards.presetNames()) {
-            boards.resolve(name).ifPresent(target -> counts.put(target, boards.openCount(target.filter())));
+            boards.resolve(name).ifPresent(target -> counts.put(target, boards.openCount(target)));
         }
         if (counts.isEmpty()) {
             deps.messages().sendMessage(sender, "companyadmin.board.noPresets");

@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.order.SystemDecision;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.offers.OfferRecord;
 import de.eldoria.companies.orders.system.DefinedRecord;
 import de.eldoria.companies.orders.system.GuessedLearning;
 import de.eldoria.companies.orders.system.GuessedRecord;
@@ -57,7 +58,8 @@ import java.util.logging.Level;
  *     <li>{@code list} shows every system order that is open or in work, with its rule, price, state and when it was
  *     placed;</li>
  *     <li>{@code info <id>} shows why a system order was placed: the rule and the numbers its price and money stood
- *     on. It works for ended orders as long as the order history keeps them;</li>
+ *     on, or the event offer a chunk belongs to. It works for ended orders as long as the order history keeps them;
+ *     </li>
  *     <li>{@code item add <rule>} adds the held item to a defined rule;</li>
  *     <li>{@code stats} shows per material what guessed orders learned: how many were placed, taken and expired, the
  *     average minutes until one was taken, and the factor a new order pays: the one learning walked to, or the
@@ -280,6 +282,10 @@ public final class SystemOrdersCommand {
             var record = read(decision, GuessedRecord.class);
             if (record != null) return guessed(head, record);
         }
+        if (OfferRecord.KIND.equals(decision.kind())) {
+            var record = read(decision, OfferRecord.class);
+            if (record != null) return List.of(head, offer(record), offerMoney(record));
+        }
         return List.of(
                 head, MenuText.create().locale(PREFIX + "info.unreadable", Values.text("kind", decision.kind())));
     }
@@ -372,11 +378,33 @@ public final class SystemOrdersCommand {
                         Values.money("cap", economy(), cap));
     }
 
+    private MenuText offer(OfferRecord record) {
+        return MenuText.create()
+                .locale(
+                        PREFIX + "info.offer",
+                        Values.number("offer", record.offer()),
+                        Values.text("offer_name", record.name()),
+                        Values.number("amount", record.amount()),
+                        Values.text("material", record.item()),
+                        Values.money("unit", economy(), record.unit()),
+                        Values.money("total", economy(), record.total()));
+    }
+
+    private MenuText offerMoney(OfferRecord record) {
+        var text = record.source() == MoneySource.SourceType.ACCOUNT
+                ? MenuText.create()
+                        .locale(PREFIX + "info.account", Values.text("account", String.valueOf(record.account())))
+                : MenuText.create().locale(PREFIX + "info.offerMinted");
+        var left = record.budgetLeft();
+        if (left != null) text.space().locale(PREFIX + "info.offerBudget", Values.money("left", economy(), left));
+        return text;
+    }
+
     private MenuText item(DefinedRecord record) {
         return MenuText.create()
                 .locale(
                         PREFIX + "info.item",
-                        Values.text("name", record.name()),
+                        Values.text("rule_name", record.name()),
                         Values.number("amount", record.amount()),
                         Values.text("material", record.material()));
     }

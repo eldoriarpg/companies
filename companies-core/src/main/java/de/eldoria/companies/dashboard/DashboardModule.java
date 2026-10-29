@@ -16,6 +16,7 @@ import de.eldoria.companies.configuration.RulesEditor;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
+import de.eldoria.companies.dashboard.actions.AdminOfferWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
 import de.eldoria.companies.dashboard.actions.AdminServerWrites;
 import de.eldoria.companies.dashboard.actions.AdminSettingsWrites;
@@ -23,6 +24,7 @@ import de.eldoria.companies.dashboard.actions.AdminSupportWrites;
 import de.eldoria.companies.dashboard.actions.AdminSystemOrderWrites;
 import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
+import de.eldoria.companies.dashboard.actions.EventWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
 import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.feed.FeedListener;
@@ -45,6 +47,7 @@ import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
+import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
@@ -62,6 +65,8 @@ import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.offers.ContestService;
+import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
@@ -169,7 +174,8 @@ public final class DashboardModule {
                 names,
                 ZoneOffset.UTC,
                 clock,
-                () -> configuration.systemOrderSettings().markSystemOrders()));
+                () -> configuration.systemOrderSettings().markSystemOrders(),
+                data.offers().data()::marks));
         var market = new MarketHistory(new MarketHistory.Sources(
                 data.dashboard(),
                 data.history(),
@@ -358,6 +364,23 @@ public final class DashboardModule {
                         data.admin().applyChanges(),
                         RulesEditor::knownMaterial,
                         plugin.getLogger(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new EventWrites(new EventWrites.Sources(
+                        data.offers().data(),
+                        data.offers().contests(),
+                        data.companyOf(),
+                        views::instant,
+                        Times::now,
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminOfferWrites(new AdminOfferWrites.Sources(
+                        data.offers().data(),
+                        data.offers().funding(),
+                        data.offers().checkSoon(),
+                        names,
+                        views::instant,
+                        Times::now,
+                        data.admin().log(),
+                        plugin.getLogger(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()
@@ -474,6 +497,7 @@ public final class DashboardModule {
      * @param orders        the services placing orders
      * @param items         the services moving items with the player's inventory
      * @param admin         the admin tools
+     * @param offers        the services of the event offers
      */
     public record Data(
             ADashboardData dashboard,
@@ -493,7 +517,19 @@ public final class DashboardModule {
             CompanyServices company,
             OrderServices orders,
             ItemServices items,
-            AdminServices admin) {}
+            AdminServices admin,
+            OfferServices offers) {}
+
+    /**
+     * The services behind the Events page and the admin tools for event offers.
+     *
+     * @param data      the offer repository
+     * @param contests  lets companies join and leave contests
+     * @param funding   gives a failed prize back to the account that paid it
+     * @param checkSoon asks the primary to place and withdraw the chunks of goals soon
+     */
+    public record OfferServices(
+            AOfferData data, ContestService contests, SystemOrderService.Funding funding, Runnable checkSoon) {}
 
     /**
      * The services behind the dashboard's admin tools.

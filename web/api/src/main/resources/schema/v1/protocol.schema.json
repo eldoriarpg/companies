@@ -1207,7 +1207,9 @@
     "admin.settings" : { },
     "admin.setup" : { },
     "admin.systemorders" : { },
-    "orders.servermarks" : { }
+    "orders.servermarks" : { },
+    "events" : { },
+    "admin.offers" : { }
   },
   "x-actions" : {
     "orders.browse.search" : {
@@ -1479,6 +1481,42 @@
     },
     "admin.systemorders.rules.save" : {
       "feature" : "admin.systemorders"
+    },
+    "events.list" : {
+      "feature" : "events"
+    },
+    "events.info" : {
+      "feature" : "events"
+    },
+    "events.join" : {
+      "feature" : "events"
+    },
+    "events.leave" : {
+      "feature" : "events"
+    },
+    "admin.offers.list" : {
+      "feature" : "admin.offers"
+    },
+    "admin.offers.info" : {
+      "feature" : "admin.offers"
+    },
+    "admin.offers.create" : {
+      "feature" : "admin.offers"
+    },
+    "admin.offers.pause" : {
+      "feature" : "admin.offers"
+    },
+    "admin.offers.resume" : {
+      "feature" : "admin.offers"
+    },
+    "admin.offers.cancel" : {
+      "feature" : "admin.offers"
+    },
+    "admin.offers.open" : {
+      "feature" : "admin.offers"
+    },
+    "admin.offers.prize" : {
+      "feature" : "admin.offers"
     }
   }
 }

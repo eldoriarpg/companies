@@ -124,9 +124,7 @@ public final class AdminServerWrites {
         var boards = sources.boards();
         var targets = new ArrayList<BoardTarget>();
         for (var name : boards.presetNames()) boards.resolve(name).ifPresent(targets::add);
-        var counts = targets.stream()
-                .map(target -> boards.openCount(target.filter()))
-                .toList();
+        var counts = targets.stream().map(target -> boards.openCount(target)).toList();
         CompletableFuture.allOf(counts.toArray(CompletableFuture[]::new)).join();
         var presets = new ArrayList<Payloads.AdminBoardPreset>();
         for (var i = 0; i < targets.size(); i++) {

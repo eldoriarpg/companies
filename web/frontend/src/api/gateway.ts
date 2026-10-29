@@ -129,11 +129,15 @@ export interface OrderSearchArgs {
     maxPrice?: number
     minOrderSize?: number
     maxOrderSize?: number
-    /** The in-game sorting: `AGE`, `NAME`, `PRICE`, `SIZE` or `UNIT_PRICE`. */
+    /** The in-game sorting: `AGE`, `NAME`, `PRICE`, `SIZE`, `UNIT_PRICE` or `OFFER_END`. */
     sort?: string
     asc?: boolean
     /** Which orders of the server to show while the server marks them: `only` or `hide`; every order without. */
     serverOrders?: 'only' | 'hide'
+    /** `only` to show the chunks of event offers alone. */
+    offers?: 'only'
+    /** The event offer whose chunks alone are shown. */
+    offer?: number
     page: number
     pageSize: number
 }
@@ -158,10 +162,21 @@ export interface OrderListing {
     amount?: number
     /** When it was claimed, for the company working on it. */
     claimed?: string | null
-    /** Whether the server placed it; only set while the server marks its orders. */
+    /** Whether the server placed it; only set while the server marks its orders, never for the chunk of an event offer. */
     server?: boolean
+    /** The event offer it is a chunk of, which it is marked with; none for any other order. */
+    offer?: OfferBadge | null
     /** Items delivered and waiting for the owner, for the owner of a delivered order. */
     waiting?: ItemView[] | null
+}
+
+/** The event offer an order is a chunk of. */
+export interface OfferBadge {
+    id: number
+    name: string
+    ends: string
+    /** `scheduled`, `active`, `paused` or a closed state. */
+    state: string
 }
 
 /** A page of the order book. */
@@ -552,9 +567,9 @@ export interface AdminNpcBoards {
 export interface AdminSystemOrder {
     order: number
     name: string
-    /** The rule that placed it, `guessed` for a guessed order. */
+    /** The rule that placed it, `guessed` for a guessed order, `event-offer` for a chunk of an event offer. */
     rule: string
-    /** How it was decided: `DEFINED` or `GUESSED`. */
+    /** How it was decided: `DEFINED`, `GUESSED` or `OFFER` for a chunk of an event offer. */
     kind: string
     /** Its state, missing when it was removed meanwhile. */
     state?: string | null
@@ -630,6 +645,224 @@ export interface AdminSystemLearned {
     factor: number
     offset: number
     takeRate: number
+}
+
+/** What an event offer orders. */
+export interface OfferItem {
+    /** The item's name, or the criteria as players type them. */
+    name: string
+    /** The icon of a material; none for criteria. */
+    icon?: string | null
+    /** The criteria of a criteria offer. */
+    criteria?: string | null
+}
+
+/** The kind of an event offer. */
+export type OfferKind = 'goal' | 'contest'
+
+/** An event offer as the Events page lists it. */
+export interface EventRow {
+    id: number
+    kind: OfferKind
+    name: string
+    item: OfferItem
+    amount: number
+    delivered: number
+    /** The share delivered, from 0 to 100. */
+    percent: number
+    unitPrice: number
+    /** `scheduled`, `active` or `paused` in the list; an opened offer may also be `reached`, `ended`, `depleted` or `cancelled`. */
+    state: string
+    starts: string
+    ends: string
+    /** The money of the prizes of a contest. */
+    prizeTotal: number
+    /** The place of the player's company in a contest; none before it delivered. */
+    place?: number | null
+    /** Whether the player's company takes part in the contest. */
+    joined: boolean
+}
+
+/** The event offers a player sees. */
+export interface EventList {
+    offers: EventRow[]
+    /** Whether the player is part of a company. */
+    member: boolean
+    /** Whether the player may let the company join or leave contests. */
+    canManage: boolean
+}
+
+/** Who delivered to a goal; players working alone are not named. */
+export interface EventContributor {
+    rank: number
+    name?: string | null
+    alone: boolean
+    delivered: number
+    chunks: number
+}
+
+/** A company in the ranking of a contest. */
+export interface EventRank {
+    place: number
+    name: string
+    delivered: number
+    active: boolean
+    own: boolean
+}
+
+/** A prize of a contest. */
+export interface EventPrize {
+    place: number
+    amount: number
+    /** The company that won it once the contest closed. */
+    winner?: string | null
+    /** `pending`, `paying`, `paid`, `failed` or `none`. */
+    state: string
+}
+
+/** The part of the player's company in a contest. */
+export interface EventOwnPart {
+    company: string
+    joined: boolean
+    delivered: number
+    paid: number
+    place?: number | null
+}
+
+/** An event offer as its page shows it. */
+export interface EventDetails {
+    offer: EventRow
+    chunkSize?: number | null
+    contributors: EventContributor[]
+    ranking: EventRank[]
+    prizes: EventPrize[]
+    own?: EventOwnPart | null
+    member: boolean
+    canManage: boolean
+}
+
+/** An event offer in the admin list. */
+export interface AdminOfferRow {
+    id: number
+    kind: OfferKind
+    name: string
+    item: OfferItem
+    state: string
+    delivered: number
+    amount: number
+    percent: number
+    /** `minted` or `account`. */
+    source: string
+    account?: string | null
+    budget: number
+    spent: number
+    left: number
+    starts: string
+    ends: string
+}
+
+/** Who delivered to a goal, as admins see it. */
+export interface AdminOfferContributor {
+    rank: number
+    company?: number | null
+    name?: string | null
+    alone: boolean
+    delivered: number
+    chunks: number
+}
+
+/** A company in a contest, as admins see it. */
+export interface AdminOfferEntry {
+    place: number
+    company: number
+    name?: string | null
+    delivered: number
+    paid: number
+    active: boolean
+    joined: string
+    left?: string | null
+}
+
+/** A settled prize of a contest. */
+export interface AdminOfferPrize {
+    place: number
+    amount: number
+    company?: number | null
+    name?: string | null
+    state: string
+}
+
+/** An event offer with what its decision record shows. */
+export interface AdminOffer {
+    id: number
+    kind: OfferKind
+    name: string
+    item: OfferItem
+    /** `material`, `criteria` or `item`. */
+    line: string
+    state: string
+    amount: number
+    delivered: number
+    percent: number
+    unitPrice: number
+    chunkSize?: number | null
+    openChunks?: number | null
+    /** Items of chunks waiting to be taken. */
+    waiting: number
+    /** Items of chunks taken and not delivered yet. */
+    taken: number
+    source: string
+    account?: string | null
+    budget: number
+    spent: number
+    left: number
+    /** What a started contest took from its account. */
+    held?: number | null
+    prizeMoney: number[]
+    prizeTotal: number
+    createdBy: string
+    created: string
+    starts: string
+    ends: string
+    started?: string | null
+    closed?: string | null
+    settled?: string | null
+    refund?: number | null
+    refunded?: string | null
+    contributors: AdminOfferContributor[]
+    ranking: AdminOfferEntry[]
+    prizes: AdminOfferPrize[]
+}
+
+/** A new goal or contest, checked by the plugin as `/companyadmin offers goal` and `contest` check it. */
+export interface AdminOfferDraft {
+    kind: OfferKind
+    name: string
+    /** `minted` or the paying economy account. */
+    money: string
+    /** A material name; or `criteria`. */
+    material?: string
+    /** Criteria in the text form players type. */
+    criteria?: string
+    amount: number
+    price: number
+    /** Items per chunk of a goal. */
+    chunk?: number
+    /** Chunks of a goal waiting at once. */
+    open?: number
+    /** The money of the first places of a contest. */
+    prizes?: number[]
+    /** Hours until it starts. */
+    start: number
+    /** Hours it runs. */
+    hours: number
+    /** What the whole offer may spend; none for what it costs. */
+    budget?: number
+}
+
+/** An event offer an action named. */
+export interface OfferRef {
+    offer: number
 }
 
 /** A server registered in the database. */
@@ -798,6 +1031,8 @@ export interface ReadActions {
     'orders.create.catalogue': {args: Record<string, never>, result: OrderCatalogue}
     'orders.create.items': {args: Record<string, never>, result: KnownItems}
     'orders.create.quote': {args: OrderCreateArgs, result: OrderQuote}
+    'events.list': {args: Record<string, never>, result: EventList}
+    'events.info': {args: OfferRef, result: EventDetails}
 }
 
 /** The name of a read action. */
@@ -859,6 +1094,16 @@ export interface WriteActions {
         result: {result: 'saved' | 'unchanged' | 'newer' | 'invalid', revision: number, errors: Record<string, string>, rules?: Partial<SystemOrderRule>[] | null, applied: boolean}
     }
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
+    'events.join': {args: OfferRef, result: EventDetails}
+    'events.leave': {args: OfferRef, result: EventDetails}
+    'admin.offers.list': {args: Record<string, never>, result: {offers: AdminOfferRow[]}}
+    'admin.offers.info': {args: OfferRef, result: AdminOffer}
+    'admin.offers.create': {args: AdminOfferDraft, result: AdminOffer}
+    'admin.offers.pause': {args: OfferRef, result: AdminOffer}
+    'admin.offers.resume': {args: OfferRef, result: AdminOffer}
+    'admin.offers.cancel': {args: OfferRef, result: AdminOffer}
+    'admin.offers.open': {args: OfferRef & {count: number}, result: AdminOffer}
+    'admin.offers.prize': {args: OfferRef & {place: number, outcome: 'paid' | 'failed'}, result: AdminOffer}
     'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}
     'admin.settings.get': {args: {file: SettingsFileName}, result: AdminSettingsFile}
     'admin.settings.history': {args: {file: SettingsFileName, page: number}, result: {revisions: AdminSettingsChange[], pageSize: number}}

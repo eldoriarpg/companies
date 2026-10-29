@@ -8,6 +8,7 @@ package de.eldoria.companies.integrations.discord;
 import de.eldoria.companies.components.order.IFullOrder;
 import de.eldoria.companies.orders.criteria.CriteriaText;
 
+import java.time.Instant;
 import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,10 @@ public final class DiscordEmbeds {
     static final int ORDER_CREATED_COLOR = 0x5865F2;
     static final int ORDER_COMPLETED_COLOR = 0x57F287;
     static final int LEVEL_UP_COLOR = 0xFEE75C;
+    static final int OFFER_STARTED_COLOR = 0xEB459E;
+    static final int GOAL_PROGRESS_COLOR = 0x57F287;
+    static final int CONTEST_RESULT_COLOR = 0xFEE75C;
+    static final int CONTEST_CANCELLED_COLOR = 0x99AAB5;
 
     private final UnaryOperator<String> texts;
     private final InstantSource clock;
@@ -93,6 +98,91 @@ public final class DiscordEmbeds {
                 clock.instant());
     }
 
+    /**
+     * The embed for an event offer that started.
+     *
+     * @param name   name of the offer
+     * @param kind   localized kind of the offer
+     * @param amount items asked for
+     * @param item   plain name of what is asked for
+     * @param price  formatted price per item
+     * @param ends   when it ends
+     * @return the embed
+     */
+    public Embed offerStarted(String name, String kind, int amount, String item, String price, Instant ends) {
+        return new Embed(
+                texts.apply("discord.offerStarted"),
+                bold(name),
+                OFFER_STARTED_COLOR,
+                List.of(
+                        new Embed.Field(texts.apply("words.kind"), DiscordText.escape(kind), true),
+                        new Embed.Field(texts.apply("words.items"), amount + "× " + DiscordText.escape(item), true),
+                        new Embed.Field(texts.apply("words.unitPrice"), DiscordText.escape(price), true),
+                        new Embed.Field(texts.apply("words.ends"), "<t:" + ends.getEpochSecond() + ":R>", true)),
+                clock.instant());
+    }
+
+    /**
+     * The embed for a goal whose progress passed a threshold.
+     *
+     * @param name      name of the goal
+     * @param threshold the threshold in percent, 100 for a reached goal
+     * @param delivered items delivered
+     * @param amount    items asked for
+     * @return the embed
+     */
+    public Embed goalProgress(String name, int threshold, int delivered, int amount) {
+        return new Embed(
+                texts.apply(threshold >= 100 ? "discord.goalReached" : "discord.goalProgress"),
+                bold(name),
+                GOAL_PROGRESS_COLOR,
+                List.of(
+                        new Embed.Field(texts.apply("words.progress"), threshold + " %", true),
+                        new Embed.Field(texts.apply("words.items"), delivered + " / " + amount, true)),
+                clock.instant());
+    }
+
+    /**
+     * The embed for the ranking of a closed contest.
+     *
+     * @param name   name of the contest
+     * @param places the first places, best first
+     * @return the embed
+     */
+    public Embed contestResult(String name, List<Place> places) {
+        List<Embed.Field> fields = new ArrayList<>();
+        if (!places.isEmpty()) {
+            var text = new StringBuilder();
+            for (var place : places) {
+                var row = place.place() + ". " + DiscordText.escape(place.company()) + ": " + place.items() + "×"
+                        + place.prize()
+                                .map(prize -> " · " + DiscordText.escape(prize))
+                                .orElse("");
+                if (text.length() + row.length() + 1 > Embed.FIELD_VALUE_LIMIT) break;
+                if (!text.isEmpty()) text.append('\n');
+                text.append(row);
+            }
+            fields.add(new Embed.Field(texts.apply("words.ranking"), text.toString(), false));
+        }
+        return new Embed(
+                texts.apply("discord.contestResult"), bold(name), CONTEST_RESULT_COLOR, fields, clock.instant());
+    }
+
+    /**
+     * The embed for a cancelled contest.
+     *
+     * @param name name of the contest
+     * @return the embed
+     */
+    public Embed contestCancelled(String name) {
+        return new Embed(
+                texts.apply("discord.contestCancelled"),
+                bold(name),
+                CONTEST_CANCELLED_COLOR,
+                List.of(),
+                clock.instant());
+    }
+
     private Embed order(String titleKey, int color, String orderName, List<Line> lines, Optional<String> price) {
         List<Embed.Field> fields = new ArrayList<>();
         if (!lines.isEmpty()) fields.add(new Embed.Field(texts.apply("words.items"), items(lines), false));
@@ -133,4 +223,14 @@ public final class DiscordEmbeds {
      * @param item   plain name of the item
      */
     public record Line(int amount, String item) {}
+
+    /**
+     * A place of a contest's ranking.
+     *
+     * @param place   the place, from 1
+     * @param company name of the company
+     * @param items   items it delivered
+     * @param prize   the formatted prize it was paid, empty without one
+     */
+    public record Place(int place, String company, int items, Optional<String> prize) {}
 }

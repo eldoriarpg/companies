@@ -14,6 +14,7 @@ export const ICONS = {
     market: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
     company: 'M4 21V7l8-4 8 4v14M9 21v-6h6v6',
     inbox: 'M3 13h5l2 3h4l2-3h5M5 5h14l2 8v6H3v-6z',
+    events: 'M5 21V4h11l-2 4 2 4H5',
     rankings: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3',
     menu: 'M4 6h16M4 12h16M4 18h16',
     close: 'M6 6l12 12M18 6L6 18',

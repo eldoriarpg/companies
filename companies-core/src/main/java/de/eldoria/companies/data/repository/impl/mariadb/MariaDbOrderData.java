@@ -16,6 +16,8 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
 import de.eldoria.companies.data.wrapper.order.DeliveredVolume;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
@@ -1044,10 +1046,11 @@ public class MariaDbOrderData extends AOrderData {
                 SELECT COALESCE(SUM(paid), 0) AS spent
                 FROM system_order_decisions
                 WHERE account IS NULL
+                  AND rule <> ?
                   AND decided_at >= ?
                   AND order_id IN (SELECT id FROM orders)""";
         return query(select)
-                .single(call().bind(since, time()))
+                .single(call().bind(EventOffer.RULE).bind(since, time()))
                 .map(row -> row.getDouble("spent"))
                 .first()
                 .orElse(0.0);
@@ -1438,6 +1441,33 @@ public class MariaDbOrderData extends AOrderData {
                 .map(rs -> rs.getInt("count"))
                 .first()
                 .get();
+    }
+
+    @Override
+    protected int getCompanySlotCount(ISimpleCompany company) {
+        @Language("mariadb")
+        var query = """
+                SELECT (SELECT COUNT(1)
+                        FROM orders
+                                 LEFT JOIN order_states s
+                                           ON orders.id = s.id
+                        WHERE company = ?
+                          AND s.state = ?)
+                           + (SELECT COUNT(1)
+                              FROM contest_entries e
+                                       JOIN event_offers o ON o.id = e.offer_id
+                              WHERE e.company_id = ?
+                                AND e.left_at IS NULL
+                                AND o.state IN (?, ?)) AS count""";
+        return query(query)
+                .single(call().bind(company.id())
+                        .bind(OrderState.CLAIMED.stateId())
+                        .bind(company.id())
+                        .bind(OfferState.ACTIVE.name())
+                        .bind(OfferState.PAUSED.name()))
+                .map(rs -> rs.getInt("count"))
+                .first()
+                .orElse(0);
     }
 
     @Override

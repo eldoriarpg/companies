@@ -53,9 +53,10 @@ class SignBoardRefresherTest {
                 spec -> spec.equals("unknown")
                         ? Optional.empty()
                         : Optional.of(new BoardTarget(null, OrderFilter.ALL.withMaterials(List.of(spec)), spec)),
-                filter -> {
-                    counted.add(filter.materials());
-                    return CompletableFuture.completedFuture(counts.getOrDefault(filter.materials(), 0));
+                target -> {
+                    counted.add(target.filter().materials());
+                    return CompletableFuture.completedFuture(
+                            counts.getOrDefault(target.filter().materials(), 0));
                 },
                 (location, target, count) -> {
                     written.add(location);
@@ -135,7 +136,7 @@ class SignBoardRefresherTest {
         var failing = new SignBoardRefresher(
                 index,
                 spec -> Optional.of(new BoardTarget(null, OrderFilter.ALL.withMaterials(List.of(spec)), spec)),
-                filter -> CompletableFuture.failedFuture(new IllegalStateException("database down")),
+                target -> CompletableFuture.failedFuture(new IllegalStateException("database down")),
                 (location, target, count) -> {
                     written.add(location);
                     return WriteResult.WRITTEN;
