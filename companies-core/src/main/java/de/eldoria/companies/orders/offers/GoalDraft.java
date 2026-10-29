@@ -47,6 +47,11 @@ public final class GoalDraft {
     public static final int OPEN_CHUNKS = 3;
 
     /**
+     * The most chunks of a goal that may wait to be taken at once.
+     */
+    public static final int MAX_OPEN_CHUNKS = 100;
+
+    /**
      * The most hours a goal may wait for its start, and the most it may run: a year.
      */
     public static final int MAX_HOURS = 8760;
@@ -104,7 +109,56 @@ public final class GoalDraft {
             @Nullable Double budget,
             String createdBy,
             LocalDateTime now) {
+        return goal(
+                name,
+                money,
+                line,
+                amount,
+                unitPrice,
+                chunkSize,
+                OPEN_CHUNKS,
+                startHours,
+                hours,
+                budget,
+                createdBy,
+                now);
+    }
+
+    /**
+     * Builds a goal with a number of chunks waiting to be taken at once of its own.
+     *
+     * @param name       name of the goal
+     * @param money      {@value #MINTED} or the economy account paying the chunks
+     * @param line       what it orders
+     * @param amount     items asked for in all
+     * @param unitPrice  price per item
+     * @param chunkSize  items per chunk
+     * @param openChunks chunks waiting to be taken at once, 1 to {@value #MAX_OPEN_CHUNKS}
+     * @param startHours hours from now until it starts, 0 for now
+     * @param hours      hours it runs from its start
+     * @param budget     what the whole goal may spend, null for what its chunks cost
+     * @param createdBy  who creates it
+     * @param now        the current time
+     * @return the goal, not stored yet
+     * @throws CommandFailure when a value is not usable
+     */
+    public static EventOffer goal(
+            String name,
+            String money,
+            OfferLine line,
+            int amount,
+            double unitPrice,
+            int chunkSize,
+            int openChunks,
+            int startHours,
+            int hours,
+            @Nullable Double budget,
+            String createdBy,
+            LocalDateTime now) {
         var trimmed = checkName(name);
+        if (openChunks < 1 || openChunks > MAX_OPEN_CHUNKS) {
+            throw CommandFailure.of("companyadmin.offers.error.openChunks", Values.number("max", MAX_OPEN_CHUNKS));
+        }
         if (amount < 1 || chunkSize < 1 || hours < 1 || startHours < 0) {
             throw CommandFailure.of("companyadmin.offers.error.numbers");
         }
@@ -127,7 +181,7 @@ public final class GoalDraft {
                 amount,
                 unitPrice,
                 chunk,
-                OPEN_CHUNKS,
+                openChunks,
                 minted ? MoneySource.SourceType.MINTED : MoneySource.SourceType.ACCOUNT,
                 minted ? null : source,
                 spend,

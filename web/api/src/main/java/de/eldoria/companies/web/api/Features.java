@@ -86,6 +86,12 @@ public final class Features {
     public static final String RANKINGS = "rankings";
 
     /**
+     * The event offers of the server: running goals and contests with their progress, the contributors of a goal, the
+     * ranking and prizes of a contest, and joining or leaving a contest for the company.
+     */
+    public static final String EVENTS = "events";
+
+    /**
      * Orders the server placed itself carry a badge, and the search can show or hide them. Offered only while the
      * server marks its orders.
      */
@@ -161,6 +167,13 @@ public final class Features {
     public static final String ADMIN_SYSTEM_ORDERS = "admin.systemorders";
 
     /**
+     * See the event offers of the server with their money, progress, contributors, ranking and prizes, create goals and
+     * contests, pause, resume and cancel them, change how many chunks of a goal wait at once, and settle a stuck prize.
+     * Needs {@code companies.admin.offers}.
+     */
+    public static final String ADMIN_OFFERS = "admin.offers";
+
+    /**
      * Every feature name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -189,7 +202,9 @@ public final class Features {
             ADMIN_SETTINGS,
             ADMIN_SETUP,
             ADMIN_SYSTEM_ORDERS,
-            ORDERS_SERVER_MARKS);
+            ORDERS_SERVER_MARKS,
+            EVENTS,
+            ADMIN_OFFERS);
 
     private Features() {}
 }

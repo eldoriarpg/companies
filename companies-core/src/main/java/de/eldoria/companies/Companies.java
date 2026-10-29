@@ -686,7 +686,12 @@ public class Companies extends EldoPlugin {
                                 () -> nodeData,
                                 node -> NodeCommand.bus(commands, nodeData, node),
                                 this::syncConfigurationFromDashboard,
-                                this::applyChangesFromDashboard)),
+                                this::applyChangesFromDashboard),
+                        new DashboardModule.OfferServices(
+                                commands.services().offerData(),
+                                commands.services().contests(),
+                                commands.services().systemFunding(),
+                                () -> commands.services().offers().checkSoon())),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

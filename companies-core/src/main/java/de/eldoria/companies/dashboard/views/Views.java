@@ -22,8 +22,10 @@ import de.eldoria.companies.data.repository.AAlertData;
 import de.eldoria.companies.data.repository.AInboxData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.AStatsData;
+import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.criteria.CriteriaText;
+import de.eldoria.companies.orders.offers.OfferMarks;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
 import de.eldoria.companies.web.api.snapshot.ClaimedOrderView;
@@ -447,6 +449,22 @@ public final class Views {
      * @return the summary
      */
     public Payloads.OrderSummary summary(IFullOrder order, boolean owner, boolean company) {
+        var marks = SystemOwner.is(order.owner())
+                ? sources.offers().marks(List.of(order.id()))
+                : Map.<Integer, OfferMark>of();
+        return summary(order, owner, company, marks.get(order.id()));
+    }
+
+    /**
+     * An order as a player sees it, with the event offer it is a chunk of already looked up.
+     *
+     * @param order   the order
+     * @param owner   whether the player placed it, which adds the items waiting to be received
+     * @param company whether the player's company works on it, which adds when it was claimed
+     * @param mark    the event offer the order is a chunk of, null when it is none
+     * @return the summary
+     */
+    public Payloads.OrderSummary summary(IFullOrder order, boolean owner, boolean company, @Nullable OfferMark mark) {
         Instant expires = null;
         if (order.state() == de.eldoria.companies.components.order.OrderState.UNCLAIMED) {
             var hours = sources.orderSettings().get().maxUnclaimedHours();
@@ -465,7 +483,14 @@ public final class Views {
                 order.amount(),
                 claimed,
                 owner ? own(order).waiting() : null,
-                sources.marked().getAsBoolean() && SystemOwner.is(order.owner()));
+                mark == null && sources.marked().getAsBoolean() && SystemOwner.is(order.owner()),
+                mark == null
+                        ? null
+                        : new Payloads.OfferBadge(
+                                mark.offer(),
+                                mark.name(),
+                                instant(mark.ends()),
+                                mark.state().name().toLowerCase(Locale.ROOT)));
     }
 
     /**
@@ -699,6 +724,7 @@ public final class Views {
      * @param zone            the time zone of the plugin's stored times
      * @param clock           the current time
      * @param marked          whether the server marks the orders it placed itself
+     * @param offers          the event offers orders are chunks of
      */
     public record Sources(
             CompaniesApi api,
@@ -711,5 +737,6 @@ public final class Views {
             Function<UUID, String> names,
             ZoneId zone,
             Clock clock,
-            BooleanSupplier marked) {}
+            BooleanSupplier marked,
+            OfferMarks offers) {}
 }

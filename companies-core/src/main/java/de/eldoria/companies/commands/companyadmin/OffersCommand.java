@@ -678,7 +678,7 @@ public final class OffersCommand {
      * @param count chunks kept waiting
      * @return what came of it: refused for a closed offer
      */
-    static Transition limit(AOfferData data, int id, int count) {
+    public static Transition limit(AOfferData data, int id, int count) {
         var offer = data.offer(id);
         if (offer.isEmpty()) return Transition.UNKNOWN;
         if (offer.get().kind() != OfferKind.GOAL) return Transition.WRONG_KIND;
@@ -738,7 +738,8 @@ public final class OffersCommand {
      * @param paid    whether the money reached the company
      * @return what came of it: refused unless the prize is being paid
      */
-    static Transition resolve(AOfferData data, SystemOrderService.Funding funding, int id, int place, boolean paid) {
+    public static Transition resolve(
+            AOfferData data, SystemOrderService.Funding funding, int id, int place, boolean paid) {
         var offer = data.offer(id).filter(found -> found.kind() == OfferKind.CONTEST);
         if (offer.isEmpty()) return Transition.UNKNOWN;
         var prize =
@@ -827,7 +828,7 @@ public final class OffersCommand {
      * @param to   the new state
      * @return what came of it
      */
-    static Transition transition(AOfferData data, int id, List<OfferState> from, OfferState to) {
+    public static Transition transition(AOfferData data, int id, List<OfferState> from, OfferState to) {
         var offer = data.offer(id);
         if (offer.isEmpty()) return Transition.UNKNOWN;
         var current = offer.get().state();
@@ -1052,7 +1053,11 @@ public final class OffersCommand {
         return PREFIX + "state." + state.name().toLowerCase(Locale.ROOT);
     }
 
-    private static Optional<String> canonical(String material) {
+    /**
+     * @param material a material as an admin typed it
+     * @return the material's name as order lines store it, empty when it names no item that can be ordered
+     */
+    public static Optional<String> canonical(String material) {
         var found = Material.matchMaterial(material);
         return found != null && found.isItem() && !found.isAir() ? Optional.of(found.name()) : Optional.empty();
     }
@@ -1090,7 +1095,7 @@ public final class OffersCommand {
     /**
      * What came of moving an offer into another state.
      */
-    enum Transition {
+    public enum Transition {
         /**
          * There is no such offer.
          */

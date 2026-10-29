@@ -117,7 +117,8 @@ Event offers are offers the server makes for an event or a shared goal. There ar
 - **Contests**: one offer several companies join at once and race to deliver into, each delivery paid at once per
   item, with optional prizes for the first places.
 
-See [Event offers](../players/event-offers.md) for what players see.
+See [Event offers](../players/event-offers.md) for what players see. The same tools are in the *Event offers* tab of the
+[dashboard](./dashboard.md#admin-tools).
 
 | Command | What it does |
 |---|---|

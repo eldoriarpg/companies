@@ -11,6 +11,8 @@ the harbour, a mountain of wheat for a harvest festival. Your server's staff set
 `/company events` lists the goals and contests that run, are paused or start within a day, with their progress and
 time left, and for a contest your company's place. `[Open]` shows a goal's chunks in the order search (in the
 search of orders to work on alone when you have no company), or a contest.
+On the [dashboard](dashboard.md#events), the **Events** page shows the same, and a contest's page lets members who
+manage orders join or leave it.
 The server tells everyone when an offer starts, when a goal is reached and how a contest ended. Order boards with
 `event` on their sign show the chunks of all goals.
 

@@ -50,7 +50,7 @@ public final class EventsCommand {
     /**
      * How far ahead scheduled offers are listed.
      */
-    static final Duration UPCOMING = Duration.ofHours(24);
+    public static final Duration UPCOMING = Duration.ofHours(24);
 
     private static final String PREFIX = "company.events.";
 
@@ -183,7 +183,7 @@ public final class EventsCommand {
      * @param now     the current time
      * @return the offers shown
      */
-    static List<EventOffer> shown(List<EventOffer> running, LocalDateTime now) {
+    public static List<EventOffer> shown(List<EventOffer> running, LocalDateTime now) {
         return running.stream()
                 .filter(offer ->
                         offer.state() != OfferState.SCHEDULED || !offer.starts().isAfter(now.plus(UPCOMING)))
@@ -195,7 +195,7 @@ public final class EventsCommand {
      * @param company id of a company
      * @return the company's place among the companies that delivered, empty when it has none
      */
-    static OptionalInt place(List<ContestEntry> ranking, int company) {
+    public static OptionalInt place(List<ContestEntry> ranking, int company) {
         var place = 0;
         for (var entry : ranking) {
             if (entry.delivered() <= 0 || entry.name() == null) continue;

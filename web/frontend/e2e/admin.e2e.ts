@@ -217,6 +217,46 @@ test.describe('admin', () => {
         await expect(rules.getByText('armoury · IRON_SWORD, Royal blade, #logs enchants:2')).toBeVisible()
     })
 
+    test('shows an event offer\'s record, pauses it and settles a stuck prize', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Event offers'}).click()
+
+        const offers = page.getByTestId('admin-offers')
+        await expect(offers.getByRole('listitem')).toHaveCount(2)
+        await offers.getByRole('button', {name: /#41 Bridge logs/}).click()
+        const record = page.getByTestId('admin-offer-record')
+        await expect(record.getByText('Account Treasury')).toBeVisible()
+        await expect(record.getByTestId('admin-offer-contributors').getByText(/Orla \(alone\)/)).toBeVisible()
+        await record.getByTestId('admin-offer-pause').click()
+        await expect(record.getByText('#41 Bridge logs · Goal · Paused')).toBeVisible()
+        await expect(record.getByTestId('admin-offer-resume')).toBeVisible()
+
+        await offers.getByRole('button', {name: /#42 Log race/}).click()
+        const prizes = page.getByTestId('admin-offer-prizes')
+        await expect(prizes.getByText(/stuck while being paid/)).toBeVisible()
+        await prizes.getByRole('button', {name: 'It reached the company'}).click()
+        await expect(prizes.getByText(/Stonebridge Builders · paid/)).toBeVisible()
+    })
+
+    test('creates a goal and shows the plugin\'s refusal of an unknown material', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Event offers'}).click()
+        await page.getByTestId('admin-offer-new').click()
+
+        const form = page.getByTestId('admin-offer-form')
+        await form.getByLabel('Name').fill('Harbour stone')
+        await form.getByLabel('Material', {exact: true}).fill('not_an_item')
+        await form.getByTestId('admin-offer-create').click()
+        await expect(form.getByText('not_an_item is no item that can be ordered.')).toBeVisible()
+
+        await form.getByLabel('Material', {exact: true}).fill('stone')
+        await form.getByTestId('admin-offer-create').click()
+        await expect(page.getByTestId('admin-offer-record').getByText('#43 Harbour stone · Goal · Running')).toBeVisible()
+        await expect(page.getByTestId('admin-offers').getByRole('listitem')).toHaveCount(3)
+    })
+
     test('shows the shared settings without their secrets and what a revision changed', async ({page}, info) => {
         await openDashboard(page, 'ADMN01')
         await openAdmin(page, info)

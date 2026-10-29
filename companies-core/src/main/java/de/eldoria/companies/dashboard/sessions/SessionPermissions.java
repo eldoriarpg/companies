@@ -44,6 +44,7 @@ public final class SessionPermissions {
             Permission.Admin.GRANT,
             Permission.Admin.LEVEL,
             Permission.Admin.NODES,
+            Permission.Admin.OFFERS,
             Permission.Admin.ORDERS,
             Permission.Admin.PLAYER,
             Permission.Admin.RELOAD,

@@ -109,6 +109,8 @@ public final class DashboardReads {
             Features.ADMIN_SETUP,
             Features.ADMIN_SYSTEM_ORDERS,
             Features.ORDERS_SERVER_MARKS,
+            Features.EVENTS,
+            Features.ADMIN_OFFERS,
             Features.COMPANY_DISBAND,
             Features.INBOX,
             Features.RANKINGS,
@@ -206,13 +208,20 @@ public final class DashboardReads {
         sorting(args.path("sort").asString("")).ifPresent(query::sortingType);
         query.asc(args.path("asc").asBoolean(true));
         query.serverOrders(serverOrders(args.path("serverOrders").asString("")));
+        if (args.path("offers").asString("").equals("only")) query.eventOffers(SearchQuery.EventOffers.ONLY);
+        var offer = args.path("offer").asInt(0);
+        if (offer > 0) query.offer(offer);
         var results = sources.search().apply(player, query).join();
         var orders = new ArrayList<>(results.orders());
         query.sort(orders);
+        if (query.sortingType() == SortingType.OFFER_END) {
+            SortingType.byOfferEnd(orders, results.offers(), query.isAsc());
+        }
         var page = page(args);
         var size = size(args);
         var shown = Payloads.slice(orders, page, size).stream()
-                .map(order -> views.summary(order, false, false))
+                .map(order -> views.summary(
+                        order, false, false, results.offer(order.id()).orElse(null)))
                 .toList();
         return new Payloads.SearchPage(
                 page,

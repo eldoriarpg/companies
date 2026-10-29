@@ -6,6 +6,7 @@
 <script lang="ts" setup>
 import {Feature} from '~/api/generated/protocol'
 import InfoBadge from '@/components/badge/InfoBadge.vue'
+import PrimaryBadge from '@/components/badge/PrimaryBadge.vue'
 import type {OrderListing} from '~/api/gateway'
 import RowButton from '@/components/button/RowButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
@@ -72,7 +73,8 @@ const marks = computed(() => supports(Feature['orders.servermarks']))
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="flex min-w-0 items-center gap-1.5">
                 <span class="truncate text-sm font-semibold">{{ row.order.name }}</span>
-                <InfoBadge v-if="row.order.server && marks" data-testid="server-badge">{{ t('orders.serverBadge') }}</InfoBadge>
+                <PrimaryBadge v-if="row.order.offer" :title="row.order.offer.name" data-testid="event-badge">{{ t('orders.eventBadge') }}</PrimaryBadge>
+                <InfoBadge v-else-if="row.order.server && marks" data-testid="server-badge">{{ t('orders.serverBadge') }}</InfoBadge>
               </span>
               <span class="tabular truncate text-[0.6875rem] text-ink-muted md:hidden">{{ row.items }} ×{{ count(row.totals.amount, locale) }} · {{ money(row.totals.payout, locale) }}</span>
             </span>

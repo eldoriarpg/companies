@@ -136,6 +136,137 @@ function route(method, path, body, session) {
 /** The order of the book the server placed itself, marked while the session's server marks such orders. */
 const SERVER_ORDER = 12
 
+/** The order of the book that is a chunk of the goal {@link GOAL}, while the session's server offers events. */
+const CHUNK_ORDER = 10
+
+/** The event offers of the mock: a goal for oak logs and a contest. */
+const GOAL = 41
+const CONTEST = 42
+/** A contest that closed with its prizes settled, opened from its address only. */
+const CLOSED_CONTEST = 43
+/** A contest the company joined on another device: the page first shows it out of date. */
+const JOINED_ELSEWHERE = 44
+
+/**
+ * An event offer as the Events page lists it.
+ *
+ * @param state the session's state, which keeps whether the company joined the contest
+ * @param id the offer
+ * @returns the offer
+ */
+function eventRow(state, id) {
+    const hours = h => new Date(Date.now() + h * 3_600_000).toISOString()
+    return id === GOAL
+        ? {id, kind: 'goal', name: 'Bridge logs', item: {name: 'Oak Log', icon: 'oak_log'}, amount: 5000, delivered: 2250, percent: 45, unitPrice: 2, state: 'active', starts: hours(-24), ends: hours(48), prizeTotal: 0, joined: false}
+        : {id, kind: 'contest', name: 'Log race', item: {name: 'Spruce Log', icon: 'spruce_log'}, amount: 3000, delivered: 600, percent: 20, unitPrice: 1.5, state: 'active', starts: hours(-2), ends: hours(22), prizeTotal: 750, place: state.joinedContest ? 2 : null, joined: Boolean(state.joinedContest)}
+}
+
+/**
+ * An event offer as its page shows it.
+ *
+ * @param state the session's state
+ * @param id the offer
+ * @returns the details
+ */
+function eventDetails(state, id) {
+    if (id === CLOSED_CONTEST) {
+        const offer = {...eventRow(state, CONTEST), id, name: 'Harvest race', state: 'ended', percent: 100, delivered: 3000, place: 2, joined: false}
+        return {
+            offer,
+            contributors: [],
+            ranking: [{place: 1, name: 'Copperworks', delivered: 2000, active: true, own: false}, {place: 2, name: 'Stonebridge Builders', delivered: 1000, active: false, own: true}],
+            prizes: [{place: 1, amount: 500, winner: 'Copperworks', state: 'paid'}, {place: 2, amount: 250, winner: 'Stonebridge Builders', state: 'paid'}],
+            own: {company: 'Stonebridge Builders', joined: false, delivered: 1000, paid: 1500, place: 2},
+            member: true,
+            canManage: true,
+        }
+    }
+    if (id === JOINED_ELSEWHERE) {
+        const joined = Boolean(state.relaySeen)
+        const offer = {...eventRow(state, CONTEST), id, name: 'Relay race', place: null, joined}
+        return {offer, contributors: [], ranking: [], prizes: [], own: {company: 'Stonebridge Builders', joined, delivered: 0, paid: 0, place: null}, member: true, canManage: true}
+    }
+    const offer = eventRow(state, id)
+    if (id === GOAL) {
+        return {offer, chunkSize: 250, contributors: [{rank: 1, name: 'Stonebridge Builders', alone: false, delivered: 1500, chunks: 6}, {rank: 2, name: null, alone: true, delivered: 750, chunks: 3}], ranking: [], prizes: [], member: true, canManage: true}
+    }
+    const ranking = [{place: 1, name: 'Copperworks', delivered: 400, active: true, own: false}]
+    if (state.joinedContest) ranking.push({place: 2, name: 'Stonebridge Builders', delivered: 200, active: true, own: true})
+    return {
+        offer,
+        contributors: [],
+        ranking,
+        prizes: [{place: 1, amount: 500, state: 'pending'}, {place: 2, amount: 250, state: 'pending'}],
+        own: {company: 'Stonebridge Builders', joined: Boolean(state.joinedContest), delivered: state.joinedContest ? 200 : 0, paid: state.joinedContest ? 300 : 0, place: state.joinedContest ? 2 : null},
+        member: true,
+        canManage: true,
+    }
+}
+
+/**
+ * The event offers of a session as admins see them, made on first use.
+ *
+ * @param state the session's state
+ * @returns the offers by id
+ */
+function adminOffers(state) {
+    state.adminOffers ??= {
+        [GOAL]: {
+            id: GOAL, kind: 'goal', name: 'Bridge logs', item: {name: 'Oak Log', icon: 'oak_log'}, line: 'material', state: 'active', amount: 5000, delivered: 2250, percent: 45, unitPrice: 2,
+            chunkSize: 250, openChunks: 3, waiting: 500, taken: 250, source: 'account', account: 'Treasury', budget: 10000, spent: 6000, left: 4000, held: null, prizeMoney: [], prizeTotal: 0,
+            createdBy: 'Ada', created: '2026-10-27T08:00:00Z', starts: '2026-10-27T08:00:00Z', ends: '2026-10-31T08:00:00Z',
+            contributors: [{rank: 1, company: 7, name: 'Stonebridge Builders', alone: false, delivered: 1500, chunks: 6}, {rank: 2, company: null, name: 'Orla', alone: true, delivered: 750, chunks: 3}],
+            ranking: [], prizes: [],
+        },
+        [CONTEST]: {
+            id: CONTEST, kind: 'contest', name: 'Log race', item: {name: '#logs', icon: null, criteria: '#logs'}, line: 'criteria', state: 'ended', amount: 3000, delivered: 3000, percent: 100, unitPrice: 1.5,
+            waiting: 0, taken: 0, source: 'minted', budget: 5250, spent: 5250, left: 0, prizeMoney: [500, 250], prizeTotal: 750,
+            createdBy: 'Ada', created: '2026-10-20T08:00:00Z', starts: '2026-10-20T08:00:00Z', ends: '2026-10-22T08:00:00Z', closed: '2026-10-22T08:00:00Z', settled: '2026-10-22T08:01:00Z',
+            contributors: [],
+            ranking: [{place: 1, company: 9, name: 'Copperworks', delivered: 2000, paid: 3000, active: true, joined: '2026-10-20T09:00:00Z'}, {place: 2, company: 7, name: 'Stonebridge Builders', delivered: 1000, paid: 1500, active: true, joined: '2026-10-20T10:00:00Z'}],
+            prizes: [{place: 1, amount: 500, company: 9, name: 'Copperworks', state: 'paid'}, {place: 2, amount: 250, company: 7, name: 'Stonebridge Builders', state: 'paying'}],
+        },
+    }
+    return state.adminOffers
+}
+
+/**
+ * An event offer as the admin list shows it.
+ *
+ * @param offer the offer's record
+ * @returns the row
+ */
+function adminOfferRow(offer) {
+    const {id, kind, name, item, state, delivered, amount, percent, source, account, budget, spent, left, starts, ends} = offer
+    return {id, kind, name, item, state, delivered, amount, percent, source, account, budget, spent, left, starts, ends}
+}
+
+/**
+ * Creates an event offer as the plugin would, refusing an unknown material as it words it.
+ *
+ * @param state the session's state
+ * @param args the draft
+ * @returns the answer
+ */
+function createOffer(state, args) {
+    if (args.material === 'not_an_item') {
+        return {type: 'action.result', v: 1, ok: false, reason: 'companyadmin.offers.error.material', message: 'not_an_item is no item that can be ordered.'}
+    }
+    const offers = adminOffers(state)
+    const id = Math.max(...Object.keys(offers).map(Number)) + 1
+    const now = new Date().toISOString()
+    const prizes = args.prizes ?? []
+    const budget = args.budget ?? args.amount * args.price + prizes.reduce((sum, prize) => sum + prize, 0)
+    offers[id] = {
+        id, kind: args.kind, name: args.name, item: {name: args.material ?? args.criteria, icon: args.material ?? null}, line: args.material ? 'material' : 'criteria',
+        state: args.start > 0 ? 'scheduled' : 'active', amount: args.amount, delivered: 0, percent: 0, unitPrice: args.price,
+        chunkSize: args.chunk ?? null, openChunks: args.open ?? null, waiting: 0, taken: 0, source: args.money === 'minted' ? 'minted' : 'account',
+        account: args.money === 'minted' ? null : args.money, budget, spent: 0, left: budget, prizeMoney: prizes, prizeTotal: prizes.reduce((sum, prize) => sum + prize, 0),
+        createdBy: 'Ada', created: now, starts: now, ends: new Date(Date.now() + args.hours * 3_600_000).toISOString(), contributors: [], ranking: [], prizes: [],
+    }
+    return {type: 'action.result', v: 1, ok: true, data: offers[id]}
+}
+
 /** The orders the server placed itself, as the admin list shows them. */
 const SYSTEM_ORDERS = [
     {order: 801, name: 'Royal smithy', rule: 'iron-weekly', kind: 'DEFINED', state: 'UNCLAIMED', placed: '2026-10-26T08:00:00Z', paid: 512, account: 'Collector'},
@@ -177,7 +308,7 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup', 'admin.systemorders']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup', 'admin.systemorders', 'admin.offers']
         : session.story.features ?? FEATURES
     const nodes = admin ? [{uid: PRIMARY_NODE, role: 'PRIMARY', name: 'survival'}, {uid: SECONDARY_NODE, role: 'SECONDARY'}] : []
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin, nodes}
@@ -529,6 +660,48 @@ function action(name, args, state, story = {}) {
             return done({hook: args.hook, npc: args.npc, board: ''})
         case 'admin.nodes.list':
             return done({nodes: servers(state)})
+        case 'events.list':
+            return done({offers: [eventRow(state, GOAL), eventRow(state, CONTEST)], member: true, canManage: true})
+        case 'events.info':
+            return [GOAL, CONTEST, CLOSED_CONTEST, JOINED_ELSEWHERE].includes(args.offer) ? done(eventDetails(state, args.offer)) : refused('This event offer does not exist, or it does not run right now.')
+        case 'events.join':
+            if (args.offer === JOINED_ELSEWHERE) {
+                state.relaySeen = true
+                return refused('Your company takes part in contest #44 already.')
+            }
+            if (state.joinedContest) return refused('Your company takes part in contest #42 already.')
+            state.joinedContest = true
+            return done(eventDetails(state, CONTEST))
+        case 'events.leave':
+            state.joinedContest = false
+            return done(eventDetails(state, CONTEST))
+        case 'admin.offers.list':
+            return done({offers: Object.values(adminOffers(state)).sort((a, b) => b.id - a.id).map(adminOfferRow)})
+        case 'admin.offers.info':
+            return adminOffers(state)[args.offer] ? done(adminOffers(state)[args.offer]) : refused(`There is no event offer #${args.offer}.`)
+        case 'admin.offers.create':
+            return createOffer(state, args)
+        case 'admin.offers.pause':
+        case 'admin.offers.resume':
+        case 'admin.offers.cancel': {
+            const offer = adminOffers(state)[args.offer]
+            const to = {'admin.offers.pause': 'paused', 'admin.offers.resume': 'active', 'admin.offers.cancel': 'cancelled'}[name]
+            const from = {'admin.offers.pause': ['scheduled', 'active'], 'admin.offers.resume': ['paused'], 'admin.offers.cancel': ['scheduled', 'active', 'paused']}[name]
+            if (!from.includes(offer.state)) return refused(`The offer #${offer.id} is closed already.`)
+            offer.state = to
+            return done(offer)
+        }
+        case 'admin.offers.open': {
+            const offer = adminOffers(state)[args.offer]
+            offer.openChunks = args.count
+            return done(offer)
+        }
+        case 'admin.offers.prize': {
+            const offer = adminOffers(state)[args.offer]
+            const prize = offer.prizes.find(entry => entry.place === args.place)
+            prize.state = args.outcome
+            return done(offer)
+        }
         case 'admin.systemorders.list':
             return done({orders: SYSTEM_ORDERS})
         case 'admin.systemorders.info':
@@ -665,8 +838,13 @@ function action(name, args, state, story = {}) {
             return done({share: args.percent, balance: 18450})
         case 'orders.browse.search': {
             const marks = (story.features ?? FEATURES).includes('orders.servermarks')
+            const events = (story.features ?? FEATURES).includes('events')
+            const offer = {id: GOAL, name: 'Bridge logs', ends: new Date(Date.now() + 48 * 3_600_000).toISOString(), state: 'active'}
             const orders = BOOK
                 .map(order => (marks && order.id === SERVER_ORDER ? {...order, server: true} : order))
+                .map(order => (events && order.id === CHUNK_ORDER ? {...order, offer} : order))
+                .filter(order => args.offers !== 'only' || order.offer)
+                .filter(order => args.offer === undefined || order.offer?.id === args.offer)
                 .filter(order => args.serverOrders !== 'only' || order.server)
                 .filter(order => args.serverOrders !== 'hide' || !order.server)
                 .filter(order => !args.name || order.name.toLowerCase().includes(args.name.toLowerCase()))
@@ -674,8 +852,12 @@ function action(name, args, state, story = {}) {
                 .filter(order => args.minPrice === undefined || order.lines[0].price >= args.minPrice)
             return page({total: BOOK.length, orders, canAccept: true, limitReached: false})
         }
-        case 'orders.browse.details':
-            return {type: 'action.result', v: 1, ok: true, data: BOOK.find(order => order.id === args.order)}
+        case 'orders.browse.details': {
+            const found = BOOK.find(order => order.id === args.order)
+            const events = (story.features ?? FEATURES).includes('events')
+            const offer = {id: GOAL, name: 'Bridge logs', ends: new Date(Date.now() + 48 * 3_600_000).toISOString(), state: 'active'}
+            return done(events && found?.id === CHUNK_ORDER ? {...found, offer} : found)
+        }
         case 'market.top':
             return page({items: MARKET})
         case 'market.movers':

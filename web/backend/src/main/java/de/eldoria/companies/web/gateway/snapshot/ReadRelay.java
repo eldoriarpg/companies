@@ -63,7 +63,9 @@ public final class ReadRelay {
             Actions.MARKET_MOVERS,
             Actions.ORDERS_QUOTE,
             Actions.ORDERS_CATALOGUE,
-            Actions.ORDERS_ITEMS);
+            Actions.ORDERS_ITEMS,
+            Actions.EVENTS_LIST,
+            Actions.EVENTS_INFO);
 
     /**
      * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
@@ -142,7 +144,17 @@ public final class ReadRelay {
             Actions.ADMIN_SYSTEM_ORDERS_INFO,
             Actions.ADMIN_SYSTEM_ORDERS_STATS,
             Actions.ADMIN_SYSTEM_ORDERS_RULES,
-            Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE);
+            Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
+            Actions.EVENTS_JOIN,
+            Actions.EVENTS_LEAVE,
+            Actions.ADMIN_OFFERS_LIST,
+            Actions.ADMIN_OFFERS_INFO,
+            Actions.ADMIN_OFFERS_CREATE,
+            Actions.ADMIN_OFFERS_PAUSE,
+            Actions.ADMIN_OFFERS_RESUME,
+            Actions.ADMIN_OFFERS_CANCEL,
+            Actions.ADMIN_OFFERS_OPEN,
+            Actions.ADMIN_OFFERS_PRIZE);
 
     /**
      * The admin actions on what each node keeps for itself, its board signs and NPC links. They go to the node named

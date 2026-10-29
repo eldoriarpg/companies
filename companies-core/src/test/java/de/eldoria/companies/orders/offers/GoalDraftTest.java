@@ -55,6 +55,20 @@ class GoalDraftTest {
     }
 
     @Test
+    void aGoalKeepsItsOwnNumberOfWaitingChunks() {
+        var goal = GoalDraft.goal("Logs", "minted", LOGS, 1000, 1, 100, 7, 0, 24, null, "Admin", NOW);
+
+        assertEquals(7, goal.openChunks());
+        assertEquals(
+                "companyadmin.offers.error.openChunks",
+                assertThrows(
+                                CommandFailure.class,
+                                () -> GoalDraft.goal(
+                                        "Logs", "minted", LOGS, 1000, 1, 100, 0, 0, 24, null, "Admin", NOW))
+                        .localeKey());
+    }
+
+    @Test
     void anAccountPaysAndAChunkIsNoLargerThanTheGoal() {
         var goal = GoalDraft.goal("Logs", "orders/Collector", LOGS, 50, 2, 256, 0, 1, null, "Admin", NOW);
 
