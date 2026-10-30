@@ -117,6 +117,11 @@ public final class Permission {
          */
         public static final String OFFERS = ADMIN + ".offers";
 
+        /**
+         * The permission to create, look at, end, cancel and change server events.
+         */
+        public static final String EVENTS = ADMIN + ".events";
+
         private Admin() {
             throw new UnsupportedOperationException("This is a utility class.");
         }

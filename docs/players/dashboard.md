@@ -66,8 +66,10 @@ towards a change, so no single order can be traced back to the player who placed
 
 Where the server runs [event offers](event-offers.md), the **Events** page lists the goals and contests that run, are
 paused or start within a day, as `/company events` does: what each asks for, a progress bar, the time until it starts
-or ends, and for a contest your company's place. The running offers also lead the ticker at the top; a click opens
-their page.
+or ends, and for a contest your company's place. Above them, the [server events](server-events.md) that run or start
+within a day show their effect, the items and company levels they apply to, the time left and, for a reward
+multiplier with a budget, what it can still pay; an offer that belongs to a server event names it. The running server
+events and offers also lead the ticker at the top; a click opens the Events page or the offer's page.
 
 - A **goal** shows its chunk size and the companies that delivered most; players working alone are not named.
   **Show its orders** opens the order book with only that goal's chunks.

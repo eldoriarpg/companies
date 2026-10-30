@@ -5,7 +5,10 @@
  */
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
@@ -106,5 +109,67 @@ class EventsCommandTest {
         assertFalse(EventsCommand.alone(true, () -> {
             throw new AssertionError("not asked with a company");
         }));
+    }
+
+    @Test
+    void runningServerEventsAndThoseStartingWithinADayAreShownWithTheirOffersGrouped() {
+        var running = serverEvent(1, EventState.ACTIVE, NOW.minusHours(1));
+        var soon = serverEvent(2, EventState.SCHEDULED, NOW.plusHours(5));
+        var later = serverEvent(3, EventState.SCHEDULED, NOW.plusHours(30));
+
+        assertEquals(List.of(running, soon), EventsCommand.shownEvents(List.of(running, soon, later), NOW));
+
+        var offer = goal("Running", NOW.minusHours(1)).offer();
+        var onEvent = new EventOffer(
+                offer.id(),
+                offer.kind(),
+                offer.name(),
+                1,
+                offer.line(),
+                offer.amount(),
+                offer.unitPrice(),
+                offer.chunkSize(),
+                offer.openChunks(),
+                offer.source(),
+                offer.account(),
+                offer.budget(),
+                offer.spent(),
+                offer.delivered(),
+                offer.starts(),
+                offer.ends(),
+                offer.state(),
+                offer.createdBy(),
+                offer.created(),
+                offer.closed(),
+                offer.prizes(),
+                offer.held(),
+                offer.started(),
+                offer.settled(),
+                offer.refund(),
+                offer.refunded());
+        assertEquals(List.of(onEvent), EventsCommand.grouped(List.of(offer, onEvent), 1));
+        assertEquals(List.of(), EventsCommand.grouped(List.of(offer, onEvent), 2));
+    }
+
+    private static ServerEvent serverEvent(int id, EventState state, LocalDateTime starts) {
+        return new ServerEvent(
+                id,
+                "Harvest",
+                EventKind.TAX_REDUCTION,
+                5,
+                List.of(),
+                List.of(),
+                starts,
+                starts.plusDays(1),
+                null,
+                null,
+                null,
+                0,
+                state,
+                null,
+                "Nora",
+                starts,
+                null,
+                null);
     }
 }

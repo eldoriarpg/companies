@@ -63,6 +63,7 @@ requirements, so all companies move to the level that fits them now.
 The defaults in this table are what a new level gets. The starter levels below set their own values.
 
 See [Economy](./economy.md) for how the tax works, and [Order alerts](../companies/order-alerts.md) for alerts.
+[Server events](./economy.md#server-events) can lower the tax or pay extra for companies of chosen levels only.
 
 ## Starter levels
 

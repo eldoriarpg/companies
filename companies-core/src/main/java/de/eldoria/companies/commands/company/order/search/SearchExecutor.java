@@ -29,6 +29,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -54,6 +55,7 @@ public class SearchExecutor implements OrderFinder {
     private final Supplier<ItemMatcher> matcher;
     private final Function<UUID, OfflinePlayer> players;
     private final OfferMarks offers;
+    private final EventMarks events;
 
     /**
      * @param orderData     order repository
@@ -116,6 +118,27 @@ public class SearchExecutor implements OrderFinder {
             Supplier<ItemMatcher> matcher,
             Function<UUID, OfflinePlayer> players,
             OfferMarks offers) {
+        this(orderData, companyData, configuration, matcher, players, offers, EventMarks.NONE);
+    }
+
+    /**
+     * @param orderData     order repository
+     * @param companyData   company repository
+     * @param configuration configuration of the plugin
+     * @param matcher       the current item matcher, which decides what the player can deliver
+     * @param players       looks up a player by id
+     * @param offers        finds the event offers of the found orders, which are always marked
+     * @param events        finds what the server events running now do to the found orders
+     */
+    public SearchExecutor(
+            AOrderData orderData,
+            ACompanyData companyData,
+            Configuration configuration,
+            Supplier<ItemMatcher> matcher,
+            Function<UUID, OfflinePlayer> players,
+            OfferMarks offers,
+            EventMarks events) {
+        this.events = events;
         this.orderData = orderData;
         this.companyData = companyData;
         this.configuration = configuration;
@@ -164,8 +187,11 @@ public class SearchExecutor implements OrderFinder {
                         (company, found) -> {
                             var listed = fillable ? filled(found, query, itemMatcher, available) : found;
                             var marks = marks(offers, listed);
-                            return results(player.getUniqueId(), company, shown(listed, query, marked, marks))
+                            var results = results(player.getUniqueId(), company, shown(listed, query, marked, marks))
                                     .withOffers(marks);
+                            var level = company.map(profile -> OptionalInt.of(profile.level()))
+                                    .orElse(OptionalInt.empty());
+                            return results.withEvents(events.marks(results.orders(), level));
                         },
                         Threading.VIRTUAL);
     }

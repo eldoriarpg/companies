@@ -44,6 +44,7 @@ import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANodeMessageData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAlertData;
@@ -58,6 +59,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOfferData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSavedItemData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSeriesData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbServerEventData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbTreasuryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresAlertData;
@@ -72,6 +74,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresOfferData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSavedItemData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSeriesData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresServerEventData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresTreasuryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
@@ -86,13 +89,21 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
+import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuService;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.nodes.DatabaseBus;
+import de.eldoria.companies.nodes.EventNetwork;
 import de.eldoria.companies.nodes.NetworkPresence;
 import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeBuses;
@@ -104,6 +115,7 @@ import de.eldoria.companies.nodes.SettingsSync;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.EconomyAccounts;
+import de.eldoria.companies.orders.FeeReductions;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCompletionService;
@@ -148,9 +160,20 @@ import de.eldoria.companies.services.alerts.AlertCompanies;
 import de.eldoria.companies.services.alerts.AlertDigestJob;
 import de.eldoria.companies.services.alerts.AlertMatcher;
 import de.eldoria.companies.services.alerts.AlertNotices;
+import de.eldoria.companies.services.events.ActiveEvents;
+import de.eldoria.companies.services.events.EventAnnouncer;
+import de.eldoria.companies.services.events.EventApiEvents;
+import de.eldoria.companies.services.events.EventJoins;
+import de.eldoria.companies.services.events.EventMoves;
+import de.eldoria.companies.services.events.EventPayouts;
+import de.eldoria.companies.services.events.EventSchedule;
+import de.eldoria.companies.services.events.GoalRewards;
+import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
+import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.StyledMessageSender;
@@ -174,8 +197,12 @@ import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -184,6 +211,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 
 @SuppressWarnings("InstanceVariableMayNotBeInitialized")
@@ -204,6 +232,7 @@ public class Companies extends EldoPlugin {
     private ACompanyData companyData;
     private AOrderData orderData;
     private AOfferData offerData;
+    private AServerEventData serverEventData;
     private InformationData information;
     private EconomyData economy;
     private ANodeData nodeData;
@@ -217,6 +246,9 @@ public class Companies extends EldoPlugin {
     private CompaniesApiImpl api;
     private DiscordWebhook discord;
     private volatile @Nullable Placeholders placeholders;
+    private volatile @Nullable ServerEventService serverEvents;
+    private volatile @Nullable EventPayouts eventPayouts;
+    private volatile @Nullable EventOfferService eventOfferService;
     private NodeBus bus = new DatabaseBus();
     private final NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private NodeCaches caches;
@@ -271,7 +303,8 @@ public class Companies extends EldoPlugin {
         registerCommands();
         api = CompaniesApiImpl.create(
                 this,
-                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats(), economy.treasury()),
+                new CompaniesApiImpl.Repositories(
+                        companyData, orderData, information.stats(), economy.treasury(), serverEventData),
                 Threading.VIRTUAL);
         api.register(this);
     }
@@ -352,6 +385,75 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 Threading.VIRTUAL);
 
+        var activeEvents = new ActiveEvents(serverEventData, Times.UTC);
+        caches.register(NodeCaches.EVENTS, key -> activeEvents.invalidate());
+        var eventAnnouncer = new EventAnnouncer(
+                serverEventData,
+                configuration::eventSettings,
+                EventAnnouncer.players(
+                        this,
+                        MessageSender.getPluginMessageSender(this),
+                        economy::format,
+                        Times::zone,
+                        Threading.mainThread(this)));
+        var eventNetwork = new EventNetwork(bus, message -> {
+                    activeEvents.invalidate();
+                    var current = serverEvents;
+                    if (current != null) current.checkSoon();
+                    var offerService = eventOfferService;
+                    if (offerService != null) offerService.checkSoon();
+                    var shown = placeholders;
+                    if (shown != null) shown.eventsChanged();
+                    Threading.VIRTUAL.execute(() -> eventAnnouncer.handle(message));
+                })
+                .start();
+        var apiEvents = new EventApiEvents(fired -> Threading.VIRTUAL.execute(() -> {
+            try {
+                getServer().getPluginManager().callEvent(fired);
+            } catch (RuntimeException e) {
+                getLogger().log(Level.WARNING, "A listener of " + fired.getEventName() + " failed", e);
+            }
+        }));
+        var eventMoves = new EventMoves(
+                serverEventData,
+                (event, change) -> {
+                    apiEvents.accept(event, change);
+                    var webhook = discord;
+                    if (webhook != null) webhook.events().changed(event, change, offerNames(event.id()));
+                },
+                getLogger());
+        var serverEventService = new ServerEventService(
+                serverEventData,
+                SystemOrderService::canonicalMaterial,
+                message -> {
+                    eventNetwork.changed(message);
+                    eventMoves.accept(message);
+                },
+                Times.UTC,
+                getLogger(),
+                new EventSchedule(
+                        configuration::eventSettings,
+                        serverEventData,
+                        Times::zone,
+                        () -> configuration.economySettings().collectorAccount(),
+                        () -> !configuration.unreadable(Configuration.EVENTS),
+                        getLogger()));
+        serverEvents = serverEventService;
+
+        var eventBoosts = new EventPayouts(
+                activeEvents,
+                serverEventData,
+                serverEventService,
+                EventPayouts.Funding.economy(
+                        new EconomyAccounts(getServer(), economy),
+                        Threading.mainThread(this),
+                        () -> isEnabled() && !getServer().isStopping(),
+                        getLogger()),
+                () -> configuration.eventSettings().maxMultiplier(),
+                getLogger());
+        eventPayouts = eventBoosts;
+        FeeReductions feeReductions =
+                materials -> activeEvents.matching(LocalDateTime.now(Times.UTC), materials, OptionalInt.empty());
         var historyRecorder = new HistoryRecorder(information.history(), Times.UTC);
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
@@ -362,7 +464,8 @@ public class Companies extends EldoPlugin {
                 economy,
                 configuration,
                 treasuryService,
-                outcomes);
+                outcomes,
+                eventBoosts);
         var guessedLimit = new GuessedLimit(
                 orderData, () -> configuration.systemOrderSettings().guessed(), Times.UTC);
         var soloOrders = SoloOrderService.create(this, orderData, companyData, outcomes, configuration, guessedLimit);
@@ -375,7 +478,9 @@ public class Companies extends EldoPlugin {
                 OrderCreationService.Wallet.of(economy),
                 getServer().getPluginManager()::callEvent,
                 Threading.mainThread(this),
-                getLogger());
+                getLogger(),
+                feeReductions,
+                Threading.VIRTUAL);
 
         var systemFunding = new SystemFunding(
                 new EconomyAccounts(getServer(), economy), orderData, Threading.mainThread(this), getLogger());
@@ -412,6 +517,16 @@ public class Companies extends EldoPlugin {
                 Times.UTC,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
+        eventOffers.useEvents(
+                serverEventData::event,
+                new GoalRewards(
+                        offerData,
+                        serverEventService,
+                        configuration::eventSettings,
+                        () -> configuration.economySettings().collectorAccount(),
+                        Times.UTC,
+                        getLogger()));
+        eventOfferService = eventOffers;
 
         var seriesService = SeriesService.create(
                 this,
@@ -441,7 +556,7 @@ public class Companies extends EldoPlugin {
                 Threading.VIRTUAL,
                 guessedLimit);
         var ownerOrders = OwnerOrderService.create(
-                this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
+                this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration, feeReductions);
         var search =
                 new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher, offerData::marks);
 
@@ -483,12 +598,26 @@ public class Companies extends EldoPlugin {
                     systemFunding,
                     offerData,
                     eventOffers,
-                    ContestService.create(this, offerData, orderData, economy, configuration, treasuryService)));
+                    ContestService.create(this, offerData, orderData, economy, configuration, treasuryService),
+                    serverEventService,
+                    serverEventData,
+                    activeEvents,
+                    feeReductions));
         }
-        if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
+        if (api != null)
+            api.open(new CompaniesApiImpl.Writes(
+                    orderCreation, membershipService, itemReturnService, serverEventService));
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));
         registerListener(new ChunkDeliveries(offerData, Times.UTC, Threading.VIRTUAL, getLogger()));
+        registerListener(new EventJoins(
+                activeEvents,
+                serverEventData,
+                configuration::eventSettings,
+                eventNotices(notificationService, economy),
+                Threading.VIRTUAL,
+                Times.UTC,
+                getLogger()));
         if (commands != null) commands.boards().useOffers(offerData::marks, offerData::unclaimedChunks);
         var expiringService = new ExpiringService(
                 this,
@@ -510,6 +639,7 @@ public class Companies extends EldoPlugin {
             seriesService.schedule(workerPool);
             systemOrders.schedule(workerPool);
             eventOffers.schedule(workerPool);
+            serverEventService.schedule(workerPool);
             new InboxRetention(information.inbox(), configuration::notificationSettings, getLogger()).start(workerPool);
             new HistoryRetention(
                             information.history(),
@@ -585,6 +715,7 @@ public class Companies extends EldoPlugin {
                     information.stats(),
                     this.economy.treasury(),
                     offerData,
+                    serverEventData,
                     economy,
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();
@@ -595,6 +726,77 @@ public class Companies extends EldoPlugin {
         }
         connectNodes(notificationService, inboxPoller);
         startDashboard(search);
+    }
+
+    /**
+     * @param event     a server event
+     * @param translate localizes a message key
+     * @return its offers as a plain sentence for the inbox, empty when it has none
+     */
+    private String offersText(ServerEvent event, UnaryOperator<String> translate) {
+        var offers = offerNames(event.id());
+        if (offers.isEmpty()) return "";
+        return " " + translate.apply("events.offersInline") + " " + String.join(", ", offers) + ".";
+    }
+
+    /**
+     * @param event id of a server event
+     * @return the names of its offers that have not closed
+     */
+    private List<String> offerNames(int event) {
+        return offerData.ofEvent(event).stream()
+                .filter(offer -> !offer.state().closed())
+                .map(EventOffer::name)
+                .toList();
+    }
+
+    /**
+     * Tells players who join while server events run: the first time per event through the inbox, later in chat.
+     *
+     * @param notifications sends the inbox entries
+     * @param economy       formats the budgets
+     * @return how players are told
+     */
+    private EventJoins.Notices eventNotices(NotificationService notifications, Economy economy) {
+        var localizer = ILocalizer.getPluginLocalizer(this);
+        var messages = MessageSender.getPluginMessageSender(this);
+        return new EventJoins.Notices() {
+            @Override
+            public void inbox(UUID player, ServerEvent event) {
+                notifications.send(
+                        player,
+                        NotificationType.SERVER_EVENT_RUNNING,
+                        NotificationArgs.create()
+                                .text("event_name", event.name())
+                                .text("effect", EventTexts.plainEffect(event, localizer::localize))
+                                .text("ends", EventTexts.ends(event, Times.zone()))
+                                .text("offers", offersText(event, localizer::localize)));
+            }
+
+            @Override
+            public void message(UUID player, List<ServerEvent> events) {
+                Map<Integer, List<String>> offers = new HashMap<>();
+                for (var event : events) offers.put(event.id(), offerNames(event.id()));
+                Threading.mainThread(Companies.this).execute(() -> {
+                    var online = getServer().getPlayer(player);
+                    if (online == null) return;
+                    for (var event : events) {
+                        var values = EventTexts.values(
+                                new MenuComponents(messages, online), event, economy::format, Times.zone());
+                        messages.sendMessage(online, MenuText.create().locale("events.join", values));
+                        var names = offers.getOrDefault(event.id(), List.of());
+                        if (!names.isEmpty()) {
+                            messages.sendMessage(
+                                    online,
+                                    MenuText.create()
+                                            .locale(
+                                                    "events.joinOffers",
+                                                    Values.text("offers", String.join(", ", names))));
+                        }
+                    }
+                });
+            }
+        };
     }
 
     /**
@@ -691,7 +893,10 @@ public class Companies extends EldoPlugin {
                                 commands.services().offerData(),
                                 commands.services().contests(),
                                 commands.services().systemFunding(),
-                                () -> commands.services().offers().checkSoon())),
+                                () -> commands.services().offers().checkSoon(),
+                                commands.services().serverEventData(),
+                                commands.services().serverEvents(),
+                                () -> configuration.economySettings().collectorAccount())),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
@@ -805,6 +1010,10 @@ public class Companies extends EldoPlugin {
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
+        var events = serverEvents;
+        if (events != null) events.stop();
+        var payouts = eventPayouts;
+        if (payouts != null) payouts.stop();
         if (nodeConnection != null) {
             nodeConnection.stop();
         } else {
@@ -882,6 +1091,7 @@ public class Companies extends EldoPlugin {
                 companyData = new SqLiteCompanyData(workerPool);
                 orderData = new SqLiteOrderData(workerPool, mapper);
                 offerData = new SqLiteOfferData(mapper);
+                serverEventData = new SqLiteServerEventData();
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -900,6 +1110,7 @@ public class Companies extends EldoPlugin {
                 companyData = new MariaDbCompanyData(workerPool);
                 orderData = new MariaDbOrderData(mapper);
                 offerData = new MariaDbOfferData(mapper);
+                serverEventData = new MariaDbServerEventData();
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -918,6 +1129,7 @@ public class Companies extends EldoPlugin {
                 companyData = new PostgresCompanyData(workerPool);
                 orderData = new PostgresOrderData(workerPool, mapper);
                 offerData = new PostgresOfferData(mapper);
+                serverEventData = new PostgresServerEventData();
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

@@ -22,6 +22,7 @@ import ButtonRow from '@/components/button/ButtonRow.vue'
 import AdminSettings from './adminview/AdminSettings.vue'
 import AdminSystemOrders from './adminview/AdminSystemOrders.vue'
 import AdminOffers from './adminview/AdminOffers.vue'
+import AdminServerEvents from './adminview/AdminServerEvents.vue'
 import AdminSetupView from './adminview/AdminSetup.vue'
 
 /**
@@ -45,6 +46,7 @@ const tabs = computed(() => [
   {key: 'settings', label: t('admin.tabs.settings'), features: [Feature['admin.settings']]},
   {key: 'systemorders', label: t('admin.tabs.systemorders'), features: [Feature['admin.systemorders']]},
   {key: 'offers', label: t('admin.tabs.offers'), features: [Feature['admin.offers']]},
+  {key: 'serverevents', label: t('admin.tabs.serverevents'), features: [Feature['admin.events']]},
 ].filter(tab => tab.features.some(feature => supports(feature))))
 const canSetup = computed(() => supports(Feature['admin.setup']) && supports(Feature['admin.settings']))
 const allTabs = computed(() => (canSetup.value ? [{key: 'setup', label: t('admin.tabs.setup'), features: [Feature['admin.setup']]}, ...tabs.value] : tabs.value))
@@ -90,6 +92,7 @@ async function dismiss(): Promise<void> {
         <AdminSettings v-else-if="tab === 'settings'"/>
         <AdminSystemOrders v-else-if="tab === 'systemorders'"/>
         <AdminOffers v-else-if="tab === 'offers'"/>
+        <AdminServerEvents v-else-if="tab === 'serverevents'"/>
         <AdminSetupView v-else-if="tab === 'setup'" @open="tab = $event" @changed="setup = $event"/>
       </div>
     </template>

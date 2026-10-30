@@ -95,11 +95,12 @@ connects on its own.
 | `order.yml` | Yes, stored as revisions |
 | `user.yml` | Yes, stored as revisions |
 | `system-orders.yml` | Yes, stored as revisions |
+| `events.yml` | Yes, stored as revisions |
 | `database.yml` | No, each server has its own |
 | `node.yml` | No, each server has its own |
 | `boards.yml` | No, each server has its own NPC bindings |
 
-The five shared files are stored in the database as revisions. Edit them on any server and share the change with
+The six shared files are stored in the database as revisions. Edit them on any server and share the change with
 `/companyadmin reload` and `/companyadmin reload confirm`, see below.
 
 A few settings, such as the plugin hooks, `boards.enabled` and the dashboard name and icon, can be set for one server
@@ -183,6 +184,7 @@ Some work runs on a timer. To do it once for the whole network, only the primary
 | Release claimed orders past their deadline, remove orders nobody claimed, warn owners before removal | Every `generalSettings.orderCheckInterval` minutes (default `60`), first after 10 minutes |
 | Post due copies of repeating orders | Every `repeating.checkMinutes` minutes (default `5`) |
 | Place due [system orders](./configuration/system-orders-yml.md) and remove the ones past their lifetime | Every `checkMinutes` minutes of `system-orders.yml` (default `5`) |
+| Start and end [server events](./configuration/events-yml.md) and create the events of their templates | At their start and end, at the latest every minute |
 | Send order alert digests | Every 5 minutes |
 | Expire old invites and applications | Every 5 minutes |
 | Update market prices | Every 60 minutes |

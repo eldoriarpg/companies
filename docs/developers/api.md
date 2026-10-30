@@ -106,7 +106,7 @@ if (getServer().getPluginManager().isPluginEnabled("Companies")) {
 
 Companies removes the API from the services manager when it disables. Do not keep the instance after that.
 
-The API is split into four parts:
+The API is split into five parts:
 
 | Method         | Returns      | Use it for                                    |
 |----------------|--------------|-----------------------------------------------|
@@ -114,6 +114,7 @@ The API is split into four parts:
 | `orders()`     | `OrderApi`   | Orders, material prices and creating orders   |
 | `players()`    | `PlayerApi`  | Items that wait for a player                  |
 | `ranking()`    | `RankingApi` | The company ranking of `/company top`         |
+| `events()`     | `ServerEventApi` | Server events: tax and fee reductions, reward multipliers |
 
 ## Futures and threads
 
@@ -395,6 +396,52 @@ An `ICompanyRank` has the statistics of the company plus its `rank()`, `level()`
 api.ranking().page(TopOrder.EARNED, TimeRange.LAST_7_DAYS, 1, 10).thenAccept(page ->
         page.forEach(rank -> getLogger().info(rank.rank() + ". " + rank.name())));
 ```
+
+## Server events: `events()`
+
+Server events lower the tax or the order fee, or pay extra on top of payouts, for a time (see
+[Server events](../players/server-events.md)). Every server of a network shares them; the primary server starts and
+ends them at their times.
+
+| Method                                  | Returns                                                | What it gives you                     |
+|-----------------------------------------|--------------------------------------------------------|---------------------------------------|
+| `live()`                                | `CompletableFuture<List<? extends IServerEvent>>`      | The events that wait for their start or run, by start |
+| `recent(int limit)`                     | `CompletableFuture<List<? extends IServerEvent>>`      | The newest events, newest first, whatever their state |
+| `event(int id)`                         | `CompletableFuture<Optional<? extends IServerEvent>>`  | One event, empty when there is none   |
+| `create(Plugin plugin, EventRequest request)` | `CompletableFuture<CreateEventResult>`           | Creates an event that waits for its start. Write |
+| `end(Plugin plugin, int id)`            | `CompletableFuture<EventChange>`                       | Ends a running event now. Write       |
+| `cancel(Plugin plugin, int id)`         | `CompletableFuture<EventChange>`                       | Cancels a waiting or running event. Write |
+
+An event checks like one an admin creates with `/companyadmin event create`: a name of at most 64 characters, a value
+that fits its `EventKind`, an end after the start and at most a year ahead, materials that name items, and no level
+scope on a fee reduction. `create` answers `CreateEventResult.Created` with the stored event, or
+`CreateEventResult.Rejected` with an `EventProblem`. Your plugin is noted as `<plugin>@api` as who created, ended or
+cancelled an event. `end` and `cancel` answer an `EventChange`: `DONE`, `UNKNOWN`, `CLOSED`, `REFUSED` (ending an
+event that has not started; cancel it instead) or `FAILED`.
+
+| `EventKind`         | `value()`                               | Money |
+|---------------------|-----------------------------------------|-------|
+| `TAX_REDUCTION`     | Percentage points off the tax, up to 100 | None |
+| `REWARD_MULTIPLIER` | Factor on the gross payout, above 1      | Minted within a budget, or from an account with an optional budget |
+| `FEE_REDUCTION`     | Percent off the order fee, up to 100     | None |
+
+```java
+var now = LocalDateTime.now(ZoneOffset.UTC);
+var request = EventRequest.of("Harvest week", EventKind.REWARD_MULTIPLIER, 1.5, now.plusHours(1), now.plusDays(7))
+        .withMaterials(List.of("WHEAT", "CARROT"))
+        .mintedWithin(5000);
+api.events().create(this, request).thenAccept(result -> {
+    if (result instanceof CreateEventResult.Rejected rejected) {
+        getLogger().warning("Event refused: " + rejected.problem());
+    }
+});
+```
+
+All times are UTC. A `REWARD_MULTIPLIER` needs `mintedWithin(...)` or `paidFrom(...)`; without either it is rejected
+as `ACCOUNT`. Money fields of a kind that pays nothing are ignored. The start and end of an event fire their events
+only on the server that moved it, usually the primary (see [Events](events.md)); listen on every server, or read
+`live()`, to follow events on the others. Writes fail with `ApiNotReadyException` until
+the economy is set up, like the other writes.
 
 ## Data types
 

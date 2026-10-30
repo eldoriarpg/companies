@@ -50,8 +50,9 @@ import java.util.logging.Logger;
  * the executor.
  * <p>
  * A cancelled order refunds its price; the fee goes to the collector. Cancelling a copy of an active repeating order
- * stops the repeating order. A raise charges the increase plus the percentage fee on it and gives the money back when
- * the order could no longer be changed.
+ * stops the repeating order. A raise charges the increase plus the percentage fee on it, lowered by the fee
+ * reductions of the server events running now (see {@link FeeReductions}), and gives the money back when the order
+ * could no longer be changed.
  */
 public final class OwnerOrderService {
     private static final String UNKNOWN_ORDER = "error.unknownOrder";
@@ -69,6 +70,7 @@ public final class OwnerOrderService {
     private final Executor mainThread;
     private final Executor executor;
     private final Logger logger;
+    private final FeeReductions reductions;
 
     /**
      * @param orderData     order repository
@@ -97,6 +99,52 @@ public final class OwnerOrderService {
             Executor mainThread,
             Executor executor,
             Logger logger) {
+        this(
+                orderData,
+                outcomes,
+                series,
+                copyCancelled,
+                settings,
+                wallet,
+                collector,
+                ordersChanged,
+                players,
+                mainThread,
+                executor,
+                logger,
+                FeeReductions.NONE);
+    }
+
+    /**
+     * @param orderData     order repository
+     * @param outcomes      ends cancelled orders and records their history
+     * @param series        loads a repeating order by id
+     * @param copyCancelled stops the repeating order of a cancelled copy
+     * @param settings      current order settings
+     * @param wallet        refunds and charges owners
+     * @param collector     takes the fee of a cancelled order
+     * @param ordersChanged drops what is cached about the orders of an owner
+     * @param players       looks up a player by id
+     * @param mainThread    runs the wallet calls on the main thread
+     * @param executor      runs the actions
+     * @param logger        logs failed changes
+     * @param reductions    the fee reductions of the server events running now, lowering the fee of a raise
+     */
+    public OwnerOrderService(
+            AOrderData orderData,
+            OrderOutcomes outcomes,
+            IntFunction<CompletableFuture<Optional<OrderSeries>>> series,
+            Function<SimpleOrder, CompletableFuture<Boolean>> copyCancelled,
+            Supplier<OrderSettings> settings,
+            Wallet wallet,
+            DoubleConsumer collector,
+            Consumer<UUID> ordersChanged,
+            Function<UUID, OfflinePlayer> players,
+            Executor mainThread,
+            Executor executor,
+            Logger logger,
+            FeeReductions reductions) {
+        this.reductions = reductions;
         this.orderData = orderData;
         this.outcomes = outcomes;
         this.series = series;
@@ -121,6 +169,7 @@ public final class OwnerOrderService {
      * @param seriesService repeating orders
      * @param economy       Vault economy
      * @param configuration configuration of the plugin
+     * @param reductions    the fee reductions of the server events running now
      * @return the service
      */
     public static OwnerOrderService create(
@@ -130,7 +179,8 @@ public final class OwnerOrderService {
             ASeriesData seriesData,
             SeriesService seriesService,
             Economy economy,
-            Configuration configuration) {
+            Configuration configuration,
+            FeeReductions reductions) {
         var collector = new Collector(plugin, economy, configuration);
         return new OwnerOrderService(
                 orderData,
@@ -148,7 +198,8 @@ public final class OwnerOrderService {
                 plugin.getServer()::getOfflinePlayer,
                 Threading.mainThread(plugin),
                 Threading.VIRTUAL,
-                plugin.getLogger());
+                plugin.getLogger(),
+                reductions);
     }
 
     /**
@@ -275,7 +326,8 @@ public final class OwnerOrderService {
     private ActionResult<Raise> quote(SimpleOrder order, double increase) {
         var fullOrder = orderData.retrieveFullOrder(order).join();
         if (fullOrder == null) return ActionResult.refusedActionBar(UNKNOWN_ORDER);
-        var fee = settings.get().fee().raise(fullOrder.fee(), increase);
+        var fee = reductions.fee(
+                settings.get().fee().raise(fullOrder.fee(), increase), OrderMaterials.accepted(fullOrder));
         return ActionResult.done(new Raise(fullOrder, increase, fee));
     }
 

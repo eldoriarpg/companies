@@ -217,10 +217,11 @@ class PlaceholderRegistryTest {
         List<String> fixed = new ArrayList<>();
         for (var id : registry.ids()) if (!id.contains("<")) fixed.add(id);
 
-        assertEquals(22, fixed.size());
+        assertEquals(23, fixed.size());
         for (var id : fixed) assertFalse(registry.resolve(OWNER, id) == null, id);
         assertTrue(registry.ids().contains("company_rank_<order>[_<range>]"));
         assertTrue(registry.ids().contains("offer_active_count"));
+        assertTrue(registry.ids().contains("event_active_count"));
     }
 
     @Test

@@ -5,11 +5,15 @@
  */
 package de.eldoria.companies.placeholders;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.util.Times;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +35,8 @@ class OfferPlaceholdersTest {
     private List<EventOffer> running = List.of();
     private OfferPlaceholderCache offers;
     private PlaceholderRegistry registry;
+    private EventPlaceholderCache events;
+    private List<ServerEvent> live = List.of();
 
     @BeforeEach
     void setUp() {
@@ -41,11 +47,13 @@ class OfferPlaceholdersTest {
         var companies = new CompanyPlaceholderCache(
                 id -> CompletableFuture.completedFuture(Optional.empty()), 10, () -> Duration.ofMinutes(5));
         var leaderboards = new LeaderboardCache((order, range) -> CompletableFuture.completedFuture(List.of()), 10);
+        events = new EventPlaceholderCache(() -> CompletableFuture.completedFuture(live), Times.UTC);
         registry = new PlaceholderRegistry(
                 players,
                 companies,
                 leaderboards,
                 offers,
+                events,
                 amount -> String.format(Locale.ROOT, "$%.2f", amount),
                 key -> "t:" + key,
                 () -> "...");
@@ -81,6 +89,52 @@ class OfferPlaceholdersTest {
         assertEquals("", registry.resolve(null, "offer_3_name"));
         assertNull(registry.resolve(null, "offer_1_colour"));
         assertNull(registry.resolve(null, "offer_x_name"));
+    }
+
+    @Test
+    void theRunningServerEventsAreReadByTheirPlace() {
+        assertEquals("...", registry.resolve(null, "event_active_count"));
+        var now = LocalDateTime.now(Times.UTC);
+        live = List.of(
+                serverEvent(1, "Harvest", EventKind.REWARD_MULTIPLIER, EventState.ACTIVE, now.minusHours(1), 500.0),
+                serverEvent(2, "Later", EventKind.TAX_REDUCTION, EventState.SCHEDULED, now.plusHours(1), null),
+                serverEvent(3, "Tax", EventKind.TAX_REDUCTION, EventState.ACTIVE, now.minusHours(2), null),
+                serverEvent(4, "Account", EventKind.REWARD_MULTIPLIER, EventState.ACTIVE, now.minusHours(3), null));
+        events.refresh().join();
+
+        assertEquals("3", registry.resolve(null, "event_active_count"));
+        assertEquals("", registry.resolve(null, "event_3_budget_left"));
+        assertEquals("Account", registry.resolve(null, "event_3_name"));
+        assertEquals("Harvest", registry.resolve(null, "event_1_name"));
+        assertEquals("t:events.kind.REWARD_MULTIPLIER ×1.5", registry.resolve(null, "event_1_effect"));
+        assertEquals("$400.00", registry.resolve(null, "event_1_budget_left"));
+        assertEquals("Tax", registry.resolve(null, "EVENT_2_NAME"));
+        assertEquals("", registry.resolve(null, "event_2_budget_left"));
+        assertEquals("", registry.resolve(null, "event_4_name"));
+        assertNull(registry.resolve(null, "event_1_colour"));
+    }
+
+    private static ServerEvent serverEvent(
+            int id, String name, EventKind kind, EventState state, LocalDateTime starts, @Nullable Double budget) {
+        return new ServerEvent(
+                id,
+                name,
+                kind,
+                kind == EventKind.REWARD_MULTIPLIER ? 1.5 : 5,
+                List.of(),
+                List.of(),
+                starts,
+                starts.plusDays(1),
+                kind.funded() ? SourceType.MINTED : null,
+                null,
+                budget,
+                budget == null ? 0 : 100,
+                state,
+                null,
+                "Nora",
+                starts,
+                null,
+                null);
     }
 
     private static EventOffer offer(int id, String name, OfferState state, int delivered, int amount) {

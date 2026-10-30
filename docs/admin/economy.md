@@ -26,6 +26,7 @@ Amounts are shown in the format of your economy plugin, with its currency name.
 | Placing an order | The player pays the price plus the fee | The order holds the money |
 | Raising the price | The player pays the increase plus the fee on it | The order holds the money |
 | Completing an order | The order | Workers get their share minus tax and treasury share. Tax and fee go to the collector. The treasury share goes to the company treasury |
+| Extra of a reward multiplier event | The event's account, or new money | The worker, on top of the payout. No tax, no treasury share |
 | Cancelling an order (`/order cancel`) | The order | The owner gets the price back. The fee goes to the collector |
 | Order removed because nobody claimed it | The order | The owner gets price and fee back |
 | Founding a company | The founder pays `foundingPrice` | Nobody. The money leaves the economy |
@@ -73,6 +74,14 @@ the defaults, there is no fee.
 When a player raises the price, they pay `percent` of the increase. `min` and `max` apply to the order's total fee.
 The fixed part is not charged again.
 
+While [server events](./configuration/events-yml.md) with a fee reduction run, the fee of a new order or a raise is
+lowered by their percentages, added up, if one of the order's lines accepts an item of the event's item scope or the
+event has none. A line with criteria, such as `#logs`, accepts every item its criteria accept. The order keeps the
+lowered fee, so what goes to the collector or back to the owner later is what was paid. Since `min` applies to the
+order's total fee, raising the price of an order whose fee was lowered may top its fee up to `min`. The price the
+dashboard shows before an order is placed already counts the reductions; the preview in game shows the fee before
+them for now.
+
 The fee stays with the order until the order ends. Then it goes to the collector, or back to the owner if the order
 was removed because nobody claimed it.
 
@@ -87,6 +96,26 @@ tax:
 
 `5` means 5 %. A level can set its own `taxPercent`, which replaces the global value for companies of that level. See
 [Levels](./levels.md). Workers see the tax in their payment notification.
+
+## Server events
+
+[Server events](./configuration/events-yml.md) change payouts while they run. They apply to an order completed while
+they run whose items and company level match their scope. An order matches an item scope when one of its lines
+accepts one of the scope's items, a line with criteria every item its criteria accept; an order delivered alone only
+matches events without a level scope. This holds for system orders and the chunks of event offers too. Deliveries
+into contests are paid by the contest and get nothing from server events.
+
+- **Tax reduction:** lowers the tax by its value in percentage points. Several reductions add up, and the tax never
+  drops below 0 %.
+- **Reward multiplier:** the worker gets `gross × (factor − 1)` on top, all of it, without tax or treasury share. An
+  event limited to some items pays only on what the worker delivered of those items: on a criteria line where a worker
+  delivered birch and spruce logs, an event for birch logs pays on the birch part of the worker's share only. Several
+  multipliers multiply, up to `maxMultiplier` of `events.yml`.
+- **Fee reduction:** see [Fees](#fees).
+
+A multiplier pays from an economy account or with new money, never more than what is left of its budget nor, for an
+account, more than the account holds. When it cannot pay its whole part of a payout, it pays what is left and ends as
+depleted. The servers of a network share the budget: two completing orders at once never spend more than it.
 
 ## The collector account
 

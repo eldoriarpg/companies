@@ -12,6 +12,7 @@ import de.eldoria.companies.components.order.IOrderDraft;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.PreOrderCreateEvent;
@@ -24,6 +25,7 @@ import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +48,8 @@ import java.util.logging.Logger;
  * order is saved; a failed save refunds the owner and completes the future exceptionally with a
  * {@link CommandFailure}. An {@link OrderCreatedEvent} follows the save, off the main thread.
  * <p>
+ * The fee of a charged order is lowered by the fee reductions of the server events running now, see
+ * {@link FeeReductions}, read off the main thread before the owner is charged; the order stores the lowered fee.
  * Uncharged orders are funded by the server: nothing is withdrawn and the order stores a fee of 0.
  */
 public final class OrderCreationService {
@@ -57,6 +61,8 @@ public final class OrderCreationService {
     private final Consumer<Event> events;
     private final Executor mainThread;
     private final Logger logger;
+    private final FeeReductions reductions;
+    private final Executor executor;
 
     /**
      * @param orderData  order repository
@@ -77,6 +83,44 @@ public final class OrderCreationService {
             Consumer<Event> events,
             Executor mainThread,
             Logger logger) {
+        this(
+                orderData,
+                settings,
+                limits,
+                requests,
+                wallet,
+                events,
+                mainThread,
+                logger,
+                FeeReductions.NONE,
+                Runnable::run);
+    }
+
+    /**
+     * @param orderData  order repository
+     * @param settings   current order settings
+     * @param limits     limits of active orders per player
+     * @param requests   turns an item into what an order line requests, empty when it can not be ordered
+     * @param wallet     charges and refunds owners
+     * @param events     fires events
+     * @param mainThread runs tasks on the main thread
+     * @param logger     logs failed saves
+     * @param reductions the fee reductions of the server events running now
+     * @param executor   reads the fee reductions off the main thread
+     */
+    public OrderCreationService(
+            AOrderData orderData,
+            Supplier<OrderSettings> settings,
+            OrderLimits limits,
+            Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests,
+            Wallet wallet,
+            Consumer<Event> events,
+            Executor mainThread,
+            Logger logger,
+            FeeReductions reductions,
+            Executor executor) {
+        this.reductions = reductions;
+        this.executor = executor;
         this.orderData = orderData;
         this.settings = settings;
         this.limits = limits;
@@ -119,8 +163,9 @@ public final class OrderCreationService {
     }
 
     /**
-     * What an order would cost, without listeners, limits of active orders or charging: its price and fee, or why its
-     * lines are refused.
+     * What an order would cost, without listeners, limits of active orders or charging: its price and fee, the fee
+     * lowered by the fee reductions of the server events running now, or why its lines are refused. May read the
+     * database; call it off the main thread.
      *
      * @param owner player who would own the order
      * @param draft the order
@@ -130,10 +175,10 @@ public final class OrderCreationService {
         var violation = violation(draft, true);
         if (violation.isPresent()) return violation.get();
         try {
-            var price = build(owner, draft, false, player -> Integer.MAX_VALUE)
-                    .builder()
-                    .price();
-            var fee = feeOf(price);
+            var builder =
+                    build(owner, draft, false, player -> Integer.MAX_VALUE).builder();
+            var price = builder.price();
+            var fee = reductions.fee(feeOf(price), OrderMaterials.accepted(builder.lines()));
             return new Priced(price, fee, price + fee);
         } catch (Rejection rejection) {
             return rejection.rejected();
@@ -158,6 +203,7 @@ public final class OrderCreationService {
             ToIntFunction<OfflinePlayer> limitOf) {
         return CompletableFuture.supplyAsync(() -> prepare(owner, draft, source, respectLimits, limitOf), mainThread)
                 .thenCompose(order -> checkActive(owner, order, respectLimits))
+                .thenCompose(order -> reduce(order, charge))
                 .thenApplyAsync(order -> charge(owner, order, charge), mainThread)
                 .thenCompose(order -> save(owner, order, source))
                 .handle(OrderCreationService::outcome);
@@ -262,9 +308,18 @@ public final class OrderCreationService {
         });
     }
 
+    /**
+     * Reads the fee reductions of the server events running now off the main thread, for an order that is charged.
+     */
+    private CompletableFuture<PendingOrder> reduce(PendingOrder order, boolean charge) {
+        if (!charge || reductions == FeeReductions.NONE) return CompletableFuture.completedFuture(order);
+        var materials = OrderMaterials.accepted(order.builder().lines());
+        return CompletableFuture.supplyAsync(() -> order.reduced(reductions.active(materials)), executor);
+    }
+
     private PendingOrder charge(OfflinePlayer owner, PendingOrder order, boolean charge) {
         var price = order.builder().price();
-        var fee = charge ? feeOf(price) : 0.0;
+        var fee = charge ? reduced(feeOf(price), order.events()) : 0.0;
         var charged = charge ? price + fee : 0.0;
         if (charged > 0 && !wallet.withdraw(owner, charged)) {
             reject(new Rejected(
@@ -275,6 +330,10 @@ public final class OrderCreationService {
                             Replacement.create("amount", wallet.format(charged)))));
         }
         return order.charged(fee, charged);
+    }
+
+    private static double reduced(double fee, List<ServerEvent> events) {
+        return FeeReductions.apply(fee, events);
     }
 
     private double feeOf(double price) {
@@ -434,13 +493,17 @@ public final class OrderCreationService {
      */
     public record Rejected(RejectReason reason, CommandFailure failure) implements Outcome, Quote {}
 
-    private record PendingOrder(OrderBuilder builder, int limit, double fee, double charged) {
+    private record PendingOrder(OrderBuilder builder, int limit, double fee, double charged, List<ServerEvent> events) {
         private PendingOrder(OrderBuilder builder, int limit) {
-            this(builder, limit, 0.0, 0.0);
+            this(builder, limit, 0.0, 0.0, List.of());
         }
 
         private PendingOrder charged(double fee, double charged) {
-            return new PendingOrder(builder, limit, fee, charged);
+            return new PendingOrder(builder, limit, fee, charged, events);
+        }
+
+        private PendingOrder reduced(List<ServerEvent> events) {
+            return new PendingOrder(builder, limit, fee, charged, List.copyOf(events));
         }
     }
 

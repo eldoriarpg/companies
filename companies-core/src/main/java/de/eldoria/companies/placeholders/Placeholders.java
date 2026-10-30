@@ -10,9 +10,11 @@ import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.util.Threading;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
@@ -40,6 +42,7 @@ public final class Placeholders {
     private final CompanyPlaceholderCache companies;
     private final LeaderboardCache leaderboards;
     private final OfferPlaceholderCache offers;
+    private final EventPlaceholderCache events;
     private final PlaceholderRegistry registry;
     private BukkitTask refreshTask;
 
@@ -48,6 +51,7 @@ public final class Placeholders {
             Supplier<PlaceholderSettings> settings,
             PlaceholderLoader loader,
             AOfferData offerData,
+            AServerEventData eventData,
             Economy economy,
             ILocalizer localizer) {
         this.plugin = plugin;
@@ -61,9 +65,17 @@ public final class Placeholders {
                 new LeaderboardCache(loader::ranking, () -> settings.get().leaderboardSize());
         this.offers =
                 new OfferPlaceholderCache(() -> CompletableFuture.supplyAsync(offerData::running, Threading.VIRTUAL));
+        this.events = new EventPlaceholderCache(
+                () -> CompletableFuture.supplyAsync(eventData::live, Threading.VIRTUAL), Times.UTC);
         this.registry = new PlaceholderRegistry(
-                players, companies, leaderboards, offers, economy::format, localizer::localize, () -> settings.get()
-                        .loadingText());
+                players,
+                companies,
+                leaderboards,
+                offers,
+                events,
+                economy::format,
+                localizer::localize,
+                () -> settings.get().loadingText());
     }
 
     /**
@@ -76,6 +88,7 @@ public final class Placeholders {
      * @param stats         statistics repository
      * @param treasuries    treasury repository
      * @param offerData     event offer repository
+     * @param eventData     server event repository
      * @param economy       economy formatting money
      * @param localizer     localizer of the plugin
      * @return the placeholders, not yet started
@@ -88,11 +101,13 @@ public final class Placeholders {
             AStatsData stats,
             ATreasuryData treasuries,
             AOfferData offerData,
+            AServerEventData eventData,
             Economy economy,
             ILocalizer localizer) {
         var loader =
                 new PlaceholderLoader(plugin.getServer(), configuration, companyData, orderData, stats, treasuries);
-        return new Placeholders(plugin, configuration::placeholderSettings, loader, offerData, economy, localizer);
+        return new Placeholders(
+                plugin, configuration::placeholderSettings, loader, offerData, eventData, economy, localizer);
     }
 
     /**
@@ -147,6 +162,13 @@ public final class Placeholders {
     }
 
     /**
+     * Reloads the server events, after one was created, started, ended or changed. Thread safe.
+     */
+    public void eventsChanged() {
+        events.refresh();
+    }
+
+    /**
      * Reloads every value, after changes of other nodes may have been missed. Thread safe.
      */
     public void refreshAll() {
@@ -175,5 +197,6 @@ public final class Placeholders {
         companies.refreshAll();
         leaderboards.refresh();
         offers.refresh();
+        events.refresh();
     }
 }

@@ -41,6 +41,7 @@ public final class SessionPermissions {
             Permission.Admin.CALC_LEVEL,
             Permission.Admin.DASHBOARD,
             Permission.Admin.DELETE,
+            Permission.Admin.EVENTS,
             Permission.Admin.GRANT,
             Permission.Admin.LEVEL,
             Permission.Admin.NODES,

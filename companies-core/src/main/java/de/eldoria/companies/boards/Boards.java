@@ -128,7 +128,8 @@ public final class Boards implements BoardOpener {
                     text,
                     preset.get().filter(),
                     preset.get().label(text),
-                    preset.get().offers()));
+                    preset.get().offers(),
+                    preset.get().serverEvent()));
         }
         var event = event(text);
         if (event != null) return Optional.of(event);
@@ -143,6 +144,10 @@ public final class Boards implements BoardOpener {
      * @return the board of event offers it names, {@code event} or {@code event <id>}, null for another text
      */
     private static @Nullable BoardTarget event(String text) {
+        var serverEvent = BoardTarget.serverEvent(text);
+        if (serverEvent != null) {
+            return new BoardTarget(null, OrderFilter.ALL, BoardTarget.SERVER_EVENT + serverEvent, null, serverEvent);
+        }
         if (text.equals(BoardTarget.EVENT)) return new BoardTarget(null, OrderFilter.ALL, BoardTarget.EVENT, 0);
         if (!text.startsWith(BoardTarget.EVENT + " ")) return null;
         try {
@@ -187,8 +192,8 @@ public final class Boards implements BoardOpener {
      */
     public CompletableFuture<Integer> openCount(BoardTarget target) {
         var offers = target.offers();
-        if (offers == null) return openCount(target.filter());
-        if (target.filter().equals(OrderFilter.ALL)) {
+        if (offers == null && target.serverEvent() == null) return openCount(target.filter());
+        if (offers != null && target.filter().equals(OrderFilter.ALL)) {
             var chunks = unclaimedChunks;
             return CompletableFuture.supplyAsync(() -> chunks.apply(offers), Threading.VIRTUAL);
         }

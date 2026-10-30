@@ -10,6 +10,7 @@ import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.Contributor;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.GoalReward;
 import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.offer.OpenChunk;
@@ -84,6 +85,89 @@ public abstract class AOfferData {
      * @return true when it was in {@code from} and is now in {@code to}
      */
     public abstract boolean state(int offer, OfferState from, OfferState to, LocalDateTime at);
+
+    /**
+     * @param event id of a server event
+     * @return the offers of the event, oldest first
+     */
+    public abstract List<EventOffer> ofEvent(int event);
+
+    /**
+     * Puts an offer that has not closed on a server event, or takes it off one.
+     *
+     * @param offer id of the offer
+     * @param event id of the event, null for none
+     * @return true when the offer had not closed and is changed
+     */
+    public abstract boolean link(int offer, @Nullable Integer event);
+
+    /**
+     * Moves the start and end of an offer that has not closed, as the server event it belongs to moved.
+     *
+     * @param offer  id of the offer
+     * @param starts its new start
+     * @param ends   its new end
+     * @return true when the offer had not closed and is changed
+     */
+    public abstract boolean times(int offer, LocalDateTime starts, LocalDateTime ends);
+
+    /**
+     * @param offer id of a goal
+     * @return its reward, empty when it has none
+     */
+    public abstract Optional<GoalReward> reward(int offer);
+
+    /**
+     * Sets or removes the reward of a goal.
+     *
+     * @param offer  id of the goal
+     * @param reward the reward, null for none
+     * @return true when the offer is a goal and is changed
+     */
+    public abstract boolean reward(int offer, @Nullable GoalReward reward);
+
+    /**
+     * What {@code reward_event_id} holds for a reward that failed for good, such as one whose event would be refused or
+     * whose time passed before it could be created.
+     */
+    public static final int REWARD_FAILED = 0;
+
+    /**
+     * What {@code reward_event_id} holds while the primary creates a reward's event; a goal still holding it on a later
+     * check, since the server stopped in between, is tried again.
+     */
+    public static final int REWARD_CREATING = -1;
+
+    /**
+     * @return the goals that were reached and carry a reward whose event was neither created nor failed, oldest first
+     */
+    public abstract List<EventOffer> unrewarded();
+
+    /**
+     * @param offer id of a goal
+     * @return what is noted of its reward's event: the event's id, {@link #REWARD_FAILED} or {@link #REWARD_CREATING};
+     *     empty when nothing is noted yet
+     */
+    public abstract Optional<Integer> rewardEvent(int offer);
+
+    /**
+     * Claims creating a goal's reward: notes {@link #REWARD_CREATING} while nothing is noted, or while it is noted
+     * already from an attempt that did not finish.
+     *
+     * @param offer id of the goal
+     * @return true when the reward may be created now
+     */
+    public abstract boolean claimReward(int offer);
+
+    /**
+     * Notes what came of creating a claimed reward: the event's id or {@link #REWARD_FAILED}; only while nothing is
+     * noted or it is being created.
+     *
+     * @param offer id of the goal
+     * @param event id of the event, or {@link #REWARD_FAILED}
+     * @return true when it is noted now
+     */
+    public abstract boolean rewarded(int offer, int event);
 
     /**
      * Changes how many chunks of a goal wait to be taken at once.

@@ -5,20 +5,22 @@
  */
 <script lang="ts" setup>
 import {useNow} from '@vueuse/core'
-import type {EventRow, MarketItemView} from '~/api/gateway'
+import type {EventRow, MarketItemView, ServerEventView} from '~/api/gateway'
 import TrendText from '@/components/display/TrendText.vue'
 import {money, percentChange, trendOf} from '~/util/format'
 import {offerTime} from '~/util/events'
 
 /**
- * The price ticker across the top: the event offers that run, each with its progress and time left and a link to its
- * page, then the market's most ordered items with their average price and, once the plugin keeps price history, their
- * change. It scrolls sideways by touch; nothing moves on its own.
+ * The price ticker across the top: the server events that run with their effect and time left, the event offers that
+ * run, each with its progress and time left, each linking to the Events page or its own page, then the market's most
+ * ordered items with their average price and, once the plugin keeps price history, their change. It scrolls sideways
+ * by touch; nothing moves on its own.
  */
 withDefaults(defineProps<{
   items: readonly MarketItemView[]
   offers?: readonly EventRow[]
-}>(), {offers: () => []})
+  serverEvents?: readonly ServerEventView[]
+}>(), {offers: () => [], serverEvents: () => []})
 
 const {t, locale} = useI18n()
 const now = useNow({interval: 60_000})
@@ -29,6 +31,18 @@ const now = useNow({interval: 60_000})
       :aria-label="t('ticker.label')"
       class="tabular flex gap-6 overflow-x-auto whitespace-nowrap border-b border-line-soft bg-deep px-4 py-2 text-xs md:px-6"
   >
+    <NuxtLink
+        v-for="event in serverEvents"
+        :key="`server-event-${event.id}`"
+        :to="{name: 'events'}"
+        class="flex gap-1.5 text-ink no-underline"
+        data-testid="ticker-server-event"
+    >
+      <span class="font-semibold text-accent">{{ t('ticker.event') }}</span>
+      <span class="text-ink-muted">{{ event.name }}</span>
+      <span>{{ t(`events.server.effect.${event.kind}`, {value: event.value}) }}</span>
+      <span class="text-ink-muted">{{ t(`events.time.${offerTime(event, now).key}`, {hours: offerTime(event, now).hours}) }}</span>
+    </NuxtLink>
     <NuxtLink
         v-for="offer in offers"
         :key="`offer-${offer.id}`"

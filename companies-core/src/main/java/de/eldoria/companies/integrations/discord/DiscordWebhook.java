@@ -36,6 +36,7 @@ public final class DiscordWebhook {
     private final Logger logger;
     private final DiscordListener listener;
     private final DiscordOffers offers;
+    private final DiscordEvents events;
     private final AtomicReference<WebhookClient> client = new AtomicReference<>();
 
     /**
@@ -57,6 +58,7 @@ public final class DiscordWebhook {
         this.logger = logger;
         listener = new DiscordListener(current, embeds, prices, this::enqueue);
         offers = new DiscordOffers(current, embeds, prices, texts, this::enqueue);
+        events = new DiscordEvents(current, embeds, prices, texts, this::enqueue);
     }
 
     /**
@@ -139,6 +141,13 @@ public final class DiscordWebhook {
      */
     public DiscordOffers offers() {
         return offers;
+    }
+
+    /**
+     * @return posts the starts and ends of server events; only the server that moved an event posts it
+     */
+    public DiscordEvents events() {
+        return events;
     }
 
     /**

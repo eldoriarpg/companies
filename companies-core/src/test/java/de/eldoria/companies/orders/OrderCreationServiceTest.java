@@ -7,6 +7,8 @@ package de.eldoria.companies.orders;
 
 import de.eldoria.companies.api.write.RejectReason;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.components.order.IOrderDraft;
 import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.LineKind;
@@ -17,6 +19,7 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.PreOrderCreateEvent;
@@ -36,9 +39,13 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -116,6 +123,53 @@ class OrderCreationServiceTest {
         assertEquals(1, created.size());
         assertEquals(OrderSource.API, created.get(0).source());
         assertEquals(order.order().id(), created.get(0).order().id());
+    }
+
+    @Test
+    void chargedOrderPaysTheFeeLessTheReductionsOfItsMaterialsAndStoresIt() {
+        var service =
+                service(orderData, reductions(feeReduction(30, "STONE"), feeReduction(20), feeReduction(90, "DIRT")));
+
+        var outcome = service.create(owner, stone(10, 5.0), OrderSource.API, true, true)
+                .join();
+
+        var order = assertInstanceOf(OrderCreationService.Created.class, outcome);
+        assertEquals(3.0, order.fee());
+        assertEquals(3.0, order.order().fee());
+        assertEquals(947.0, balance());
+    }
+
+    @Test
+    void aFeeReductionAppliesToACriteriaLineAcceptingItsMaterial() {
+        var service = service(orderData, reductions(feeReduction(50, "SPRUCE_LOG")));
+        var draft = IOrderDraft.of("logs");
+        draft.addLine(ItemCriteria.of("BIRCH_LOG", "SPRUCE_LOG"), 10, 5.0);
+
+        var quote = assertInstanceOf(OrderCreationService.Priced.class, service.quote(owner, draft));
+        var outcome = service.create(owner, draft, OrderSource.API, true, true).join();
+
+        assertEquals(3.0, quote.fee());
+        assertEquals(
+                3.0,
+                assertInstanceOf(OrderCreationService.Created.class, outcome)
+                        .order()
+                        .fee());
+        assertEquals(947.0, balance());
+    }
+
+    @Test
+    void feeReductionsAboveAllOfTheFeeChargeNoFee() {
+        var service = service(orderData, reductions(feeReduction(70), feeReduction(60)));
+
+        var outcome = service.create(owner, stone(10, 5.0), OrderSource.API, true, true)
+                .join();
+
+        assertEquals(
+                0.0,
+                assertInstanceOf(OrderCreationService.Created.class, outcome)
+                        .order()
+                        .fee());
+        assertEquals(950.0, balance());
     }
 
     @Test
@@ -342,6 +396,49 @@ class OrderCreationServiceTest {
                 server.getPluginManager()::callEvent,
                 Runnable::run,
                 plugin.getLogger());
+    }
+
+    private OrderCreationService service(SqLiteOrderData data, FeeReductions reductions) {
+        return new OrderCreationService(
+                data,
+                () -> settings,
+                new OrderLimits(data, () -> userSettings),
+                item -> Optional.empty(),
+                new Wallet(),
+                server.getPluginManager()::callEvent,
+                Runnable::run,
+                plugin.getLogger(),
+                reductions,
+                Runnable::run);
+    }
+
+    private static FeeReductions reductions(ServerEvent... events) {
+        return materials -> Arrays.stream(events)
+                .filter(event -> event.matches(materials, OptionalInt.empty()))
+                .toList();
+    }
+
+    private static ServerEvent feeReduction(double percent, String... materials) {
+        var now = LocalDateTime.now(ZoneOffset.UTC);
+        return new ServerEvent(
+                1,
+                "Cheap week",
+                EventKind.FEE_REDUCTION,
+                percent,
+                List.of(materials),
+                List.of(),
+                now.minusHours(1),
+                now.plusHours(1),
+                null,
+                null,
+                null,
+                0,
+                EventState.ACTIVE,
+                null,
+                "Nora",
+                now,
+                null,
+                null);
     }
 
     private static IOrderDraft stone(int amount, double unitPrice) {

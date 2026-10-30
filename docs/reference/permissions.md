@@ -55,6 +55,7 @@ Only operators have these by default.
 | `companies.admin.grant` | op | Give items and money to players with `/companyadmin grant`. |
 | `companies.admin.level` | op | Edit the company levels with `/companyadmin level`. |
 | `companies.admin.nodes` | op | List and remove the servers registered in the database with `/companyadmin node`. |
+| `companies.admin.events` | op | Create, look at, end, cancel, extend and fund [server events](../admin/admin-commands.md#server-events) with `/companyadmin event`. |
 | `companies.admin.offers` | op | Create, look at, pause, resume and cancel event offers, goals and contests, with `/companyadmin offers`. Joining and delivering into contests needs no server permission: joining needs the company permission `manage_orders`, delivering membership in a company that takes part. |
 | `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. |
 | `companies.admin.player` | op | Look up the company, orders, items and notifications of a player with `/companyadmin player`. |
@@ -77,7 +78,7 @@ These give every permission listed below them. On their own, they do nothing.
 | `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.dashboard.use`, `companies.admin.*`, `companies.updates` |
 | `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat`, `companies.orders.solo` |
 | `companies.company.*` | op | `companies.company.create`, `companies.company.join` |
-| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.grant`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
+| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
 
 :::note
 The player permissions have the default "everyone". So players have them even without `companies.*`. To block a feature, set the permission to `false` for that player or group.

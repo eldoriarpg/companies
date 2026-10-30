@@ -47,6 +47,10 @@ public final class NodeCaches {
      */
     public static final String BOARDS = "boards";
     /**
+     * The server events that wait or run. No key.
+     */
+    public static final String EVENTS = "events";
+    /**
      * The dashboard key of the network. Key: {@value #DASHBOARD_KEY}, sent after a new key was stored; the other nodes
      * connect again with it.
      */

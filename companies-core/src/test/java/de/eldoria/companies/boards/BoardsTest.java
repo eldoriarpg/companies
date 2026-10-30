@@ -10,6 +10,8 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.BoardSettings;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.offer.OfferMark;
+import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.orders.query.OrderFilter;
 import de.eldoria.companies.util.Permission;
@@ -25,8 +27,11 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -199,6 +204,38 @@ class BoardsTest {
         assertTrue(boards.resolve("event x").isEmpty());
         assertTrue(boards.resolve("event 0").isEmpty());
         assertNull(boards.resolve("iron").orElseThrow().offers());
+    }
+
+    @Test
+    void aServerEventBoardCountsTheChunksOfAllItsOffers() {
+        var first = orders.place(0.0);
+        var second = orders.place(0.0);
+        var other = orders.place(0.0);
+        orders.place(0.0);
+        var ends = LocalDateTime.of(2026, 11, 1, 12, 0);
+        boards.useOffers(
+                ids -> {
+                    Map<Integer, OfferMark> marks = new HashMap<>();
+                    if (ids.contains(first.id())) {
+                        marks.put(first.id(), new OfferMark(3, "Logs", ends, OfferState.ACTIVE, 10, 0, 12));
+                    }
+                    if (ids.contains(second.id())) {
+                        marks.put(second.id(), new OfferMark(4, "Iron", ends, OfferState.ACTIVE, 10, 0, 12));
+                    }
+                    if (ids.contains(other.id())) {
+                        marks.put(other.id(), new OfferMark(5, "Stone", ends, OfferState.ACTIVE, 10, 0, 7));
+                    }
+                    return marks;
+                },
+                offer -> 0);
+
+        var target = boards.resolve("event:12").orElseThrow();
+
+        assertEquals(12, target.serverEvent());
+        assertEquals("event:12", target.spec());
+        assertEquals(2, boards.openCount(target).join());
+        assertEquals(
+                1, boards.openCount(boards.resolve("EVENT:7").orElseThrow()).join());
     }
 
     @Test

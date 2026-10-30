@@ -18,7 +18,7 @@ A board is one of these:
 - **Materials.** One or more materials, separated by spaces, such as `oak_log birch_log`. Each one matches every
   material whose name contains it, so `iron` matches `iron_ingot`, `iron_block`, `raw_iron` and more.
 - **Event offers.** `event` shows the chunks of every [event offer](./admin-commands.md#event-offers) goal, `event <id>`
-  only those of one goal. Contests are no orders, so no board shows them; `/company events` lists them.
+  only those of one goal, and `event:<id>` those of the goals of one [server event](./admin-commands.md#server-events). Contests are no orders, so no board shows them; `/company events` lists them.
 - **Nothing.** An empty board shows every open order.
 
 A board opens the first page of results. Players can press **[Change]** to adjust the search from there. Members with
@@ -64,7 +64,7 @@ boards:
 | `maxPrice` | `0` | Highest order price. `0` means no limit |
 | `minSize` | `0` | Fewest items in the order |
 | `maxSize` | `0` | Most items in the order. `0` means no limit |
-| `offers` | empty | `all`: only the chunks of event offer goals. An offer's number: only the chunks of that goal. Empty means any order |
+| `offers` | empty | `all`: only the chunks of event offer goals. An offer's number: only the chunks of that goal. `event:<id>`: only the chunks of the goals of that server event. Empty means any order |
 
 Preset names ignore case. If two presets have the same name, the first one counts.
 

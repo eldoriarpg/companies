@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.util.Times;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -24,11 +25,15 @@ import java.util.function.UnaryOperator;
  * Posts what happens to event offers to the webhook: {@link WebhookEvent#OFFER_STARTED},
  * {@link WebhookEvent#GOAL_PROGRESS} and {@link WebhookEvent#CONTEST_RESULT}.
  * <p>
- * The primary announces each of them once, so it alone posts them. The thresholds of a goal's progress are stored with
+ * The primary announces each of them once, so it alone posts them. An offer of a server event posts no start of its
+ * own when it starts together with its event, whose start names it, see {@link DiscordEvents}; one put on an event
+ * that runs already posts its start, and so may the offers of an event the primary started more than a minute late,
+ * such as after a restart. The thresholds of a goal's progress are stored with
  * the goal, so a restart posts none twice.
  */
 public final class DiscordOffers implements EventOfferService.Announcer {
     private static final int PLACES = 10;
+    private static final Duration TOGETHER = Duration.ofMinutes(1);
 
     private final Supplier<DiscordSettings> settings;
     private final DiscordEmbeds embeds;
@@ -61,7 +66,7 @@ public final class DiscordOffers implements EventOfferService.Announcer {
 
     @Override
     public void started(EventOffer offer) {
-        if (!settings.get().posts(WebhookEvent.OFFER_STARTED)) return;
+        if (startsWithEvent(offer) || !settings.get().posts(WebhookEvent.OFFER_STARTED)) return;
         var kind = texts.apply(offer.kind() == OfferKind.CONTEST ? "offers.kind.contest" : "offers.kind.goal");
         queue.accept(embeds.offerStarted(
                 offer.name(),
@@ -70,6 +75,20 @@ public final class DiscordOffers implements EventOfferService.Announcer {
                 offer.line().label(),
                 prices.apply(offer.unitPrice()),
                 offer.ends().atZone(Times.UTC.getZone()).toInstant()));
+    }
+
+    /**
+     * Whether an offer of a server event starts together with its event, whose start post names it: it started at most
+     * a minute after its start, which follows the event's. An offer put on an event that ran already posts its start.
+     *
+     * @param offer an offer that started
+     * @return true when its start is not posted on its own
+     */
+    static boolean startsWithEvent(EventOffer offer) {
+        var started = offer.started();
+        return offer.event() != null
+                && started != null
+                && !started.isAfter(offer.starts().plus(TOGETHER));
     }
 
     @Override

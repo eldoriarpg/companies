@@ -19,9 +19,11 @@ import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.wrapper.offer.OfferMark;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
@@ -29,11 +31,13 @@ import de.eldoria.companies.nodes.NodeBus;
 import de.eldoria.companies.nodes.NodeCaches;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
+import de.eldoria.companies.orders.FeeReductions;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.OrderMaterials;
 import de.eldoria.companies.orders.OrderOutcomes;
 import de.eldoria.companies.orders.OrderReceiveService;
 import de.eldoria.companies.orders.OwnerOrderService;
@@ -54,6 +58,9 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ActiveEvents;
+import de.eldoria.companies.services.events.EventPreviews;
+import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
@@ -66,14 +73,18 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -565,6 +576,62 @@ public final class CommandDependencies {
     }
 
     /**
+     * What the server events running now do to found orders. Reads the events; call it off the main thread.
+     *
+     * @param orders the found orders
+     * @param level  the level of the searching company, empty for a player working alone
+     * @return the mark of each order an event boosts, by order id
+     */
+    public Map<Integer, EventPreviews.EventMark> eventMarks(List<FullOrder> orders, OptionalInt level) {
+        if (!servicesReady()) return Map.of();
+        return EventPreviews.marks(
+                orders,
+                level,
+                services().activeEvents(),
+                configuration.eventSettings().maxMultiplier(),
+                LocalDateTime.now(Times.UTC));
+    }
+
+    /**
+     * Looks up the event offer an order is a chunk of and its expected payout with the server events running now off
+     * the main thread, then hands both over on the main thread.
+     *
+     * @param order   the order
+     * @param level   the level of the viewing company, empty for a player working alone
+     * @param baseTax the tax without events, in percent
+     * @param then    takes the offer, null when the order belongs to none, and the payout, null when no event
+     *                changes it; runs on the main thread
+     */
+    public void withOfferAndEventsOf(
+            FullOrder order,
+            OptionalInt level,
+            double baseTax,
+            BiConsumer<@Nullable OfferMark, EventPreviews.@Nullable Preview> then) {
+        CompletableFuture.supplyAsync(
+                        () -> {
+                            var offer = offerOf(order.id());
+                            var events = services()
+                                    .activeEvents()
+                                    .matching(LocalDateTime.now(Times.UTC), OrderMaterials.accepted(order), level);
+                            var preview = EventPreviews.preview(
+                                            order,
+                                            events,
+                                            baseTax,
+                                            configuration.eventSettings().maxMultiplier())
+                                    .orElse(null);
+                            return new Extras(offer, preview);
+                        },
+                        Threading.VIRTUAL)
+                .thenAcceptAsync(extras -> then.accept(extras.offer(), extras.preview()), Threading.mainThread(plugin))
+                .exceptionally(err -> {
+                    plugin.getLogger().log(Level.SEVERE, "Could not show order " + order.id(), err);
+                    return null;
+                });
+    }
+
+    private record Extras(@Nullable OfferMark offer, EventPreviews.@Nullable Preview preview) {}
+
+    /**
      * @return the message sender of the plugin, styled by the configuration
      */
     public MessageSender messages() {
@@ -602,6 +669,10 @@ public final class CommandDependencies {
      * @param offerData           event offers and the chunks of goals
      * @param offers              runs the goals and contests of event offers on the primary
      * @param contests            lets companies join contests and pays their deliveries
+     * @param serverEvents        creates, ends and changes server events
+     * @param serverEventData     the server events
+     * @param activeEvents        the server events as this node sees them, read through a short cache
+     * @param feeReductions       the fee reductions of the server events running now
      */
     public record Services(
             Economy economy,
@@ -631,5 +702,9 @@ public final class CommandDependencies {
             SystemFunding systemFunding,
             AOfferData offerData,
             EventOfferService offers,
-            ContestService contests) {}
+            ContestService contests,
+            ServerEventService serverEvents,
+            AServerEventData serverEventData,
+            ActiveEvents activeEvents,
+            FeeReductions feeReductions) {}
 }

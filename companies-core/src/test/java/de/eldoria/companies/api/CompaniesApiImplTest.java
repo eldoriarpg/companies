@@ -5,13 +5,19 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.api.write.CreateEventResult;
 import de.eldoria.companies.api.write.CreateOrderResult;
+import de.eldoria.companies.api.write.EventChange;
+import de.eldoria.companies.api.write.EventProblem;
+import de.eldoria.companies.api.write.EventRequest;
 import de.eldoria.companies.api.write.OrderLineRequest;
 import de.eldoria.companies.api.write.OrderRequest;
 import de.eldoria.companies.api.write.RejectReason;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.components.company.TreasuryKind;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.LineKind;
@@ -26,10 +32,12 @@ import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.PreOrderCreateEvent;
@@ -38,6 +46,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderLimits;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
@@ -58,6 +67,8 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -96,6 +107,7 @@ class CompaniesApiImplTest {
     private SqLiteCompanyData companyData;
     private SqLiteOrderData orderData;
     private SqLiteTreasuryData treasuryData;
+    private SqLiteServerEventData serverEventData;
     private CompaniesApiImpl api;
     private OfflinePlayer owner;
     private int miners;
@@ -110,6 +122,7 @@ class CompaniesApiImplTest {
         orderData = new SqLiteOrderData(null, SqLiteTestDatabase.mapper());
         var stats = new SqLiteStatsData(executor);
         treasuryData = new SqLiteTreasuryData(executor);
+        serverEventData = new SqLiteServerEventData();
         orderSettings.maxMaterials(2);
         userSettings.maxOrders(5);
         owner = server.getOfflinePlayer(UUID.randomUUID());
@@ -120,7 +133,7 @@ class CompaniesApiImplTest {
                 .join();
 
         api = new CompaniesApiImpl(
-                new CompaniesApiImpl.Repositories(companyData, orderData, stats, treasuryData),
+                new CompaniesApiImpl.Repositories(companyData, orderData, stats, treasuryData, serverEventData),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer,
                         failure -> failure.message().orElse(Component.text(failure.localeKey())),
@@ -386,7 +399,16 @@ class CompaniesApiImplTest {
                 LocalDateTime::now,
                 executor,
                 Logger.getLogger("test"));
-        api.open(new CompaniesApiImpl.Writes(creation, memberships, new ItemReturnService(plugin, orderData)));
+        api.open(new CompaniesApiImpl.Writes(
+                creation,
+                memberships,
+                new ItemReturnService(plugin, orderData),
+                new ServerEventService(
+                        serverEventData,
+                        material -> material.toUpperCase(Locale.ROOT),
+                        message -> {},
+                        Times.UTC,
+                        Logger.getLogger("test"))));
     }
 
     @Test
@@ -462,5 +484,107 @@ class CompaniesApiImplTest {
         public String currencyName() {
             return "coins";
         }
+    }
+
+    @Test
+    void serverEventWritesFailBeforeTheApiIsOpened() {
+        var now = LocalDateTime.now(Times.UTC);
+        assertNotReady(api.events()
+                .create(
+                        plugin,
+                        EventRequest.of("Tax", EventKind.TAX_REDUCTION, 5, now.plusHours(1), now.plusHours(2))));
+        assertNotReady(api.events().end(plugin, 1));
+        assertNotReady(api.events().cancel(plugin, 1));
+    }
+
+    @Test
+    void aServerEventIsCreatedReadAndNotedAsThePlugin() throws Exception {
+        open();
+        var now = LocalDateTime.now(Times.UTC).withNano(0);
+        var request = EventRequest.of("Harvest", EventKind.REWARD_MULTIPLIER, 1.5, now.plusHours(1), now.plusHours(3))
+                .withMaterials(List.of("wheat"))
+                .mintedWithin(500);
+
+        var result = api.events().create(plugin, request).get(5, TimeUnit.SECONDS);
+
+        var event = assertInstanceOf(CreateEventResult.Created.class, result).event();
+        assertEquals("Harvest", event.name());
+        assertEquals(List.of("WHEAT"), event.materials());
+        assertTrue(event.minted());
+        assertEquals(500.0, event.budgetCap().orElseThrow());
+        assertEquals(EventState.SCHEDULED, event.state());
+        assertEquals(plugin.getName() + "@api", event.createdBy());
+        assertEquals(
+                event.id(),
+                api.events()
+                        .event(event.id())
+                        .get(5, TimeUnit.SECONDS)
+                        .orElseThrow()
+                        .id());
+        assertEquals(1, api.events().live().get(5, TimeUnit.SECONDS).size());
+        assertEquals(1, api.events().recent(10).get(5, TimeUnit.SECONDS).size());
+    }
+
+    @Test
+    void theMoneyOfAKindThatPaysNothingIsDropped() throws Exception {
+        open();
+        var now = LocalDateTime.now(Times.UTC);
+        var request = EventRequest.of("Tax", EventKind.TAX_REDUCTION, 5, now.plusHours(1), now.plusHours(2))
+                .paidFrom("bank", 100.0);
+
+        var event = assertInstanceOf(
+                        CreateEventResult.Created.class,
+                        api.events().create(plugin, request).get(5, TimeUnit.SECONDS))
+                .event();
+
+        assertTrue(event.fundingAccount().isEmpty());
+        assertTrue(event.budgetCap().isEmpty());
+    }
+
+    @Test
+    void anInvalidServerEventIsRejectedWithItsProblem() throws Exception {
+        open();
+        var now = LocalDateTime.now(Times.UTC);
+        var tooHigh = EventRequest.of("Tax", EventKind.TAX_REDUCTION, 150, now.plusHours(1), now.plusHours(2));
+        var noBudget = EventRequest.of("Boost", EventKind.REWARD_MULTIPLIER, 2, now.plusHours(1), now.plusHours(2));
+
+        var value = api.events().create(plugin, tooHigh).get(5, TimeUnit.SECONDS);
+        var funding = api.events().create(plugin, noBudget).get(5, TimeUnit.SECONDS);
+
+        assertEquals(
+                EventProblem.VALUE,
+                assertInstanceOf(CreateEventResult.Rejected.class, value).problem());
+        assertEquals(
+                EventProblem.ACCOUNT,
+                assertInstanceOf(CreateEventResult.Rejected.class, funding).problem());
+        assertTrue(api.events().live().get(5, TimeUnit.SECONDS).isEmpty());
+    }
+
+    @Test
+    void aServerEventIsEndedOrCancelledAsThePlugin() throws Exception {
+        open();
+        var now = LocalDateTime.now(Times.UTC);
+        var waiting = created(EventRequest.of("Fee", EventKind.FEE_REDUCTION, 50, now.plusHours(1), now.plusHours(2)));
+
+        assertEquals(EventChange.REFUSED, api.events().end(plugin, waiting).get(5, TimeUnit.SECONDS));
+        assertEquals(EventChange.DONE, api.events().cancel(plugin, waiting).get(5, TimeUnit.SECONDS));
+        assertEquals(EventChange.CLOSED, api.events().cancel(plugin, waiting).get(5, TimeUnit.SECONDS));
+        assertEquals(EventChange.UNKNOWN, api.events().end(plugin, 9999).get(5, TimeUnit.SECONDS));
+        var cancelled = api.events().event(waiting).get(5, TimeUnit.SECONDS).orElseThrow();
+        assertEquals(EventState.CANCELLED, cancelled.state());
+        assertEquals(plugin.getName() + "@api", cancelled.closer().orElseThrow());
+    }
+
+    @Test
+    void everyProblemAndChangeOfTheCoreHasAnApiValue() {
+        for (var problem : ServerEvent.Problem.values())
+            assertEquals(problem.name(), EventProblem.valueOf(problem.name()).name());
+        for (var change : ServerEventService.Change.values())
+            assertEquals(change.name(), EventChange.valueOf(change.name()).name());
+    }
+
+    private int created(EventRequest request) throws Exception {
+        var result = api.events().create(plugin, request).get(5, TimeUnit.SECONDS);
+        return assertInstanceOf(CreateEventResult.Created.class, result).event().id();
     }
 }

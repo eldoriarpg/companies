@@ -76,7 +76,8 @@ public final class WorkCommand {
                 () -> deps.services().deliveryService().matcher(),
                 () -> deps.configuration() != null
                         && deps.configuration().systemOrderSettings().markSystemOrders(),
-                orders -> deps.services().offerData().marks(orders));
+                orders -> deps.services().offerData().marks(orders),
+                deps::eventMarks);
         var soloSearch = new OrderSearch(
                 deps, SearchMode.SOLO, finder, (player, id) -> info(player, id), (player, id) -> accept(player, id));
         this.search = new CompanyOrderSearchCommand(soloSearch);

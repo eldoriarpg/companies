@@ -15,6 +15,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.RulesEditor;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
+import de.eldoria.companies.dashboard.actions.AdminEventWrites;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOfferWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
@@ -49,6 +50,7 @@ import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -80,6 +82,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
 import de.eldoria.companies.util.AdminLog;
@@ -367,6 +370,7 @@ public final class DashboardModule {
                         failure -> PlainText.of(failure.render(null, messages)))),
                 new EventWrites(new EventWrites.Sources(
                         data.offers().data(),
+                        data.offers().events(),
                         data.offers().contests(),
                         data.companyOf(),
                         views::instant,
@@ -381,6 +385,16 @@ public final class DashboardModule {
                         Times::now,
                         data.admin().log(),
                         plugin.getLogger(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminEventWrites(new AdminEventWrites.Sources(
+                        data.offers().events(),
+                        data.offers().data(),
+                        data.offers().eventService(),
+                        Times::zone,
+                        data.offers().collector(),
+                        views::instant,
+                        Times::now,
+                        data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()
@@ -521,15 +535,24 @@ public final class DashboardModule {
             OfferServices offers) {}
 
     /**
-     * The services behind the Events page and the admin tools for event offers.
+     * The services behind the Events page and the admin tools for event offers and server events.
      *
-     * @param data      the offer repository
-     * @param contests  lets companies join and leave contests
-     * @param funding   gives a failed prize back to the account that paid it
-     * @param checkSoon asks the primary to place and withdraw the chunks of goals soon
+     * @param data         the offer repository
+     * @param contests     lets companies join and leave contests
+     * @param funding      gives a failed prize back to the account that paid it
+     * @param checkSoon    asks the primary to place and withdraw the chunks of goals soon
+     * @param events       the server event repository
+     * @param eventService creates and changes server events as {@code /companyadmin event} does
+     * @param collector    the collector account an event paid from an account uses when none is named
      */
     public record OfferServices(
-            AOfferData data, ContestService contests, SystemOrderService.Funding funding, Runnable checkSoon) {}
+            AOfferData data,
+            ContestService contests,
+            SystemOrderService.Funding funding,
+            Runnable checkSoon,
+            AServerEventData events,
+            ServerEventService eventService,
+            Supplier<String> collector) {}
 
     /**
      * The services behind the dashboard's admin tools.

@@ -174,6 +174,12 @@ public final class Features {
     public static final String ADMIN_OFFERS = "admin.offers";
 
     /**
+     * See the server events with their effect, scope, times, money and offers, create them, end, cancel and extend
+     * them and change their budget. Needs {@code companies.admin.events}.
+     */
+    public static final String ADMIN_EVENTS = "admin.events";
+
+    /**
      * Every feature name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -204,7 +210,8 @@ public final class Features {
             ADMIN_SYSTEM_ORDERS,
             ORDERS_SERVER_MARKS,
             EVENTS,
-            ADMIN_OFFERS);
+            ADMIN_OFFERS,
+            ADMIN_EVENTS);
 
     private Features() {}
 }

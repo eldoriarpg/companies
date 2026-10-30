@@ -6,7 +6,9 @@
 package de.eldoria.companies.menus.order;
 
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
+import de.eldoria.companies.orders.FeeReductions;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.Repetition;
 import net.kyori.adventure.text.Component;
@@ -78,6 +80,25 @@ public record DraftView(
      */
     public static DraftView of(
             OrderBuilder draft, OrderSettings settings, Function<String, MaterialPrice> prices, boolean mayRepeat) {
+        return of(draft, settings, prices, mayRepeat, List.of());
+    }
+
+    /**
+     * Builds the view of a draft whose fee is lowered by the fee reductions of the server events running now.
+     *
+     * @param draft     draft
+     * @param settings  order settings providing the limits, the fee and whether orders may repeat
+     * @param prices    market price of a material, by its identifier
+     * @param mayRepeat whether the owner holds the permission to make orders repeat
+     * @param events    the events running now that apply to the draft's materials, read off the main thread
+     * @return the view
+     */
+    public static DraftView of(
+            OrderBuilder draft,
+            OrderSettings settings,
+            Function<String, MaterialPrice> prices,
+            boolean mayRepeat,
+            List<ServerEvent> events) {
         var lines = new ArrayList<Line>();
         var number = 1;
         for (var line : draft.lines()) {
@@ -91,7 +112,7 @@ public record DraftView(
                 draft.amount(),
                 settings.maxItems(),
                 price,
-                settings.fee().of(price),
+                FeeReductions.apply(settings.fee().of(price), events),
                 draft.repetition(),
                 mayRepeat && settings.repeating().enabled());
     }

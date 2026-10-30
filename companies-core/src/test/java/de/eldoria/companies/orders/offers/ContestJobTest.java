@@ -5,11 +5,14 @@
  */
 package de.eldoria.companies.orders.offers;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.dashboard.MutableClock;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
@@ -34,9 +37,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -244,6 +249,50 @@ class ContestJobTest {
         assertEquals(1000.0 - 5.0, balances.get(BANK));
         assertEquals(List.of(id), cancelled);
         assertTrue(announced.isEmpty());
+    }
+
+    @Test
+    void aContestCancelledWithItsServerEventPaysNoPrizesAndGivesItsMoneyBack() {
+        balances.put(BANK, 1000.0);
+        var id = contest(100, 1.0, List.of(40.0), 140.0, SourceType.ACCOUNT, BANK, 0);
+        var now = LocalDateTime.now(clock);
+        var event = new AtomicReference<>(serverEvent(EventState.ACTIVE, now, now.plusDays(1)));
+        service.useEvents(found -> found == 9 ? Optional.of(event.get()) : Optional.empty(), offer -> {});
+        offers.link(id, 9);
+        service.run();
+        offers.join(id, wood, now);
+        offers.deliver(id, wood, UUID.randomUUID(), 5, now);
+        event.set(serverEvent(EventState.CANCELLED, now, now.plusDays(1)));
+
+        service.run();
+        service.run();
+
+        assertEquals(OfferState.CANCELLED, offers.offer(id).orElseThrow().state());
+        assertTrue(prizesPaid.isEmpty());
+        assertEquals(1000.0 - 5.0, balances.get(BANK));
+        assertEquals(List.of(id), cancelled);
+    }
+
+    private static ServerEvent serverEvent(EventState state, LocalDateTime starts, LocalDateTime ends) {
+        return new ServerEvent(
+                9,
+                "Harvest",
+                EventKind.TAX_REDUCTION,
+                5,
+                List.of(),
+                List.of(),
+                starts,
+                ends,
+                null,
+                null,
+                null,
+                0,
+                state,
+                null,
+                "Nora",
+                starts,
+                null,
+                null);
     }
 
     @Test

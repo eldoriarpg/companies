@@ -12,6 +12,7 @@ import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.GoalReward;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
@@ -32,6 +33,7 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -115,6 +117,60 @@ public abstract class OfferDataContract {
         } finally {
             MockBukkit.unmock();
         }
+    }
+
+    @Test
+    void anOfferIsPutOnAServerEventFollowsItsTimesAndCarriesAReward() {
+        var id = offers.create(goal("Harbour logs", OfferLine.material("OAK_LOG"), SourceType.MINTED, null))
+                .orElseThrow();
+        var other = offers.create(goal("Other", OfferLine.material("OAK_LOG"), SourceType.MINTED, null))
+                .orElseThrow();
+
+        assertTrue(offers.link(id, 4));
+        assertTrue(offers.times(id, NOW.plusHours(1), NOW.plusHours(9)));
+        assertEquals(List.of(id), offers.ofEvent(4).stream().map(EventOffer::id).toList());
+        var read = offers.offer(id).orElseThrow();
+        assertEquals(4, read.event());
+        assertEquals(NOW.plusHours(1), read.starts());
+        assertEquals(NOW.plusHours(9), read.ends());
+
+        assertTrue(offers.reward(id).isEmpty());
+        assertTrue(offers.reward(id, new GoalReward(1.5, 120, SourceType.ACCOUNT, "Bank", 300.0)));
+        assertEquals(Optional.of(new GoalReward(1.5, 120, SourceType.ACCOUNT, "Bank", 300.0)), offers.reward(id));
+        assertTrue(offers.reward(id, new GoalReward(2, 30, null, null, null)));
+        assertEquals(Optional.of(new GoalReward(2, 30, null, null, null)), offers.reward(id));
+        assertTrue(offers.reward(id, null));
+        assertTrue(offers.reward(id).isEmpty());
+
+        offers.state(other, OfferState.SCHEDULED, OfferState.CANCELLED, NOW);
+        assertFalse(offers.link(other, 4));
+        assertFalse(offers.times(other, NOW, NOW.plusHours(1)));
+        assertTrue(offers.link(id, null));
+        assertTrue(offers.ofEvent(4).isEmpty());
+    }
+
+    @Test
+    void aRewardIsClaimedFromNothingOrAnUnfinishedAttemptOnly() {
+        var fresh = offers.create(goal("Fresh", OfferLine.material("OAK_LOG"), SourceType.MINTED, null))
+                .orElseThrow();
+        var created = offers.create(goal("Created", OfferLine.material("OAK_LOG"), SourceType.MINTED, null))
+                .orElseThrow();
+        var failed = offers.create(goal("Failed", OfferLine.material("OAK_LOG"), SourceType.MINTED, null))
+                .orElseThrow();
+
+        assertTrue(offers.claimReward(fresh));
+        assertEquals(Optional.of(AOfferData.REWARD_CREATING), offers.rewardEvent(fresh));
+        assertTrue(offers.claimReward(fresh));
+        assertTrue(offers.rewarded(fresh, 7));
+        assertFalse(offers.claimReward(fresh));
+        assertFalse(offers.rewarded(fresh, 8));
+        assertEquals(Optional.of(7), offers.rewardEvent(fresh));
+
+        assertTrue(offers.rewarded(created, 9));
+        assertFalse(offers.claimReward(created));
+        assertTrue(offers.rewarded(failed, AOfferData.REWARD_FAILED));
+        assertFalse(offers.claimReward(failed));
+        assertEquals(Optional.of(AOfferData.REWARD_FAILED), offers.rewardEvent(failed));
     }
 
     @Test

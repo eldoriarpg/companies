@@ -5,13 +5,17 @@
  */
 package de.eldoria.companies.orders.offers;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.dashboard.MutableClock;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.GoalReward;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.offer.OpenChunk;
@@ -38,9 +42,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -281,6 +287,107 @@ class EventOfferServiceTest {
         assertEquals(COMPANY, contributors.getFirst().company());
         assertEquals(100, contributors.getFirst().delivered());
         assertEquals(1, run.placed().size());
+    }
+
+    @Test
+    void anOfferOfAServerEventFollowsItsTimesAndEndsAndIsCancelledWithIt() {
+        var id = goal(500, 2.0, 100, 1, SourceType.MINTED, null, 1000.0, 2, 24);
+        var now = LocalDateTime.now(clock);
+        var event = new AtomicReference<>(serverEvent(EventState.SCHEDULED, now.plusHours(1), now.plusHours(5)));
+        offers.link(id, 9);
+        service.useEvents(found -> found == 9 ? Optional.of(event.get()) : Optional.empty(), offer -> {});
+
+        service.run();
+        var followed = offers.offer(id).orElseThrow();
+        assertEquals(now.plusHours(1).withNano(0), followed.starts().withNano(0));
+        assertEquals(now.plusHours(5).withNano(0), followed.ends().withNano(0));
+
+        event.set(serverEvent(EventState.ENDED, now.plusHours(1), now.plusHours(5)));
+        clock.advance(Duration.ofHours(2));
+        service.run();
+        service.run();
+        assertEquals(OfferState.ENDED, offers.offer(id).orElseThrow().state());
+
+        var other = goal(500, 2.0, 100, 1, SourceType.MINTED, null, 1000.0, 0, 24);
+        offers.link(other, 9);
+        event.set(serverEvent(EventState.CANCELLED, now, now.plusHours(5)));
+        service.run();
+        assertEquals(OfferState.CANCELLED, offers.offer(other).orElseThrow().state());
+    }
+
+    @Test
+    void aScheduledOfferWhoseEventEndedEndsWithoutAStartAnnouncement() {
+        var id = goal(500, 2.0, 100, 1, SourceType.MINTED, null, 1000.0, 2, 24);
+        var now = LocalDateTime.now(clock);
+        offers.link(id, 9);
+        service.useEvents(
+                found -> Optional.of(serverEvent(EventState.ENDED, now.plusHours(2), now.plusHours(5))), offer -> {});
+
+        service.run();
+
+        assertEquals(OfferState.ENDED, offers.offer(id).orElseThrow().state());
+        assertTrue(started.isEmpty());
+    }
+
+    @Test
+    void aRewardThatFailedIsCreatedOnALaterCheckOnce() {
+        var calls = new ArrayList<Integer>();
+        service.useEvents(found -> Optional.empty(), offer -> {
+            calls.add(offer.id());
+            if (calls.size() == 1) throw new IllegalStateException("The server stops");
+            offers.rewarded(offer.id(), 77);
+        });
+        var id = goal(200, 2.0, 100, 2, SourceType.MINTED, null, 400.0);
+        offers.reward(id, new GoalReward(1.5, 60, null, null, null));
+        for (var order : service.run().placed()) {
+            claim(order);
+            deliver(order, 100);
+        }
+
+        service.run();
+        service.run();
+        service.run();
+
+        assertEquals(List.of(id, id), calls);
+        assertEquals(Optional.of(77), offers.rewardEvent(id));
+    }
+
+    @Test
+    void aReachedGoalHandsItsRewardOverOnce() {
+        var rewarded = new ArrayList<Integer>();
+        service.useEvents(found -> Optional.empty(), offer -> rewarded.add(offer.id()));
+        var id = goal(200, 2.0, 100, 2, SourceType.MINTED, null, 400.0);
+        for (var order : service.run().placed()) {
+            claim(order);
+            deliver(order, 100);
+        }
+
+        service.run();
+        service.run();
+
+        assertEquals(List.of(id), rewarded);
+    }
+
+    private static ServerEvent serverEvent(EventState state, LocalDateTime starts, LocalDateTime ends) {
+        return new ServerEvent(
+                9,
+                "Harvest",
+                EventKind.TAX_REDUCTION,
+                5,
+                List.of(),
+                List.of(),
+                starts,
+                ends,
+                null,
+                null,
+                null,
+                0,
+                state,
+                null,
+                "Nora",
+                starts,
+                null,
+                null);
     }
 
     @Test
