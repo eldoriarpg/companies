@@ -167,7 +167,7 @@ public final class JobService {
             JobArea area,
             JobLand land,
             @Nullable String landRef) {
-        return post(owner, kind, title, price, dueHours, node, area, land, landRef, null, null);
+        return post(owner, kind, title, price, dueHours, node, area, land, landRef, Details.NONE);
     }
 
     /**
@@ -182,9 +182,7 @@ public final class JobService {
      * @param area     the area of the work
      * @param land     whose land the area lies on
      * @param landRef  the plot or region of the land, null for unowned land
-     * @param target   the shape a terraform job asks for, its height within the area; null for other kinds
-     * @param unitPrice what a harvest job pays for each item, at most its price, which is its budget; null for other
-     *                  kinds
+     * @param details  what the kind of job asks for besides its area
      * @return the stored job, or why it was not posted
      */
     public Posted post(
@@ -197,11 +195,13 @@ public final class JobService {
             JobArea area,
             JobLand land,
             @Nullable String landRef,
-            @Nullable JobTarget target,
-            @Nullable Double unitPrice) {
+            Details details) {
+        var target = details.target();
+        var unitPrice = details.unitPrice();
+        var blueprint = details.blueprint();
         var current = settings.get();
         if (!current.enabled()) return new Posted.Refused(Refusal.DISABLED);
-        if (kind == JobKind.BUILD) return new Posted.Refused(Refusal.KIND);
+        if ((kind == JobKind.BUILD) != (blueprint != null)) return new Posted.Refused(Refusal.BLUEPRINT);
         if ((kind == JobKind.HARVEST) != (unitPrice != null)) return new Posted.Refused(Refusal.UNIT_PRICE);
         if (unitPrice != null && (!(cents(unitPrice) >= MIN_PRICE) || cents(unitPrice) > cents(price))) {
             return new Posted.Refused(Refusal.UNIT_PRICE);
@@ -245,12 +245,69 @@ public final class JobService {
             logger.log(Level.SEVERE, "Could not store a job of " + owner, e);
             id = Optional.empty();
         }
+        if (id.isPresent() && blueprint != null && !storedBlueprint(id.get(), blueprint)) {
+            if (!jobs.close(id.get(), JobState.OPEN, JobState.CANCELLED, null, now)) {
+                logger.severe("Job " + id.get() + " was taken before its blueprint could be stored; settle it by hand");
+                return new Posted.Refused(Refusal.STRANDED);
+            }
+            id = Optional.empty();
+        }
         if (id.isEmpty()) {
             money.deposit(owner, total);
             return new Posted.Refused(Refusal.STORAGE);
         }
         var stored = id.get();
         return new Posted.Done(jobs.job(stored).orElseGet(() -> draft.withId(stored)));
+    }
+
+    private boolean storedBlueprint(int id, Blueprint blueprint) {
+        try {
+            return jobs.blueprint(id, blueprint.encode());
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not store the blueprint of job " + id, e);
+            return false;
+        }
+    }
+
+    /**
+     * What a kind of job asks for besides its area.
+     *
+     * @param target    the shape a terraform job asks for, its height within the area
+     * @param unitPrice what a harvest job pays for each item, at most its price, which is its budget
+     * @param blueprint what a build job asks to build, placed on its area
+     */
+    public record Details(
+            @Nullable JobTarget target,
+            @Nullable Double unitPrice,
+            @Nullable Blueprint blueprint) {
+        /**
+         * Nothing besides the area: a dig job or a contract.
+         */
+        public static final Details NONE = new Details(null, null, null);
+
+        /**
+         * @param target the shape a terraform job asks for
+         * @return the details of a terraform job
+         */
+        public static Details shape(JobTarget target) {
+            return new Details(target, null, null);
+        }
+
+        /**
+         * @param unitPrice what a harvest job pays for each item
+         * @return the details of a harvest job
+         */
+        public static Details harvest(double unitPrice) {
+            return new Details(null, unitPrice, null);
+        }
+
+        /**
+         * @param blueprint what a build job asks to build
+         * @return the details of a build job
+         */
+        public static Details build(Blueprint blueprint) {
+            return new Details(null, null, blueprint);
+        }
     }
 
     /**
@@ -1231,7 +1288,15 @@ public final class JobService {
         /**
          * A harvest job has no item price between the lowest price and its budget, or another kind has one.
          */
-        UNIT_PRICE
+        UNIT_PRICE,
+        /**
+         * A build job has no blueprint, or another kind has one.
+         */
+        BLUEPRINT,
+        /**
+         * A build job was stored and taken, but its blueprint could not be stored; its money stays held for an admin.
+         */
+        STRANDED
     }
 
     /**

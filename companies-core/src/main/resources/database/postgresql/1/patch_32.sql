@@ -85,3 +85,14 @@ CREATE TABLE IF NOT EXISTS companies_schema.job_stock
     CONSTRAINT job_stock_pk
         PRIMARY KEY (job_id, material)
 );
+
+CREATE TABLE IF NOT EXISTS companies_schema.job_blueprints
+(
+    job_id INTEGER NOT NULL
+        CONSTRAINT job_blueprints_pk
+            PRIMARY KEY
+        CONSTRAINT job_blueprints_jobs_id_fk
+            REFERENCES companies_schema.jobs
+            ON DELETE CASCADE,
+    data   TEXT    NOT NULL
+);

@@ -264,7 +264,9 @@ public final class Jobs {
                 Times.UTC,
                 plugin.getLogger());
         var node = configuration.nodeSettings().nodeUid();
-        var progress = new JobProgress(plugin, node);
+        var blueprints = new Blueprints(jobs, plugin.getLogger());
+        var progress = new JobProgress(
+                plugin, node, blueprints, () -> configuration.jobSettings().buildMatchPercent());
         var access = new JobAccess(
                 jobs,
                 company -> members(companies, company),
@@ -275,10 +277,13 @@ public final class Jobs {
                         job,
                         job.state() == JobState.TAKEN && job.kind() != JobKind.HARVEST ? checked(progress, job) : null),
                 service::harvested,
+                blueprints,
                 plugin.getLogger());
         plugin.getServer().getPluginManager().registerEvents(access, plugin);
         plugin.getServer().getPluginManager().registerEvents(new Disbands(service, access, plugin), plugin);
-        return new JobServices(jobs, service, hooks, access, progress, node);
+        var ghosts = new BuildGhosts(plugin);
+        plugin.getServer().getPluginManager().registerEvents(ghosts, plugin);
+        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts);
     }
 
     /**

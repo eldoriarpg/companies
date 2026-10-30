@@ -294,6 +294,21 @@ public abstract class AJobData {
     public abstract void stock(int job, Map<String, Integer> items);
 
     /**
+     * Stores the blueprint of a build job.
+     *
+     * @param job  id of the job
+     * @param data the blueprint as compact text
+     * @return true when it was stored
+     */
+    public abstract boolean blueprint(int job, String data);
+
+    /**
+     * @param job id of the job
+     * @return the blueprint of a build job as compact text, empty for other jobs
+     */
+    public abstract Optional<String> blueprint(int job);
+
+    /**
      * @param job id of the job
      * @return the items in the job's stock, as amounts by material name, without empty ones
      */

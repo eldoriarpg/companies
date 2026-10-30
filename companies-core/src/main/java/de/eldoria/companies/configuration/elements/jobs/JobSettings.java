@@ -23,6 +23,8 @@ public class JobSettings {
     private int digMaxVolume = 32768;
     private int terraformMaxVolume = 32768;
     private int harvestMaxVolume = 16384;
+    private int buildMaxVolume = 32768;
+    private int buildMatchPercent = 95;
     private int maxChunks = 64;
     private int maxOpenPerOwner = 5;
     private int maxDueHours = 168;
@@ -96,6 +98,7 @@ public class JobSettings {
         return switch (kind) {
             case TERRAFORM -> terraformMaxVolume();
             case HARVEST -> harvestMaxVolume();
+            case BUILD -> buildMaxVolume();
             default -> digMaxVolume();
         };
     }
@@ -109,6 +112,28 @@ public class JobSettings {
 
     public void harvestMaxVolume(int harvestMaxVolume) {
         this.harvestMaxVolume = harvestMaxVolume;
+    }
+
+    /**
+     * @return the most blocks the area of a build job may hold, at least 1
+     */
+    public int buildMaxVolume() {
+        return Math.max(1, buildMaxVolume);
+    }
+
+    public void buildMaxVolume(int buildMaxVolume) {
+        this.buildMaxVolume = buildMaxVolume;
+    }
+
+    /**
+     * @return the share of a build job's blocks that must match its blueprint for it to be done, from 1 to 100
+     */
+    public int buildMatchPercent() {
+        return Math.clamp(buildMatchPercent, 1, 100);
+    }
+
+    public void buildMatchPercent(int buildMatchPercent) {
+        this.buildMatchPercent = buildMatchPercent;
     }
 
     /**

@@ -20,9 +20,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntSupplier;
 
 /**
- * Reads how far the work on a job is, by the check of its kind ({@link DigCheck}, {@link TerraformCheck}), on the server whose world holds its area. The chunks of the area are loaded
+ * Reads how far the work on a job is, by the check of its kind ({@link DigCheck}, {@link TerraformCheck}, {@link BuildCheck}), on the server whose world holds its area. The chunks of the area are loaded
  * without blocking the main thread, each held by a plugin ticket from when it is loaded until the area is checked on
  * the main thread. A result
  * is kept for {@value #CACHE_SECONDS} seconds per job; a fresh check, as finishing a job asks for, still reuses one at
@@ -42,16 +43,22 @@ public final class JobProgress {
 
     private final Plugin plugin;
     private final UUID node;
+    private final Blueprints blueprints;
+    private final IntSupplier matchPercent;
     private final Map<Integer, Cached> cache = new ConcurrentHashMap<>();
     private final Map<Integer, CompletableFuture<Optional<DigCheck.Progress>>> running = new ConcurrentHashMap<>();
 
     /**
-     * @param plugin the plugin
-     * @param node   this server
+     * @param plugin       the plugin
+     * @param node         this server
+     * @param blueprints   the blueprints of build jobs
+     * @param matchPercent the share of a blueprint that must match for a build job to be done
      */
-    public JobProgress(Plugin plugin, UUID node) {
+    public JobProgress(Plugin plugin, UUID node, Blueprints blueprints, IntSupplier matchPercent) {
         this.plugin = plugin;
         this.node = node;
+        this.blueprints = blueprints;
+        this.matchPercent = matchPercent;
     }
 
     /**
@@ -77,6 +84,11 @@ public final class JobProgress {
 
     private CompletableFuture<Optional<DigCheck.Progress>> scan(Job job, World world) {
         var area = job.area();
+        var blueprint = job.kind() == JobKind.BUILD ? blueprints.of(job.id()).orElse(null) : null;
+        if (job.kind() == JobKind.BUILD && blueprint == null) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        var percent = matchPercent.getAsInt();
         List<int[]> chunks = new ArrayList<>();
         List<CompletableFuture<?>> loads = new ArrayList<>();
         var mainThread = Threading.mainThread(plugin);
@@ -90,7 +102,11 @@ public final class JobProgress {
             }
         }
         return CompletableFuture.allOf(loads.toArray(CompletableFuture[]::new))
-                .thenApplyAsync(ignored -> DigCheck.progress(area, blocks(job, world)), mainThread)
+                .thenApplyAsync(
+                        ignored -> blueprint == null
+                                ? DigCheck.progress(area, blocks(job, world))
+                                : BuildCheck.progress(area, blueprint, BuildCheck.of(world), percent),
+                        mainThread)
                 .whenCompleteAsync(
                         (result, err) -> {
                             for (var chunk : chunks) world.removePluginChunkTicket(chunk[0], chunk[1], plugin);

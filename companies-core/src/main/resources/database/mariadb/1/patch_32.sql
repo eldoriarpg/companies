@@ -85,3 +85,14 @@ CREATE TABLE IF NOT EXISTS job_stock
         FOREIGN KEY (job_id) REFERENCES jobs (id)
             ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS job_blueprints
+(
+    job_id INT        NOT NULL,
+    data   MEDIUMTEXT NOT NULL,
+    CONSTRAINT job_blueprints_pk
+        PRIMARY KEY (job_id),
+    CONSTRAINT job_blueprints_jobs_id_fk
+        FOREIGN KEY (job_id) REFERENCES jobs (id)
+            ON DELETE CASCADE
+);

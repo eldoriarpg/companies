@@ -967,6 +967,8 @@ export default {
                     digMaxVolume: 'Höchstzahl Blöcke im Bereich eines Grabe-Jobs',
                     terraformMaxVolume: 'Höchstzahl Blöcke im Bereich eines Terraform-Jobs',
                     harvestMaxVolume: 'Höchstzahl Blöcke im Feld eines Ernte-Jobs',
+                    buildMaxVolume: 'Höchstzahl Blöcke im Bereich eines Bau-Jobs',
+                    buildMatchPercent: 'Prozent eines Bauplans, die stimmen müssen, damit ein Bau-Job fertig ist',
                     maxChunks: 'Höchstzahl Chunks, die der Bereich eines Jobs berühren darf',
                     maxOpenPerOwner: 'Höchstzahl Jobs eines Spielers, die auf eine Firma warten',
                     maxDueHours: 'Höchste Stundenzahl, die eine Firma für einen Job bekommen darf',

@@ -8,10 +8,13 @@ package de.eldoria.companies.jobs.hooks;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.jobs.Blueprint;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -252,6 +255,23 @@ public final class JobHooks {
             return current.selection(player);
         } catch (LinkageError | RuntimeException e) {
             logger.log(Level.WARNING, "Could not read the selection of " + player.getName(), e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * @param file      a schematic file
+     * @param rotation  degrees to turn it clockwise seen from above
+     * @param maxVolume the most blocks its box may hold
+     * @return its blueprint, empty without WorldEdit, for a file that is no schematic, is too large or can not be read
+     */
+    public Optional<Blueprint> schematic(Path file, int rotation, int maxVolume) {
+        var current = selection;
+        if (current == null) return Optional.empty();
+        try {
+            return current.schematic(file, rotation, maxVolume);
+        } catch (IOException | LinkageError | RuntimeException e) {
+            logger.log(Level.WARNING, "Could not read the schematic " + file, e);
             return Optional.empty();
         }
     }

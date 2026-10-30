@@ -100,6 +100,9 @@ See [Jobs](../players/jobs.md).
 | `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot you stand on, from the block below your feet down `depth` blocks. |
 | `/order job terraform <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the area you selected with WorldEdit: solid up to height `y`, empty above. You pay the price and the order fee at once. |
 | `/order job terraform surface <block> <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job whose top layer must be made of `block`. |
+| `/order job schematics` | `companies.orders.jobs` | Lists the schematics of the plugin's `schematics` folder. |
+| `/order job blueprint <schematic> <rotation>` | `companies.orders.jobs` | Outlines a schematic placed where you stand, turned by 0, 90, 180 or 270 degrees, for ten seconds. |
+| `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Posts a build job of a schematic placed where you stand. You pay the price and the order fee at once. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you selected with WorldEdit. You pay the budget and the order fee at once. |
 | `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | `companies.orders.jobs` | Takes the stock of a harvest job into your inventory; what does not fit stays. |
@@ -261,6 +264,9 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job giveback <id>` | none | `manage_orders` | Gives a job back; it is open again. |
 | `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. For a contract it tells the owner the work is done; for a harvest job it ends the harvest. |
 | `/company job dispute <id> <reason>` | none | `manage_orders` | Opens a dispute about a job of the company; an admin settles it. |
+| `/company job ghosts <id>` | none | none | Shows the missing and wrong blocks of a build job of the company, one layer at a time. |
+| `/company job ghosts next <id>` / `ghosts previous <id>` | none | none | Moves the ghost blocks a layer up or down. |
+| `/company job ghosts off` | none | none | Hides the ghost blocks. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
 ### Web dashboard
 

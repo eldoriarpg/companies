@@ -1018,7 +1018,10 @@ public class Companies extends EldoPlugin {
     @Override
     public void onPluginDisable() {
         var runningJobs = jobs;
-        if (runningJobs != null) runningJobs.access().stop();
+        if (runningJobs != null) {
+            runningJobs.access().stop();
+            runningJobs.ghosts().stop();
+        }
         if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {

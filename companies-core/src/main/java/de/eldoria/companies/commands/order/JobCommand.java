@@ -17,6 +17,7 @@ import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
@@ -38,14 +39,19 @@ import net.strokkur.commands.arguments.IntArg;
 import net.strokkur.commands.arguments.StringArg;
 import net.strokkur.commands.arguments.StringArgType;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -69,6 +75,9 @@ import java.util.logging.Level;
  *     <li>{@code harvest <unit price> <budget> <hours> <title>} posts a harvest job on the field selected with
  *     WorldEdit; {@code stock <id>} lists what was harvested, {@code collect <id>} hands it over, {@code end <id>}
  *     ends the harvest early;</li>
+ *     <li>{@code schematics} lists the schematics of the plugin's {@code schematics} folder; {@code blueprint <schematic>
+ *     <rotation>} outlines one placed where the player stands; {@code build <schematic> <rotation> <price> <hours>
+ *     <title>} posts a build job of it there;</li>
  *     <li>{@code contract <price> <hours> <title>} posts a contract: work described in words, at the place the
  *     player stands;</li>
  *     <li>{@code describe <id> <text>} describes a job while it waits for a company;</li>
@@ -154,7 +163,7 @@ public final class JobCommand {
             deps.messages().sendError(player, PREFIX + "error.noSelection");
             return;
         }
-        post(player, JobKind.DIG, area.get(), price, hours, title, null, null);
+        post(player, JobKind.DIG, area.get(), price, hours, title, JobService.Details.NONE);
     }
 
     /**
@@ -205,7 +214,9 @@ public final class JobCommand {
     }
 
     private void shape(Player player, double price, int hours, JobTarget target, String title) {
-        selected(player).ifPresent(area -> post(player, JobKind.TERRAFORM, area, price, hours, title, target, null));
+        selected(player)
+                .ifPresent(area ->
+                        post(player, JobKind.TERRAFORM, area, price, hours, title, JobService.Details.shape(target)));
     }
 
     /**
@@ -226,7 +237,191 @@ public final class JobCommand {
             @IntArg(min = 1) int hours,
             @StringArg(StringArgType.GREEDY) String title) {
         var player = Senders.player(sender);
-        selected(player).ifPresent(area -> post(player, JobKind.HARVEST, area, budget, hours, title, null, unitPrice));
+        selected(player)
+                .ifPresent(area -> post(
+                        player, JobKind.HARVEST, area, budget, hours, title, JobService.Details.harvest(unitPrice)));
+    }
+
+    /**
+     * Lists the schematics build jobs may use.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("schematics")
+    public void schematics(CommandSender sender) {
+        var player = Senders.player(sender);
+        run(player, this::schematicNames, names -> {
+            if (names.isEmpty()) {
+                deps.messages().sendMessage(player, PREFIX + "schematics.none");
+                return;
+            }
+            deps.messages()
+                    .sendMessage(player, PREFIX + "schematics.list", Values.text("names", String.join(", ", names)));
+        });
+    }
+
+    /**
+     * Shows the outline a schematic covers when placed where the player stands, turned, for a few seconds.
+     *
+     * @param sender    sender of the command
+     * @param schematic name of the schematic
+     * @param rotation  degrees to turn it clockwise: 0, 90, 180 or 270
+     */
+    @Executes("blueprint")
+    public void blueprint(
+            CommandSender sender, @StringArg(StringArgType.STRING) String schematic, @IntArg int rotation) {
+        var player = Senders.player(sender);
+        var at = player.getLocation().getBlock();
+        blueprintOf(player, schematic, rotation, blueprint -> {
+            var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
+            outline(player, area);
+            deps.messages()
+                    .sendMessage(
+                            player,
+                            PREFIX + "blueprint",
+                            Values.text("schematic", schematic),
+                            Values.number("width", area.maxX() - area.minX() + 1),
+                            Values.number("height", area.maxY() - area.minY() + 1),
+                            Values.number("length", area.maxZ() - area.minZ() + 1),
+                            Values.number("blocks", blueprint.blocks()));
+        });
+    }
+
+    /**
+     * Posts a build job: a schematic placed where the player stands, turned, to be built by a company.
+     *
+     * @param sender    sender of the command
+     * @param schematic name of the schematic
+     * @param rotation  degrees to turn it clockwise: 0, 90, 180 or 270
+     * @param price     what the company is paid
+     * @param hours     how long a company has to finish
+     * @param title     title shown to companies
+     */
+    @Executes("build")
+    public void build(
+            CommandSender sender,
+            @StringArg(StringArgType.STRING) String schematic,
+            @IntArg int rotation,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        var at = player.getLocation().getBlock();
+        blueprintOf(player, schematic, rotation, blueprint -> {
+            var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
+            post(player, JobKind.BUILD, area, price, hours, title, JobService.Details.build(blueprint));
+        });
+    }
+
+    /**
+     * Reads a schematic off the main thread and hands its blueprint on to the main thread.
+     *
+     * @param player    the player asking
+     * @param schematic name of the schematic
+     * @param rotation  degrees to turn it clockwise
+     * @param then      gets the blueprint on the main thread
+     */
+    private void blueprintOf(Player player, String schematic, int rotation, Consumer<Blueprint> then) {
+        if (!jobs().hooks().selects()) {
+            deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
+            return;
+        }
+        if (rotation % 90 != 0 || rotation < 0 || rotation >= 360) {
+            deps.messages().sendError(player, PREFIX + "error.rotation");
+            return;
+        }
+        var maxVolume = deps.configuration().jobSettings().buildMaxVolume();
+        run(
+                player,
+                () -> schematicFile(schematic)
+                        .flatMap(file -> jobs().hooks().schematic(file, rotation, maxVolume))
+                        .orElseThrow(() -> CommandFailure.of(
+                                PREFIX + "error.schematic",
+                                Values.text("schematic", schematic),
+                                Values.number("max", maxVolume))),
+                blueprint -> Threading.mainThread(deps.plugin()).execute(() -> then.accept(blueprint)));
+    }
+
+    /**
+     * @return the names of the schematics in the plugin's {@code schematics} folder, without their file endings
+     */
+    private List<String> schematicNames() {
+        return schematicFiles().stream()
+                .map(file -> stripEnding(String.valueOf(file.getFileName())))
+                .sorted()
+                .toList();
+    }
+
+    /**
+     * @param name a schematic name as the player typed it
+     * @return the file of the schematic with that name in the plugin's {@code schematics} folder, ignoring case; only
+     *     files listed in the folder are found, so no name reaches outside it
+     */
+    private Optional<Path> schematicFile(String name) {
+        return schematicFiles().stream()
+                .filter(file -> stripEnding(String.valueOf(file.getFileName())).equalsIgnoreCase(name))
+                .findFirst();
+    }
+
+    private List<Path> schematicFiles() {
+        var folder = deps.plugin().getDataFolder().toPath().resolve("schematics");
+        try {
+            Files.createDirectories(folder);
+            try (var files = Files.list(folder)) {
+                return files.filter(Files::isRegularFile).toList();
+            }
+        } catch (IOException e) {
+            deps.plugin().getLogger().log(Level.WARNING, "Could not read the schematics folder " + folder, e);
+            return List.of();
+        }
+    }
+
+    private static String stripEnding(String fileName) {
+        var dot = fileName.lastIndexOf('.');
+        return dot > 0 ? fileName.substring(0, dot) : fileName;
+    }
+
+    /**
+     * Draws the edges of an area with particles only the player sees, once a second for ten seconds.
+     *
+     * @param player the player
+     * @param area   the area
+     */
+    private void outline(Player player, JobArea area) {
+        var rounds = new int[] {0};
+        deps.plugin()
+                .getServer()
+                .getScheduler()
+                .runTaskTimer(
+                        deps.plugin(),
+                        task -> {
+                            if (!player.isOnline() || rounds[0]++ >= 10) {
+                                task.cancel();
+                                return;
+                            }
+                            double minX = area.minX(), minY = area.minY(), minZ = area.minZ();
+                            double maxX = area.maxX() + 1, maxY = area.maxY() + 1, maxZ = area.maxZ() + 1;
+                            double[][] corners = {{minX, minZ}, {maxX, minZ}, {maxX, maxZ}, {minX, maxZ}};
+                            for (var i = 0; i < 4; i++) {
+                                var from = corners[i];
+                                var to = corners[(i + 1) % 4];
+                                for (var y : new double[] {minY, maxY})
+                                    edge(player, from[0], y, from[1], to[0], y, to[1]);
+                                edge(player, from[0], minY, from[1], from[0], maxY, from[1]);
+                            }
+                        },
+                        0,
+                        20);
+    }
+
+    private static void edge(Player player, double x1, double y1, double z1, double x2, double y2, double z2) {
+        var length = Math.max(Math.abs(x2 - x1), Math.max(Math.abs(y2 - y1), Math.abs(z2 - z1)));
+        var steps = (int) Math.min(256, Math.ceil(length * 2));
+        for (var i = 0; i <= steps; i++) {
+            var t = steps == 0 ? 0 : (double) i / steps;
+            player.spawnParticle(
+                    Particle.END_ROD, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, z1 + (z2 - z1) * t, 1, 0, 0, 0, 0);
+        }
     }
 
     /**
@@ -424,7 +619,7 @@ public final class JobCommand {
         var found = plot.get();
         var area = new JobArea(
                 found.world(), found.minX(), top - depth + 1, found.minZ(), found.maxX(), top, found.maxZ());
-        post(player, JobKind.DIG, area, price, hours, title, null, null);
+        post(player, JobKind.DIG, area, price, hours, title, JobService.Details.NONE);
     }
 
     /**
@@ -603,8 +798,7 @@ public final class JobCommand {
             double price,
             int hours,
             String title,
-            @Nullable JobTarget target,
-            @Nullable Double unitPrice) {
+            JobService.Details details) {
         var world = deps.plugin().getServer().getWorld(area.world());
         if (world == null || area.minY() < world.getMinHeight() || area.maxY() >= world.getMaxHeight()) {
             deps.messages()
@@ -636,18 +830,7 @@ public final class JobCommand {
                 run(
                         player,
                         () -> jobs().service()
-                                .post(
-                                        owner,
-                                        kind,
-                                        title,
-                                        price,
-                                        hours,
-                                        node,
-                                        area,
-                                        land.land(),
-                                        land.ref(),
-                                        target,
-                                        unitPrice),
+                                .post(owner, kind, title, price, hours, node, area, land.land(), land.ref(), details),
                         posted -> posted(player, kind, posted));
             }
         }
@@ -662,6 +845,7 @@ public final class JobCommand {
                             case CONTRACT -> "postedContract";
                             case TERRAFORM -> "postedTerraform";
                             case HARVEST -> "postedHarvest";
+                            case BUILD -> "postedBuild";
                             default -> "posted";
                         };
                 deps.messages()
@@ -688,7 +872,7 @@ public final class JobCommand {
     private static Number maxOf(JobService.Refusal refusal, JobKind kind, JobSettings settings) {
         return switch (refusal) {
             case VOLUME -> settings.maxVolume(kind);
-            case UNIT_PRICE -> 0;
+            case UNIT_PRICE, BLUEPRINT, STRANDED -> 0;
             case CHUNKS -> settings.maxChunks();
             case TOO_MANY -> settings.maxOpenPerOwner();
             case DUE -> settings.maxDueHours();

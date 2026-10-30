@@ -16,6 +16,8 @@ unownedWorlds: []
 digMaxVolume: 32768
 terraformMaxVolume: 32768
 harvestMaxVolume: 16384
+buildMaxVolume: 32768
+buildMatchPercent: 95
 maxChunks: 64
 maxOpenPerOwner: 5
 maxDueHours: 168
@@ -30,6 +32,8 @@ approveHours: 72
 | `digMaxVolume` | number (blocks) | `32768` | The most blocks the area of a dig job may hold. The area is checked block by block on the main thread when a company finishes it. | reload |
 | `terraformMaxVolume` | number (blocks) | `32768` | The most blocks the area of a terraform job may hold, checked like a dig job's. | reload |
 | `harvestMaxVolume` | number (blocks) | `16384` | The most blocks the field of a harvest job may hold. | reload |
+| `buildMaxVolume` | number (blocks) | `32768` | The most blocks the area of a build job may hold. | reload |
+| `buildMatchPercent` | number (percent) | `95` | The share of a blueprint's blocks that must match for a build job to be done. Only block types are compared. | reload |
 | `maxChunks` | number (chunks) | `64` | The most chunks the area of a job may touch, so a long thin area can not make the server load many chunks for each check. | reload |
 | `maxOpenPerOwner` | number | `5` | The most jobs a player may have waiting for a company at once. | reload |
 | `maxDueHours` | number (hours) | `168` | The most hours an owner may give a company to finish a job. | reload |
@@ -39,6 +43,13 @@ approveHours: 72
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of
 [company.yml](./company-yml.md).
+
+## Schematics
+
+Build jobs use the schematics in `plugins/Companies/schematics/` (any format WorldEdit reads, such as `.schem`).
+Players pick one by its file name without the ending; nothing outside the folder can be picked. Reading them needs
+WorldEdit or FastAsyncWorldEdit. A posted job keeps its own copy of the blueprint, so changing or removing a file never
+changes running jobs.
 
 ## Land and access
 

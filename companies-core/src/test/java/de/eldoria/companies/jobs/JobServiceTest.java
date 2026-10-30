@@ -22,6 +22,7 @@ import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
+import org.bukkit.Material;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -400,8 +401,7 @@ class JobServiceTest {
                         AREA,
                         JobLand.REGION,
                         "home",
-                        new JobTarget(62, null),
-                        null)));
+                        JobService.Details.shape(new JobTarget(62, null)))));
         var posted = assertInstanceOf(JobService.Posted.Done.class, terraform(new JobTarget(62, "GRASS_BLOCK")));
         assertEquals(
                 new JobTarget(62, "GRASS_BLOCK"),
@@ -412,7 +412,84 @@ class JobServiceTest {
 
     private JobService.Posted terraform(@Nullable JobTarget target) {
         return service.post(
-                owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, AREA, JobLand.REGION, "home", target, null);
+                owner,
+                JobKind.TERRAFORM,
+                "Flat",
+                100,
+                24,
+                NODE,
+                AREA,
+                JobLand.REGION,
+                "home",
+                new JobService.Details(target, null, null));
+    }
+
+    @Test
+    void aBuildJobNeedsABlueprintAndStoresIt() {
+        var blueprint = Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)));
+
+        assertEquals(
+                JobService.Refusal.BLUEPRINT,
+                refusal(service.post(owner, JobKind.BUILD, "Hut", 100, 24, NODE, AREA, JobLand.REGION, "home")));
+        assertEquals(
+                JobService.Refusal.BLUEPRINT,
+                refusal(service.post(
+                        owner,
+                        JobKind.DIG,
+                        "Pit",
+                        100,
+                        24,
+                        NODE,
+                        AREA,
+                        JobLand.REGION,
+                        "home",
+                        JobService.Details.build(blueprint))));
+        var posted = assertInstanceOf(
+                JobService.Posted.Done.class,
+                service.post(
+                        owner,
+                        JobKind.BUILD,
+                        "Hut",
+                        100,
+                        24,
+                        NODE,
+                        AREA,
+                        JobLand.REGION,
+                        "home",
+                        JobService.Details.build(blueprint)));
+
+        assertEquals(
+                1,
+                Blueprint.decode(jobs.blueprint(posted.job().id()).orElseThrow())
+                        .blocks());
+    }
+
+    @Test
+    void blueprintsAreReadAgainAfterAFailureAndForgottenWhenTheirJobEnds() {
+        var job = posted(100);
+        var blueprints = new Blueprints(jobs, Logger.getAnonymousLogger());
+        jobs.blueprint(job.id(), "not a blueprint");
+
+        assertTrue(blueprints.of(job.id()).isEmpty());
+        var built = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.post(
+                                owner,
+                                JobKind.BUILD,
+                                "Hut",
+                                100,
+                                24,
+                                NODE,
+                                new JobArea("world", 20, 60, 20, 21, 61, 21),
+                                JobLand.REGION,
+                                "home",
+                                JobService.Details.build(
+                                        Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE))))))
+                .job();
+        assertTrue(blueprints.of(built.id()).isPresent());
+        assertTrue(blueprints.known(built.id()).isPresent());
+        blueprints.prune(id -> false);
+        assertTrue(blueprints.known(built.id()).isEmpty());
     }
 
     @Test
@@ -423,7 +500,16 @@ class JobServiceTest {
         assertEquals(
                 JobService.Refusal.UNIT_PRICE,
                 refusal(service.post(
-                        owner, JobKind.DIG, "Pit", 100, 24, NODE, AREA, JobLand.REGION, "home", null, 1.0)));
+                        owner,
+                        JobKind.DIG,
+                        "Pit",
+                        100,
+                        24,
+                        NODE,
+                        AREA,
+                        JobLand.REGION,
+                        "home",
+                        JobService.Details.harvest(1.0))));
         assertEquals(1000.0, balances.get(owner), 0.001);
     }
 
@@ -523,7 +609,16 @@ class JobServiceTest {
 
     private JobService.Posted harvest(double budget, @Nullable Double unit) {
         return service.post(
-                owner, JobKind.HARVEST, "Wheat", budget, 24, NODE, AREA, JobLand.REGION, "home", null, unit);
+                owner,
+                JobKind.HARVEST,
+                "Wheat",
+                budget,
+                24,
+                NODE,
+                AREA,
+                JobLand.REGION,
+                "home",
+                new JobService.Details(null, unit, null));
     }
 
     @Test

@@ -373,6 +373,8 @@ public final class SettingsCatalogue {
         jobs.whole("digMaxVolume");
         jobs.whole("terraformMaxVolume");
         jobs.whole("harvestMaxVolume");
+        jobs.whole("buildMaxVolume");
+        jobs.whole("buildMatchPercent");
         jobs.whole("maxChunks");
         jobs.whole("maxOpenPerOwner");
         jobs.whole("maxDueHours");

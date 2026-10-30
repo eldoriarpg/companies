@@ -44,6 +44,23 @@ waiting job gives its price back to you. A job a company works on pays the compa
 and the rest of the price comes back to you. The fee is kept either way. While a company works on your job, only its
 members may place blocks or pour buckets in the area.
 
+## Build jobs
+
+A **build job** asks a company to build a schematic. The server's schematics are listed by `/order job schematics`;
+an admin puts them into the plugin's `schematics` folder. Stand where the schematic's origin should be and look at its
+outline with `/order job blueprint <schematic> <rotation>`, where `rotation` turns it clockwise by 0, 90, 180 or 270
+degrees. When it fits, post it from the same spot: `/order job build <schematic> <rotation> <price> <hours> <title>`.
+The area is the box the schematic covers there, and it must lie on your land like any other job.
+
+The job is done when enough of the schematic's blocks are in place: `buildMatchPercent` (95 % by default) in
+[jobs.yml](../admin/configuration/jobs-yml.md). Only block types count, not which way a stair faces or how a fence
+connects. Where the schematic has air, anything goes, so terrain and furniture never hold the job up.
+
+Members of the company see what is missing with `/company job ghosts <id>`: small glowing copies of the missing and wrong
+blocks of one layer, only for them, starting with the lowest layer that is not done. `/company job ghosts next <id>` and
+`/company job ghosts previous <id>` move a layer up or down, `/company job ghosts off` hides them. Placing a block the
+schematic asks for counts as work, once for each spot, and so does taking out a wrong block.
+
 ## Harvest jobs
 
 A **harvest job** keeps a field harvested for a time. Select the field with WorldEdit and post
@@ -111,6 +128,9 @@ job, which pays the company in full and ends the dispute.
 | `/order job reject <id> <reason>` | Sends a contract the company says is done back to work. |
 | `/order job dispute <id> <reason>` | Opens a dispute an admin settles. |
 | `/order job withdraw <id>` | Withdraws a dispute you opened. |
+| `/order job schematics` | Lists the schematics build jobs may use. |
+| `/order job blueprint <schematic> <rotation>` | Outlines a schematic placed where you stand for ten seconds. |
+| `/order job build <schematic> <rotation> <price> <hours> <title>` | Posts a build job of a schematic placed where you stand. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you selected with WorldEdit. |
 | `/order job stock <id>` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
@@ -135,6 +155,7 @@ Members with the *manage orders* permission run the company's jobs:
 | `/company job giveback <id>` | Gives a job back; it is open again. |
 | `/company job done <id>` | Checks the area and, when the work is done, pays the job. Run it on the server of the job's area. For a contract it tells the owner the work is done; they approve or reject it. For a harvest job it ends the harvest. |
 | `/company job dispute <id> <reason>` | Opens a dispute an admin settles. |
+| `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job, one layer at a time. Add `next` or `previous` before the id to move a layer; `/company job ghosts off` hides them. |
 | `/company job withdraw <id>` | Withdraws a dispute your company opened. |
 
 While your company has the job, its members may change the area: on a plot they are trusted, in a region a job region

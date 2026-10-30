@@ -110,6 +110,7 @@ public final class JobAccess implements Listener {
     private final Executor mainThread;
     private final Consumer<Job> landLost;
     private final Harvests harvests;
+    private final Blueprints blueprints;
     private final Logger logger;
     private final Map<Work, Integer> pending = new ConcurrentHashMap<>();
     private final Map<Work, Map<String, Integer>> harvested = new ConcurrentHashMap<>();
@@ -127,6 +128,7 @@ public final class JobAccess implements Listener {
      * @param mainThread runs the hooks on the main thread
      * @param landLost   closes a job whose land changed hands
      * @param harvests   stores and pays what a member harvested
+     * @param blueprints the blueprints of build jobs, read for taken ones at each check
      * @param logger     reports failures
      */
     public JobAccess(
@@ -137,6 +139,7 @@ public final class JobAccess implements Listener {
             Executor mainThread,
             Consumer<Job> landLost,
             Harvests harvests,
+            Blueprints blueprints,
             Logger logger) {
         this.jobs = jobs;
         this.members = members;
@@ -145,6 +148,7 @@ public final class JobAccess implements Listener {
         this.mainThread = mainThread;
         this.landLost = landLost;
         this.harvests = harvests;
+        this.blueprints = blueprints;
         this.logger = logger;
     }
 
@@ -188,7 +192,10 @@ public final class JobAccess implements Listener {
         queued.set(false);
         try {
             List<Plan> plans = new ArrayList<>();
+            Set<Integer> building = new HashSet<>();
             for (var job : jobs.access(node)) {
+                if (job.kind() == JobKind.BUILD && !job.state().closed()) building.add(job.id());
+                if (job.kind() == JobKind.BUILD && job.state() == JobState.TAKEN) blueprints.of(job.id());
                 var company = job.company();
                 var taken = job.state() == JobState.TAKEN && company != null;
                 plans.add(new Plan(
@@ -236,6 +243,7 @@ public final class JobAccess implements Listener {
             }
             for (var job : frozen) now.add(new Active(job, Set.of(), Set.of()));
             active = List.copyOf(now);
+            blueprints.prune(building::contains);
             filled.keySet()
                     .removeIf(id -> now.stream().noneMatch(entry -> entry.job().id() == id));
             placed.keySet()
@@ -369,12 +377,9 @@ public final class JobAccess implements Listener {
             var key = key(block);
             placed.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
                     .add(key);
-            var target = job.target();
             var company = job.company();
-            if (job.kind() != JobKind.TERRAFORM
-                    || target == null
-                    || company == null
-                    || !TerraformCheck.fills(block.getType(), block.getY(), target)
+            if (company == null
+                    || !fills(job, block, block.getType())
                     || !entry.members().contains(worker)) {
                 return;
             }
@@ -393,7 +398,29 @@ public final class JobAccess implements Listener {
      */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onHold(BlockBreakEvent event) {
-        if (held(event.getPlayer(), event.getBlock(), false)) event.setCancelled(true);
+        if (held(event.getPlayer(), event.getBlock(), false) || shaping(event.getPlayer(), event.getBlock())) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * @param player a player
+     * @param block  a block
+     * @return true when the block lies in the area of a taken build or terraform job the player does not work on, where
+     *     only the working company may break blocks, so nobody undoes its work; never with the bypass permission
+     */
+    private boolean shaping(Player player, Block block) {
+        var world = block.getWorld().getName();
+        for (var entry : active) {
+            var job = entry.job();
+            if ((job.kind() == JobKind.BUILD || job.kind() == JobKind.TERRAFORM)
+                    && job.state() == JobState.TAKEN
+                    && job.area().contains(world, block.getX(), block.getY(), block.getZ())
+                    && !entry.members().contains(player.getUniqueId())) {
+                return !player.hasPermission(Permission.Admin.JOBS_BYPASS);
+            }
+        }
+        return false;
     }
 
     /**
@@ -618,8 +645,7 @@ public final class JobAccess implements Listener {
             var company = entry.job().company();
             if (company == null) return;
             if (!removing(entry.job(), block)) {
-                var target = entry.job().target();
-                if (target != null && TerraformCheck.fills(block.getType(), block.getY(), target)) {
+                if (fills(entry.job(), block, block.getType())) {
                     filled.computeIfAbsent(entry.job().id(), id -> ConcurrentHashMap.newKeySet())
                             .add(key(block));
                 }
@@ -634,15 +660,45 @@ public final class JobAccess implements Listener {
      * @param job   a taken job
      * @param block a block of its area, before it is broken
      * @return whether breaking it is work the job asks for: any block of a dig job; for a terraform job one above the
-     *     target height, or one of the top layer that is not the surface block the target names
+     *     target height, or one of the top layer that is not the surface block the target names; for a build job one
+     *     where the blueprint asks for another block
      */
-    static boolean removing(Job job, Block block) {
+    private boolean removing(Job job, Block block) {
+        if (job.kind() == JobKind.BUILD) {
+            var wanted = wanted(job, block);
+            return wanted != null && block.getType() != wanted;
+        }
         var target = job.target();
         if (job.kind() != JobKind.TERRAFORM || target == null) return true;
         if (block.getY() > target.y()) return true;
         if (block.getY() < target.y()) return false;
         var surface = TerraformCheck.surface(target);
         return surface != null && block.getType() != surface;
+    }
+
+    /**
+     * @param job   a taken job
+     * @param block a block of its area
+     * @param type  the block's type
+     * @return whether the block is as the job asks at its position: as the target of a terraform job, or the type the
+     *     blueprint of a build job asks for; never for other kinds
+     */
+    private boolean fills(Job job, Block block, Material type) {
+        if (job.kind() == JobKind.BUILD) return type == wanted(job, block);
+        var target = job.target();
+        return job.kind() == JobKind.TERRAFORM && target != null && TerraformCheck.fills(type, block.getY(), target);
+    }
+
+    /**
+     * @param job   a build job
+     * @param block a block of its area
+     * @return the type the job's blueprint asks for there, null for none or a blueprint not read yet
+     */
+    private @Nullable Material wanted(Job job, Block block) {
+        return blueprints
+                .known(job.id())
+                .map(blueprint -> blueprint.at(job.area(), block.getX(), block.getY(), block.getZ()))
+                .orElse(null);
     }
 
     /**

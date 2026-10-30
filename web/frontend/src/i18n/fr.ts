@@ -967,6 +967,8 @@ export default {
                     digMaxVolume: "Nombre maximal de blocs dans la zone d'un travail de creusage",
                     terraformMaxVolume: "Nombre maximal de blocs dans la zone d'un travail de terrassement",
                     harvestMaxVolume: "Nombre maximal de blocs dans le champ d'un travail de récolte",
+                    buildMaxVolume: "Nombre maximal de blocs dans la zone d'un travail de construction",
+                    buildMatchPercent: "Pourcentage d'un plan qui doit correspondre pour qu'un travail de construction soit fini",
                     maxChunks: "Nombre maximal de chunks que la zone d'un travail peut toucher",
                     maxOpenPerOwner: "Nombre maximal de travaux d'un joueur qui attendent une entreprise",
                     maxDueHours: "Nombre maximal d'heures qu'une entreprise peut obtenir pour finir un travail",

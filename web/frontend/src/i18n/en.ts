@@ -967,6 +967,8 @@ export default {
                     digMaxVolume: 'Most blocks in the area of a dig job',
                     terraformMaxVolume: 'Most blocks in the area of a terraform job',
                     harvestMaxVolume: 'Most blocks in the field of a harvest job',
+                    buildMaxVolume: 'Most blocks in the area of a build job',
+                    buildMatchPercent: 'Percent of a blueprint that must match for a build job to be done',
                     maxChunks: 'Most chunks the area of a job may touch',
                     maxOpenPerOwner: 'Most jobs a player may have waiting for a company',
                     maxDueHours: 'Most hours a company may get to finish a job',

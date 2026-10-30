@@ -91,6 +91,7 @@ class JobAccessTest {
                 Runnable::run,
                 lost::add,
                 (job, company, worker, items) -> harvests.add(job + " " + worker + " " + items),
+                new Blueprints(jobs, Logger.getAnonymousLogger()),
                 Logger.getAnonymousLogger());
     }
 
@@ -364,6 +365,49 @@ class JobAccessTest {
 
         assertEquals(List.of(id + " " + worker.getUniqueId() + " {BAMBOO=4}"), harvests);
         assertEquals(Material.BAMBOO, world.getBlockAt(1, 65, 1).getType());
+    }
+
+    @Test
+    void buildWorkCountsBlocksPlacedAsTheBlueprintAsksAndWrongBlocksTakenOut() {
+        var worker = server.addPlayer();
+        var area = new JobArea("world", 0, 60, 0, 1, 60, 0);
+        var id = jobs.create(Job.draft(
+                        UUID.randomUUID(),
+                        JobKind.BUILD,
+                        "Wall",
+                        100,
+                        5,
+                        NODE,
+                        area,
+                        JobLand.PLOT,
+                        "1;1",
+                        24,
+                        NOW,
+                        NOW.plusDays(7)))
+                .orElseThrow();
+        jobs.blueprint(
+                id,
+                Blueprint.of(List.of(
+                                new Blueprint.Cell(0, 0, 0, Material.STONE),
+                                new Blueprint.Cell(1, 0, 0, Material.STONE)))
+                        .encode());
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        world.getBlockAt(1, 60, 0).setType(Material.DIRT);
+
+        place(worker, world.getBlockAt(0, 60, 0), Material.STONE);
+        breakBlock(worker, world.getBlockAt(0, 60, 0));
+        place(worker, world.getBlockAt(0, 60, 0), Material.STONE);
+        breakBlock(worker, world.getBlockAt(1, 60, 0));
+        place(worker, world.getBlockAt(1, 60, 0), Material.GLASS);
+        sync.flush();
+
+        assertEquals(Map.of(worker.getUniqueId(), 2), jobs.workOf(id));
+        var owner = server.addPlayer();
+        var undo = new BlockBreakEvent(world.getBlockAt(0, 60, 0), owner);
+        sync.onHold(undo);
+        assertTrue(undo.isCancelled());
     }
 
     private int harvestJob() {

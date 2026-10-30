@@ -340,6 +340,15 @@ public abstract class JobDataContract {
     }
 
     @Test
+    void theBlueprintOfABuildJobIsStoredOnce() {
+        var id = created(JobKind.BUILD, NOW.plusDays(7));
+
+        assertTrue(jobs.blueprint(id).isEmpty());
+        assertTrue(jobs.blueprint(id, "H4sI"));
+        assertEquals("H4sI", jobs.blueprint(id).orElseThrow());
+    }
+
+    @Test
     void contractsHaveNoLandAndOverlapNothing() {
         var contract = created(JobKind.CONTRACT, NOW.plusDays(7));
         var dig = created(NOW.plusDays(7));

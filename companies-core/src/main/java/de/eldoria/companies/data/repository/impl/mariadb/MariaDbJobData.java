@@ -607,6 +607,22 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
+    public boolean blueprint(int job, String data) {
+        return query("INSERT INTO job_blueprints(job_id, data) VALUES (?, ?)")
+                .single(call().bind(job).bind(data))
+                .insert()
+                .changed();
+    }
+
+    @Override
+    public Optional<String> blueprint(int job) {
+        return query("SELECT data FROM job_blueprints WHERE job_id = ?")
+                .single(call().bind(job))
+                .map(row -> row.getString("data"))
+                .first();
+    }
+
+    @Override
     public Map<String, Integer> stock(int job) {
         Map<String, Integer> stock = new LinkedHashMap<>();
         query("SELECT material, amount FROM job_stock WHERE job_id = ? AND amount > 0 ORDER BY material")
