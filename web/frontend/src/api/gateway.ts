@@ -1105,6 +1105,89 @@ export interface CompanyName {
     company: string
 }
 
+/** The kind of a job. */
+export type JobKind = 'dig' | 'terraform' | 'harvest' | 'build' | 'contract'
+
+/** Where a job is in its life. */
+export type JobState = 'open' | 'taken' | 'done' | 'disputed' | 'paid' | 'settled' | 'cancelled' | 'expired'
+
+/** A job as the Jobs page lists it. The owner is never named to companies, the company never to the owner. */
+export interface JobRow {
+    id: number
+    kind: JobKind
+    state: JobState
+    title: string
+    /** The price, the budget of a harvest job. */
+    price: number
+    fee: number
+    /** When the company's time runs out, as an ISO instant; none while nobody holds the job. */
+    due?: string | null
+    expires?: string | null
+    /** The blocks of the area; 0 for a contract. */
+    blocks: number
+    world?: string | null
+    center?: string | null
+    unitPrice?: number | null
+    paid?: number | null
+    /** Whether the player owns it. */
+    mine: boolean
+    /** Whether the player's company holds it. */
+    ours: boolean
+}
+
+/** The lists of the Jobs page. */
+export interface JobList {
+    open: JobRow[]
+    mine: JobRow[]
+    company: JobRow[]
+    inCompany: boolean
+    canManage: boolean
+    canPost: boolean
+}
+
+/** A job with what its page shows. */
+export interface JobDetails {
+    job: JobRow
+    description?: string | null
+    rejected?: string | null
+    dispute?: string | null
+    disputeByOwner: boolean
+    settled?: number | null
+    approveAt?: string | null
+    targetY?: number | null
+    surface?: string | null
+    /** The stock of the player's harvest job, as amounts by material name. */
+    stock: Record<string, number>
+    canManage: boolean
+    /** Whether the player's company may take the job: it is open and nobody of the company owns it. */
+    takeable: boolean
+}
+
+/** A job an action names. */
+export interface JobRef {
+    job: number
+}
+
+/** A disputed job as admins see it. */
+export interface DisputeRow {
+    id: number
+    kind: JobKind
+    title: string
+    description?: string | null
+    price: number
+    owner: string
+    company?: string | null
+    openedBy?: string | null
+    byOwner: boolean
+    reason?: string | null
+    due?: string | null
+    disputedAt?: string | null
+    overdue: boolean
+    world?: string | null
+    center?: string | null
+    work: number
+}
+
 /** The read actions of the dashboard with their arguments and the `data` of their answer. */
 export interface ReadActions {
     'orders.browse.search': {args: OrderSearchArgs, result: OrderSearchPage}
@@ -1122,6 +1205,8 @@ export interface ReadActions {
     'orders.create.quote': {args: OrderCreateArgs, result: OrderQuote}
     'events.list': {args: Record<string, never>, result: EventList}
     'events.info': {args: OfferRef, result: EventDetails}
+    'jobs.list': {args: Record<string, never>, result: JobList}
+    'jobs.info': {args: JobRef, result: JobDetails}
 }
 
 /** The name of a read action. */
@@ -1184,6 +1269,19 @@ export interface WriteActions {
     }
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'events.join': {args: OfferRef, result: EventDetails}
+    'jobs.contract': {args: {title: string, description: string, price: number, hours: number}, result: JobDetails}
+    'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
+    'jobs.approve': {args: JobRef, result: JobDetails}
+    'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
+    'jobs.dispute': {args: JobRef & {reason: string}, result: JobDetails}
+    'jobs.withdraw': {args: JobRef, result: JobDetails}
+    'jobs.cancel': {args: JobRef, result: JobDetails}
+    'jobs.end': {args: JobRef, result: JobDetails}
+    'jobs.take': {args: JobRef, result: JobDetails}
+    'jobs.giveback': {args: JobRef, result: JobDetails}
+    'jobs.done': {args: JobRef, result: JobDetails}
+    'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
+    'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}
     'admin.offers.list': {args: Record<string, never>, result: {offers: AdminOfferRow[]}}
     'admin.offers.info': {args: OfferRef, result: AdminOffer}

@@ -62,6 +62,15 @@ an exact item are not part of them.
 An item or a day with fewer delivered orders than the server's minimum shows no price, and such days do not count
 towards a change, so no single order can be traced back to the player who placed it.
 
+## Jobs
+
+Where the server offers [jobs](jobs.md), the **Jobs** page lists the jobs your company holds, the open jobs companies
+may take, and your own jobs. Open one to see its price, place, time and what happened to it, and to take the steps you
+may take, as the commands allow them. You can post a **contract** here: a title, a description, a price and the hours
+a company gets to finish it. Jobs in an area (dig, terraform, harvest, build) need a selection in the world and are
+posted in game; dig, terraform and build jobs are also finished in game, where their area is checked. The owner of a job
+is never named to companies, and the company working on your job is never named to you.
+
 ## Events
 
 Where the server runs [event offers](event-offers.md), the **Events** page lists the goals and contests that run, are
@@ -110,6 +119,9 @@ game. When the server refuses, the dashboard shows its reason.
 | Company | Rename the company, paid by you or from the treasury; the dashboard shows the price first (owner only) | `/company rename <name>` |
 | Company | Pay into the treasury, take money out, set the share of payouts it keeps (needs *treasury*) | `/company bank deposit`, `withdraw`, `share` |
 | Events | Let your company join a contest or leave it (needs *manage orders*) | `/company contest join <id>`, `leave <id>` |
+| Jobs | Post a contract; its price and the fee are taken at once | `/order job contract`, `describe` |
+| Jobs | Describe or cancel your waiting job, approve, reject or dispute work, withdraw your dispute, end your harvest | `/order job describe`, `cancel`, `approve`, `reject`, `dispute`, `withdraw`, `end` |
+| Jobs | Take a job for your company, give it back, say a contract is done, end a harvest, dispute or withdraw (needs *manage orders*) | `/company job take`, `giveback`, `done`, `dispute`, `withdraw` |
 
 A server owner can switch single parts of the dashboard off; their buttons then do not appear.
 

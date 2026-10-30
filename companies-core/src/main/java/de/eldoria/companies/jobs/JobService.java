@@ -199,6 +199,7 @@ public final class JobService {
         var target = details.target();
         var unitPrice = details.unitPrice();
         var blueprint = details.blueprint();
+        var description = details.description();
         var current = settings.get();
         if (!current.enabled()) return new Posted.Refused(Refusal.DISABLED);
         if ((kind == JobKind.BUILD) != (blueprint != null)) return new Posted.Refused(Refusal.BLUEPRINT);
@@ -212,6 +213,9 @@ public final class JobService {
         }
         var name = title.strip();
         if (name.isEmpty() || name.length() > Job.MAX_TITLE) return new Posted.Refused(Refusal.TITLE);
+        if (description != null && description.length() > Job.MAX_DESCRIPTION) {
+            return new Posted.Refused(Refusal.DESCRIPTION);
+        }
         var rounded = cents(price);
         if (!(rounded >= MIN_PRICE) || rounded > MAX_PRICE) return new Posted.Refused(Refusal.PRICE);
         if (dueHours < 1 || dueHours > current.maxDueHours()) return new Posted.Refused(Refusal.DUE);
@@ -237,7 +241,8 @@ public final class JobService {
                         now,
                         now.plusDays(current.openDays()))
                 .withTarget(target)
-                .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0));
+                .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
+                .withDescription(description);
         Optional<Integer> id;
         try {
             id = jobs.create(draft);
@@ -272,25 +277,27 @@ public final class JobService {
     /**
      * What a kind of job asks for besides its area.
      *
-     * @param target    the shape a terraform job asks for, its height within the area
-     * @param unitPrice what a harvest job pays for each item, at most its price, which is its budget
-     * @param blueprint what a build job asks to build, placed on its area
+     * @param target      the shape a terraform job asks for, its height within the area
+     * @param unitPrice   what a harvest job pays for each item, at most its price, which is its budget
+     * @param blueprint   what a build job asks to build, placed on its area
+     * @param description what the owner writes about the job, stored with it so no company takes it without
      */
     public record Details(
             @Nullable JobTarget target,
             @Nullable Double unitPrice,
-            @Nullable Blueprint blueprint) {
+            @Nullable Blueprint blueprint,
+            @Nullable String description) {
         /**
          * Nothing besides the area: a dig job or a contract.
          */
-        public static final Details NONE = new Details(null, null, null);
+        public static final Details NONE = new Details(null, null, null, null);
 
         /**
          * @param target the shape a terraform job asks for
          * @return the details of a terraform job
          */
         public static Details shape(JobTarget target) {
-            return new Details(target, null, null);
+            return new Details(target, null, null, null);
         }
 
         /**
@@ -298,7 +305,7 @@ public final class JobService {
          * @return the details of a harvest job
          */
         public static Details harvest(double unitPrice) {
-            return new Details(null, unitPrice, null);
+            return new Details(null, unitPrice, null, null);
         }
 
         /**
@@ -306,7 +313,16 @@ public final class JobService {
          * @return the details of a build job
          */
         public static Details build(Blueprint blueprint) {
-            return new Details(null, null, blueprint);
+            return new Details(null, null, blueprint, null);
+        }
+
+        /**
+         * @param description what the owner writes about a contract, blank for nothing
+         * @return the details of a contract
+         */
+        public static Details contract(String description) {
+            var text = description.strip();
+            return new Details(null, null, null, text.isEmpty() ? null : text);
         }
     }
 
@@ -1293,6 +1309,10 @@ public final class JobService {
          * A build job has no blueprint, or another kind has one.
          */
         BLUEPRINT,
+        /**
+         * The description is too long.
+         */
+        DESCRIPTION,
         /**
          * A build job was stored and taken, but its blueprint could not be stored; its money stays held for an admin.
          */

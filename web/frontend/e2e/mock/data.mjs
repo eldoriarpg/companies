@@ -45,6 +45,12 @@ export const SESSIONS = {
             return [...FEATURES, 'events']
         },
     },
+    JOBS01: {
+        version: SUPPORTED,
+        get features() {
+            return [...FEATURES, 'jobs']
+        },
+    },
     DEPR01: {
         version: {
             status: 'DEPRECATED',

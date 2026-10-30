@@ -872,6 +872,7 @@ public final class JobCommand {
     private static Number maxOf(JobService.Refusal refusal, JobKind kind, JobSettings settings) {
         return switch (refusal) {
             case VOLUME -> settings.maxVolume(kind);
+            case DESCRIPTION -> Job.MAX_DESCRIPTION;
             case UNIT_PRICE, BLUEPRINT, STRANDED -> 0;
             case CHUNKS -> settings.maxChunks();
             case TOO_MANY -> settings.maxOpenPerOwner();
@@ -920,7 +921,7 @@ public final class JobCommand {
                     Values.text("center", job.area().center()),
                     Values.number("blocks", job.area().volume()),
                     Values.component("land", land(player, job)));
-        } else {
+        } else if (!job.area().world().isEmpty()) {
             messages.sendMessage(
                     player,
                     PREFIX + "info.place",

@@ -182,6 +182,17 @@ public final class Features {
     /**
      * Every feature name of this version.
      */
+    /**
+     * Post contracts and see, approve, reject, dispute and cancel the player's jobs; take, give back and finish the
+     * company's jobs.
+     */
+    public static final String JOBS = "jobs";
+
+    /**
+     * List and settle disputes about jobs.
+     */
+    public static final String ADMIN_JOBS = "admin.jobs";
+
     public static final List<String> ALL = List.of(
             ORDERS_BROWSE,
             ORDERS_ACCEPT,
@@ -211,7 +222,9 @@ public final class Features {
             ORDERS_SERVER_MARKS,
             EVENTS,
             ADMIN_OFFERS,
-            ADMIN_EVENTS);
+            ADMIN_EVENTS,
+            JOBS,
+            ADMIN_JOBS);
 
     private Features() {}
 }

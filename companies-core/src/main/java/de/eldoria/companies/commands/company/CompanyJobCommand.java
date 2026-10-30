@@ -457,11 +457,13 @@ public final class CompanyJobCommand {
             messages.sendMessage(player, PREFIX + "info.description", Values.text("description", description));
         }
         if (!job.kind().area()) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.place",
-                    Values.text("world", job.area().world()),
-                    Values.text("center", job.area().center()));
+            if (!job.area().world().isEmpty()) {
+                messages.sendMessage(
+                        player,
+                        PREFIX + "info.place",
+                        Values.text("world", job.area().world()),
+                        Values.text("center", job.area().center()));
+            }
         } else {
             messages.sendMessage(
                     player,

@@ -919,7 +919,8 @@ public class Companies extends EldoPlugin {
                                 () -> commands.services().offers().checkSoon(),
                                 commands.services().serverEventData(),
                                 commands.services().serverEvents(),
-                                () -> configuration.economySettings().collectorAccount())),
+                                () -> configuration.economySettings().collectorAccount()),
+                        () -> jobs),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

@@ -109,6 +109,7 @@ dashboard:
     rankings: true
     market: true
     events: true
+    jobs: true
   branding:
     name: ''
     icon: server-icon.png
@@ -120,7 +121,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market`, `events` (the Events page and the event badge, filter and sorting of the order book) and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config`, `admin.settings`, `admin.setup`, `admin.systemorders`, `admin.offers` and `admin.events`. `orders.receive` is listed for older dashboards and has no effect; receiving belongs to `orders.deliver`. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market`, `events` (the Events page and the event badge, filter and sorting of the order book), `jobs` (the Jobs page) and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config`, `admin.settings`, `admin.setup`, `admin.systemorders`, `admin.offers`, `admin.events` and `admin.jobs`. `orders.receive` is listed for older dashboards and has no effect; receiving belongs to `orders.deliver`. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is each server's own `server-icon.png`. On a network you can instead upload one icon in the Settings tab, which every server then shows. |
 
@@ -180,6 +181,7 @@ it.
 | Server events | List the 50 newest [server events](./admin-commands.md#server-events) with their effect and times. Open one to see its scope, its money (minted or the paying account, what it spent and its budget), who created it or the template of `events.yml`, who closed it (the primary's `#missed` and `#template` named in words), and the event offers that belong to it. | `companies.admin.events` | `/companyadmin event list`, `info` |
 | Server events | Create an event in a form with the fields of `/companyadmin event create`: name, kind, value, materials, company levels, start, end, and for a reward multiplier its money and budget. The plugin reads it as the command's form does and shows its refusal. | `companies.admin.events` | `/companyadmin event create` |
 | Server events | End a running event, cancel a waiting or running one (cancelling asks once more), extend it by a duration, and set or remove the budget of a reward multiplier. | `companies.admin.events` | `/companyadmin event end`, `cancel`, `extend`, `budget` |
+| Disputes | List the disputed [jobs](../players/jobs.md#disputes) with both sides, who opened the dispute and why, the company's time and whether it had run out, and the work counted in an area; settle one with a percent of the price for the company. Settling is written to the admin log. | `companies.admin.jobs` | `/companyadmin job disputes`, `settle` |
 | Servers | Sync the configuration from the primary, after asking once more. Only the primary does it; while it is not connected, the button answers that the server is offline. The dashboard reconnects for a moment. | `companies.admin` | `/companyadmin syncconfiguration` |
 
 While `markSystemOrders` in [system-orders.yml](./configuration/system-orders-yml.md) is on, the order book shows a
@@ -189,7 +191,7 @@ badge and chips off the dashboard while the game still marks the orders.
 
 Switch a tab off with `dashboard.features` like any other part: set `admin.orders`, `admin.players`,
 `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config`, `admin.settings`, `admin.setup` or
-`admin.systemorders`, `admin.offers` or `admin.events` to `false`. The server picker shows
+`admin.systemorders`, `admin.offers`, `admin.events` or `admin.jobs` to `false`. The server picker shows
 the `name` from [node.yml](./configuration/node-yml.md), or the role and the start of the `nodeUid`.
 
 ## Several servers

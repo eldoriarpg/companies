@@ -66,7 +66,7 @@ public final class DashboardWrites {
      * Every action this version performs, including those of {@link CompanyWrites}, {@link ItemWrites},
      * {@link OrderCreateWrites}, {@link AdminOrderWrites}, {@link AdminSupportWrites}, {@link AdminLevelWrites},
      * {@link AdminServerWrites}, {@link AdminSettingsWrites}, {@link AdminSystemOrderWrites}, {@link EventWrites},
-     * {@link AdminOfferWrites} and {@link AdminEventWrites}.
+     * {@link AdminOfferWrites}, {@link AdminEventWrites}, {@link JobWrites} and {@link AdminJobWrites}.
      */
     public static final Set<String> ACTIONS = Stream.of(
                     OWN_ACTIONS,
@@ -81,7 +81,9 @@ public final class DashboardWrites {
                     AdminSystemOrderWrites.ACTIONS,
                     EventWrites.ACTIONS,
                     AdminOfferWrites.ACTIONS,
-                    AdminEventWrites.ACTIONS)
+                    AdminEventWrites.ACTIONS,
+                    JobWrites.ACTIONS,
+                    AdminJobWrites.ACTIONS)
             .flatMap(Set::stream)
             .collect(Collectors.toUnmodifiableSet());
 
@@ -97,6 +99,8 @@ public final class DashboardWrites {
     private final EventWrites events;
     private final AdminOfferWrites adminOffers;
     private final AdminEventWrites adminEvents;
+    private final JobWrites jobs;
+    private final AdminJobWrites adminJobs;
     private final OrderCreateWrites create;
     private final Answers answers;
 
@@ -114,6 +118,8 @@ public final class DashboardWrites {
      * @param events the Events page of players
      * @param adminOffers the admin tools for event offers
      * @param adminEvents the admin tools for server events
+     * @param jobs the Jobs page of players
+     * @param adminJobs the admin tools for disputes about jobs
      */
     public DashboardWrites(
             Sources sources,
@@ -128,8 +134,12 @@ public final class DashboardWrites {
             AdminSystemOrderWrites adminSystemOrders,
             EventWrites events,
             AdminOfferWrites adminOffers,
-            AdminEventWrites adminEvents) {
+            AdminEventWrites adminEvents,
+            JobWrites jobs,
+            AdminJobWrites adminJobs) {
         this.sources = sources;
+        this.jobs = jobs;
+        this.adminJobs = adminJobs;
         this.adminEvents = adminEvents;
         this.company = company;
         this.items = items;
@@ -184,6 +194,8 @@ public final class DashboardWrites {
         if (EventWrites.ACTIONS.contains(request.name())) return events.perform(request, session, args);
         if (AdminOfferWrites.ACTIONS.contains(request.name())) return adminOffers.perform(request, session, args);
         if (AdminEventWrites.ACTIONS.contains(request.name())) return adminEvents.perform(request, session, args);
+        if (JobWrites.ACTIONS.contains(request.name())) return jobs.perform(request, session, args);
+        if (AdminJobWrites.ACTIONS.contains(request.name())) return adminJobs.perform(request, session, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));

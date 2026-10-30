@@ -202,6 +202,38 @@ public record Job(
     }
 
     /**
+     * @param description what the owner writes about the job, null for nothing
+     * @return the job with that description
+     */
+    public Job withDescription(@Nullable String description) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target,
+                harvest);
+    }
+
+    /**
      * @param harvest the item price of a harvest job
      * @return the job with that price
      */

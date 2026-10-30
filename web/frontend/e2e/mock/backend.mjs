@@ -340,7 +340,7 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup', 'admin.systemorders', 'admin.offers', 'admin.events']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup', 'admin.systemorders', 'admin.offers', 'admin.events', 'admin.jobs']
         : session.story.features ?? FEATURES
     const nodes = admin ? [{uid: PRIMARY_NODE, role: 'PRIMARY', name: 'survival'}, {uid: SECONDARY_NODE, role: 'SECONDARY'}] : []
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin, nodes}
@@ -602,6 +602,118 @@ function levels(state) {
 }
 
 /**
+ * The jobs of the mock server: an open contract, a dig job the player's company works on and a contract of the player
+ * that waits for their approval.
+ *
+ * @param state the session's state, which keeps the jobs as they change
+ * @returns the jobs by id
+ */
+function jobsOf(state) {
+    state.jobs ??= {
+        11: {id: 11, kind: 'contract', state: 'open', title: 'Paint the barn', price: 120, fee: 6, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: false, ours: false, description: 'Red, with white trim.'},
+        12: {id: 12, kind: 'dig', state: 'taken', title: 'Cellar', price: 300, fee: 15, due: '2026-11-01T12:00:00Z', blocks: 250, world: 'world', center: '10 60 -4', mine: false, ours: true},
+        13: {id: 13, kind: 'contract', state: 'done', title: 'Fence the field', price: 80, fee: 4, due: '2026-11-02T12:00:00Z', blocks: 0, mine: true, ours: false},
+    }
+    return state.jobs
+}
+
+/**
+ * @param job a job of the mock server
+ * @returns the job as the Jobs page lists it
+ */
+function jobRow(job) {
+    const row = {...job}
+    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected']) delete row[field]
+    return row
+}
+
+/**
+ * @param job a job of the mock server
+ * @returns the job with what its page shows
+ */
+function jobDetails(job) {
+    return {
+        job: jobRow(job),
+        description: job.description ?? null,
+        rejected: job.rejected ?? null,
+        dispute: job.dispute ?? null,
+        disputeByOwner: job.disputeByOwner ?? false,
+        settled: null,
+        approveAt: job.state === 'done' ? '2026-11-05T12:00:00Z' : null,
+        stock: {},
+        canManage: true,
+        takeable: job.state === 'open' && !job.mine,
+    }
+}
+
+/**
+ * @param state the session's state
+ * @returns the lists of the Jobs page
+ */
+function jobList(state) {
+    const all = Object.values(jobsOf(state))
+    return {
+        open: all.filter(job => job.state === 'open' && !job.mine).map(jobRow),
+        mine: all.filter(job => job.mine).map(jobRow),
+        company: all.filter(job => job.ours).map(jobRow),
+        inCompany: true,
+        canManage: true,
+        canPost: true,
+    }
+}
+
+/** The state each step of a job leads to. */
+const JOB_STEPS = {
+    'jobs.take': {from: ['open'], to: 'taken', ours: true},
+    'jobs.done': {from: ['taken'], to: 'done'},
+    'jobs.approve': {from: ['taken', 'done', 'disputed'], to: 'paid'},
+    'jobs.reject': {from: ['done'], to: 'taken'},
+    'jobs.dispute': {from: ['taken', 'done'], to: 'disputed'},
+    'jobs.withdraw': {from: ['disputed'], to: 'taken'},
+    'jobs.cancel': {from: ['open'], to: 'cancelled'},
+    'jobs.giveback': {from: ['taken', 'done'], to: 'open', ours: false},
+    'jobs.end': {from: ['taken'], to: 'paid'},
+    'jobs.describe': {from: ['open'], to: 'open'},
+}
+
+/**
+ * Moves a job of the mock server a step on, as the plugin would.
+ *
+ * @param state the session's state
+ * @param name the step's action
+ * @param args its arguments
+ * @param done answers the job afterwards
+ * @param refused answers a refusal
+ * @returns the answer
+ */
+function jobStep(state, name, args, done, refused) {
+    const job = jobsOf(state)[args.job]
+    const step = JOB_STEPS[name]
+    if (!job || !step.from.includes(job.state)) return refused(`Job #${args.job} is not open anymore.`)
+    job.state = step.to
+    if (step.ours !== undefined) job.ours = step.ours
+    if (name === 'jobs.reject') job.rejected = args.reason
+    if (name === 'jobs.dispute') {
+        job.dispute = args.reason
+        job.disputeByOwner = job.mine
+    }
+    if (name === 'jobs.describe') job.description = args.text
+    return done(jobDetails(job))
+}
+
+/**
+ * @param state the session's state
+ * @returns the disputed jobs an admin sees
+ */
+function disputes(state) {
+    state.disputes ??= [{
+        id: 31, kind: 'contract', title: 'Stable', description: 'Room for six horses.', price: 400, owner: 'Orla', company: 'Stonebridge Builders',
+        openedBy: 'Orla', byOwner: true, reason: 'Nothing was built.', due: '2026-11-01T12:00:00Z', disputedAt: '2026-10-30T12:00:00Z', overdue: false, work: 0,
+    }]
+    return state.disputes
+}
+
+/**
  * The answer to an action. Accepting order 3 is refused as the plugin words it; every other action succeeds.
  *
  * @param name the action
@@ -707,6 +819,32 @@ function action(name, args, state, story = {}) {
         case 'events.leave':
             state.joinedContest = false
             return done(eventDetails(state, CONTEST))
+        case 'jobs.list':
+            return done(jobList(state))
+        case 'jobs.info':
+            return jobsOf(state)[args.job] ? done(jobDetails(jobsOf(state)[args.job])) : refused(`There is no job #${args.job}.`)
+        case 'jobs.contract': {
+            const id = 20
+            jobsOf(state)[id] = {id, kind: 'contract', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: true, ours: false, description: args.description}
+            return done(jobDetails(jobsOf(state)[id]))
+        }
+        case 'jobs.take':
+        case 'jobs.done':
+        case 'jobs.approve':
+        case 'jobs.reject':
+        case 'jobs.dispute':
+        case 'jobs.withdraw':
+        case 'jobs.cancel':
+        case 'jobs.giveback':
+        case 'jobs.end':
+        case 'jobs.describe':
+            return jobStep(state, name, args, done, refused)
+        case 'admin.jobs.disputes':
+            return done({disputes: disputes(state)})
+        case 'admin.jobs.settle':
+            if (args.percent < 0 || args.percent > 100) return refused('The share must be between 0 and 100.')
+            state.disputes = disputes(state).filter(dispute => dispute.id !== args.job)
+            return done({disputes: state.disputes})
         case 'admin.offers.list':
             return done({offers: Object.values(adminOffers(state)).sort((a, b) => b.id - a.id).map(adminOfferRow)})
         case 'admin.offers.info':

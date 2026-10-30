@@ -17,6 +17,7 @@ import BottomSheet from '@/components/feedback/BottomSheet.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import ViewContent from '@/components/layout/ViewContent.vue'
 import MutedText from '@/components/typography/MutedText.vue'
+import RowTitle from '@/components/typography/RowTitle.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import EventDetail from './eventsview/EventDetail.vue'
 import {orderIdOf} from '~/composables/useSelection'
@@ -99,7 +100,7 @@ function scopeOf(event: {materials: string[], levels: number[]}): string {
                 <ItemMark :item="{material: offerMaterial(offer.item.icon), name: offer.item.name}"/>
                 <span class="flex min-w-0 grow flex-col gap-0.5">
                   <span class="flex min-w-0 items-center gap-1.5">
-                    <span class="truncate text-sm font-semibold">{{ offer.name }}</span>
+                    <RowTitle>{{ offer.name }}</RowTitle>
                     <PrimaryBadge>{{ t(`events.kind.${offer.kind}`) }}</PrimaryBadge>
                     <SecondaryBadge v-if="offer.state !== 'active'">{{ t(`events.state.${offer.state}`) }}</SecondaryBadge>
                   </span>

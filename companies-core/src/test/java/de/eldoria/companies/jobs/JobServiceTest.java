@@ -421,7 +421,7 @@ class JobServiceTest {
                 AREA,
                 JobLand.REGION,
                 "home",
-                new JobService.Details(target, null, null));
+                new JobService.Details(target, null, null, null));
     }
 
     @Test
@@ -618,7 +618,7 @@ class JobServiceTest {
                 AREA,
                 JobLand.REGION,
                 "home",
-                new JobService.Details(null, unit, null));
+                new JobService.Details(null, unit, null, null));
     }
 
     @Test
