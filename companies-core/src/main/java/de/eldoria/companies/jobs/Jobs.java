@@ -11,6 +11,7 @@ import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.jobs.hooks.JobHooks;
@@ -168,6 +169,13 @@ public final class Jobs {
                                 yield NotificationType.MY_JOB_DISPUTED;
                             }
                             case WITHDRAWN -> NotificationType.MY_JOB_WITHDRAWN;
+                            case HARVEST_ENDED -> {
+                                if (detail instanceof JobService.Harvested harvested) {
+                                    args.money("amount", economy.format(harvested.back()))
+                                            .number("items", harvested.stocked());
+                                }
+                                yield NotificationType.MY_JOB_HARVEST_ENDED;
+                            }
                             case SETTLED -> {
                                 if (detail instanceof Double amount) args.money("amount", economy.format(amount));
                                 yield NotificationType.MY_JOB_SETTLED;
@@ -263,7 +271,10 @@ public final class Jobs {
                 hooks,
                 node,
                 mainThread,
-                job -> service.landLost(job, job.state() == JobState.TAKEN ? checked(progress, job) : null),
+                job -> service.landLost(
+                        job,
+                        job.state() == JobState.TAKEN && job.kind() != JobKind.HARVEST ? checked(progress, job) : null),
+                service::harvested,
                 plugin.getLogger());
         plugin.getServer().getPluginManager().registerEvents(access, plugin);
         plugin.getServer().getPluginManager().registerEvents(new Disbands(service, access, plugin), plugin);
@@ -286,9 +297,7 @@ public final class Jobs {
                 () -> {
                     try {
                         var check = services.service().check();
-                        if (!check.expired().isEmpty()
-                                || !check.reopened().isEmpty()
-                                || !check.approved().isEmpty()) {
+                        if (check.changed()) {
                             services.access().checkSoon();
                         }
                     } catch (RuntimeException e) {

@@ -37,13 +37,17 @@ import net.strokkur.commands.arguments.DoubleArg;
 import net.strokkur.commands.arguments.IntArg;
 import net.strokkur.commands.arguments.StringArg;
 import net.strokkur.commands.arguments.StringArgType;
+import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +66,9 @@ import java.util.logging.Level;
  *     <li>{@code terraform <price> <hours> <y> <title>} posts a terraform job on the area selected with WorldEdit:
  *     every column solid up to {@code y} and empty above it; {@code terraform surface <block> ...} also asks for the
  *     top layer to be made of {@code block};</li>
+ *     <li>{@code harvest <unit price> <budget> <hours> <title>} posts a harvest job on the field selected with
+ *     WorldEdit; {@code stock <id>} lists what was harvested, {@code collect <id>} hands it over, {@code end <id>}
+ *     ends the harvest early;</li>
  *     <li>{@code contract <price> <hours> <title>} posts a contract: work described in words, at the place the
  *     player stands;</li>
  *     <li>{@code describe <id> <text>} describes a job while it waits for a company;</li>
@@ -147,7 +154,7 @@ public final class JobCommand {
             deps.messages().sendError(player, PREFIX + "error.noSelection");
             return;
         }
-        post(player, JobKind.DIG, area.get(), price, hours, title, null);
+        post(player, JobKind.DIG, area.get(), price, hours, title, null, null);
     }
 
     /**
@@ -198,17 +205,197 @@ public final class JobCommand {
     }
 
     private void shape(Player player, double price, int hours, JobTarget target, String title) {
+        selected(player).ifPresent(area -> post(player, JobKind.TERRAFORM, area, price, hours, title, target, null));
+    }
+
+    /**
+     * Posts a harvest job on the field the player selected with WorldEdit: the company harvests it for a time and is
+     * paid for each item it puts into the stock, out of the budget.
+     *
+     * @param sender    sender of the command
+     * @param unitPrice what the company gets for each item
+     * @param budget    what the company may be paid in all
+     * @param hours     how long the company harvests once it took the job
+     * @param title     title shown to companies
+     */
+    @Executes("harvest")
+    public void harvest(
+            CommandSender sender,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double unitPrice,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double budget,
+            @IntArg(min = 1) int hours,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        selected(player).ifPresent(area -> post(player, JobKind.HARVEST, area, budget, hours, title, null, unitPrice));
+    }
+
+    /**
+     * Lists the stock of a harvest job of the player.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("stock")
+    public void stock(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(player, () -> jobs().data().stock(own(player, id).id()), stock -> {
+            if (stock.isEmpty()) {
+                deps.messages().sendMessage(player, PREFIX + "stock.empty", Values.number("id", id));
+                return;
+            }
+            deps.messages().sendMessage(player, PREFIX + "stock.title", Values.number("id", id));
+            stock.forEach((material, amount) -> deps.messages()
+                    .sendMessage(
+                            player,
+                            PREFIX + "stock.entry",
+                            Values.text("item", material.toLowerCase(Locale.ROOT)),
+                            Values.number("amount", amount)));
+            deps.messages()
+                    .sendMessage(
+                            player,
+                            MenuText.create()
+                                    .text(
+                                            "<act_collect><add>[<i18n:words.collect>]</act_collect>",
+                                            Values.click(
+                                                    "act_collect", ClickEvent.runCommand("/order job collect " + id))));
+        });
+    }
+
+    /**
+     * Gives the player the stock of their harvest job, as much as their inventory holds; the rest stays. The items are
+     * taken from the stock first and handed over on the main thread; what does not fit goes back.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("collect")
+    public void collect(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> {
+                    var job = own(player, id);
+                    Map<String, Integer> taken = new LinkedHashMap<>();
+                    jobs().data().stock(job.id()).forEach((material, amount) -> {
+                        if (jobs().data().takeStock(job.id(), material, amount)) taken.put(material, amount);
+                    });
+                    return taken;
+                },
+                taken -> {
+                    if (taken.isEmpty()) {
+                        deps.messages().sendMessage(player, PREFIX + "stock.empty", Values.number("id", id));
+                        return;
+                    }
+                    try {
+                        Threading.mainThread(deps.plugin()).execute(() -> handOver(player, id, taken));
+                    } catch (RuntimeException e) {
+                        putBack(id, taken);
+                    }
+                });
+    }
+
+    /**
+     * Gives a player the items taken out of a job's stock, on the main thread. What does not fit, and everything when
+     * the player left meanwhile, goes back into the stock.
+     *
+     * @param player the owner
+     * @param id     id of the job
+     * @param taken  the items taken out of the stock, as amounts by material name
+     */
+    private void handOver(Player player, int id, Map<String, Integer> taken) {
+        if (!player.isOnline()) {
+            putBack(id, taken);
+            return;
+        }
+        Map<String, Integer> left = new LinkedHashMap<>();
+        var given = 0;
+        for (var entry : taken.entrySet()) {
+            var material = Material.matchMaterial(entry.getKey());
+            if (material == null) {
+                left.put(entry.getKey(), entry.getValue());
+                continue;
+            }
+            var rest = give(player, material, entry.getValue());
+            given += entry.getValue() - rest;
+            if (rest > 0) left.put(entry.getKey(), rest);
+        }
+        var kept = left.values().stream().mapToInt(Integer::intValue).sum();
+        if (!left.isEmpty()) putBack(id, left);
+        deps.messages()
+                .sendMessage(
+                        player,
+                        PREFIX + "collected",
+                        Values.number("id", id),
+                        Values.number("items", given),
+                        Values.number("left", kept));
+    }
+
+    /**
+     * @param id    id of a job
+     * @param items items to put back into its stock, as amounts by material name
+     */
+    private void putBack(int id, Map<String, Integer> items) {
+        CompletableFuture.runAsync(() -> jobs().data().stock(id, items), Threading.VIRTUAL)
+                .exceptionally(err -> {
+                    deps.plugin().getLogger().log(Level.SEVERE, "Could not put " + items + " back into job " + id, err);
+                    return null;
+                });
+    }
+
+    /**
+     * @param player the player
+     * @param type   an item
+     * @param amount how many
+     * @return how many did not fit into the player's inventory
+     */
+    private static int give(Player player, Material type, int amount) {
+        var rest = 0;
+        var left = amount;
+        while (left > 0) {
+            var stack = Math.min(left, type.getMaxStackSize());
+            left -= stack;
+            for (var over :
+                    player.getInventory().addItem(new ItemStack(type, stack)).values()) {
+                rest += over.getAmount();
+            }
+        }
+        return rest;
+    }
+
+    /**
+     * Ends a harvest job of the player a company works on before its time runs out.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("end")
+    public void end(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> {
+                    jobs().access().flush(id);
+                    return jobs().service().endAsOwner(player.getUniqueId(), player.getName(), id);
+                },
+                change -> {
+                    if (change == JobService.Change.DONE) jobs().access().checkSoon();
+                    answer(player, id, change, "ended");
+                });
+    }
+
+    /**
+     * @param player a player
+     * @return the area the player selected with WorldEdit, empty after telling them why there is none
+     */
+    private Optional<JobArea> selected(Player player) {
         var hooks = jobs().hooks();
         if (!hooks.selects()) {
             deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
-            return;
+            return Optional.empty();
         }
         var area = hooks.selection(player);
-        if (area.isEmpty()) {
-            deps.messages().sendError(player, PREFIX + "error.noSelection");
-            return;
-        }
-        post(player, JobKind.TERRAFORM, area.get(), price, hours, title, target);
+        if (area.isEmpty()) deps.messages().sendError(player, PREFIX + "error.noSelection");
+        return area;
     }
 
     /**
@@ -237,7 +424,7 @@ public final class JobCommand {
         var found = plot.get();
         var area = new JobArea(
                 found.world(), found.minX(), top - depth + 1, found.minZ(), found.maxX(), top, found.maxZ());
-        post(player, JobKind.DIG, area, price, hours, title, null);
+        post(player, JobKind.DIG, area, price, hours, title, null, null);
     }
 
     /**
@@ -369,6 +556,7 @@ public final class JobCommand {
                     case REASON -> "error.reason";
                     case TOO_LONG -> "error.description";
                     case NOT_DONE -> "error.notDone";
+                    case HARVEST -> "error.harvest";
                     default -> "error.closed";
                 };
         if (change == JobService.Change.DONE) {
@@ -415,7 +603,8 @@ public final class JobCommand {
             double price,
             int hours,
             String title,
-            @Nullable JobTarget target) {
+            @Nullable JobTarget target,
+            @Nullable Double unitPrice) {
         var world = deps.plugin().getServer().getWorld(area.world());
         if (world == null || area.minY() < world.getMinHeight() || area.maxY() >= world.getMaxHeight()) {
             deps.messages()
@@ -447,7 +636,18 @@ public final class JobCommand {
                 run(
                         player,
                         () -> jobs().service()
-                                .post(owner, kind, title, price, hours, node, area, land.land(), land.ref(), target),
+                                .post(
+                                        owner,
+                                        kind,
+                                        title,
+                                        price,
+                                        hours,
+                                        node,
+                                        area,
+                                        land.land(),
+                                        land.ref(),
+                                        target,
+                                        unitPrice),
                         posted -> posted(player, kind, posted));
             }
         }
@@ -461,6 +661,7 @@ public final class JobCommand {
                         switch (job.kind()) {
                             case CONTRACT -> "postedContract";
                             case TERRAFORM -> "postedTerraform";
+                            case HARVEST -> "postedHarvest";
                             default -> "posted";
                         };
                 deps.messages()
@@ -487,6 +688,7 @@ public final class JobCommand {
     private static Number maxOf(JobService.Refusal refusal, JobKind kind, JobSettings settings) {
         return switch (refusal) {
             case VOLUME -> settings.maxVolume(kind);
+            case UNIT_PRICE -> 0;
             case CHUNKS -> settings.maxChunks();
             case TOO_MANY -> settings.maxOpenPerOwner();
             case DUE -> settings.maxDueHours();
@@ -546,6 +748,15 @@ public final class JobCommand {
                 PREFIX + "info.money",
                 Values.money("price", economy, job.price()),
                 Values.money("fee", economy, job.fee()));
+        var harvest = job.harvest();
+        if (harvest != null) {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.harvest",
+                    Values.money("unit", deps.services().economy(), harvest.unitPrice()),
+                    Values.money("paid", deps.services().economy(), harvest.paid()),
+                    Values.money("price", deps.services().economy(), job.price()));
+        }
         var target = job.target();
         if (target != null) {
             var surface = target.surface();
@@ -620,7 +831,16 @@ public final class JobCommand {
                             Values.click("act_withdraw", ClickEvent.suggestCommand("/order job withdraw " + id)));
                 }
             }
-            case TAKEN ->
+            case TAKEN -> {
+                if (job.kind() == JobKind.HARVEST) {
+                    buttons.text(
+                                    "<act_stock><show>[<i18n:" + PREFIX + "stockButton>]</act_stock> ",
+                                    Values.click("act_stock", ClickEvent.runCommand("/order job stock " + id)))
+                            .text(
+                                    "<act_end><remove>[<i18n:" + PREFIX + "endButton>]</act_end>",
+                                    Values.click("act_end", ClickEvent.suggestCommand("/order job end " + id)));
+                    return buttons;
+                }
                 buttons.text(
                                 "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
                                 Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
@@ -628,7 +848,14 @@ public final class JobCommand {
                                 "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
                                 Values.click(
                                         "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
-            default -> {}
+            }
+            default -> {
+                if (job.kind() == JobKind.HARVEST) {
+                    buttons.text(
+                            "<act_stock><show>[<i18n:" + PREFIX + "stockButton>]</act_stock>",
+                            Values.click("act_stock", ClickEvent.runCommand("/order job stock " + id)));
+                }
+            }
         }
         return buttons;
     }

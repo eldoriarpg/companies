@@ -11,6 +11,7 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
@@ -185,6 +186,13 @@ public final class CompanyJobCommand {
                 () -> {
                     var company = company(player);
                     var may = jobs().service().mayFinish(company, player.getUniqueId(), id);
+                    if (may == JobService.Change.HARVEST) {
+                        jobs().access().flush(id);
+                        var ended = jobs().service().endAsCompany(company, player.getUniqueId(), id);
+                        return ended == JobService.Change.DONE
+                                ? new JobService.Finished.Ended()
+                                : new JobService.Finished.Refused(ended);
+                    }
                     if (may == JobService.Change.CONTRACT) {
                         var marked = jobs().service().markDone(company, player.getUniqueId(), id);
                         if (marked != JobService.Change.DONE) return new JobService.Finished.Refused(marked);
@@ -211,6 +219,10 @@ public final class CompanyJobCommand {
                                             PREFIX + "paid",
                                             Values.number("id", id),
                                             Values.money("paid", deps.services().economy(), paid.paid()));
+                        }
+                        case JobService.Finished.Ended ended -> {
+                            jobs().access().checkSoon();
+                            deps.messages().sendMessage(player, PREFIX + "ended", Values.number("id", id));
                         }
                         case JobService.Finished.Waiting waiting ->
                             deps.messages()
@@ -342,6 +354,15 @@ public final class CompanyJobCommand {
                 PREFIX + "info.money",
                 Values.money("price", deps.services().economy(), job.price()),
                 Values.number("hours", job.dueHours()));
+        var harvest = job.harvest();
+        if (harvest != null) {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.harvest",
+                    Values.money("unit", deps.services().economy(), harvest.unitPrice()),
+                    Values.money("paid", deps.services().economy(), harvest.paid()),
+                    Values.money("price", deps.services().economy(), job.price()));
+        }
         var target = job.target();
         if (target != null) {
             var surface = target.surface();
@@ -386,7 +407,12 @@ public final class CompanyJobCommand {
                     "<act_take><add>[<i18n:" + PREFIX + "takeButton>]</act_take>",
                     Values.click("act_take", ClickEvent.runCommand("/company job take " + id)));
         } else if (job.state() == JobState.TAKEN) {
-            var done = job.kind().area() ? "doneButton" : "markButton";
+            var done =
+                    switch (job.kind()) {
+                        case CONTRACT -> "markButton";
+                        case HARVEST -> "endButton";
+                        default -> "doneButton";
+                    };
             buttons.text(
                             "<act_done><add>[<i18n:" + PREFIX + done + ">]</act_done> ",
                             Values.click("act_done", ClickEvent.runCommand("/company job done " + id)))
@@ -394,7 +420,7 @@ public final class CompanyJobCommand {
                             "<act_back><remove>[<i18n:" + PREFIX + "giveBackButton>]</act_back> ",
                             Values.click("act_back", ClickEvent.suggestCommand("/company job giveback " + id)));
         }
-        if (job.state() == JobState.TAKEN || job.state() == JobState.DONE) {
+        if ((job.state() == JobState.TAKEN || job.state() == JobState.DONE) && job.kind() != JobKind.HARVEST) {
             buttons.text(
                     "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
                     Values.click("act_dispute", ClickEvent.suggestCommand("/company job dispute " + id + " ")));
@@ -420,6 +446,7 @@ public final class CompanyJobCommand {
                     case NOT_YOURS -> "error.notYours";
                     case DISPUTED -> "error.disputed";
                     case REASON -> "error.reason";
+                    case HARVEST -> "error.harvest";
                     case DONE, TAKEN, TOO_LONG, AREA, CONTRACT, NOT_DONE, NO_COMPANY -> "error.closed";
                 };
         deps.messages().sendError(player, PREFIX + key, values);

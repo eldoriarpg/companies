@@ -272,4 +272,40 @@ public abstract class AJobData {
      * @return the blocks every worker removed, by worker
      */
     public abstract Map<UUID, Integer> workOf(int job);
+
+    /**
+     * Puts harvested items into a harvest job's stock and adds what they are paid to what the job paid, only while the
+     * company still has the job taken and the budget covers the pay.
+     *
+     * @param job     id of the job
+     * @param company id of the company that harvested them
+     * @param items   the items, as amounts by material name
+     * @param pay     what they are paid before tax
+     * @return true when they were stored and paid
+     */
+    public abstract boolean harvested(int job, int company, Map<String, Integer> items, double pay);
+
+    /**
+     * Puts items into a job's stock without paying for them, when the budget is used up.
+     *
+     * @param job   id of the job
+     * @param items the items, as amounts by material name
+     */
+    public abstract void stock(int job, Map<String, Integer> items);
+
+    /**
+     * @param job id of the job
+     * @return the items in the job's stock, as amounts by material name, without empty ones
+     */
+    public abstract Map<String, Integer> stock(int job);
+
+    /**
+     * Takes items out of a job's stock.
+     *
+     * @param job      id of the job
+     * @param material the material name
+     * @param amount   how many
+     * @return true when the stock held that many and they are taken
+     */
+    public abstract boolean takeStock(int job, String material, int amount);
 }

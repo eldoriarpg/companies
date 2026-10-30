@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
@@ -81,6 +82,16 @@ public final class JobService {
      * What a job approved because its owner did not answer in time notes as who closed it. It names no person.
      */
     public static final String AUTO_APPROVED_BY = "#auto";
+
+    /**
+     * What a harvest job ended because its time ran out notes as who closed it. It names no person.
+     */
+    public static final String HARVEST_TIME_BY = "#time";
+
+    /**
+     * What a harvest job ended because its budget was used up notes as who closed it. It names no person.
+     */
+    public static final String BUDGET_BY = "#budget";
 
     private final AJobData jobs;
     private final AOrderData orders;
@@ -156,7 +167,7 @@ public final class JobService {
             JobArea area,
             JobLand land,
             @Nullable String landRef) {
-        return post(owner, kind, title, price, dueHours, node, area, land, landRef, null);
+        return post(owner, kind, title, price, dueHours, node, area, land, landRef, null, null);
     }
 
     /**
@@ -172,6 +183,8 @@ public final class JobService {
      * @param land     whose land the area lies on
      * @param landRef  the plot or region of the land, null for unowned land
      * @param target   the shape a terraform job asks for, its height within the area; null for other kinds
+     * @param unitPrice what a harvest job pays for each item, at most its price, which is its budget; null for other
+     *                  kinds
      * @return the stored job, or why it was not posted
      */
     public Posted post(
@@ -184,11 +197,14 @@ public final class JobService {
             JobArea area,
             JobLand land,
             @Nullable String landRef,
-            @Nullable JobTarget target) {
+            @Nullable JobTarget target,
+            @Nullable Double unitPrice) {
         var current = settings.get();
         if (!current.enabled()) return new Posted.Refused(Refusal.DISABLED);
-        if (kind != JobKind.DIG && kind != JobKind.CONTRACT && kind != JobKind.TERRAFORM) {
-            return new Posted.Refused(Refusal.KIND);
+        if (kind == JobKind.BUILD) return new Posted.Refused(Refusal.KIND);
+        if ((kind == JobKind.HARVEST) != (unitPrice != null)) return new Posted.Refused(Refusal.UNIT_PRICE);
+        if (unitPrice != null && (!(cents(unitPrice) >= MIN_PRICE) || cents(unitPrice) > cents(price))) {
+            return new Posted.Refused(Refusal.UNIT_PRICE);
         }
         if ((kind == JobKind.TERRAFORM) != (target != null)) return new Posted.Refused(Refusal.TARGET);
         if (target != null && (target.y() < area.minY() || target.y() > area.maxY())) {
@@ -220,7 +236,8 @@ public final class JobService {
                         dueHours,
                         now,
                         now.plusDays(current.openDays()))
-                .withTarget(target);
+                .withTarget(target)
+                .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0));
         Optional<Integer> id;
         try {
             id = jobs.create(draft);
@@ -311,10 +328,13 @@ public final class JobService {
         var company = job.company();
         if (job.state() == JobState.OPEN) {
             if (!jobs.close(job.id(), JobState.OPEN, JobState.CANCELLED, LAND_LOST_BY, now)) return false;
-            money.deposit(job.owner(), job.price());
+            money.deposit(job.owner(), cents(job.unpaid()));
             money.collect(job.fee());
             notices.owner(job.owner(), Notice.LAND_LOST, job, null);
             return true;
+        }
+        if (job.state() == JobState.TAKEN && job.kind() == JobKind.HARVEST) {
+            return ended(job, LAND_LOST_BY, JobState.CANCELLED);
         }
         if (job.state() != JobState.TAKEN || company == null || progress == null) return false;
         var profile = companies.apply(company).orElse(null);
@@ -367,6 +387,7 @@ public final class JobService {
             return Change.NOT_YOURS;
         }
         if (!job.kind().area()) return Change.CONTRACT;
+        if (job.kind() == JobKind.HARVEST) return Change.HARVEST;
         return Change.DONE;
     }
 
@@ -384,7 +405,7 @@ public final class JobService {
         if (!job.owner().equals(owner)) return Change.NOT_YOURS;
         if (job.state() != JobState.OPEN) return job.state().closed() ? Change.CLOSED : Change.TAKEN;
         if (!jobs.close(id, JobState.OPEN, JobState.CANCELLED, by, now())) return Change.CLOSED;
-        money.deposit(owner, job.price());
+        money.deposit(owner, cents(job.unpaid()));
         money.collect(job.fee());
         return Change.DONE;
     }
@@ -406,6 +427,7 @@ public final class JobService {
             return new Finished.Refused(Change.NOT_YOURS);
         }
         if (!job.kind().area()) return new Finished.Refused(Change.CONTRACT);
+        if (job.kind() == JobKind.HARVEST) return new Finished.Refused(Change.HARVEST);
         if (!progress.done()) return new Finished.NotDone(progress);
         var parts = parts(job.price(), jobs.workOf(id), member);
         var tax = money.taxPercent(company);
@@ -417,6 +439,135 @@ public final class JobService {
         notices.owner(job.owner(), Notice.DONE, job, null);
         notices.paid(company, job, paid);
         return new Finished.Paid(paid);
+    }
+
+    /**
+     * Stores what a member harvested on a harvest job and pays them for it from the budget, taxed and with the treasury
+     * share kept as for order payouts. Items the budget no longer covers, or harvested for a company that no longer has
+     * the job, still go into the stock, as they came from the owner's field. When the budget is used up the job ends.
+     * A payment that loses against another one of the same job, which the budget check of the database refuses, is
+     * worked out again once against the budget as it then stands.
+     *
+     * @param id      id of the job
+     * @param company id of the company the member harvested for
+     * @param worker  the member
+     * @param items   the items, as amounts by material name
+     * @return what the member was paid after tax and treasury share
+     */
+    public double harvested(int id, int company, UUID worker, Map<String, Integer> items) {
+        if (items.isEmpty()) return 0;
+        long units = items.values().stream().mapToLong(Integer::longValue).sum();
+        var profile = companies.apply(company).orElse(null);
+        Job job = null;
+        double gross = 0;
+        var left = BigDecimal.ZERO;
+        var paid = false;
+        for (var attempt = 0; attempt < 2 && !paid; attempt++) {
+            job = jobs.job(id).orElse(null);
+            var harvest = job == null ? null : job.harvest();
+            if (job == null || harvest == null) return 0;
+            left = BigDecimal.valueOf(job.unpaid());
+            gross = BigDecimal.valueOf(harvest.unitPrice())
+                    .multiply(BigDecimal.valueOf(units))
+                    .min(left)
+                    .setScale(2, RoundingMode.FLOOR)
+                    .doubleValue();
+            var mine = job.state() == JobState.TAKEN && Integer.valueOf(company).equals(job.company());
+            if (!mine || profile == null) break;
+            if (gross <= 0) {
+                ended(job, BUDGET_BY, JobState.PAID);
+                break;
+            }
+            paid = jobs.harvested(id, company, items, gross);
+        }
+        var harvest = job == null ? null : job.harvest();
+        if (!paid || job == null || harvest == null || profile == null) {
+            jobs.stock(id, items);
+            return 0;
+        }
+        var payout = Payout.split(gross, money.taxPercent(profile), money.share(profile));
+        try {
+            money.deposit(worker, payout.net());
+            money.collect(payout.tax());
+            if (payout.shareCents() > 0) money.keep(profile, id, payout.shareCents());
+        } catch (RuntimeException e) {
+            logger.log(
+                    Level.SEVERE,
+                    "Could not pay " + payout.net() + " of harvest job " + id + " to " + worker + "; pay it by hand",
+                    e);
+        }
+        if (left.subtract(BigDecimal.valueOf(gross)).compareTo(BigDecimal.valueOf(harvest.unitPrice())) < 0) {
+            jobs.job(id).ifPresent(found -> ended(found, BUDGET_BY, JobState.PAID));
+        }
+        return payout.net();
+    }
+
+    /**
+     * Ends a harvest job a member's company works on before its time runs out.
+     *
+     * @param company the company
+     * @param member  the member ending it
+     * @param id      id of the job
+     * @return what came of it
+     */
+    public Change endAsCompany(CompanyProfile company, UUID member, int id) {
+        if (!mayManage(company, member)) return Change.NO_PERMISSION;
+        var job = jobs.job(id).orElse(null);
+        if (job == null) return Change.UNKNOWN;
+        if (job.state() != JobState.TAKEN || !Integer.valueOf(company.id()).equals(job.company())) {
+            return Change.NOT_YOURS;
+        }
+        if (job.kind() != JobKind.HARVEST) return Change.CLOSED;
+        return ended(job, null, JobState.PAID) ? Change.DONE : Change.CLOSED;
+    }
+
+    /**
+     * Ends the owner's harvest job a company works on before its time runs out. The company keeps what it was paid.
+     *
+     * @param owner the owner
+     * @param by    who ends it, as noted
+     * @param id    id of the job
+     * @return what came of it
+     */
+    public Change endAsOwner(UUID owner, String by, int id) {
+        var job = jobs.job(id).orElse(null);
+        if (job == null || !job.owner().equals(owner)) return Change.UNKNOWN;
+        if (job.kind() != JobKind.HARVEST) return Change.CLOSED;
+        if (job.state() == JobState.OPEN) return Change.TAKEN;
+        if (job.state() != JobState.TAKEN) return Change.CLOSED;
+        return ended(job, by, JobState.PAID) ? Change.DONE : Change.CLOSED;
+    }
+
+    /**
+     * Closes a harvest job while its company still has it and gives the rest of the budget back to the owner. The rest
+     * is read after closing, so items paid while it closed are never paid twice. The fee is kept.
+     *
+     * @param job the job as read, taken
+     * @param by  who ended it, null when its company did
+     * @param to  its final state
+     * @return true when it was taken and is now closed
+     */
+    private boolean ended(Job job, @Nullable String by, JobState to) {
+        var company = job.company();
+        if (company == null) return false;
+        if (!jobs.closeHeld(job.id(), company, JobState.TAKEN, to, by, now())) return false;
+        var closed = jobs.job(job.id()).orElse(job);
+        var harvest = closed.harvest();
+        var paid = harvest == null ? 0 : harvest.paid();
+        var rest = cents(job.price() - paid);
+        if (rest > 0) money.deposit(job.owner(), rest);
+        money.collect(job.fee());
+        var stocked = jobs.stock(job.id()).values().stream()
+                .mapToInt(Integer::intValue)
+                .sum();
+        if (to == JobState.CANCELLED) {
+            notices.owner(job.owner(), Notice.LAND_LOST, job, null);
+            notices.landLost(company, job);
+        } else {
+            notices.owner(job.owner(), Notice.HARVEST_ENDED, job, new Harvested(rest, stocked));
+            companies.apply(company).ifPresent(profile -> notices.paid(profile, job, paid));
+        }
+        return true;
     }
 
     /**
@@ -472,6 +623,7 @@ public final class JobService {
     public Change approve(UUID owner, String by, int id) {
         var job = jobs.job(id).orElse(null);
         if (job == null || !job.owner().equals(owner)) return Change.UNKNOWN;
+        if (job.kind() == JobKind.HARVEST) return Change.HARVEST;
         if (!JobState.HELD.contains(job.state())) return Change.CLOSED;
         return approved(job, by) ? Change.DONE : Change.CLOSED;
     }
@@ -538,6 +690,7 @@ public final class JobService {
         var text = reason.strip();
         if (text.isEmpty() || text.length() > JobReview.MAX_REASON) return Change.REASON;
         var company = job.company();
+        if (job.kind() == JobKind.HARVEST) return Change.HARVEST;
         if (job.state() == JobState.DISPUTED) return Change.DISPUTED;
         if ((job.state() != JobState.TAKEN && job.state() != JobState.DONE) || company == null) return Change.CLOSED;
         if (!jobs.dispute(job.id(), company, job.state(), by, text, now())) return Change.CLOSED;
@@ -707,6 +860,7 @@ public final class JobService {
         List<Integer> expired = new ArrayList<>();
         List<Integer> reopened = new ArrayList<>();
         List<Integer> approved = new ArrayList<>();
+        List<Integer> ended = new ArrayList<>();
         for (var job : jobs.waiting(now.minusHours(settings.get().approveHours()))) {
             try {
                 if (!approved(job, AUTO_APPROVED_BY)) continue;
@@ -719,7 +873,7 @@ public final class JobService {
         for (var job : jobs.expired(now)) {
             try {
                 if (!jobs.close(job.id(), JobState.OPEN, JobState.EXPIRED, null, now)) continue;
-                var back = cents(job.price() + job.fee());
+                var back = cents(job.unpaid() + job.fee());
                 money.deposit(job.owner(), back);
                 notices.owner(job.owner(), Notice.EXPIRED, job, back);
                 expired.add(job.id());
@@ -731,6 +885,10 @@ public final class JobService {
             var company = job.company();
             if (company == null) continue;
             try {
+                if (job.kind() == JobKind.HARVEST) {
+                    if (ended(job, HARVEST_TIME_BY, JobState.PAID)) ended.add(job.id());
+                    continue;
+                }
                 if (!jobs.release(job.id(), company)) continue;
                 notices.owner(job.owner(), Notice.RELEASED, job, null);
                 notices.overdue(company, job);
@@ -740,7 +898,7 @@ public final class JobService {
                 logger.log(Level.SEVERE, "Could not open overdue job " + job.id() + " again", e);
             }
         }
-        return new Check(expired, reopened, approved);
+        return new Check(expired, reopened, approved, ended);
     }
 
     private double pay(Job job, CompanyProfile company, Map<UUID, Double> parts, double tax, int share) {
@@ -1003,8 +1161,20 @@ public final class JobService {
         /**
          * The company withdrew its dispute; it works on the job again.
          */
-        WITHDRAWN
+        WITHDRAWN,
+        /**
+         * A harvest job ended. The detail is a {@link Harvested}.
+         */
+        HARVEST_ENDED
     }
+
+    /**
+     * What an ended harvest job left its owner.
+     *
+     * @param back    the rest of the budget given back
+     * @param stocked the items waiting in the stock
+     */
+    public record Harvested(double back, int stocked) {}
 
     /**
      * Why a job was not posted.
@@ -1057,7 +1227,11 @@ public final class JobService {
         /**
          * A terraform job has no target height inside its area, or another kind has one.
          */
-        TARGET
+        TARGET,
+        /**
+         * A harvest job has no item price between the lowest price and its budget, or another kind has one.
+         */
+        UNIT_PRICE
     }
 
     /**
@@ -1142,7 +1316,12 @@ public final class JobService {
         /**
          * The company holding the job is gone, so it can get no share.
          */
-        NO_COMPANY
+        NO_COMPANY,
+        /**
+         * A harvest job is paid item by item and ends when its time or budget runs out or a side ends it; it has no
+         * check, approval or dispute.
+         */
+        HARVEST
     }
 
     /**
@@ -1155,6 +1334,11 @@ public final class JobService {
          * @param paid what they got in all, after tax and treasury share
          */
         record Paid(double paid) implements Finished {}
+
+        /**
+         * The company ended a harvest job; the rest of the budget went back to the owner.
+         */
+        record Ended() implements Finished {}
 
         /**
          * The company said the contract is done; it waits for the owner.
@@ -1184,6 +1368,14 @@ public final class JobService {
      * @param expired  the open jobs that expired
      * @param reopened the taken jobs opened again
      * @param approved the jobs approved since their owner did not answer in time
+     * @param ended    the harvest jobs whose time ran out
      */
-    public record Check(List<Integer> expired, List<Integer> reopened, List<Integer> approved) {}
+    public record Check(List<Integer> expired, List<Integer> reopened, List<Integer> approved, List<Integer> ended) {
+        /**
+         * @return whether any job changed, so the access to the areas should be checked soon
+         */
+        public boolean changed() {
+            return !expired.isEmpty() || !reopened.isEmpty() || !approved.isEmpty() || !ended.isEmpty();
+        }
+    }
 }

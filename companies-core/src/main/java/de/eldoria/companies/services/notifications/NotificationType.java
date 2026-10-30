@@ -410,7 +410,17 @@ public enum NotificationType {
      * The owner withdrew their dispute about a job the company holds; the company works on it again and its time moved
      * on by the time the dispute lasted. Arguments: {@code job_title}, {@code job_id}.
      */
-    JOB_WITHDRAWN(69, "notification.jobWithdrawn", NotificationCategory.ORDERS, true, null);
+    JOB_WITHDRAWN(69, "notification.jobWithdrawn", NotificationCategory.ORDERS, true, null),
+    /**
+     * The player's harvest job ended: its time or budget ran out, or a side ended it. Arguments: {@code job_title},
+     * {@code job_id}, {@code amount} (the rest of the budget given back), {@code items} (items waiting in the stock).
+     */
+    MY_JOB_HARVEST_ENDED(
+            70,
+            "notification.myJobHarvestEnded",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order job collect <job_id>", "words.collect"));
 
     private final int id;
     private final String key;

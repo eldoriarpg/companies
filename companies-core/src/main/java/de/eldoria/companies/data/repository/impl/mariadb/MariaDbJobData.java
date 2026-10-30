@@ -7,11 +7,13 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
+import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.Transactions;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
@@ -44,7 +46,7 @@ public class MariaDbJobData extends AJobData {
             SELECT id, owner_uuid, kind, title, description, price, fee, state, company_id, node, world, min_x, min_y,
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
-                   target_y, target_block
+                   target_y, target_block, unit_price, paid
             FROM jobs
             """;
 
@@ -75,11 +77,12 @@ public class MariaDbJobData extends AJobData {
         var insert = """
                 INSERT INTO jobs(owner_uuid, kind, title, description, price, fee, state, node, world, min_x, min_y,
                                  min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, target_y,
-                                 target_block)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 target_block, unit_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id""";
         var area = job.area();
         var target = job.target();
+        var harvest = job.harvest();
         return query(insert)
                 .single(call().bind(job.owner(), UUID_BYTES)
                         .bind(job.kind().name())
@@ -102,7 +105,8 @@ public class MariaDbJobData extends AJobData {
                         .bind(job.created(), time())
                         .bind(job.expires(), time())
                         .bind(target == null ? null : target.y())
-                        .bind(target == null ? null : target.surface()))
+                        .bind(target == null ? null : target.surface())
+                        .bind(harvest == null ? null : harvest.unitPrice()))
                 .map(row -> row.getInt(1))
                 .first();
     }
@@ -543,6 +547,84 @@ public class MariaDbJobData extends AJobData {
         return work;
     }
 
+    @Override
+    public boolean harvested(int job, int company, Map<String, Integer> items, double pay) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET paid = paid + ?
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND paid + ? <= price + 0.001""";
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            var paid = conf.query(update)
+                    .single(call().bind(pay)
+                            .bind(job)
+                            .bind(JobState.TAKEN.name())
+                            .bind(company)
+                            .bind(pay))
+                    .update()
+                    .changed();
+            if (!paid || !errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+            addStock(conf, job, items);
+            if (!errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void stock(int job, Map<String, Integer> items) {
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            addStock(conf, job, items);
+            if (!errors.isEmpty()) Transactions.rollback(conf, errors);
+        }
+    }
+
+    private static void addStock(ConnectedQueryConfiguration conf, int job, Map<String, Integer> items) {
+        for (var item : items.entrySet()) {
+            if (item.getValue() <= 0) continue;
+            var added = conf.query("UPDATE job_stock SET amount = amount + ? WHERE job_id = ? AND material = ?")
+                    .single(call().bind(item.getValue()).bind(job).bind(item.getKey()))
+                    .update()
+                    .changed();
+            if (!added) {
+                conf.query("INSERT INTO job_stock(job_id, material, amount) VALUES (?, ?, ?)")
+                        .single(call().bind(job).bind(item.getKey()).bind(item.getValue()))
+                        .insert();
+            }
+        }
+    }
+
+    @Override
+    public Map<String, Integer> stock(int job) {
+        Map<String, Integer> stock = new LinkedHashMap<>();
+        query("SELECT material, amount FROM job_stock WHERE job_id = ? AND amount > 0 ORDER BY material")
+                .single(call().bind(job))
+                .map(row -> Map.entry(row.getString("material"), row.getInt("amount")))
+                .all()
+                .forEach(entry -> stock.put(entry.getKey(), entry.getValue()));
+        return stock;
+    }
+
+    @Override
+    public boolean takeStock(int job, String material, int amount) {
+        return query("UPDATE job_stock SET amount = amount - ? WHERE job_id = ? AND material = ? AND amount >= ?")
+                .single(call().bind(amount).bind(job).bind(material).bind(amount))
+                .update()
+                .changed();
+    }
+
     private Job parse(Row row) throws SQLException {
         Integer companyId = row.getObject("company_id") == null ? null : row.getInt("company_id");
         return new Job(
@@ -584,6 +666,9 @@ public class MariaDbJobData extends AJobData {
                         row.getObject("settled") == null ? null : row.getInt("settled")),
                 row.getObject("target_y") == null
                         ? null
-                        : new JobTarget(row.getInt("target_y"), row.getString("target_block")));
+                        : new JobTarget(row.getInt("target_y"), row.getString("target_block")),
+                row.getObject("unit_price") == null
+                        ? null
+                        : new JobHarvest(row.getDouble("unit_price"), row.getDouble("paid")));
     }
 }

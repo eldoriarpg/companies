@@ -13,7 +13,9 @@ import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.util.Permission;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Container;
+import org.bukkit.block.data.Ageable;
 import org.bukkit.block.data.Openable;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Entity;
@@ -107,8 +109,10 @@ public final class JobAccess implements Listener {
     private final UUID node;
     private final Executor mainThread;
     private final Consumer<Job> landLost;
+    private final Harvests harvests;
     private final Logger logger;
     private final Map<Work, Integer> pending = new ConcurrentHashMap<>();
+    private final Map<Work, Map<String, Integer>> harvested = new ConcurrentHashMap<>();
     private final Map<Integer, Set<Long>> placed = new ConcurrentHashMap<>();
     private final Map<Integer, Set<Long>> filled = new ConcurrentHashMap<>();
     private final AtomicBoolean queued = new AtomicBoolean();
@@ -122,6 +126,7 @@ public final class JobAccess implements Listener {
      * @param node       this server
      * @param mainThread runs the hooks on the main thread
      * @param landLost   closes a job whose land changed hands
+     * @param harvests   stores and pays what a member harvested
      * @param logger     reports failures
      */
     public JobAccess(
@@ -131,6 +136,7 @@ public final class JobAccess implements Listener {
             UUID node,
             Executor mainThread,
             Consumer<Job> landLost,
+            Harvests harvests,
             Logger logger) {
         this.jobs = jobs;
         this.members = members;
@@ -138,6 +144,7 @@ public final class JobAccess implements Listener {
         this.node = node;
         this.mainThread = mainThread;
         this.landLost = landLost;
+        this.harvests = harvests;
         this.logger = logger;
     }
 
@@ -288,6 +295,19 @@ public final class JobAccess implements Listener {
     }
 
     private void flush(Predicate<Work> which) {
+        Map<Work, Map<String, Integer>> crops = new HashMap<>();
+        for (var key : List.copyOf(harvested.keySet())) {
+            if (!which.test(key)) continue;
+            var items = harvested.remove(key);
+            if (items != null && !items.isEmpty()) crops.put(key, items);
+        }
+        crops.forEach((work, items) -> {
+            try {
+                harvests.harvested(work.job(), work.company(), work.worker(), items);
+            } catch (RuntimeException e) {
+                logger.log(Level.SEVERE, "Could not store the harvest " + items + " of job " + work.job(), e);
+            }
+        });
         Map<Work, Integer> taken = new HashMap<>();
         for (var key : List.copyOf(pending.keySet())) {
             if (!which.test(key)) continue;
@@ -324,7 +344,9 @@ public final class JobAccess implements Listener {
     public void onPlace(BlockPlaceEvent event) {
         var block = event.getBlockPlaced();
         if (held(event.getPlayer(), block, true)
-                || (block.getType() == Material.TNT && danger(event.getPlayer(), block))) {
+                || (block.getType() == Material.TNT && danger(event.getPlayer(), block))
+                || (HarvestRules.crop(block.getType()) != HarvestRules.Crop.FIELD
+                        && harvesting(event.getPlayer(), block))) {
             event.setCancelled(true);
         }
     }
@@ -383,7 +405,8 @@ public final class JobAccess implements Listener {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onEmpty(PlayerBucketEmptyEvent event) {
         if (held(event.getPlayer(), event.getBlock(), true)
-                || (event.getBucket() == Material.LAVA_BUCKET && danger(event.getPlayer(), event.getBlock()))) {
+                || (event.getBucket() == Material.LAVA_BUCKET && danger(event.getPlayer(), event.getBlock()))
+                || harvesting(event.getPlayer(), event.getBlock())) {
             event.setCancelled(true);
         }
     }
@@ -427,6 +450,114 @@ public final class JobAccess implements Listener {
             return;
         }
         event.setUseInteractedBlock(Event.Result.DENY);
+    }
+
+    /**
+     * Keeps the fields of taken harvest jobs from being trampled.
+     *
+     * @param event the step
+     */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onTrample(PlayerInteractEvent event) {
+        var block = event.getClickedBlock();
+        if (event.getAction() == Action.PHYSICAL
+                && block != null
+                && block.getType() == Material.FARMLAND
+                && harvestArea(block) != null) {
+            event.setUseInteractedBlock(Event.Result.DENY);
+        }
+    }
+
+    /**
+     * Harvests for a member of the company working on a harvest job, by the rules of {@link HarvestRules}: the block
+     * is never broken as such and drops nothing. A ripe field crop is replanted at once and its yield, less one seed,
+     * goes into the stock; sugar cane, bamboo and cactus above their base are taken off with everything above; a
+     * melon or pumpkin is taken whole. Anything else a member tries to break in the area stays, and so does anything
+     * placed while the job ran, so nobody sells goods from elsewhere into the stock; a field crop a member planted is
+     * harvested like any other once it is ripe. A column is taken no higher than the top of the area.
+     *
+     * @param event the break, after the protection plugins had their say
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onHarvest(BlockBreakEvent event) {
+        var block = event.getBlock();
+        var entry = harvestArea(block);
+        if (entry == null) return;
+        var player = event.getPlayer();
+        var company = entry.job().company();
+        if (company == null || !entry.members().contains(player.getUniqueId())) return;
+        event.setCancelled(true);
+        var marks = placed.getOrDefault(entry.job().id(), Set.of());
+        var type = block.getType();
+        if (HarvestRules.crop(type) != HarvestRules.Crop.FIELD && marks.contains(key(block))) return;
+        var tool = player.getInventory().getItemInMainHand();
+        Map<String, Integer> items =
+                switch (HarvestRules.crop(type)) {
+                    case FIELD -> {
+                        if (!(block.getBlockData() instanceof Ageable crop) || crop.getAge() < crop.getMaximumAge()) {
+                            yield Map.of();
+                        }
+                        var drops = block.getDrops(tool, player);
+                        crop.setAge(0);
+                        block.setBlockData(crop);
+                        yield HarvestRules.yield(type, drops);
+                    }
+                    case STACKED -> {
+                        if (block.getRelative(BlockFace.DOWN).getType() != type) yield Map.of();
+                        var height = 0;
+                        var top = entry.job().area().maxY() - block.getY();
+                        while (height <= top
+                                && block.getRelative(BlockFace.UP, height).getType() == type
+                                && !marks.contains(key(block.getRelative(BlockFace.UP, height)))) {
+                            height++;
+                        }
+                        for (var up = height - 1; up >= 0; up--) {
+                            block.getRelative(BlockFace.UP, up).setType(Material.AIR, false);
+                        }
+                        yield Map.of(HarvestRules.item(type).name(), height);
+                    }
+                    case FRUIT -> {
+                        var drops = block.getDrops(tool, player);
+                        block.setType(Material.AIR);
+                        yield HarvestRules.yield(type, drops);
+                    }
+                    case NONE -> Map.of();
+                };
+        if (items.isEmpty()) return;
+        harvested.merge(new Work(entry.job().id(), company, player.getUniqueId()), new HashMap<>(items), (old, add) -> {
+            add.forEach((name, amount) -> old.merge(name, amount, Integer::sum));
+            return old;
+        });
+    }
+
+    /**
+     * @param player a player
+     * @param block  a block
+     * @return true when the player works on the taken harvest job whose field holds the block, where they only
+     *     harvest and plant field crops, so nobody washes a field away or builds on it
+     */
+    private boolean harvesting(Player player, Block block) {
+        var entry = harvestArea(block);
+        return entry != null
+                && entry.members().contains(player.getUniqueId())
+                && !player.hasPermission(Permission.Admin.JOBS_BYPASS);
+    }
+
+    /**
+     * @param block a block
+     * @return the taken harvest job whose area holds it, null when none does
+     */
+    private @Nullable Active harvestArea(Block block) {
+        var world = block.getWorld().getName();
+        for (var entry : active) {
+            var job = entry.job();
+            if (job.kind() == JobKind.HARVEST
+                    && job.state() == JobState.TAKEN
+                    && job.area().contains(world, block.getX(), block.getY(), block.getZ())) {
+                return entry;
+            }
+        }
+        return null;
     }
 
     /**
@@ -652,4 +783,18 @@ public final class JobAccess implements Listener {
     private record Answer(boolean owned, Set<UUID> planned) {}
 
     private record Applied(Set<Integer> revoked, Map<Integer, Set<UUID>> given) {}
+
+    /**
+     * Stores and pays what a member harvested on a harvest job.
+     */
+    @FunctionalInterface
+    public interface Harvests {
+        /**
+         * @param job     id of the job
+         * @param company id of the company the member harvested for
+         * @param worker  the member
+         * @param items   the items, as amounts by material name
+         */
+        void harvested(int job, int company, UUID worker, Map<String, Integer> items);
+    }
 }

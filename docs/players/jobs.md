@@ -44,6 +44,30 @@ waiting job gives its price back to you. A job a company works on pays the compa
 and the rest of the price comes back to you. The fee is kept either way. While a company works on your job, only its
 members may place blocks or pour buckets in the area.
 
+## Harvest jobs
+
+A **harvest job** keeps a field harvested for a time. Select the field with WorldEdit and post
+`/order job harvest <price per item> <budget> <hours> <title>`. You pay the budget and the fee at once. Once a company
+takes the job it harvests for `hours`, and each item it harvests is paid from the budget at the price per item, taxed
+and with the treasury cut like an order payout.
+
+While the company works on it, its members can only harvest in the field:
+
+- Wheat, carrots, potatoes, beetroots, nether wart and cocoa only when ripe. The crop is replanted at once; one seed of
+  the yield is kept back for that.
+- Sugar cane, bamboo and cactus only above the lowest block, which stays to grow again.
+- Melons and pumpkins only the fruit, never the stem.
+- Nothing else in the field can be broken, and nobody tramples the farmland. Members may plant field crops but not
+  place other blocks or pour buckets there, and what they placed is no harvest.
+
+Nothing drops: the harvest goes into the job's **stock**. List it with `/order job stock <id>` and take it with
+`/order job collect <id>`; what does not fit into your inventory stays in the stock. The stock waits for you after the
+job ended.
+
+The job ends when its time or budget runs out, when the company ends it, or when you end it with `/order job end <id>`.
+The rest of the budget comes back to you, the fee is kept, and the company keeps what it was paid. Running out of time
+costs a harvest company nothing. A harvest job has no approval and no disputes.
+
 ## Contracts
 
 A **contract** is work described in words, such as "build me a stable" or "bring 64 lanterns to my shop". Stand where
@@ -87,6 +111,10 @@ job, which pays the company in full and ends the dispute.
 | `/order job reject <id> <reason>` | Sends a contract the company says is done back to work. |
 | `/order job dispute <id> <reason>` | Opens a dispute an admin settles. |
 | `/order job withdraw <id>` | Withdraws a dispute you opened. |
+| `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you selected with WorldEdit. |
+| `/order job stock <id>` | Lists the stock of a harvest job. |
+| `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
+| `/order job end <id>` | Ends a harvest job a company works on; the rest of the budget comes back. |
 | `/order job cancel <id>` | Cancels a job nobody works on. The price comes back, the fee is kept. |
 
 A job waits for a company for some days (`openDays` in [jobs.yml](../admin/configuration/jobs-yml.md)). When nobody
@@ -105,7 +133,7 @@ Members with the *manage orders* permission run the company's jobs:
 | `/company job info <id>` | Shows a job's area, pay and time, and how far your work is. |
 | `/company job take <id>` | Takes a job. It uses one of your company's order slots. |
 | `/company job giveback <id>` | Gives a job back; it is open again. |
-| `/company job done <id>` | Checks the area and, when the work is done, pays the job. Run it on the server of the job's area. For a contract it tells the owner the work is done; they approve or reject it. |
+| `/company job done <id>` | Checks the area and, when the work is done, pays the job. Run it on the server of the job's area. For a contract it tells the owner the work is done; they approve or reject it. For a harvest job it ends the harvest. |
 | `/company job dispute <id> <reason>` | Opens a dispute an admin settles. |
 | `/company job withdraw <id>` | Withdraws a dispute your company opened. |
 

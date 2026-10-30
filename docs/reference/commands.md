@@ -100,6 +100,10 @@ See [Jobs](../players/jobs.md).
 | `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot you stand on, from the block below your feet down `depth` blocks. |
 | `/order job terraform <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the area you selected with WorldEdit: solid up to height `y`, empty above. You pay the price and the order fee at once. |
 | `/order job terraform surface <block> <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job whose top layer must be made of `block`. |
+| `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you selected with WorldEdit. You pay the budget and the order fee at once. |
+| `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of a harvest job. |
+| `/order job collect <id>` | `companies.orders.jobs` | Takes the stock of a harvest job into your inventory; what does not fit stays. |
+| `/order job end <id>` | `companies.orders.jobs` | Ends a harvest job a company works on; the rest of the budget comes back. |
 | `/order job contract <price> <hours> <title>` | `companies.orders.jobs` | Posts a contract, work described in words, at the place you stand. You pay the price and the order fee at once. |
 | `/order job describe <id> <text>` | `companies.orders.jobs` | Describes a job nobody has taken yet. |
 | `/order job approve <id>` | `companies.orders.jobs` | Approves a contract the company says is done, or a job a company works on as it stands, and pays the company. |
@@ -255,7 +259,7 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job info <id>` | none | none | Shows a job's area, pay and time, and for one of yours how far the work is. |
 | `/company job take <id>` | none | `manage_orders` | Takes a job. It uses one of the company's order slots and gives the members access to its area. |
 | `/company job giveback <id>` | none | `manage_orders` | Gives a job back; it is open again. |
-| `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. For a contract it tells the owner the work is done. |
+| `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. For a contract it tells the owner the work is done; for a harvest job it ends the harvest. |
 | `/company job dispute <id> <reason>` | none | `manage_orders` | Opens a dispute about a job of the company; an admin settles it. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
 ### Web dashboard

@@ -58,10 +58,12 @@ public final class JobProgress {
      * @param job   the job
      * @param fresh whether the result may be at most {@value #FRESH_SECONDS} seconds old instead of
      *              {@value #CACHE_SECONDS}
-     * @return how far the work is, empty for a job of another server or a world not loaded
+     * @return how far the work is, empty for a job of another server, a world not loaded or a kind without a check
      */
     public CompletableFuture<Optional<DigCheck.Progress>> of(Job job, boolean fresh) {
-        if (!job.node().equals(node)) return CompletableFuture.completedFuture(Optional.empty());
+        if (!job.node().equals(node) || !job.kind().area() || job.kind() == JobKind.HARVEST) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         var world = plugin.getServer().getWorld(job.area().world());
         if (world == null) return CompletableFuture.completedFuture(Optional.empty());
         var kept = cache.get(job.id());

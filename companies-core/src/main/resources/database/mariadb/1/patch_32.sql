@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS jobs
     settled     INT                NULL,
     target_y    INT                NULL,
     target_block VARCHAR(64)       NULL,
+    unit_price  DOUBLE             NULL,
+    paid        DOUBLE             NOT NULL DEFAULT 0,
     CONSTRAINT jobs_pk
         PRIMARY KEY (id)
 );
@@ -68,6 +70,18 @@ CREATE TABLE IF NOT EXISTS job_grants
     CONSTRAINT job_grants_pk
         PRIMARY KEY (job_id, player_uuid),
     CONSTRAINT job_grants_jobs_id_fk
+        FOREIGN KEY (job_id) REFERENCES jobs (id)
+            ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS job_stock
+(
+    job_id   INT         NOT NULL,
+    material VARCHAR(64) NOT NULL,
+    amount   INT         NOT NULL DEFAULT 0,
+    CONSTRAINT job_stock_pk
+        PRIMARY KEY (job_id, material),
+    CONSTRAINT job_stock_jobs_id_fk
         FOREIGN KEY (job_id) REFERENCES jobs (id)
             ON DELETE CASCADE
 );

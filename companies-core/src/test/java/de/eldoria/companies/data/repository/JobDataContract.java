@@ -8,6 +8,7 @@ package de.eldoria.companies.data.repository;
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobState;
@@ -303,6 +304,39 @@ public abstract class JobDataContract {
         assertEquals(NOW.plusHours(1), waiting.review().doneAt());
         assertEquals(WORKER, waiting.review().doneBy());
         assertNull(waiting.review().dispute());
+    }
+
+    @Test
+    void harvestedItemsArePaidOnlyWithinTheBudgetAndWhileTheCompanyHasTheJob() {
+        var id = jobs.create(Job.draft(
+                                OWNER,
+                                JobKind.HARVEST,
+                                "Wheat",
+                                10,
+                                1,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 5, 61, 5),
+                                JobLand.REGION,
+                                "home",
+                                48,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withHarvest(new JobHarvest(0.5, 0)))
+                .orElseThrow();
+
+        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 4), 2));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+        assertFalse(jobs.harvested(id, 4, Map.of("WHEAT", 4), 2));
+        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 4, "WHEAT_SEEDS", 2), 3));
+        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 6), 3));
+        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 20), 10));
+        jobs.stock(id, Map.of("WHEAT", 1));
+
+        assertEquals(new JobHarvest(0.5, 6), jobs.job(id).orElseThrow().harvest());
+        assertEquals(Map.of("WHEAT", 11, "WHEAT_SEEDS", 2), jobs.stock(id));
+        assertTrue(jobs.takeStock(id, "WHEAT", 11));
+        assertFalse(jobs.takeStock(id, "WHEAT_SEEDS", 3));
+        assertEquals(Map.of("WHEAT_SEEDS", 2), jobs.stock(id));
     }
 
     @Test

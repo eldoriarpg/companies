@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS companies_schema.jobs
     settled     INTEGER,
     target_y    INTEGER,
     target_block VARCHAR(64),
+    unit_price  DOUBLE PRECISION,
+    paid        DOUBLE PRECISION NOT NULL DEFAULT 0,
     CONSTRAINT jobs_pk
         PRIMARY KEY (id)
 );
@@ -70,4 +72,16 @@ CREATE TABLE IF NOT EXISTS companies_schema.job_grants
     player_uuid BYTEA   NOT NULL,
     CONSTRAINT job_grants_pk
         PRIMARY KEY (job_id, player_uuid)
+);
+
+CREATE TABLE IF NOT EXISTS companies_schema.job_stock
+(
+    job_id   INTEGER     NOT NULL
+        CONSTRAINT job_stock_jobs_id_fk
+            REFERENCES companies_schema.jobs
+            ON DELETE CASCADE,
+    material VARCHAR(64) NOT NULL,
+    amount   INTEGER     NOT NULL DEFAULT 0,
+    CONSTRAINT job_stock_pk
+        PRIMARY KEY (job_id, material)
 );

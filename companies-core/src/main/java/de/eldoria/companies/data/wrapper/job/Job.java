@@ -43,6 +43,7 @@ import java.util.UUID;
  * @param granted     whether the company's members have access to the area right now
  * @param review      how the end of the work is reviewed
  * @param target      the shape a terraform job asks for, null for other kinds
+ * @param harvest     the item price and what was paid of a harvest job, null for other kinds
  */
 public record Job(
         int id,
@@ -67,7 +68,8 @@ public record Job(
         @Nullable String closedBy,
         boolean granted,
         JobReview review,
-        @Nullable JobTarget target) {
+        @Nullable JobTarget target,
+        @Nullable JobHarvest harvest) {
     /**
      * The longest title.
      */
@@ -131,6 +133,7 @@ public record Job(
                 null,
                 false,
                 JobReview.NONE,
+                null,
                 null);
     }
 
@@ -162,7 +165,8 @@ public record Job(
                 closedBy,
                 granted,
                 review,
-                target);
+                target,
+                harvest);
     }
 
     /**
@@ -193,7 +197,48 @@ public record Job(
                 closedBy,
                 granted,
                 review,
-                target);
+                target,
+                harvest);
+    }
+
+    /**
+     * @param harvest the item price of a harvest job
+     * @return the job with that price
+     */
+    public Job withHarvest(@Nullable JobHarvest harvest) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target,
+                harvest);
+    }
+
+    /**
+     * @return what is left of the price to give back: the whole price, less what a harvest job already paid out
+     */
+    public double unpaid() {
+        var spent = harvest;
+        return spent == null ? price : Math.max(0, price - spent.paid());
     }
 
     /**

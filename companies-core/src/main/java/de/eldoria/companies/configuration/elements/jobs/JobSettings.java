@@ -22,6 +22,7 @@ public class JobSettings {
     private List<String> unownedWorlds = new ArrayList<>();
     private int digMaxVolume = 32768;
     private int terraformMaxVolume = 32768;
+    private int harvestMaxVolume = 16384;
     private int maxChunks = 64;
     private int maxOpenPerOwner = 5;
     private int maxDueHours = 168;
@@ -92,7 +93,22 @@ public class JobSettings {
      * @return the most blocks its area may hold
      */
     public int maxVolume(JobKind kind) {
-        return kind == JobKind.TERRAFORM ? terraformMaxVolume() : digMaxVolume();
+        return switch (kind) {
+            case TERRAFORM -> terraformMaxVolume();
+            case HARVEST -> harvestMaxVolume();
+            default -> digMaxVolume();
+        };
+    }
+
+    /**
+     * @return the most blocks the field of a harvest job may hold, at least 1
+     */
+    public int harvestMaxVolume() {
+        return Math.max(1, harvestMaxVolume);
+    }
+
+    public void harvestMaxVolume(int harvestMaxVolume) {
+        this.harvestMaxVolume = harvestMaxVolume;
     }
 
     /**

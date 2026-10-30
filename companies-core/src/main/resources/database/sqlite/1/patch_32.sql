@@ -37,7 +37,9 @@ CREATE TABLE jobs
     disputed_at datetime,
     settled     INTEGER,
     target_y    INTEGER,
-    target_block TEXT
+    target_block TEXT,
+    unit_price  REAL,
+    paid        REAL     NOT NULL DEFAULT 0
 );
 
 CREATE INDEX jobs_state_index
@@ -70,4 +72,16 @@ CREATE TABLE job_grants
     player_uuid blob    NOT NULL,
     CONSTRAINT job_grants_pk
         PRIMARY KEY (job_id, player_uuid)
+);
+
+CREATE TABLE job_stock
+(
+    job_id   INTEGER NOT NULL
+        CONSTRAINT job_stock_jobs_id_fk
+            REFERENCES jobs
+            ON DELETE CASCADE,
+    material TEXT    NOT NULL,
+    amount   INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT job_stock_pk
+        PRIMARY KEY (job_id, material)
 );

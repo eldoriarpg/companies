@@ -400,7 +400,8 @@ class JobServiceTest {
                         AREA,
                         JobLand.REGION,
                         "home",
-                        new JobTarget(62, null))));
+                        new JobTarget(62, null),
+                        null)));
         var posted = assertInstanceOf(JobService.Posted.Done.class, terraform(new JobTarget(62, "GRASS_BLOCK")));
         assertEquals(
                 new JobTarget(62, "GRASS_BLOCK"),
@@ -410,7 +411,119 @@ class JobServiceTest {
     }
 
     private JobService.Posted terraform(@Nullable JobTarget target) {
-        return service.post(owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, AREA, JobLand.REGION, "home", target);
+        return service.post(
+                owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, AREA, JobLand.REGION, "home", target, null);
+    }
+
+    @Test
+    void aHarvestJobNeedsAnItemPriceWithinItsBudget() {
+        assertEquals(JobService.Refusal.UNIT_PRICE, refusal(harvest(100, null)));
+        assertEquals(JobService.Refusal.UNIT_PRICE, refusal(harvest(100, 0.0)));
+        assertEquals(JobService.Refusal.UNIT_PRICE, refusal(harvest(100, 101.0)));
+        assertEquals(
+                JobService.Refusal.UNIT_PRICE,
+                refusal(service.post(
+                        owner, JobKind.DIG, "Pit", 100, 24, NODE, AREA, JobLand.REGION, "home", null, 1.0)));
+        assertEquals(1000.0, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void harvestedItemsArePaidFromTheBudgetUntilItIsUsedUp() {
+        var job = harvested(10, 1);
+        service.take(company, manager, job.id());
+
+        assertTrue(service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 4)) > 0);
+        assertEquals(4.0, jobs.job(job.id()).orElseThrow().harvest().paid(), 0.001);
+        assertTrue(service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 10)) > 0);
+
+        var ended = jobs.job(job.id()).orElseThrow();
+        assertEquals(JobState.PAID, ended.state());
+        assertEquals(JobService.BUDGET_BY, ended.closedBy());
+        assertEquals(10.0, ended.harvest().paid(), 0.001);
+        assertEquals(Map.of("WHEAT", 14), jobs.stock(job.id()));
+        assertTrue(notices.contains("owner HARVEST_ENDED " + job.id()));
+        assertEquals(0.0, service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 2)), 0.001);
+        assertEquals(Map.of("WHEAT", 16), jobs.stock(job.id()));
+    }
+
+    @Test
+    void aHarvestWhoseTimeRunsOutEndsWithoutPenaltyAndGivesTheRestBack() {
+        var job = harvested(10, 1);
+        service.take(company, manager, job.id());
+        service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 4));
+        var before = balances.get(owner);
+        clock = Clock.offset(clock, Duration.ofHours(25));
+        service();
+
+        var check = service.check();
+
+        assertEquals(List.of(job.id()), check.ended());
+        assertEquals(List.of(), check.reopened());
+        assertEquals(List.of(), penalties);
+        assertEquals(before + 6, balances.get(owner), 0.001);
+        assertEquals(
+                JobService.HARVEST_TIME_BY, jobs.job(job.id()).orElseThrow().closedBy());
+    }
+
+    @Test
+    void eitherSideMayEndAHarvestButNotApproveOrDisputeIt() {
+        var job = harvested(10, 1);
+
+        assertEquals(JobService.Change.TAKEN, service.endAsOwner(owner, "Owner", job.id()));
+        service.take(company, manager, job.id());
+        assertEquals(JobService.Change.HARVEST, service.approve(owner, "Owner", job.id()));
+        assertEquals(JobService.Change.HARVEST, service.disputeAsOwner(owner, job.id(), "Slow"));
+        assertEquals(JobService.Change.HARVEST, service.mayFinish(company, manager, job.id()));
+        assertEquals(JobService.Change.NO_PERMISSION, service.endAsCompany(company, worker, job.id()));
+        assertEquals(JobService.Change.DONE, service.endAsCompany(company, manager, job.id()));
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(JobService.Change.CLOSED, service.endAsOwner(owner, "Owner", job.id()));
+    }
+
+    @Test
+    void aPartPaidHarvestGivenBackRefundsOnlyWhatIsLeftOfTheBudget() {
+        var job = harvested(10, 1);
+        service.take(company, manager, job.id());
+        service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 4));
+        service.giveBack(company, manager, job.id());
+        var before = balances.get(owner);
+
+        assertEquals(JobService.Change.DONE, service.cancel(owner, "Owner", job.id()));
+
+        assertEquals(before + 6, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void aHarvestForACompanyWithoutTheJobGoesIntoTheStockUnpaid() {
+        var job = harvested(10, 1);
+
+        assertEquals(0.0, service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 3)), 0.001);
+
+        assertEquals(Map.of("WHEAT", 3), jobs.stock(job.id()));
+        assertEquals(0.0, jobs.job(job.id()).orElseThrow().harvest().paid(), 0.001);
+        assertEquals(null, balances.get(worker));
+    }
+
+    @Test
+    void aHarvestWhoseLandChangedHandsEndsAndGivesTheRestBack() {
+        var job = harvested(10, 1);
+        service.take(company, manager, job.id());
+        service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 4));
+        var before = balances.get(owner);
+
+        assertTrue(service.landLost(jobs.job(job.id()).orElseThrow(), null));
+
+        assertEquals(JobState.CANCELLED, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(before + 6, balances.get(owner), 0.001);
+    }
+
+    private Job harvested(double budget, double unit) {
+        return ((JobService.Posted.Done) harvest(budget, unit)).job();
+    }
+
+    private JobService.Posted harvest(double budget, @Nullable Double unit) {
+        return service.post(
+                owner, JobKind.HARVEST, "Wheat", budget, 24, NODE, AREA, JobLand.REGION, "home", null, unit);
     }
 
     @Test

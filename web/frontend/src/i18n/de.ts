@@ -966,6 +966,7 @@ export default {
                     unownedWorlds: 'Welten, in denen Jobs auf herrenlosem Land liegen dürfen',
                     digMaxVolume: 'Höchstzahl Blöcke im Bereich eines Grabe-Jobs',
                     terraformMaxVolume: 'Höchstzahl Blöcke im Bereich eines Terraform-Jobs',
+                    harvestMaxVolume: 'Höchstzahl Blöcke im Feld eines Ernte-Jobs',
                     maxChunks: 'Höchstzahl Chunks, die der Bereich eines Jobs berühren darf',
                     maxOpenPerOwner: 'Höchstzahl Jobs eines Spielers, die auf eine Firma warten',
                     maxDueHours: 'Höchste Stundenzahl, die eine Firma für einen Job bekommen darf',

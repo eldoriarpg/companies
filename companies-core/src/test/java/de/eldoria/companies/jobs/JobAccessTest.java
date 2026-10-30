@@ -9,6 +9,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobState;
@@ -18,6 +19,7 @@ import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.JobLandHook;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.Ageable;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
@@ -64,6 +66,7 @@ class JobAccessTest {
     private final Map<Integer, Set<UUID>> access = new HashMap<>();
     private final List<Integer> revoked = new ArrayList<>();
     private final List<Job> lost = new ArrayList<>();
+    private final List<String> harvests = new ArrayList<>();
     private boolean owned = true;
     private boolean loaded = true;
     private SqLiteJobData jobs;
@@ -87,6 +90,7 @@ class JobAccessTest {
                 NODE,
                 Runnable::run,
                 lost::add,
+                (job, company, worker, items) -> harvests.add(job + " " + worker + " " + items),
                 Logger.getAnonymousLogger());
     }
 
@@ -263,6 +267,123 @@ class JobAccessTest {
         sync.flush();
 
         assertEquals(Map.of(worker.getUniqueId(), 5), jobs.workOf(id));
+    }
+
+    @Test
+    void aMemberHarvestsCaneAboveItsBaseIntoTheStockAndNothingElse() {
+        var worker = server.addPlayer();
+        var id = jobs.create(Job.draft(
+                                UUID.randomUUID(),
+                                JobKind.HARVEST,
+                                "Cane",
+                                100,
+                                5,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 4, 64, 4),
+                                JobLand.PLOT,
+                                "1;1",
+                                24,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withHarvest(new JobHarvest(1, 0)))
+                .orElseThrow();
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        world.getBlockAt(1, 59, 1).setType(Material.SAND);
+        for (var y = 60; y <= 62; y++) world.getBlockAt(1, y, 1).setType(Material.SUGAR_CANE);
+        world.getBlockAt(2, 60, 2).setType(Material.FARMLAND);
+
+        var base = new BlockBreakEvent(world.getBlockAt(1, 60, 1), worker);
+        sync.onHarvest(base);
+        var cane = new BlockBreakEvent(world.getBlockAt(1, 61, 1), worker);
+        sync.onHarvest(cane);
+        var soil = new BlockBreakEvent(world.getBlockAt(2, 60, 2), worker);
+        sync.onHarvest(soil);
+        sync.flush();
+
+        assertTrue(base.isCancelled());
+        assertTrue(cane.isCancelled());
+        assertTrue(soil.isCancelled());
+        assertEquals(Material.SUGAR_CANE, world.getBlockAt(1, 60, 1).getType());
+        assertEquals(Material.AIR, world.getBlockAt(1, 61, 1).getType());
+        assertEquals(Material.AIR, world.getBlockAt(1, 62, 1).getType());
+        assertEquals(List.of(id + " " + worker.getUniqueId() + " {SUGAR_CANE=2}"), harvests);
+    }
+
+    @Test
+    void membersOnlyPlantInAHarvestFieldAndWhatTheyPlacedIsNoHarvest() {
+        var worker = server.addPlayer();
+        var id = harvestJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        var stone = world.getBlockAt(3, 61, 3);
+        stone.setType(Material.COBBLESTONE);
+        var wheat = world.getBlockAt(3, 61, 2);
+        wheat.setType(Material.WHEAT);
+        var cane = world.getBlockAt(2, 61, 2);
+        world.getBlockAt(2, 60, 2).setType(Material.SUGAR_CANE);
+        cane.setType(Material.SUGAR_CANE);
+
+        var cobble = new BlockPlaceEvent(
+                stone, stone.getState(), stone, new ItemStack(Material.COBBLESTONE), worker, true, EquipmentSlot.HAND);
+        sync.onPlace(cobble);
+        var seed = new BlockPlaceEvent(
+                wheat, wheat.getState(), wheat, new ItemStack(Material.WHEAT_SEEDS), worker, true, EquipmentSlot.HAND);
+        sync.onPlace(seed);
+        place(worker, cane, Material.SUGAR_CANE);
+        sync.onHarvest(new BlockBreakEvent(cane, worker));
+        sync.flush();
+
+        sync.onPlaced(seed);
+        var ripe = (Ageable) wheat.getBlockData();
+        ripe.setAge(ripe.getMaximumAge());
+        wheat.setBlockData(ripe);
+        var harvest = new BlockBreakEvent(wheat, worker);
+        sync.onHarvest(harvest);
+
+        assertTrue(cobble.isCancelled());
+        assertFalse(seed.isCancelled());
+        assertTrue(harvest.isCancelled());
+        assertEquals(0, ((Ageable) wheat.getBlockData()).getAge());
+        assertEquals(List.of(), harvests);
+        assertTrue(id > 0);
+    }
+
+    @Test
+    void aColumnIsHarvestedNoHigherThanTheField() {
+        var worker = server.addPlayer();
+        var id = harvestJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        world.getBlockAt(1, 59, 1).setType(Material.SAND);
+        for (var y = 60; y <= 66; y++) world.getBlockAt(1, y, 1).setType(Material.BAMBOO);
+
+        sync.onHarvest(new BlockBreakEvent(world.getBlockAt(1, 61, 1), worker));
+        sync.flush();
+
+        assertEquals(List.of(id + " " + worker.getUniqueId() + " {BAMBOO=4}"), harvests);
+        assertEquals(Material.BAMBOO, world.getBlockAt(1, 65, 1).getType());
+    }
+
+    private int harvestJob() {
+        var id = jobs.create(Job.draft(
+                                UUID.randomUUID(),
+                                JobKind.HARVEST,
+                                "Field",
+                                100,
+                                5,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 4, 64, 4),
+                                JobLand.PLOT,
+                                "1;1",
+                                24,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withHarvest(new JobHarvest(1, 0)))
+                .orElseThrow();
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        return id;
     }
 
     private void breakBlock(Player player, Block block) {
