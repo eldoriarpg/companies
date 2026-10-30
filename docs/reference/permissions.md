@@ -54,6 +54,7 @@ Only operators have these by default.
 | `companies.admin.debug` | op | Create debug reports with `/companyadmin debug`. |
 | `companies.admin.delete` | op | Delete companies with `/companyadmin delete`. |
 | `companies.admin.grant` | op | Give items and money to players with `/companyadmin grant`. |
+| `companies.admin.jobs` | op | List and settle disputes about jobs (`/companyadmin job`). |
 | `companies.admin.jobs.bypass` | op | Place blocks, pour buckets (lava included), place TNT and set fire in the area of a job another company works on, and act outside a job's area on land reached only through a job. |
 | `companies.admin.level` | op | Edit the company levels with `/companyadmin level`. |
 | `companies.admin.nodes` | op | List and remove the servers registered in the database with `/companyadmin node`. |
@@ -80,7 +81,7 @@ These give every permission listed below them. On their own, they do nothing.
 | `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.dashboard.use`, `companies.admin.*`, `companies.updates` |
 | `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat`, `companies.orders.solo`, `companies.orders.jobs` |
 | `companies.company.*` | op | `companies.company.create`, `companies.company.join` |
-| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.jobs.bypass`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
+| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.jobs`, `companies.admin.jobs.bypass`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
 
 :::note
 The player permissions have the default "everyone". So players have them even without `companies.*`. To block a feature, set the permission to `false` for that player or group.

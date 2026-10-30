@@ -20,5 +20,9 @@ public enum JobLand {
     /**
      * Land of nobody, in a world where the server allows jobs there: a job region only marks who works there.
      */
-    UNOWNED
+    UNOWNED,
+    /**
+     * No land at all: a contract, whose area only marks a place to look at and gives nobody access.
+     */
+    NONE
 }

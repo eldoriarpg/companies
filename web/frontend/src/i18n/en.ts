@@ -969,6 +969,7 @@ export default {
                     maxOpenPerOwner: 'Most jobs a player may have waiting for a company',
                     maxDueHours: 'Most hours a company may get to finish a job',
                     openDays: 'Days a job waits for a company before it expires',
+                    approveHours: 'Hours a finished contract waits for its owner before it is approved',
                 },
             },
         },

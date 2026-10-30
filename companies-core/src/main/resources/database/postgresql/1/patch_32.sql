@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS companies_schema.jobs
     closed      TIMESTAMP,
     closed_by   TEXT,
     granted     BOOLEAN          NOT NULL DEFAULT FALSE,
+    done_at     TIMESTAMP,
+    done_by     BYTEA,
+    rejected    VARCHAR(256),
+    dispute_by  BYTEA,
+    dispute     VARCHAR(256),
+    disputed_at TIMESTAMP,
+    settled     INTEGER,
     CONSTRAINT jobs_pk
         PRIMARY KEY (id)
 );

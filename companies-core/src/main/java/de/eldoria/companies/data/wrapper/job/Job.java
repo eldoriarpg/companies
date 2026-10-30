@@ -11,8 +11,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * A job stored in {@code jobs}: work in an area that a company takes like an order, paid from the price the owner paid
- * when creating it.
+ * A job stored in {@code jobs}: work that a company takes like an order, paid from the price the owner paid when
+ * creating it. Area kinds work in an area of the owner's land; a contract is work described in words, its area only a
+ * place to look at.
  * <p>
  * The owner pays the price and the fee at once. While it is {@link JobState#OPEN} any company may take it until it
  * expires. A company that takes it has {@code dueHours} to finish and gets access to the area on the server whose world
@@ -40,6 +41,7 @@ import java.util.UUID;
  * @param closed      when it reached a final state, null while it runs
  * @param closedBy    who closed it, null while it runs
  * @param granted     whether the company's members have access to the area right now
+ * @param review      how the end of the work is reviewed
  */
 public record Job(
         int id,
@@ -62,11 +64,17 @@ public record Job(
         @Nullable LocalDateTime due,
         @Nullable LocalDateTime closed,
         @Nullable String closedBy,
-        boolean granted) {
+        boolean granted,
+        JobReview review) {
     /**
      * The longest title.
      */
     public static final int MAX_TITLE = 64;
+
+    /**
+     * The longest description.
+     */
+    public static final int MAX_DESCRIPTION = 512;
 
     /**
      * A new open job, not stored yet.
@@ -119,7 +127,8 @@ public record Job(
                 null,
                 null,
                 null,
-                false);
+                false,
+                JobReview.NONE);
     }
 
     /**
@@ -148,7 +157,8 @@ public record Job(
                 due,
                 closed,
                 closedBy,
-                granted);
+                granted,
+                review);
     }
 
     /**

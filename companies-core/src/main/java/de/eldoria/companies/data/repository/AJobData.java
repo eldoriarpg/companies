@@ -54,7 +54,7 @@ public abstract class AJobData {
 
     /**
      * @param company id of a company
-     * @return the jobs the company works on
+     * @return the jobs the company holds: worked on, waiting for approval or disputed
      */
     public abstract List<Job> ofCompany(int company);
 
@@ -70,14 +70,93 @@ public abstract class AJobData {
     public abstract boolean take(int job, int company, LocalDateTime at, LocalDateTime due);
 
     /**
-     * Opens a taken job again, when the company gave it back or its time ran out. The work counted for the company is
-     * dropped, so the next company starts with none.
+     * Opens a job the company works on or waits for approval of again, when the company gave it back, its time ran out
+     * or it was disbanded. The work counted for the company and its review are dropped, so the next company starts
+     * fresh.
      *
      * @param job     id of the job
      * @param company id of the company that had it
      * @return true when the company had the job and it is open again
      */
     public abstract boolean release(int job, int company);
+
+    /**
+     * Sets the description of a job that waits for a company.
+     *
+     * @param job         id of the job
+     * @param description the description, null for none
+     * @return true when the job was open and its description changed
+     */
+    public abstract boolean describe(int job, @Nullable String description);
+
+    /**
+     * Notes that the company says a taken job is done; it then waits for the owner.
+     *
+     * @param job     id of the job
+     * @param company id of the company that has it
+     * @param by      the member saying so
+     * @param at      when
+     * @return true when the company had the job taken and it now waits for the owner
+     */
+    public abstract boolean markDone(int job, int company, UUID by, LocalDateTime at);
+
+    /**
+     * Sends a job waiting for the owner back to work, with the reason and a new due time.
+     *
+     * @param job    id of the job
+     * @param reason why the owner rejected the work
+     * @param due    when the company's time now runs out
+     * @return true when the job waited for the owner and is taken again
+     */
+    public abstract boolean reject(int job, String reason, LocalDateTime due);
+
+    /**
+     * Opens a dispute about a job a company holds.
+     *
+     * @param job     id of the job
+     * @param company id of the company that must hold it
+     * @param from    the state it must be in
+     * @param by      who opens it
+     * @param reason  why
+     * @param at      when
+     * @return true when the company held it in {@code from} and it is now disputed
+     */
+    public abstract boolean dispute(int job, int company, JobState from, UUID by, String reason, LocalDateTime at);
+
+    /**
+     * Ends a dispute without a settlement, when the side that opened it withdraws it. The job goes back to where it was:
+     * waiting for the owner when the company had said it is done, taken otherwise. Either way it gets a new due time.
+     *
+     * @param job    id of the job
+     * @param by     who opened the dispute
+     * @param due    when the company's time now runs out
+     * @param doneAt when the company said the work is done, from which approval without an answer counts; null when it
+     *               did not, which makes the job taken again
+     * @return true when the job was disputed by {@code by} and is back where it was
+     */
+    public abstract boolean withdraw(int job, UUID by, LocalDateTime due, @Nullable LocalDateTime doneAt);
+
+    /**
+     * Closes a disputed job with an admin's split.
+     *
+     * @param job     id of the job
+     * @param percent the percent of the price the company gets
+     * @param by      the admin
+     * @param at      when
+     * @return true when it was disputed and is now settled
+     */
+    public abstract boolean settle(int job, int percent, String by, LocalDateTime at);
+
+    /**
+     * @param before the latest time the company may have said the work is done
+     * @return the jobs waiting for their owner since then or earlier
+     */
+    public abstract List<Job> waiting(LocalDateTime before);
+
+    /**
+     * @return the disputed jobs, the oldest dispute first
+     */
+    public abstract List<Job> disputed();
 
     /**
      * Closes a job.
@@ -102,7 +181,24 @@ public abstract class AJobData {
      * @param at      when it closed
      * @return true when the company had the job and it is now in {@code to}
      */
-    public abstract boolean closeTaken(int job, int company, JobState to, @Nullable String by, LocalDateTime at);
+    public boolean closeTaken(int job, int company, JobState to, @Nullable String by, LocalDateTime at) {
+        return closeHeld(job, company, JobState.TAKEN, to, by, at);
+    }
+
+    /**
+     * Closes a job only while the given company still holds it in the given state, so a job given back and taken by
+     * another company meanwhile is left alone.
+     *
+     * @param job     id of the job
+     * @param company id of the company that holds it
+     * @param from    the state it must be in
+     * @param to      its final state
+     * @param by      who closed it, null when nobody did
+     * @param at      when it closed
+     * @return true when the company held the job in {@code from} and it is now in {@code to}
+     */
+    public abstract boolean closeHeld(
+            int job, int company, JobState from, JobState to, @Nullable String by, LocalDateTime at);
 
     /**
      * @param owner a player
@@ -123,8 +219,8 @@ public abstract class AJobData {
     public abstract List<Job> overdue(LocalDateTime now);
 
     /**
-     * The jobs of a server whose land and access must be checked: the waiting and taken ones and every one still noted
-     * as granted.
+     * The jobs of a server whose land and access must be checked: the waiting and taken ones with an area and every one
+     * still noted as granted. Contracts have no land and are never among them.
      *
      * @param node the server
      * @return the jobs
@@ -167,7 +263,7 @@ public abstract class AJobData {
 
     /**
      * @param area an area
-     * @return the jobs that wait or are worked on whose areas share a block with it
+     * @return the area jobs that wait or are held by a company whose areas share a block with it
      */
     public abstract List<Job> overlapping(JobArea area);
 

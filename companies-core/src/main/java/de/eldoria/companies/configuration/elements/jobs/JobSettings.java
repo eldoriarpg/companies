@@ -11,7 +11,7 @@ import java.util.Locale;
 
 /**
  * The jobs, the file {@code jobs.yml}: whether players may post them, where they may lie, how large they may be and
- * how long they run. The fee of a job is the order fee of {@code order.yml}. The jobs themselves are stored in the
+ * how long they run and wait for approval. The fee of a job is the order fee of {@code order.yml}. The jobs themselves are stored in the
  * database.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
@@ -23,6 +23,7 @@ public class JobSettings {
     private int maxOpenPerOwner = 5;
     private int maxDueHours = 168;
     private int openDays = 7;
+    private int approveHours = 72;
 
     public JobSettings() {}
 
@@ -114,5 +115,17 @@ public class JobSettings {
 
     public void openDays(int openDays) {
         this.openDays = openDays;
+    }
+
+    /**
+     * @return how many hours a job the company says is done waits for its owner before it is approved and paid, at
+     *     least 1
+     */
+    public int approveHours() {
+        return Math.max(1, approveHours);
+    }
+
+    public void approveHours(int approveHours) {
+        this.approveHours = approveHours;
     }
 }

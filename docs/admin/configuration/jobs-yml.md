@@ -5,7 +5,8 @@ sidebar_position: 7
 
 # jobs.yml
 
-[Jobs](../../players/jobs.md): work in an area of a player's land that a company takes like an order. This file says
+[Jobs](../../players/jobs.md): work a company takes like an order, in an area of a player's land or described in
+words. This file says
 whether players may post them, where they may lie, how large they may be and how long they run. It is shared by every
 server of a network. The jobs themselves are stored in the database.
 
@@ -17,6 +18,7 @@ maxChunks: 64
 maxOpenPerOwner: 5
 maxDueHours: 168
 openDays: 7
+approveHours: 72
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -28,6 +30,7 @@ openDays: 7
 | `maxOpenPerOwner` | number | `5` | The most jobs a player may have waiting for a company at once. | reload |
 | `maxDueHours` | number (hours) | `168` | The most hours an owner may give a company to finish a job. | reload |
 | `openDays` | number (days) | `7` | How long a job waits for a company. Nobody took it by then: it expires and price and fee go back to its owner. | reload |
+| `approveHours` | number (hours) | `72` | How long a job the company says is done waits for its owner to approve or reject it. Without an answer by then it is approved and paid. | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of

@@ -75,7 +75,9 @@ import java.util.logging.Logger;
  * place blocks or empty buckets in a taken job's area, so nobody fills it up while it is worked on. A land hook whose
  * access reaches beyond the job's area, such as the trust on a whole plot, is held to the area: players who only have
  * access through a job may not break, place, use buckets, use blocks or touch entities outside the areas of the jobs
- * they work on, though they may still open doors, use the item in their hand and fight monsters. Nobody may pour lava,
+ * they work on, though they may still open doors, use the item in their hand and fight monsters. A disputed job's area
+ * is frozen until an admin settles it: nobody has access through it and nobody, its owner included, may place blocks
+ * or pour into it. Nobody may pour lava,
  * place TNT or set fire in a taken job's area. Players with {@code companies.admin.jobs.bypass} are held by none of
  * this.
  */
@@ -186,6 +188,7 @@ public final class JobAccess implements Listener {
             if (asked == null) return;
             List<Plan> granting = new ArrayList<>();
             List<Plan> revoking = new ArrayList<>();
+            List<Job> frozen = new ArrayList<>();
             for (var plan : plans) {
                 var answer = asked.get(plan.job().id());
                 var running = !plan.job().state().closed();
@@ -200,9 +203,10 @@ public final class JobAccess implements Listener {
                     if (!planned.equals(plan.before())
                             && !jobs.grants(plan.job().id(), planned)) continue;
                     granting.add(new Plan(plan.job(), plan.members(), planned));
-                } else if (plan.job().granted()) {
-                    revoking.add(plan);
+                    continue;
                 }
+                if (running && plan.job().state() == JobState.DISPUTED) frozen.add(plan.job());
+                if (plan.job().granted()) revoking.add(plan);
             }
             var done = onMain(() -> apply(revoking, granting), null);
             if (done == null) return;
@@ -218,6 +222,7 @@ public final class JobAccess implements Listener {
                 if (!plan.job().granted()) jobs.granted(plan.job().id(), true);
                 now.add(new Active(plan.job(), plan.members(), given));
             }
+            for (var job : frozen) now.add(new Active(job, Set.of(), Set.of()));
             active = List.copyOf(now);
             placed.keySet()
                     .removeIf(id -> now.stream().noneMatch(entry -> entry.job().id() == id));

@@ -13,6 +13,8 @@ import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobKind;
+import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
@@ -55,6 +57,13 @@ import java.util.logging.Level;
  *     <li>{@code dig <price> <hours> <title>} posts a dig job on the area selected with WorldEdit;</li>
  *     <li>{@code dig plot <price> <hours> <depth> <title>} posts one on the whole plot the player stands on, from the
  *     block below their feet down {@code depth} blocks;</li>
+ *     <li>{@code contract <price> <hours> <title>} posts a contract: work described in words, at the place the
+ *     player stands;</li>
+ *     <li>{@code describe <id> <text>} describes a job while it waits for a company;</li>
+ *     <li>{@code approve <id>} approves a contract the company says is done, or any job a company works on as it
+ *     stands, and pays the company;</li>
+ *     <li>{@code reject <id> <reason>} sends a contract the company says is done back to work;</li>
+ *     <li>{@code dispute <id> <reason>} opens a dispute an admin settles, {@code withdraw <id>} withdraws it;</li>
  *     <li>{@code cancel <id>} cancels a job nobody works on; the price goes back, the fee is kept.</li>
  * </ul>
  * The owner pays the price and the order fee when posting. The area must lie on the owner's plot or region, or on
@@ -166,6 +175,151 @@ public final class JobCommand {
     }
 
     /**
+     * Posts a contract at the place the player stands.
+     *
+     * @param sender sender of the command
+     * @param price  what the company is paid
+     * @param hours  how long a company has to finish
+     * @param title  title shown to companies
+     */
+    @Executes("contract")
+    public void contract(
+            CommandSender sender,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        var at = player.getLocation();
+        var area = new JobArea(
+                player.getWorld().getName(),
+                at.getBlockX(),
+                at.getBlockY(),
+                at.getBlockZ(),
+                at.getBlockX(),
+                at.getBlockY(),
+                at.getBlockZ());
+        var owner = player.getUniqueId();
+        var node = jobs().node();
+        run(
+                player,
+                () -> jobs().service()
+                        .post(owner, JobKind.CONTRACT, title, price, hours, node, area, JobLand.NONE, null),
+                posted -> posted(player, posted));
+    }
+
+    /**
+     * Describes a job of the player while it waits for a company.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     * @param text   the description
+     */
+    @Executes("describe")
+    public void describe(CommandSender sender, @IntArg(min = 0) int id, @StringArg(StringArgType.GREEDY) String text) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> jobs().service().describe(player.getUniqueId(), id, text),
+                change -> answer(player, id, change, "described"));
+    }
+
+    /**
+     * Approves a job of the player and pays the company.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("approve")
+    public void approve(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> {
+                    jobs().access().flush(id);
+                    return jobs().service().approve(player.getUniqueId(), player.getName(), id);
+                },
+                change -> {
+                    if (change == JobService.Change.DONE) jobs().access().checkSoon();
+                    answer(player, id, change, "approved");
+                });
+    }
+
+    /**
+     * Sends a contract of the player the company says is done back to work.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     * @param reason why the work is not done
+     */
+    @Executes("reject")
+    public void reject(CommandSender sender, @IntArg(min = 0) int id, @StringArg(StringArgType.GREEDY) String reason) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> jobs().service().reject(player.getUniqueId(), id, reason),
+                change -> answer(player, id, change, "rejected"));
+    }
+
+    /**
+     * Opens a dispute about a job of the player a company holds.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     * @param reason why
+     */
+    @Executes("dispute")
+    public void dispute(CommandSender sender, @IntArg(min = 0) int id, @StringArg(StringArgType.GREEDY) String reason) {
+        var player = Senders.player(sender);
+        run(player, () -> jobs().service().disputeAsOwner(player.getUniqueId(), id, reason), change -> {
+            if (change == JobService.Change.DONE) jobs().access().checkSoon();
+            answer(player, id, change, "disputed");
+        });
+    }
+
+    /**
+     * Withdraws a dispute the player opened about their job.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("withdraw")
+    public void withdraw(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(player, () -> jobs().service().withdrawAsOwner(player.getUniqueId(), id), change -> {
+            if (change == JobService.Change.DONE) jobs().access().checkSoon();
+            answer(player, id, change, "withdrawn");
+        });
+    }
+
+    private void answer(Player player, int id, JobService.Change change, String done) {
+        var values = Values.number("id", id);
+        var key =
+                switch (change) {
+                    case DONE -> done;
+                    case UNKNOWN -> "error.unknown";
+                    case NOT_YOURS -> done.equals("withdrawn") ? "error.notYourDispute" : "error.unknown";
+                    case TAKEN -> "error.taken";
+                    case DISPUTED -> "error.disputed";
+                    case REASON -> "error.reason";
+                    case TOO_LONG -> "error.description";
+                    case NOT_DONE -> "error.notDone";
+                    default -> "error.closed";
+                };
+        if (change == JobService.Change.DONE) {
+            deps.messages().sendMessage(player, PREFIX + key, values);
+        } else {
+            deps.messages()
+                    .sendError(
+                            player,
+                            PREFIX + key,
+                            values,
+                            Values.number(
+                                    "max",
+                                    change == JobService.Change.TOO_LONG ? Job.MAX_DESCRIPTION : JobReview.MAX_REASON));
+        }
+    }
+
+    /**
      * Cancels a job of the player that nobody works on.
      *
      * @param sender sender of the command
@@ -233,7 +387,7 @@ public final class JobCommand {
                 deps.messages()
                         .sendMessage(
                                 player,
-                                PREFIX + "posted",
+                                PREFIX + (job.kind().area() ? "posted" : "postedContract"),
                                 Values.number("id", job.id()),
                                 Values.text("job_title", job.title()),
                                 Values.money("price", deps.services().economy(), job.price()),
@@ -276,7 +430,7 @@ public final class JobCommand {
      * @return the progress, empty for a closed job, one of another server or a world not loaded
      */
     private Optional<DigCheck.Progress> progress(Job job) {
-        if (job.state().closed()) return Optional.empty();
+        if (job.state() != JobState.TAKEN || !job.kind().area()) return Optional.empty();
         return jobs().progress().of(job, false).join();
     }
 
@@ -289,13 +443,25 @@ public final class JobCommand {
                 Values.number("id", job.id()),
                 Values.text("job_title", job.title()),
                 Values.component("state", texts(player).locale(stateKey(job.state()))));
-        messages.sendMessage(
-                player,
-                PREFIX + "info.area",
-                Values.text("world", job.area().world()),
-                Values.text("center", job.area().center()),
-                Values.number("blocks", job.area().volume()),
-                Values.component("land", land(player, job)));
+        var description = job.description();
+        if (description != null) {
+            messages.sendMessage(player, PREFIX + "info.description", Values.text("description", description));
+        }
+        if (job.kind().area()) {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.area",
+                    Values.text("world", job.area().world()),
+                    Values.text("center", job.area().center()),
+                    Values.number("blocks", job.area().volume()),
+                    Values.component("land", land(player, job)));
+        } else {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.place",
+                    Values.text("world", job.area().world()),
+                    Values.text("center", job.area().center()));
+        }
         messages.sendMessage(
                 player,
                 PREFIX + "info.money",
@@ -308,12 +474,71 @@ public final class JobCommand {
         if (job.state() == JobState.TAKEN && due != null) {
             messages.sendMessage(player, PREFIX + "info.taken", Values.text("time", left(due)));
         }
+        var review = job.review();
+        if (job.state() == JobState.DONE) {
+            var approveAt = Objects.requireNonNullElse(review.doneAt(), Times.now())
+                    .plusHours(deps.configuration().jobSettings().approveHours());
+            messages.sendMessage(player, PREFIX + "info.waiting", Values.text("time", left(approveAt)));
+        }
+        if (job.state() == JobState.DISPUTED) {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.disputed",
+                    Values.text("reason", Objects.requireNonNullElse(review.dispute(), "")));
+        }
+        var settled = review.settled();
+        if (job.state() == JobState.SETTLED && settled != null) {
+            messages.sendMessage(player, PREFIX + "info.settled", Values.number("percent", settled));
+        }
         progress.ifPresent(found -> messages.sendMessage(
                 player,
                 PREFIX + "info.progress",
                 Values.number("percent", found.percent()),
                 Values.number("cleared", found.cleared()),
                 Values.number("total", found.total())));
+        messages.sendMessage(player, buttons(job));
+    }
+
+    private MenuText buttons(Job job) {
+        var id = job.id();
+        var buttons = MenuText.create();
+        switch (job.state()) {
+            case OPEN ->
+                buttons.text(
+                        "<act_cancel><remove>[<i18n:words.cancel>]</act_cancel>",
+                        Values.click("act_cancel", ClickEvent.suggestCommand("/order job cancel " + id)));
+            case DONE ->
+                buttons.text(
+                                "<act_approve><add>[<i18n:words.accept>]</act_approve> ",
+                                Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
+                        .text(
+                                "<act_reject><remove>[<i18n:words.deny>]</act_reject> ",
+                                Values.click("act_reject", ClickEvent.suggestCommand("/order job reject " + id + " ")))
+                        .text(
+                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
+                                Values.click(
+                                        "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
+            case DISPUTED -> {
+                buttons.text(
+                        "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
+                        Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)));
+                if (job.owner().equals(job.review().disputeBy())) {
+                    buttons.text(
+                            "<act_withdraw><show>[<i18n:" + PREFIX + "withdrawButton>]</act_withdraw>",
+                            Values.click("act_withdraw", ClickEvent.suggestCommand("/order job withdraw " + id)));
+                }
+            }
+            case TAKEN ->
+                buttons.text(
+                                "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
+                                Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
+                        .text(
+                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
+                                Values.click(
+                                        "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
+            default -> {}
+        }
+        return buttons;
     }
 
     private MenuText entry(Player player, Job job) {

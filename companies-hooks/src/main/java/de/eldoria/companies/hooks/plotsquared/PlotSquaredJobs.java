@@ -114,7 +114,7 @@ public final class PlotSquaredJobs implements JobLandHook {
                 yield plot != null && plot.isOwner(job.owner());
             }
             case UNOWNED -> center.getOwnedPlot() == null;
-            case REGION -> true;
+            case REGION, NONE -> true;
         };
     }
 

@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS jobs
     closed      DATETIME           NULL,
     closed_by   VARCHAR(64)        NULL,
     granted     BOOLEAN            NOT NULL DEFAULT FALSE,
+    done_at     DATETIME           NULL,
+    done_by     BINARY(16)         NULL,
+    rejected    VARCHAR(256)       NULL,
+    dispute_by  BINARY(16)         NULL,
+    dispute     VARCHAR(256)       NULL,
+    disputed_at DATETIME           NULL,
+    settled     INT                NULL,
     CONSTRAINT jobs_pk
         PRIMARY KEY (id)
 );

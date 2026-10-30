@@ -196,6 +196,7 @@ bukkit {
                 "companies.admin.delete",
                 "companies.admin.events",
                 "companies.admin.grant",
+                "companies.admin.jobs",
                 "companies.admin.jobs.bypass",
                 "companies.admin.level",
                 "companies.admin.nodes",
@@ -232,6 +233,9 @@ bukkit {
         }
         register("companies.admin.grant") {
             description = "Allows granting items and money to players"
+        }
+        register("companies.admin.jobs") {
+            description = "Allows listing and settling disputes about jobs"
         }
         register("companies.admin.jobs.bypass") {
             description = "Lets a player build in job areas of other companies and act outside a job area reached only through a job"

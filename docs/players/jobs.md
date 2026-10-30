@@ -5,9 +5,10 @@ sidebar_position: 10
 
 # Jobs
 
-Some work is not "deliver these items": dig out a cellar under your house, clear a quarry, empty a hill. Post it as a
-**job** and a company does it for you. The company gets access to just that area while it works, and is paid when the
-work checks out.
+Some work is not "deliver these items": dig out a cellar under your house, clear a quarry, empty a hill, or anything
+you can describe in words. Post it as a **job** and a company does it for you. For work in an area, the company gets
+access to just that area while it works, and is paid when the work checks out. For a **contract**, you decide whether
+the work is done.
 
 ## Posting a job
 
@@ -33,17 +34,54 @@ waiting job gives its price back to you. A job a company works on pays the compa
 and the rest of the price comes back to you. The fee is kept either way. While a company works on your job, only its
 members may place blocks or pour buckets in the area.
 
+## Contracts
+
+A **contract** is work described in words, such as "build me a stable" or "bring 64 lanterns to my shop". Stand where
+the work is and post it:
+`/order job contract <price> <hours> <title>`, then describe it with `/order job describe <id> <text>` while nobody
+has taken it yet. A contract gives the company no access to your land; agree on that with them in game.
+
+There is no check. When the company says the work is done, your inbox asks you to approve or reject it:
+
+- **Approve** (`/order job approve <id>`): the company is paid.
+- **Reject** (`/order job reject <id> <reason>`): the company is back at work. The time it waited for your answer is
+  added to its time, so your delay costs it nothing.
+- **No answer:** after `approveHours` (72 by default, in [jobs.yml](../admin/configuration/jobs-yml.md)) the contract is
+  approved and paid.
+
+You may also approve a dig job early, before every block is gone, when the rest does not matter to you. It is paid as
+it stands.
+
+## Disputes
+
+When you and the company can not agree, either side opens a **dispute** about a job a company works on or that waits
+for your answer: `/order job dispute <id> <reason>`, or `/company job dispute <id> <reason>` for the company. The job
+is frozen: the company's access ends, its time stops, and nobody, you included, may place blocks or pour into its area.
+A dispute the owner opens frees the company's order slot meanwhile; one the company opens keeps it. An admin looks at it and decides how the price is split: anything
+from all of it to the company to all of it back to you. The fee is kept.
+
+Until then, the side that opened the dispute may withdraw it (`/order job withdraw <id>` or `/company job withdraw
+<id>`): the job goes back to where it was, and the company gets the time the dispute lasted added. Work the company had
+already said is done waits for your answer again, with the time to approve it running on as before. You may also still approve the
+job, which pays the company in full and ends the dispute.
+
 ## Your jobs
 
 | Command | What it does |
 |---|---|
 | `/order job` | Lists your jobs. |
-| `/order job info <id>` | Shows a job: its area, money, state, and how far the work is (on the server of its area). |
+| `/order job info <id>` | Shows a job: its area or place, money, state, and how far the work is (on the server of its area). |
+| `/order job contract <price> <hours> <title>` | Posts a contract at the place you stand. |
+| `/order job describe <id> <text>` | Describes a job nobody has taken yet. |
+| `/order job approve <id>` | Approves a contract the company says is done, or a job a company works on as it stands, and pays the company. |
+| `/order job reject <id> <reason>` | Sends a contract the company says is done back to work. |
+| `/order job dispute <id> <reason>` | Opens a dispute an admin settles. |
+| `/order job withdraw <id>` | Withdraws a dispute you opened. |
 | `/order job cancel <id>` | Cancels a job nobody works on. The price comes back, the fee is kept. |
 
 A job waits for a company for some days (`openDays` in [jobs.yml](../admin/configuration/jobs-yml.md)). When nobody
 takes it, it expires and price and fee come back. The plugin never tells you which company works on your job; your inbox
-tells you when it is taken, given back, done, or expired. The land plugins may still show who has access, for example
+tells you when it is taken, given back, done, waiting for your answer, disputed, settled or expired. The land plugins may still show who has access, for example
 in the members of the job's WorldGuard region.
 
 ## Working on jobs
@@ -57,7 +95,9 @@ Members with the *manage orders* permission run the company's jobs:
 | `/company job info <id>` | Shows a job's area, pay and time, and how far your work is. |
 | `/company job take <id>` | Takes a job. It uses one of your company's order slots. |
 | `/company job giveback <id>` | Gives a job back; it is open again. |
-| `/company job done <id>` | Checks the area and, when the work is done, pays the job. Run it on the server of the job's area. |
+| `/company job done <id>` | Checks the area and, when the work is done, pays the job. Run it on the server of the job's area. For a contract it tells the owner the work is done; they approve or reject it. |
+| `/company job dispute <id> <reason>` | Opens a dispute an admin settles. |
+| `/company job withdraw <id>` | Withdraws a dispute your company opened. |
 
 While your company has the job, its members may change the area: on a plot they are trusted, in a region a job region
 lists them as members. Members who only have access through the job can not break or place blocks, use buckets, open

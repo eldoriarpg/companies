@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
@@ -41,7 +42,7 @@ public class MariaDbJobData extends AJobData {
     private static final String JOB = """
             SELECT id, owner_uuid, kind, title, description, price, fee, state, company_id, node, world, min_x, min_y,
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
-                   closed_by, granted
+                   closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled
             FROM jobs
             """;
 
@@ -126,8 +127,11 @@ public class MariaDbJobData extends AJobData {
 
     @Override
     public List<Job> ofCompany(int company) {
-        return query(JOB + "WHERE company_id = ? AND state = ? ORDER BY due, id")
-                .single(call().bind(company).bind(JobState.TAKEN.name()))
+        return query(JOB + "WHERE company_id = ? AND state IN (?, ?, ?) ORDER BY due, id")
+                .single(call().bind(company)
+                        .bind(JobState.TAKEN.name())
+                        .bind(JobState.DONE.name())
+                        .bind(JobState.DISPUTED.name()))
                 .map(this::parse)
                 .all();
     }
@@ -164,9 +168,12 @@ public class MariaDbJobData extends AJobData {
                 SET state      = ?,
                     company_id = NULL,
                     taken      = NULL,
-                    due        = NULL
+                    due        = NULL,
+                    done_at    = NULL,
+                    done_by    = NULL,
+                    rejected   = NULL
                 WHERE id = ?
-                  AND state = ?
+                  AND state IN (?, ?)
                   AND company_id = ?""";
         @Language("mariadb")
         var forget = "DELETE FROM job_work WHERE job_id = ?";
@@ -177,6 +184,7 @@ public class MariaDbJobData extends AJobData {
                     .single(call().bind(JobState.OPEN.name())
                             .bind(job)
                             .bind(JobState.TAKEN.name())
+                            .bind(JobState.DONE.name())
                             .bind(company))
                     .update()
                     .changed();
@@ -191,6 +199,145 @@ public class MariaDbJobData extends AJobData {
             }
         }
         return true;
+    }
+
+    @Override
+    public boolean describe(int job, @Nullable String description) {
+        return query("UPDATE jobs SET description = ? WHERE id = ? AND state = ?")
+                .single(call().bind(description).bind(job).bind(JobState.OPEN.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean markDone(int job, int company, UUID by, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state   = ?,
+                    done_at = ?,
+                    done_by = ?
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?""";
+        return query(update)
+                .single(call().bind(JobState.DONE.name())
+                        .bind(at, time())
+                        .bind(by, UUID_BYTES)
+                        .bind(job)
+                        .bind(JobState.TAKEN.name())
+                        .bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean reject(int job, String reason, LocalDateTime due) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state    = ?,
+                    done_at  = NULL,
+                    done_by  = NULL,
+                    rejected = ?,
+                    due      = ?
+                WHERE id = ?
+                  AND state = ?""";
+        return query(update)
+                .single(call().bind(JobState.TAKEN.name())
+                        .bind(reason)
+                        .bind(due, time())
+                        .bind(job)
+                        .bind(JobState.DONE.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean dispute(int job, int company, JobState from, UUID by, String reason, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state       = ?,
+                    dispute_by  = ?,
+                    dispute     = ?,
+                    disputed_at = ?
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?""";
+        return query(update)
+                .single(call().bind(JobState.DISPUTED.name())
+                        .bind(by, UUID_BYTES)
+                        .bind(reason)
+                        .bind(at, time())
+                        .bind(job)
+                        .bind(from.name())
+                        .bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean withdraw(int job, UUID by, LocalDateTime due, @Nullable LocalDateTime doneAt) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state       = ?,
+                    done_at     = ?,
+                    dispute_by  = NULL,
+                    dispute     = NULL,
+                    disputed_at = NULL,
+                    due         = ?
+                WHERE id = ?
+                  AND state = ?
+                  AND dispute_by = ?""";
+        return query(update)
+                .single(call().bind((doneAt == null ? JobState.TAKEN : JobState.DONE).name())
+                        .bind(doneAt, time())
+                        .bind(due, time())
+                        .bind(job)
+                        .bind(JobState.DISPUTED.name())
+                        .bind(by, UUID_BYTES))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean settle(int job, int percent, String by, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state     = ?,
+                    settled   = ?,
+                    closed    = ?,
+                    closed_by = ?
+                WHERE id = ?
+                  AND state = ?""";
+        return query(update)
+                .single(call().bind(JobState.SETTLED.name())
+                        .bind(percent)
+                        .bind(at, time())
+                        .bind(by)
+                        .bind(job)
+                        .bind(JobState.DISPUTED.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public List<Job> waiting(LocalDateTime before) {
+        return query(JOB + "WHERE state = ? AND done_at <= ? ORDER BY id")
+                .single(call().bind(JobState.DONE.name()).bind(before, time()))
+                .map(this::parse)
+                .all();
+    }
+
+    @Override
+    public List<Job> disputed() {
+        return query(JOB + "WHERE state = ? ORDER BY disputed_at, id")
+                .single(call().bind(JobState.DISPUTED.name()))
+                .map(this::parse)
+                .all();
     }
 
     @Override
@@ -214,7 +361,7 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
-    public boolean closeTaken(int job, int company, JobState to, @Nullable String by, LocalDateTime at) {
+    public boolean closeHeld(int job, int company, JobState from, JobState to, @Nullable String by, LocalDateTime at) {
         @Language("mariadb")
         var update = """
                 UPDATE jobs
@@ -229,7 +376,7 @@ public class MariaDbJobData extends AJobData {
                         .bind(at, time())
                         .bind(by)
                         .bind(job)
-                        .bind(JobState.TAKEN.name())
+                        .bind(from.name())
                         .bind(company))
                 .update()
                 .changed();
@@ -262,8 +409,12 @@ public class MariaDbJobData extends AJobData {
 
     @Override
     public List<Job> access(UUID node) {
-        return query(JOB + "WHERE node = ? AND (state IN (?, ?) OR granted) ORDER BY id")
-                .single(call().bind(node, UUID_BYTES).bind(JobState.OPEN.name()).bind(JobState.TAKEN.name()))
+        return query(JOB + "WHERE node = ? AND kind <> ? AND (state IN (?, ?, ?) OR granted) ORDER BY id")
+                .single(call().bind(node, UUID_BYTES)
+                        .bind(JobKind.CONTRACT.name())
+                        .bind(JobState.OPEN.name())
+                        .bind(JobState.TAKEN.name())
+                        .bind(JobState.DISPUTED.name()))
                 .map(this::parse)
                 .all();
     }
@@ -351,7 +502,8 @@ public class MariaDbJobData extends AJobData {
     public List<Job> overlapping(JobArea area) {
         @Language("mariadb")
         var where = """
-                WHERE state IN (?, ?)
+                WHERE state IN (?, ?, ?, ?)
+                  AND kind <> ?
                   AND world = ?
                   AND min_x <= ? AND max_x >= ?
                   AND min_y <= ? AND max_y >= ?
@@ -360,6 +512,9 @@ public class MariaDbJobData extends AJobData {
         return query(JOB + where)
                 .single(call().bind(JobState.OPEN.name())
                         .bind(JobState.TAKEN.name())
+                        .bind(JobState.DONE.name())
+                        .bind(JobState.DISPUTED.name())
+                        .bind(JobKind.CONTRACT.name())
                         .bind(area.world())
                         .bind(area.maxX())
                         .bind(area.minX())
@@ -412,6 +567,14 @@ public class MariaDbJobData extends AJobData {
                 readTime(row, "due"),
                 readTime(row, "closed"),
                 row.getString("closed_by"),
-                row.getBoolean("granted"));
+                row.getBoolean("granted"),
+                new JobReview(
+                        readTime(row, "done_at"),
+                        row.get("done_by", UUID_BYTES),
+                        row.getString("rejected"),
+                        row.get("dispute_by", UUID_BYTES),
+                        row.getString("dispute"),
+                        readTime(row, "disputed_at"),
+                        row.getObject("settled") == null ? null : row.getInt("settled")));
     }
 }

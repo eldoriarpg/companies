@@ -99,7 +99,7 @@ public final class WorldGuardJobs implements JobLandHook {
         var manager = manager(job.area().world());
         if (manager == null) return true;
         return switch (job.land()) {
-            case PLOT -> true;
+            case PLOT, NONE -> true;
             case REGION -> {
                 var ref = job.landRef();
                 var region = ref == null ? null : manager.getRegion(ref);

@@ -28,7 +28,14 @@ CREATE TABLE jobs
     due         datetime,
     closed      datetime,
     closed_by   TEXT,
-    granted     INTEGER  NOT NULL DEFAULT 0
+    granted     INTEGER  NOT NULL DEFAULT 0,
+    done_at     datetime,
+    done_by     blob,
+    rejected    TEXT,
+    dispute_by  blob,
+    dispute     TEXT,
+    disputed_at datetime,
+    settled     INTEGER
 );
 
 CREATE INDEX jobs_state_index

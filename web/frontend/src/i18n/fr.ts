@@ -969,6 +969,7 @@ export default {
                     maxOpenPerOwner: "Nombre maximal de travaux d'un joueur qui attendent une entreprise",
                     maxDueHours: "Nombre maximal d'heures qu'une entreprise peut obtenir pour finir un travail",
                     openDays: "Jours pendant lesquels un travail attend une entreprise avant d'expirer",
+                    approveHours: "Heures pendant lesquelles un contrat terminé attend son propriétaire avant d'être approuvé",
                 },
             },
         },

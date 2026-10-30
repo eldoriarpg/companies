@@ -196,6 +196,22 @@ class JobAccessTest {
         assertFalse(sync.intruder(bea, world.getBlockAt(20, 62, 2)));
     }
 
+    @Test
+    void aDisputedAreaIsFrozenForEveryoneAndGivesNobodyAccess() {
+        var id = taken(3);
+        members.put(3, Set.of(ada));
+        sync.check();
+        jobs.dispute(id, 3, JobState.TAKEN, bea, "Damaged", NOW);
+
+        sync.check();
+
+        assertEquals(List.of(id), revoked);
+        assertFalse(jobs.job(id).orElseThrow().granted());
+        assertTrue(sync.intruder(ada, world.getBlockAt(2, 62, 2)));
+        assertTrue(sync.intruder(bea, world.getBlockAt(2, 62, 2)));
+        assertFalse(sync.outside(ada, world.getBlockAt(7, 62, 2)));
+    }
+
     private int taken(int company) {
         var id = jobs.create(Job.draft(
                         UUID.randomUUID(),

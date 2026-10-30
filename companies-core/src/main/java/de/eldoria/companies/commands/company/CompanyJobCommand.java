@@ -26,6 +26,8 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.IntArg;
+import net.strokkur.commands.arguments.StringArg;
+import net.strokkur.commands.arguments.StringArgType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
@@ -34,6 +36,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -41,7 +44,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 
 /**
- * {@code /company job}: the jobs companies take like orders, work in an area of a player's land.
+ * {@code /company job}: the jobs companies take like orders, work in an area of a player's land or described in words.
  * <ul>
  *     <li>{@code /company job} lists the open jobs;</li>
  *     <li>{@code mine} lists the jobs the company works on;</li>
@@ -50,7 +53,10 @@ import java.util.logging.Level;
  *     <li>{@code take <id>} takes an open job, with {@code manage_orders}, using one of the company's order slots;</li>
  *     <li>{@code giveback <id>} gives a job back; it is open again;</li>
  *     <li>{@code done <id>} checks the job's area on the server that holds it and, when the work is done, pays the
- *     members by the blocks each removed.</li>
+ *     members by the blocks each removed; for a contract it tells the owner the work is done, who approves or rejects
+ *     it;</li>
+ *     <li>{@code dispute <id> <reason>} opens a dispute an admin settles, {@code withdraw <id>} withdraws one the
+ *     company opened.</li>
  * </ul>
  * The owner of a job is never named.
  */
@@ -111,8 +117,9 @@ public final class CompanyJobCommand {
                             .filter(company -> Integer.valueOf(company.id()).equals(job.company()))
                             .isPresent();
                     if (job.state() != JobState.OPEN && !ours) throw unknown(id);
-                    return new Shown(
-                            job, ours && job.state() == JobState.TAKEN ? progress(job, false) : Optional.empty());
+                    var checked =
+                            ours && job.state() == JobState.TAKEN && job.kind().area();
+                    return new Shown(job, checked ? progress(job, false) : Optional.empty());
                 },
                 shown -> show(player, shown));
     }
@@ -178,6 +185,12 @@ public final class CompanyJobCommand {
                 () -> {
                     var company = company(player);
                     var may = jobs().service().mayFinish(company, player.getUniqueId(), id);
+                    if (may == JobService.Change.CONTRACT) {
+                        var marked = jobs().service().markDone(company, player.getUniqueId(), id);
+                        if (marked != JobService.Change.DONE) return new JobService.Finished.Refused(marked);
+                        var approveIn = deps.configuration().jobSettings().approveHours();
+                        return new JobService.Finished.Waiting(Times.now().plusHours(approveIn));
+                    }
                     if (may != JobService.Change.DONE) return new JobService.Finished.Refused(may);
                     var job = jobs().data().job(id).orElseThrow(() -> unknown(id));
                     if (!job.node().equals(jobs().node())) {
@@ -199,6 +212,13 @@ public final class CompanyJobCommand {
                                             Values.number("id", id),
                                             Values.money("paid", deps.services().economy(), paid.paid()));
                         }
+                        case JobService.Finished.Waiting waiting ->
+                            deps.messages()
+                                    .sendMessage(
+                                            player,
+                                            PREFIX + "marked",
+                                            Values.number("id", id),
+                                            Values.text("time", left(waiting.approveAt())));
                         case JobService.Finished.NotDone notDone ->
                             deps.messages()
                                     .sendError(
@@ -214,6 +234,48 @@ public final class CompanyJobCommand {
                 });
     }
 
+    /**
+     * Opens a dispute about a job of the player's company; an admin settles it.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     * @param reason why
+     */
+    @Executes("dispute")
+    public void dispute(CommandSender sender, @IntArg(min = 0) int id, @StringArg(StringArgType.GREEDY) String reason) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> jobs().service().disputeAsCompany(company(player), player.getUniqueId(), id, reason),
+                change -> {
+                    if (change == JobService.Change.DONE) {
+                        jobs().access().checkSoon();
+                        deps.messages().sendMessage(player, PREFIX + "disputed", Values.number("id", id));
+                        return;
+                    }
+                    refused(player, id, change);
+                });
+    }
+
+    /**
+     * Withdraws a dispute the player's company opened.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("withdraw")
+    public void withdraw(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(player, () -> jobs().service().withdrawAsCompany(company(player), player.getUniqueId(), id), change -> {
+            if (change == JobService.Change.DONE) {
+                jobs().access().checkSoon();
+                deps.messages().sendMessage(player, PREFIX + "withdrawn", Values.number("id", id));
+                return;
+            }
+            refused(player, id, change);
+        });
+    }
+
     private void listing(Player player, List<Job> found, String title, String none) {
         if (found.isEmpty()) {
             deps.messages().sendMessage(player, PREFIX + none);
@@ -225,10 +287,10 @@ public final class CompanyJobCommand {
 
     private MenuText entry(Player player, Job job) {
         var id = job.id();
-        var time = job.state() == JobState.TAKEN ? job.due() : job.expires();
+        var time = job.state() == JobState.OPEN ? job.expires() : job.due();
         return MenuText.create()
                 .locale(
-                        PREFIX + "entry",
+                        PREFIX + (job.kind().area() ? "entry" : "entryContract"),
                         Values.number("id", id),
                         Values.text("job_title", job.title()),
                         Values.component("kind", kind(player, job)),
@@ -250,19 +312,31 @@ public final class CompanyJobCommand {
                 Values.number("id", job.id()),
                 Values.text("job_title", job.title()),
                 Values.component("kind", kind(player, job)));
-        messages.sendMessage(
-                player,
-                PREFIX + "info.area",
-                Values.text("world", job.area().world()),
-                Values.text(
-                        "from",
-                        job.area().minX() + " " + job.area().minY() + " "
-                                + job.area().minZ()),
-                Values.text(
-                        "to",
-                        job.area().maxX() + " " + job.area().maxY() + " "
-                                + job.area().maxZ()),
-                Values.number("blocks", job.area().volume()));
+        var description = job.description();
+        if (description != null) {
+            messages.sendMessage(player, PREFIX + "info.description", Values.text("description", description));
+        }
+        if (!job.kind().area()) {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.place",
+                    Values.text("world", job.area().world()),
+                    Values.text("center", job.area().center()));
+        } else {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.area",
+                    Values.text("world", job.area().world()),
+                    Values.text(
+                            "from",
+                            job.area().minX() + " " + job.area().minY() + " "
+                                    + job.area().minZ()),
+                    Values.text(
+                            "to",
+                            job.area().maxX() + " " + job.area().maxY() + " "
+                                    + job.area().maxZ()),
+                    Values.number("blocks", job.area().volume()));
+        }
         messages.sendMessage(
                 player,
                 PREFIX + "info.money",
@@ -270,6 +344,20 @@ public final class CompanyJobCommand {
                 Values.number("hours", job.dueHours()));
         if (job.state() == JobState.TAKEN) {
             messages.sendMessage(player, PREFIX + "info.due", Values.text("time", left(job.due())));
+        }
+        var review = job.review();
+        var rejected = review.rejected();
+        if (job.state() == JobState.TAKEN && rejected != null) {
+            messages.sendMessage(player, PREFIX + "info.rejected", Values.text("reason", rejected));
+        }
+        if (job.state() == JobState.DONE) {
+            messages.sendMessage(player, PREFIX + "info.waiting");
+        }
+        if (job.state() == JobState.DISPUTED) {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.disputed",
+                    Values.text("reason", Objects.requireNonNullElse(review.dispute(), "")));
         }
         shown.progress()
                 .ifPresent(progress -> messages.sendMessage(
@@ -285,12 +373,24 @@ public final class CompanyJobCommand {
                     "<act_take><add>[<i18n:" + PREFIX + "takeButton>]</act_take>",
                     Values.click("act_take", ClickEvent.runCommand("/company job take " + id)));
         } else if (job.state() == JobState.TAKEN) {
+            var done = job.kind().area() ? "doneButton" : "markButton";
             buttons.text(
-                            "<act_done><add>[<i18n:" + PREFIX + "doneButton>]</act_done> ",
+                            "<act_done><add>[<i18n:" + PREFIX + done + ">]</act_done> ",
                             Values.click("act_done", ClickEvent.runCommand("/company job done " + id)))
                     .text(
-                            "<act_back><remove>[<i18n:" + PREFIX + "giveBackButton>]</act_back>",
+                            "<act_back><remove>[<i18n:" + PREFIX + "giveBackButton>]</act_back> ",
                             Values.click("act_back", ClickEvent.suggestCommand("/company job giveback " + id)));
+        }
+        if (job.state() == JobState.TAKEN || job.state() == JobState.DONE) {
+            buttons.text(
+                    "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
+                    Values.click("act_dispute", ClickEvent.suggestCommand("/company job dispute " + id + " ")));
+        }
+        var disputeBy = job.review().disputeBy();
+        if (job.state() == JobState.DISPUTED && disputeBy != null && !disputeBy.equals(job.owner())) {
+            buttons.text(
+                    "<act_withdraw><show>[<i18n:" + PREFIX + "withdrawButton>]</act_withdraw>",
+                    Values.click("act_withdraw", ClickEvent.suggestCommand("/company job withdraw " + id)));
         }
         messages.sendMessage(player, buttons);
     }
@@ -305,7 +405,9 @@ public final class CompanyJobCommand {
                     case LIMIT -> "error.limit";
                     case OWN -> "error.own";
                     case NOT_YOURS -> "error.notYours";
-                    case DONE, TAKEN -> "error.closed";
+                    case DISPUTED -> "error.disputed";
+                    case REASON -> "error.reason";
+                    case DONE, TAKEN, TOO_LONG, AREA, CONTRACT, NOT_DONE, NO_COMPANY -> "error.closed";
                 };
         deps.messages().sendError(player, PREFIX + key, values);
     }

@@ -157,6 +157,21 @@ public final class Jobs {
                                 yield NotificationType.MY_JOB_EXPIRED;
                             }
                             case LAND_LOST -> NotificationType.MY_JOB_LAND_LOST;
+                            case AWAITING -> {
+                                if (detail instanceof LocalDateTime at)
+                                    args.text("time", EventTimes.show(at, Times.zone()));
+                                yield NotificationType.MY_JOB_AWAITING;
+                            }
+                            case AUTO_APPROVED -> NotificationType.MY_JOB_AUTO_APPROVED;
+                            case DISPUTED -> {
+                                if (detail instanceof String reason) args.text("reason", reason);
+                                yield NotificationType.MY_JOB_DISPUTED;
+                            }
+                            case WITHDRAWN -> NotificationType.MY_JOB_WITHDRAWN;
+                            case SETTLED -> {
+                                if (detail instanceof Double amount) args.money("amount", economy.format(amount));
+                                yield NotificationType.MY_JOB_SETTLED;
+                            }
                         };
                 if (type != null) notifications.send(owner, type, args);
             }
@@ -171,6 +186,34 @@ public final class Jobs {
             public void overdue(int company, Job job) {
                 profile(companies, company)
                         .ifPresent(found -> notifications.sendCompany(found, NotificationType.JOB_OVERDUE, args(job)));
+            }
+
+            @Override
+            public void rejected(int company, Job job, String reason) {
+                profile(companies, company)
+                        .ifPresent(found -> notifications.sendCompany(
+                                found, NotificationType.JOB_REJECTED, args(job).text("reason", reason)));
+            }
+
+            @Override
+            public void disputed(int company, Job job, String reason) {
+                profile(companies, company)
+                        .ifPresent(found -> notifications.sendCompany(
+                                found, NotificationType.JOB_DISPUTED, args(job).text("reason", reason)));
+            }
+
+            @Override
+            public void settled(int company, Job job, double paid) {
+                profile(companies, company)
+                        .ifPresent(found -> notifications.sendCompany(
+                                found, NotificationType.JOB_SETTLED, args(job).money("amount", economy.format(paid))));
+            }
+
+            @Override
+            public void withdrawn(int company, Job job) {
+                profile(companies, company)
+                        .ifPresent(
+                                found -> notifications.sendCompany(found, NotificationType.JOB_WITHDRAWN, args(job)));
             }
 
             @Override
@@ -243,7 +286,9 @@ public final class Jobs {
                 () -> {
                     try {
                         var check = services.service().check();
-                        if (!check.expired().isEmpty() || !check.reopened().isEmpty()) {
+                        if (!check.expired().isEmpty()
+                                || !check.reopened().isEmpty()
+                                || !check.approved().isEmpty()) {
                             services.access().checkSoon();
                         }
                     } catch (RuntimeException e) {
@@ -262,7 +307,11 @@ public final class Jobs {
      */
     private static DigCheck.@Nullable Progress checked(JobProgress progress, Job job) {
         try {
-            return progress.of(job, true).orTimeout(30, TimeUnit.SECONDS).join().orElse(null);
+            return progress.of(job, true)
+                    .copy()
+                    .orTimeout(30, TimeUnit.SECONDS)
+                    .join()
+                    .orElse(null);
         } catch (RuntimeException e) {
             return null;
         }

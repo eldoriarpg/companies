@@ -98,6 +98,12 @@ See [Jobs](../players/jobs.md).
 | `/order job info <id>` | `companies.orders.jobs` | Shows a job of yours and, on the server of its area, how far the work is. |
 | `/order job dig <price> <hours> <title>` | `companies.orders.jobs` | Posts a dig job on the area you selected with WorldEdit. You pay the price and the order fee at once. |
 | `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot you stand on, from the block below your feet down `depth` blocks. |
+| `/order job contract <price> <hours> <title>` | `companies.orders.jobs` | Posts a contract, work described in words, at the place you stand. You pay the price and the order fee at once. |
+| `/order job describe <id> <text>` | `companies.orders.jobs` | Describes a job nobody has taken yet. |
+| `/order job approve <id>` | `companies.orders.jobs` | Approves a contract the company says is done, or a job a company works on as it stands, and pays the company. |
+| `/order job reject <id> <reason>` | `companies.orders.jobs` | Sends a contract the company says is done back to work. |
+| `/order job dispute <id> <reason>` | `companies.orders.jobs` | Opens a dispute about a job a company holds; an admin settles it. |
+| `/order job withdraw <id>` | `companies.orders.jobs` | Withdraws a dispute you opened; the company works on the job again. |
 | `/order job cancel <id>` | `companies.orders.jobs` | Cancels a job nobody works on. The price comes back, the fee is kept. |
 
 ## Companies
@@ -247,7 +253,9 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job info <id>` | none | none | Shows a job's area, pay and time, and for one of yours how far the work is. |
 | `/company job take <id>` | none | `manage_orders` | Takes a job. It uses one of the company's order slots and gives the members access to its area. |
 | `/company job giveback <id>` | none | `manage_orders` | Gives a job back; it is open again. |
-| `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. |
+| `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. For a contract it tells the owner the work is done. |
+| `/company job dispute <id> <reason>` | none | `manage_orders` | Opens a dispute about a job of the company; an admin settles it. |
+| `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
 ### Web dashboard
 
 New in 2.1. Works while the server owner enabled the [web dashboard](../admin/dashboard.md).
@@ -397,6 +405,15 @@ See [Event offers](../admin/admin-commands.md#event-offers).
 | `/companyadmin event budget <id> <amount\|none>` | `companies.admin.events` | yes | Sets the budget of a reward multiplier. |
 
 See [Server events](../admin/admin-commands.md#server-events).
+
+### Job disputes
+
+| Command | Permission | Console | What it does |
+|---|---|---|---|
+| `/companyadmin job disputes` | `companies.admin.jobs` | no | Lists the disputed jobs with both sides, the reason, the due time, the work counted and, on the server of an area, how far it is cleared. |
+| `/companyadmin job settle <id> <percent>` | `companies.admin.jobs` | no | Settles a dispute: the company gets `percent` of the price, the owner the rest. |
+
+See [Job disputes](../admin/admin-commands.md#job-disputes).
 
 ### Boards
 

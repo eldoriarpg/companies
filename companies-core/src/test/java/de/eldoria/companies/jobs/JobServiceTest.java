@@ -30,7 +30,9 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,6 +45,7 @@ import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -54,6 +57,7 @@ class JobServiceTest {
     private static final Instant NOW = Instant.parse("2026-10-30T12:00:00Z");
     private static final UUID NODE = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
     private static final JobArea AREA = new JobArea("world", 0, 60, 0, 9, 64, 9);
+    private static final JobArea POINT = new JobArea("world", 3, 64, 3, 3, 64, 3);
     private static final DigCheck.Progress DONE = new DigCheck.Progress(500, 500, null);
 
     @TempDir
@@ -75,6 +79,7 @@ class JobServiceTest {
     private Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
     private JobService service;
     private int slots = 2;
+    private boolean gone;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -376,6 +381,272 @@ class JobServiceTest {
         assertEquals(Map.of(), jobs.workOf(job.id()));
     }
 
+    @Test
+    void aContractNeedsNoAreaChecksAndOverlapsNothing() {
+        settings.digMaxVolume(1);
+
+        var first = contract(200);
+        var second = contract(100);
+
+        assertEquals(JobKind.CONTRACT, first.kind());
+        assertEquals(JobKind.CONTRACT, second.kind());
+        assertEquals(JobService.Change.CONTRACT, mayFinishAfterTaking(first));
+    }
+
+    @Test
+    void aContractTheCompanySaysIsDoneIsPaidWhenTheOwnerApproves() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+
+        assertEquals(JobService.Change.NOT_DONE, service.reject(owner, job.id(), "No"));
+        assertEquals(JobService.Change.NO_PERMISSION, service.markDone(company, worker, job.id()));
+        assertEquals(JobService.Change.DONE, service.markDone(company, manager, job.id()));
+        assertEquals(JobState.DONE, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(JobService.Change.UNKNOWN, service.approve(manager, "Manager", job.id()));
+        assertEquals(JobService.Change.DONE, service.approve(owner, "Owner", job.id()));
+
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+        assertTrue(balances.getOrDefault(manager, 0.0) > 0);
+        assertTrue(notices.contains("owner AWAITING " + job.id()));
+        assertTrue(notices.contains("company PAID " + job.id()));
+    }
+
+    @Test
+    void aDigJobIsDoneByItsCheckNotBySayingSo() {
+        var job = posted(200);
+        service.take(company, manager, job.id());
+
+        assertEquals(JobService.Change.AREA, service.markDone(company, manager, job.id()));
+    }
+
+    @Test
+    void anOwnerMayApproveATakenJobEarlyAndItsWorkersArePaidAsItStands() {
+        var job = posted(200);
+        service.take(company, manager, job.id());
+        jobs.work(job.id(), company.id(), worker, 30);
+
+        assertEquals(JobService.Change.DONE, service.approve(owner, "Owner", job.id()));
+
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+        assertTrue(balances.getOrDefault(worker, 0.0) > 0);
+        assertEquals(790.0, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void aRejectionGivesTheCompanyBackTheTimeItWaited() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.markDone(company, manager, job.id());
+        clock = Clock.offset(clock, Duration.ofHours(10));
+        service();
+
+        assertEquals(JobService.Change.REASON, service.reject(owner, job.id(), " "));
+        assertEquals(JobService.Change.DONE, service.reject(owner, job.id(), "Not yet"));
+
+        var rejected = jobs.job(job.id()).orElseThrow();
+        assertEquals(JobState.TAKEN, rejected.state());
+        assertEquals(local(NOW).plusHours(34), rejected.due());
+        assertEquals("Not yet", rejected.review().rejected());
+        assertTrue(notices.contains("company REJECTED " + job.id() + " Not yet"));
+    }
+
+    @Test
+    void aJobTheOwnerDoesNotAnswerIsApprovedAfterTheirTime() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.markDone(company, manager, job.id());
+        clock = Clock.offset(clock, Duration.ofHours(71));
+        service();
+        assertEquals(List.of(), service.check().approved());
+        clock = Clock.offset(clock, Duration.ofHours(1));
+        service();
+
+        assertEquals(List.of(job.id()), service.check().approved());
+
+        var paid = jobs.job(job.id()).orElseThrow();
+        assertEquals(JobState.PAID, paid.state());
+        assertEquals(JobService.AUTO_APPROVED_BY, paid.closedBy());
+        assertTrue(notices.contains("owner AUTO_APPROVED " + job.id()));
+    }
+
+    @Test
+    void aDisputeFreezesTheJobUntilAnAdminSplitsThePrice() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+
+        assertEquals(JobService.Change.NO_PERMISSION, service.disputeAsCompany(company, worker, job.id(), "Unfair"));
+        assertEquals(JobService.Change.DONE, service.disputeAsOwner(owner, job.id(), "Nothing happened"));
+        assertEquals(JobService.Change.DISPUTED, service.disputeAsOwner(owner, job.id(), "Again"));
+        assertEquals(JobService.Change.DISPUTED, service.giveBack(company, manager, job.id()));
+        assertTrue(notices.contains("company DISPUTED " + job.id() + " Nothing happened"));
+        assertFalse(notices.contains("owner DISPUTED " + job.id()));
+        assertEquals(JobService.Change.TAKEN, service.cancel(owner, "Owner", job.id()));
+        clock = Clock.offset(clock, Duration.ofDays(30));
+        service();
+        assertEquals(List.of(), service.check().reopened());
+
+        assertEquals(JobService.Change.DONE, service.settle("Admin", job.id(), 60));
+
+        var settled = jobs.job(job.id()).orElseThrow();
+        assertEquals(JobState.SETTLED, settled.state());
+        assertEquals(60, settled.review().settled());
+        assertEquals(870.0, balances.get(owner), 0.001);
+        assertEquals(JobService.Change.CLOSED, service.settle("Admin", job.id(), 60));
+        assertTrue(notices.contains("owner SETTLED " + job.id()));
+        assertTrue(notices.contains("company SETTLED " + job.id()));
+    }
+
+    @Test
+    void aDisputeSettledForTheOwnerGivesThePriceBackAndKeepsTheFee() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.disputeAsCompany(company, manager, job.id(), "Owner blocks us");
+
+        assertEquals(JobService.Change.DONE, service.settle("Admin", job.id(), 0));
+
+        assertEquals(990.0, balances.get(owner), 0.001);
+        assertEquals(List.of(10.0), collected);
+    }
+
+    @Test
+    void anOwnerMayStillApproveADisputedJob() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.disputeAsCompany(company, manager, job.id(), "Owner blocks us");
+
+        assertEquals(JobService.Change.DONE, service.approve(owner, "Owner", job.id()));
+
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+        assertTrue(notices.contains("owner DISPUTED " + job.id()));
+        assertFalse(notices.stream().anyMatch(notice -> notice.startsWith("company DISPUTED")));
+    }
+
+    @Test
+    void onlyTheSideThatOpenedADisputeWithdrawsItAndTheCompanyGetsTheTimeBack() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.disputeAsOwner(owner, job.id(), "Nothing happened");
+        clock = Clock.offset(clock, Duration.ofHours(5));
+        service();
+
+        assertEquals(JobService.Change.NOT_YOURS, service.withdrawAsCompany(company, manager, job.id()));
+        assertEquals(JobService.Change.DONE, service.withdrawAsOwner(owner, job.id()));
+
+        var taken = jobs.job(job.id()).orElseThrow();
+        assertEquals(JobState.TAKEN, taken.state());
+        assertEquals(local(NOW).plusHours(29), taken.due());
+        assertTrue(notices.contains("company WITHDRAWN " + job.id()));
+        assertEquals(JobService.Change.CLOSED, service.withdrawAsOwner(owner, job.id()));
+    }
+
+    @Test
+    void aJobTheCompanyDisputesKeepsItsSlotAndOneTheOwnerDisputesFreesIt() {
+        var first = contract(200);
+        var second = contract(100);
+        service.take(company, manager, first.id());
+        service.take(company, manager, second.id());
+        var orders = OrderTable.create().orderData();
+        assertEquals(2, orders.retrieveCompanySlotCount(company).join());
+
+        service.disputeAsCompany(company, manager, first.id(), "Owner blocks us");
+        service.disputeAsOwner(owner, second.id(), "Nothing happened");
+
+        assertEquals(1, orders.retrieveCompanySlotCount(company).join());
+    }
+
+    @Test
+    void anOwnerWithdrawingADisputeOnFinishedWorkKeepsTheApprovalClockRunning() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.markDone(company, manager, job.id());
+        clock = Clock.offset(clock, Duration.ofHours(70));
+        service();
+        service.disputeAsOwner(owner, job.id(), "Hm");
+        service.withdrawAsOwner(owner, job.id());
+        clock = Clock.offset(clock, Duration.ofHours(2));
+        service();
+
+        assertEquals(List.of(job.id()), service.check().approved());
+        assertEquals(List.of(), service.check().reopened());
+    }
+
+    @Test
+    void aCompanyWithdrawingItsDisputeLeavesTheOwnerTheirTimeToAnswer() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.markDone(company, manager, job.id());
+        service.disputeAsCompany(company, manager, job.id(), "Owner unresponsive");
+        clock = Clock.offset(clock, Duration.ofHours(80));
+        service();
+        service.withdrawAsCompany(company, manager, job.id());
+
+        assertEquals(List.of(), service.check().approved());
+        var waiting = jobs.job(job.id()).orElseThrow();
+        assertEquals(JobState.DONE, waiting.state());
+        assertEquals(local(NOW).plusHours(80), waiting.review().doneAt());
+        assertEquals(JobService.Change.DONE, service.reject(owner, job.id(), "Not finished"));
+    }
+
+    @Test
+    void aSettlementWithAShareForAGoneCompanyIsRefused() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.disputeAsOwner(owner, job.id(), "Nothing happened");
+        gone = true;
+
+        assertEquals(JobService.Change.NO_COMPANY, service.settle("Admin", job.id(), 60));
+        assertEquals(JobService.Change.DONE, service.settle("Admin", job.id(), 0));
+        assertEquals(990.0, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void anApprovalReadForOneCompanyNeverPaysAJobAnotherCompanyTookMeanwhile() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        var read = jobs.job(job.id()).orElseThrow();
+        jobs.release(job.id(), company.id());
+        jobs.take(job.id(), company.id() + 1, local(NOW), local(NOW).plusHours(24));
+
+        assertFalse(jobs.closeHeld(read.id(), company.id(), read.state(), JobState.PAID, "Owner", local(NOW)));
+        assertFalse(jobs.dispute(read.id(), company.id(), read.state(), owner, "Late", local(NOW)));
+        assertEquals(JobState.TAKEN, jobs.job(job.id()).orElseThrow().state());
+    }
+
+    @Test
+    void aJobIsDescribedOnlyWhileItWaits() {
+        var job = contract(200);
+
+        assertEquals(JobService.Change.DONE, service.describe(owner, job.id(), "Paint the barn red"));
+        assertEquals("Paint the barn red", jobs.job(job.id()).orElseThrow().description());
+        assertEquals(
+                JobService.Change.TOO_LONG, service.describe(owner, job.id(), "x".repeat(Job.MAX_DESCRIPTION + 1)));
+        assertEquals(JobService.Change.UNKNOWN, service.describe(manager, job.id(), "Mine"));
+        service.take(company, manager, job.id());
+        assertEquals(JobService.Change.TAKEN, service.describe(owner, job.id(), "Blue"));
+    }
+
+    @Test
+    void aShareIsRoundedDownToTheCent() {
+        assertEquals(66.66, JobService.share(111.11, 60), 0.0001);
+        assertEquals(0.0, JobService.share(200, 0), 0.0001);
+        assertEquals(200.0, JobService.share(200, 100), 0.0001);
+    }
+
+    private JobService.Change mayFinishAfterTaking(Job job) {
+        service.take(company, manager, job.id());
+        return service.mayFinish(company, manager, job.id());
+    }
+
+    private Job contract(double price) {
+        return ((JobService.Posted.Done)
+                        service.post(owner, JobKind.CONTRACT, "Paint", price, 24, NODE, POINT, JobLand.NONE, null))
+                .job();
+    }
+
+    private static LocalDateTime local(Instant instant) {
+        return instant.atOffset(ZoneOffset.UTC).toLocalDateTime();
+    }
+
     private Job posted(double price) {
         return ((JobService.Posted.Done) post(price, 24, AREA)).job();
     }
@@ -443,6 +714,26 @@ class JobServiceTest {
             public void landLost(int company, Job job) {
                 notices.add("company LAND_LOST " + job.id());
             }
+
+            @Override
+            public void rejected(int company, Job job, String reason) {
+                notices.add("company REJECTED " + job.id() + " " + reason);
+            }
+
+            @Override
+            public void disputed(int company, Job job, String reason) {
+                notices.add("company DISPUTED " + job.id() + " " + reason);
+            }
+
+            @Override
+            public void settled(int company, Job job, double paid) {
+                notices.add("company SETTLED " + job.id());
+            }
+
+            @Override
+            public void withdrawn(int company, Job job) {
+                notices.add("company WITHDRAWN " + job.id());
+            }
         };
         service = new JobService(
                 jobs,
@@ -450,7 +741,7 @@ class JobServiceTest {
                 money,
                 noticed,
                 (company, overdue) -> penalties.add(company + (overdue ? " overdue" : " gave back")),
-                id -> id == company.id() ? Optional.of(company) : Optional.empty(),
+                id -> id == company.id() && !gone ? Optional.of(company) : Optional.empty(),
                 () -> settings,
                 price -> new OrderFee(10, 0, 0, 0).of(price),
                 found -> slots,

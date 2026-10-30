@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.companyadmin.CalcLevel;
 import de.eldoria.companies.commands.companyadmin.DashboardAdminCommand;
 import de.eldoria.companies.commands.companyadmin.Delete;
 import de.eldoria.companies.commands.companyadmin.EventCommand;
+import de.eldoria.companies.commands.companyadmin.JobAdminCommand;
 import de.eldoria.companies.commands.companyadmin.NodeCommand;
 import de.eldoria.companies.commands.companyadmin.OffersCommand;
 import de.eldoria.companies.commands.companyadmin.Reload;
@@ -102,6 +103,9 @@ final class CompanyAdminCommand {
     @Subcommand
     final EventCommand event;
 
+    @Subcommand
+    final JobAdminCommand job;
+
     CompanyAdminCommand(CommandDependencies deps) {
         this.deps = deps;
         level = new LevelCommand(deps);
@@ -123,6 +127,7 @@ final class CompanyAdminCommand {
         systemOrders = new SystemOrdersCommand(deps);
         offers = new OffersCommand(deps);
         event = new EventCommand(deps);
+        job = new JobAdminCommand(deps);
     }
 
     /**

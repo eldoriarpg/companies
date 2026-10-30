@@ -110,6 +110,10 @@ public final class Permission {
          */
         public static final String JOBS_BYPASS = ADMIN + ".jobs.bypass";
         /**
+         * The permission to list and settle disputes about jobs.
+         */
+        public static final String JOBS = ADMIN + ".jobs";
+        /**
          * The permission to create debug reports.
          */
         public static final String DEBUG = ADMIN + ".debug";

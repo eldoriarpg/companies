@@ -375,6 +375,7 @@ public final class SettingsCatalogue {
         jobs.whole("maxOpenPerOwner");
         jobs.whole("maxDueHours");
         jobs.whole("openDays");
+        jobs.whole("approveHours");
         return List.copyOf(fields);
     }
 

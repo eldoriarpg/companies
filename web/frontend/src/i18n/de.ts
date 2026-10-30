@@ -969,6 +969,7 @@ export default {
                     maxOpenPerOwner: 'Höchstzahl Jobs eines Spielers, die auf eine Firma warten',
                     maxDueHours: 'Höchste Stundenzahl, die eine Firma für einen Job bekommen darf',
                     openDays: 'Tage, die ein Job auf eine Firma wartet, bevor er abläuft',
+                    approveHours: 'Stunden, die ein fertiger Auftrag auf seinen Besitzer wartet, bevor er genehmigt wird',
                 },
             },
         },

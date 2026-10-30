@@ -1463,7 +1463,7 @@ public class MariaDbOrderData extends AOrderData {
                            + (SELECT COUNT(1)
                               FROM jobs
                               WHERE company_id = ?
-                                AND state = ?) AS count""";
+                                AND (state IN (?, ?) OR (state = ? AND dispute_by <> owner_uuid))) AS count""";
         return query(query)
                 .single(call().bind(company.id())
                         .bind(OrderState.CLAIMED.stateId())
@@ -1471,7 +1471,9 @@ public class MariaDbOrderData extends AOrderData {
                         .bind(OfferState.ACTIVE.name())
                         .bind(OfferState.PAUSED.name())
                         .bind(company.id())
-                        .bind(JobState.TAKEN.name()))
+                        .bind(JobState.TAKEN.name())
+                        .bind(JobState.DONE.name())
+                        .bind(JobState.DISPUTED.name()))
                 .map(rs -> rs.getInt("count"))
                 .first()
                 .orElse(0);

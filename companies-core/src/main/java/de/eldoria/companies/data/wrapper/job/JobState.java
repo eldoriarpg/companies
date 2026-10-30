@@ -21,9 +21,21 @@ public enum JobState {
      */
     TAKEN,
     /**
-     * The work checked out and the company was paid.
+     * The company says the work is done and waits for the owner to approve or reject it.
+     */
+    DONE,
+    /**
+     * The owner or the company opened a dispute; access is frozen until an admin settles it.
+     */
+    DISPUTED,
+    /**
+     * The work checked out or was approved and the company was paid.
      */
     PAID,
+    /**
+     * An admin settled a dispute, splitting the price between the company and the owner.
+     */
+    SETTLED,
     /**
      * The owner cancelled it while it was open and got the price back.
      */
@@ -36,7 +48,13 @@ public enum JobState {
     /**
      * The states a job can still change from.
      */
-    public static final Set<JobState> RUNNING = EnumSet.of(OPEN, TAKEN);
+    public static final Set<JobState> RUNNING = EnumSet.of(OPEN, TAKEN, DONE, DISPUTED);
+
+    /**
+     * The states in which a company holds the job. A job its owner disputes uses none of the company's work slots, so an
+     * owner can not block them; one the company disputes keeps its slot.
+     */
+    public static final Set<JobState> HELD = EnumSet.of(TAKEN, DONE, DISPUTED);
 
     /**
      * @return whether the job is over for good

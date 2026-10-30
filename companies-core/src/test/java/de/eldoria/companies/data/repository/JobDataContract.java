@@ -204,10 +204,118 @@ public abstract class JobDataContract {
         assertEquals(List.of(), jobs.overlapping(new JobArea("world", 0, 60, 10, 5, 70, 20)));
     }
 
+    @Test
+    void aContractIsReviewedDisputedAndSettled() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+
+        assertTrue(jobs.describe(created(JobKind.CONTRACT, NOW.plusDays(7)), "Paint it red"));
+        assertFalse(jobs.describe(id, "Too late"));
+        assertTrue(jobs.markDone(id, 3, WORKER, NOW.plusHours(1)));
+        assertFalse(jobs.markDone(id, 3, WORKER, NOW.plusHours(1)));
+        var done = jobs.job(id).orElseThrow();
+        assertEquals(JobState.DONE, done.state());
+        assertEquals(NOW.plusHours(1), done.review().doneAt());
+        assertEquals(WORKER, done.review().doneBy());
+        assertEquals(
+                List.of(id),
+                jobs.waiting(NOW.plusHours(1)).stream().map(Job::id).toList());
+        assertEquals(List.of(), jobs.waiting(NOW));
+        assertEquals(List.of(id), jobs.ofCompany(3).stream().map(Job::id).toList());
+
+        assertTrue(jobs.reject(id, "Still white", NOW.plusHours(60)));
+        var rejected = jobs.job(id).orElseThrow();
+        assertEquals(JobState.TAKEN, rejected.state());
+        assertEquals("Still white", rejected.review().rejected());
+        assertNull(rejected.review().doneAt());
+        assertEquals(NOW.plusHours(60), rejected.due());
+
+        assertFalse(jobs.dispute(id, 3, JobState.DONE, OWNER, "Broken", NOW));
+        assertFalse(jobs.dispute(id, 4, JobState.TAKEN, OWNER, "Broken", NOW));
+        assertTrue(jobs.dispute(id, 3, JobState.TAKEN, OWNER, "Broken", NOW.plusHours(2)));
+        assertEquals(List.of(id), jobs.disputed().stream().map(Job::id).toList());
+        assertFalse(jobs.release(id, 3));
+        assertEquals(List.of(id), jobs.ofCompany(3).stream().map(Job::id).toList());
+
+        assertTrue(jobs.settle(id, 60, "Admin", NOW.plusHours(3)));
+        assertFalse(jobs.settle(id, 40, "Admin", NOW.plusHours(3)));
+        var settled = jobs.job(id).orElseThrow();
+        assertEquals(JobState.SETTLED, settled.state());
+        assertEquals(60, settled.review().settled());
+        assertEquals("Broken", settled.review().dispute());
+        assertEquals(OWNER, settled.review().disputeBy());
+        assertEquals("Admin", settled.closedBy());
+    }
+
+    @Test
+    void aWithdrawnDisputeGivesTheJobBackToItsCompany() {
+        var id = created(NOW.plusDays(7));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+        jobs.dispute(id, 3, JobState.TAKEN, OWNER, "Broken", NOW);
+
+        assertEquals(List.of(id), jobs.access(NODE).stream().map(Job::id).toList());
+        assertFalse(jobs.withdraw(id, WORKER, NOW.plusHours(50), null));
+        assertTrue(jobs.withdraw(id, OWNER, NOW.plusHours(50), null));
+        assertFalse(jobs.withdraw(id, OWNER, NOW.plusHours(50), null));
+        var taken = jobs.job(id).orElseThrow();
+        assertEquals(JobState.TAKEN, taken.state());
+        assertEquals(NOW.plusHours(50), taken.due());
+        assertNull(taken.review().dispute());
+        assertFalse(jobs.closeHeld(id, 4, JobState.TAKEN, JobState.PAID, null, NOW));
+        assertTrue(jobs.closeHeld(id, 3, JobState.TAKEN, JobState.PAID, null, NOW));
+    }
+
+    @Test
+    void aDisputeOpenedOnFinishedWorkIsWithdrawnBackToWaitingForTheOwner() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+        jobs.markDone(id, 3, WORKER, NOW.plusHours(1));
+        jobs.dispute(id, 3, JobState.DONE, OWNER, "Ugly", NOW.plusHours(2));
+
+        assertTrue(jobs.withdraw(id, OWNER, NOW.plusHours(49), NOW.plusHours(1)));
+
+        var waiting = jobs.job(id).orElseThrow();
+        assertEquals(JobState.DONE, waiting.state());
+        assertEquals(NOW.plusHours(1), waiting.review().doneAt());
+        assertEquals(WORKER, waiting.review().doneBy());
+        assertNull(waiting.review().dispute());
+    }
+
+    @Test
+    void contractsHaveNoLandAndOverlapNothing() {
+        var contract = created(JobKind.CONTRACT, NOW.plusDays(7));
+        var dig = created(NOW.plusDays(7));
+
+        assertEquals(List.of(dig), jobs.access(NODE).stream().map(Job::id).toList());
+        assertEquals(
+                List.of(dig),
+                jobs.overlapping(new JobArea("world", 0, 60, 10, 5, 70, 20)).stream()
+                        .map(Job::id)
+                        .toList());
+        assertTrue(jobs.job(contract).isPresent());
+    }
+
+    @Test
+    void aJobWaitingForApprovalIsReleasedWithoutItsReview() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+        jobs.markDone(id, 3, WORKER, NOW);
+
+        assertTrue(jobs.release(id, 3));
+        var open = jobs.job(id).orElseThrow();
+        assertEquals(JobState.OPEN, open.state());
+        assertNull(open.review().doneAt());
+        assertNull(open.review().doneBy());
+    }
+
     private int created(LocalDateTime expires) {
+        return created(JobKind.DIG, expires);
+    }
+
+    private int created(JobKind kind, LocalDateTime expires) {
         return jobs.create(Job.draft(
                         OWNER,
-                        JobKind.DIG,
+                        kind,
                         "Cellar",
                         500,
                         10,
