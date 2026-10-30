@@ -23,6 +23,7 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
+import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -95,6 +96,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .name("System orders")
             .strict()
             .build();
+    public static final Key<EventSettings> EVENTS = Key.builder(Path.of("events.yml"), EventSettings::new)
+            .name("Server events")
+            .strict()
+            .build();
     public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
             .name("Board bindings")
             .build();
@@ -103,7 +108,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * The files every node of a network shares, in the order they are synced.
      */
     public static final List<Key<?>> SHARED =
-            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, CONFIG_YML);
+            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, CONFIG_YML);
 
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
@@ -187,7 +192,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
 
     /**
      * Whether a file the network shares ({@code config.yml}, {@code company.yml}, {@code user.yml}, {@code order.yml},
-     * {@code system-orders.yml})
+     * {@code system-orders.yml}, {@code events.yml})
      * could not be read the last time. Such a file is left as it is instead of being replaced with defaults, is not
      * saved and is not shared with the other nodes, until a reload reads it again.
      *
@@ -253,6 +258,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public SystemOrderSettings systemOrderSettings() {
         return secondary(SYSTEM_ORDERS);
+    }
+
+    /**
+     * @return how the effects of server events combine
+     */
+    public EventSettings eventSettings() {
+        return secondary(EVENTS);
     }
 
     public GeneralSettings generalSettings() {

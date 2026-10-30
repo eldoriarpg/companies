@@ -115,4 +115,27 @@ public sealed interface NodeMessage {
      * @param event what happened: {@code STARTED}, {@code REACHED}, {@code CLOSED} or {@code CANCELLED}
      */
     record OfferAnnounced(int offer, String event) implements NodeMessage {}
+
+    /**
+     * A server event was created, started, closed or changed. Receivers drop their cached events and read them again
+     * from the database, so the message only names the event.
+     *
+     * @param event  id of the event
+     * @param change what happened: the event's new state, such as {@code ACTIVE} or {@code ENDED}; {@code CHANGED}
+     *               for a new end or budget; {@code MISSED} for a scheduled event that ended without starting, since
+     *               its whole time passed while the primary was down, which is not announced
+     */
+    record ServerEventChanged(int event, String change) implements NodeMessage {
+        /**
+         * The change of an event that got a new end or budget.
+         */
+        public static final String CHANGED = "CHANGED";
+
+        /**
+         * The change of a scheduled event that is {@link de.eldoria.companies.data.wrapper.event.EventState#ENDED
+         * ended} without having started, since its whole time passed while the primary was down. Nothing is
+         * announced for it.
+         */
+        public static final String MISSED = "MISSED";
+    }
 }

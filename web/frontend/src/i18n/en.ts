@@ -669,6 +669,7 @@ export default {
                 systemOrders: 'System orders',
                 guessedOrders: 'Guessed orders',
                 guessedLearning: 'Learning of guessed orders',
+                events: 'Server events',
                 solo: 'Solo orders',
             },
             fields: {
@@ -878,6 +879,9 @@ export default {
                             weightFloor: 'Lowest take rate a material is weighted with',
                         },
                     },
+                },
+                events: {
+                    maxMultiplier: 'Highest factor of all reward multipliers together',
                 },
             },
         },

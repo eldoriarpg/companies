@@ -882,7 +882,13 @@ export interface AdminNode {
 }
 
 /** A shared settings file. */
-export type SettingsFileName = 'config.yml' | 'company.yml' | 'order.yml' | 'user.yml' | 'system-orders.yml'
+export type SettingsFileName =
+  | 'config.yml'
+  | 'company.yml'
+  | 'order.yml'
+  | 'user.yml'
+  | 'system-orders.yml'
+  | 'events.yml'
 
 /** How a shared setting is entered. */
 export type SettingType = 'FLAG' | 'WHOLE' | 'DECIMAL' | 'TEXT' | 'CHOICE' | 'CHOICES' | 'TEXT_LIST' | 'FLAG_MAP' | 'SECRET'

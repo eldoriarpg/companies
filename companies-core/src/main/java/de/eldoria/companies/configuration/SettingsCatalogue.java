@@ -92,7 +92,8 @@ public final class SettingsCatalogue {
             Map.entry("guessed.factor", 0.01),
             Map.entry("guessed.learning.minFactor", 0.01),
             Map.entry("guessed.learning.weightFloor", 0.01),
-            Map.entry("dashboard.sessionIdleMinutes", 5.0));
+            Map.entry("dashboard.sessionIdleMinutes", 5.0),
+            Map.entry("maxMultiplier", 1.0));
 
     private static final Map<String, Double> HIGHEST = Map.ofEntries(
             Map.entry("notifications.pageSize", 50.0),
@@ -118,6 +119,7 @@ public final class SettingsCatalogue {
     private static final String ORDER = "order.yml";
     private static final String USER = "user.yml";
     private static final String SYSTEM_ORDERS = "system-orders.yml";
+    private static final String EVENTS = "events.yml";
 
     private SettingsCatalogue() {}
 
@@ -350,6 +352,8 @@ public final class SettingsCatalogue {
         learning.decimal("guessed.learning.step");
         learning.decimal("guessed.learning.minFactor");
         learning.decimal("guessed.learning.weightFloor");
+
+        new Section(fields, EVENTS, "events").decimal("maxMultiplier");
         return List.copyOf(fields);
     }
 

@@ -13,6 +13,7 @@ import de.eldoria.companies.nodes.NodeMessage.NodeStopped;
 import de.eldoria.companies.nodes.NodeMessage.OfferAnnounced;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
 import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
+import de.eldoria.companies.nodes.NodeMessage.ServerEventChanged;
 import de.eldoria.companies.nodes.NodeMessage.SettingsChanged;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.DeserializationFeature;
@@ -53,7 +54,8 @@ public final class NodeMessageCodec {
             SettingsChanged.class, "settings.changed",
             Heartbeat.class, "node.heartbeat",
             NodeStopped.class, "node.stopped",
-            OfferAnnounced.class, "offer.announced");
+            OfferAnnounced.class, "offer.announced",
+            ServerEventChanged.class, "event.changed");
     private static final Map<String, Class<? extends NodeMessage>> CLASSES =
             TYPES.entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getValue, Map.Entry::getKey));
 

@@ -669,6 +669,7 @@ export default {
                 systemOrders: 'Systemaufträge',
                 guessedOrders: 'Geschätzte Aufträge',
                 guessedLearning: 'Lernen geschätzter Aufträge',
+                events: 'Server-Events',
                 solo: 'Soloaufträge',
             },
             fields: {
@@ -878,6 +879,9 @@ export default {
                             weightFloor: 'Niedrigste Annahmequote für die Gewichtung',
                         },
                     },
+                },
+                events: {
+                    maxMultiplier: 'Höchster Faktor aller Belohnungsmultiplikatoren zusammen',
                 },
             },
         },

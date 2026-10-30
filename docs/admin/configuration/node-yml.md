@@ -1,6 +1,6 @@
 ---
 title: node.yml
-sidebar_position: 7
+sidebar_position: 8
 ---
 
 # node.yml
@@ -74,8 +74,8 @@ A network has exactly one primary server. All other servers are secondaries.
 
 The primary server:
 
-- writes the shared files (`config.yml`, `company.yml`, `order.yml`, `user.yml`) into the database when it starts,
-- runs the timed jobs: expiring and removing orders, ending old invites and applications, updating market prices, cleaning up history, inbox and treasury log, posting repeating orders and sending alert summaries,
+- writes the shared files (`config.yml`, `company.yml`, `order.yml`, `user.yml`, `system-orders.yml`, `events.yml`) into the database when it starts,
+- runs the timed jobs: expiring and removing orders, ending old invites and applications, updating market prices, cleaning up history, inbox and treasury log, posting repeating orders, sending alert summaries, and starting and ending server events at their times,
 - is the only server where the level editor works.
 
 A secondary server reads the shared files from the database when it starts, and saves them over its own files.

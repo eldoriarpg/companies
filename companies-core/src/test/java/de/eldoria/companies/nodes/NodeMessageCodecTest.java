@@ -43,7 +43,8 @@ class NodeMessageCodecTest {
                 new Heartbeat(List.of(PLAYER)),
                 new Heartbeat(List.of(PLAYER), "redis"),
                 new NodeStopped(),
-                new NodeMessage.OfferAnnounced(7, "STARTED"));
+                new NodeMessage.OfferAnnounced(7, "STARTED"),
+                new NodeMessage.ServerEventChanged(4, "ACTIVE"));
 
         for (var message : messages) {
             var decoded = codec.decode(codec.encode(NODE, message));

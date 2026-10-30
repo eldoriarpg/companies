@@ -669,6 +669,7 @@ export default {
                 systemOrders: 'Commandes système',
                 guessedOrders: 'Commandes estimées',
                 guessedLearning: 'Apprentissage des commandes estimées',
+                events: 'Événements du serveur',
                 solo: 'Commandes solo',
             },
             fields: {
@@ -878,6 +879,9 @@ export default {
                             weightFloor: 'Taux de prise minimal pour la pondération',
                         },
                     },
+                },
+                events: {
+                    maxMultiplier: 'Facteur maximal de tous les multiplicateurs de récompense ensemble',
                 },
             },
         },
