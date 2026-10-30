@@ -31,7 +31,7 @@ citizens = "net.citizensnpcs:citizens-main:2.0.44-SNAPSHOT"
 fancynpcs = "de.oliver:FancyNpcs:2.11.0"
 
 hikari = "com.zaxxer:HikariCP:7.1.0"
-mariadb = "org.mariadb.jdbc:mariadb-java-client:3.5.11"
+mariadb = "org.mariadb.jdbc:mariadb-java-client:4.0.0"
 sqlite = "org.xerial:sqlite-jdbc:3.53.4.0"
 postgres = "org.postgresql:postgresql:42.7.14"
 jedis = "redis.clients:jedis:8.0.2"
