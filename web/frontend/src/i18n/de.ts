@@ -738,6 +738,7 @@ export default {
                 guessedOrders: 'Geschätzte Aufträge',
                 guessedLearning: 'Lernen geschätzter Aufträge',
                 events: 'Server-Events',
+                jobs: 'Jobs',
                 solo: 'Soloaufträge',
             },
             fields: {
@@ -757,6 +758,9 @@ export default {
                             placeholderapi: 'PlaceholderAPI-Platzhalter registrieren',
                             citizens: 'Citizens-NPCs an Tafeln erlauben',
                             fancynpcs: 'FancyNpcs-NPCs an Tafeln erlauben',
+                            worldguard: 'Jobs in WorldGuard-Regionen erlauben',
+                            plotsquared: 'Jobs auf PlotSquared-Plots erlauben',
+                            worldedit: 'Den Bereich eines Jobs aus einer WorldEdit-Auswahl nehmen',
                         },
                     },
                     economy: {
@@ -956,6 +960,15 @@ export default {
                     goalRewardFunding: 'Finanzierung von Zielbelohnungen ohne eigene',
                     goalRewardAccount: 'Konto für Zielbelohnungen (leer: Sammelkonto)',
                     goalRewardBudget: 'Budget von Zielbelohnungen ohne eigenes (0: keins)',
+                },
+                jobs: {
+                    enabled: 'Spieler dürfen neue Jobs anlegen',
+                    unownedWorlds: 'Welten, in denen Jobs auf herrenlosem Land liegen dürfen',
+                    digMaxVolume: 'Höchstzahl Blöcke im Bereich eines Grabe-Jobs',
+                    maxChunks: 'Höchstzahl Chunks, die der Bereich eines Jobs berühren darf',
+                    maxOpenPerOwner: 'Höchstzahl Jobs eines Spielers, die auf eine Firma warten',
+                    maxDueHours: 'Höchste Stundenzahl, die eine Firma für einen Job bekommen darf',
+                    openDays: 'Tage, die ein Job auf eine Firma wartet, bevor er abläuft',
                 },
             },
         },

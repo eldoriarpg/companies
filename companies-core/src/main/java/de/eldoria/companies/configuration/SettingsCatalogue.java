@@ -121,6 +121,7 @@ public final class SettingsCatalogue {
     private static final String USER = "user.yml";
     private static final String SYSTEM_ORDERS = "system-orders.yml";
     private static final String EVENTS = "events.yml";
+    private static final String JOBS = "jobs.yml";
 
     private SettingsCatalogue() {}
 
@@ -194,6 +195,9 @@ public final class SettingsCatalogue {
         general.restart(Type.FLAG, "generalSettings.hooks.placeholderapi");
         general.restart(Type.FLAG, "generalSettings.hooks.citizens");
         general.restart(Type.FLAG, "generalSettings.hooks.fancynpcs");
+        general.restart(Type.FLAG, "generalSettings.hooks.worldguard");
+        general.restart(Type.FLAG, "generalSettings.hooks.plotsquared");
+        general.restart(Type.FLAG, "generalSettings.hooks.worldedit");
         new Section(fields, CONFIG, "economy").text("economy.collectorAccount");
         var appearance = new Section(fields, CONFIG, "appearance");
         appearance.choice("menus", names(MenuMode.values()));
@@ -362,6 +366,15 @@ public final class SettingsCatalogue {
         events.choice("goalRewardFunding", names(MoneySource.SourceType.values()));
         events.text("goalRewardAccount");
         events.decimal("goalRewardBudget");
+
+        var jobs = new Section(fields, JOBS, "jobs");
+        jobs.flag("enabled");
+        jobs.add(Type.TEXT_LIST, "unownedWorlds", List.of(), false);
+        jobs.whole("digMaxVolume");
+        jobs.whole("maxChunks");
+        jobs.whole("maxOpenPerOwner");
+        jobs.whole("maxDueHours");
+        jobs.whole("openDays");
         return List.copyOf(fields);
     }
 

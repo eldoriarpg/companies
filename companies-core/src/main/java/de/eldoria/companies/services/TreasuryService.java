@@ -342,6 +342,25 @@ public final class TreasuryService {
     }
 
     /**
+     * Credits the company's share of the payouts of a finished job. A failed credit is logged with the amount; the
+     * money is lost then.
+     *
+     * @param company company that finished the job
+     * @param job     id of the job
+     * @param cents   sum of the shares in cents
+     * @return the outcome with the new balance
+     */
+    public CompletableFuture<Result> keepJobShare(ISimpleCompany company, int job, long cents) {
+        if (cents <= 0) return CompletableFuture.completedFuture(Result.of(Outcome.INVALID_AMOUNT));
+        return credit(company, cents, entry(TreasuryKind.PAYOUT_SHARE, null, null, "job #" + job))
+                .thenApply(balance -> balance.map(Result::done).orElseGet(() -> {
+                    logger.severe("Could not credit the treasury share of %s of job %d to company %d. Lost."
+                            .formatted(Money.fromCents(cents), job, company.id()));
+                    return Result.of(Outcome.FAILED);
+                }));
+    }
+
+    /**
      * Pays the prize of a contest place to a company: into its treasury, or to its owner while treasuries are off.
      *
      * @param company the company of the place

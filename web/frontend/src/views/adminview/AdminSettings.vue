@@ -44,6 +44,7 @@ const FILES: SettingsFileName[] = [
   'user.yml',
   'system-orders.yml',
   'events.yml',
+  'jobs.yml',
 ]
 
 const {t, locale} = useI18n()

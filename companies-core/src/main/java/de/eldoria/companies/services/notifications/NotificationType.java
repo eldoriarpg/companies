@@ -310,7 +310,51 @@ public enum NotificationType {
      * A server event runs, told once to a player who joins while it runs. Arguments: {@code event_name},
      * {@code effect}, {@code ends}, {@code offers} (a sentence naming the event's offers, empty without).
      */
-    SERVER_EVENT_RUNNING(52, "notification.serverEventRunning", NotificationCategory.ORDERS, false, null);
+    SERVER_EVENT_RUNNING(52, "notification.serverEventRunning", NotificationCategory.ORDERS, false, null),
+    /**
+     * A company took the player's job. The company is not named. Arguments: {@code job_title}, {@code job_id},
+     * {@code due}.
+     */
+    MY_JOB_TAKEN(
+            53,
+            "notification.myJobTaken",
+            NotificationCategory.MY_ORDERS,
+            false,
+            new Action("/order job info <job_id>", "words.info")),
+    /**
+     * The company working on the player's job gave it back, or its time ran out; the job is open again. Arguments:
+     * {@code job_title}, {@code job_id}.
+     */
+    MY_JOB_RELEASED(54, "notification.myJobReleased", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The player's job checked out and the company was paid. Arguments: {@code job_title}, {@code job_id}.
+     */
+    MY_JOB_DONE(55, "notification.myJobDone", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * Nobody took the player's job in time; its price and fee went back. Arguments: {@code job_title},
+     * {@code amount}.
+     */
+    MY_JOB_EXPIRED(56, "notification.myJobExpired", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The time of a job the company worked on ran out; the job is open again and the access is gone. Arguments:
+     * {@code job_title}, {@code job_id}.
+     */
+    JOB_OVERDUE(57, "notification.jobOverdue", NotificationCategory.ORDERS, true, null),
+    /**
+     * A job the company worked on checked out and its workers were paid. Arguments: {@code job_title},
+     * {@code amount} (paid in all).
+     */
+    JOB_PAID(58, "notification.jobPaid", NotificationCategory.PAYMENTS, false, null),
+    /**
+     * The land of the player's job changed hands, such as a plot that was sold, so the job was cancelled; its price
+     * went back. Arguments: {@code job_title}, {@code job_id}.
+     */
+    MY_JOB_LAND_LOST(59, "notification.myJobLandLost", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The land of a job the company worked on changed hands, so the job was cancelled and the access is gone; nothing
+     * is paid and no penalty applies. Arguments: {@code job_title}, {@code job_id}.
+     */
+    JOB_LAND_LOST(60, "notification.jobLandLost", NotificationCategory.ORDERS, true, null);
 
     private final int id;
     private final String key;

@@ -1,6 +1,6 @@
 ---
 title: node.yml
-sidebar_position: 8
+sidebar_position: 9
 ---
 
 # node.yml
@@ -48,6 +48,9 @@ shared. The branding applies on `/companyadmin reload`, the others on restart.
 | `overrides.hooks.placeholderapi` | `generalSettings.hooks.placeholderapi` |
 | `overrides.hooks.citizens` | `generalSettings.hooks.citizens` |
 | `overrides.hooks.fancynpcs` | `generalSettings.hooks.fancynpcs` |
+| `overrides.hooks.worldguard` | `generalSettings.hooks.worldguard` |
+| `overrides.hooks.plotsquared` | `generalSettings.hooks.plotsquared` |
+| `overrides.hooks.worldedit` | `generalSettings.hooks.worldedit` |
 | `overrides.branding.name` | `dashboard.branding.name` |
 | `overrides.branding.icon` | `dashboard.branding.icon` |
 

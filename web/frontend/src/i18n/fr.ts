@@ -738,6 +738,7 @@ export default {
                 guessedOrders: 'Commandes estimées',
                 guessedLearning: 'Apprentissage des commandes estimées',
                 events: 'Événements du serveur',
+                jobs: 'Travaux',
                 solo: 'Commandes solo',
             },
             fields: {
@@ -757,6 +758,9 @@ export default {
                             placeholderapi: 'Enregistrer les placeholders PlaceholderAPI',
                             citizens: 'Autoriser les PNJ Citizens sur les tableaux',
                             fancynpcs: 'Autoriser les PNJ FancyNpcs sur les tableaux',
+                            worldguard: 'Autoriser les travaux dans les régions WorldGuard',
+                            plotsquared: 'Autoriser les travaux sur les terrains PlotSquared',
+                            worldedit: "Prendre la zone d'un travail depuis une sélection WorldEdit",
                         },
                     },
                     economy: {
@@ -956,6 +960,15 @@ export default {
                     goalRewardFunding: 'Financement des récompenses d’objectif qui n’en indiquent pas',
                     goalRewardAccount: 'Compte payant les récompenses d’objectif (vide : compte collecteur)',
                     goalRewardBudget: 'Budget des récompenses d’objectif qui n’en indiquent pas (0 : aucun)',
+                },
+                jobs: {
+                    enabled: 'Laisser les joueurs publier de nouveaux travaux',
+                    unownedWorlds: 'Mondes où les travaux peuvent se trouver sur un terrain sans propriétaire',
+                    digMaxVolume: "Nombre maximal de blocs dans la zone d'un travail de creusage",
+                    maxChunks: "Nombre maximal de chunks que la zone d'un travail peut toucher",
+                    maxOpenPerOwner: "Nombre maximal de travaux d'un joueur qui attendent une entreprise",
+                    maxDueHours: "Nombre maximal d'heures qu'une entreprise peut obtenir pour finir un travail",
+                    openDays: "Jours pendant lesquels un travail attend une entreprise avant d'expirer",
                 },
             },
         },

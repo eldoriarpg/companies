@@ -738,6 +738,7 @@ export default {
                 guessedOrders: 'Guessed orders',
                 guessedLearning: 'Learning of guessed orders',
                 events: 'Server events',
+                jobs: 'Jobs',
                 solo: 'Solo orders',
             },
             fields: {
@@ -757,6 +758,9 @@ export default {
                             placeholderapi: 'Register the PlaceholderAPI placeholders',
                             citizens: 'Allow Citizens NPCs on boards',
                             fancynpcs: 'Allow FancyNpcs NPCs on boards',
+                            worldguard: 'Let jobs lie in WorldGuard regions',
+                            plotsquared: 'Let jobs lie on PlotSquared plots',
+                            worldedit: 'Take the area of a job from a WorldEdit selection',
                         },
                     },
                     economy: {
@@ -956,6 +960,15 @@ export default {
                     goalRewardFunding: 'Funding of goal rewards that name none',
                     goalRewardAccount: 'Account paying goal rewards (empty: collector account)',
                     goalRewardBudget: 'Budget of goal rewards that name none (0: none)',
+                },
+                jobs: {
+                    enabled: 'Let players post new jobs',
+                    unownedWorlds: 'Worlds where jobs may lie on unowned land',
+                    digMaxVolume: 'Most blocks in the area of a dig job',
+                    maxChunks: 'Most chunks the area of a job may touch',
+                    maxOpenPerOwner: 'Most jobs a player may have waiting for a company',
+                    maxDueHours: 'Most hours a company may get to finish a job',
+                    openDays: 'Days a job waits for a company before it expires',
                 },
             },
         },

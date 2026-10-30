@@ -88,6 +88,18 @@ Commands for players who work on orders alone, without a company. They need `sol
 | `/order work abort confirm` | none | Confirms giving the order back. |
 | `/order work search …` | none | The order search for working alone. It has the same `query …` subcommands as `/company order search`, without alerts. |
 
+## Jobs
+
+See [Jobs](../players/jobs.md).
+
+| Command | Permission | What it does |
+|---|---|---|
+| `/order job` | `companies.orders.jobs` | Lists your jobs. |
+| `/order job info <id>` | `companies.orders.jobs` | Shows a job of yours and, on the server of its area, how far the work is. |
+| `/order job dig <price> <hours> <title>` | `companies.orders.jobs` | Posts a dig job on the area you selected with WorldEdit. You pay the price and the order fee at once. |
+| `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot you stand on, from the block below your feet down `depth` blocks. |
+| `/order job cancel <id>` | `companies.orders.jobs` | Cancels a job nobody works on. The price comes back, the fee is kept. |
+
 ## Companies
 
 Commands for company members and owners. Read [Founding and joining](../companies/founding-and-joining.md) and [Members and permissions](../companies/members-and-permissions.md) for a guide.
@@ -225,6 +237,17 @@ See [Order boards](../players/order-boards.md) for a guide.
 
 See [Event offers](../players/event-offers.md#contests) for a guide.
 
+
+### Jobs
+
+| Command | Permission | Company permission | What it does |
+|---|---|---|---|
+| `/company job` | none | none | Lists the open jobs. |
+| `/company job mine` | none | none | Lists the jobs your company works on. |
+| `/company job info <id>` | none | none | Shows a job's area, pay and time, and for one of yours how far the work is. |
+| `/company job take <id>` | none | `manage_orders` | Takes a job. It uses one of the company's order slots and gives the members access to its area. |
+| `/company job giveback <id>` | none | `manage_orders` | Gives a job back; it is open again. |
+| `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. |
 ### Web dashboard
 
 New in 2.1. Works while the server owner enabled the [web dashboard](../admin/dashboard.md).

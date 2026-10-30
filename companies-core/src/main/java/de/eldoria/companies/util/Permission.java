@@ -34,6 +34,10 @@ public final class Permission {
          * The permission to claim orders alone, without a company, while solo orders are enabled.
          */
         public static final String SOLO = ORDERS + ".solo";
+        /**
+         * The permission to post jobs: work in an area of the player's land that a company takes like an order.
+         */
+        public static final String JOBS = ORDERS + ".jobs";
 
         private Orders() {
             throw new UnsupportedOperationException("This is a utility class.");
@@ -100,6 +104,11 @@ public final class Permission {
          * The permission to create and break board signs and to manage boards.
          */
         public static final String BOARDS = ADMIN + ".boards";
+        /**
+         * The permission to place blocks and use buckets in the area of a job taken by another company, and to act
+         * outside a job's area on land reached only through a job.
+         */
+        public static final String JOBS_BYPASS = ADMIN + ".jobs.bypass";
         /**
          * The permission to create debug reports.
          */

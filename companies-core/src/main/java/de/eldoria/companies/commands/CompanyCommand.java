@@ -10,6 +10,7 @@ import de.eldoria.companies.commands.company.ApplicationsCommand;
 import de.eldoria.companies.commands.company.ApplyCommand;
 import de.eldoria.companies.commands.company.BankCommand;
 import de.eldoria.companies.commands.company.BoardCommand;
+import de.eldoria.companies.commands.company.CompanyJobCommand;
 import de.eldoria.companies.commands.company.ContestCommand;
 import de.eldoria.companies.commands.company.Create;
 import de.eldoria.companies.commands.company.DashboardCommand;
@@ -125,6 +126,9 @@ final class CompanyCommand {
     final ContestCommand contest;
 
     @Subcommand
+    final CompanyJobCommand job;
+
+    @Subcommand
     final EventsCommand events;
 
     CompanyCommand(CommandDependencies deps) {
@@ -153,6 +157,7 @@ final class CompanyCommand {
         alerts = new AlertsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept));
         dashboard = new DashboardCommand(deps);
         contest = new ContestCommand(deps);
+        job = new CompanyJobCommand(deps);
         events = new EventsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept), contest);
     }
 

@@ -39,6 +39,7 @@ import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.migration.UtcMigration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ADashboardData;
+import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANodeMessageData;
@@ -52,6 +53,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbDashboardData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbJobData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeMessageData;
@@ -67,6 +69,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresDashboardData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresJobData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeMessageData;
@@ -82,6 +85,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeMessageData;
@@ -97,6 +101,8 @@ import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
+import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.Jobs;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
@@ -233,6 +239,8 @@ public class Companies extends EldoPlugin {
     private AOrderData orderData;
     private AOfferData offerData;
     private AServerEventData serverEventData;
+    private AJobData jobData;
+    private volatile @Nullable JobServices jobs;
     private InformationData information;
     private EconomyData economy;
     private ANodeData nodeData;
@@ -559,6 +567,19 @@ public class Companies extends EldoPlugin {
                 this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration, feeReductions);
         var search =
                 new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher, offerData::marks);
+        var jobServices = Jobs.create(
+                this,
+                configuration,
+                jobData,
+                companyData,
+                orderData,
+                economy,
+                treasuryService,
+                notificationService,
+                levelService,
+                activeEvents,
+                feeReductions);
+        jobs = jobServices;
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -602,7 +623,8 @@ public class Companies extends EldoPlugin {
                     serverEventService,
                     serverEventData,
                     activeEvents,
-                    feeReductions));
+                    feeReductions,
+                    jobServices));
         }
         if (api != null)
             api.open(new CompaniesApiImpl.Writes(
@@ -630,6 +652,7 @@ public class Companies extends EldoPlugin {
                 OrderRefunds.of(this, economy, systemFunding));
         var alertNotices = new AlertNotices(notificationService::send, economy::format);
         var alertCompanies = AlertCompanies.of(companyData, orderData);
+        Jobs.schedule(jobServices, configuration.nodeSettings().nodeType() == NodeType.PRIMARY, workerPool, this);
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
             RefreshService.start(orderData, workerPool, () -> {
@@ -994,6 +1017,8 @@ public class Companies extends EldoPlugin {
 
     @Override
     public void onPluginDisable() {
+        var runningJobs = jobs;
+        if (runningJobs != null) runningJobs.access().stop();
         if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {
@@ -1092,6 +1117,7 @@ public class Companies extends EldoPlugin {
                 orderData = new SqLiteOrderData(workerPool, mapper);
                 offerData = new SqLiteOfferData(mapper);
                 serverEventData = new SqLiteServerEventData();
+                jobData = new SqLiteJobData();
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -1111,6 +1137,7 @@ public class Companies extends EldoPlugin {
                 orderData = new MariaDbOrderData(mapper);
                 offerData = new MariaDbOfferData(mapper);
                 serverEventData = new MariaDbServerEventData();
+                jobData = new MariaDbJobData();
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -1130,6 +1157,7 @@ public class Companies extends EldoPlugin {
                 orderData = new PostgresOrderData(workerPool, mapper);
                 offerData = new PostgresOfferData(mapper);
                 serverEventData = new PostgresServerEventData();
+                jobData = new PostgresJobData();
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

@@ -25,6 +25,7 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
 import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
+import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
@@ -100,6 +101,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .name("Server events")
             .strict()
             .build();
+    public static final Key<JobSettings> JOBS = Key.builder(Path.of("jobs.yml"), JobSettings::new)
+            .name("Jobs")
+            .strict()
+            .build();
     public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
             .name("Board bindings")
             .build();
@@ -108,7 +113,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * The files every node of a network shares, in the order they are synced.
      */
     public static final List<Key<?>> SHARED =
-            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, CONFIG_YML);
+            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, JOBS, CONFIG_YML);
 
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
@@ -265,6 +270,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public EventSettings eventSettings() {
         return secondary(EVENTS);
+    }
+
+    /**
+     * @return where jobs may lie, how large they may be and how long they run
+     */
+    public JobSettings jobSettings() {
+        return secondary(JOBS);
     }
 
     public GeneralSettings generalSettings() {
@@ -695,13 +707,26 @@ public class Configuration extends JacksonConfig<ConfigFile> {
         var general = generalSettings();
         var hooks = hooks();
         return Map.of(
-                ChangeTracker.ORDER_CHECK, general.orderCheckInterval(),
-                ChangeTracker.MESSAGE_BLOCKING, messageBlocking(),
-                ChangeTracker.HOOKS, List.of(hooks.placeholderapi(), hooks.citizens(), hooks.fancynpcs()),
-                ChangeTracker.OFFLINE_CACHE, placeholderSettings().offlineCacheSize(),
-                ChangeTracker.BOARDS_ENABLED, boardsEnabled(),
-                ChangeTracker.REPEATING_CHECK, orderSetting().repeating().checkMinutes(),
-                ChangeTracker.SYSTEM_ORDER_CHECK, systemOrderSettings().checkMinutes());
+                ChangeTracker.ORDER_CHECK,
+                general.orderCheckInterval(),
+                ChangeTracker.MESSAGE_BLOCKING,
+                messageBlocking(),
+                ChangeTracker.HOOKS,
+                List.of(
+                        hooks.placeholderapi(),
+                        hooks.citizens(),
+                        hooks.fancynpcs(),
+                        hooks.worldguard(),
+                        hooks.plotsquared(),
+                        hooks.worldedit()),
+                ChangeTracker.OFFLINE_CACHE,
+                placeholderSettings().offlineCacheSize(),
+                ChangeTracker.BOARDS_ENABLED,
+                boardsEnabled(),
+                ChangeTracker.REPEATING_CHECK,
+                orderSetting().repeating().checkMinutes(),
+                ChangeTracker.SYSTEM_ORDER_CHECK,
+                systemOrderSettings().checkMinutes());
     }
 
     /**
