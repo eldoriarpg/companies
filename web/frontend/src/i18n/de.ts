@@ -882,6 +882,9 @@ export default {
                 },
                 events: {
                     maxMultiplier: 'Höchster Faktor aller Belohnungsmultiplikatoren zusammen',
+                    broadcast: 'Start und Ende von Events im Chat ankündigen',
+                    joinMessage: 'Beitretenden Spielern laufende Events zeigen',
+                    createAheadHours: 'Stunden vor dem Start, in denen eine Vorlage ihr Event anlegt',
                 },
             },
         },

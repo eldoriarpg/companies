@@ -28,8 +28,8 @@ import java.util.stream.Stream;
  * their type. Labels and help texts live in the dashboard, keyed by file and key; this list carries only what the
  * plugin checks and what the form needs to pick an input.
  * <p>
- * A key that is not here is edited in the file only: the levels (they have their own editor), the board presets and
- * the rules of the system orders, which have their own editor.
+ * A key that is not here is edited in the file only: the levels (they have their own editor), the board presets, the
+ * rules of the system orders, which have their own editor, and the templates of the server events.
  * {@link #FILE_ONLY} names them, so a test can tell a setting that was forgotten from one left out on purpose.
  */
 public final class SettingsCatalogue {
@@ -39,7 +39,8 @@ public final class SettingsCatalogue {
     public static final List<Field> FILE_ONLY = List.of(
             new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false, null, null),
             new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false, null, null),
-            new Field("system-orders.yml", "", "rules", Type.TEXT, List.of(), false, false, null, null));
+            new Field("system-orders.yml", "", "rules", Type.TEXT, List.of(), false, false, null, null),
+            new Field("events.yml", "", "templates", Type.TEXT, List.of(), false, false, null, null));
 
     private static final Set<String> AT_LEAST_ONE = Set.of(
             "generalSettings.historyDays",
@@ -353,7 +354,11 @@ public final class SettingsCatalogue {
         learning.decimal("guessed.learning.minFactor");
         learning.decimal("guessed.learning.weightFloor");
 
-        new Section(fields, EVENTS, "events").decimal("maxMultiplier");
+        var events = new Section(fields, EVENTS, "events");
+        events.decimal("maxMultiplier");
+        events.flag("broadcast");
+        events.flag("joinMessage");
+        events.whole("createAheadHours");
         return List.copyOf(fields);
     }
 

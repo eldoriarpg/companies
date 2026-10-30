@@ -305,7 +305,12 @@ public enum NotificationType {
      * An admin took an order away from the player who worked on it alone, or deleted it; the delivered items went
      * back to the player. Arguments: {@code order_name}.
      */
-    SOLO_ORDER_RELEASED_BY_ADMIN(51, "notification.soloOrderReleasedByAdmin", NotificationCategory.ORDERS, true, null);
+    SOLO_ORDER_RELEASED_BY_ADMIN(51, "notification.soloOrderReleasedByAdmin", NotificationCategory.ORDERS, true, null),
+    /**
+     * A server event runs, told once to a player who joins while it runs. Arguments: {@code event_name},
+     * {@code effect}, {@code ends}.
+     */
+    SERVER_EVENT_RUNNING(52, "notification.serverEventRunning", NotificationCategory.ORDERS, false, null);
 
     private final int id;
     private final String key;

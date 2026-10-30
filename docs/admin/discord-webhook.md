@@ -18,7 +18,7 @@ reaches a higher level. It uses a Discord webhook, so you need no bot.
    discord:
      enabled: true
      url: ''
-     events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP, OFFER_STARTED, GOAL_PROGRESS, CONTEST_RESULT]
+     events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP, OFFER_STARTED, GOAL_PROGRESS, CONTEST_RESULT, EVENT_STARTED, EVENT_ENDED]
      username: Companies
      avatarUrl: ''
      maxPerMinute: 20
@@ -56,7 +56,8 @@ If something is wrong, the webhook does not start and the console tells you why,
 
 ## Events
 
-`events` picks what is posted:
+`events` picks what is posted. A `config.yml` from before server events keeps its own list, so add `EVENT_STARTED`
+and `EVENT_ENDED` to it to have server events posted:
 
 | Event | Posted when | The message shows |
 |---|---|---|
@@ -66,12 +67,16 @@ If something is wrong, the webhook does not start and the console tells you why,
 | `OFFER_STARTED` | An [event offer](./admin-commands.md#event-offers), goal or contest, starts | Name, kind, items asked for, price per item, end |
 | `GOAL_PROGRESS` | A goal passes 25, 50, 75 or 100 % (100 % is posted as "Goal reached") | Name, progress, items delivered |
 | `CONTEST_RESULT` | A contest closes, or is cancelled | Name, the first 10 places with their items and paid prizes |
+| `EVENT_STARTED` | A [server event](./admin-commands.md#server-events) starts | Name, effect, which orders it applies to, end, the budget left of a reward multiplier |
+| `EVENT_ENDED` | A server event ends at its end or early, runs out of money, or is cancelled after it started | Name, and whether it ended, ran out of money or was cancelled |
 
 Order messages never show who placed the order or which company delivered it. They also show no fees, taxes or
 payouts. Text written by players is escaped, so an order name cannot format text, post links or ping anyone.
 
 Each event is posted by the one server it happens on. On a network, nothing is posted twice. Event offers are posted
-by the primary server. Each progress threshold of a goal is posted once, also across restarts; a goal that passed
+by the primary server. A server event is posted by the server that started or ended it, once in the network; an
+event cancelled before its start, or one whose whole time passed while the primary was down, is not posted. Each
+progress threshold of a goal is posted once, also across restarts; a goal that passed
 several thresholds between two checks posts the highest one only.
 
 A config written before the event offers keeps its list; add the three new events to post them.

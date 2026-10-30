@@ -20,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -66,6 +67,7 @@ public final class ServerEventService {
     private final Consumer<ServerEventChanged> signal;
     private final Clock clock;
     private final Logger logger;
+    private final Schedule schedule;
     private final AtomicBoolean pending = new AtomicBoolean();
     private final AtomicReference<@Nullable ScheduledFuture<?>> next = new AtomicReference<>();
     private volatile @Nullable ScheduledExecutorService executor;
@@ -85,6 +87,26 @@ public final class ServerEventService {
             Consumer<ServerEventChanged> signal,
             Clock clock,
             Logger logger) {
+        this(events, canonical, signal, clock, logger, now -> List.of());
+    }
+
+    /**
+     * @param events    event repository
+     * @param canonical the name of the item a material name means, as order lines store it, such as
+     *                  {@code DIAMOND_BLOCK} for {@code minecraft:diamond_block}; null when it names no item
+     * @param signal    tells every node that an event changed, see {@link de.eldoria.companies.nodes.EventNetwork}
+     * @param clock     clock giving the current time in UTC
+     * @param logger    reports failed checks
+     * @param schedule  the events of the templates of {@code events.yml} that are due, created by the job
+     */
+    public ServerEventService(
+            AServerEventData events,
+            Function<String, @Nullable String> canonical,
+            Consumer<ServerEventChanged> signal,
+            Clock clock,
+            Logger logger,
+            Schedule schedule) {
+        this.schedule = schedule;
         this.events = events;
         this.canonical = canonical;
         this.signal = signal;
@@ -183,13 +205,21 @@ public final class ServerEventService {
      */
     public synchronized Run run() {
         var now = now();
+        createDue(now);
         var started = new ArrayList<Integer>();
         var ended = new ArrayList<Integer>();
         var missed = new ArrayList<Integer>();
+        var withdrawn = new ArrayList<Integer>();
         @Nullable LocalDateTime due = null;
         for (var event : events.live()) {
             var id = event.id();
             var scheduled = event.state() == EventState.SCHEDULED;
+            if (scheduled && !keeps(event)) {
+                if (move(id, EventState.SCHEDULED, EventState.CANCELLED, ServerEvent.TEMPLATE_BY, now)) {
+                    withdrawn.add(id);
+                }
+                continue;
+            }
             if (!event.ends().isAfter(now)) {
                 if (!events.expire(id, event.state(), event.ends(), scheduled ? ServerEvent.MISSED_BY : null, now)) {
                     continue;
@@ -209,7 +239,7 @@ public final class ServerEventService {
                 due = earlier(due, scheduled ? event.starts() : event.ends());
             }
         }
-        return new Run(started, ended, missed, due);
+        return new Run(started, ended, missed, withdrawn, due);
     }
 
     private static @Nullable LocalDateTime earlier(@Nullable LocalDateTime current, LocalDateTime candidate) {
@@ -269,6 +299,14 @@ public final class ServerEventService {
     }
 
     /**
+     * @param id id of an event
+     * @return the event as it is stored now, empty when there is none
+     */
+    public Optional<ServerEvent> event(int id) {
+        return events.event(id);
+    }
+
+    /**
      * Ends a running event early. A scheduled one is {@link #cancel cancelled} instead.
      *
      * @param id id of the event
@@ -287,7 +325,8 @@ public final class ServerEventService {
     }
 
     /**
-     * Cancels an event that waits or runs. A scheduled one never starts; nothing is paid back.
+     * Cancels an event that waits or runs. A scheduled one never starts and is signalled as
+     * {@link ServerEventChanged#WITHDRAWN}, so it is not announced; nothing is paid back.
      *
      * @param id id of the event
      * @param by who cancels it
@@ -371,9 +410,34 @@ public final class ServerEventService {
         return move(id, EventState.ACTIVE, EventState.DEPLETED, null, now());
     }
 
+    private boolean keeps(ServerEvent event) {
+        try {
+            return schedule.keeps(event);
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not check the template of server event " + event.id(), e);
+            return true;
+        }
+    }
+
+    private void createDue(LocalDateTime now) {
+        List<ServerEvent> due;
+        try {
+            due = schedule.due(now);
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not read the templates of events.yml", e);
+            return;
+        }
+        for (var draft : due) {
+            var created = create(draft);
+            if (!created.stored()) schedule.refused(draft, Objects.requireNonNull(created.problem()));
+        }
+    }
+
     private boolean move(int id, EventState from, EventState to, @Nullable String by, LocalDateTime at) {
         if (!events.state(id, from, to, by, at)) return false;
-        signal(id, to.name());
+        var change =
+                to == EventState.CANCELLED && from == EventState.SCHEDULED ? ServerEventChanged.WITHDRAWN : to.name();
+        signal(id, change);
         return true;
     }
 
@@ -394,28 +458,63 @@ public final class ServerEventService {
     }
 
     /**
+     * The events the templates of {@code events.yml} want created, see {@link EventSchedule}.
+     */
+    @FunctionalInterface
+    public interface Schedule {
+        /**
+         * @param now the current time in UTC
+         * @return the events that are due to be created now
+         */
+        List<ServerEvent> due(LocalDateTime now);
+
+        /**
+         * Hears that a due event could not be stored.
+         *
+         * @param draft   the event
+         * @param problem why it was not stored
+         */
+        default void refused(ServerEvent draft, ServerEvent.Problem problem) {}
+
+        /**
+         * Whether an event that waits for its start is kept; one that is not is withdrawn, noting
+         * {@link ServerEvent#TEMPLATE_BY} as who closed it.
+         *
+         * @param event an event waiting for its start
+         * @return false when its template no longer wants it
+         */
+        default boolean keeps(ServerEvent event) {
+            return true;
+        }
+    }
+
+    /**
      * What a check of the job did.
      *
      * @param started the events it started
      * @param ended   the running events it ended at their end
-     * @param missed  the scheduled events it ended without starting, since their whole time passed
-     * @param next    the next start or end of an event it knows, null when none waits or runs
+     * @param missed    the scheduled events it ended without starting, since their whole time passed
+     * @param withdrawn the scheduled events it cancelled, since their template was disabled or removed
+     * @param next      the next start or end of an event it knows, null when none waits or runs
      */
     public record Run(
             List<Integer> started,
             List<Integer> ended,
             List<Integer> missed,
+            List<Integer> withdrawn,
             @Nullable LocalDateTime next) {
         /**
-         * @param started the events it started
-         * @param ended   the running events it ended
-         * @param missed  the scheduled events it ended without starting
-         * @param next    the next start or end
+         * @param started   the events it started
+         * @param ended     the running events it ended
+         * @param missed    the scheduled events it ended without starting
+         * @param withdrawn the scheduled events it cancelled for their template
+         * @param next      the next start or end
          */
         public Run {
             started = List.copyOf(started);
             ended = List.copyOf(ended);
             missed = List.copyOf(missed);
+            withdrawn = List.copyOf(withdrawn);
         }
     }
 

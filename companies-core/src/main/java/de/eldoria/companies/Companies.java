@@ -92,10 +92,14 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
+import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuService;
+import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.EventNetwork;
 import de.eldoria.companies.nodes.NetworkPresence;
@@ -155,11 +159,17 @@ import de.eldoria.companies.services.alerts.AlertDigestJob;
 import de.eldoria.companies.services.alerts.AlertMatcher;
 import de.eldoria.companies.services.alerts.AlertNotices;
 import de.eldoria.companies.services.events.ActiveEvents;
+import de.eldoria.companies.services.events.EventAnnouncer;
+import de.eldoria.companies.services.events.EventJoins;
+import de.eldoria.companies.services.events.EventMoves;
 import de.eldoria.companies.services.events.EventPayouts;
+import de.eldoria.companies.services.events.EventSchedule;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
+import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
+import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.StyledMessageSender;
@@ -368,14 +378,45 @@ public class Companies extends EldoPlugin {
 
         var activeEvents = new ActiveEvents(serverEventData, Times.UTC);
         caches.register(NodeCaches.EVENTS, key -> activeEvents.invalidate());
+        var eventAnnouncer = new EventAnnouncer(
+                serverEventData,
+                configuration::eventSettings,
+                EventAnnouncer.players(
+                        this,
+                        MessageSender.getPluginMessageSender(this),
+                        economy::format,
+                        Times::zone,
+                        Threading.mainThread(this)));
         var eventNetwork = new EventNetwork(bus, message -> {
                     activeEvents.invalidate();
                     var current = serverEvents;
                     if (current != null) current.checkSoon();
+                    Threading.VIRTUAL.execute(() -> eventAnnouncer.handle(message));
                 })
                 .start();
+        var eventMoves = new EventMoves(
+                serverEventData,
+                (event, change) -> {
+                    var webhook = discord;
+                    if (webhook != null) webhook.events().changed(event, change);
+                },
+                getLogger());
         var serverEventService = new ServerEventService(
-                serverEventData, SystemOrderService::canonicalMaterial, eventNetwork::changed, Times.UTC, getLogger());
+                serverEventData,
+                SystemOrderService::canonicalMaterial,
+                message -> {
+                    eventNetwork.changed(message);
+                    eventMoves.accept(message);
+                },
+                Times.UTC,
+                getLogger(),
+                new EventSchedule(
+                        configuration::eventSettings,
+                        serverEventData,
+                        Times::zone,
+                        () -> configuration.economySettings().collectorAccount(),
+                        () -> !configuration.unreadable(Configuration.EVENTS),
+                        getLogger()));
         serverEvents = serverEventService;
 
         var eventBoosts = new EventPayouts(
@@ -526,12 +567,22 @@ public class Companies extends EldoPlugin {
                     systemFunding,
                     offerData,
                     eventOffers,
-                    ContestService.create(this, offerData, orderData, economy, configuration, treasuryService)));
+                    ContestService.create(this, offerData, orderData, economy, configuration, treasuryService),
+                    serverEventService,
+                    serverEventData));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));
         registerListener(new ChunkDeliveries(offerData, Times.UTC, Threading.VIRTUAL, getLogger()));
+        registerListener(new EventJoins(
+                activeEvents,
+                serverEventData,
+                configuration::eventSettings,
+                eventNotices(notificationService, economy),
+                Threading.VIRTUAL,
+                Times.UTC,
+                getLogger()));
         if (commands != null) commands.boards().useOffers(offerData::marks, offerData::unclaimedChunks);
         var expiringService = new ExpiringService(
                 this,
@@ -639,6 +690,43 @@ public class Companies extends EldoPlugin {
         }
         connectNodes(notificationService, inboxPoller);
         startDashboard(search);
+    }
+
+    /**
+     * Tells players who join while server events run: the first time per event through the inbox, later in chat.
+     *
+     * @param notifications sends the inbox entries
+     * @param economy       formats the budgets
+     * @return how players are told
+     */
+    private EventJoins.Notices eventNotices(NotificationService notifications, Economy economy) {
+        var localizer = ILocalizer.getPluginLocalizer(this);
+        var messages = MessageSender.getPluginMessageSender(this);
+        return new EventJoins.Notices() {
+            @Override
+            public void inbox(UUID player, ServerEvent event) {
+                notifications.send(
+                        player,
+                        NotificationType.SERVER_EVENT_RUNNING,
+                        NotificationArgs.create()
+                                .text("event_name", event.name())
+                                .text("effect", EventTexts.plainEffect(event, localizer::localize))
+                                .text("ends", EventTexts.ends(event, Times.zone())));
+            }
+
+            @Override
+            public void message(UUID player, List<ServerEvent> events) {
+                Threading.mainThread(Companies.this).execute(() -> {
+                    var online = getServer().getPlayer(player);
+                    if (online == null) return;
+                    for (var event : events) {
+                        var values = EventTexts.values(
+                                new MenuComponents(messages, online), event, economy::format, Times.zone());
+                        messages.sendMessage(online, MenuText.create().locale("events.join", values));
+                    }
+                });
+            }
+        };
     }
 
     /**

@@ -246,6 +246,45 @@ guessed orders do not treat them as player orders. A chunk is always marked, whe
 
 Every change is written to the [admin log](#the-admin-log).
 
+## Server events
+
+You need `companies.admin.events`. [Server events](./configuration/events-yml.md) lower the tax, lower the order fee
+or pay extra on top of payouts for a time; see [Economy](./economy.md#server-events) for what they change. Events can
+also come from the templates of [events.yml](./configuration/events-yml.md#templates).
+
+| Command | What it does |
+|---|---|
+| `/companyadmin event create <name>` | Opens the form of a new event: a dialog where your client shows them, otherwise in chat. Only players can use it |
+| `/companyadmin event set <field> [value]` | Changes a field of your form from chat, or empties it without a value |
+| `/companyadmin event save` | Creates the event of your form |
+| `/companyadmin event discard` | Throws your form away |
+| `/companyadmin event list` | Lists the newest 20 events with their times and state |
+| `/companyadmin event info <id>` | Shows an event: effect, scope, times, funding, budget, what it paid, who created and closed it |
+| `/companyadmin event end <id>` | Ends a running event now. One that has not started is refused; cancel it instead |
+| `/companyadmin event cancel <id>` | Cancels an event that waits or runs. Nothing is paid back |
+| `/companyadmin event extend <id> <duration>` | Moves the end later, such as by `12h` or `1d12h`. The new end may lie at most a year ahead |
+| `/companyadmin event budget <id> <amount\|none>` | Sets the budget of a reward multiplier, never below what it paid; `none` only for one paid from an account |
+
+The form has these fields:
+
+| Field | What to enter |
+|---|---|
+| `kind` | `TAX_REDUCTION`, `REWARD_MULTIPLIER` or `FEE_REDUCTION` |
+| `value` | Percentage points off the tax, the factor on the payout such as `1.5`, or percent off the fee |
+| `materials` | Items the event is limited to, separated by commas, such as `wheat, carrot`. Empty for every item |
+| `levels` | Company levels the event is limited to, such as `2, 3`. Empty for every company. Not for fee reductions |
+| `start` | `now` (the default), a time from now such as `2h`, or a date such as `2026-12-24 18:00` in the server's time zone |
+| `end` | A duration from the start such as `48h` (the default is `24h`), or a date |
+| `funding` | For a reward multiplier: `ACCOUNT` (the default) or `MINTED` for new money |
+| `account` | The economy account paying a multiplier. Empty for the collector account, `economy.collectorAccount` in [config.yml](./configuration/config-yml.md#economy). While no collector account is set, name an account or use `MINTED` |
+| `budget` | What a multiplier may pay in all. Needed for `MINTED`, empty for no cap on an account |
+
+An invalid value creates nothing and shows the form again with the error. The form stays on the server you opened it
+on until you save or discard it.
+
+Only the primary server starts and ends events, at their times; ending, cancelling and changing works on every
+server. Every change is written to the [admin log](#the-admin-log).
+
 ## Players
 
 | Command | Permission | What it does |

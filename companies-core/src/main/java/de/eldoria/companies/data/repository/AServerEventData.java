@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * The server events of the network.
@@ -49,6 +50,27 @@ public abstract class AServerEventData {
      * @return the events, the soonest start first
      */
     public abstract List<ServerEvent> live();
+
+    /**
+     * The event a template of {@code events.yml} created last, whatever its state, so the primary creates the next one
+     * only after it and never twice, also across restarts. An event the primary withdrew since its template was
+     * disabled or removed, closed by {@link ServerEvent#TEMPLATE_BY}, does not count, so the template creates that start
+     * again when it is enabled again in time.
+     *
+     * @param template id of the template
+     * @return the event with the latest start, empty when the template created none
+     */
+    public abstract Optional<ServerEvent> latest(String template);
+
+    /**
+     * Notes that a player was told about a running event when joining, once per event and player.
+     *
+     * @param event  id of the event
+     * @param player the player
+     * @param at     the current time
+     * @return true when the player was not noted for the event before and is now
+     */
+    public abstract boolean notice(int event, UUID player, LocalDateTime at);
 
     /**
      * Moves an event from one state to another, once. A final state notes when the event was closed and by whom.

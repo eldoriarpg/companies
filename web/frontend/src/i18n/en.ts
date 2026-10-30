@@ -882,6 +882,9 @@ export default {
                 },
                 events: {
                     maxMultiplier: 'Highest factor of all reward multipliers together',
+                    broadcast: 'Announce starts and ends of events in chat',
+                    joinMessage: 'Tell joining players about running events',
+                    createAheadHours: 'Hours before its start a template creates its event',
                 },
             },
         },

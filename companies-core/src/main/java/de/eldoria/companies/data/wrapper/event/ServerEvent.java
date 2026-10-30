@@ -44,7 +44,8 @@ import java.util.OptionalInt;
  * @param created   when it was created
  * @param closed    when it reached a final state, null while it runs
  * @param closedBy  who ended or cancelled it, null while it runs and when its time or its money ran out;
- *                  {@link #MISSED_BY} for one that ended without starting
+ *                  {@link #MISSED_BY} for one that ended without starting, {@link #TEMPLATE_BY} for one withdrawn
+ *                  since its template was disabled or removed
  */
 public record ServerEvent(
         int id,
@@ -81,6 +82,13 @@ public record ServerEvent(
      * {@code #}, so it never names a person.
      */
     public static final String MISSED_BY = "#missed";
+
+    /**
+     * What a scheduled event notes as who closed it when the primary withdrew it, since the template of
+     * {@code events.yml} that created it was disabled or removed before its start. Like {@link #MISSED_BY}, it never
+     * names a person.
+     */
+    public static final String TEMPLATE_BY = "#template";
 
     /**
      * The character the scopes are stored apart with, which no material may contain.

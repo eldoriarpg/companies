@@ -354,6 +354,23 @@ The confirm commands take no id. They confirm the last request you made.
 
 See [Event offers](../admin/admin-commands.md#event-offers).
 
+### Server events
+
+| Command | Permission | Console | What it does |
+|---|---|---|---|
+| `/companyadmin event create <name>` | `companies.admin.events` | no | Opens the form of a new server event. |
+| `/companyadmin event set <field> [value]` | `companies.admin.events` | no | Changes or empties a field of your form. |
+| `/companyadmin event save` | `companies.admin.events` | no | Creates the event of your form. |
+| `/companyadmin event discard` | `companies.admin.events` | no | Throws your form away. |
+| `/companyadmin event list` | `companies.admin.events` | yes | Lists the newest events. |
+| `/companyadmin event info <id>` | `companies.admin.events` | yes | Shows an event. |
+| `/companyadmin event end <id>` | `companies.admin.events` | yes | Ends a running event now. |
+| `/companyadmin event cancel <id>` | `companies.admin.events` | yes | Cancels an event that waits or runs. |
+| `/companyadmin event extend <id> <duration>` | `companies.admin.events` | yes | Moves the end of an event later, such as by `12h`. |
+| `/companyadmin event budget <id> <amount\|none>` | `companies.admin.events` | yes | Sets the budget of a reward multiplier. |
+
+See [Server events](../admin/admin-commands.md#server-events).
+
 ### Boards
 
 | Command | Permission | Console | What it does |

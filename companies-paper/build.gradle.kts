@@ -171,6 +171,7 @@ bukkit {
                 "companies.admin.dashboard",
                 "companies.admin.debug",
                 "companies.admin.delete",
+                "companies.admin.events",
                 "companies.admin.grant",
                 "companies.admin.level",
                 "companies.admin.nodes",
@@ -201,6 +202,9 @@ bukkit {
         }
         register("companies.admin.delete") {
             description = "Allows deleting companies"
+        }
+        register("companies.admin.events") {
+            description = "Allows creating, inspecting, ending, cancelling, extending and funding server events"
         }
         register("companies.admin.grant") {
             description = "Allows granting items and money to players"

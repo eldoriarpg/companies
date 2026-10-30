@@ -29,6 +29,8 @@ public final class DiscordEmbeds {
     static final int GOAL_PROGRESS_COLOR = 0x57F287;
     static final int CONTEST_RESULT_COLOR = 0xFEE75C;
     static final int CONTEST_CANCELLED_COLOR = 0x99AAB5;
+    static final int EVENT_STARTED_COLOR = 0xEB459E;
+    static final int EVENT_ENDED_COLOR = 0x99AAB5;
 
     private final UnaryOperator<String> texts;
     private final InstantSource clock;
@@ -181,6 +183,37 @@ public final class DiscordEmbeds {
                 CONTEST_CANCELLED_COLOR,
                 List.of(),
                 clock.instant());
+    }
+
+    /**
+     * The embed for a server event that started.
+     *
+     * @param name   name of the event
+     * @param effect what it changes
+     * @param scope  which orders it applies to
+     * @param ends   when it ends
+     * @param budget what is left of its budget, empty for none
+     * @return the embed
+     */
+    public Embed eventStarted(String name, String effect, String scope, Instant ends, Optional<String> budget) {
+        List<Embed.Field> fields = new ArrayList<>();
+        fields.add(new Embed.Field(texts.apply("words.effect"), DiscordText.escape(effect), true));
+        fields.add(new Embed.Field(texts.apply("words.scope"), DiscordText.escape(scope), true));
+        fields.add(new Embed.Field(texts.apply("words.ends"), "<t:" + ends.getEpochSecond() + ":R>", true));
+        budget.ifPresent(
+                left -> fields.add(new Embed.Field(texts.apply("words.budget"), DiscordText.escape(left), true)));
+        return new Embed(texts.apply("discord.eventStarted"), bold(name), EVENT_STARTED_COLOR, fields, clock.instant());
+    }
+
+    /**
+     * The embed for a server event that ended.
+     *
+     * @param titleKey the title: ended, ran out of money or cancelled
+     * @param name     name of the event
+     * @return the embed
+     */
+    public Embed eventEnded(String titleKey, String name) {
+        return new Embed(texts.apply(titleKey), bold(name), EVENT_ENDED_COLOR, List.of(), clock.instant());
     }
 
     private Embed order(String titleKey, int color, String orderName, List<Line> lines, Optional<String> price) {

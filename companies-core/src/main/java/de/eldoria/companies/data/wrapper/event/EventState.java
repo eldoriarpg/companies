@@ -32,7 +32,8 @@ public enum EventState {
      */
     DEPLETED,
     /**
-     * Cancelled by an admin, before or while it ran.
+     * Cancelled by an admin, before or while it ran. Only one that ran is announced as cancelled; one cancelled before
+     * its start is signalled as {@link de.eldoria.companies.nodes.NodeMessage.ServerEventChanged#WITHDRAWN}.
      */
     CANCELLED;
 

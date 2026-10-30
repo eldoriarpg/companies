@@ -123,7 +123,8 @@ public sealed interface NodeMessage {
      * @param event  id of the event
      * @param change what happened: the event's new state, such as {@code ACTIVE} or {@code ENDED}; {@code CHANGED}
      *               for a new end or budget; {@code MISSED} for a scheduled event that ended without starting, since
-     *               its whole time passed while the primary was down, which is not announced
+     *               its whole time passed while the primary was down, which is not announced; {@code WITHDRAWN} for a
+     *               scheduled event cancelled before it started, which is not announced either
      */
     record ServerEventChanged(int event, String change) implements NodeMessage {
         /**
@@ -137,5 +138,13 @@ public sealed interface NodeMessage {
          * announced for it.
          */
         public static final String MISSED = "MISSED";
+
+        /**
+         * The change of a scheduled event cancelled before it started, by an admin or by the primary since its template
+         * was disabled or removed. It is
+         * {@link de.eldoria.companies.data.wrapper.event.EventState#CANCELLED cancelled}, but nothing is announced for
+         * it, since players never saw it run.
+         */
+        public static final String WITHDRAWN = "WITHDRAWN";
     }
 }

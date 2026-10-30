@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -117,6 +118,36 @@ public class MariaDbServerEventData extends AServerEventData {
                 .single(call().bind(EventState.SCHEDULED.name()).bind(EventState.ACTIVE.name()))
                 .map(this::parse)
                 .all();
+    }
+
+    @Override
+    public Optional<ServerEvent> latest(String template) {
+        return query(EVENT
+                        + "WHERE template = ? AND (closed_by IS NULL OR closed_by <> ?) ORDER BY starts DESC, id DESC"
+                        + " LIMIT 1")
+                .single(call().bind(template).bind(ServerEvent.TEMPLATE_BY))
+                .map(this::parse)
+                .first();
+    }
+
+    @Override
+    public boolean notice(int event, UUID player, LocalDateTime at) {
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO server_event_notices(event_id, player_uuid, noticed)
+                VALUES (?, ?, ?)""";
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            conf.query(insert)
+                    .single(call().bind(event).bind(player, UUID_BYTES).bind(at, time()))
+                    .insert();
+            if (!errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

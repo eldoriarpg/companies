@@ -19,6 +19,7 @@ import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.wrapper.offer.OfferMark;
@@ -54,6 +55,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AdminLog;
@@ -602,6 +604,8 @@ public final class CommandDependencies {
      * @param offerData           event offers and the chunks of goals
      * @param offers              runs the goals and contests of event offers on the primary
      * @param contests            lets companies join contests and pays their deliveries
+     * @param serverEvents        creates, ends and changes server events
+     * @param serverEventData     the server events
      */
     public record Services(
             Economy economy,
@@ -631,5 +635,7 @@ public final class CommandDependencies {
             SystemFunding systemFunding,
             AOfferData offerData,
             EventOfferService offers,
-            ContestService contests) {}
+            ContestService contests,
+            ServerEventService serverEvents,
+            AServerEventData serverEventData) {}
 }

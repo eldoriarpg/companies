@@ -882,6 +882,9 @@ export default {
                 },
                 events: {
                     maxMultiplier: 'Facteur maximal de tous les multiplicateurs de récompense ensemble',
+                    broadcast: 'Annoncer le début et la fin des événements dans le chat',
+                    joinMessage: 'Informer les joueurs qui se connectent des événements en cours',
+                    createAheadHours: 'Heures avant le début où un modèle crée son événement',
                 },
             },
         },

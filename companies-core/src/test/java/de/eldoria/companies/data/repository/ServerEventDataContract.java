@@ -89,6 +89,7 @@ public abstract class ServerEventDataContract {
     void setUp() {
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
         query("DELETE FROM payout_events").single().delete();
+        query("DELETE FROM server_event_notices").single().delete();
         query("DELETE FROM order_payouts").single().delete();
         query("DELETE FROM server_events").single().delete();
         events = events();
@@ -249,6 +250,35 @@ public abstract class ServerEventDataContract {
         assertEquals(EventState.ENDED, missed.state());
         assertEquals(ServerEvent.MISSED_BY, missed.closedBy());
         assertEquals(NOW.plusDays(2), missed.closed());
+    }
+
+    @Test
+    void theLatestEventOfATemplateIsTheOneWithTheLatestStartWhateverItsState() {
+        var first = events.create(templated("weekend", NOW, NOW.plusDays(1))).orElseThrow();
+        var second = events.create(templated("weekend", NOW.plusDays(7), NOW.plusDays(8)))
+                .orElseThrow();
+        events.create(templated("other", NOW.plusDays(14), NOW.plusDays(15))).orElseThrow();
+        events.state(second, EventState.SCHEDULED, EventState.CANCELLED, "Nora", NOW);
+
+        assertEquals(second, events.latest("weekend").orElseThrow().id());
+        assertTrue(events.latest("missing").isEmpty());
+        var withdrawn = events.create(templated("weekend", NOW.plusDays(21), NOW.plusDays(22)))
+                .orElseThrow();
+        events.state(withdrawn, EventState.SCHEDULED, EventState.CANCELLED, ServerEvent.TEMPLATE_BY, NOW);
+        assertEquals(second, events.latest("weekend").orElseThrow().id());
+        assertTrue(first < second);
+    }
+
+    @Test
+    void aPlayerIsNoticedOncePerEvent() {
+        var id = events.create(tax("Tax holiday", NOW, NOW.plusDays(1))).orElseThrow();
+        var other = events.create(tax("Fee holiday", NOW, NOW.plusDays(1))).orElseThrow();
+        var player = UUID.randomUUID();
+
+        assertTrue(events.notice(id, player, NOW));
+        assertFalse(events.notice(id, player, NOW.plusHours(1)));
+        assertTrue(events.notice(other, player, NOW));
+        assertTrue(events.notice(id, UUID.randomUUID(), NOW));
     }
 
     @Test
@@ -445,6 +475,16 @@ public abstract class ServerEventDataContract {
         }
 
         @Override
+        public Optional<ServerEvent> latest(String template) {
+            return delegate.latest(template);
+        }
+
+        @Override
+        public boolean notice(int event, UUID player, LocalDateTime at) {
+            return delegate.notice(event, player, at);
+        }
+
+        @Override
         public boolean state(int event, EventState from, EventState to, @Nullable String by, LocalDateTime at) {
             return delegate.state(event, from, to, by, at);
         }
@@ -504,6 +544,23 @@ public abstract class ServerEventDataContract {
                 null,
                 null,
                 "Nora",
+                NOW);
+    }
+
+    private static ServerEvent templated(String template, LocalDateTime starts, LocalDateTime ends) {
+        return ServerEvent.draft(
+                "Weekend",
+                EventKind.TAX_REDUCTION,
+                5,
+                List.of(),
+                List.of(),
+                starts,
+                ends,
+                null,
+                null,
+                null,
+                template,
+                "events.yml",
                 NOW);
     }
 

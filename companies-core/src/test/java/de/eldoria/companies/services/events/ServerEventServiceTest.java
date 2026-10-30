@@ -369,6 +369,128 @@ class ServerEventServiceTest {
     }
 
     @Test
+    void aCancelBeforeTheStartIsWithdrawnAndOneAfterItIsCancelled() {
+        var waiting = create(tax(NOW.plusHours(1), NOW.plusHours(4)));
+        var running = create(tax(NOW, NOW.plusHours(4)));
+        service.run();
+
+        service.cancel(waiting, "Nora");
+        service.cancel(running, "Nora");
+
+        assertTrue(signals.contains(new ServerEventChanged(waiting, ServerEventChanged.WITHDRAWN)));
+        assertTrue(signals.contains(new ServerEventChanged(running, "CANCELLED")));
+        assertEquals(EventState.CANCELLED, state(waiting));
+    }
+
+    @Test
+    void theJobCreatesTheDueEventsOfTheTemplatesAndHearsWhatWasRefused() {
+        List<ServerEvent.Problem> refused = new CopyOnWriteArrayList<>();
+        var templated = ServerEvent.draft(
+                "Weekend",
+                EventKind.TAX_REDUCTION,
+                5,
+                List.of(),
+                List.of(),
+                NOW,
+                NOW.plusHours(2),
+                null,
+                null,
+                null,
+                "weekend",
+                "events.yml",
+                NOW);
+        var broken = ServerEvent.draft(
+                "Broken",
+                EventKind.TAX_REDUCTION,
+                0,
+                List.of(),
+                List.of(),
+                NOW,
+                NOW.plusHours(2),
+                null,
+                null,
+                null,
+                "broken",
+                "events.yml",
+                NOW);
+        var job = new ServerEventService(
+                events,
+                ServerEventServiceTest::canonical,
+                signals::add,
+                clock,
+                logger,
+                new ServerEventService.Schedule() {
+                    @Override
+                    public List<ServerEvent> due(LocalDateTime now) {
+                        return List.of(templated, broken);
+                    }
+
+                    @Override
+                    public void refused(ServerEvent draft, ServerEvent.Problem problem) {
+                        refused.add(problem);
+                    }
+                });
+
+        var run = job.run();
+
+        assertEquals(1, run.started().size());
+        var created = events.event(run.started().getFirst()).orElseThrow();
+        assertEquals("weekend", created.template());
+        assertEquals(EventState.ACTIVE, created.state());
+        assertEquals(List.of(ServerEvent.Problem.VALUE), refused);
+    }
+
+    @Test
+    void aWaitingEventWhoseTemplateIsGoneIsWithdrawnAndARunningOneKeepsRunning() {
+        var waiting = create(templated("weekend", NOW.plusHours(1)));
+        var running = create(templated("weekend", NOW));
+        service.run();
+        var job = new ServerEventService(
+                events,
+                ServerEventServiceTest::canonical,
+                signals::add,
+                clock,
+                logger,
+                new ServerEventService.Schedule() {
+                    @Override
+                    public List<ServerEvent> due(LocalDateTime now) {
+                        return List.of();
+                    }
+
+                    @Override
+                    public boolean keeps(ServerEvent event) {
+                        return false;
+                    }
+                });
+
+        var run = job.run();
+
+        assertEquals(List.of(waiting), run.withdrawn());
+        var withdrawn = events.event(waiting).orElseThrow();
+        assertEquals(EventState.CANCELLED, withdrawn.state());
+        assertEquals(ServerEvent.TEMPLATE_BY, withdrawn.closedBy());
+        assertTrue(signals.contains(new ServerEventChanged(waiting, ServerEventChanged.WITHDRAWN)));
+        assertEquals(EventState.ACTIVE, state(running));
+    }
+
+    private static ServerEvent templated(String template, LocalDateTime starts) {
+        return ServerEvent.draft(
+                "Weekend",
+                EventKind.TAX_REDUCTION,
+                5,
+                List.of(),
+                List.of(),
+                starts,
+                starts.plusHours(4),
+                null,
+                null,
+                null,
+                template,
+                "events.yml",
+                NOW);
+    }
+
+    @Test
     void theJobAndAnAdminNeverMoveAnEventTwice() {
         var id = create(tax(NOW, NOW.plusHours(1)));
         events.state(id, EventState.SCHEDULED, EventState.CANCELLED, "Nora", NOW);

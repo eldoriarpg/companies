@@ -32,5 +32,13 @@ public enum WebhookEvent {
     /**
      * A contest closed with its ranking, or was cancelled.
      */
-    CONTEST_RESULT
+    CONTEST_RESULT,
+    /**
+     * A server event started.
+     */
+    EVENT_STARTED,
+    /**
+     * A server event ended: at its end, early by an admin, cancelled after it started, or when its money ran out.
+     */
+    EVENT_ENDED
 }
