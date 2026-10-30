@@ -131,6 +131,14 @@ public class MariaDbServerEventData extends AServerEventData {
     }
 
     @Override
+    public Optional<ServerEvent> createdBy(String createdBy) {
+        return query(EVENT + "WHERE created_by = ? ORDER BY id LIMIT 1")
+                .single(call().bind(createdBy))
+                .map(this::parse)
+                .first();
+    }
+
+    @Override
     public boolean notice(int event, UUID player, LocalDateTime at) {
         @Language("mariadb")
         var insert = """

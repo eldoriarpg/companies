@@ -61,6 +61,17 @@ public final class DiscordEvents {
      * @param change what happened, see {@link de.eldoria.companies.nodes.NodeMessage.ServerEventChanged}
      */
     public void changed(ServerEvent event, String change) {
+        changed(event, change, List.of());
+    }
+
+    /**
+     * Posts what happened to an event, when the webhook posts it; a start names the event's offers.
+     *
+     * @param event  the event as it is now
+     * @param change what happened, see {@link de.eldoria.companies.nodes.NodeMessage.ServerEventChanged}
+     * @param offers the names of the event's offers that have not closed
+     */
+    public void changed(ServerEvent event, String change, List<String> offers) {
         switch (change) {
             case "ACTIVE" -> {
                 if (!settings.get().posts(WebhookEvent.EVENT_STARTED)) return;
@@ -72,7 +83,8 @@ public final class DiscordEvents {
                         EventTexts.plainEffect(event, texts),
                         scope(event),
                         event.ends().atZone(Times.UTC.getZone()).toInstant(),
-                        budget));
+                        budget,
+                        offers));
             }
             case "ENDED" -> ended("discord.eventEnded", event);
             case "DEPLETED" -> ended("discord.eventDepleted", event);

@@ -9,6 +9,7 @@ import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
+import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.util.ProfileColors;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Times;
@@ -39,7 +40,8 @@ import java.util.function.ToIntFunction;
  * without one. Leaderboard ids read {@code top_<order>[_<range>]_<place>_<field>} and company ranks
  * {@code company_rank_<order>[_<range>]}; the range is {@code all}, {@code 30d} or {@code 7d} and all time when left
  * out. Event offer ids read {@code offer_active_count} and {@code offer_<n>_<field>} for the n-th running goal or
- * contest, the soonest end first. While a value is loaded for the first time the loading text is answered. No id names a company working on a
+ * contest, the soonest end first, and server event ids {@code event_active_count} and
+ * {@code event_<n>_<name|effect|ends|budget_left>} for the n-th running server event, the soonest start first. While a value is loaded for the first time the loading text is answered. No id names a company working on a
  * player's order or the owner of an order a company works on. Ids are matched ignoring case; an unknown id resolves
  * to null.
  */
@@ -48,6 +50,9 @@ public final class PlaceholderRegistry {
     private static final String COMPANY_RANK = "company_rank_";
     private static final String OFFER = "offer_";
     private static final String OFFER_COUNT = "offer_active_count";
+    private static final String EVENT = "event_";
+    private static final String EVENT_COUNT = "event_active_count";
+    private static final List<String> EVENT_FIELDS = List.of("budget_left", "effect", "ends", "name");
     private static final List<String> OFFER_FIELDS =
             List.of("name", "kind", "progress", "delivered", "amount", "item", "ends", "left", "id");
     private static final DateTimeFormatter ENDS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -64,6 +69,7 @@ public final class PlaceholderRegistry {
     private final CompanyPlaceholderCache companies;
     private final LeaderboardCache leaderboards;
     private final OfferPlaceholderCache offers;
+    private final EventPlaceholderCache events;
     private final Function<String, String> translate;
     private final DoubleFunction<String> money;
     private final Supplier<String> loadingText;
@@ -110,6 +116,37 @@ public final class PlaceholderRegistry {
             DoubleFunction<String> money,
             Function<String, String> translate,
             Supplier<String> loadingText) {
+        this(
+                players,
+                companies,
+                leaderboards,
+                offers,
+                new EventPlaceholderCache(() -> CompletableFuture.completedFuture(List.of()), Times.UTC),
+                money,
+                translate,
+                loadingText);
+    }
+
+    /**
+     * @param players      values of the players
+     * @param companies    values of the companies
+     * @param leaderboards the rankings
+     * @param offers       the event offers that run
+     * @param events       the server events that run
+     * @param money        formats an amount of money
+     * @param translate    translates a locale key into the server language
+     * @param loadingText  text answered while a value is loaded for the first time
+     */
+    public PlaceholderRegistry(
+            PlayerPlaceholderCache players,
+            CompanyPlaceholderCache companies,
+            LeaderboardCache leaderboards,
+            OfferPlaceholderCache offers,
+            EventPlaceholderCache events,
+            DoubleFunction<String> money,
+            Function<String, String> translate,
+            Supplier<String> loadingText) {
+        this.events = events;
         this.players = players;
         this.companies = companies;
         this.leaderboards = leaderboards;
@@ -154,6 +191,8 @@ public final class PlaceholderRegistry {
         ids.add(TOP + "<order>[_<range>]_<place>_<name|tag|tag_colored|value>");
         ids.add(OFFER_COUNT);
         ids.add(OFFER + "<n>_<" + String.join("|", OFFER_FIELDS) + ">");
+        ids.add(EVENT_COUNT);
+        ids.add(EVENT + "<n>_<" + String.join("|", EVENT_FIELDS) + ">");
         return ids;
     }
 
@@ -168,6 +207,7 @@ public final class PlaceholderRegistry {
         var key = id.toLowerCase(Locale.ROOT);
         if (key.startsWith(TOP)) return top(key.substring(TOP.length()));
         if (key.startsWith(OFFER)) return offer(key);
+        if (key.startsWith(EVENT)) return event(key);
         var playerId = playerIds.get(key);
         if (playerId != null)
             return player == null ? "" : players.get(player).map(playerId).orElseGet(loadingText);
@@ -227,6 +267,37 @@ public final class PlaceholderRegistry {
             }
             default -> String.valueOf(found.id());
         };
+    }
+
+    /**
+     * Resolves {@code event_active_count} and {@code event_<n>_<field>}, the n-th running server event by its start.
+     */
+    private @Nullable String event(String key) {
+        var field = eventField(key);
+        if (!events.loaded()) return key.equals(EVENT_COUNT) || field != null ? loadingText.get() : null;
+        if (key.equals(EVENT_COUNT)) return String.valueOf(events.count());
+        if (field == null) return null;
+        var place = place(key.substring(EVENT.length(), key.length() - field.length() - 1));
+        if (place.isEmpty()) return null;
+        var event = events.at(place.getAsInt());
+        if (event.isEmpty()) return "";
+        var found = event.get();
+        return switch (field) {
+            case "name" -> found.name();
+            case "effect" -> EventTexts.plainEffect(found, translate::apply);
+            case "ends" -> ENDS.format(Times.local(found.ends()));
+            default -> {
+                var left = found.remaining();
+                yield found.kind().funded() && left.isPresent() ? money.apply(left.getAsDouble()) : "";
+            }
+        };
+    }
+
+    private static @Nullable String eventField(String key) {
+        for (var field : EVENT_FIELDS) {
+            if (key.endsWith("_" + field) && key.length() > EVENT.length() + field.length() + 1) return field;
+        }
+        return null;
     }
 
     private static @Nullable String offerField(String key) {

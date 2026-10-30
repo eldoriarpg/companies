@@ -22,6 +22,7 @@ import org.bukkit.entity.Player;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 
@@ -73,13 +74,13 @@ public final class CompanyOrderViews implements CompanyOrderActions {
                 member.hasPermission(CompanyPermission.MANAGE_ORDERS),
                 services.deliveryService().matcher(),
                 Times.now());
-        deps.withOfferOf(order.id(), offer -> {
+        deps.withOfferAndEventsOf(order, OptionalInt.of(company.level()), model.taxPercent(), (offer, events) -> {
             if (!player.isOnline()) return;
             services.menus()
                     .show(
                             player,
                             new CompanyOrderMenu(this, deps.messages(), services.economy()),
-                            model.withOffer(offer));
+                            model.withOffer(offer).withEvents(events));
         });
     }
 

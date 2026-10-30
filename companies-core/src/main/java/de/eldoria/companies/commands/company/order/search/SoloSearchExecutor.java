@@ -20,6 +20,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -36,6 +37,7 @@ public final class SoloSearchExecutor implements OrderFinder {
     private final Supplier<ItemMatcher> matcher;
     private final BooleanSupplier marked;
     private final OfferMarks offers;
+    private final EventMarks events;
 
     /**
      * @param orderData  order repository
@@ -66,6 +68,26 @@ public final class SoloSearchExecutor implements OrderFinder {
             Supplier<ItemMatcher> matcher,
             BooleanSupplier marked,
             OfferMarks offers) {
+        this(orderData, soloOrders, matcher, marked, offers, EventMarks.NONE);
+    }
+
+    /**
+     * @param orderData  order repository
+     * @param soloOrders the solo order service, which knows whether the player may work alone
+     * @param matcher    the current item matcher, which decides what the player can deliver
+     * @param marked     whether the server marks its own orders, so the search shows or hides them as asked and lists
+     *                   player orders first among equals
+     * @param offers     finds the event offers of the found orders, which are always marked
+     * @param events     finds what the server events running now do to the found orders, for no company level
+     */
+    public SoloSearchExecutor(
+            AOrderData orderData,
+            Supplier<SoloOrderService> soloOrders,
+            Supplier<ItemMatcher> matcher,
+            BooleanSupplier marked,
+            OfferMarks offers,
+            EventMarks events) {
+        this.events = events;
         this.orderData = orderData;
         this.soloOrders = soloOrders;
         this.matcher = matcher;
@@ -89,12 +111,13 @@ public final class SoloSearchExecutor implements OrderFinder {
                         (refusal, found) -> {
                             var listed = SearchExecutor.filled(found, query, itemMatcher, available);
                             var offerMarks = SearchExecutor.marks(offers, listed);
-                            return results(
+                            var results = results(
                                             player,
                                             service,
                                             refusal,
                                             SearchExecutor.shown(listed, query, marks, offerMarks))
                                     .withOffers(offerMarks);
+                            return results.withEvents(events.marks(results.orders(), OptionalInt.empty()));
                         },
                         Threading.VIRTUAL));
     }

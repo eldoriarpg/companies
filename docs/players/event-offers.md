@@ -8,6 +8,10 @@ sidebar_position: 8
 Sometimes the server itself needs a lot of something, for an event or a project everyone shares: 10,000 oak logs for
 the harbour, a mountain of wheat for a harvest festival. Your server's staff sets this up as an **event offer**.
 
+An offer can belong to a [server event](./server-events.md): it then starts and ends with the event, and
+`/company events` lists it under the event. A goal can carry a reward: when it is reached, a short reward multiplier
+event starts at once and pays extra on the orders completed while it runs.
+
 `/company events` lists the goals and contests that run, are paused or start within a day, with their progress and
 time left, and for a contest your company's place. `[Open]` shows a goal's chunks in the order search (in the
 search of orders to work on alone when you have no company), or a contest.

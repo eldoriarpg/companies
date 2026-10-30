@@ -6,6 +6,10 @@
 package de.eldoria.companies.menus.order;
 
 import de.eldoria.companies.configuration.elements.OrderSettings;
+import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
+import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.data.wrapper.event.EventState;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
 import de.eldoria.companies.orders.OrderBuilder;
 import org.bukkit.Material;
@@ -15,6 +19,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -116,5 +121,41 @@ class DraftViewTest {
 
         assertEquals(0.0, view.fee());
         assertEquals(10.0, view.total());
+    }
+
+    @Test
+    void theFeeCountsTheFeeReductionsOfTheEventsRunningNow() {
+        draft.add(new ItemStack(Material.OAK_LOG), false, 10, 10.0);
+        var settings = new OrderSettings() {
+            @Override
+            public OrderFee fee() {
+                return new OrderFee(0, 10, 0, 0);
+            }
+        };
+        var now = LocalDateTime.of(2026, 10, 30, 12, 0);
+        var half = new ServerEvent(
+                1,
+                "Cheap",
+                EventKind.FEE_REDUCTION,
+                50,
+                List.of(),
+                List.of(),
+                now,
+                now.plusDays(1),
+                null,
+                null,
+                null,
+                0,
+                EventState.ACTIVE,
+                null,
+                "Nora",
+                now,
+                null,
+                null);
+
+        assertEquals(10.0, DraftView.of(draft, settings, NO_MARKET, false).fee());
+        assertEquals(
+                5.0,
+                DraftView.of(draft, settings, NO_MARKET, false, List.of(half)).fee());
     }
 }

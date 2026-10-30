@@ -34,6 +34,7 @@ public class SearchQuery {
     private ServerOrders serverOrders = ServerOrders.ALL;
     private EventOffers eventOffers = EventOffers.ALL;
     private int offer;
+    private int serverEvent;
     private boolean playersFirst;
 
     /**
@@ -121,7 +122,26 @@ public class SearchQuery {
      */
     public void offer(int offer) {
         this.offer = Math.max(0, offer);
+        serverEvent = 0;
         eventOffers = this.offer > 0 ? EventOffers.ONLY : EventOffers.ALL;
+    }
+
+    /**
+     * @return the server event whose offers' chunks alone are shown, 0 for any
+     */
+    public int serverEvent() {
+        return serverEvent;
+    }
+
+    /**
+     * Shows only the chunks of the offers of one server event.
+     *
+     * @param serverEvent id of the event, 0 for any
+     */
+    public void serverEvent(int serverEvent) {
+        this.serverEvent = Math.max(0, serverEvent);
+        offer = 0;
+        eventOffers = this.serverEvent > 0 ? EventOffers.ONLY : EventOffers.ALL;
     }
 
     /**
@@ -129,6 +149,7 @@ public class SearchQuery {
      * @return whether the event offer filter shows the order
      */
     public boolean showsOffer(@Nullable OfferMark mark) {
+        if (serverEvent > 0) return mark != null && Integer.valueOf(serverEvent).equals(mark.event());
         if (offer > 0) return mark != null && mark.offer() == offer;
         return eventOffers() == EventOffers.ALL || mark != null;
     }

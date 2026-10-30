@@ -270,6 +270,29 @@ public abstract class ServerEventDataContract {
     }
 
     @Test
+    void theFirstEventOfACreatorIsFound() {
+        var first = events.create(ServerEvent.draft(
+                        "Reward",
+                        EventKind.TAX_REDUCTION,
+                        5,
+                        List.of(),
+                        List.of(),
+                        NOW,
+                        NOW.plusDays(1),
+                        null,
+                        null,
+                        null,
+                        null,
+                        "goal #12",
+                        NOW))
+                .orElseThrow();
+        events.create(tax("Tax holiday", NOW, NOW.plusDays(1))).orElseThrow();
+
+        assertEquals(first, events.createdBy("goal #12").orElseThrow().id());
+        assertTrue(events.createdBy("goal #13").isEmpty());
+    }
+
+    @Test
     void aPlayerIsNoticedOncePerEvent() {
         var id = events.create(tax("Tax holiday", NOW, NOW.plusDays(1))).orElseThrow();
         var other = events.create(tax("Fee holiday", NOW, NOW.plusDays(1))).orElseThrow();
@@ -477,6 +500,11 @@ public abstract class ServerEventDataContract {
         @Override
         public Optional<ServerEvent> latest(String template) {
             return delegate.latest(template);
+        }
+
+        @Override
+        public Optional<ServerEvent> createdBy(String createdBy) {
+            return delegate.createdBy(createdBy);
         }
 
         @Override

@@ -103,7 +103,7 @@ public final class EventJoins implements Listener {
     }
 
     /**
-     * How a player is told.
+     * How a player is told. Called off the main thread.
      */
     public interface Notices {
         /**

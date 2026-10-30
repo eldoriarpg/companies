@@ -10,12 +10,17 @@ import de.eldoria.companies.commands.company.order.search.OrderSearch;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.repository.AOfferData;
+import de.eldoria.companies.data.repository.AServerEventData;
+import de.eldoria.companies.data.wrapper.event.EventState;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
+import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
@@ -34,10 +39,16 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
+import java.util.function.DoubleFunction;
 import java.util.logging.Level;
 
 /**
- * {@code /company events}: the event offers, goals and contests, that run, are paused or start within a day.
+ * {@code /company events}: the server events and the event offers, goals and contests, that run, are paused or start
+ * within a day.
+ * <p>
+ * Each server event shows its effect, which orders it applies to, its time left or the time until its start, and for
+ * a reward multiplier with a budget what is left of it as a bar; the offers of an event are listed under it, the
+ * standalone offers after the events.
  * <p>
  * Each shows its kind, name, what it asks for, its progress, its time left or the time until its start, and for a
  * contest the place of the player's company. {@code open <id>} opens an offer: the order search showing only the chunks
@@ -79,16 +90,34 @@ public final class EventsCommand {
         var player = Senders.player(sender);
         deps.requireReady();
         var offers = deps.services().offerData();
-        CompletableFuture.supplyAsync(() -> listing(player, offers), Threading.VIRTUAL)
+        var events = deps.services().serverEventData();
+        CompletableFuture.supplyAsync(() -> listing(player, offers, events), Threading.VIRTUAL)
                 .thenAccept(listing -> {
-                    if (listing.offers().isEmpty()) {
+                    if (listing.offers().isEmpty() && listing.events().isEmpty()) {
                         deps.messages().sendMessage(player, PREFIX + "none");
                         return;
                     }
                     deps.messages()
                             .sendMessage(
                                     player, MenuText.create().text("<heading>").locale(PREFIX + "title"));
+                    var economy = deps.services().economy();
+                    for (var event : listing.events()) {
+                        deps.messages().sendMessage(player, eventLine(player, event, economy::format));
+                        for (var offer : grouped(listing.offers(), event.id())) {
+                            deps.messages()
+                                    .sendMessage(
+                                            player,
+                                            MenuText.create()
+                                                    .text("  ")
+                                                    .append(line(
+                                                            offer,
+                                                            listing.places().get(offer.id()))));
+                        }
+                    }
+                    var shownEvents =
+                            listing.events().stream().map(ServerEvent::id).toList();
                     for (var offer : listing.offers()) {
+                        if (offer.event() != null && shownEvents.contains(offer.event())) continue;
                         deps.messages()
                                 .sendMessage(
                                         player, line(offer, listing.places().get(offer.id())));
@@ -157,8 +186,9 @@ public final class EventsCommand {
         return !hasCompany && mayWorkAlone.getAsBoolean();
     }
 
-    private Listing listing(Player player, AOfferData offers) {
+    private Listing listing(Player player, AOfferData offers, AServerEventData events) {
         var shown = shown(offers.running(), Times.now());
+        var shownEvents = shownEvents(events.live(), LocalDateTime.now(Times.UTC));
         var company = deps.companyData()
                 .retrievePlayerCompanyProfile(player)
                 .asFuture()
@@ -172,7 +202,64 @@ public final class EventsCommand {
                         place(offers.ranking(offer.id()), company.get().id()));
             }
         }
-        return new Listing(shown, places);
+        return new Listing(shown, places, shownEvents);
+    }
+
+    /**
+     * The server events a player sees: those running, and those starting within {@link #UPCOMING}, the soonest start
+     * first.
+     *
+     * @param live the events that wait or run
+     * @param now  the current time in UTC
+     * @return the events shown
+     */
+    public static List<ServerEvent> shownEvents(List<ServerEvent> live, LocalDateTime now) {
+        return live.stream()
+                .filter(event -> event.activeAt(now)
+                        || event.state() == EventState.SCHEDULED
+                                && event.ends().isAfter(now)
+                                && !event.starts().isAfter(now.plus(UPCOMING)))
+                .toList();
+    }
+
+    /**
+     * @param offers the offers shown
+     * @param event  id of a server event
+     * @return the offers of the event, in the order shown
+     */
+    public static List<EventOffer> grouped(List<EventOffer> offers, int event) {
+        return offers.stream()
+                .filter(offer -> Integer.valueOf(event).equals(offer.event()))
+                .toList();
+    }
+
+    private MenuText eventLine(Player player, ServerEvent event, DoubleFunction<String> money) {
+        var texts = new MenuComponents(deps.messages(), player);
+        var now = LocalDateTime.now(Times.UTC);
+        var text = MenuText.create()
+                .text("<neutral>[<i18n:" + PREFIX + "serverEvent>]</neutral> ")
+                .locale(
+                        PREFIX + "eventEntry",
+                        Values.text("event_name", event.name()),
+                        Values.component("effect", texts.of(EventTexts.effect(event))),
+                        Values.component("scope", texts.of(EventTexts.scope(event))))
+                .space();
+        if (event.activeAt(now)) {
+            text.locale(PREFIX + "timeLeft", Values.text("time", pretty(Duration.between(now, event.ends()))));
+        } else if (!event.starts().isAfter(now)) {
+            text.locale(PREFIX + "starting");
+        } else {
+            text.locale(PREFIX + "startsIn", Values.text("time", pretty(Duration.between(now, event.starts()))));
+        }
+        var budget = event.budget();
+        var left = event.remaining();
+        if (event.kind().funded() && budget != null && budget > 0 && left.isPresent()) {
+            text.space()
+                    .text(Texts.progressBar(left.getAsDouble() / budget))
+                    .space()
+                    .locale(PREFIX + "budgetLeft", Values.text("budget_left", money.apply(left.getAsDouble())));
+        }
+        return text;
     }
 
     /**
@@ -244,6 +331,7 @@ public final class EventsCommand {
      *
      * @param offers the offers shown
      * @param places the place of the player's company in each contest shown, when it has one
+     * @param events the server events shown
      */
-    private record Listing(List<EventOffer> offers, Map<Integer, OptionalInt> places) {}
+    private record Listing(List<EventOffer> offers, Map<Integer, OptionalInt> places, List<ServerEvent> events) {}
 }

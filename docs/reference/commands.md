@@ -209,7 +209,7 @@ See [Order boards](../players/order-boards.md) for a guide.
 
 | Command | Permission | Company permission | What it does |
 |---|---|---|---|
-| `/company events` | none | none | Lists the event offers, goals and contests, that run, are paused or start within a day: progress, time left and, for a contest, your company's place. |
+| `/company events` | none | none | Lists the [server events](../players/server-events.md) that run or start within a day, with their effect, time left and, for a reward multiplier, the budget left as a bar, and the event offers, goals and contests, that run, are paused or start within a day: progress, time left and, for a contest, your company's place. The offers of a server event are listed under it. |
 | `/company events open <id>` | none | none | Opens an offer: the order search with only the chunks of a goal (the search of orders to work on alone when you have no company and may work alone), or the info of a contest. The `[Open]` button of the list runs it. |
 
 ### Contests
@@ -351,6 +351,10 @@ The confirm commands take no id. They confirm the last request you made.
 | `/companyadmin offers resume <id>` | `companies.admin.offers` | yes | Resumes a paused offer. |
 | `/companyadmin offers cancel <id>` | `companies.admin.offers` | yes | Closes an offer and withdraws its waiting chunks; a cancelled contest pays no prizes. |
 | `/companyadmin offers prize <id> <place> paid\|failed` | `companies.admin.offers` | yes | Notes the outcome of a contest prize whose payment stopped without a known result. |
+| `/companyadmin offers event <id> <event>` | `companies.admin.offers` | yes | Puts an offer on a server event: it then starts and ends with the event and is cancelled with it. |
+| `/companyadmin offers standalone <id>` | `companies.admin.offers` | yes | Takes an offer off its server event. |
+| `/companyadmin offers reward <id> <factor> <duration> [money] [budget]` | `companies.admin.offers` | yes | Gives a goal a reward: a reward multiplier server event created when the goal is reached. |
+| `/companyadmin offers reward clear <id>` | `companies.admin.offers` | yes | Takes the reward off a goal. |
 
 See [Event offers](../admin/admin-commands.md#event-offers).
 

@@ -63,6 +63,12 @@ public abstract class AServerEventData {
     public abstract Optional<ServerEvent> latest(String template);
 
     /**
+     * @param createdBy who created an event, such as {@code goal #12}
+     * @return the first event created by them, empty when there is none
+     */
+    public abstract Optional<ServerEvent> createdBy(String createdBy);
+
+    /**
      * Notes that a player was told about a running event when joining, once per event and player.
      *
      * @param event  id of the event

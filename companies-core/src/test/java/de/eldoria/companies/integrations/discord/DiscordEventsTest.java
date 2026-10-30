@@ -52,6 +52,15 @@ class DiscordEventsTest {
     }
 
     @Test
+    void theStartNamesTheOffersOfTheEvent() {
+        events("events: [EVENT_STARTED]").changed(multiplier(), "ACTIVE", List.of("Harbour logs", "Race"));
+
+        assertTrue(posted.getFirst().fields().stream()
+                .anyMatch(field ->
+                        field.name().equals("words.offers") && field.value().equals("Harbour logs, Race")));
+    }
+
+    @Test
     void changesThatAreNotAnnouncedAreNotPosted() {
         var events = events("events: [EVENT_STARTED, EVENT_ENDED]");
 

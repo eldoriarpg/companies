@@ -11,9 +11,9 @@ import de.eldoria.companies.menus.Page;
 import de.eldoria.companies.menus.company.AlertNameMenu;
 import de.eldoria.companies.menus.company.SearchMenu;
 import de.eldoria.companies.menus.company.SearchResultsMenu;
-import de.eldoria.companies.orders.offers.OfferMarks;
 import de.eldoria.companies.orders.query.OrderFilter;
 import de.eldoria.companies.util.Permission;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.function.Consumer;
@@ -54,7 +54,9 @@ public final class OrderSearch {
                         deps.companyData(),
                         deps.configuration(),
                         () -> deps.services().deliveryService().matcher(),
-                        (OfferMarks) orders -> deps.services().offerData().marks(orders)),
+                        Bukkit::getOfflinePlayer,
+                        orders -> deps.services().offerData().marks(orders),
+                        deps::eventMarks),
                 info,
                 accept);
     }

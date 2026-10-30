@@ -253,7 +253,7 @@ public final class AdminOfferWrites {
         var result = OffersCommand.transition(sources.offers(), id, from, to);
         return switch (result) {
             case UNKNOWN -> unknown(request, id);
-            case REFUSED, WRONG_KIND ->
+            case REFUSED, WRONG_KIND, EARLY ->
                 answers.refused(request, CommandFailure.of(PREFIX + "error." + action, Values.number("id", id)));
             case DONE -> {
                 sources.log().entry(admin, "offer " + action).with("id", id).write();
@@ -269,7 +269,8 @@ public final class AdminOfferWrites {
         var result = OffersCommand.limit(sources.offers(), id, count);
         return switch (result) {
             case UNKNOWN -> unknown(request, id);
-            case REFUSED -> answers.refused(request, CommandFailure.of(PREFIX + "error.open", Values.number("id", id)));
+            case REFUSED, EARLY ->
+                answers.refused(request, CommandFailure.of(PREFIX + "error.open", Values.number("id", id)));
             case WRONG_KIND ->
                 answers.refused(request, CommandFailure.of(PREFIX + "error.notGoal", Values.number("id", id)));
             case DONE -> {
@@ -295,7 +296,7 @@ public final class AdminOfferWrites {
         return switch (result) {
             case UNKNOWN, WRONG_KIND ->
                 answers.refused(request, CommandFailure.of(PREFIX + "error.unknownPrize", values));
-            case REFUSED -> answers.refused(request, CommandFailure.of(PREFIX + "error.notPaying", values));
+            case REFUSED, EARLY -> answers.refused(request, CommandFailure.of(PREFIX + "error.notPaying", values));
             case DONE -> {
                 sources.log()
                         .entry(admin, "offer prize")

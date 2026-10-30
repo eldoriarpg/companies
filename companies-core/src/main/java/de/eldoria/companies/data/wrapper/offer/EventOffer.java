@@ -327,6 +327,6 @@ public record EventOffer(
      * @return what players see of it next to its orders
      */
     public OfferMark mark() {
-        return new OfferMark(id, name, ends, state, amount, delivered);
+        return new OfferMark(id, name, ends, state, amount, delivered, event);
     }
 }

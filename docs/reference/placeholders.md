@@ -119,6 +119,25 @@ same for every player.
 Offers that wait for their start or are paused do not count. The list is loaded again with the other values, every
 `placeholders.refreshSeconds`.
 
+## Server event placeholders
+
+These show the [server events](../players/server-events.md) that run right now. They are the same for every player.
+
+| Placeholder | Value | Example |
+|---|---|---|
+| `%companies_event_active_count%` | Number of server events that run | `1` |
+| `%companies_event_<n>_<field>%` | A field of the n-th running event, the one that started first first. Empty when fewer events run. | `%companies_event_1_name%` reads `Weekend boost` |
+
+| Field | Value | Example |
+|---|---|---|
+| `name` | Name of the event | `Weekend boost` |
+| `effect` | What it changes, in the server language | `Reward multiplier ×1.5` |
+| `ends` | When it ends, in the server's time zone | `2026-11-02 18:00` |
+| `budget_left` | What is left of the budget of a reward multiplier; empty without a budget and for the other kinds | `$3,200.00` |
+
+Events that wait for their start do not count, and an event whose end passed stops counting at once. The list is
+loaded again when an event starts, ends or changes, and with the other values every `placeholders.refreshSeconds`.
+
 ## Loading and refresh
 
 Placeholders never wait for the database. They read values that Companies keeps in memory.

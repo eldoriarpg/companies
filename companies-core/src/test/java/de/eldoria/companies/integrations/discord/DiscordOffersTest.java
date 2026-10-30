@@ -12,6 +12,7 @@ import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
+import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.offer.PrizeState;
 import org.junit.jupiter.api.Test;
 import tools.jackson.dataformat.yaml.YAMLMapper;
@@ -76,6 +77,49 @@ class DiscordOffersTest {
 
         var ranked = posted.getFirst().fields().getFirst().value();
         assertEquals("1. Iron Works: 300× · $500.0\n2. Stone Cutters: 120×", ranked);
+    }
+
+    @Test
+    void anOfferOfAServerEventPostsNoStartOfItsOwnOnlyWhenItStartsWithIt() {
+        var offers = offers("events: [OFFER_STARTED]");
+        var goal = goal();
+
+        offers.started(onEvent(goal, goal.starts().plusSeconds(30)));
+        assertTrue(posted.isEmpty());
+        offers.started(onEvent(goal, goal.starts().plusHours(3)));
+        assertEquals(
+                List.of("discord.offerStarted"),
+                posted.stream().map(Embed::title).toList());
+    }
+
+    private static EventOffer onEvent(EventOffer goal, LocalDateTime started) {
+        return new EventOffer(
+                goal.id(),
+                goal.kind(),
+                goal.name(),
+                4,
+                goal.line(),
+                goal.amount(),
+                goal.unitPrice(),
+                goal.chunkSize(),
+                goal.openChunks(),
+                goal.source(),
+                goal.account(),
+                goal.budget(),
+                goal.spent(),
+                goal.delivered(),
+                goal.starts(),
+                goal.ends(),
+                OfferState.ACTIVE,
+                goal.createdBy(),
+                goal.created(),
+                goal.closed(),
+                goal.prizes(),
+                goal.held(),
+                started,
+                goal.settled(),
+                goal.refund(),
+                goal.refunded());
     }
 
     private DiscordOffers offers(String yaml) {

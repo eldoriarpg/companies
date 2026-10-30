@@ -44,7 +44,19 @@ public interface FeeReductions {
      */
     default double fee(double fee, Collection<String> materials) {
         if (!(fee > 0)) return fee;
-        var reductions = active(materials).stream()
+        return apply(fee, active(materials));
+    }
+
+    /**
+     * The fee after the fee reductions among events read before, rounded down to the cent.
+     *
+     * @param fee    the fee without events
+     * @param events the events that apply to the order, of any kind
+     * @return the reduced fee
+     */
+    static double apply(double fee, List<ServerEvent> events) {
+        if (!(fee > 0)) return fee;
+        var reductions = events.stream()
                 .filter(event -> event.kind() == EventKind.FEE_REDUCTION)
                 .toList();
         if (reductions.isEmpty()) return fee;

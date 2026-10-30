@@ -134,6 +134,10 @@ See [Event offers](../players/event-offers.md) for what players see. The same to
 | `/companyadmin offers pause <id>` | Pauses a running or scheduled offer |
 | `/companyadmin offers resume <id>` | Resumes a paused offer |
 | `/companyadmin offers cancel <id>` | Closes an offer for good |
+| `/companyadmin offers event <id> <event>` | Puts an offer on a [server event](#server-events). Its start and end become the event's and follow it, also when the event is extended; it ends when the event ends, also early or when the event runs out of money, and is cancelled with the event, a contest without prizes. An offer and an event that closed already are refused, and so is an offer that started already on an event that has not |
+| `/companyadmin offers standalone <id>` | Takes an offer off its server event; it keeps the times it has and runs on its own |
+| `/companyadmin offers reward <id> <factor> <duration> [money] [budget]` | Gives a goal a reward: when it is reached, a reward multiplier server event of `<factor>` starts at once for `<duration>` (such as `2h`, at most 30 days) and applies to every order. `[money]` is `minted` or an economy account, `[budget]` what it may pay in all; left out, `goalRewardFunding`, `goalRewardAccount` and `goalRewardBudget` of [events.yml](./configuration/events-yml.md) apply. A reward whose event would be refused is refused here already. The reward is announced like any event. Its event ends `<duration>` after the goal was reached; if it could not be created in that time, or its event is refused, it fails, which the server log names once and `offers info` shows |
+| `/companyadmin offers reward clear <id>` | Takes the reward off a goal |
 | `/companyadmin offers prize <id> <place> paid\|failed` | Notes the outcome of a contest prize whose payment stopped without a known result, after you checked the company's treasury log. `failed` gives the prize's money back to the contest, or straight to its account when the contest gave back its rest already |
 
 The values of `goal`:

@@ -9,6 +9,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
@@ -30,6 +31,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,6 +40,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -71,6 +74,13 @@ import java.util.stream.Collectors;
  * waits for the next check, which starts and announces it.
  * <p>
  * Contests are started, closed and settled by {@link ContestJob}.
+ * <p>
+ * An offer on a server event follows the event, see {@link #useEvents}: before each check its start and end are set to
+ * the event's, so it starts with the event and ends with it, also when the event is extended; when the event ended
+ * early or ran out of money, a running offer's end is set to now, so it ends as {@link OfferState#ENDED} like any offer
+ * whose end passed, and one that never started ends without starting; when the event was cancelled, the offer is
+ * cancelled, a contest without prizes. A goal with a reward has it created when it is reached, once; a reached goal
+ * whose reward event is not noted yet gets it on the next check.
  */
 public final class EventOfferService {
     /**
@@ -94,6 +104,8 @@ public final class EventOfferService {
     private final DoubleSupplier random;
     private final Logger logger;
     private final Map<Integer, Set<Integer>> refused = new ConcurrentHashMap<>();
+    private volatile IntFunction<Optional<ServerEvent>> events = id -> Optional.empty();
+    private volatile Consumer<EventOffer> rewards = offer -> {};
     private volatile @Nullable ScheduledExecutorService executor;
 
     /**
@@ -151,6 +163,17 @@ public final class EventOfferService {
     }
 
     /**
+     * Lets the offers of server events follow their events and the rewards of goals be paid, once the events exist.
+     *
+     * @param events  reads a server event by id
+     * @param rewards hears a goal that was reached, to create its reward
+     */
+    public void useEvents(IntFunction<Optional<ServerEvent>> events, Consumer<EventOffer> rewards) {
+        this.events = events;
+        this.rewards = rewards;
+    }
+
+    /**
      * Runs a check every {@value #CHECK_MINUTES} minute.
      *
      * @param executor executor running the checks
@@ -195,15 +218,46 @@ public final class EventOfferService {
                 new ArrayList<>(),
                 new LinkedHashMap<>(),
                 new ArrayList<>());
-        for (var offer : offers.working()) {
+        for (var working : offers.working()) {
             try {
+                var offer = follow(working, now);
                 if (offer.kind() == OfferKind.CONTEST) contests.handle(offer, now, run);
                 else handle(offer, now, run);
             } catch (RuntimeException e) {
-                logger.log(Level.SEVERE, "Could not look after the event offer #" + offer.id(), e);
+                logger.log(Level.SEVERE, "Could not look after the event offer #" + working.id(), e);
             }
         }
+        for (var goal : offers.unrewarded()) reward(goal);
         return run;
+    }
+
+    /**
+     * Lets an offer of a server event follow its event: it starts and ends with it, also when the event is extended
+     * or ended early, and is cancelled with it.
+     *
+     * @return the offer as it is now
+     */
+    private EventOffer follow(EventOffer offer, LocalDateTime now) {
+        var id = offer.event();
+        if (id == null || offer.state().closed()) return offer;
+        var event = events.apply(id).orElse(null);
+        if (event == null) return offer;
+        switch (event.state()) {
+            case CANCELLED -> offers.state(offer.id(), offer.state(), OfferState.CANCELLED, now);
+            case ENDED, DEPLETED -> {
+                if (offer.state() == OfferState.SCHEDULED) {
+                    offers.state(offer.id(), OfferState.SCHEDULED, OfferState.ENDED, now);
+                } else if (now.isBefore(offer.ends())) {
+                    offers.times(offer.id(), offer.starts(), now);
+                }
+            }
+            default -> {
+                if (!event.starts().equals(offer.starts()) || !event.ends().equals(offer.ends())) {
+                    offers.times(offer.id(), event.starts(), event.ends());
+                }
+            }
+        }
+        return offers.offer(offer.id()).orElse(offer);
     }
 
     private void handle(EventOffer offer, LocalDateTime now, Run run) {
@@ -260,7 +314,10 @@ public final class EventOfferService {
             if (!changed) return current;
             run.changed().put(current.id(), next);
             current = offers.offer(current.id()).orElse(current);
-            if (next == OfferState.REACHED) announce(current);
+            if (next == OfferState.REACHED) {
+                announce(current);
+                reward(current);
+            }
             if (first) started(current);
         }
     }
@@ -316,6 +373,14 @@ public final class EventOfferService {
             announcer.started(offer);
         } catch (RuntimeException e) {
             logger.log(Level.WARNING, "Could not announce the start of the event offer #" + offer.id(), e);
+        }
+    }
+
+    private void reward(EventOffer offer) {
+        try {
+            rewards.accept(offer);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not create the reward of the goal #" + offer.id(), e);
         }
     }
 

@@ -17,6 +17,7 @@ import de.eldoria.companies.menus.order.OrderBuilderMenu.View;
 import de.eldoria.companies.orders.OrderBuilder;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.OrderMaterials;
 import de.eldoria.companies.orders.Repetition;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
@@ -26,6 +27,7 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -187,15 +189,32 @@ public final class OrderBuilderController {
         deps.messages().sendError(sender, "error.saveFailed");
     }
 
+    /**
+     * Shows the draft once the fee reductions of the server events running now are read off the main thread, so its
+     * fee is the one the player will pay. A draft that was finished or dropped meanwhile is not shown again.
+     */
     private void show(Player player, OrderBuilder draft, Screen screen, Optional<CommandFailure> error) {
         var services = deps.services();
-        var view = DraftView.of(
-                draft,
-                deps.configuration().orderSetting(),
-                material -> deps.orderData().getMaterialPrice(material),
-                player.hasPermission(Permission.Orders.REPEAT));
-        var menu = new OrderBuilderMenu(this, services.economy(), deps.messages());
-        services.menus().show(player, menu, new View(view, screen, error));
+        var materials = OrderMaterials.accepted(draft.lines());
+        CompletableFuture.supplyAsync(() -> services.feeReductions().active(materials), Threading.VIRTUAL)
+                .exceptionally(err -> {
+                    deps.plugin().getLogger().log(Level.WARNING, "Could not read the fee reductions of a draft", err);
+                    return List.of();
+                })
+                .thenAcceptAsync(
+                        events -> {
+                            if (!player.isOnline()
+                                    || drafts().draft(player.getUniqueId()).isEmpty()) return;
+                            var view = DraftView.of(
+                                    draft,
+                                    deps.configuration().orderSetting(),
+                                    material -> deps.orderData().getMaterialPrice(material),
+                                    player.hasPermission(Permission.Orders.REPEAT),
+                                    events);
+                            var menu = new OrderBuilderMenu(this, services.economy(), deps.messages());
+                            services.menus().show(player, menu, new View(view, screen, error));
+                        },
+                        Threading.mainThread(deps.plugin()));
     }
 
     private void refuse(Player player, OrderBuilder draft, Screen retry, CommandFailure failure) {

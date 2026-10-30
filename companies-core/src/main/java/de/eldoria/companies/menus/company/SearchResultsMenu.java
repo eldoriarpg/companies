@@ -14,6 +14,7 @@ import de.eldoria.companies.menus.MenuActions;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Page;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.menus.order.OfferTexts;
 import de.eldoria.companies.orders.Payout;
 import de.eldoria.companies.orders.SystemOwner;
@@ -163,6 +164,39 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
      * @return the badge and a space, or nothing
      */
     private MenuText badge(FullOrder order, SearchResults results, String key) {
+        return offerBadge(order, results, key).append(eventBadge(order, results, key + "_event"));
+    }
+
+    /**
+     * The badge of what the server events running now do to an order: the highest factor on its rewards and the tax
+     * taken off, such as {@code [×1.5 · tax −5]}, for the players working on it.
+     *
+     * @param order   the order
+     * @param results the results holding the marks of the orders
+     * @param key     the placeholder key prefix, unique within the message
+     * @return the badge and a space, or nothing
+     */
+    static MenuText eventBadge(FullOrder order, SearchResults results, String key) {
+        var mark = results.event(order.id());
+        if (mark.isEmpty() || !(mark.get().multiplier() > 1) && !(mark.get().taxPoints() > 0)) {
+            return MenuText.create();
+        }
+        var text = MenuText.create().text("<value>[");
+        if (mark.get().multiplier() > 1) {
+            text.text(
+                    "×<" + key + "_factor>",
+                    Values.text(key + "_factor", EventTexts.number(mark.get().multiplier())));
+        }
+        if (mark.get().multiplier() > 1 && mark.get().taxPoints() > 0) text.text(" · ");
+        if (mark.get().taxPoints() > 0) {
+            text.text(
+                    "<i18n:events.mark.tax> −<" + key + "_tax>",
+                    Values.text(key + "_tax", EventTexts.number(mark.get().taxPoints())));
+        }
+        return text.text("<value>] ");
+    }
+
+    private MenuText offerBadge(FullOrder order, SearchResults results, String key) {
         var offer = results.offer(order.id());
         if (offer.isPresent()) {
             return MenuText.create()
@@ -183,11 +217,13 @@ public final class SearchResultsMenu implements Menu<SearchResultsMenu.Model> {
         var offer = results.offer(order.id());
         if (offer.isEmpty()) return badge(order, results, key);
         var click = Keys.of("act_offer", index);
+        var boost = eventBadge(order, results, key + "_event");
         var id = offer.get().offer();
         return MenuText.create()
                 .text("<" + click + ">", actions.chatAction(click, p -> search.showOffer(p, id)))
-                .append(badge(order, results, key))
-                .text("</" + click + ">");
+                .append(offerBadge(order, results, key))
+                .text("</" + click + ">")
+                .append(boost);
     }
 
     private MenuText orderLine(

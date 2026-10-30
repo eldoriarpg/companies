@@ -8,13 +8,17 @@ package de.eldoria.companies.commands.companyadmin;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.data.repository.AOfferData;
+import de.eldoria.companies.data.wrapper.event.EventState;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.Contributor;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.GoalReward;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
@@ -22,9 +26,12 @@ import de.eldoria.companies.data.wrapper.offer.OpenChunk;
 import de.eldoria.companies.data.wrapper.offer.PrizeState;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.offers.GoalDraft;
 import de.eldoria.companies.orders.system.SystemOrderService;
+import de.eldoria.companies.services.events.EventTimes;
+import de.eldoria.companies.services.events.GoalRewards;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
@@ -52,6 +59,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -70,6 +78,10 @@ import java.util.stream.Collectors;
  *     contest its ranking, what each company was paid and the prizes;</li>
  *     <li>{@code open <id> <count>} changes how many chunks of a goal wait to be taken at once;</li>
  *     <li>{@code pause}, {@code resume} and {@code cancel <id>} stop, restart and close an offer;</li>
+ *     <li>{@code event <id> <event>} puts an offer on a server event, which it then starts, ends and is cancelled with;
+ *     {@code standalone <id>} takes it off again;</li>
+ *     <li>{@code reward <id> <factor> <duration> [money] [budget]} gives a goal a reward multiplier event created when
+ *     it is reached, {@code reward clear <id>} takes it off;</li>
  *     <li>{@code prize <id> <place> paid|failed} settles a contest prize whose payment stopped without a known
  *     outcome.</li>
  * </ul>
@@ -83,6 +95,7 @@ public final class OffersCommand {
     private static final String PREFIX = "companyadmin.offers.";
     private static final int LISTED = 20;
     private static final int CONTRIBUTORS = 5;
+    private static final int MAX_REWARD_DAYS = 30;
 
     private final CommandDependencies deps;
 
@@ -621,13 +634,22 @@ public final class OffersCommand {
                 sender,
                 () -> data.offer(id)
                         .map(offer -> offer.kind() == OfferKind.CONTEST
-                                ? new Details(offer, List.of(), List.of(), data.ranking(id), data.prizes(id))
+                                ? new Details(
+                                        offer,
+                                        List.of(),
+                                        List.of(),
+                                        data.ranking(id),
+                                        data.prizes(id),
+                                        null,
+                                        Optional.empty())
                                 : new Details(
                                         offer,
                                         data.openChunks(id),
                                         data.contributors(id, CONTRIBUTORS),
                                         List.of(),
-                                        List.of())),
+                                        List.of(),
+                                        data.reward(id).orElse(null),
+                                        data.rewardEvent(id))),
                 found -> {
                     if (found.isEmpty()) {
                         deps.messages().sendError(sender, PREFIX + "error.unknown", Values.number("id", id));
@@ -780,6 +802,263 @@ public final class OffersCommand {
     }
 
     /**
+     * Puts an offer on a server event: it then starts and ends with the event and is cancelled with it.
+     *
+     * @param sender sender of the command
+     * @param id     id of the offer
+     * @param event  id of the server event
+     */
+    @Executes("event")
+    public void event(CommandSender sender, @IntArg(min = 0) int id, @IntArg(min = 1) int event) {
+        deps.requireReady();
+        var data = offers();
+        var events = deps.services().serverEventData();
+        run(sender, () -> link(data, events::event, id, event), result -> linked(sender, id, event, result));
+    }
+
+    /**
+     * Takes an offer off its server event, so it runs on its own times again.
+     *
+     * @param sender sender of the command
+     * @param id     id of the offer
+     */
+    @Executes("standalone")
+    public void standalone(CommandSender sender, @IntArg(min = 0) int id) {
+        deps.requireReady();
+        var data = offers();
+        var events = deps.services().serverEventData();
+        run(sender, () -> link(data, events::event, id, null), result -> linked(sender, id, null, result));
+    }
+
+    private void linked(CommandSender sender, int id, @Nullable Integer event, Transition result) {
+        var values = new TagResolver[] {Values.number("id", id), Values.number("event", event == null ? 0 : event)};
+        switch (result) {
+            case UNKNOWN -> deps.messages().sendError(sender, PREFIX + "error.unknownLink", values);
+            case REFUSED, WRONG_KIND -> deps.messages().sendError(sender, PREFIX + "error.link", values);
+            case EARLY -> deps.messages().sendError(sender, PREFIX + "error.linkStarted", values);
+            case DONE -> {
+                deps.adminLog()
+                        .entry(sender, event == null ? "offer standalone" : "offer event")
+                        .with("id", id)
+                        .with("event", event)
+                        .write();
+                deps.messages().sendMessage(sender, event == null ? PREFIX + "unlinked" : PREFIX + "linked", values);
+                checkSoon();
+            }
+        }
+    }
+
+    /**
+     * Puts an offer that has not closed on a server event that has not closed, taking the event's start and end, or
+     * takes it off its event.
+     *
+     * @param data   offer repository
+     * @param events reads a server event
+     * @param id     id of the offer
+     * @param event  id of the event, null to take the offer off its event
+     * @return what came of it: unknown for an unknown offer or event, refused when either closed, early for an offer
+     *     that started already and an event that has not
+     */
+    public static Transition link(
+            AOfferData data, IntFunction<Optional<ServerEvent>> events, int id, @Nullable Integer event) {
+        var offer = data.offer(id);
+        if (offer.isEmpty()) return Transition.UNKNOWN;
+        if (offer.get().state().closed()) return Transition.REFUSED;
+        if (event == null) return data.link(id, null) ? Transition.DONE : Transition.REFUSED;
+        var found = events.apply(event);
+        if (found.isEmpty()) return Transition.UNKNOWN;
+        if (found.get().state().closed()) return Transition.REFUSED;
+        var started = offer.get().started() != null || offer.get().state() != OfferState.SCHEDULED;
+        if (started && found.get().state() != EventState.ACTIVE) return Transition.EARLY;
+        if (!data.link(id, event)) return Transition.REFUSED;
+        data.times(id, found.get().starts(), found.get().ends());
+        return Transition.DONE;
+    }
+
+    /**
+     * Gives a goal a reward: a reward multiplier server event created when the goal is reached, funded as the defaults
+     * of {@code events.yml} say.
+     *
+     * @param sender   sender of the command
+     * @param id       id of the goal
+     * @param factor   factor of the multiplier
+     * @param duration how long the event runs, such as {@code 2h}
+     */
+    @Executes("reward")
+    public void reward(
+            CommandSender sender,
+            @IntArg(min = 0) int id,
+            @DoubleArg(min = 1, max = 100) double factor,
+            @StringArg(StringArgType.WORD) String duration) {
+        reward(sender, id, factor, duration, null, null);
+    }
+
+    /**
+     * Gives a goal a reward funded from an account or minted.
+     *
+     * @param sender   sender of the command
+     * @param id       id of the goal
+     * @param factor   factor of the multiplier
+     * @param duration how long the event runs
+     * @param money    {@code minted} or the paying account
+     */
+    @Executes("reward")
+    public void reward(
+            CommandSender sender,
+            @IntArg(min = 0) int id,
+            @DoubleArg(min = 1, max = 100) double factor,
+            @StringArg(StringArgType.WORD) String duration,
+            @StringArg(StringArgType.STRING) String money) {
+        reward(sender, id, factor, duration, money, null);
+    }
+
+    /**
+     * Gives a goal a reward funded from an account or minted, with a budget.
+     *
+     * @param sender   sender of the command
+     * @param id       id of the goal
+     * @param factor   factor of the multiplier
+     * @param duration how long the event runs
+     * @param money    {@code minted} or the paying account
+     * @param budget   what the reward may pay in all
+     */
+    @Executes("reward")
+    public void reward(
+            CommandSender sender,
+            @IntArg(min = 0) int id,
+            @DoubleArg(min = 1, max = 100) double factor,
+            @StringArg(StringArgType.WORD) String duration,
+            @StringArg(StringArgType.STRING) String money,
+            @DoubleArg(min = 0, max = GoalDraft.MAX_BUDGET) double budget) {
+        reward(sender, id, factor, duration, money, budget);
+    }
+
+    /**
+     * Takes the reward off a goal.
+     *
+     * @param sender sender of the command
+     * @param id     id of the goal
+     */
+    @Executes("reward clear")
+    public void clearReward(CommandSender sender, @IntArg(min = 0) int id) {
+        deps.requireReady();
+        var data = offers();
+        run(sender, () -> reward(data, id, null), result -> rewarded(sender, id, result, null));
+    }
+
+    private void reward(
+            CommandSender sender,
+            int id,
+            double factor,
+            String duration,
+            @Nullable String money,
+            @Nullable Double budget) {
+        deps.requireReady();
+        var reward = reward(factor, duration, money, budget);
+        var data = offers();
+        var settings = deps.configuration().eventSettings();
+        var collector = deps.configuration().economySettings().collectorAccount();
+        run(
+                sender,
+                () -> {
+                    var problem = rewardProblem(data, id, reward, settings, collector);
+                    if (problem.isPresent()) return problem.get();
+                    return reward(data, id, reward);
+                },
+                result -> {
+                    if (result instanceof ServerEvent.Problem problem) {
+                        deps.messages().sendError(sender, "companyadmin.event.problem." + problem.name());
+                    } else {
+                        rewarded(sender, id, (Transition) result, reward);
+                    }
+                });
+    }
+
+    private void rewarded(CommandSender sender, int id, Transition result, @Nullable GoalReward reward) {
+        var values = Values.number("id", id);
+        switch (result) {
+            case UNKNOWN -> deps.messages().sendError(sender, PREFIX + "error.unknown", values);
+            case WRONG_KIND -> deps.messages().sendError(sender, PREFIX + "error.notGoal", values);
+            case REFUSED -> deps.messages().sendError(sender, PREFIX + "error.reward", values);
+            case DONE -> {
+                deps.adminLog()
+                        .entry(sender, reward == null ? "offer reward clear" : "offer reward")
+                        .with("id", id)
+                        .with("factor", reward == null ? null : reward.value())
+                        .with("minutes", reward == null ? null : reward.minutes())
+                        .with("funding", reward == null ? null : reward.funding())
+                        .with("account", reward == null ? null : reward.account())
+                        .with("budget", reward == null ? null : reward.budget())
+                        .write();
+                deps.messages()
+                        .sendMessage(sender, reward == null ? PREFIX + "rewardCleared" : PREFIX + "rewarded", values);
+            }
+        }
+    }
+
+    /**
+     * Reads the reward of a goal as the command takes it.
+     *
+     * @param factor   factor of the multiplier, above 1
+     * @param duration how long its event runs, such as {@code 2h}
+     * @param money    {@code minted}, an account, or null for the default funding
+     * @param budget   what it may pay in all, null for the default
+     * @return the reward
+     * @throws CommandFailure when the factor, the duration or the budget does not fit
+     */
+    public static GoalReward reward(double factor, String duration, @Nullable String money, @Nullable Double budget) {
+        if (!(factor > 1)) throw CommandFailure.of(PREFIX + "error.rewardFactor");
+        var length = EventTimes.duration(duration)
+                .filter(found -> found.toMinutes() >= 1 && found.toDays() <= MAX_REWARD_DAYS)
+                .orElseThrow(
+                        () -> CommandFailure.of(PREFIX + "error.rewardDuration", Values.text("duration", duration)));
+        if (budget != null && !(budget > 0)) throw CommandFailure.of(PREFIX + "error.rewardBudget");
+        MoneySource.SourceType funding = null;
+        String account = null;
+        if (money != null) {
+            if (money.equalsIgnoreCase("minted")) {
+                funding = MoneySource.SourceType.MINTED;
+            } else {
+                funding = MoneySource.SourceType.ACCOUNT;
+                account = money.strip();
+            }
+        }
+        return new GoalReward(factor, (int) length.toMinutes(), funding, account, budget);
+    }
+
+    /**
+     * Checks the event a reward would create, with the defaults of {@code events.yml} for what it leaves out.
+     *
+     * @param data      offer repository
+     * @param id        id of the goal
+     * @param reward    the reward
+     * @param settings  the current {@code events.yml}
+     * @param collector the account of {@code economy.collectorAccount}
+     * @return why the event would be refused, empty when it would not or the goal is unknown
+     */
+    public static Optional<ServerEvent.Problem> rewardProblem(
+            AOfferData data, int id, GoalReward reward, EventSettings settings, String collector) {
+        return data.offer(id).flatMap(goal -> GoalRewards.draft(goal, reward, settings, collector, Times.now())
+                .problem());
+    }
+
+    /**
+     * Sets or removes the reward of a goal that has not closed.
+     *
+     * @param data   offer repository
+     * @param id     id of the goal
+     * @param reward the reward, null for none
+     * @return what came of it
+     */
+    public static Transition reward(AOfferData data, int id, @Nullable GoalReward reward) {
+        var offer = data.offer(id);
+        if (offer.isEmpty()) return Transition.UNKNOWN;
+        if (offer.get().kind() != OfferKind.GOAL) return Transition.WRONG_KIND;
+        if (offer.get().state().closed()) return Transition.REFUSED;
+        return data.reward(id, reward) ? Transition.DONE : Transition.REFUSED;
+    }
+
+    /**
      * Closes an offer for good: its waiting chunks are withdrawn, taken ones may still be delivered.
      *
      * @param sender sender of the command
@@ -898,6 +1177,16 @@ public final class OffersCommand {
         var closed = offer.closed();
         if (closed != null) {
             lines.add(MenuText.create().locale(PREFIX + "info.closed", Values.text("closed", time(closed))));
+        }
+        var reward = details.reward();
+        if (reward != null) {
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.reward",
+                            Values.text("factor", EventTexts.number(reward.value())),
+                            Values.number("minutes", reward.minutes()))
+                    .space()
+                    .append(rewardState(details.rewardEvent())));
         }
         var money = offer.source() == MoneySource.SourceType.ACCOUNT
                 ? MenuText.create()
@@ -1112,7 +1401,11 @@ public final class OffersCommand {
         /**
          * The offer is of a kind the change does not apply to.
          */
-        WRONG_KIND
+        WRONG_KIND,
+        /**
+         * The offer started already, but the server event it is put on has not.
+         */
+        EARLY
     }
 
     /**
@@ -1124,10 +1417,25 @@ public final class OffersCommand {
      * @param ranking      the places of a contest
      * @param prizes       the prizes of a settled contest
      */
+    /**
+     * @param noted what is noted of a reward's event, see {@link AOfferData#rewardEvent}
+     * @return the state of the reward: waiting for the goal, being created, failed, or the event it created
+     */
+    static MenuText rewardState(Optional<Integer> noted) {
+        if (noted.isEmpty()) return MenuText.create().locale(PREFIX + "reward.waiting");
+        return switch (noted.get()) {
+            case AOfferData.REWARD_CREATING -> MenuText.create().locale(PREFIX + "reward.creating");
+            case AOfferData.REWARD_FAILED -> MenuText.create().locale(PREFIX + "reward.failed");
+            default -> MenuText.create().locale(PREFIX + "reward.created", Values.number("event", noted.get()));
+        };
+    }
+
     private record Details(
             EventOffer offer,
             List<OpenChunk> open,
             List<Contributor> contributors,
             List<ContestEntry> ranking,
-            List<ContestPrize> prizes) {}
+            List<ContestPrize> prizes,
+            @Nullable GoalReward reward,
+            Optional<Integer> rewardEvent) {}
 }

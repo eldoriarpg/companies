@@ -19,6 +19,9 @@ import de.eldoria.companies.menus.order.OrderLineView;
 import de.eldoria.companies.menus.order.OrderTexts;
 import de.eldoria.companies.orders.ItemMatcher;
 import de.eldoria.companies.orders.PriceLines;
+import de.eldoria.companies.services.events.EventPreviews;
+import de.eldoria.companies.services.events.EventTimes;
+import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
@@ -196,7 +199,16 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
     }
 
     private MenuText priceText(Model model) {
-        return PriceLines.tax(OrderTexts.price("", model.price(), economy), economy, model.price(), model.taxPercent());
+        var text = PriceLines.tax(
+                OrderTexts.price("", model.price(), economy), economy, model.price(), model.taxPercent());
+        var events = model.events();
+        if (events == null) return text;
+        var ends = events.ends();
+        return text.newLine()
+                .locale(
+                        "company.order.eventPayout",
+                        Values.money("event_net", economy, events.net()),
+                        Values.text("event_ends", ends == null ? "-" : EventTimes.show(ends, Times.zone())));
     }
 
     private static MenuText timeLeft(Model model) {
@@ -218,6 +230,7 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
      * @param timeLeft   until a claimed order is due; zero otherwise
      * @param canManage  whether the member may accept and abort orders
      * @param offer      the event offer the order is a chunk of, null when it belongs to none
+     * @param events     the expected payout with the server events running now, null when none changes it
      */
     public record Model(
             int id,
@@ -228,7 +241,34 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
             double taxPercent,
             Duration timeLeft,
             boolean canManage,
-            @Nullable OfferMark offer) {
+            @Nullable OfferMark offer,
+            EventPreviews.@Nullable Preview events) {
+        /**
+         * An order without the payout of server events.
+         *
+         * @param id         id of the order
+         * @param name       name of the order
+         * @param state      state of the order
+         * @param lines      lines with their progress and damage
+         * @param price      price of the order
+         * @param taxPercent tax of the member's company, where 5 means 5 %
+         * @param timeLeft   until a claimed order is due; zero otherwise
+         * @param canManage  whether the member may accept and abort orders
+         * @param offer      the event offer the order is a chunk of, null when it belongs to none
+         */
+        public Model(
+                int id,
+                String name,
+                OrderState state,
+                List<OrderLineView> lines,
+                double price,
+                double taxPercent,
+                Duration timeLeft,
+                boolean canManage,
+                @Nullable OfferMark offer) {
+            this(id, name, state, lines, price, taxPercent, timeLeft, canManage, offer, null);
+        }
+
         /**
          * An order of no event offer.
          *
@@ -258,7 +298,15 @@ public final class CompanyOrderMenu implements Menu<CompanyOrderMenu.Model> {
          * @return this model marked with the offer
          */
         public Model withOffer(@Nullable OfferMark offer) {
-            return new Model(id, name, state, lines, price, taxPercent, timeLeft, canManage, offer);
+            return new Model(id, name, state, lines, price, taxPercent, timeLeft, canManage, offer, events);
+        }
+
+        /**
+         * @param events the expected payout with the server events running now, null when none changes it
+         * @return this model with the payout
+         */
+        public Model withEvents(EventPreviews.@Nullable Preview events) {
+            return new Model(id, name, state, lines, price, taxPercent, timeLeft, canManage, offer, events);
         }
 
         /**

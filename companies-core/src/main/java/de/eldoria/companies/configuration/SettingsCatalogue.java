@@ -359,6 +359,9 @@ public final class SettingsCatalogue {
         events.flag("broadcast");
         events.flag("joinMessage");
         events.whole("createAheadHours");
+        events.choice("goalRewardFunding", names(MoneySource.SourceType.values()));
+        events.text("goalRewardAccount");
+        events.decimal("goalRewardBudget");
         return List.copyOf(fields);
     }
 

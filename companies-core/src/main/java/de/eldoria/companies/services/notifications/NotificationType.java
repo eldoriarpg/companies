@@ -308,7 +308,7 @@ public enum NotificationType {
     SOLO_ORDER_RELEASED_BY_ADMIN(51, "notification.soloOrderReleasedByAdmin", NotificationCategory.ORDERS, true, null),
     /**
      * A server event runs, told once to a player who joins while it runs. Arguments: {@code event_name},
-     * {@code effect}, {@code ends}.
+     * {@code effect}, {@code ends}, {@code offers} (a sentence naming the event's offers, empty without).
      */
     SERVER_EVENT_RUNNING(52, "notification.serverEventRunning", NotificationCategory.ORDERS, false, null);
 

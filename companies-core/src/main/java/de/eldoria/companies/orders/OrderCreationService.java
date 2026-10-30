@@ -25,7 +25,6 @@ import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -334,7 +333,7 @@ public final class OrderCreationService {
     }
 
     private static double reduced(double fee, List<ServerEvent> events) {
-        return events.isEmpty() ? fee : new Reduced(events).fee(fee, List.of());
+        return FeeReductions.apply(fee, events);
     }
 
     private double feeOf(double price) {
@@ -505,18 +504,6 @@ public final class OrderCreationService {
 
         private PendingOrder reduced(List<ServerEvent> events) {
             return new PendingOrder(builder, limit, fee, charged, List.copyOf(events));
-        }
-    }
-
-    /**
-     * The fee reductions read for one order.
-     *
-     * @param events the events running when they were read
-     */
-    private record Reduced(List<ServerEvent> events) implements FeeReductions {
-        @Override
-        public List<ServerEvent> active(Collection<String> materials) {
-            return events;
         }
     }
 

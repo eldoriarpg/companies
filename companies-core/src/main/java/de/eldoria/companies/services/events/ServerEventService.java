@@ -299,6 +299,14 @@ public final class ServerEventService {
     }
 
     /**
+     * @param createdBy who created an event
+     * @return the first event created by them, empty when there is none
+     */
+    public Optional<ServerEvent> createdBy(String createdBy) {
+        return events.createdBy(createdBy);
+    }
+
+    /**
      * @param id id of an event
      * @return the event as it is stored now, empty when there is none
      */

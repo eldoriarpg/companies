@@ -5,11 +5,18 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
+import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
+import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.data.wrapper.event.EventState;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.GoalReward;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.offer.PrizeState;
@@ -23,11 +30,15 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.IntFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OffersCommandTest {
@@ -114,6 +125,118 @@ class OffersCommandTest {
 
     private OfferState state(int id) {
         return offers.offer(id).orElseThrow().state();
+    }
+
+    @Test
+    void anOfferIsPutOnAnOpenServerEventTakingItsTimes() {
+        var id = goal(5);
+        var now = Times.now();
+        var event = event(EventState.SCHEDULED, now.plusHours(1), now.plusHours(3));
+        var closed = event(EventState.ENDED, now, now.plusHours(1));
+        IntFunction<Optional<ServerEvent>> events =
+                found -> found == 1 ? Optional.of(event) : found == 2 ? Optional.of(closed) : Optional.empty();
+
+        assertEquals(OffersCommand.Transition.UNKNOWN, OffersCommand.link(offers, events, id, 3));
+        assertEquals(OffersCommand.Transition.REFUSED, OffersCommand.link(offers, events, id, 2));
+        assertEquals(OffersCommand.Transition.DONE, OffersCommand.link(offers, events, id, 1));
+        var linked = offers.offer(id).orElseThrow();
+        assertEquals(1, linked.event());
+        assertEquals(event.starts().withNano(0), linked.starts().withNano(0));
+        assertEquals(event.ends().withNano(0), linked.ends().withNano(0));
+        assertEquals(OffersCommand.Transition.DONE, OffersCommand.link(offers, events, id, null));
+        assertEquals(null, offers.offer(id).orElseThrow().event());
+        assertEquals(OffersCommand.Transition.UNKNOWN, OffersCommand.link(offers, events, id + 10, 1));
+    }
+
+    @Test
+    void anOfferThatStartedGoesOnlyOnARunningEventAndKeepsItsTimesWhenStandalone() {
+        var id = goal(0);
+        offers.activate(id, 0, Times.now());
+        var now = Times.now();
+        var waiting = event(EventState.SCHEDULED, now.plusHours(1), now.plusHours(3));
+        var running = event(EventState.ACTIVE, now.minusHours(1), now.plusHours(4));
+        IntFunction<Optional<ServerEvent>> events =
+                found -> found == 1 ? Optional.of(waiting) : found == 2 ? Optional.of(running) : Optional.empty();
+
+        assertEquals(OffersCommand.Transition.EARLY, OffersCommand.link(offers, events, id, 1));
+        assertEquals(null, offers.offer(id).orElseThrow().event());
+        assertEquals(OffersCommand.Transition.DONE, OffersCommand.link(offers, events, id, 2));
+        var linked = offers.offer(id).orElseThrow();
+        assertEquals(running.ends().withNano(0), linked.ends().withNano(0));
+
+        assertEquals(OffersCommand.Transition.DONE, OffersCommand.link(offers, events, id, null));
+        var standalone = offers.offer(id).orElseThrow();
+        assertEquals(linked.starts(), standalone.starts());
+        assertEquals(linked.ends(), standalone.ends());
+    }
+
+    @Test
+    void aRewardWhoseEventWouldBeRefusedIsNamed() {
+        var id = goal(0);
+        var settings = new EventSettings();
+        settings.goalRewardBudget(0);
+
+        assertEquals(
+                Optional.of(ServerEvent.Problem.BUDGET),
+                OffersCommand.rewardProblem(offers, id, new GoalReward(1.5, 60, null, null, null), settings, ""));
+        assertEquals(
+                Optional.of(ServerEvent.Problem.ACCOUNT),
+                OffersCommand.rewardProblem(
+                        offers, id, new GoalReward(1.5, 60, SourceType.ACCOUNT, null, 10.0), settings, ""));
+        assertEquals(
+                Optional.empty(),
+                OffersCommand.rewardProblem(offers, id, new GoalReward(1.5, 60, null, null, 10.0), settings, ""));
+    }
+
+    @Test
+    void theStateOfARewardIsNamed() {
+        assertTrue(OffersCommand.rewardState(Optional.empty()).build().contains("reward.waiting"));
+        assertTrue(OffersCommand.rewardState(Optional.of(AOfferData.REWARD_CREATING))
+                .build()
+                .contains("reward.creating"));
+        assertTrue(OffersCommand.rewardState(Optional.of(AOfferData.REWARD_FAILED))
+                .build()
+                .contains("reward.failed"));
+        assertTrue(OffersCommand.rewardState(Optional.of(12)).build().contains("reward.created"));
+    }
+
+    @Test
+    void aRewardIsSetOnGoalsOnly() {
+        var id = goal(0);
+        var reward = OffersCommand.reward(1.5, "2h", "minted", 500.0);
+
+        assertEquals(new GoalReward(1.5, 120, SourceType.MINTED, null, 500.0), reward);
+        assertEquals(
+                new GoalReward(2, 30, SourceType.ACCOUNT, "Bank", null), OffersCommand.reward(2, "30m", "Bank", null));
+        assertEquals(new GoalReward(2, 30, null, null, null), OffersCommand.reward(2, "30m", null, null));
+        assertEquals(OffersCommand.Transition.DONE, OffersCommand.reward(offers, id, reward));
+        assertEquals(Optional.of(reward), offers.reward(id));
+        assertEquals(OffersCommand.Transition.UNKNOWN, OffersCommand.reward(offers, id + 10, reward));
+        assertThrows(CommandFailure.class, () -> OffersCommand.reward(1, "2h", null, null));
+        assertThrows(CommandFailure.class, () -> OffersCommand.reward(1.5, "31d", null, null));
+        assertThrows(CommandFailure.class, () -> OffersCommand.reward(1.5, "2h", null, 0.0));
+    }
+
+    private static ServerEvent event(EventState state, LocalDateTime starts, LocalDateTime ends) {
+        return new ServerEvent(
+                1,
+                "Harvest",
+                EventKind.TAX_REDUCTION,
+                5,
+                List.of(),
+                List.of(),
+                starts,
+                ends,
+                null,
+                null,
+                null,
+                0,
+                state,
+                null,
+                "Nora",
+                starts,
+                null,
+                null);
     }
 
     private int goal(int startHours) {

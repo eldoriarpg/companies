@@ -193,15 +193,21 @@ public final class DiscordEmbeds {
      * @param scope  which orders it applies to
      * @param ends   when it ends
      * @param budget what is left of its budget, empty for none
+     * @param offers the names of its offers
      * @return the embed
      */
-    public Embed eventStarted(String name, String effect, String scope, Instant ends, Optional<String> budget) {
+    public Embed eventStarted(
+            String name, String effect, String scope, Instant ends, Optional<String> budget, List<String> offers) {
         List<Embed.Field> fields = new ArrayList<>();
         fields.add(new Embed.Field(texts.apply("words.effect"), DiscordText.escape(effect), true));
         fields.add(new Embed.Field(texts.apply("words.scope"), DiscordText.escape(scope), true));
         fields.add(new Embed.Field(texts.apply("words.ends"), "<t:" + ends.getEpochSecond() + ":R>", true));
         budget.ifPresent(
                 left -> fields.add(new Embed.Field(texts.apply("words.budget"), DiscordText.escape(left), true)));
+        if (!offers.isEmpty()) {
+            fields.add(
+                    new Embed.Field(texts.apply("words.offers"), DiscordText.escape(String.join(", ", offers)), false));
+        }
         return new Embed(texts.apply("discord.eventStarted"), bold(name), EVENT_STARTED_COLOR, fields, clock.instant());
     }
 

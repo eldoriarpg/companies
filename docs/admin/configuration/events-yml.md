@@ -21,6 +21,9 @@ maxMultiplier: 3.0
 broadcast: true
 joinMessage: true
 createAheadHours: 24
+goalRewardFunding: MINTED
+goalRewardAccount: ''
+goalRewardBudget: 1000.0
 templates: []
 ```
 
@@ -31,6 +34,9 @@ templates: []
 | `broadcast` | true/false | `true` | Whether every server tells its players in chat when an event starts, ends, runs out of money or is cancelled after it started. | reload |
 | `joinMessage` | true/false | `true` | Whether a player who joins while events run is told about them in chat, see [Announcements](#announcements). | reload |
 | `createAheadHours` | number (hours) | `24` | How long before its start the primary creates the next event of a template, so it can be seen coming. | reload |
+| `goalRewardFunding` | `ACCOUNT` or `MINTED` | `MINTED` | Where the money of a [goal reward](../admin-commands.md#event-offers) comes from when `/companyadmin offers reward` names none. | reload |
+| `goalRewardAccount` | text | empty | The account paying goal rewards funded from an account that name none. Empty for `economy.collectorAccount`. | reload |
+| `goalRewardBudget` | number | `1000.0` | What a goal reward may pay when it names no budget. `0` means none, which `MINTED` does not allow. | reload |
 | `templates` | list | empty | Events the server creates by itself, see [Templates](#templates). Edited in the file only. | reload |
 | `maxMultiplier` | number | `3.0` | The highest factor the reward multipliers of all running events together put on a payout. Multipliers multiply, so two events of `2` would pay four times the payout without this cap; with the default they pay three times, the event that started first paying its full part and the second the rest up to the cap. At least `1`. | reload |
 
@@ -99,6 +105,9 @@ The `id` is what makes a template the same template:
 - A start that lies within an event of the template, from a date or from `every`, is skipped; a date within the event
   of the date before it is also named once in the server log.
 - While `events.yml` cannot be read, templates create nothing and nothing is cancelled.
+
+Templates create events only; they carry no goals or contests. Put an offer on an event of a template with
+`/companyadmin offers event <id> <event>` once the event shows up in `/companyadmin event list`.
 
 A template with a problem, such as a weekly start that cannot be read or a value that does not fit its kind, creates
 nothing. The server log names the problem once.

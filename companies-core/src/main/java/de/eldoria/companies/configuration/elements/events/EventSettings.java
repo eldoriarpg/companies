@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.configuration.elements.events;
 
+import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -20,6 +22,9 @@ public class EventSettings {
     private boolean joinMessage = true;
     private int createAheadHours = 24;
     private List<EventTemplate> templates = new ArrayList<>();
+    private MoneySource.SourceType goalRewardFunding = MoneySource.SourceType.MINTED;
+    private String goalRewardAccount = "";
+    private double goalRewardBudget = 1000.0;
 
     public EventSettings() {}
 
@@ -86,5 +91,40 @@ public class EventSettings {
 
     public void templates(List<EventTemplate> templates) {
         this.templates = new ArrayList<>(templates);
+    }
+
+    /**
+     * Where the money of the reward of a reached goal comes from, unless the goal names it.
+     *
+     * @return the funding
+     */
+    public MoneySource.SourceType goalRewardFunding() {
+        return goalRewardFunding == null ? MoneySource.SourceType.MINTED : goalRewardFunding;
+    }
+
+    public void goalRewardFunding(MoneySource.SourceType goalRewardFunding) {
+        this.goalRewardFunding = goalRewardFunding;
+    }
+
+    /**
+     * The account paying the reward of a reached goal funded from an account, unless the goal names one.
+     *
+     * @return the account, trimmed; empty for the collector account
+     */
+    public String goalRewardAccount() {
+        return goalRewardAccount == null ? "" : goalRewardAccount.trim();
+    }
+
+    /**
+     * What the reward of a reached goal may pay in all, unless the goal names a budget.
+     *
+     * @return the budget, 0 for none
+     */
+    public double goalRewardBudget() {
+        return Math.max(0, goalRewardBudget);
+    }
+
+    public void goalRewardBudget(double goalRewardBudget) {
+        this.goalRewardBudget = goalRewardBudget;
     }
 }

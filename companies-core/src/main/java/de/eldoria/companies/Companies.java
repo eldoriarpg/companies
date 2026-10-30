@@ -94,11 +94,13 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.EventNetwork;
@@ -164,6 +166,7 @@ import de.eldoria.companies.services.events.EventJoins;
 import de.eldoria.companies.services.events.EventMoves;
 import de.eldoria.companies.services.events.EventPayouts;
 import de.eldoria.companies.services.events.EventSchedule;
+import de.eldoria.companies.services.events.GoalRewards;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
@@ -194,7 +197,9 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -205,6 +210,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 
 @SuppressWarnings("InstanceVariableMayNotBeInitialized")
@@ -241,6 +247,7 @@ public class Companies extends EldoPlugin {
     private volatile @Nullable Placeholders placeholders;
     private volatile @Nullable ServerEventService serverEvents;
     private volatile @Nullable EventPayouts eventPayouts;
+    private volatile @Nullable EventOfferService eventOfferService;
     private NodeBus bus = new DatabaseBus();
     private final NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private NodeCaches caches;
@@ -391,6 +398,10 @@ public class Companies extends EldoPlugin {
                     activeEvents.invalidate();
                     var current = serverEvents;
                     if (current != null) current.checkSoon();
+                    var offerService = eventOfferService;
+                    if (offerService != null) offerService.checkSoon();
+                    var shown = placeholders;
+                    if (shown != null) shown.eventsChanged();
                     Threading.VIRTUAL.execute(() -> eventAnnouncer.handle(message));
                 })
                 .start();
@@ -398,7 +409,7 @@ public class Companies extends EldoPlugin {
                 serverEventData,
                 (event, change) -> {
                     var webhook = discord;
-                    if (webhook != null) webhook.events().changed(event, change);
+                    if (webhook != null) webhook.events().changed(event, change, offerNames(event.id()));
                 },
                 getLogger());
         var serverEventService = new ServerEventService(
@@ -496,6 +507,16 @@ public class Companies extends EldoPlugin {
                 Times.UTC,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
+        eventOffers.useEvents(
+                serverEventData::event,
+                new GoalRewards(
+                        offerData,
+                        serverEventService,
+                        configuration::eventSettings,
+                        () -> configuration.economySettings().collectorAccount(),
+                        Times.UTC,
+                        getLogger()));
+        eventOfferService = eventOffers;
 
         var seriesService = SeriesService.create(
                 this,
@@ -569,7 +590,9 @@ public class Companies extends EldoPlugin {
                     eventOffers,
                     ContestService.create(this, offerData, orderData, economy, configuration, treasuryService),
                     serverEventService,
-                    serverEventData));
+                    serverEventData,
+                    activeEvents,
+                    feeReductions));
         }
         if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
 
@@ -680,6 +703,7 @@ public class Companies extends EldoPlugin {
                     information.stats(),
                     this.economy.treasury(),
                     offerData,
+                    serverEventData,
                     economy,
                     ILocalizer.getPluginLocalizer(this));
             placeholders.start();
@@ -690,6 +714,28 @@ public class Companies extends EldoPlugin {
         }
         connectNodes(notificationService, inboxPoller);
         startDashboard(search);
+    }
+
+    /**
+     * @param event     a server event
+     * @param translate localizes a message key
+     * @return its offers as a plain sentence for the inbox, empty when it has none
+     */
+    private String offersText(ServerEvent event, UnaryOperator<String> translate) {
+        var offers = offerNames(event.id());
+        if (offers.isEmpty()) return "";
+        return " " + translate.apply("events.offersInline") + " " + String.join(", ", offers) + ".";
+    }
+
+    /**
+     * @param event id of a server event
+     * @return the names of its offers that have not closed
+     */
+    private List<String> offerNames(int event) {
+        return offerData.ofEvent(event).stream()
+                .filter(offer -> !offer.state().closed())
+                .map(EventOffer::name)
+                .toList();
     }
 
     /**
@@ -711,11 +757,14 @@ public class Companies extends EldoPlugin {
                         NotificationArgs.create()
                                 .text("event_name", event.name())
                                 .text("effect", EventTexts.plainEffect(event, localizer::localize))
-                                .text("ends", EventTexts.ends(event, Times.zone())));
+                                .text("ends", EventTexts.ends(event, Times.zone()))
+                                .text("offers", offersText(event, localizer::localize)));
             }
 
             @Override
             public void message(UUID player, List<ServerEvent> events) {
+                Map<Integer, List<String>> offers = new HashMap<>();
+                for (var event : events) offers.put(event.id(), offerNames(event.id()));
                 Threading.mainThread(Companies.this).execute(() -> {
                     var online = getServer().getPlayer(player);
                     if (online == null) return;
@@ -723,6 +772,15 @@ public class Companies extends EldoPlugin {
                         var values = EventTexts.values(
                                 new MenuComponents(messages, online), event, economy::format, Times.zone());
                         messages.sendMessage(online, MenuText.create().locale("events.join", values));
+                        var names = offers.getOrDefault(event.id(), List.of());
+                        if (!names.isEmpty()) {
+                            messages.sendMessage(
+                                    online,
+                                    MenuText.create()
+                                            .locale(
+                                                    "events.joinOffers",
+                                                    Values.text("offers", String.join(", ", names))));
+                        }
                     }
                 });
             }

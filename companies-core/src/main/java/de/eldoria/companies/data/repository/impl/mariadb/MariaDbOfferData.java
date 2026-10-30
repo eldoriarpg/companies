@@ -20,6 +20,7 @@ import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.Contributor;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
+import de.eldoria.companies.data.wrapper.offer.GoalReward;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferMark;
@@ -178,6 +179,137 @@ public class MariaDbOfferData extends AOfferData {
                         .bind(to.closed() ? at : null, time())
                         .bind(offer)
                         .bind(from.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public List<EventOffer> ofEvent(int event) {
+        return query(OFFER + "WHERE event_id = ? ORDER BY id")
+                .single(call().bind(event))
+                .map(this::parseOffer)
+                .all();
+    }
+
+    @Override
+    public boolean link(int offer, @Nullable Integer event) {
+        @Language("mariadb")
+        var update = """
+                UPDATE event_offers SET event_id = ? WHERE id = ? AND state IN (?, ?, ?)""";
+        return query(update)
+                .single(call().bind(event)
+                        .bind(offer)
+                        .bind(OfferState.SCHEDULED.name())
+                        .bind(OfferState.ACTIVE.name())
+                        .bind(OfferState.PAUSED.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean times(int offer, LocalDateTime starts, LocalDateTime ends) {
+        @Language("mariadb")
+        var update = """
+                UPDATE event_offers SET starts = ?, ends = ? WHERE id = ? AND state IN (?, ?, ?)""";
+        return query(update)
+                .single(call().bind(starts, time())
+                        .bind(ends, time())
+                        .bind(offer)
+                        .bind(OfferState.SCHEDULED.name())
+                        .bind(OfferState.ACTIVE.name())
+                        .bind(OfferState.PAUSED.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public Optional<GoalReward> reward(int offer) {
+        @Language("mariadb")
+        var select = """
+                SELECT reward_value, reward_minutes, reward_funding, reward_account, reward_budget
+                FROM event_offers
+                WHERE id = ? AND reward_value IS NOT NULL""";
+        return query(select)
+                .single(call().bind(offer))
+                .map(row -> {
+                    var funding = row.getString("reward_funding");
+                    return new GoalReward(
+                            row.getDouble("reward_value"),
+                            row.getInt("reward_minutes"),
+                            funding == null ? null : MoneySource.SourceType.valueOf(funding),
+                            row.getString("reward_account"),
+                            row.getObject("reward_budget") == null ? null : row.getDouble("reward_budget"));
+                })
+                .first();
+    }
+
+    @Override
+    public boolean reward(int offer, @Nullable GoalReward reward) {
+        @Language("mariadb")
+        var update = """
+                UPDATE event_offers
+                SET reward_value   = ?,
+                    reward_minutes = ?,
+                    reward_funding = ?,
+                    reward_account = ?,
+                    reward_budget  = ?
+                WHERE id = ? AND kind = ?""";
+        var funding = reward == null ? null : reward.funding();
+        return query(update)
+                .single(call().bind(reward == null ? null : reward.value())
+                        .bind(reward == null ? null : reward.minutes())
+                        .bind(funding == null ? null : funding.name())
+                        .bind(reward == null ? null : reward.account())
+                        .bind(reward == null ? null : reward.budget())
+                        .bind(offer)
+                        .bind(OfferKind.GOAL.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public List<EventOffer> unrewarded() {
+        return query(OFFER + "WHERE kind = ? AND state = ? AND reward_value IS NOT NULL"
+                        + " AND (reward_event_id IS NULL OR reward_event_id = ?) ORDER BY id")
+                .single(call().bind(OfferKind.GOAL.name())
+                        .bind(OfferState.REACHED.name())
+                        .bind(REWARD_CREATING))
+                .map(this::parseOffer)
+                .all();
+    }
+
+    @Override
+    public Optional<Integer> rewardEvent(int offer) {
+        return query("SELECT reward_event_id FROM event_offers WHERE id = ? AND reward_event_id IS NOT NULL")
+                .single(call().bind(offer))
+                .map(row -> row.getInt("reward_event_id"))
+                .first();
+    }
+
+    @Override
+    public boolean claimReward(int offer) {
+        @Language("mariadb")
+        var update = """
+                UPDATE event_offers
+                SET reward_event_id = ?
+                WHERE id = ?
+                  AND (reward_event_id IS NULL OR reward_event_id = ?)""";
+        return query(update)
+                .single(call().bind(REWARD_CREATING).bind(offer).bind(REWARD_CREATING))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean rewarded(int offer, int event) {
+        @Language("mariadb")
+        var update = """
+                UPDATE event_offers
+                SET reward_event_id = ?
+                WHERE id = ?
+                  AND (reward_event_id IS NULL OR reward_event_id = ?)""";
+        return query(update)
+                .single(call().bind(event).bind(offer).bind(REWARD_CREATING))
                 .update()
                 .changed();
     }
@@ -385,7 +517,7 @@ public class MariaDbOfferData extends AOfferData {
         for (var from = 0; from < ids.size(); from += MARKS_PER_QUERY) {
             var part = ids.subList(from, Math.min(ids.size(), from + MARKS_PER_QUERY));
             var select = """
-                    SELECT o.id AS order_id, e.id, e.name, e.ends, e.state, e.amount, e.delivered
+                    SELECT o.id AS order_id, e.id, e.name, e.ends, e.state, e.amount, e.delivered, e.event_id
                     FROM orders o
                              JOIN event_offers e ON e.id = o.offer_id
                     WHERE o.id IN (%s)""".formatted(String.join(", ", Collections.nCopies(part.size(), "?")));
@@ -401,7 +533,8 @@ public class MariaDbOfferData extends AOfferData {
                                     readTime(row, "ends"),
                                     OfferState.valueOf(row.getString("state")),
                                     row.getInt("amount"),
-                                    row.getInt("delivered"))))
+                                    row.getInt("delivered"),
+                                    row.getObject("event_id") == null ? null : row.getInt("event_id"))))
                     .all()
                     .forEach(entry -> marks.put(entry.getKey(), entry.getValue()));
         }
