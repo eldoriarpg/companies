@@ -5,8 +5,8 @@
  */
 package de.eldoria.companies.menus.admin;
 
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.menus.admin.EventForm.Field;
 import org.junit.jupiter.api.Test;
 

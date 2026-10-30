@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.services.events;
 
-import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 
 import java.util.Arrays;

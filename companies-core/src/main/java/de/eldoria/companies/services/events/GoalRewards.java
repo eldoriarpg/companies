@@ -5,10 +5,10 @@
  */
 package de.eldoria.companies.services.events;
 
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.data.repository.AOfferData;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.GoalReward;

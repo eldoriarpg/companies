@@ -5,8 +5,8 @@
  */
 package de.eldoria.companies.configuration.elements.events;
 
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;

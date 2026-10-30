@@ -133,7 +133,7 @@ public sealed interface NodeMessage {
         public static final String CHANGED = "CHANGED";
 
         /**
-         * The change of a scheduled event that is {@link de.eldoria.companies.data.wrapper.event.EventState#ENDED
+         * The change of a scheduled event that is {@link de.eldoria.companies.components.event.EventState#ENDED
          * ended} without having started, since its whole time passed while the primary was down. Nothing is
          * announced for it.
          */
@@ -142,7 +142,7 @@ public sealed interface NodeMessage {
         /**
          * The change of a scheduled event cancelled before it started, by an admin or by the primary since its template
          * was disabled or removed. It is
-         * {@link de.eldoria.companies.data.wrapper.event.EventState#CANCELLED cancelled}, but nothing is announced for
+         * {@link de.eldoria.companies.components.event.EventState#CANCELLED cancelled}, but nothing is announced for
          * it, since players never saw it run.
          */
         public static final String WITHDRAWN = "WITHDRAWN";

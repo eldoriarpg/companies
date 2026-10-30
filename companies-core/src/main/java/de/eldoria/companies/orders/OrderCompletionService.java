@@ -19,6 +19,7 @@ import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
+import de.eldoria.companies.events.server.ServerEventPayoutEvent;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.events.EventEffects;
 import de.eldoria.companies.util.Threading;
@@ -63,7 +64,7 @@ import java.util.logging.Level;
  * item scope pays only on what a worker delivered of its materials, see {@link OrderMaterials}: the extra goes to the
  * worker alone, the treasury share is taken from the normal payout only. This holds for every order, the system orders
  * and the chunks of event offers included; the deliveries into contests are paid by the contest and get nothing from
- * server events.
+ * server events. A worker paid an extra fires a {@link ServerEventPayoutEvent} before being paid.
  * <p>
  * An order a player worked on alone fires {@link SoloOrderDoneEvent} and one {@link SoloOrderPaymentEvent} per worker
  * instead. Its payout is taxed by the solo tax, nothing goes to a treasury, its ledger records name no company and no
@@ -380,9 +381,12 @@ public final class OrderCompletionService {
         var funded = fund(order, events, shares, ledger);
         for (var entry : payouts.entrySet()) {
             var extra = funded.extras().getOrDefault(entry.getKey(), 0.0);
-            treasury.pay(
-                    plugin.getServer().getOfflinePlayer(entry.getKey()),
-                    entry.getValue().net() + extra);
+            var player = plugin.getServer().getOfflinePlayer(entry.getKey());
+            if (extra > 0) {
+                var paid = funded.paid().getOrDefault(entry.getKey(), List.of());
+                plugin.getServer().getPluginManager().callEvent(new ServerEventPayoutEvent(order, player, extra, paid));
+            }
+            treasury.pay(player, entry.getValue().net() + extra);
         }
         treasury.collect(collected.doubleValue());
         return new Settled(new Completion(order, List.copyOf(funded.ledger()), funded.recorded()), kept);
@@ -607,16 +611,23 @@ public final class OrderCompletionService {
      * @param extras   the extra of every worker, by worker; missing for a worker without extra
      * @param ledger   one record per worker, with the extra
      * @param recorded whether the ledger is written already
+     * @param paid     what each event paid every worker, by worker; only events that paid
      */
-    public record Funded(Map<UUID, Double> extras, List<PayoutRecord> ledger, boolean recorded) {
+    public record Funded(
+            Map<UUID, Double> extras,
+            List<PayoutRecord> ledger,
+            boolean recorded,
+            Map<UUID, List<ServerEventPayoutEvent.Paid>> paid) {
         /**
          * @param extras   the extra of every worker
          * @param ledger   one record per worker
          * @param recorded whether the ledger is written already
+         * @param paid     what each event paid every worker
          */
         public Funded {
             extras = Map.copyOf(extras);
             ledger = List.copyOf(ledger);
+            paid = Map.copyOf(paid);
         }
 
         /**
@@ -624,7 +635,7 @@ public final class OrderCompletionService {
          * @return no extra, the ledger still to be written
          */
         public static Funded none(List<PayoutRecord> ledger) {
-            return new Funded(Map.of(), ledger, false);
+            return new Funded(Map.of(), ledger, false, Map.of());
         }
     }
 

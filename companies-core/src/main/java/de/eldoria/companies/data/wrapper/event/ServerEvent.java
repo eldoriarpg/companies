@@ -5,6 +5,9 @@
  */
 package de.eldoria.companies.data.wrapper.event;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
+import de.eldoria.companies.components.event.IServerEvent;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import org.jetbrains.annotations.Nullable;
 
@@ -65,7 +68,8 @@ public record ServerEvent(
         String createdBy,
         LocalDateTime created,
         @Nullable LocalDateTime closed,
-        @Nullable String closedBy) {
+        @Nullable String closedBy)
+        implements IServerEvent {
     /**
      * The longest name of an event.
      */
@@ -155,6 +159,36 @@ public record ServerEvent(
                 created,
                 null,
                 null);
+    }
+
+    @Override
+    public boolean minted() {
+        return funding == MoneySource.SourceType.MINTED;
+    }
+
+    @Override
+    public Optional<String> fundingAccount() {
+        return Optional.ofNullable(account);
+    }
+
+    @Override
+    public OptionalDouble budgetCap() {
+        return budget == null ? OptionalDouble.empty() : OptionalDouble.of(budget);
+    }
+
+    @Override
+    public Optional<String> templateId() {
+        return Optional.ofNullable(template);
+    }
+
+    @Override
+    public Optional<LocalDateTime> closedAt() {
+        return Optional.ofNullable(closed);
+    }
+
+    @Override
+    public Optional<String> closer() {
+        return Optional.ofNullable(closedBy);
     }
 
     /**

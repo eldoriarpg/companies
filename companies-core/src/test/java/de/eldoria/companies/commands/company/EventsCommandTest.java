@@ -5,9 +5,9 @@
  */
 package de.eldoria.companies.commands.company;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
-import de.eldoria.companies.data.wrapper.event.EventKind;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;

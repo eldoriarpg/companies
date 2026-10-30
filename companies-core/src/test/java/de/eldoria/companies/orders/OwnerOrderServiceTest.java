@@ -6,13 +6,13 @@
 package de.eldoria.companies.orders;
 
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
-import de.eldoria.companies.data.wrapper.event.EventKind;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.EventRecorder;

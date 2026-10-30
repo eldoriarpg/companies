@@ -6,13 +6,13 @@
 package de.eldoria.companies.commands.companyadmin;
 
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
-import de.eldoria.companies.data.wrapper.event.EventKind;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;

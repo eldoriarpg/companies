@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.data.wrapper.event;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;

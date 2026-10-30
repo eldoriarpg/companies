@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.orders;
 
-import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.services.events.EventEffects;
 import de.eldoria.companies.util.Money;

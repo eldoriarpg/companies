@@ -5,13 +5,13 @@
  */
 package de.eldoria.companies.services.events;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.events.EventTemplate;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
-import de.eldoria.companies.data.wrapper.event.EventKind;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

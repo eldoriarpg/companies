@@ -5,9 +5,9 @@
  */
 package de.eldoria.companies.services.events;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.dashboard.MutableClock;
-import de.eldoria.companies.data.wrapper.event.EventKind;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import org.junit.jupiter.api.Test;
 

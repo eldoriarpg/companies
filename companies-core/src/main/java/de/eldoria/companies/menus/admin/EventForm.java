@@ -5,8 +5,8 @@
  */
 package de.eldoria.companies.menus.admin;
 
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.services.events.EventTimes;
 import org.jetbrains.annotations.Nullable;

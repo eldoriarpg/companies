@@ -70,4 +70,11 @@ public interface CompaniesApi {
      * @return ranking API
      */
     RankingApi ranking();
+
+    /**
+     * Access to server events: time-limited tax reductions, reward multipliers and fee reductions.
+     *
+     * @return server event API
+     */
+    ServerEventApi events();
 }

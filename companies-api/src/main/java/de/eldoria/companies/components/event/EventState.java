@@ -3,7 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-package de.eldoria.companies.data.wrapper.event;
+package de.eldoria.companies.components.event;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -21,10 +21,8 @@ public enum EventState {
      */
     ACTIVE,
     /**
-     * Its end passed, or an admin ended it early. A scheduled event whose whole time passed while the primary was down
-     * ends without starting, notes {@link ServerEvent#MISSED_BY} as who closed it, and its change is signalled as
-     * {@link de.eldoria.companies.nodes.NodeMessage.ServerEventChanged#MISSED} instead of {@code ENDED}, so it is not
-     * announced.
+     * Its end passed, or an admin ended it early. A scheduled event whose whole time passed while the primary server
+     * was down ends without starting, notes {@code #missed} as who closed it, and is not announced.
      */
     ENDED,
     /**
@@ -32,8 +30,8 @@ public enum EventState {
      */
     DEPLETED,
     /**
-     * Cancelled by an admin, before or while it ran. Only one that ran is announced as cancelled; one cancelled before
-     * its start is signalled as {@link de.eldoria.companies.nodes.NodeMessage.ServerEventChanged#WITHDRAWN}.
+     * Cancelled by an admin, before or while it ran. Only one that ran is announced as cancelled. One withdrawn before
+     * its start because its template was disabled or removed notes {@code #template} as who closed it.
      */
     CANCELLED;
 
@@ -43,6 +41,8 @@ public enum EventState {
     public static final Set<EventState> RUNNING = EnumSet.of(SCHEDULED, ACTIVE);
 
     /**
+     * Whether the event is over for good.
+     *
      * @return whether the event is over for good
      */
     public boolean closed() {

@@ -5,10 +5,10 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.menus.admin.EventForm;
 import de.eldoria.companies.menus.admin.EventForm.Field;

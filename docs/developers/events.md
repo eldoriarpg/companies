@@ -197,6 +197,31 @@ paid, not taxed and nothing goes to the treasury.
 A claimed order that the company gives back fires `OrderCanceledEvent`. One that runs out of time fires
 `OrderExpiredEvent`.
 
+## Server event events
+
+| Event                    | When                                                                                       | Thread | Cancellable | Key methods |
+|--------------------------|--------------------------------------------------------------------------------------------|--------|-------------|-------------|
+| `ServerEventStartEvent`  | A server event started; its effects apply from now on                                     | Async  | No          | `event()` |
+| `ServerEventEndEvent`    | A server event that ran is over                                                           | Async  | No          | `event()`, `reason()` |
+| `ServerEventPayoutEvent` | Reward multipliers paid a worker extra on top of an order payout, after its payment event | Async  | No          | `order()`, `player()`, `amount()`, `paid()` |
+
+The start and end events fire once in the whole network, on the server that moved the event: the primary server for
+events that start and end at their times, the server where an admin or a plugin ended or cancelled it. An event that
+never started, because it was cancelled before its start, withdrawn with its template, or its whole time passed while
+the primary server was down, fires nothing.
+
+| `ServerEventEndEvent.Reason` | Meaning                                         |
+|------------------------------|-------------------------------------------------|
+| `TIME`                       | Its end passed                                  |
+| `ENDED`                      | An admin or a plugin ended it early             |
+| `DEPLETED`                   | Its money ran out                               |
+| `CANCELLED`                  | An admin or a plugin cancelled it while it ran  |
+
+**Payouts with server events.** A tax reduction lowers the `tax()` of `OrderPaymentEvent` and `SoloOrderPaymentEvent`.
+The extra of reward multipliers is paid only to workers whose payment event was not cancelled, after those events,
+and fires a `ServerEventPayoutEvent` per worker. The extra is neither taxed nor shared with the treasury, and the money
+is taken already, so the event can not be cancelled.
+
 ## Solo order events
 
 A player can work on an order alone, without a company (see [Working alone](../players/working-alone.md)). Such an

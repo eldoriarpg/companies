@@ -7,13 +7,13 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.Transactions;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.EventPayout;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;

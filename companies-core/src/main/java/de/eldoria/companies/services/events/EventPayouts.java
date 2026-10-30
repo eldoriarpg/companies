@@ -5,14 +5,15 @@
  */
 package de.eldoria.companies.services.events;
 
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.data.repository.AServerEventData;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.EventPayout;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
+import de.eldoria.companies.events.server.ServerEventPayoutEvent;
 import de.eldoria.companies.orders.EconomyAccounts;
 import de.eldoria.companies.orders.OrderCompletionService;
 import de.eldoria.companies.orders.OrderCompletionService.Funded;
@@ -161,13 +162,37 @@ public final class EventPayouts implements OrderCompletionService.Boosts {
             if (paid) {
                 deplete(plan.exhausted());
                 return new Funded(
-                        plan.extras(), payouts.stream().map(EventPayout::record).toList(), true);
+                        plan.extras(),
+                        payouts.stream().map(EventPayout::record).toList(),
+                        true,
+                        paid(fresh, plan.byWorker()));
             }
             giveBack(withdrawn);
         }
         logger.warning("Could not pay the server event extra of an order after " + ATTEMPTS
                 + " attempts, since other servers kept spending the same events; the workers get no extra.");
         return Funded.none(ledger);
+    }
+
+    /**
+     * @param events   the events as they were read before they paid
+     * @param byWorker what each event pays for every worker
+     * @return what each event paid every worker, only the events that paid something
+     */
+    static Map<UUID, List<ServerEventPayoutEvent.Paid>> paid(
+            List<ServerEvent> events, Map<UUID, Map<Integer, Double>> byWorker) {
+        Map<Integer, ServerEvent> byId = new HashMap<>();
+        for (var event : events) byId.put(event.id(), event);
+        Map<UUID, List<ServerEventPayoutEvent.Paid>> paid = new LinkedHashMap<>();
+        byWorker.forEach((worker, parts) -> {
+            List<ServerEventPayoutEvent.Paid> list = new ArrayList<>();
+            parts.forEach((id, amount) -> {
+                var event = byId.get(id);
+                if (event != null && amount > 0) list.add(new ServerEventPayoutEvent.Paid(event, amount));
+            });
+            if (!list.isEmpty()) paid.put(worker, List.copyOf(list));
+        });
+        return paid;
     }
 
     private Plan plan(List<ServerEvent> events, List<Share> shares) {

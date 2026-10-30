@@ -7,6 +7,8 @@ package de.eldoria.companies.orders;
 
 import de.eldoria.companies.api.write.RejectReason;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.components.order.IOrderDraft;
 import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.LineKind;
@@ -17,8 +19,6 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
-import de.eldoria.companies.data.wrapper.event.EventKind;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.events.order.OrderCreatedEvent;

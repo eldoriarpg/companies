@@ -8,11 +8,13 @@ package de.eldoria.companies.api;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
+import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.Component;
@@ -39,6 +41,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
     private final OrderApi orders;
     private final PlayerApi players;
     private final RankingApi ranking;
+    private final ServerEventApi events;
 
     /**
      * @param repositories the repositories the API reads from
@@ -57,6 +60,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
         orders = new OrderApiImpl(repositories.orders(), writes, server.players(), server.messages(), executor);
         players = new PlayerApiImpl(repositories.orders(), writes, executor);
         ranking = new RankingApiImpl(repositories.stats(), server.clock(), executor);
+        events = new ServerEventApiImpl(repositories.serverEvents(), writes, server.clock(), executor);
     }
 
     /**
@@ -124,15 +128,26 @@ public final class CompaniesApiImpl implements CompaniesApi {
         return ranking;
     }
 
+    @Override
+    public ServerEventApi events() {
+        return events;
+    }
+
     /**
      * The repositories the API reads from.
      *
      * @param companies company repository
      * @param orders    order repository
      * @param stats      statistics repository
-     * @param treasuries treasury repository
+     * @param treasuries   treasury repository
+     * @param serverEvents server event repository
      */
-    public record Repositories(ACompanyData companies, AOrderData orders, AStatsData stats, ATreasuryData treasuries) {}
+    public record Repositories(
+            ACompanyData companies,
+            AOrderData orders,
+            AStatsData stats,
+            ATreasuryData treasuries,
+            AServerEventData serverEvents) {}
 
     /**
      * What the API needs from the server.
@@ -151,7 +166,12 @@ public final class CompaniesApiImpl implements CompaniesApi {
      *
      * @param orders      creates orders
      * @param memberships adds members to companies
-     * @param itemReturns stores granted items
+     * @param itemReturns  stores granted items
+     * @param serverEvents creates and ends server events
      */
-    public record Writes(OrderCreationService orders, MembershipService memberships, ItemReturnService itemReturns) {}
+    public record Writes(
+            OrderCreationService orders,
+            MembershipService memberships,
+            ItemReturnService itemReturns,
+            ServerEventService serverEvents) {}
 }

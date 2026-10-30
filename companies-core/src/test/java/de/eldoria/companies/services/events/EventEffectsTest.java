@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.services.events;
 
-import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.services.events.EventEffects.Line;
 import org.junit.jupiter.api.Test;
 

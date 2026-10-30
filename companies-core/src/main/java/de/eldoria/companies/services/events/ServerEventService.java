@@ -5,9 +5,9 @@
  */
 package de.eldoria.companies.services.events;
 
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.data.repository.AServerEventData;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.nodes.NodeMessage.ServerEventChanged;
 import org.jetbrains.annotations.Nullable;

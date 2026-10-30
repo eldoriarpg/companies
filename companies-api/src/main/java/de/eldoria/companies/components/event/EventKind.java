@@ -3,7 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-package de.eldoria.companies.data.wrapper.event;
+package de.eldoria.companies.components.event;
 
 /**
  * What a server event changes while it runs, and what its value means.
@@ -24,6 +24,8 @@ public enum EventKind {
     FEE_REDUCTION;
 
     /**
+     * Whether events of this kind pay money and therefore have a funding.
+     *
      * @return whether events of this kind pay money and therefore have a funding
      */
     public boolean funded() {
@@ -31,6 +33,8 @@ public enum EventKind {
     }
 
     /**
+     * Whether events of this kind may be limited to companies of given levels.
+     *
      * @return whether events of this kind may be limited to companies of given levels
      */
     public boolean levelScoped() {

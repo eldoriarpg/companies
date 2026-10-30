@@ -6,6 +6,8 @@
 package de.eldoria.companies.services.events;
 
 import de.eldoria.companies.components.company.ISimpleCompany;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.components.order.ItemCriteria;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
@@ -15,13 +17,12 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.EventPayout;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
+import de.eldoria.companies.events.server.ServerEventPayoutEvent;
 import de.eldoria.companies.nodes.NodeMessage.ServerEventChanged;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderCompletionService;
@@ -30,7 +31,10 @@ import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Times;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -94,11 +98,12 @@ class EventPayoutsTest {
     private volatile int refusals;
     private volatile Runnable onRefuse = () -> {};
     private volatile boolean throwOnPay;
+    private Plugin plugin;
 
     @BeforeEach
     void setUp() throws Exception {
         MockBukkit.mock();
-        var plugin = MockBukkit.createMockPlugin();
+        plugin = MockBukkit.createMockPlugin();
         SqLiteTestDatabase.create(directory);
         executor = Executors.newFixedThreadPool(4);
         orders = OrderTable.create();
@@ -204,6 +209,33 @@ class EventPayoutsTest {
                         "order_payouts", "order_id = " + done.order().id()));
         assertEquals(1, SqLiteTestDatabase.count("payout_events", "event_id = " + id + " AND amount = 50"));
         assertEquals(1, SqLiteTestDatabase.count("order_payouts", "event_extra = 50"));
+    }
+
+    @Test
+    void aWorkerPaidAnExtraFiresThePayoutEventWithTheMultipliers() {
+        List<ServerEventPayoutEvent> fired = new CopyOnWriteArrayList<>();
+        plugin.getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new Listener() {
+                            @EventHandler
+                            public void onPayout(ServerEventPayoutEvent event) {
+                                fired.add(event);
+                            }
+                        },
+                        plugin);
+        var id = start(
+                event(EventKind.REWARD_MULTIPLIER, 1.5, List.of("STONE"), List.of(), SourceType.MINTED, null, 1000.0));
+        start(event(EventKind.TAX_REDUCTION, 5, List.of(), List.of(), null, null, null));
+
+        complete();
+
+        assertEquals(1, fired.size());
+        assertEquals(alice, fired.getFirst().player().getUniqueId());
+        assertEquals(50.0, fired.getFirst().amount(), DELTA);
+        var paid = fired.getFirst().paid();
+        assertEquals(List.of(id), paid.stream().map(part -> part.event().id()).toList());
+        assertEquals(50.0, paid.getFirst().amount(), DELTA);
     }
 
     @Test

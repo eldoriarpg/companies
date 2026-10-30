@@ -162,6 +162,7 @@ import de.eldoria.companies.services.alerts.AlertMatcher;
 import de.eldoria.companies.services.alerts.AlertNotices;
 import de.eldoria.companies.services.events.ActiveEvents;
 import de.eldoria.companies.services.events.EventAnnouncer;
+import de.eldoria.companies.services.events.EventApiEvents;
 import de.eldoria.companies.services.events.EventJoins;
 import de.eldoria.companies.services.events.EventMoves;
 import de.eldoria.companies.services.events.EventPayouts;
@@ -302,7 +303,8 @@ public class Companies extends EldoPlugin {
         registerCommands();
         api = CompaniesApiImpl.create(
                 this,
-                new CompaniesApiImpl.Repositories(companyData, orderData, information.stats(), economy.treasury()),
+                new CompaniesApiImpl.Repositories(
+                        companyData, orderData, information.stats(), economy.treasury(), serverEventData),
                 Threading.VIRTUAL);
         api.register(this);
     }
@@ -405,9 +407,17 @@ public class Companies extends EldoPlugin {
                     Threading.VIRTUAL.execute(() -> eventAnnouncer.handle(message));
                 })
                 .start();
+        var apiEvents = new EventApiEvents(fired -> Threading.VIRTUAL.execute(() -> {
+            try {
+                getServer().getPluginManager().callEvent(fired);
+            } catch (RuntimeException e) {
+                getLogger().log(Level.WARNING, "A listener of " + fired.getEventName() + " failed", e);
+            }
+        }));
         var eventMoves = new EventMoves(
                 serverEventData,
                 (event, change) -> {
+                    apiEvents.accept(event, change);
                     var webhook = discord;
                     if (webhook != null) webhook.events().changed(event, change, offerNames(event.id()));
                 },
@@ -594,7 +604,9 @@ public class Companies extends EldoPlugin {
                     activeEvents,
                     feeReductions));
         }
-        if (api != null) api.open(new CompaniesApiImpl.Writes(orderCreation, membershipService, itemReturnService));
+        if (api != null)
+            api.open(new CompaniesApiImpl.Writes(
+                    orderCreation, membershipService, itemReturnService, serverEventService));
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));
         registerListener(new ChunkDeliveries(offerData, Times.UTC, Threading.VIRTUAL, getLogger()));

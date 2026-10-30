@@ -6,10 +6,10 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
+import de.eldoria.companies.components.event.EventKind;
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
-import de.eldoria.companies.data.wrapper.event.EventKind;
 import de.eldoria.companies.data.wrapper.event.EventPayout;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
 import de.eldoria.companies.orders.OrderCompletionService;

@@ -5,8 +5,8 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.components.event.EventState;
 import de.eldoria.companies.data.wrapper.event.EventPayout;
-import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import org.jetbrains.annotations.Nullable;
 
