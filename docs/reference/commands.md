@@ -98,6 +98,8 @@ See [Jobs](../players/jobs.md).
 | `/order job info <id>` | `companies.orders.jobs` | Shows a job of yours and, on the server of its area, how far the work is. |
 | `/order job dig <price> <hours> <title>` | `companies.orders.jobs` | Posts a dig job on the area you selected with WorldEdit. You pay the price and the order fee at once. |
 | `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot you stand on, from the block below your feet down `depth` blocks. |
+| `/order job terraform <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the area you selected with WorldEdit: solid up to height `y`, empty above. You pay the price and the order fee at once. |
+| `/order job terraform surface <block> <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job whose top layer must be made of `block`. |
 | `/order job contract <price> <hours> <title>` | `companies.orders.jobs` | Posts a contract, work described in words, at the place you stand. You pay the price and the order fee at once. |
 | `/order job describe <id> <text>` | `companies.orders.jobs` | Describes a job nobody has taken yet. |
 | `/order job approve <id>` | `companies.orders.jobs` | Approves a contract the company says is done, or a job a company works on as it stands, and pays the company. |

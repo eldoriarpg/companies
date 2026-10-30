@@ -965,6 +965,7 @@ export default {
                     enabled: 'Let players post new jobs',
                     unownedWorlds: 'Worlds where jobs may lie on unowned land',
                     digMaxVolume: 'Most blocks in the area of a dig job',
+                    terraformMaxVolume: 'Most blocks in the area of a terraform job',
                     maxChunks: 'Most chunks the area of a job may touch',
                     maxOpenPerOwner: 'Most jobs a player may have waiting for a company',
                     maxDueHours: 'Most hours a company may get to finish a job',

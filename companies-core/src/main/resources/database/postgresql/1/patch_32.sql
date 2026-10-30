@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS companies_schema.jobs
     dispute     VARCHAR(256),
     disputed_at TIMESTAMP,
     settled     INTEGER,
+    target_y    INTEGER,
+    target_block VARCHAR(64),
     CONSTRAINT jobs_pk
         PRIMARY KEY (id)
 );

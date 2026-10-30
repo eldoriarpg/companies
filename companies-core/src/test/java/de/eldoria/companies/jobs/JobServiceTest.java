@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobState;
+import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
 import org.jetbrains.annotations.Nullable;
@@ -379,6 +380,37 @@ class JobServiceTest {
         jobs.work(job.id(), company.id(), worker, 50);
 
         assertEquals(Map.of(), jobs.workOf(job.id()));
+    }
+
+    @Test
+    void aTerraformJobNeedsATargetInsideItsAreaAndItsOwnVolumeLimit() {
+        settings.digMaxVolume(1);
+
+        assertEquals(JobService.Refusal.TARGET, refusal(terraform(null)));
+        assertEquals(JobService.Refusal.TARGET, refusal(terraform(new JobTarget(70, null))));
+        assertEquals(
+                JobService.Refusal.TARGET,
+                refusal(service.post(
+                        owner,
+                        JobKind.DIG,
+                        "Pit",
+                        100,
+                        24,
+                        NODE,
+                        AREA,
+                        JobLand.REGION,
+                        "home",
+                        new JobTarget(62, null))));
+        var posted = assertInstanceOf(JobService.Posted.Done.class, terraform(new JobTarget(62, "GRASS_BLOCK")));
+        assertEquals(
+                new JobTarget(62, "GRASS_BLOCK"),
+                jobs.job(posted.job().id()).orElseThrow().target());
+        settings.terraformMaxVolume(10);
+        assertEquals(JobService.Refusal.VOLUME, refusal(terraform(new JobTarget(62, null))));
+    }
+
+    private JobService.Posted terraform(@Nullable JobTarget target) {
+        return service.post(owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, AREA, JobLand.REGION, "home", target);
     }
 
     @Test

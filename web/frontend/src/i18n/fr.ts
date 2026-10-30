@@ -965,6 +965,7 @@ export default {
                     enabled: 'Laisser les joueurs publier de nouveaux travaux',
                     unownedWorlds: 'Mondes où les travaux peuvent se trouver sur un terrain sans propriétaire',
                     digMaxVolume: "Nombre maximal de blocs dans la zone d'un travail de creusage",
+                    terraformMaxVolume: "Nombre maximal de blocs dans la zone d'un travail de terrassement",
                     maxChunks: "Nombre maximal de chunks que la zone d'un travail peut toucher",
                     maxOpenPerOwner: "Nombre maximal de travaux d'un joueur qui attendent une entreprise",
                     maxDueHours: "Nombre maximal d'heures qu'une entreprise peut obtenir pour finir un travail",

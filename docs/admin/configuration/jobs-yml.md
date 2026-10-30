@@ -14,6 +14,7 @@ server of a network. The jobs themselves are stored in the database.
 enabled: true
 unownedWorlds: []
 digMaxVolume: 32768
+terraformMaxVolume: 32768
 maxChunks: 64
 maxOpenPerOwner: 5
 maxDueHours: 168
@@ -26,6 +27,7 @@ approveHours: 72
 | `enabled` | true/false | `true` | Players may post new jobs. Running jobs go on either way. | reload |
 | `unownedWorlds` | list of world names | `[]` | Worlds where a job may lie on land of nobody (no plot, no region). Off everywhere unless a world is listed. Only WorldGuard and PlotSquared are asked whose land an area is; list only worlds no other claim plugin protects. | reload |
 | `digMaxVolume` | number (blocks) | `32768` | The most blocks the area of a dig job may hold. The area is checked block by block on the main thread when a company finishes it. | reload |
+| `terraformMaxVolume` | number (blocks) | `32768` | The most blocks the area of a terraform job may hold, checked like a dig job's. | reload |
 | `maxChunks` | number (chunks) | `64` | The most chunks the area of a job may touch, so a long thin area can not make the server load many chunks for each check. | reload |
 | `maxOpenPerOwner` | number | `5` | The most jobs a player may have waiting for a company at once. | reload |
 | `maxDueHours` | number (hours) | `168` | The most hours an owner may give a company to finish a job. | reload |

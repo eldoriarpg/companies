@@ -16,6 +16,7 @@ import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobState;
+import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.orders.Payout;
 import org.jetbrains.annotations.Nullable;
 
@@ -155,15 +156,50 @@ public final class JobService {
             JobArea area,
             JobLand land,
             @Nullable String landRef) {
+        return post(owner, kind, title, price, dueHours, node, area, land, landRef, null);
+    }
+
+    /**
+     * Posts a job with a target: checks it, takes its price and fee from the owner, and stores it.
+     *
+     * @param owner    the player posting it
+     * @param kind     what work it asks for
+     * @param title    title shown to companies
+     * @param price    what the company is paid
+     * @param dueHours how long a company has to finish it
+     * @param node     the server whose world holds the area
+     * @param area     the area of the work
+     * @param land     whose land the area lies on
+     * @param landRef  the plot or region of the land, null for unowned land
+     * @param target   the shape a terraform job asks for, its height within the area; null for other kinds
+     * @return the stored job, or why it was not posted
+     */
+    public Posted post(
+            UUID owner,
+            JobKind kind,
+            String title,
+            double price,
+            int dueHours,
+            UUID node,
+            JobArea area,
+            JobLand land,
+            @Nullable String landRef,
+            @Nullable JobTarget target) {
         var current = settings.get();
         if (!current.enabled()) return new Posted.Refused(Refusal.DISABLED);
-        if (kind != JobKind.DIG && kind != JobKind.CONTRACT) return new Posted.Refused(Refusal.KIND);
+        if (kind != JobKind.DIG && kind != JobKind.CONTRACT && kind != JobKind.TERRAFORM) {
+            return new Posted.Refused(Refusal.KIND);
+        }
+        if ((kind == JobKind.TERRAFORM) != (target != null)) return new Posted.Refused(Refusal.TARGET);
+        if (target != null && (target.y() < area.minY() || target.y() > area.maxY())) {
+            return new Posted.Refused(Refusal.TARGET);
+        }
         var name = title.strip();
         if (name.isEmpty() || name.length() > Job.MAX_TITLE) return new Posted.Refused(Refusal.TITLE);
         var rounded = cents(price);
         if (!(rounded >= MIN_PRICE) || rounded > MAX_PRICE) return new Posted.Refused(Refusal.PRICE);
         if (dueHours < 1 || dueHours > current.maxDueHours()) return new Posted.Refused(Refusal.DUE);
-        if (kind.area() && area.volume() > current.digMaxVolume()) return new Posted.Refused(Refusal.VOLUME);
+        if (kind.area() && area.volume() > current.maxVolume(kind)) return new Posted.Refused(Refusal.VOLUME);
         if (kind.area() && area.chunks() > current.maxChunks()) return new Posted.Refused(Refusal.CHUNKS);
         if (jobs.openOf(owner) >= current.maxOpenPerOwner()) return new Posted.Refused(Refusal.TOO_MANY);
         if (kind.area() && !jobs.overlapping(area).isEmpty()) return new Posted.Refused(Refusal.OVERLAP);
@@ -172,18 +208,19 @@ public final class JobService {
         if (!money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
         var now = now();
         var draft = Job.draft(
-                owner,
-                kind,
-                name,
-                rounded,
-                charged,
-                node,
-                area,
-                land,
-                landRef,
-                dueHours,
-                now,
-                now.plusDays(current.openDays()));
+                        owner,
+                        kind,
+                        name,
+                        rounded,
+                        charged,
+                        node,
+                        area,
+                        land,
+                        landRef,
+                        dueHours,
+                        now,
+                        now.plusDays(current.openDays()))
+                .withTarget(target);
         Optional<Integer> id;
         try {
             id = jobs.create(draft);
@@ -1016,7 +1053,11 @@ public final class JobService {
         /**
          * The job could not be stored; the money went back.
          */
-        STORAGE
+        STORAGE,
+        /**
+         * A terraform job has no target height inside its area, or another kind has one.
+         */
+        TARGET
     }
 
     /**

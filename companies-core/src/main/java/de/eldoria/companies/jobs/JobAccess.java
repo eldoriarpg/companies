@@ -7,6 +7,7 @@ package de.eldoria.companies.jobs;
 
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.util.Permission;
@@ -70,7 +71,10 @@ import java.util.logging.Logger;
  * soon after a change on this server.
  * <p>
  * A block a member of the working company breaks inside a taken job's area counts as their work, unless it was placed
- * there while the job ran. Counts are written every {@value #FLUSH_SECONDS} seconds, before a job is finished and when
+ * there while the job ran. In a terraform job's area only breaking what the target asks to go counts: blocks above the
+ * target height and top layer blocks that are not its surface block. Placing a block that fills a position as the target
+ * asks counts too, once for each position, and never where a member broke a block that already filled it, so taking
+ * out a solid block and putting it back earns nothing. Counts are written every {@value #FLUSH_SECONDS} seconds, before a job is finished and when
  * the plugin stops, and only while the company they were counted for still has the job. Only the working company may
  * place blocks or empty buckets in a taken job's area, so nobody fills it up while it is worked on. A land hook whose
  * access reaches beyond the job's area, such as the trust on a whole plot, is held to the area: players who only have
@@ -106,6 +110,7 @@ public final class JobAccess implements Listener {
     private final Logger logger;
     private final Map<Work, Integer> pending = new ConcurrentHashMap<>();
     private final Map<Integer, Set<Long>> placed = new ConcurrentHashMap<>();
+    private final Map<Integer, Set<Long>> filled = new ConcurrentHashMap<>();
     private final AtomicBoolean queued = new AtomicBoolean();
     private volatile List<Active> active = List.of();
     private volatile ScheduledExecutorService executor;
@@ -224,6 +229,8 @@ public final class JobAccess implements Listener {
             }
             for (var job : frozen) now.add(new Active(job, Set.of(), Set.of()));
             active = List.copyOf(now);
+            filled.keySet()
+                    .removeIf(id -> now.stream().noneMatch(entry -> entry.job().id() == id));
             placed.keySet()
                     .removeIf(id -> now.stream().noneMatch(entry -> entry.job().id() == id));
         } catch (RuntimeException e) {
@@ -304,11 +311,12 @@ public final class JobAccess implements Listener {
     public void forget(int job) {
         pending.keySet().removeIf(work -> work.job() == job);
         placed.remove(job);
+        filled.remove(job);
     }
 
     /**
-     * Holds players who only have access through a job to its area, keeps others from placing blocks in a taken job's
-     * area, and notes blocks placed in a taken job's area so breaking them again does not count as work.
+     * Holds players who only have access through a job to its area and keeps others from placing blocks in a taken
+     * job's area.
      *
      * @param event the placement
      */
@@ -318,14 +326,41 @@ public final class JobAccess implements Listener {
         if (held(event.getPlayer(), block, true)
                 || (block.getType() == Material.TNT && danger(event.getPlayer(), block))) {
             event.setCancelled(true);
-            return;
         }
+    }
+
+    /**
+     * Notes a block placed in a taken job's area, so breaking it again does not count as work. In a terraform job's
+     * area a member placing a block that fills its position as the target asks counts it as their work, once for each
+     * position.
+     *
+     * @param event the placement, as it stands after every plugin had its say
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlaced(BlockPlaceEvent event) {
+        var block = event.getBlockPlaced();
         var world = block.getWorld().getName();
+        var worker = event.getPlayer().getUniqueId();
         for (var entry : active) {
-            if (entry.job().area().contains(world, block.getX(), block.getY(), block.getZ())) {
-                placed.computeIfAbsent(entry.job().id(), id -> ConcurrentHashMap.newKeySet())
-                        .add(key(block));
+            var job = entry.job();
+            if (!job.area().contains(world, block.getX(), block.getY(), block.getZ())) continue;
+            var key = key(block);
+            placed.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
+                    .add(key);
+            var target = job.target();
+            var company = job.company();
+            if (job.kind() != JobKind.TERRAFORM
+                    || target == null
+                    || company == null
+                    || !TerraformCheck.fills(block.getType(), block.getY(), target)
+                    || !entry.members().contains(worker)) {
+                return;
             }
+            if (filled.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
+                    .add(key)) {
+                pending.merge(new Work(job.id(), company, worker), 1, Integer::sum);
+            }
+            return;
         }
     }
 
@@ -451,9 +486,32 @@ public final class JobAccess implements Listener {
             if (!entry.members().contains(worker)) return;
             var company = entry.job().company();
             if (company == null) return;
+            if (!removing(entry.job(), block)) {
+                var target = entry.job().target();
+                if (target != null && TerraformCheck.fills(block.getType(), block.getY(), target)) {
+                    filled.computeIfAbsent(entry.job().id(), id -> ConcurrentHashMap.newKeySet())
+                            .add(key(block));
+                }
+                return;
+            }
             pending.merge(new Work(entry.job().id(), company, worker), 1, Integer::sum);
             return;
         }
+    }
+
+    /**
+     * @param job   a taken job
+     * @param block a block of its area, before it is broken
+     * @return whether breaking it is work the job asks for: any block of a dig job; for a terraform job one above the
+     *     target height, or one of the top layer that is not the surface block the target names
+     */
+    static boolean removing(Job job, Block block) {
+        var target = job.target();
+        if (job.kind() != JobKind.TERRAFORM || target == null) return true;
+        if (block.getY() > target.y()) return true;
+        if (block.getY() < target.y()) return false;
+        var surface = TerraformCheck.surface(target);
+        return surface != null && block.getType() != surface;
     }
 
     /**

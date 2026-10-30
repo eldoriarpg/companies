@@ -342,6 +342,19 @@ public final class CompanyJobCommand {
                 PREFIX + "info.money",
                 Values.money("price", deps.services().economy(), job.price()),
                 Values.number("hours", job.dueHours()));
+        var target = job.target();
+        if (target != null) {
+            var surface = target.surface();
+            if (surface == null) {
+                messages.sendMessage(player, PREFIX + "info.target", Values.number("y", target.y()));
+            } else {
+                messages.sendMessage(
+                        player,
+                        PREFIX + "info.targetSurface",
+                        Values.number("y", target.y()),
+                        Values.text("block", surface.toLowerCase(Locale.ROOT)));
+            }
+        }
         if (job.state() == JobState.TAKEN) {
             messages.sendMessage(player, PREFIX + "info.due", Values.text("time", left(job.due())));
         }

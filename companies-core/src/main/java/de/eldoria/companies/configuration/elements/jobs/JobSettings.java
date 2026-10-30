@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.configuration.elements.jobs;
 
+import de.eldoria.companies.data.wrapper.job.JobKind;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -19,6 +21,7 @@ public class JobSettings {
     private boolean enabled = true;
     private List<String> unownedWorlds = new ArrayList<>();
     private int digMaxVolume = 32768;
+    private int terraformMaxVolume = 32768;
     private int maxChunks = 64;
     private int maxOpenPerOwner = 5;
     private int maxDueHours = 168;
@@ -71,6 +74,25 @@ public class JobSettings {
 
     public void digMaxVolume(int digMaxVolume) {
         this.digMaxVolume = digMaxVolume;
+    }
+
+    /**
+     * @return the most blocks the area of a terraform job may hold, at least 1
+     */
+    public int terraformMaxVolume() {
+        return Math.max(1, terraformMaxVolume);
+    }
+
+    public void terraformMaxVolume(int terraformMaxVolume) {
+        this.terraformMaxVolume = terraformMaxVolume;
+    }
+
+    /**
+     * @param kind a kind of job with an area
+     * @return the most blocks its area may hold
+     */
+    public int maxVolume(JobKind kind) {
+        return kind == JobKind.TERRAFORM ? terraformMaxVolume() : digMaxVolume();
     }
 
     /**

@@ -11,6 +11,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobState;
+import de.eldoria.companies.data.wrapper.job.JobTarget;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -100,6 +101,29 @@ public abstract class JobDataContract {
         assertEquals(NOW, job.created());
         assertEquals(NOW.plusDays(7), job.expires());
         assertFalse(job.granted());
+        assertNull(job.target());
+    }
+
+    @Test
+    void theTargetOfATerraformJobIsStored() {
+        var id = jobs.create(Job.draft(
+                                OWNER,
+                                JobKind.TERRAFORM,
+                                "Flat",
+                                500,
+                                10,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 5, 70, 5),
+                                JobLand.REGION,
+                                "home",
+                                48,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withTarget(new JobTarget(64, "GRASS_BLOCK")))
+                .orElseThrow();
+
+        assertEquals(
+                new JobTarget(64, "GRASS_BLOCK"), jobs.job(id).orElseThrow().target());
     }
 
     @Test

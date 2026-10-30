@@ -6,6 +6,7 @@
 package de.eldoria.companies.jobs;
 
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.util.Threading;
 import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
@@ -21,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Reads how far the work on a job is, on the server whose world holds its area. The chunks of the area are loaded
+ * Reads how far the work on a job is, by the check of its kind ({@link DigCheck}, {@link TerraformCheck}), on the server whose world holds its area. The chunks of the area are loaded
  * without blocking the main thread, each held by a plugin ticket from when it is loaded until the area is checked on
  * the main thread. A result
  * is kept for {@value #CACHE_SECONDS} seconds per job; a fresh check, as finishing a job asks for, still reuses one at
@@ -87,7 +88,7 @@ public final class JobProgress {
             }
         }
         return CompletableFuture.allOf(loads.toArray(CompletableFuture[]::new))
-                .thenApplyAsync(ignored -> DigCheck.progress(area, DigCheck.of(world)), mainThread)
+                .thenApplyAsync(ignored -> DigCheck.progress(area, blocks(job, world)), mainThread)
                 .whenCompleteAsync(
                         (result, err) -> {
                             for (var chunk : chunks) world.removePluginChunkTicket(chunk[0], chunk[1], plugin);
@@ -101,6 +102,17 @@ public final class JobProgress {
                     cache.put(job.id(), new Cached(progress, now));
                     return Optional.of(progress);
                 });
+    }
+
+    /**
+     * @param job   a job with an area
+     * @param world the world of its area
+     * @return the reader of whether each block is as the job asks
+     */
+    private static DigCheck.Blocks blocks(Job job, World world) {
+        var target = job.target();
+        if (job.kind() == JobKind.TERRAFORM && target != null) return TerraformCheck.of(world, target);
+        return DigCheck.of(world);
     }
 
     private record Cached(DigCheck.Progress progress, Instant at) {}

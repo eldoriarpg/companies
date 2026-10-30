@@ -29,6 +29,16 @@ have a few jobs waiting at once.
 A **dig job** is done when every block of the area is air, water or lava. Blocks nobody can break, such as bedrock,
 count as cleared. The company keeps what it digs.
 
+A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Select
+the area with WorldEdit so it reaches from the lowest block that must be filled to the highest that must go, then post
+`/order job terraform <price> <hours> <y> <title>`, where `y` is the height of the top solid layer. With
+`/order job terraform surface <block> <price> <hours> <y> <title>` the top layer must also be made of one block, such
+as `grass_block` (type the name without `minecraft:`). Blocks players can not place and keep in survival, such as
+bedrock, spawners or farmland, are refused, and so are blocks that change by themselves, such as copper that is not
+waxed or concrete powder. Above `y` the area must be air, water or lava; at or below it any solid
+block counts. Blocks nobody
+can break count as done. The company brings the blocks it fills with and keeps what it digs.
+
 When your land changes hands while a job waits or is worked on, for example a plot you sold, the job is cancelled. A
 waiting job gives its price back to you. A job a company works on pays the company for the share of the area it cleared,
 and the rest of the price comes back to you. The fee is kept either way. While a company works on your job, only its
@@ -109,7 +119,10 @@ again for every company. Giving a job back or running out of time costs your com
 When your company is disbanded, its jobs are open again.
 
 When the job is done, the price is split among the members by the blocks each of them broke in the area. Blocks placed
-during the job do not count when they are broken again; a block left in the area keeps the job from being done. Each
+during the job do not count when they are broken again; a block left in the area keeps the job from being done. In a
+terraform job, breaking counts only above the target height and for top layer blocks that are not the surface block,
+and placing a block counts when it fills its spot as the target asks, once for each spot. Putting back a block you
+took out below the target earns nothing. Each
 part is taxed and shares the [treasury cut](../companies/treasury.md) like an order payout; the tax and fee reductions
 of [server events](./server-events.md) apply. Members who left the company keep the part they earned. When nobody's
 work was counted, the member who finished it gets it all.

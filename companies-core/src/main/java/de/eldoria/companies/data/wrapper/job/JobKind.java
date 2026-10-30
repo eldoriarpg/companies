@@ -14,7 +14,7 @@ public enum JobKind {
      */
     DIG,
     /**
-     * Shape the area to target heights per column.
+     * Shape the area: solid up to a target height, empty above.
      */
     TERRAFORM,
     /**

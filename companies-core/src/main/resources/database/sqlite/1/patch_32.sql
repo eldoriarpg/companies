@@ -35,7 +35,9 @@ CREATE TABLE jobs
     dispute_by  blob,
     dispute     TEXT,
     disputed_at datetime,
-    settled     INTEGER
+    settled     INTEGER,
+    target_y    INTEGER,
+    target_block TEXT
 );
 
 CREATE INDEX jobs_state_index

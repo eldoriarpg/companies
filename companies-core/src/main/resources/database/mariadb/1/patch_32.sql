@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS jobs
     dispute     VARCHAR(256)       NULL,
     disputed_at DATETIME           NULL,
     settled     INT                NULL,
+    target_y    INT                NULL,
+    target_block VARCHAR(64)       NULL,
     CONSTRAINT jobs_pk
         PRIMARY KEY (id)
 );

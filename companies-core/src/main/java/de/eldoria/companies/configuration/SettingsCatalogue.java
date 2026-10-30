@@ -371,6 +371,7 @@ public final class SettingsCatalogue {
         jobs.flag("enabled");
         jobs.add(Type.TEXT_LIST, "unownedWorlds", List.of(), false);
         jobs.whole("digMaxVolume");
+        jobs.whole("terraformMaxVolume");
         jobs.whole("maxChunks");
         jobs.whole("maxOpenPerOwner");
         jobs.whole("maxDueHours");

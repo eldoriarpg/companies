@@ -16,9 +16,11 @@ import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobState;
+import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.TerraformCheck;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuText;
@@ -57,6 +59,9 @@ import java.util.logging.Level;
  *     <li>{@code dig <price> <hours> <title>} posts a dig job on the area selected with WorldEdit;</li>
  *     <li>{@code dig plot <price> <hours> <depth> <title>} posts one on the whole plot the player stands on, from the
  *     block below their feet down {@code depth} blocks;</li>
+ *     <li>{@code terraform <price> <hours> <y> <title>} posts a terraform job on the area selected with WorldEdit:
+ *     every column solid up to {@code y} and empty above it; {@code terraform surface <block> ...} also asks for the
+ *     top layer to be made of {@code block};</li>
  *     <li>{@code contract <price> <hours> <title>} posts a contract: work described in words, at the place the
  *     player stands;</li>
  *     <li>{@code describe <id> <text>} describes a job while it waits for a company;</li>
@@ -142,7 +147,68 @@ public final class JobCommand {
             deps.messages().sendError(player, PREFIX + "error.noSelection");
             return;
         }
-        post(player, area.get(), price, hours, title);
+        post(player, JobKind.DIG, area.get(), price, hours, title, null);
+    }
+
+    /**
+     * Posts a terraform job on the area the player selected with WorldEdit: every column solid up to a height and empty
+     * above it.
+     *
+     * @param sender sender of the command
+     * @param price  what the company is paid
+     * @param hours  how long a company has to finish
+     * @param y      the height of the top solid block of every column
+     * @param title  title shown to companies
+     */
+    @Executes("terraform")
+    public void terraform(
+            CommandSender sender,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @IntArg int y,
+            @StringArg(StringArgType.GREEDY) String title) {
+        shape(Senders.player(sender), price, hours, new JobTarget(y, null), title);
+    }
+
+    /**
+     * Posts a terraform job whose top layer must be made of one block.
+     *
+     * @param sender  sender of the command
+     * @param block   the block of the top layer, such as {@code grass_block}
+     * @param price   what the company is paid
+     * @param hours   how long a company has to finish
+     * @param y       the height of the top solid block of every column
+     * @param title   title shown to companies
+     */
+    @Executes("terraform surface")
+    public void terraformSurface(
+            CommandSender sender,
+            @StringArg(StringArgType.STRING) String block,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @IntArg int y,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        var material = TerraformCheck.block(block);
+        if (material == null) {
+            deps.messages().sendError(player, PREFIX + "error.block", Values.text("block", block));
+            return;
+        }
+        shape(player, price, hours, new JobTarget(y, material.name()), title);
+    }
+
+    private void shape(Player player, double price, int hours, JobTarget target, String title) {
+        var hooks = jobs().hooks();
+        if (!hooks.selects()) {
+            deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
+            return;
+        }
+        var area = hooks.selection(player);
+        if (area.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "error.noSelection");
+            return;
+        }
+        post(player, JobKind.TERRAFORM, area.get(), price, hours, title, target);
     }
 
     /**
@@ -171,7 +237,7 @@ public final class JobCommand {
         var found = plot.get();
         var area = new JobArea(
                 found.world(), found.minX(), top - depth + 1, found.minZ(), found.maxX(), top, found.maxZ());
-        post(player, area, price, hours, title);
+        post(player, JobKind.DIG, area, price, hours, title, null);
     }
 
     /**
@@ -204,7 +270,7 @@ public final class JobCommand {
                 player,
                 () -> jobs().service()
                         .post(owner, JobKind.CONTRACT, title, price, hours, node, area, JobLand.NONE, null),
-                posted -> posted(player, posted));
+                posted -> posted(player, JobKind.CONTRACT, posted));
     }
 
     /**
@@ -342,7 +408,14 @@ public final class JobCommand {
         });
     }
 
-    private void post(Player player, JobArea area, double price, int hours, String title) {
+    private void post(
+            Player player,
+            JobKind kind,
+            JobArea area,
+            double price,
+            int hours,
+            String title,
+            @Nullable JobTarget target) {
         var world = deps.plugin().getServer().getWorld(area.world());
         if (world == null || area.minY() < world.getMinHeight() || area.maxY() >= world.getMaxHeight()) {
             deps.messages()
@@ -374,20 +447,26 @@ public final class JobCommand {
                 run(
                         player,
                         () -> jobs().service()
-                                .post(owner, JobKind.DIG, title, price, hours, node, area, land.land(), land.ref()),
-                        posted -> posted(player, posted));
+                                .post(owner, kind, title, price, hours, node, area, land.land(), land.ref(), target),
+                        posted -> posted(player, kind, posted));
             }
         }
     }
 
-    private void posted(Player player, JobService.Posted posted) {
+    private void posted(Player player, JobKind kind, JobService.Posted posted) {
         switch (posted) {
             case JobService.Posted.Done done -> {
                 var job = done.job();
+                var key =
+                        switch (job.kind()) {
+                            case CONTRACT -> "postedContract";
+                            case TERRAFORM -> "postedTerraform";
+                            default -> "posted";
+                        };
                 deps.messages()
                         .sendMessage(
                                 player,
-                                PREFIX + (job.kind().area() ? "posted" : "postedContract"),
+                                PREFIX + key,
                                 Values.number("id", job.id()),
                                 Values.text("job_title", job.title()),
                                 Values.money("price", deps.services().economy(), job.price()),
@@ -400,14 +479,14 @@ public final class JobCommand {
                         .sendError(
                                 player,
                                 PREFIX + "error." + key(refused.refusal()),
-                                Values.number("max", maxOf(refused.refusal(), settings)));
+                                Values.number("max", maxOf(refused.refusal(), kind, settings)));
             }
         }
     }
 
-    private static Number maxOf(JobService.Refusal refusal, JobSettings settings) {
+    private static Number maxOf(JobService.Refusal refusal, JobKind kind, JobSettings settings) {
         return switch (refusal) {
-            case VOLUME -> settings.digMaxVolume();
+            case VOLUME -> settings.maxVolume(kind);
             case CHUNKS -> settings.maxChunks();
             case TOO_MANY -> settings.maxOpenPerOwner();
             case DUE -> settings.maxDueHours();
@@ -467,6 +546,19 @@ public final class JobCommand {
                 PREFIX + "info.money",
                 Values.money("price", economy, job.price()),
                 Values.money("fee", economy, job.fee()));
+        var target = job.target();
+        if (target != null) {
+            var surface = target.surface();
+            if (surface == null) {
+                messages.sendMessage(player, PREFIX + "info.target", Values.number("y", target.y()));
+            } else {
+                messages.sendMessage(
+                        player,
+                        PREFIX + "info.targetSurface",
+                        Values.number("y", target.y()),
+                        Values.text("block", surface.toLowerCase(Locale.ROOT)));
+            }
+        }
         if (job.state() == JobState.OPEN) {
             messages.sendMessage(player, PREFIX + "info.open", Values.text("time", left(job.expires())));
         }

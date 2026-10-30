@@ -12,10 +12,17 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobState;
+import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.hooks.Claim;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.JobLandHook;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -210,6 +217,66 @@ class JobAccessTest {
         assertTrue(sync.intruder(ada, world.getBlockAt(2, 62, 2)));
         assertTrue(sync.intruder(bea, world.getBlockAt(2, 62, 2)));
         assertFalse(sync.outside(ada, world.getBlockAt(7, 62, 2)));
+    }
+
+    @Test
+    void terraformWorkCountsWhatTheTargetAsksForAndEachFilledPositionOnce() {
+        var worker = server.addPlayer();
+        var id = jobs.create(Job.draft(
+                                UUID.randomUUID(),
+                                JobKind.TERRAFORM,
+                                "Flat",
+                                100,
+                                5,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 4, 64, 4),
+                                JobLand.PLOT,
+                                "1;1",
+                                24,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withTarget(new JobTarget(62, Material.GRASS_BLOCK.name())))
+                .orElseThrow();
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        world.getBlockAt(1, 63, 1).setType(Material.STONE);
+        world.getBlockAt(1, 62, 1).setType(Material.STONE);
+        world.getBlockAt(1, 61, 1).setType(Material.STONE);
+        world.getBlockAt(2, 62, 2).setType(Material.GRASS_BLOCK);
+
+        breakBlock(worker, world.getBlockAt(1, 63, 1));
+        breakBlock(worker, world.getBlockAt(1, 62, 1));
+        breakBlock(worker, world.getBlockAt(1, 61, 1));
+        breakBlock(worker, world.getBlockAt(2, 62, 2));
+        place(worker, world.getBlockAt(3, 60, 3));
+        breakBlock(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(3, 64, 3));
+        place(worker, world.getBlockAt(1, 61, 1));
+        place(worker, world.getBlockAt(4, 61, 4), Material.TORCH);
+        place(worker, world.getBlockAt(4, 62, 4));
+        place(worker, world.getBlockAt(1, 62, 1), Material.GRASS_BLOCK);
+        world.getBlockAt(0, 60, 0).setType(Material.POPPY);
+        breakBlock(worker, world.getBlockAt(0, 60, 0));
+        place(worker, world.getBlockAt(0, 60, 0));
+        sync.flush();
+
+        assertEquals(Map.of(worker.getUniqueId(), 5), jobs.workOf(id));
+    }
+
+    private void breakBlock(Player player, Block block) {
+        sync.onBreak(new BlockBreakEvent(block, player));
+    }
+
+    private void place(Player player, Block block) {
+        place(player, block, Material.DIRT);
+    }
+
+    private void place(Player player, Block block, Material type) {
+        block.setType(type);
+        sync.onPlaced(new BlockPlaceEvent(
+                block, block.getState(), block, new ItemStack(type), player, true, EquipmentSlot.HAND));
     }
 
     private int taken(int company) {

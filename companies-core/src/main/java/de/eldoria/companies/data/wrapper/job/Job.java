@@ -42,6 +42,7 @@ import java.util.UUID;
  * @param closedBy    who closed it, null while it runs
  * @param granted     whether the company's members have access to the area right now
  * @param review      how the end of the work is reviewed
+ * @param target      the shape a terraform job asks for, null for other kinds
  */
 public record Job(
         int id,
@@ -65,7 +66,8 @@ public record Job(
         @Nullable LocalDateTime closed,
         @Nullable String closedBy,
         boolean granted,
-        JobReview review) {
+        JobReview review,
+        @Nullable JobTarget target) {
     /**
      * The longest title.
      */
@@ -128,7 +130,8 @@ public record Job(
                 null,
                 null,
                 false,
-                JobReview.NONE);
+                JobReview.NONE,
+                null);
     }
 
     /**
@@ -158,7 +161,39 @@ public record Job(
                 closed,
                 closedBy,
                 granted,
-                review);
+                review,
+                target);
+    }
+
+    /**
+     * @param target the shape a terraform job asks for
+     * @return the job with that target
+     */
+    public Job withTarget(@Nullable JobTarget target) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target);
     }
 
     /**
