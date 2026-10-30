@@ -24,6 +24,7 @@ import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
+import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.nodes.DatabaseBus;
 import de.eldoria.companies.nodes.NetworkPresence;
@@ -673,6 +674,7 @@ public final class CommandDependencies {
      * @param serverEventData     the server events
      * @param activeEvents        the server events as this node sees them, read through a short cache
      * @param feeReductions       the fee reductions of the server events running now
+     * @param jobs                the jobs: posted by players, taken by companies, checked and paid
      */
     public record Services(
             Economy economy,
@@ -706,5 +708,6 @@ public final class CommandDependencies {
             ServerEventService serverEvents,
             AServerEventData serverEventData,
             ActiveEvents activeEvents,
-            FeeReductions feeReductions) {}
+            FeeReductions feeReductions,
+            JobServices jobs) {}
 }

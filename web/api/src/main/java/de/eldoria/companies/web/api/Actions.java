@@ -560,6 +560,81 @@ public final class Actions {
     public static final String ADMIN_EVENTS_BUDGET = "admin.events.budget";
 
     /**
+     * Lists the open jobs, the player's own jobs and those of their company.
+     */
+    public static final String JOBS_LIST = "jobs.list";
+
+    /**
+     * Reads a job the player may see: open, their own or their company's.
+     */
+    public static final String JOBS_INFO = "jobs.info";
+
+    /**
+     * Posts a contract, a job described in words; its price and fee are taken at once.
+     */
+    public static final String JOBS_CONTRACT = "jobs.contract";
+
+    /**
+     * Describes the player's job while it waits for a company.
+     */
+    public static final String JOBS_DESCRIBE = "jobs.describe";
+
+    /**
+     * Approves the player's job and pays the company.
+     */
+    public static final String JOBS_APPROVE = "jobs.approve";
+
+    /**
+     * Sends a contract the company says is done back to work.
+     */
+    public static final String JOBS_REJECT = "jobs.reject";
+
+    /**
+     * Opens a dispute about a job as its owner or for the player's company.
+     */
+    public static final String JOBS_DISPUTE = "jobs.dispute";
+
+    /**
+     * Withdraws a dispute the player or their company opened.
+     */
+    public static final String JOBS_WITHDRAW = "jobs.withdraw";
+
+    /**
+     * Cancels the player's job while nobody works on it.
+     */
+    public static final String JOBS_CANCEL = "jobs.cancel";
+
+    /**
+     * Ends a harvest job, as its owner or for the player's company.
+     */
+    public static final String JOBS_END = "jobs.end";
+
+    /**
+     * Takes an open job for the player's company.
+     */
+    public static final String JOBS_TAKE = "jobs.take";
+
+    /**
+     * Gives a job of the player's company back.
+     */
+    public static final String JOBS_GIVE_BACK = "jobs.giveback";
+
+    /**
+     * Tells the owner the company's contract is done.
+     */
+    public static final String JOBS_DONE = "jobs.done";
+
+    /**
+     * Lists the disputed jobs with both sides and the reason.
+     */
+    public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
+
+    /**
+     * Settles a dispute with a share of the price for the company.
+     */
+    public static final String ADMIN_JOBS_SETTLE = "admin.jobs.settle";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -670,7 +745,22 @@ public final class Actions {
             ADMIN_EVENTS_END,
             ADMIN_EVENTS_CANCEL,
             ADMIN_EVENTS_EXTEND,
-            ADMIN_EVENTS_BUDGET);
+            ADMIN_EVENTS_BUDGET,
+            JOBS_LIST,
+            JOBS_INFO,
+            JOBS_CONTRACT,
+            JOBS_DESCRIBE,
+            JOBS_APPROVE,
+            JOBS_REJECT,
+            JOBS_DISPUTE,
+            JOBS_WITHDRAW,
+            JOBS_CANCEL,
+            JOBS_END,
+            JOBS_TAKE,
+            JOBS_GIVE_BACK,
+            JOBS_DONE,
+            ADMIN_JOBS_DISPUTES,
+            ADMIN_JOBS_SETTLE);
 
     private Actions() {}
 

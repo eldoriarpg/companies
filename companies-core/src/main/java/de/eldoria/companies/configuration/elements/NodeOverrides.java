@@ -34,7 +34,8 @@ public final class NodeOverrides {
     private static final String BOARDS_ENABLED = "boardsEnabled";
     private static final String HOOKS = "hooks";
     private static final String BRANDING = "branding";
-    private static final Set<String> HOOK_KEYS = Set.of("placeholderapi", "citizens", "fancynpcs");
+    private static final Set<String> HOOK_KEYS =
+            Set.of("placeholderapi", "citizens", "fancynpcs", "worldguard", "plotsquared", "worldedit");
     private static final Set<String> BRANDING_KEYS = Set.of("name", "icon");
 
     private final Map<String, Object> values;
@@ -136,7 +137,10 @@ public final class NodeOverrides {
         return new Hooks(
                 flag("hooks.placeholderapi", shared.placeholderapi()),
                 flag("hooks.citizens", shared.citizens()),
-                flag("hooks.fancynpcs", shared.fancynpcs()));
+                flag("hooks.fancynpcs", shared.fancynpcs()),
+                flag("hooks.worldguard", shared.worldguard()),
+                flag("hooks.plotsquared", shared.plotsquared()),
+                flag("hooks.worldedit", shared.worldedit()));
     }
 
     /**

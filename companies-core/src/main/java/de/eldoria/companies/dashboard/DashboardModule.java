@@ -16,6 +16,7 @@ import de.eldoria.companies.configuration.RulesEditor;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.actions.AdminEventWrites;
+import de.eldoria.companies.dashboard.actions.AdminJobWrites;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOfferWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
@@ -27,6 +28,7 @@ import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.EventWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
+import de.eldoria.companies.dashboard.actions.JobWrites;
 import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.feed.FeedListener;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
@@ -57,6 +59,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -99,6 +102,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -395,6 +399,21 @@ public final class DashboardModule {
                         views::instant,
                         Times::now,
                         data.admin().log(),
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new JobWrites(new JobWrites.Sources(
+                        data.jobs(),
+                        data.companyOf(),
+                        configuration::jobSettings,
+                        views::instant,
+                        Times::now,
+                        failure -> PlainText.of(failure.render(null, messages)))),
+                new AdminJobWrites(new AdminJobWrites.Sources(
+                        data.jobs(),
+                        names,
+                        companyId ->
+                                data.api().companies().byId(companyId).join().map(found -> found.name()),
+                        views::instant,
+                        data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))));
         var presence = new PresenceReporter(link::send, sessions, node, Threading.VIRTUAL, logger);
         presence.online(plugin.getServer().getOnlinePlayers().stream()
@@ -512,6 +531,7 @@ public final class DashboardModule {
      * @param items         the services moving items with the player's inventory
      * @param admin         the admin tools
      * @param offers        the services of the event offers
+     * @param jobs          the jobs of this server, null while they are not running
      */
     public record Data(
             ADashboardData dashboard,
@@ -532,7 +552,8 @@ public final class DashboardModule {
             OrderServices orders,
             ItemServices items,
             AdminServices admin,
-            OfferServices offers) {}
+            OfferServices offers,
+            Supplier<@Nullable JobServices> jobs) {}
 
     /**
      * The services behind the Events page and the admin tools for event offers and server events.

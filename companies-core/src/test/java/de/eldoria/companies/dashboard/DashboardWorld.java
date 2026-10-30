@@ -28,9 +28,11 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
+import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.dashboard.actions.AdminEventWrites;
+import de.eldoria.companies.dashboard.actions.AdminJobWrites;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOfferWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
@@ -42,6 +44,7 @@ import de.eldoria.companies.dashboard.actions.CompanyWrites;
 import de.eldoria.companies.dashboard.actions.DashboardWrites;
 import de.eldoria.companies.dashboard.actions.EventWrites;
 import de.eldoria.companies.dashboard.actions.ItemWrites;
+import de.eldoria.companies.dashboard.actions.JobWrites;
 import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.views.DashboardReads;
@@ -53,6 +56,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
@@ -65,6 +69,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
@@ -72,6 +77,13 @@ import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.series.OrderSeries;
 import de.eldoria.companies.events.EventRecorder;
+import de.eldoria.companies.jobs.Blueprints;
+import de.eldoria.companies.jobs.BuildGhosts;
+import de.eldoria.companies.jobs.JobAccess;
+import de.eldoria.companies.jobs.JobProgress;
+import de.eldoria.companies.jobs.JobService;
+import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryResult;
 import de.eldoria.companies.orders.HistoryRecorder;
@@ -197,6 +209,9 @@ public final class DashboardWorld implements AutoCloseable {
     public final MarketHistory market;
     public final EventRecorder events = new EventRecorder();
     public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
+    public final JobSettings jobSettings = new JobSettings();
+    public SqLiteJobData jobs;
+    public JobServices jobServices;
     public final List<Integer> changedOrders = new CopyOnWriteArrayList<>();
     public final List<UUID> changedInboxes = new CopyOnWriteArrayList<>();
     public final CompanySettings companySettings = new CompanySettings();
@@ -699,7 +714,121 @@ public final class DashboardWorld implements AutoCloseable {
                         views::instant,
                         Times::now,
                         adminLog,
+                        failure -> "text of " + failure.localeKey())),
+                new JobWrites(new JobWrites.Sources(
+                        () -> jobServices,
+                        player -> companies
+                                .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
+                                .asFuture(),
+                        () -> jobSettings,
+                        views::instant,
+                        Times::now,
+                        failure -> "text of " + failure.localeKey())),
+                new AdminJobWrites(new AdminJobWrites.Sources(
+                        () -> jobServices,
+                        this::name,
+                        id -> profile(id).map(CompanyProfile::name),
+                        views::instant,
+                        adminLog,
                         failure -> "text of " + failure.localeKey())));
+        jobServices = jobServices();
+    }
+
+    private Optional<CompanyProfile> profile(int id) {
+        var simple = companies.retrieveCompanyById(id).asFuture().join();
+        if (simple == null || simple.isEmpty()) return Optional.empty();
+        var profile = companies.retrieveCompanyProfile(simple.get()).asFuture().join();
+        return profile == null ? Optional.empty() : profile;
+    }
+
+    private JobServices jobServices() {
+        jobs = new SqLiteJobData();
+        var logger = Logger.getAnonymousLogger();
+        var service = new JobService(
+                jobs,
+                orders,
+                new JobService.Money() {
+                    @Override
+                    public boolean withdraw(UUID player, double amount) {
+                        if (wallets.getOrDefault(player, 0.0) < amount) return false;
+                        wallets.merge(player, -amount, Double::sum);
+                        return true;
+                    }
+
+                    @Override
+                    public void deposit(UUID player, double amount) {
+                        wallets.merge(player, amount, Double::sum);
+                    }
+
+                    @Override
+                    public void collect(double amount) {}
+
+                    @Override
+                    public double taxPercent(CompanyProfile company) {
+                        return 0;
+                    }
+
+                    @Override
+                    public int share(CompanyProfile company) {
+                        return 0;
+                    }
+
+                    @Override
+                    public void keep(CompanyProfile company, int job, long cents) {}
+                },
+                new JobService.Notices() {
+                    @Override
+                    public void owner(UUID owner, JobService.Notice notice, Job job, @Nullable Object detail) {}
+
+                    @Override
+                    public void paid(CompanyProfile company, Job job, double paid) {}
+
+                    @Override
+                    public void overdue(int company, Job job) {}
+
+                    @Override
+                    public void landLost(int company, Job job) {}
+
+                    @Override
+                    public void rejected(int company, Job job, String reason) {}
+
+                    @Override
+                    public void disputed(int company, Job job, String reason) {}
+
+                    @Override
+                    public void settled(int company, Job job, double paid) {}
+
+                    @Override
+                    public void withdrawn(int company, Job job) {}
+                },
+                (company, overdue) -> {},
+                this::profile,
+                () -> jobSettings,
+                price -> 0,
+                company -> 5,
+                Clock.systemUTC(),
+                logger);
+        var hooks = new JobHooks(name -> false, className -> new Object(), logger);
+        var blueprints = new Blueprints(jobs, logger);
+        var node = new UUID(0, 1);
+        return new JobServices(
+                jobs,
+                service,
+                hooks,
+                new JobAccess(
+                        jobs,
+                        company -> Set.of(),
+                        hooks,
+                        node,
+                        Runnable::run,
+                        job -> {},
+                        (job, company, worker, items) -> {},
+                        blueprints,
+                        logger),
+                new JobProgress(plugin, node, blueprints, () -> 95),
+                node,
+                blueprints,
+                new BuildGhosts(plugin));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

@@ -876,9 +876,9 @@ public abstract class AOrderData {
     protected abstract Integer getPlayerOrderCount(OfflinePlayer player);
 
     /**
-     * The order slots a company uses, which its level limits: the orders it works on and the contests of event offers
-     * it takes part in that run or are paused. A contest the company joined before its start uses no slot until it
-     * starts.
+     * The order slots a company uses, which its level limits: the orders and jobs it works on and the contests of event
+     * offers it takes part in that run or are paused. A contest the company joined before its start uses no slot until
+     * it starts.
      *
      * @param company the company
      * @return the slots in use

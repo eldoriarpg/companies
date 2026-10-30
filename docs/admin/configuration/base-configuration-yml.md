@@ -1,6 +1,6 @@
 ---
 title: base_configuration.yml
-sidebar_position: 10
+sidebar_position: 11
 ---
 
 # base_configuration.yml

@@ -289,6 +289,21 @@ on until you save or discard it.
 Only the primary server starts and ends events, at their times; ending, cancelling and changing works on every
 server. Every change is written to the [admin log](#the-admin-log).
 
+## Job disputes
+
+You need `companies.admin.jobs`. The owner of a [job](../players/jobs.md#disputes) or the company working on it may
+open a dispute. The job is frozen until you settle it: the company's access ends, its time stops and nobody may build
+in its area. The side that opened it may withdraw it, and the owner may still approve the job, so a dispute may vanish
+from the list before you get to it.
+
+| Command | What it does |
+|---|---|
+| `/companyadmin job disputes` | Lists the disputed jobs, the oldest first: price, owner, company, who opened the dispute and why, the company's due time and whether it had passed, the description, and for an area job its place, the blocks counted as work and, on the server of the area, how far it is cleared |
+| `/companyadmin job settle <id> <percent>` | Settles a dispute: the company gets `percent` of the price, split among its members by their work and taxed like a finished job; the owner gets the rest back. The fee is kept. When the company is gone, only `0` is accepted |
+
+Settling is written to the server log. Players with `companies.admin.jobs.bypass` are not held by the access rules of
+job areas, which helps when you look at a disputed area.
+
 ## Players
 
 | Command | Permission | What it does |

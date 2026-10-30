@@ -8,7 +8,7 @@ import {Feature} from '~/api/generated/protocol'
 
 /** A section of the dashboard. */
 export interface Section {
-    id: 'portfolio' | 'orders' | 'market' | 'company' | 'inbox' | 'events' | 'rankings' | 'admin'
+    id: 'portfolio' | 'orders' | 'market' | 'company' | 'inbox' | 'events' | 'jobs' | 'rankings' | 'admin'
     path: string
     icon: IconName
     /** The feature the server has to list for the section to show; none for the sections the snapshot carries. */
@@ -27,6 +27,7 @@ export const SECTIONS: readonly Section[] = [
     {id: 'company', path: '/app/company', icon: 'company', tab: true},
     {id: 'inbox', path: '/app/inbox', icon: 'inbox', feature: Feature.inbox, tab: true},
     {id: 'events', path: '/app/events', icon: 'events', feature: Feature.events, tab: false},
+    {id: 'jobs', path: '/app/jobs', icon: 'jobs', feature: Feature.jobs, tab: false},
     {id: 'rankings', path: '/app/rankings', icon: 'rankings', feature: Feature.rankings, tab: false},
     {id: 'admin', path: '/app/admin', icon: 'admin', adminOnly: true, tab: false},
 ]

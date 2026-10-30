@@ -60,6 +60,15 @@ pluginManifest {
         modrinth("fancynpcs")
         hangar("Oliver/FancyNpcs")
     }
+    optional("WorldGuard") {
+        link("https://enginehub.org/worldguard")
+    }
+    optional("WorldEdit") {
+        modrinth("worldedit")
+    }
+    optional("PlotSquared") {
+        link("https://www.spigotmc.org/resources/77506/")
+    }
 }
 
 tasks {
@@ -101,7 +110,16 @@ bukkit {
     version = project.version.toString()
     authors = listOf("RainbowDashLabs")
     depend = listOf("Vault")
-    softDepend = listOf("PlaceholderAPI", "ProtocolLib", "Citizens", "FancyNpcs")
+    softDepend = listOf(
+        "PlaceholderAPI",
+        "ProtocolLib",
+        "Citizens",
+        "FancyNpcs",
+        "WorldEdit",
+        "FastAsyncWorldEdit",
+        "WorldGuard",
+        "PlotSquared"
+    )
 
     permissions {
         register("companies.*") {
@@ -122,7 +140,7 @@ bukkit {
 
         register("companies.orders.*") {
             description = "Gives full access to orders. Does not raise the order limit, use companies.orders.limit.<n> for that"
-            children = listOf("companies.orders.create", "companies.orders.repeat", "companies.orders.solo")
+            children = listOf("companies.orders.create", "companies.orders.repeat", "companies.orders.solo", "companies.orders.jobs")
         }
         register("companies.orders.create") {
             description = "Allows creation of orders, up to maxOrders in user.yml or the highest companies.orders.limit.<n>"
@@ -136,6 +154,11 @@ bukkit {
 
         register("companies.orders.solo") {
             description = "Allows working on orders alone, without a company, while solo orders are enabled in order.yml"
+            default = Default.TRUE
+        }
+
+        register("companies.orders.jobs") {
+            description = "Allows posting jobs: work in an area of the player's land that a company takes like an order"
             default = Default.TRUE
         }
 
@@ -173,6 +196,8 @@ bukkit {
                 "companies.admin.delete",
                 "companies.admin.events",
                 "companies.admin.grant",
+                "companies.admin.jobs",
+                "companies.admin.jobs.bypass",
                 "companies.admin.level",
                 "companies.admin.nodes",
                 "companies.admin.offers",
@@ -208,6 +233,12 @@ bukkit {
         }
         register("companies.admin.grant") {
             description = "Allows granting items and money to players"
+        }
+        register("companies.admin.jobs") {
+            description = "Allows listing and settling disputes about jobs"
+        }
+        register("companies.admin.jobs.bypass") {
+            description = "Lets a player build in job areas of other companies and act outside a job area reached only through a job"
         }
         register("companies.admin.level") {
             description = "Allows managing of company level settings"

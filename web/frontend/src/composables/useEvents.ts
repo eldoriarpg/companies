@@ -13,47 +13,8 @@ import {gatewayApi, type EventDetails, type EventList, type GatewayApi} from '~/
  * @returns the list, the details and their loading
  */
 export function useEvents(api: GatewayApi = gatewayApi()) {
-    const list = shallowRef<EventList | null>(null)
-    const status = ref<'loading' | 'ready' | 'failed'>('loading')
-    const detail = shallowRef<EventDetails | null>(null)
-    const detailStatus = ref<'idle' | 'loading' | 'ready' | 'failed'>('idle')
-    const latest = useLatest()
-
-    /** Loads the offers. */
-    async function load(): Promise<void> {
-        status.value = 'loading'
-        try {
-            list.value = await api.read('events.list', {})
-            status.value = 'ready'
-        } catch {
-            status.value = 'failed'
-        }
-    }
-
-    /**
-     * Loads one offer; an answer overtaken by another choice is dropped.
-     *
-     * @param id the offer's id, none to close it
-     */
-    async function open(id: number | null): Promise<void> {
-        const ticket = latest.next()
-        if (id === null) {
-            detail.value = null
-            detailStatus.value = 'idle'
-            return
-        }
-        detailStatus.value = 'loading'
-        try {
-            const found = await api.read('events.info', {offer: id})
-            if (!latest.is(ticket)) return
-            detail.value = found
-            detailStatus.value = 'ready'
-        } catch {
-            if (!latest.is(ticket)) return
-            detail.value = null
-            detailStatus.value = 'failed'
-        }
-    }
+    const {list, status, load} = useLoaded<EventList>(() => api.read('events.list', {}))
+    const {detail, detailStatus, open} = useOpened<EventDetails>(id => api.read('events.info', {offer: id}))
 
     /**
      * Shows an offer as an action answered it, in the details and in the list.

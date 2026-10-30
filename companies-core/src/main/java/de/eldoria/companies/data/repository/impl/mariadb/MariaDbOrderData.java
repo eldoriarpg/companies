@@ -16,6 +16,7 @@ import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
@@ -1458,13 +1459,21 @@ public class MariaDbOrderData extends AOrderData {
                                        JOIN event_offers o ON o.id = e.offer_id
                               WHERE e.company_id = ?
                                 AND e.left_at IS NULL
-                                AND o.state IN (?, ?)) AS count""";
+                                AND o.state IN (?, ?))
+                           + (SELECT COUNT(1)
+                              FROM jobs
+                              WHERE company_id = ?
+                                AND (state IN (?, ?) OR (state = ? AND dispute_by <> owner_uuid))) AS count""";
         return query(query)
                 .single(call().bind(company.id())
                         .bind(OrderState.CLAIMED.stateId())
                         .bind(company.id())
                         .bind(OfferState.ACTIVE.name())
-                        .bind(OfferState.PAUSED.name()))
+                        .bind(OfferState.PAUSED.name())
+                        .bind(company.id())
+                        .bind(JobState.TAKEN.name())
+                        .bind(JobState.DONE.name())
+                        .bind(JobState.DISPUTED.name()))
                 .map(rs -> rs.getInt("count"))
                 .first()
                 .orElse(0);

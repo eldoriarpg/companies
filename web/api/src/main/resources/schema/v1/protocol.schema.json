@@ -1210,7 +1210,9 @@
     "orders.servermarks" : { },
     "events" : { },
     "admin.offers" : { },
-    "admin.events" : { }
+    "admin.events" : { },
+    "jobs" : { },
+    "admin.jobs" : { }
   },
   "x-actions" : {
     "orders.browse.search" : {
@@ -1536,6 +1538,51 @@
     },
     "admin.events.budget" : {
       "feature" : "admin.events"
+    },
+    "jobs.list" : {
+      "feature" : "jobs"
+    },
+    "jobs.info" : {
+      "feature" : "jobs"
+    },
+    "jobs.contract" : {
+      "feature" : "jobs"
+    },
+    "jobs.describe" : {
+      "feature" : "jobs"
+    },
+    "jobs.approve" : {
+      "feature" : "jobs"
+    },
+    "jobs.reject" : {
+      "feature" : "jobs"
+    },
+    "jobs.dispute" : {
+      "feature" : "jobs"
+    },
+    "jobs.withdraw" : {
+      "feature" : "jobs"
+    },
+    "jobs.cancel" : {
+      "feature" : "jobs"
+    },
+    "jobs.end" : {
+      "feature" : "jobs"
+    },
+    "jobs.take" : {
+      "feature" : "jobs"
+    },
+    "jobs.giveback" : {
+      "feature" : "jobs"
+    },
+    "jobs.done" : {
+      "feature" : "jobs"
+    },
+    "admin.jobs.disputes" : {
+      "feature" : "admin.jobs"
+    },
+    "admin.jobs.settle" : {
+      "feature" : "admin.jobs"
     }
   }
 }

@@ -96,6 +96,7 @@ connects on its own.
 | `user.yml` | Yes, stored as revisions |
 | `system-orders.yml` | Yes, stored as revisions |
 | `events.yml` | Yes, stored as revisions |
+| `jobs.yml` | Yes, stored as revisions |
 | `database.yml` | No, each server has its own |
 | `node.yml` | No, each server has its own |
 | `boards.yml` | No, each server has its own NPC bindings |
@@ -185,6 +186,7 @@ Some work runs on a timer. To do it once for the whole network, only the primary
 | Post due copies of repeating orders | Every `repeating.checkMinutes` minutes (default `5`) |
 | Place due [system orders](./configuration/system-orders-yml.md) and remove the ones past their lifetime | Every `checkMinutes` minutes of `system-orders.yml` (default `5`) |
 | Start and end [server events](./configuration/events-yml.md) and create the events of their templates | At their start and end, at the latest every minute |
+| Expire [jobs](./configuration/jobs-yml.md) nobody took and open jobs whose time ran out again | Every minute |
 | Send order alert digests | Every 5 minutes |
 | Expire old invites and applications | Every 5 minutes |
 | Update market prices | Every 60 minutes |

@@ -1,6 +1,6 @@
 ---
 title: database.yml
-sidebar_position: 7
+sidebar_position: 8
 ---
 
 # database.yml
