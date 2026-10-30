@@ -272,6 +272,15 @@ public final class SystemOrderService {
     }
 
     /**
+     * @param material a material name as an admin writes it, such as {@code minecraft:diamond_block}
+     * @return the name of the item as order lines store it, such as {@code DIAMOND_BLOCK}; null when it names no item
+     */
+    public static @Nullable String canonicalMaterial(String material) {
+        var found = Material.matchMaterial(material);
+        return found != null && found.isItem() && !found.isAir() ? found.name() : null;
+    }
+
+    /**
      * Placing for a running plugin: materials are Bukkit materials, prices are the market averages, orders are placed
      * through {@link SystemOrders} and removed as purged.
      *
@@ -300,8 +309,7 @@ public final class SystemOrderService {
 
             @Override
             public @Nullable String canonical(String material) {
-                var item = item(material);
-                return item == null ? null : item.name();
+                return canonicalMaterial(material);
             }
 
             @Override

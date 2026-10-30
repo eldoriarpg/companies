@@ -11,6 +11,9 @@ import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.data.wrapper.event.EventState;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.services.ActionResult;
@@ -26,9 +29,13 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,16 +60,18 @@ class OwnerOrderServiceTest {
     private final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
     private final AtomicReference<Double> collected = new AtomicReference<>(0.0);
     private final List<UUID> changed = new CopyOnWriteArrayList<>();
+    private volatile OrderFee fee = new OrderFee(FEE, 10, 0, 0);
     private final OrderSettings settings = new OrderSettings() {
         @Override
         public OrderFee fee() {
-            return new OrderFee(FEE, 10, 0, 0);
+            return fee;
         }
     };
 
     private ExecutorService executor;
     private OrderTable orders;
     private OwnerOrderService service;
+    private OrderOutcomes outcomes;
     private UUID owner;
 
     @BeforeEach
@@ -74,7 +83,7 @@ class OwnerOrderServiceTest {
         orders = OrderTable.create();
         owner = orders.owner().getUniqueId();
         var history = new SqLiteHistoryData(SqLiteTestDatabase.mapper(), executor);
-        var outcomes = new OrderOutcomes(
+        outcomes = new OrderOutcomes(
                 orders.orderData(),
                 new HistoryRecorder(history, Clock.systemDefaultZone()),
                 new ItemReturnService(plugin, orders.orderData()),
@@ -82,7 +91,11 @@ class OwnerOrderServiceTest {
                 ISimpleCompany::forId,
                 Logger.getAnonymousLogger(),
                 executor);
-        service = new OwnerOrderService(
+        service = service(FeeReductions.NONE);
+    }
+
+    private OwnerOrderService service(FeeReductions reductions) {
+        return new OwnerOrderService(
                 orders.orderData(),
                 outcomes,
                 id -> CompletableFuture.completedFuture(Optional.empty()),
@@ -94,7 +107,8 @@ class OwnerOrderServiceTest {
                 SqLiteTestDatabase::player,
                 Runnable::run,
                 executor,
-                Logger.getAnonymousLogger());
+                Logger.getAnonymousLogger(),
+                reductions);
     }
 
     @AfterEach
@@ -215,6 +229,53 @@ class OwnerOrderServiceTest {
     }
 
     @Test
+    void aRaiseChargesTheReducedFeeWhichACancelCollectsAsPaid() {
+        var reduced = service(reductions(feeReduction(50, "STONE")));
+        var order = orders.place(FEE);
+        wallets.put(owner, 200.0);
+
+        var raised = done(reduced.raise(owner, order.id(), 100).join());
+
+        assertEquals(5.0, raised.fee());
+        assertEquals(95.0, wallet());
+        assertEquals(FEE + 5, orders.full(order).fee());
+
+        done(reduced.cancel(owner, order.id()).join());
+        assertEquals(95.0 + PRICE + 100, wallet());
+        assertEquals(FEE + 5, collected.get());
+    }
+
+    @Test
+    void aRaiseOfAnOrderBelowTheMinimumFeeTopsItsFeeUpLessTheReductions() {
+        fee = new OrderFee(FEE, 10, 8, 0);
+        var plain = orders.place(FEE);
+        var discounted = orders.place(FEE);
+        wallets.put(owner, 200.0);
+
+        var full = done(service.raise(owner, plain.id(), 10).join());
+        var reduced = done(service(reductions(feeReduction(50, "STONE")))
+                .raise(owner, discounted.id(), 10)
+                .join());
+
+        assertEquals(3.0, full.fee());
+        assertEquals(1.5, reduced.fee());
+        assertEquals(8.0, orders.full(plain).fee());
+        assertEquals(6.5, orders.full(discounted).fee());
+    }
+
+    @Test
+    void aReductionOfAnotherMaterialLeavesTheRaiseFee() {
+        var order = orders.place(FEE);
+        wallets.put(owner, 200.0);
+
+        var raised = done(service(reductions(feeReduction(50, "OAK_LOG")))
+                .raise(owner, order.id(), 100)
+                .join());
+
+        assertEquals(10.0, raised.fee());
+    }
+
+    @Test
     void aRaiseTheOwnerCanNotAffordChangesNothing() {
         var order = orders.place(FEE);
         wallets.put(owner, 50.0);
@@ -268,5 +329,34 @@ class OwnerOrderServiceTest {
         public String currencyName() {
             return "coins";
         }
+    }
+
+    private static FeeReductions reductions(ServerEvent... events) {
+        return materials -> Arrays.stream(events)
+                .filter(event -> event.matches(materials, OptionalInt.empty()))
+                .toList();
+    }
+
+    private static ServerEvent feeReduction(double percent, String... materials) {
+        var now = LocalDateTime.now(ZoneOffset.UTC);
+        return new ServerEvent(
+                1,
+                "Cheap week",
+                EventKind.FEE_REDUCTION,
+                percent,
+                List.of(materials),
+                List.of(),
+                now.minusHours(1),
+                now.plusHours(1),
+                null,
+                null,
+                null,
+                0,
+                EventState.ACTIVE,
+                null,
+                "Nora",
+                now,
+                null,
+                null);
     }
 }

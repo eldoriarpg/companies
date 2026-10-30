@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.ObjDoubleConsumer;
 import java.util.function.ToDoubleFunction;
 
 /**
@@ -96,9 +97,10 @@ public final class EventEffects {
      * the factor reached so far, starting at 1. An event raises the factor of every line its material scope covers to
      * {@code factor × value}, at most the cap, and its part is {@code gross × (raised − factor)} summed over those
      * lines, so an event that starts once the cap is reached pays nothing for that line. When the event can pay less
-     * than its part, it pays what it can and never more, also after rounding, spread over its lines in proportion to their parts, and each of those lines
-     * continues from the factor the event really paid, {@code factor + paid / gross}; the events that started later
-     * multiply on that factor, so they never pay the compounding of money that was not paid.
+     * than its part, it pays what it can and never more, also after rounding, spread over its lines in proportion to
+     * their parts, and each of those lines continues from the factor the event really paid,
+     * {@code factor + paid / gross}; the events that started later multiply on that factor, so they never pay the
+     * compounding of money that was not paid.
      *
      * @param lines  the gross payout per line of the order
      * @param events the events that apply to the order
@@ -109,6 +111,28 @@ public final class EventEffects {
      */
     public static Extra extra(
             List<Line> lines, Collection<ServerEvent> events, double max, ToDoubleFunction<ServerEvent> limit) {
+        return extra(lines, events, max, limit, (event, paid) -> {});
+    }
+
+    /**
+     * What the multipliers pay on top of a gross payout within what each event can still pay, telling after each event
+     * what it pays, so limits that several events share, such as the balance of one account, shrink before the next
+     * event asks for its limit.
+     *
+     * @param lines  the gross payout per line of the order
+     * @param events the events that apply to the order
+     * @param max    the cap, {@code events.maxMultiplier}
+     * @param limit  what an event can still pay at most; {@link Double#POSITIVE_INFINITY} for no limit
+     * @param paid   hears what each event pays, in the order the events started
+     * @return the extra in all, per event, and the events that could not pay their whole part
+     * @see #extra(List, Collection, double, ToDoubleFunction)
+     */
+    public static Extra extra(
+            List<Line> lines,
+            Collection<ServerEvent> events,
+            double max,
+            ToDoubleFunction<ServerEvent> limit,
+            ObjDoubleConsumer<ServerEvent> paid) {
         var cap = Math.max(1, max);
         var multipliers = events.stream()
                 .filter(event -> event.kind() == EventKind.REWARD_MULTIPLIER)
@@ -135,17 +159,18 @@ public final class EventEffects {
             var available = limited > 0 ? limited : 0;
             var share = available >= wanted ? 1.0 : available / wanted;
             if (share < 1.0) exhausted.add(event.id());
-            var paid = 0.0;
+            var pays = 0.0;
             for (var index = 0; index < paying.size(); index++) {
                 if (parts[index] <= 0) continue;
                 var part = parts[index] * share;
-                if (share < 1.0) part = Math.min(part, Math.max(0, available - paid));
+                if (share < 1.0) part = Math.min(part, Math.max(0, available - pays));
                 factors[index] += part / paying.get(index).gross();
-                paid += part;
+                pays += part;
             }
-            if (share < 1.0) paid = Math.min(paid, available);
-            if (paid > 0) byEvent.put(event.id(), paid);
-            total += paid;
+            if (share < 1.0) pays = Math.min(pays, available);
+            paid.accept(event, pays);
+            if (pays > 0) byEvent.put(event.id(), pays);
+            total += pays;
         }
         return new Extra(total, byEvent, exhausted);
     }

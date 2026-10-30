@@ -43,6 +43,17 @@ public final class EconomyAccounts {
     }
 
     /**
+     * @param account the account
+     * @return what it holds
+     */
+    @SuppressWarnings("deprecation")
+    public double balance(String account) {
+        return playerId(account)
+                .map(id -> economy.getBalance(server.getOfflinePlayer(id)))
+                .orElseGet(() -> economy.getBalance(account));
+    }
+
+    /**
      * Withdraws an amount when the account holds it.
      *
      * @param account the account

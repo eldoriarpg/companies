@@ -5,12 +5,14 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.data.wrapper.event.EventPayout;
 import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -84,6 +86,21 @@ public abstract class AServerEventData {
      * @return true when it had {@code from}, still waits or runs, and ends at {@code to} now
      */
     public abstract boolean ends(int event, LocalDateTime from, LocalDateTime to);
+
+    /**
+     * Writes the payout records of a completed order whose workers server events paid extra, and adds what each event
+     * paid to its spent money, in one transaction. An event's money is only added while it is
+     * {@link EventState#ACTIVE active} and, when it has a budget, while the budget still covers it; the update locks
+     * the event's row until the transaction ends, so two nodes completing orders at once never spend more than the
+     * budget: the one that comes second sees its update refused, nothing of its transaction is written, and it reads
+     * the events again. The events are updated in the order of their ids, so two transactions never wait for each
+     * other's rows.
+     *
+     * @param spend   what each event pays for the order, by event id
+     * @param payouts the payout record of every worker of the order, with what each event paid for it
+     * @return true when every event could pay and everything is written; false when nothing is written
+     */
+    public abstract boolean pay(Map<Integer, Double> spend, List<EventPayout> payouts);
 
     /**
      * Sets the budget of a multiplier that has not closed. A budget is never set below what the event spent already,

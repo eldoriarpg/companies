@@ -8,8 +8,15 @@ package de.eldoria.companies.data.repository;
 import de.chojo.sadu.queries.api.configuration.QueryConfiguration;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.data.wrapper.event.EventPayout;
 import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
+import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
+import de.eldoria.companies.orders.OrderCompletionService;
+import de.eldoria.companies.services.events.ActiveEvents;
+import de.eldoria.companies.services.events.EventEffects;
+import de.eldoria.companies.services.events.EventPayouts;
+import de.eldoria.companies.services.events.ServerEventService;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,12 +24,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
+import java.util.logging.Logger;
 
 import javax.sql.DataSource;
 
@@ -40,6 +58,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class ServerEventDataContract {
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 30, 12, 0);
+    private static final double DELTA = 0.0001;
 
     private DataSource dataSource;
     private AServerEventData events;
@@ -69,6 +88,8 @@ public abstract class ServerEventDataContract {
     @BeforeEach
     void setUp() {
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
+        query("DELETE FROM payout_events").single().delete();
+        query("DELETE FROM order_payouts").single().delete();
         query("DELETE FROM server_events").single().delete();
         events = events();
     }
@@ -270,6 +291,193 @@ public abstract class ServerEventDataContract {
 
         events.state(minted, EventState.SCHEDULED, EventState.CANCELLED, "Nora", NOW);
         assertFalse(events.budget(minted, 90.0));
+    }
+
+    @Test
+    void aPayoutIsWrittenTogetherWithTheMoneyItsEventsSpent() {
+        var id = activeMultiplier(100.0);
+
+        assertTrue(events.pay(Map.of(id, 40.0), List.of(payout(UUID.randomUUID(), 40.0, Map.of(id, 40.0)))));
+
+        assertEquals(40.0, events.event(id).orElseThrow().spent(), DELTA);
+        assertEquals(1, count("order_payouts", "event_extra > 39.99"));
+        assertEquals(1, count("payout_events", "amount > 39.99"));
+    }
+
+    @Test
+    void aPayoutBeyondTheBudgetOrOfAnEventThatIsNotActiveWritesNothing() {
+        var id = activeMultiplier(100.0);
+        var other = activeMultiplier(100.0);
+        assertTrue(events.pay(Map.of(id, 80.0), List.of()));
+
+        assertFalse(events.pay(
+                orderedMap(other, 10.0, id, 30.0),
+                List.of(payout(UUID.randomUUID(), 40.0, orderedMap(other, 10.0, id, 30.0)))));
+        assertEquals(80.0, events.event(id).orElseThrow().spent(), DELTA);
+        assertEquals(0.0, events.event(other).orElseThrow().spent(), DELTA);
+        assertEquals(0, count("order_payouts", "1 = 1"));
+        assertEquals(0, count("payout_events", "1 = 1"));
+
+        assertTrue(events.pay(Map.of(id, 20.0), List.of()));
+        events.state(other, EventState.ACTIVE, EventState.ENDED, null, NOW);
+        assertFalse(events.pay(Map.of(other, 1.0), List.of()));
+        assertEquals(100.0, events.event(id).orElseThrow().spent(), DELTA);
+    }
+
+    @Test
+    void twoNodesPayingTheLastOfABudgetAtOnceNeverSpendMoreThanIt() throws Exception {
+        var id = activeMultiplier(100.0);
+        var barrier = new CyclicBarrier(2);
+        var logger = Logger.getAnonymousLogger();
+        logger.setUseParentHandlers(false);
+        var clock = Clock.fixed(NOW.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        var event = events.event(id).orElseThrow();
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var nodes = List.of(node(barrier, clock, logger), node(barrier, clock, logger));
+            var futures = nodes.stream()
+                    .map(node -> CompletableFuture.supplyAsync(
+                            () -> {
+                                var worker = UUID.randomUUID();
+                                return node.fund(
+                                        List.of(event),
+                                        List.of(new OrderCompletionService.Share(
+                                                worker, List.of(new EventEffects.Line("STONE", 100.0)))),
+                                        List.of(new PayoutRecord(7, 0, worker, 10, 100.0, 0.0, 0.0, 100.0, true, NOW)));
+                            },
+                            pool))
+                    .toList();
+            var extras = futures.stream()
+                    .map(CompletableFuture::join)
+                    .mapToDouble(funded -> funded.extras().values().stream()
+                            .mapToDouble(Double::doubleValue)
+                            .sum())
+                    .sum();
+            assertEquals(100.0, extras, DELTA);
+        }
+        var spent = events.event(id).orElseThrow();
+        assertEquals(100.0, spent.spent(), DELTA);
+        assertEquals(EventState.DEPLETED, spent.state());
+        assertEquals(1, count("order_payouts", "event_extra > 99.99"));
+    }
+
+    private EventPayouts node(CyclicBarrier barrier, Clock clock, Logger logger) {
+        var data = new Racing(events(), barrier);
+        var service = new ServerEventService(data, name -> name, signal -> {}, clock, logger);
+        return new EventPayouts(
+                new ActiveEvents(data, clock),
+                data,
+                service,
+                new EventPayouts.Funding() {
+                    @Override
+                    public double balance(String account) {
+                        return 0;
+                    }
+
+                    @Override
+                    public boolean withdraw(String account, double amount) {
+                        return false;
+                    }
+
+                    @Override
+                    public void deposit(String account, double amount) {}
+                },
+                () -> 3.0,
+                logger);
+    }
+
+    private int activeMultiplier(double budget) {
+        var id = events.create(multiplier(SourceType.MINTED, null, budget)).orElseThrow();
+        assertTrue(events.state(id, EventState.SCHEDULED, EventState.ACTIVE, null, NOW));
+        return id;
+    }
+
+    private static EventPayout payout(UUID worker, double extra, Map<Integer, Double> byEvent) {
+        return new EventPayout(new PayoutRecord(7, 0, worker, 10, 100.0, 0.0, 0.0, 100.0, true, NOW, extra), byEvent);
+    }
+
+    private static Map<Integer, Double> orderedMap(int first, double firstAmount, int second, double secondAmount) {
+        var map = new LinkedHashMap<Integer, Double>();
+        map.put(first, firstAmount);
+        map.put(second, secondAmount);
+        return map;
+    }
+
+    private static int count(String table, String where) {
+        return query("SELECT COUNT(*) AS count FROM " + table + " WHERE " + where)
+                .single()
+                .map(row -> row.getInt("count"))
+                .first()
+                .orElse(0);
+    }
+
+    /**
+     * The table of one node whose first payout waits until the other node read the events too, so both pay from the
+     * same budget.
+     */
+    private static final class Racing extends AServerEventData {
+        private final AServerEventData delegate;
+        private final CyclicBarrier barrier;
+        private boolean waited;
+
+        private Racing(AServerEventData delegate, CyclicBarrier barrier) {
+            this.delegate = delegate;
+            this.barrier = barrier;
+        }
+
+        @Override
+        public Optional<Integer> create(ServerEvent event) {
+            return delegate.create(event);
+        }
+
+        @Override
+        public Optional<ServerEvent> event(int id) {
+            return delegate.event(id);
+        }
+
+        @Override
+        public List<ServerEvent> events(int limit) {
+            return delegate.events(limit);
+        }
+
+        @Override
+        public List<ServerEvent> live() {
+            return delegate.live();
+        }
+
+        @Override
+        public boolean state(int event, EventState from, EventState to, @Nullable String by, LocalDateTime at) {
+            return delegate.state(event, from, to, by, at);
+        }
+
+        @Override
+        public boolean expire(int event, EventState from, LocalDateTime ends, @Nullable String by, LocalDateTime at) {
+            return delegate.expire(event, from, ends, by, at);
+        }
+
+        @Override
+        public boolean ends(int event, LocalDateTime from, LocalDateTime to) {
+            return delegate.ends(event, from, to);
+        }
+
+        @Override
+        public boolean pay(Map<Integer, Double> spend, List<EventPayout> payouts) {
+            if (!waited) {
+                waited = true;
+                try {
+                    barrier.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (BrokenBarrierException | TimeoutException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+            return delegate.pay(spend, payouts);
+        }
+
+        @Override
+        public boolean budget(int event, @Nullable Double budget) {
+            return delegate.budget(event, budget);
+        }
     }
 
     private static boolean await(CountDownLatch ready, BooleanSupplier move) {

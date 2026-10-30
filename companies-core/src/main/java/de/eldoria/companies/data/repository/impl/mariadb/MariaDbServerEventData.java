@@ -10,7 +10,9 @@ import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
+import de.eldoria.companies.data.repository.impl.Transactions;
 import de.eldoria.companies.data.wrapper.event.EventKind;
+import de.eldoria.companies.data.wrapper.event.EventPayout;
 import de.eldoria.companies.data.wrapper.event.EventState;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import org.intellij.lang.annotations.Language;
@@ -18,19 +20,25 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
+import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 
 /**
  * Server events for MariaDB. PostgreSQL and SQLite run the same statements. The scopes are stored as comma separated
  * lists, null when empty, since they are only matched on the nodes and never searched in the database.
  */
 public class MariaDbServerEventData extends AServerEventData {
+    private static final double BUDGET_TOLERANCE = 0.000001;
+
     @Language("mariadb")
     private static final String EVENT = """
             SELECT id, name, kind, value, scope_materials, scope_levels, starts, ends, funding, account, budget, spent,
@@ -172,6 +180,77 @@ public class MariaDbServerEventData extends AServerEventData {
                         .bind(to, time()))
                 .update()
                 .changed();
+    }
+
+    @Override
+    public boolean pay(Map<Integer, Double> spend, List<EventPayout> payouts) {
+        @Language("mariadb")
+        var take = """
+                UPDATE server_events
+                SET spent = spent + ?
+                WHERE id = ?
+                  AND state = ?
+                  AND (budget IS NULL OR spent + ? <= budget + ?)""";
+        @Language("mariadb")
+        var record = """
+                INSERT INTO order_payouts(order_id, company_id, worker_uuid, items, gross, tax, share, net, paid,
+                                          created, event_extra)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id""";
+        @Language("mariadb")
+        var share = """
+                INSERT INTO payout_events(payout_id, event_id, amount)
+                VALUES (?, ?, ?)""";
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            for (var entry : new TreeMap<>(spend).entrySet()) {
+                if (!(entry.getValue() > 0)) continue;
+                var taken = conf.query(take)
+                        .single(call().bind(entry.getValue())
+                                .bind(entry.getKey())
+                                .bind(EventState.ACTIVE.name())
+                                .bind(entry.getValue())
+                                .bind(BUDGET_TOLERANCE))
+                        .update()
+                        .changed();
+                if (!taken || !errors.isEmpty()) {
+                    Transactions.rollback(conf, errors);
+                    return false;
+                }
+            }
+            for (var payout : payouts) {
+                var row = payout.record();
+                var id = conf.query(record)
+                        .single(call().bind(row.order())
+                                .bind(row.solo() ? null : (Integer) row.company())
+                                .bind(row.worker(), UUID_BYTES)
+                                .bind(row.items())
+                                .bind(row.gross())
+                                .bind(row.tax())
+                                .bind(row.share())
+                                .bind(row.net())
+                                .bind(row.paid())
+                                .bind(row.created(), time())
+                                .bind(row.eventExtra()))
+                        .map(result -> result.getLong(1))
+                        .first();
+                if (id.isEmpty() || !errors.isEmpty()) {
+                    Transactions.rollback(conf, errors);
+                    return false;
+                }
+                for (var part : payout.byEvent().entrySet()) {
+                    conf.query(share)
+                            .single(call().bind(id.get()).bind(part.getKey()).bind(part.getValue()))
+                            .insert();
+                }
+                if (!errors.isEmpty()) {
+                    Transactions.rollback(conf, errors);
+                    return false;
+                }
+            }
+        }
+        return errors.isEmpty();
     }
 
     @Override

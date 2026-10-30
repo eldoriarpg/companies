@@ -109,8 +109,9 @@ public class MariaDbStatsData extends AStatsData {
     protected boolean savePayouts(List<PayoutRecord> payouts) {
         @Language("mariadb")
         var query = """
-                INSERT INTO order_payouts(order_id, company_id, worker_uuid, items, gross, tax, share, net, paid, created)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
+                INSERT INTO order_payouts(order_id, company_id, worker_uuid, items, gross, tax, share, net, paid,
+                                          created, event_extra)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
         var result = query(query)
                 .batch(payouts.stream().map(payout -> call().bind(payout.order())
                         .bind(payout.solo() ? null : (Integer) payout.company())
@@ -121,7 +122,8 @@ public class MariaDbStatsData extends AStatsData {
                         .bind(payout.share())
                         .bind(payout.net())
                         .bind(payout.paid())
-                        .bind(payout.created(), time())))
+                        .bind(payout.created(), time())
+                        .bind(payout.eventExtra())))
                 .insert();
         return !result.hasExceptions() && result.rows() == payouts.size();
     }

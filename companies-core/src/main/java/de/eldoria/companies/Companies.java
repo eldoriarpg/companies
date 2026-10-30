@@ -109,6 +109,7 @@ import de.eldoria.companies.nodes.SettingsSync;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
 import de.eldoria.companies.orders.EconomyAccounts;
+import de.eldoria.companies.orders.FeeReductions;
 import de.eldoria.companies.orders.HistoryRecorder;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OrderCompletionService;
@@ -154,6 +155,7 @@ import de.eldoria.companies.services.alerts.AlertDigestJob;
 import de.eldoria.companies.services.alerts.AlertMatcher;
 import de.eldoria.companies.services.alerts.AlertNotices;
 import de.eldoria.companies.services.events.ActiveEvents;
+import de.eldoria.companies.services.events.EventPayouts;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.InboxPoller;
 import de.eldoria.companies.services.notifications.InboxRetention;
@@ -181,8 +183,10 @@ import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -226,6 +230,7 @@ public class Companies extends EldoPlugin {
     private DiscordWebhook discord;
     private volatile @Nullable Placeholders placeholders;
     private volatile @Nullable ServerEventService serverEvents;
+    private volatile @Nullable EventPayouts eventPayouts;
     private NodeBus bus = new DatabaseBus();
     private final NetworkPresence presence = new NetworkPresence(Clock.systemUTC());
     private NodeCaches caches;
@@ -361,6 +366,32 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 Threading.VIRTUAL);
 
+        var activeEvents = new ActiveEvents(serverEventData, Times.UTC);
+        caches.register(NodeCaches.EVENTS, key -> activeEvents.invalidate());
+        var eventNetwork = new EventNetwork(bus, message -> {
+                    activeEvents.invalidate();
+                    var current = serverEvents;
+                    if (current != null) current.checkSoon();
+                })
+                .start();
+        var serverEventService = new ServerEventService(
+                serverEventData, SystemOrderService::canonicalMaterial, eventNetwork::changed, Times.UTC, getLogger());
+        serverEvents = serverEventService;
+
+        var eventBoosts = new EventPayouts(
+                activeEvents,
+                serverEventData,
+                serverEventService,
+                EventPayouts.Funding.economy(
+                        new EconomyAccounts(getServer(), economy),
+                        Threading.mainThread(this),
+                        () -> isEnabled() && !getServer().isStopping(),
+                        getLogger()),
+                () -> configuration.eventSettings().maxMultiplier(),
+                getLogger());
+        eventPayouts = eventBoosts;
+        FeeReductions feeReductions =
+                materials -> activeEvents.matching(LocalDateTime.now(Times.UTC), materials, OptionalInt.empty());
         var historyRecorder = new HistoryRecorder(information.history(), Times.UTC);
         var outcomes = OrderOutcomes.create(this, orderData, companyData, historyRecorder, itemReturnService);
         var orderCompletion = OrderCompletionService.create(
@@ -371,7 +402,8 @@ public class Companies extends EldoPlugin {
                 economy,
                 configuration,
                 treasuryService,
-                outcomes);
+                outcomes,
+                eventBoosts);
         var guessedLimit = new GuessedLimit(
                 orderData, () -> configuration.systemOrderSettings().guessed(), Times.UTC);
         var soloOrders = SoloOrderService.create(this, orderData, companyData, outcomes, configuration, guessedLimit);
@@ -384,7 +416,9 @@ public class Companies extends EldoPlugin {
                 OrderCreationService.Wallet.of(economy),
                 getServer().getPluginManager()::callEvent,
                 Threading.mainThread(this),
-                getLogger());
+                getLogger(),
+                feeReductions,
+                Threading.VIRTUAL);
 
         var systemFunding = new SystemFunding(
                 new EconomyAccounts(getServer(), economy), orderData, Threading.mainThread(this), getLogger());
@@ -422,18 +456,6 @@ public class Companies extends EldoPlugin {
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
 
-        var activeEvents = new ActiveEvents(serverEventData, Times.UTC);
-        caches.register(NodeCaches.EVENTS, key -> activeEvents.invalidate());
-        var eventNetwork = new EventNetwork(bus, message -> {
-                    activeEvents.invalidate();
-                    var current = serverEvents;
-                    if (current != null) current.checkSoon();
-                })
-                .start();
-        var serverEventService = new ServerEventService(
-                serverEventData, systemPlacement::canonical, eventNetwork::changed, Times.UTC, getLogger());
-        serverEvents = serverEventService;
-
         var seriesService = SeriesService.create(
                 this,
                 this.economy.series(),
@@ -462,7 +484,7 @@ public class Companies extends EldoPlugin {
                 Threading.VIRTUAL,
                 guessedLimit);
         var ownerOrders = OwnerOrderService.create(
-                this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration);
+                this, orderData, outcomes, this.economy.series(), seriesService, economy, configuration, feeReductions);
         var search =
                 new SearchExecutor(orderData, companyData, configuration, deliveryService::matcher, offerData::marks);
 
@@ -829,6 +851,8 @@ public class Companies extends EldoPlugin {
         if (discord != null) discord.stop();
         var events = serverEvents;
         if (events != null) events.stop();
+        var payouts = eventPayouts;
+        if (payouts != null) payouts.stop();
         if (nodeConnection != null) {
             nodeConnection.stop();
         } else {

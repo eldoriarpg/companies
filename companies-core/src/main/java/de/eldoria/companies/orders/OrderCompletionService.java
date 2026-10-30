@@ -11,6 +11,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.stats.PayoutRecord;
@@ -19,6 +20,7 @@ import de.eldoria.companies.events.order.OrderPaymentEvent;
 import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import de.eldoria.companies.events.order.SoloOrderPaymentEvent;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.EventEffects;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
@@ -32,9 +34,11 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -48,11 +52,18 @@ import java.util.logging.Level;
  * Completes orders whose items were all delivered.
  * <p>
  * Completing marks the order delivered, which succeeds once per order, so a completion that lost a race does nothing.
- * Settling a delivered order fires {@link OrderDoneEvent}, pays every worker their share minus the tax of the
- * company's level and minus the company's treasury share, hands the fee and the taxes to the collector, credits the
- * treasury shares to the company in one transaction, writes one payout record per worker to the ledger and records
- * the company's history entry. A payment whose {@link OrderPaymentEvent} was cancelled is not paid and
- * is written to the ledger as not paid; it is neither taxed nor shared. Events are fired off the main thread, as they are asynchronous.
+ * Settling a delivered order fires {@link OrderDoneEvent}, pays every worker their share minus the tax of the company's
+ * level and minus the company's treasury share, hands the fee and the taxes to the collector, credits the treasury
+ * shares to the company in one transaction, writes one payout record per worker to the ledger and records the company's
+ * history entry. A payment whose {@link OrderPaymentEvent} was cancelled is not paid and is written to the ledger as
+ * not paid; it is neither taxed nor shared. Events are fired off the main thread, as they are asynchronous.
+ * <p>
+ * Server events active when the order completes and whose scope matches it, see {@link Boosts}, lower the tax and pay
+ * extra on top. An order matches an item scope when any of its lines accepts one of its materials; a multiplier with an
+ * item scope pays only on what a worker delivered of its materials, see {@link OrderMaterials}: the extra goes to the
+ * worker alone, the treasury share is taken from the normal payout only. This holds for every order, the system orders
+ * and the chunks of event offers included; the deliveries into contests are paid by the contest and get nothing from
+ * server events.
  * <p>
  * An order a player worked on alone fires {@link SoloOrderDoneEvent} and one {@link SoloOrderPaymentEvent} per worker
  * instead. Its payout is taxed by the solo tax, nothing goes to a treasury, its ledger records name no company and no
@@ -69,6 +80,7 @@ public final class OrderCompletionService {
     private final Clock clock;
     private final Executor executor;
     private final SystemReceipt systemReceipt;
+    private final Boosts boosts;
 
     /**
      * @param plugin     the plugin, firing the events
@@ -93,6 +105,46 @@ public final class OrderCompletionService {
             Clock clock,
             Executor executor,
             SystemReceipt systemReceipt) {
+        this(
+                plugin,
+                orderData,
+                statsData,
+                history,
+                treasury,
+                taxPercent,
+                soloTaxPercent,
+                clock,
+                executor,
+                systemReceipt,
+                Boosts.NONE);
+    }
+
+    /**
+     * @param plugin         the plugin, firing the events
+     * @param orderData      order repository
+     * @param statsData      payout ledger
+     * @param history        records the company's history entry
+     * @param treasury       pays the workers and the collector
+     * @param taxPercent     tax percentage of a company level
+     * @param soloTaxPercent tax percentage of solo orders
+     * @param clock          clock giving the completion time of the payouts
+     * @param executor       runs the settlement off the main thread
+     * @param systemReceipt  receives a delivered system order for the server
+     * @param boosts         the server events lowering the tax and paying extra
+     */
+    public OrderCompletionService(
+            Plugin plugin,
+            AOrderData orderData,
+            AStatsData statsData,
+            HistoryRecorder history,
+            Treasury treasury,
+            IntToDoubleFunction taxPercent,
+            DoubleSupplier soloTaxPercent,
+            Clock clock,
+            Executor executor,
+            SystemReceipt systemReceipt,
+            Boosts boosts) {
+        this.boosts = boosts;
         this.plugin = plugin;
         this.orderData = orderData;
         this.statsData = statsData;
@@ -117,6 +169,7 @@ public final class OrderCompletionService {
      * @param configuration configuration of the plugin
      * @param treasuries    the company treasuries
      * @param outcomes      receives a delivered system order for the server
+     * @param boosts        the server events lowering the tax and paying extra
      * @return the service
      */
     public static OrderCompletionService create(
@@ -127,7 +180,8 @@ public final class OrderCompletionService {
             Economy economy,
             Configuration configuration,
             TreasuryService treasuries,
-            OrderOutcomes outcomes) {
+            OrderOutcomes outcomes,
+            Boosts boosts) {
         var collector = new Collector(plugin, economy, configuration);
         Treasury treasury = new Treasury() {
             @Override
@@ -160,7 +214,8 @@ public final class OrderCompletionService {
                 () -> configuration.orderSetting().solo().taxPercent(),
                 Times.UTC,
                 Threading.VIRTUAL,
-                order -> outcomes.receive(order, List.of()));
+                order -> outcomes.receive(order, List.of()),
+                boosts);
     }
 
     /**
@@ -236,11 +291,15 @@ public final class OrderCompletionService {
 
     private Completion pay(FullOrder order, CompanyProfile company) {
         plugin.getServer().getPluginManager().callEvent(new OrderDoneEvent(order, company));
-        var percent = taxPercent.applyAsDouble(company.level());
+        var completed = LocalDateTime.now(clock);
+        var events = matching(order, OptionalInt.of(company.level()), completed);
+        var percent = EventEffects.taxPercent(taxPercent.applyAsDouble(company.level()), events);
         var sharePercent = treasury.payoutShare(company);
         var settled = payWorkers(
                 order,
                 company.id(),
+                completed,
+                events,
                 gross -> Payout.split(gross, percent, sharePercent),
                 (player, payout) -> new OrderPaymentEvent(
                         order, company, player, payout.net(), payout.gross(), payout.tax(), payout.share()));
@@ -253,34 +312,55 @@ public final class OrderCompletionService {
                 .map(worker -> plugin.getServer().getOfflinePlayer(worker))
                 .ifPresent(worker ->
                         plugin.getServer().getPluginManager().callEvent(new SoloOrderDoneEvent(order, worker)));
-        var percent = soloTaxPercent.getAsDouble();
+        var completed = LocalDateTime.now(clock);
+        var events = matching(order, OptionalInt.empty(), completed);
+        var percent = EventEffects.taxPercent(soloTaxPercent.getAsDouble(), events);
         return payWorkers(
                         order,
                         0,
+                        completed,
+                        events,
                         gross -> Payout.split(gross, percent),
                         (player, payout) ->
                                 new SoloOrderPaymentEvent(order, player, payout.net(), payout.gross(), payout.tax()))
                 .completion();
     }
 
+    private List<ServerEvent> matching(FullOrder order, OptionalInt level, LocalDateTime at) {
+        try {
+            return boosts.matching(order, level, at);
+        } catch (RuntimeException e) {
+            plugin.getLogger()
+                    .log(Level.SEVERE, "Could not read the server events for order " + order.id() + "; none apply", e);
+            return List.of();
+        }
+    }
+
     /**
      * Pays every worker their share of an order and hands the fee and the taxes to the collector. A payment whose
-     * event was cancelled is recorded as not paid.
+     * event was cancelled is recorded as not paid. The workers paid get what the reward multipliers of server events
+     * pay on top, which is neither taxed nor shared with the treasury; when an event paid, the ledger is written
+     * together with the events' spent money.
      *
-     * @param order   delivered order
-     * @param company id of the company that completed it, 0 for a solo order
-     * @param split   splits the share of a worker
-     * @param event   the cancellable payment event of a worker
+     * @param order     delivered order
+     * @param company   id of the company that completed it, 0 for a solo order
+     * @param completed when the order was completed
+     * @param events    the server events that apply to the order
+     * @param split     splits the share of a worker
+     * @param event     the cancellable payment event of a worker
      * @return the completion and the treasury shares kept, in cents
      */
     private Settled payWorkers(
             FullOrder order,
             int company,
+            LocalDateTime completed,
+            List<ServerEvent> events,
             DoubleFunction<Payout> split,
             BiFunction<OfflinePlayer, Payout, ? extends Event> event) {
-        var completed = LocalDateTime.now(clock);
         var items = itemsByWorker(order);
         List<PayoutRecord> ledger = new ArrayList<>();
+        List<Share> shares = new ArrayList<>();
+        Map<UUID, Payout> payouts = new LinkedHashMap<>();
         var collected = BigDecimal.valueOf(order.fee());
         var kept = 0L;
         for (var entry : order.payments(PaymentType.STACK).entrySet()) {
@@ -292,15 +372,48 @@ public final class OrderCompletionService {
             var paid = !(payment instanceof Cancellable cancellable && cancellable.isCancelled());
             ledger.add(payoutRecord(order, company, worker, items.getOrDefault(worker, 0), payout, paid, completed));
             if (!paid) continue;
-            treasury.pay(player, payout.net());
+            payouts.put(worker, payout);
+            shares.add(new Share(worker, lines(order, worker)));
             collected = collected.add(BigDecimal.valueOf(payout.tax()));
             kept += payout.shareCents();
         }
+        var funded = fund(order, events, shares, ledger);
+        for (var entry : payouts.entrySet()) {
+            var extra = funded.extras().getOrDefault(entry.getKey(), 0.0);
+            treasury.pay(
+                    plugin.getServer().getOfflinePlayer(entry.getKey()),
+                    entry.getValue().net() + extra);
+        }
         treasury.collect(collected.doubleValue());
-        return new Settled(new Completion(order, List.copyOf(ledger)), kept);
+        return new Settled(new Completion(order, List.copyOf(funded.ledger()), funded.recorded()), kept);
+    }
+
+    private Funded fund(FullOrder order, List<ServerEvent> events, List<Share> shares, List<PayoutRecord> ledger) {
+        if (events.isEmpty() || shares.isEmpty()) return Funded.none(ledger);
+        try {
+            return boosts.fund(events, shares, ledger);
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not pay the server event extra of order " + order.id(), e);
+            return Funded.none(ledger);
+        }
+    }
+
+    /**
+     * The gross a worker earns per line of an order and material the worker delivered to it, see
+     * {@link OrderMaterials#delivered}.
+     *
+     * @param order  the order
+     * @param worker the worker
+     * @return the parts the worker delivered
+     */
+    static List<EventEffects.Line> lines(FullOrder order, UUID worker) {
+        return OrderMaterials.delivered(order, worker).stream()
+                .map(part -> new EventEffects.Line(part.material(), part.gross()))
+                .toList();
     }
 
     private CompletableFuture<Boolean> recordPayouts(Completion completion) {
+        if (completion.recorded()) return CompletableFuture.completedFuture(true);
         return statsData.submitPayouts(completion.payouts()).exceptionally(err -> {
             plugin.getLogger()
                     .log(
@@ -414,10 +527,106 @@ public final class OrderCompletionService {
     /**
      * A settled order.
      *
-     * @param order   the delivered order
-     * @param payouts one record per worker, as written to the ledger
+     * @param order    the delivered order
+     * @param payouts  one record per worker, as written to the ledger
+     * @param recorded whether the ledger is written already, together with the money server events paid
      */
-    public record Completion(FullOrder order, List<PayoutRecord> payouts) {}
+    public record Completion(FullOrder order, List<PayoutRecord> payouts, boolean recorded) {
+        /**
+         * A settled order whose ledger is still to be written.
+         *
+         * @param order   the delivered order
+         * @param payouts one record per worker
+         */
+        public Completion(FullOrder order, List<PayoutRecord> payouts) {
+            this(order, payouts, false);
+        }
+    }
+
+    /**
+     * The server events of a completed order: which apply, and paying their extra.
+     */
+    public interface Boosts {
+        /**
+         * No server events.
+         */
+        Boosts NONE = new Boosts() {
+            @Override
+            public List<ServerEvent> matching(FullOrder order, OptionalInt level, LocalDateTime at) {
+                return List.of();
+            }
+
+            @Override
+            public Funded fund(List<ServerEvent> events, List<Share> shares, List<PayoutRecord> ledger) {
+                return Funded.none(ledger);
+            }
+        };
+
+        /**
+         * The events that apply to an order. Called off the main thread.
+         *
+         * @param order the completed order
+         * @param level the level of the company, empty for an order worked on alone
+         * @param at    when the order was completed
+         * @return the events, the soonest start first
+         */
+        List<ServerEvent> matching(FullOrder order, OptionalInt level, LocalDateTime at);
+
+        /**
+         * Pays the extra of the reward multipliers among the events: takes the money from the events' funding, adds
+         * it to their spent money and writes the ledger in one transaction. Called off the main thread, before the
+         * workers are paid.
+         *
+         * @param events the events that apply to the order
+         * @param shares the gross per line of every worker who is paid
+         * @param ledger one record per worker, without extra
+         * @return the extra of every worker and the ledger with it
+         */
+        Funded fund(List<ServerEvent> events, List<Share> shares, List<PayoutRecord> ledger);
+    }
+
+    /**
+     * What a paid worker earns per line of an order.
+     *
+     * @param worker the worker
+     * @param lines  the gross per line, by the line's material
+     */
+    public record Share(UUID worker, List<EventEffects.Line> lines) {
+        /**
+         * @param worker the worker
+         * @param lines  the gross per line
+         */
+        public Share {
+            lines = List.copyOf(lines);
+        }
+    }
+
+    /**
+     * The extra server events paid for an order.
+     *
+     * @param extras   the extra of every worker, by worker; missing for a worker without extra
+     * @param ledger   one record per worker, with the extra
+     * @param recorded whether the ledger is written already
+     */
+    public record Funded(Map<UUID, Double> extras, List<PayoutRecord> ledger, boolean recorded) {
+        /**
+         * @param extras   the extra of every worker
+         * @param ledger   one record per worker
+         * @param recorded whether the ledger is written already
+         */
+        public Funded {
+            extras = Map.copyOf(extras);
+            ledger = List.copyOf(ledger);
+        }
+
+        /**
+         * @param ledger one record per worker
+         * @return no extra, the ledger still to be written
+         */
+        public static Funded none(List<PayoutRecord> ledger) {
+            return new Funded(Map.of(), ledger, false);
+        }
+    }
 
     /**
      * Receives a delivered system order for the server.
