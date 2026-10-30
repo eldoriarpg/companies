@@ -154,7 +154,13 @@ public final class ReadRelay {
             Actions.ADMIN_OFFERS_RESUME,
             Actions.ADMIN_OFFERS_CANCEL,
             Actions.ADMIN_OFFERS_OPEN,
-            Actions.ADMIN_OFFERS_PRIZE);
+            Actions.ADMIN_OFFERS_PRIZE,
+            Actions.ADMIN_EVENTS_LIST,
+            Actions.ADMIN_EVENTS_CREATE,
+            Actions.ADMIN_EVENTS_END,
+            Actions.ADMIN_EVENTS_CANCEL,
+            Actions.ADMIN_EVENTS_EXTEND,
+            Actions.ADMIN_EVENTS_BUDGET);
 
     /**
      * The admin actions on what each node keeps for itself, its board signs and NPC links. They go to the node named

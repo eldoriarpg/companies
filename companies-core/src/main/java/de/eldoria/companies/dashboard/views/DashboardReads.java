@@ -111,6 +111,7 @@ public final class DashboardReads {
             Features.ORDERS_SERVER_MARKS,
             Features.EVENTS,
             Features.ADMIN_OFFERS,
+            Features.ADMIN_EVENTS,
             Features.COMPANY_DISBAND,
             Features.INBOX,
             Features.RANKINGS,

@@ -11,8 +11,10 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.AOfferData;
+import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
@@ -114,7 +116,12 @@ public final class EventWrites {
                                 : null,
                         joined.contains(offer.id())))
                 .toList();
-        return new EventList(rows, company.isPresent(), canManage(company, player));
+        var events = EventsCommand.shownEvents(
+                        sources.events().live(), sources.now().get())
+                .stream()
+                .map(this::serverEvent)
+                .toList();
+        return new EventList(rows, events, company.isPresent(), canManage(company, player));
     }
 
     private ActionResult info(ActionRequest request, Optional<CompanyProfile> company, UUID player, int id) {
@@ -257,7 +264,23 @@ public final class EventWrites {
                 sources.instant().apply(offer.ends()),
                 offer.prizeTotal(),
                 place,
-                joined);
+                joined,
+                offer.event());
+    }
+
+    private ServerEventView serverEvent(ServerEvent event) {
+        var left = event.remaining();
+        return new ServerEventView(
+                event.id(),
+                lower(event.kind()),
+                event.name(),
+                event.value(),
+                event.materials(),
+                event.levels(),
+                lower(event.state()),
+                sources.instant().apply(event.starts()),
+                sources.instant().apply(event.ends()),
+                left.isPresent() ? left.getAsDouble() : null);
     }
 
     private static boolean canManage(Optional<CompanyProfile> company, UUID player) {
@@ -303,6 +326,7 @@ public final class EventWrites {
      * What the Events page is read and joined with.
      *
      * @param offers    the offer repository
+     * @param events    the server event repository
      * @param contests  joins and leaves contests
      * @param companyOf the company of a player
      * @param instant   turns stored times into instants
@@ -311,6 +335,7 @@ public final class EventWrites {
      */
     public record Sources(
             AOfferData offers,
+            AServerEventData events,
             ContestService contests,
             Function<UUID, CompletableFuture<Optional<CompanyProfile>>> companyOf,
             Function<LocalDateTime, Instant> instant,
@@ -345,6 +370,7 @@ public final class EventWrites {
      * @param prizeTotal the money of the prizes of a contest, 0 for a goal
      * @param place      the place of the player's company in a contest, null without one
      * @param joined     whether the player's company takes part in the contest
+     * @param event      the server event the offer belongs to, null for one that stands alone
      */
     public record EventRow(
             int id,
@@ -360,16 +386,45 @@ public final class EventWrites {
             Instant ends,
             double prizeTotal,
             @Nullable Integer place,
-            boolean joined) {}
+            boolean joined,
+            @Nullable Integer event) {}
 
     /**
-     * The offers of the Events page.
+     * A server event on the Events page: running, or starting within a day.
      *
-     * @param offers    the offers, the soonest end first
-     * @param member    whether the player is part of a company
-     * @param canManage whether the player may let the company join or leave contests
+     * @param id         id of the event
+     * @param kind       {@code tax_reduction}, {@code reward_multiplier} or {@code fee_reduction}
+     * @param name       name of the event
+     * @param value      how much it changes: percentage points off the tax, the factor on payouts, percent off fees
+     * @param materials  the materials it is limited to, empty for every material
+     * @param levels     the company levels it is limited to, empty for every company
+     * @param state      {@code scheduled} or {@code active}
+     * @param starts     when it starts
+     * @param ends       when it ends
+     * @param budgetLeft what a multiplier with a budget can still pay, null otherwise
      */
-    public record EventList(List<EventRow> offers, boolean member, boolean canManage) {}
+    public record ServerEventView(
+            int id,
+            String kind,
+            String name,
+            double value,
+            List<String> materials,
+            List<Integer> levels,
+            String state,
+            Instant starts,
+            Instant ends,
+            @Nullable Double budgetLeft) {}
+
+    /**
+     * The offers and server events of the Events page.
+     *
+     * @param offers       the offers, the soonest end first
+     * @param serverEvents the server events running or starting within a day, the soonest start first
+     * @param member       whether the player is part of a company
+     * @param canManage    whether the player may let the company join or leave contests
+     */
+    public record EventList(
+            List<EventRow> offers, List<ServerEventView> serverEvents, boolean member, boolean canManage) {}
 
     /**
      * Who delivered to a goal.

@@ -30,6 +30,7 @@ import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
+import de.eldoria.companies.dashboard.actions.AdminEventWrites;
 import de.eldoria.companies.dashboard.actions.AdminLevelWrites;
 import de.eldoria.companies.dashboard.actions.AdminOfferWrites;
 import de.eldoria.companies.dashboard.actions.AdminOrderWrites;
@@ -101,6 +102,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.util.AdminLog;
@@ -128,6 +130,7 @@ import java.time.Clock;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -199,6 +202,8 @@ public final class DashboardWorld implements AutoCloseable {
     public final CompanySettings companySettings = new CompanySettings();
     public final OrderSettings orderSettings = new OrderSettings();
     public final SqLiteOfferData offers;
+    public final SqLiteServerEventData serverEvents;
+    public final ServerEventService eventService;
     public final ContestService contests;
     public final AtomicInteger offerChecks = new AtomicInteger();
     public final Map<String, Double> accounts = new ConcurrentHashMap<>();
@@ -215,10 +220,17 @@ public final class DashboardWorld implements AutoCloseable {
         inbox = new SqLiteInboxData(executor);
         dashboard = new SqLiteDashboardData();
         offers = new SqLiteOfferData(SqLiteTestDatabase.mapper());
+        serverEvents = new SqLiteServerEventData();
+        eventService = new ServerEventService(
+                serverEvents,
+                material -> material.toUpperCase(Locale.ROOT),
+                message -> {},
+                Times.UTC,
+                Logger.getAnonymousLogger());
         var stats = new SqLiteStatsData(executor);
         var alerts = new SqLiteAlertData(SqLiteTestDatabase.mapper(), executor);
         api = new CompaniesApiImpl(
-                new CompaniesApiImpl.Repositories(companies, orders, stats, treasury, new SqLiteServerEventData()),
+                new CompaniesApiImpl.Repositories(companies, orders, stats, treasury, serverEvents),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now),
                 executor);
@@ -649,6 +661,7 @@ public final class DashboardWorld implements AutoCloseable {
                         failure -> "text of " + failure.localeKey())),
                 new EventWrites(new EventWrites.Sources(
                         offers,
+                        serverEvents,
                         contests,
                         player -> companies
                                 .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))
@@ -676,6 +689,16 @@ public final class DashboardWorld implements AutoCloseable {
                         Times::now,
                         adminLog,
                         Logger.getAnonymousLogger(),
+                        failure -> "text of " + failure.localeKey())),
+                new AdminEventWrites(new AdminEventWrites.Sources(
+                        serverEvents,
+                        offers,
+                        eventService,
+                        () -> ZoneOffset.UTC,
+                        () -> "collector",
+                        views::instant,
+                        Times::now,
+                        adminLog,
                         failure -> "text of " + failure.localeKey())));
     }
 

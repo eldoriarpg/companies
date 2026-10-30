@@ -893,7 +893,10 @@ public class Companies extends EldoPlugin {
                                 commands.services().offerData(),
                                 commands.services().contests(),
                                 commands.services().systemFunding(),
-                                () -> commands.services().offers().checkSoon())),
+                                () -> commands.services().offers().checkSoon(),
+                                commands.services().serverEventData(),
+                                commands.services().serverEvents(),
+                                () -> configuration.economySettings().collectorAccount())),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

@@ -6,8 +6,10 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestPrize;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.data.wrapper.offer.PrizeState;
@@ -229,6 +231,51 @@ class EventWritesTest {
         var result = perform(manager, Actions.EVENTS_INFO, "{\"offer\":" + contest + "}");
 
         assertEquals("dashboard.offerUnknown", result.reason());
+    }
+
+    @Test
+    void theListShowsTheServerEventsRunningOrStartingWithinADay() {
+        var now = Times.now();
+        var running = world.eventService
+                .create(ServerEvent.draft(
+                        "Tax week",
+                        EventKind.TAX_REDUCTION,
+                        5,
+                        List.of(),
+                        List.of(),
+                        now.plusSeconds(2),
+                        now.plusDays(2),
+                        null,
+                        null,
+                        null,
+                        null,
+                        "Ada",
+                        now))
+                .id();
+        world.eventService.create(ServerEvent.draft(
+                "Far away",
+                EventKind.FEE_REDUCTION,
+                50,
+                List.of(),
+                List.of(),
+                now.plusDays(3),
+                now.plusDays(4),
+                null,
+                null,
+                null,
+                null,
+                "Ada",
+                now));
+
+        var result = perform(world.player("Bea"), Actions.EVENTS_LIST, "{}");
+
+        assertTrue(result.ok(), result.message());
+        var events = list(result.data().path("serverEvents"));
+        assertEquals(
+                List.of(running),
+                events.stream().map(event -> event.path("id").asInt()).toList());
+        assertEquals("tax_reduction", events.getFirst().path("kind").asString());
+        assertTrue(events.getFirst().path("budgetLeft").isMissingNode());
     }
 
     private ActionResult perform(UUID player, String action, String args) {

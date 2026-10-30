@@ -65,8 +65,8 @@ public final class DashboardWrites {
     /**
      * Every action this version performs, including those of {@link CompanyWrites}, {@link ItemWrites},
      * {@link OrderCreateWrites}, {@link AdminOrderWrites}, {@link AdminSupportWrites}, {@link AdminLevelWrites},
-     * {@link AdminServerWrites}, {@link AdminSettingsWrites}, {@link AdminSystemOrderWrites}, {@link EventWrites} and
-     * {@link AdminOfferWrites}.
+     * {@link AdminServerWrites}, {@link AdminSettingsWrites}, {@link AdminSystemOrderWrites}, {@link EventWrites},
+     * {@link AdminOfferWrites} and {@link AdminEventWrites}.
      */
     public static final Set<String> ACTIONS = Stream.of(
                     OWN_ACTIONS,
@@ -80,7 +80,8 @@ public final class DashboardWrites {
                     AdminSettingsWrites.ACTIONS,
                     AdminSystemOrderWrites.ACTIONS,
                     EventWrites.ACTIONS,
-                    AdminOfferWrites.ACTIONS)
+                    AdminOfferWrites.ACTIONS,
+                    AdminEventWrites.ACTIONS)
             .flatMap(Set::stream)
             .collect(Collectors.toUnmodifiableSet());
 
@@ -95,6 +96,7 @@ public final class DashboardWrites {
     private final AdminSystemOrderWrites adminSystemOrders;
     private final EventWrites events;
     private final AdminOfferWrites adminOffers;
+    private final AdminEventWrites adminEvents;
     private final OrderCreateWrites create;
     private final Answers answers;
 
@@ -111,6 +113,7 @@ public final class DashboardWrites {
      * @param adminSystemOrders the view of the orders the server places itself
      * @param events the Events page of players
      * @param adminOffers the admin tools for event offers
+     * @param adminEvents the admin tools for server events
      */
     public DashboardWrites(
             Sources sources,
@@ -124,8 +127,10 @@ public final class DashboardWrites {
             AdminSettingsWrites adminSettings,
             AdminSystemOrderWrites adminSystemOrders,
             EventWrites events,
-            AdminOfferWrites adminOffers) {
+            AdminOfferWrites adminOffers,
+            AdminEventWrites adminEvents) {
         this.sources = sources;
+        this.adminEvents = adminEvents;
         this.company = company;
         this.items = items;
         this.adminOrders = adminOrders;
@@ -178,6 +183,7 @@ public final class DashboardWrites {
         }
         if (EventWrites.ACTIONS.contains(request.name())) return events.perform(request, session, args);
         if (AdminOfferWrites.ACTIONS.contains(request.name())) return adminOffers.perform(request, session, args);
+        if (AdminEventWrites.ACTIONS.contains(request.name())) return adminEvents.perform(request, session, args);
         if (needsOrder(request.name()) && order(args) <= 0) return refused(request, "error.unknownOrder");
         return switch (request.name()) {
             case Actions.ORDERS_ACCEPT -> accept(request, player, order(args));

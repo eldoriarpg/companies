@@ -257,6 +257,46 @@ test.describe('admin', () => {
         await expect(page.getByTestId('admin-offers').getByRole('listitem')).toHaveCount(3)
     })
 
+    test('shows a server event with its offers, extends it and ends it', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Server events'}).click()
+
+        const events = page.getByTestId('admin-events')
+        await expect(events.getByRole('listitem')).toHaveCount(2)
+        await events.getByRole('button', {name: /#6 Quiet weekend/}).click()
+        const record = page.getByTestId('admin-event-record')
+        await expect(record.getByTestId('admin-event-closer')).toHaveText(/Never started/)
+
+        await events.getByRole('button', {name: /#7 Harvest week/}).click()
+        await expect(record.getByText('#41 Bridge logs')).toBeVisible()
+        await record.getByLabel('Extend by').fill('12h')
+        await record.getByTestId('admin-event-extend').click()
+        await record.getByRole('button', {name: 'End now'}).click()
+        await record.getByRole('button', {name: 'End the event'}).click()
+        await expect(record.getByTestId('admin-event-closer')).toHaveText(/Closed by Ada@dashboard/)
+        await expect(record.getByRole('button', {name: 'End now'})).toHaveCount(0)
+    })
+
+    test('creates a server event and shows the plugin\'s refusal of a value', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Server events'}).click()
+        await page.getByTestId('admin-event-new').click()
+
+        const form = page.getByTestId('admin-event-form')
+        await form.getByLabel('Name').fill('Fee holiday')
+        await form.getByLabel('Kind').selectOption('fee_reduction')
+        await form.getByLabel('Value').fill('none')
+        await form.getByTestId('admin-event-create').click()
+        await expect(form.getByText('none is no value for this kind.')).toBeVisible()
+
+        await form.getByLabel('Value').fill('50')
+        await form.getByTestId('admin-event-create').click()
+        await expect(page.getByTestId('admin-event-record')).toBeVisible()
+        await expect(page.getByTestId('admin-events').getByRole('listitem')).toHaveCount(3)
+    })
+
     test('shows the shared settings without their secrets and what a revision changed', async ({page}, info) => {
         await openDashboard(page, 'ADMN01')
         await openAdmin(page, info)

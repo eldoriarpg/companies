@@ -34,6 +34,18 @@ test.describe('event offers', () => {
         await expect(events.getByText('Contest')).toBeVisible()
     })
 
+    test('list the running server events with their effect and lead the ticker', async ({page}, info) => {
+        await openDashboard(page, 'EVNT01')
+        await expect(page.getByTestId('ticker-server-event').filter({hasText: 'Harvest week'})).toBeVisible()
+        await openEvents(page, info)
+
+        const server = page.getByTestId('server-events')
+        await expect(server.getByText('Harvest week')).toBeVisible()
+        await expect(server.getByText('×1.5 on payouts')).toBeVisible()
+        await expect(server.getByText('Items: WHEAT')).toBeVisible()
+        await expect(page.getByTestId('events').getByText('Part of Harvest week')).toBeVisible()
+    })
+
     test('show a goal\'s contributors without naming players alone and lead to its orders', async ({page}, info) => {
         await openDashboard(page, 'EVNT01')
         await openEvents(page, info)

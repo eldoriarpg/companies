@@ -204,6 +204,38 @@ function eventDetails(state, id) {
 }
 
 /**
+ * A server event as the Events page lists it.
+ *
+ * @returns the event
+ */
+function playerServerEvent() {
+    const hours = h => new Date(Date.now() + h * 3_600_000).toISOString()
+    return {id: 7, kind: 'reward_multiplier', name: 'Harvest week', value: 1.5, materials: ['WHEAT'], levels: [], state: 'active', starts: hours(-1), ends: hours(47), budgetLeft: 4200}
+}
+
+/**
+ * The server events of the admin tab, kept per session.
+ *
+ * @param state the session's state
+ * @returns the events by id
+ */
+function serverEvents(state) {
+    state.serverEvents ??= {
+        7: {
+            id: 7, kind: 'reward_multiplier', name: 'Harvest week', value: 1.5, materials: ['WHEAT'], levels: [], state: 'active',
+            starts: '2026-10-29T18:00:00Z', ends: '2026-11-01T18:00:00Z', funding: 'minted', account: null, budget: 5000, spent: 800,
+            template: 'harvest', createdBy: 'events.yml', created: '2026-10-28T18:00:00Z', closed: null, closedBy: null, offers: [{id: GOAL, name: 'Bridge logs'}],
+        },
+        6: {
+            id: 6, kind: 'tax_reduction', name: 'Quiet weekend', value: 5, materials: [], levels: [], state: 'ended',
+            starts: '2026-10-24T18:00:00Z', ends: '2026-10-26T18:00:00Z', funding: null, account: null, budget: null, spent: 0,
+            template: null, createdBy: 'Ada', created: '2026-10-24T10:00:00Z', closed: '2026-10-26T18:00:00Z', closedBy: '#missed', offers: [],
+        },
+    }
+    return state.serverEvents
+}
+
+/**
  * The event offers of a session as admins see them, made on first use.
  *
  * @param state the session's state
@@ -308,7 +340,7 @@ function serverInfo(session) {
     const version = session.state.discontinued ? DISCONTINUED : session.story.version
     const admin = Boolean(session.story.admin)
     const features = admin
-        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup', 'admin.systemorders', 'admin.offers']
+        ? [...(session.story.features ?? FEATURES), 'admin.orders', 'admin.players', 'admin.companies', 'admin.levels', 'admin.boards', 'admin.nodes', 'admin.config', 'admin.settings', 'admin.setup', 'admin.systemorders', 'admin.offers', 'admin.events']
         : session.story.features ?? FEATURES
     const nodes = admin ? [{uid: PRIMARY_NODE, role: 'PRIMARY', name: 'survival'}, {uid: SECONDARY_NODE, role: 'SECONDARY'}] : []
     return {server: {name: 'Mossvale SMP'}, features, limits: {maxPageSize: 50}, version, deprecated: [], online: !session.story.offline, admin, nodes}
@@ -661,7 +693,7 @@ function action(name, args, state, story = {}) {
         case 'admin.nodes.list':
             return done({nodes: servers(state)})
         case 'events.list':
-            return done({offers: [eventRow(state, GOAL), eventRow(state, CONTEST)], member: true, canManage: true})
+            return done({offers: [{...eventRow(state, GOAL), event: 7}, eventRow(state, CONTEST)], serverEvents: [playerServerEvent()], member: true, canManage: true})
         case 'events.info':
             return [GOAL, CONTEST, CLOSED_CONTEST, JOINED_ELSEWHERE].includes(args.offer) ? done(eventDetails(state, args.offer)) : refused('This event offer does not exist, or it does not run right now.')
         case 'events.join':
@@ -701,6 +733,43 @@ function action(name, args, state, story = {}) {
             const prize = offer.prizes.find(entry => entry.place === args.place)
             prize.state = args.outcome
             return done(offer)
+        }
+        case 'admin.events.list':
+            return done({events: Object.values(serverEvents(state)).sort((a, b) => b.id - a.id)})
+        case 'admin.events.create': {
+            if (!args.name) return refused('The event needs a name.')
+            if (!(Number(args.value) > 0)) return refused(`${args.value} is no value for this kind.`)
+            const events = serverEvents(state)
+            const id = Math.max(...Object.keys(events).map(Number)) + 1
+            const kind = args.kind.toLowerCase()
+            events[id] = {
+                id, kind, name: args.name, value: Number(args.value), materials: args.materials ? args.materials.split(',').map(part => part.trim().toUpperCase()) : [],
+                levels: [], state: 'scheduled', starts: new Date(Date.now() + 7_200_000).toISOString(), ends: new Date(Date.now() + 93_600_000).toISOString(),
+                funding: kind === 'reward_multiplier' ? args.funding.toLowerCase() : null, account: args.account ?? null, budget: args.budget ? Number(args.budget) : null,
+                spent: 0, template: null, createdBy: 'Ada@dashboard', created: new Date().toISOString(), closed: null, closedBy: null, offers: [],
+            }
+            return done(events[id])
+        }
+        case 'admin.events.end':
+        case 'admin.events.cancel': {
+            const event = serverEvents(state)[args.event]
+            if (!event) return refused(`There is no server event #${args.event}.`)
+            if (name === 'admin.events.end' && event.state !== 'active') return refused(`The server event #${event.id} has not started; cancel it instead.`)
+            if (!['scheduled', 'active'].includes(event.state)) return refused(`The server event #${event.id} is closed already.`)
+            event.state = name === 'admin.events.end' ? 'ended' : 'cancelled'
+            event.closed = new Date().toISOString()
+            event.closedBy = 'Ada@dashboard'
+            return done(event)
+        }
+        case 'admin.events.extend': {
+            const event = serverEvents(state)[args.event]
+            event.ends = new Date(new Date(event.ends).getTime() + 12 * 3_600_000).toISOString()
+            return done(event)
+        }
+        case 'admin.events.budget': {
+            const event = serverEvents(state)[args.event]
+            event.budget = args.budget
+            return done(event)
         }
         case 'admin.systemorders.list':
             return done({orders: SYSTEM_ORDERS})

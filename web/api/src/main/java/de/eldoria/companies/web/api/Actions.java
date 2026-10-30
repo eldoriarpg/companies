@@ -530,6 +530,36 @@ public final class Actions {
     public static final String ADMIN_OFFERS_PRIZE = "admin.offers.prize";
 
     /**
+     * Lists the newest server events with their effect, scope, times, money and offers.
+     */
+    public static final String ADMIN_EVENTS_LIST = "admin.events.list";
+
+    /**
+     * Creates a server event from the fields of the command's form.
+     */
+    public static final String ADMIN_EVENTS_CREATE = "admin.events.create";
+
+    /**
+     * Ends a running server event now.
+     */
+    public static final String ADMIN_EVENTS_END = "admin.events.end";
+
+    /**
+     * Cancels a waiting or running server event.
+     */
+    public static final String ADMIN_EVENTS_CANCEL = "admin.events.cancel";
+
+    /**
+     * Moves the end of a waiting or running server event later.
+     */
+    public static final String ADMIN_EVENTS_EXTEND = "admin.events.extend";
+
+    /**
+     * Sets or removes the budget of a reward multiplier.
+     */
+    public static final String ADMIN_EVENTS_BUDGET = "admin.events.budget";
+
+    /**
      * Every action name of this version.
      */
     public static final List<String> ALL = List.of(
@@ -634,7 +664,13 @@ public final class Actions {
             ADMIN_OFFERS_RESUME,
             ADMIN_OFFERS_CANCEL,
             ADMIN_OFFERS_OPEN,
-            ADMIN_OFFERS_PRIZE);
+            ADMIN_OFFERS_PRIZE,
+            ADMIN_EVENTS_LIST,
+            ADMIN_EVENTS_CREATE,
+            ADMIN_EVENTS_END,
+            ADMIN_EVENTS_CANCEL,
+            ADMIN_EVENTS_EXTEND,
+            ADMIN_EVENTS_BUDGET);
 
     private Actions() {}
 

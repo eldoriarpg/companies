@@ -681,11 +681,37 @@ export interface EventRow {
     place?: number | null
     /** Whether the player's company takes part in the contest. */
     joined: boolean
+    /** The server event the offer belongs to; none for one that stands alone. */
+    event?: number | null
 }
 
-/** The event offers a player sees. */
+/** What a server event changes. */
+export type ServerEventKind = 'tax_reduction' | 'reward_multiplier' | 'fee_reduction'
+
+/** A server event as the Events page lists it: running, or starting within a day. */
+export interface ServerEventView {
+    id: number
+    kind: ServerEventKind
+    name: string
+    /** Percentage points off the tax, the factor on payouts, or percent off the order fee. */
+    value: number
+    /** The materials it is limited to; empty for every material. */
+    materials: string[]
+    /** The company levels it is limited to; empty for every company. */
+    levels: number[]
+    /** `scheduled` or `active`. */
+    state: string
+    starts: string
+    ends: string
+    /** What a multiplier with a budget can still pay; none otherwise. */
+    budgetLeft?: number | null
+}
+
+/** The event offers and server events a player sees. */
 export interface EventList {
     offers: EventRow[]
+    /** The server events running or starting within a day, the soonest start first. */
+    serverEvents: ServerEventView[]
     /** Whether the player is part of a company. */
     member: boolean
     /** Whether the player may let the company join or leave contests. */
@@ -832,6 +858,62 @@ export interface AdminOffer {
     contributors: AdminOfferContributor[]
     ranking: AdminOfferEntry[]
     prizes: AdminOfferPrize[]
+}
+
+/** A server event in the admin list. */
+export interface AdminEventRow {
+    id: number
+    kind: ServerEventKind
+    name: string
+    value: number
+    materials: string[]
+    levels: number[]
+    /** `scheduled`, `active`, `ended`, `depleted` or `cancelled`. */
+    state: string
+    starts: string
+    ends: string
+    /** `account` or `minted` for a multiplier; none for the other kinds. */
+    funding?: 'account' | 'minted' | null
+    account?: string | null
+    /** What a multiplier may pay in all; none for no cap. */
+    budget?: number | null
+    spent: number
+    /** The template of `events.yml` that created it; none for one created by hand. */
+    template?: string | null
+    createdBy: string
+    created: string
+    closed?: string | null
+    /** Who ended or cancelled it; `#missed` or `#template` for the primary's markers. */
+    closedBy?: string | null
+    /** The event offers that belong to it. */
+    offers: {id: number, name: string}[]
+}
+
+/** A new server event: the fields of `/companyadmin event create`, as an admin types them. */
+export interface AdminEventDraft {
+    name: string
+    /** `TAX_REDUCTION`, `REWARD_MULTIPLIER` or `FEE_REDUCTION`. */
+    kind: string
+    value: string
+    /** Materials, separated by commas; empty for every material. */
+    materials?: string
+    /** Levels, separated by commas; empty for every company. */
+    levels?: string
+    /** `now`, a duration such as `2h`, or a date `yyyy-MM-dd HH:mm` in the server's zone. */
+    start: string
+    /** A duration such as `1d12h`, or a date `yyyy-MM-dd HH:mm`. */
+    end: string
+    /** `ACCOUNT` or `MINTED`, for a multiplier. */
+    funding?: string
+    /** The account paying a multiplier; empty for the collector account. */
+    account?: string
+    /** What a multiplier may pay in all. */
+    budget?: string
+}
+
+/** Names a server event. */
+export interface ServerEventRef {
+    event: number
 }
 
 /** A new goal or contest, checked by the plugin as `/companyadmin offers goal` and `contest` check it. */
@@ -1110,6 +1192,12 @@ export interface WriteActions {
     'admin.offers.cancel': {args: OfferRef, result: AdminOffer}
     'admin.offers.open': {args: OfferRef & {count: number}, result: AdminOffer}
     'admin.offers.prize': {args: OfferRef & {place: number, outcome: 'paid' | 'failed'}, result: AdminOffer}
+    'admin.events.list': {args: Record<string, never>, result: {events: AdminEventRow[]}}
+    'admin.events.create': {args: AdminEventDraft, result: AdminEventRow}
+    'admin.events.end': {args: ServerEventRef, result: AdminEventRow}
+    'admin.events.cancel': {args: ServerEventRef, result: AdminEventRow}
+    'admin.events.extend': {args: ServerEventRef & {duration: string}, result: AdminEventRow}
+    'admin.events.budget': {args: ServerEventRef & {budget: number | null}, result: AdminEventRow}
     'admin.config.sync': {args: Record<string, never>, result: Record<string, never>}
     'admin.settings.get': {args: {file: SettingsFileName}, result: AdminSettingsFile}
     'admin.settings.history': {args: {file: SettingsFileName, page: number}, result: {revisions: AdminSettingsChange[], pageSize: number}}

@@ -460,6 +460,7 @@ export const Feature = {
     "admin.boards": "admin.boards",
     "admin.companies": "admin.companies",
     "admin.config": "admin.config",
+    "admin.events": "admin.events",
     "admin.levels": "admin.levels",
     "admin.nodes": "admin.nodes",
     "admin.offers": "admin.offers",

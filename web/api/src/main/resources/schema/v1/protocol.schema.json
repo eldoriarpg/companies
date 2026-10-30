@@ -1209,7 +1209,8 @@
     "admin.systemorders" : { },
     "orders.servermarks" : { },
     "events" : { },
-    "admin.offers" : { }
+    "admin.offers" : { },
+    "admin.events" : { }
   },
   "x-actions" : {
     "orders.browse.search" : {
@@ -1517,6 +1518,24 @@
     },
     "admin.offers.prize" : {
       "feature" : "admin.offers"
+    },
+    "admin.events.list" : {
+      "feature" : "admin.events"
+    },
+    "admin.events.create" : {
+      "feature" : "admin.events"
+    },
+    "admin.events.end" : {
+      "feature" : "admin.events"
+    },
+    "admin.events.cancel" : {
+      "feature" : "admin.events"
+    },
+    "admin.events.extend" : {
+      "feature" : "admin.events"
+    },
+    "admin.events.budget" : {
+      "feature" : "admin.events"
     }
   }
 }
