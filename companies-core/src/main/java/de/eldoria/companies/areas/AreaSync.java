@@ -65,16 +65,16 @@ import java.util.logging.Logger;
  *     lost {@code BUILD} or left are taken off again. A builder the area's owner added themselves is never taken off,
  *     which is why Companies notes the builders it adds.</li>
  *     <li>A bought or rented area belongs to the owner of its company alone and follows a new owner. Every builder
- *     who is not a member with {@code BUILD} is taken off. When its rent ended, or its company is gone for at least
- *     {@value #CHECK_SECONDS} seconds, it goes back to the keeper of its offer; a provider that can not take it back
- *     is asked again on the next check.</li>
+ *     who is not a member with {@code BUILD} and not working on a job there is taken off. When its rent ended, or its
+ *     company is gone for at least {@value #CHECK_SECONDS} seconds, it goes back to the keeper of its offer; a provider
+ *     that can not take it back is asked again on the next check.</li>
  * </ul>
  * The answers are written back off the main thread, whenever the main thread gets to the round. A check that sees a
  * query fail while reading changes nothing, because a failed read looks like a company or member that is gone. Areas
  * of a provider that is not there or of a world that is not loaded are left alone until they are back. Checks run
  * every {@value #CHECK_SECONDS} seconds and soon after a member joins, leaves, is kicked or gets other permissions on
- * this server; checks, unlinking and giving back run one at a time. Each check also renews what the container rule reads on the
- * main thread: which company an area belongs to and the permissions of its members.
+ * this server; checks, unlinking and giving back run one at a time. Each check also renews what the container rule
+ * reads on the main thread: which company an area belongs to and the permissions of its members.
  */
 public final class AreaSync implements Listener {
     /**
@@ -90,6 +90,7 @@ public final class AreaSync implements Listener {
     private final Executor mainThread;
     private final Logger logger;
     private final Consumer<CompanyProfile> changed;
+    private final Supplier<Map<String, Set<UUID>>> jobBuilders;
     private final AtomicBoolean queued = new AtomicBoolean();
     private final InstantSource clock;
     private final Set<CompletableFuture<?>> waiting = ConcurrentHashMap.newKeySet();
@@ -109,6 +110,7 @@ public final class AreaSync implements Listener {
      * @param mainThread  runs the provider calls on the main thread
      * @param logger      reports failures
      * @param changed     told about a company whose areas a check changed
+     * @param jobBuilders the players running jobs made builders, by the area of the job as {@code provider:ref}
      */
     public AreaSync(
             AreaProviders providers,
@@ -119,7 +121,8 @@ public final class AreaSync implements Listener {
             UUID node,
             Executor mainThread,
             Logger logger,
-            Consumer<CompanyProfile> changed) {
+            Consumer<CompanyProfile> changed,
+            Supplier<Map<String, Set<UUID>>> jobBuilders) {
         this.providers = providers;
         this.areas = areas;
         this.companies = companies;
@@ -129,6 +132,7 @@ public final class AreaSync implements Listener {
         this.mainThread = mainThread;
         this.logger = logger;
         this.changed = changed;
+        this.jobBuilders = jobBuilders;
     }
 
     /**
@@ -265,11 +269,12 @@ public final class AreaSync implements Listener {
                 var keeper = keeper(area);
                 if (keeper != null) keepers.put(area.id(), keeper);
             }
+            var working = jobBuilders.get();
             if (queryErrors.getAsLong() != errors) {
                 logger.warning("Skipped a check of the company areas, the database did not answer every read");
                 return;
             }
-            var outcome = onMain(() -> new Round(profiles, ours, keepers).run(found));
+            var outcome = onMain(() -> new Round(profiles, ours, keepers, working).run(found));
             for (var change : outcome.changes()) change.write(areas);
             for (var company : outcome.touched())
                 profiles.getOrDefault(company, Optional.empty()).ifPresent(changed);
@@ -327,6 +332,8 @@ public final class AreaSync implements Listener {
         private final Map<Integer, Optional<CompanyProfile>> profiles;
         private final Map<Integer, Set<UUID>> ours;
         private final Map<Integer, UUID> keepers;
+        private final Map<String, Set<UUID>> working = new HashMap<>();
+        private final Map<String, Set<UUID>> stored;
         private final List<Change> changes = new ArrayList<>();
         private final Map<String, Integer> kept = new HashMap<>();
         private final Map<String, CompanyArea> stayed = new HashMap<>();
@@ -337,13 +344,20 @@ public final class AreaSync implements Listener {
         private Round(
                 Map<Integer, Optional<CompanyProfile>> profiles,
                 Map<Integer, Set<UUID>> ours,
-                Map<Integer, UUID> keepers) {
+                Map<Integer, UUID> keepers,
+                Map<String, Set<UUID>> working) {
             this.profiles = profiles;
             this.ours = ours;
             this.keepers = keepers;
+            this.stored = working;
         }
 
         private Outcome run(List<CompanyArea> found) {
+            stored.forEach((key, players) -> AreaRef.parse(key).ifPresent(area -> {
+                var ref = providers.call(area.provider(), provider -> provider.canonical(area.ref()), area.ref());
+                working.computeIfAbsent(new AreaRef(area.provider(), ref).toString(), any -> new HashSet<>())
+                        .addAll(players);
+            }));
             Map<CompanyArea, String> named = new LinkedHashMap<>();
             for (var area : found) {
                 if (!providers.available(area.provider()) || Bukkit.getWorld(area.world()) == null) continue;
@@ -397,7 +411,10 @@ public final class AreaSync implements Listener {
             }
             var builders = providers.call(id, provider -> provider.builders(ref), Set.<UUID>of());
             Set<UUID> removable = new HashSet<>(mine);
-            if (area.fromServer()) removable.addAll(builders);
+            if (area.fromServer()) {
+                removable.addAll(builders);
+                removable.removeAll(working.getOrDefault(new AreaRef(id, ref).toString(), Set.of()));
+            }
             var plan = plan(
                     wanted(profile.get()),
                     providers.call(id, provider -> provider.owners(ref), Set.of()),

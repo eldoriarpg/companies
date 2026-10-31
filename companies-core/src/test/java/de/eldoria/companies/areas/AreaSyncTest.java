@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -71,6 +72,7 @@ class AreaSyncTest {
     private int company;
     private boolean gone;
     private final AtomicLong errors = new AtomicLong();
+    private Map<String, Set<UUID>> working = Map.of();
     private Instant now = Instant.parse("2026-10-31T12:00:00Z");
 
     @BeforeEach
@@ -109,7 +111,8 @@ class AreaSyncTest {
                 NODE,
                 Runnable::run,
                 Logger.getAnonymousLogger(),
-                ignored -> {});
+                ignored -> {},
+                () -> working);
     }
 
     @AfterEach
@@ -186,7 +189,8 @@ class AreaSyncTest {
                 NODE,
                 Runnable::run,
                 Logger.getAnonymousLogger(),
-                ignored -> {});
+                ignored -> {},
+                () -> working);
 
         failing.check();
         later();
@@ -261,6 +265,30 @@ class AreaSyncTest {
 
         assertEquals(Set.of(owner), plot.owners);
         assertEquals(Set.of(builder), plot.builders);
+    }
+
+    @Test
+    void aWorkerOfARunningJobStaysBuilderOnABoughtArea() {
+        var worker = UUID.randomUUID();
+        plot.builders.add(worker);
+        working = Map.of("plotsquared:" + REF, Set.of(worker));
+        fromServer(AreaOffer.Kind.BUY);
+
+        sync.check();
+
+        assertEquals(Set.of(builder, worker), plot.builders);
+    }
+
+    @Test
+    void aWorkerOfAJobPostedOnAPlotMergedSinceStaysBuilder() {
+        var worker = UUID.randomUUID();
+        plot.builders.add(worker);
+        working = Map.of("plotsquared:plots|2;1", Set.of(worker));
+        fromServer(AreaOffer.Kind.BUY);
+
+        sync.check();
+
+        assertEquals(Set.of(builder, worker), plot.builders);
     }
 
     @Test

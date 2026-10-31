@@ -73,6 +73,17 @@ public interface AreaProvider {
     }
 
     /**
+     * Whether the plugin guards a location that lies in none of its areas, such as a road between plots or a plot nobody
+     * claimed. A job is refused there, as nobody may hand that land out.
+     *
+     * @param location a location
+     * @return true when the location is the plugin's land without an area of a player on it
+     */
+    default boolean protects(Location location) {
+        return false;
+    }
+
+    /**
      * Whether an area still exists.
      *
      * @param ref the reference of an area

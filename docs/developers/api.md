@@ -459,8 +459,36 @@ providers for PlotSquared and WorldGuard, and your plugin can register one for i
 An `AreaProvider` names its areas with references of its own, such as a plot id or a region id. It says what it can
 do with `capabilities()`: `LINK_OWNED` (an owner links their own area), `TRUST_LIST` (Companies adds and removes the
 members with the build permission) and `TRANSFER` (the area can be bought or rented: Companies moves it to the
-company's owner and gives it back with `release`). Every method of a provider is called on the main thread. Read the
-areas of a company with `companies().areas(id)`.
+company's owner and gives it back with `release`) and `JOB_LAND` (players post [jobs](../players/jobs.md) on areas
+they own; the working company's members are made builders while they work). `protects(Location)` marks land the plugin
+guards without an area there, such as roads between plots, where jobs are refused. Every method of a provider is
+called on the main thread. Read the areas of a company with `companies().areas(id)`.
+
+For a plugin made of claims, extend `ClaimAreaProvider<C>` instead of implementing every method: it reaches your
+claims through a few methods (`claimAt`, `claim(ref)`, `ref`, `claimOwners`, `world`, `boxes`, and `trusted`, `trust`,
+`untrust`, `transfer`, `giveBack` for the capabilities you declare) and does the rest the way Companies' own providers
+do: a subclaim stands for its top-level claim, a player is trusted once, and a claim that is gone refuses every
+change.
+
+```java
+public final class MyClaims extends ClaimAreaProvider<MyClaim> {
+    @Override public String id() { return "myclaims"; }
+    @Override public Set<AreaCapability> capabilities() {
+        return EnumSet.of(AreaCapability.LINK_OWNED, AreaCapability.TRUST_LIST, AreaCapability.JOB_LAND);
+    }
+    @Override protected Optional<MyClaim> claimAt(Location location) { return MyPlugin.claimAt(location); }
+    @Override protected Optional<MyClaim> claim(String ref) { return MyPlugin.claim(Long.parseLong(ref)); }
+    @Override protected String ref(MyClaim claim) { return Long.toString(claim.id()); }
+    @Override protected Set<UUID> claimOwners(MyClaim claim) { return Set.of(claim.owner()); }
+    @Override protected String world(MyClaim claim) { return claim.world(); }
+    @Override protected List<AreaBounds.Box> boxes(MyClaim claim) { return List.of(claim.box()); }
+    @Override protected Set<UUID> trusted(MyClaim claim) { return claim.builders(); }
+    @Override protected boolean trust(MyClaim claim, UUID player) { return claim.trust(player); }
+    @Override protected boolean untrust(MyClaim claim, UUID player) { return claim.untrust(player); }
+}
+
+api.areas().register(this, new MyClaims());
+```
 
 ## Data types
 

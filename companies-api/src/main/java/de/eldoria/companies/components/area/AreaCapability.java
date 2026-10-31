@@ -22,5 +22,10 @@ public enum AreaCapability {
      * Players can be given and taken the right to build in an area, so the builders of a company can be kept in step
      * with its members.
      */
-    TRUST_LIST
+    TRUST_LIST,
+    /**
+     * Jobs may lie on its areas: a player posts a job on an area they own, and while a company works on it, its members
+     * are made builders there and taken off again when the job ends. Only counts together with {@link #TRUST_LIST}.
+     */
+    JOB_LAND
 }

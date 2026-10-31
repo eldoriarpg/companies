@@ -117,6 +117,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
+import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
@@ -231,11 +232,13 @@ import java.time.Duration;
 import java.time.InstantSource;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -620,7 +623,8 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 levelService,
                 activeEvents,
-                feeReductions);
+                feeReductions,
+                api.areaProviders());
         jobs = jobServices;
         var homeTeleports = homeTeleports(economy, treasuryService);
         homes = homeTeleports;
@@ -633,7 +637,8 @@ public class Companies extends EldoPlugin {
                 configuration.nodeSettings().nodeUid(),
                 Threading.mainThread(this),
                 getLogger(),
-                this::areasChanged);
+                this::areasChanged,
+                this::jobBuilders);
         getServer().getPluginManager().registerEvents(areaSync, this);
         var areaMessages = MessageSender.getPluginMessageSender(this);
         getServer()
@@ -975,6 +980,24 @@ public class Companies extends EldoPlugin {
                 () -> configuration.areaSettings().rentWarnHours(),
                 Times::now,
                 getLogger());
+    }
+
+    /**
+     * The players running jobs on the land of area providers made builders, so the sync of bought and rented areas
+     * leaves them alone.
+     *
+     * @return the players by the area of the job, as {@code provider:ref}
+     */
+    private Map<String, Set<UUID>> jobBuilders() {
+        var running = jobs;
+        if (running == null) return Map.of();
+        Map<String, Set<UUID>> found = new HashMap<>();
+        for (var job : running.data().access(configuration.nodeSettings().nodeUid())) {
+            if (job.land() != JobLand.AREA || job.landRef() == null) continue;
+            found.computeIfAbsent(job.landRef(), ref -> new HashSet<>())
+                    .addAll(running.data().grants(job.id()));
+        }
+        return found;
     }
 
     private void areasChanged(CompanyProfile company) {

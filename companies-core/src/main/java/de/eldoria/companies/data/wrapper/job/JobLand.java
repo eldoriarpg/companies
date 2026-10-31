@@ -10,9 +10,10 @@ package de.eldoria.companies.data.wrapper.job;
  */
 public enum JobLand {
     /**
-     * A PlotSquared plot of the owner: the company's members are trusted on it while they work.
+     * An area of the owner, of an area provider that lets jobs on its land, such as a PlotSquared plot or a claim: the
+     * company's members are made builders there while they work. The land's reference is {@code provider:ref}.
      */
-    PLOT,
+    AREA,
     /**
      * A WorldGuard region the owner may change: a job region gives the company's members access while they work.
      */
