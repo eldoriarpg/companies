@@ -587,7 +587,7 @@ function servers(state) {
  * @returns the level
  */
 function adminLevel(level, name) {
-    return {level, name, orderCount: level * 10, memberCount: level, earnedMoney: level * 1000, deliveredItems: level * 500, maxMembers: 5 + level * 5, maxOrders: level + 2, maxOrderSize: 0, deliveryHoursBonus: 0, taxPercent: null, maxAlerts: null}
+    return {level, name, orderCount: level * 10, memberCount: level, earnedMoney: level * 1000, deliveredItems: level * 500, maxMembers: 5 + level * 5, maxOrders: level + 2, maxOrderSize: 0, deliveryHoursBonus: 0, taxPercent: null, maxAlerts: null, maxAreas: 1}
 }
 
 /**

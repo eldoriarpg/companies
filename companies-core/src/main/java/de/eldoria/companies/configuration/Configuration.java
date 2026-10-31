@@ -22,6 +22,7 @@ import de.eldoria.companies.configuration.elements.PlaceholderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.TopSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
+import de.eldoria.companies.configuration.elements.areas.AreaSettings;
 import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
 import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
@@ -105,6 +106,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .name("Jobs")
             .strict()
             .build();
+    public static final Key<AreaSettings> AREAS = Key.builder(Path.of("areas.yml"), AreaSettings::new)
+            .name("Company areas")
+            .strict()
+            .build();
     public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
             .name("Board bindings")
             .build();
@@ -113,7 +118,7 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * The files every node of a network shares, in the order they are synced.
      */
     public static final List<Key<?>> SHARED =
-            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, JOBS, CONFIG_YML);
+            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, JOBS, AREAS, CONFIG_YML);
 
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
@@ -277,6 +282,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public JobSettings jobSettings() {
         return secondary(JOBS);
+    }
+
+    /**
+     * @return which plot and claim plugins company areas may come from
+     */
+    public AreaSettings areaSettings() {
+        return secondary(AREAS);
     }
 
     public GeneralSettings generalSettings() {

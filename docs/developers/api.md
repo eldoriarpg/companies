@@ -194,6 +194,8 @@ handled on the primary server. See [Several servers](../admin/multiserver.md) fo
 | `stats(int company)`                      | `CompletableFuture<Optional<? extends ICompanyStats>>` | All-time statistics: members, orders, money earned, items delivered                             |
 | `memberStats(int company, TimeRange range)` | `CompletableFuture<List<? extends IMemberStats>>` | What each worker contributed in the time range                                                      |
 | `treasury(int company)`                   | `CompletableFuture<Optional<? extends ITreasury>>` | Balance and payout share of the treasury                                                            |
+| `areas(int company)`                      | `CompletableFuture<List<? extends ICompanyArea>>` | The plots and regions the company linked, bought or rents, oldest first                             |
+| `home(int company)`                       | `CompletableFuture<Optional<? extends ICompanyHome>>` | The company's home, empty when it has set none                                                  |
 | `addMember(int company, UUID player)`     | `CompletableFuture<JoinResult>`                  | **Write.** Adds the player to the company                                                             |
 
 Some details:
@@ -443,6 +445,23 @@ only on the server that moved it, usually the primary (see [Events](events.md));
 `live()`, to follow events on the others. Writes fail with `ApiNotReadyException` until
 the economy is set up, like the other writes.
 
+## Areas: `areas()`
+
+Companies use plots and regions as [areas](../companies/areas.md). They come from area providers: Companies brings
+providers for PlotSquared and WorldGuard, and your plugin can register one for its own plots or claims.
+
+| Method                                         | Returns        | What it does                                              |
+|------------------------------------------------|----------------|-----------------------------------------------------------|
+| `register(Plugin plugin, AreaProvider provider)` | `void`       | Registers a provider; it is dropped when your plugin is disabled |
+| `unregister(String id)`                        | `void`         | Removes the provider with that id                         |
+| `providers()`                                  | `List<String>` | The ids of the providers in use, in the order they are asked |
+
+An `AreaProvider` names its areas with references of its own, such as a plot id or a region id. It says what it can
+do with `capabilities()`: `LINK_OWNED` (an owner links their own area), `TRUST_LIST` (Companies adds and removes the
+members with the build permission) and `TRANSFER` (the area can be bought or rented: Companies moves it to the
+company's owner and gives it back with `release`). Every method of a provider is called on the main thread. Read the
+areas of a company with `companies().areas(id)`.
+
 ## Data types
 
 The methods and events hand you these types. They are in `de.eldoria.companies.components` and its subpackages.
@@ -455,6 +474,8 @@ The methods and events hand you these types. They are in `de.eldoria.companies.c
 | `ICompanyStats`, `ICompanyRank` | Statistics of a company, and its place in a ranking |
 | `IMemberStats` | What one worker contributed: items, money earned and orders |
 | `ITreasury` | Balance and payout share of a treasury |
+| `ICompanyArea` | An area of a company: provider, reference, world, server, `AreaSource` (`LINKED`, `BOUGHT`, `RENTED`), price and until when a rent is paid |
+| `ICompanyHome` | The home of a company: server, world, position and who set it |
 | `ICompanyLevel` | A level from `company.yml`, with its `ILevelRequirement` and `ILevelSettings` |
 | `ISimpleOrder`, `IFullOrder` | An order without and with its lines |
 | `IOrderContent` | One line of an order, with its deliveries |

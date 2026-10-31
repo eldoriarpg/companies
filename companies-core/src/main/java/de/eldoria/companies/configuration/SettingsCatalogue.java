@@ -122,6 +122,7 @@ public final class SettingsCatalogue {
     private static final String SYSTEM_ORDERS = "system-orders.yml";
     private static final String EVENTS = "events.yml";
     private static final String JOBS = "jobs.yml";
+    private static final String AREAS = "areas.yml";
 
     private SettingsCatalogue() {}
 
@@ -380,6 +381,18 @@ public final class SettingsCatalogue {
         jobs.whole("maxDueHours");
         jobs.whole("openDays");
         jobs.whole("approveHours");
+
+        var areas = new Section(fields, AREAS, "areas");
+        areas.flag("enabled");
+        areas.add(Type.TEXT_LIST, "providerOrder", List.of(), false);
+        areas.add(Type.FLAG_MAP, "providers", List.of(), false);
+        areas.whole("homeWarmupSeconds");
+        areas.whole("homeCooldownSeconds");
+        areas.decimal("homeCost");
+        areas.flag("homePaidByTreasury");
+        areas.flag("homeInsideArea");
+        areas.whole("sellBackPercent");
+        areas.whole("rentWarnHours");
         return List.copyOf(fields);
     }
 

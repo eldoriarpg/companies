@@ -54,6 +54,10 @@ public final class Permission {
         private static final String COMPANY = BASE + ".company";
         public static final String CREATE = COMPANY + ".create";
         public static final String JOIN = COMPANY + ".join";
+        /**
+         * The permission to teleport to the company's home.
+         */
+        public static final String HOME = COMPANY + ".home";
 
         private Company() {
             throw new UnsupportedOperationException("This is a utility class.");
@@ -113,6 +117,14 @@ public final class Permission {
          * The permission to list and settle disputes about jobs.
          */
         public static final String JOBS = ADMIN + ".jobs";
+        /**
+         * The permission to open containers in company areas without the company permission {@code CONTAINERS}.
+         */
+        public static final String AREAS_BYPASS = ADMIN + ".areas.bypass";
+        /**
+         * The permission to offer plots and regions to companies and withdraw the offers.
+         */
+        public static final String AREAS = ADMIN + ".areas";
         /**
          * The permission to create debug reports.
          */

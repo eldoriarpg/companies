@@ -10,6 +10,7 @@ import de.eldoria.companies.commands.company.ApplicationsCommand;
 import de.eldoria.companies.commands.company.ApplyCommand;
 import de.eldoria.companies.commands.company.BankCommand;
 import de.eldoria.companies.commands.company.BoardCommand;
+import de.eldoria.companies.commands.company.CompanyAreaCommand;
 import de.eldoria.companies.commands.company.CompanyJobCommand;
 import de.eldoria.companies.commands.company.ContestCommand;
 import de.eldoria.companies.commands.company.Create;
@@ -17,6 +18,7 @@ import de.eldoria.companies.commands.company.DashboardCommand;
 import de.eldoria.companies.commands.company.Disband;
 import de.eldoria.companies.commands.company.EventsCommand;
 import de.eldoria.companies.commands.company.HistoryCommand;
+import de.eldoria.companies.commands.company.HomeCommand;
 import de.eldoria.companies.commands.company.InboxCommand;
 import de.eldoria.companies.commands.company.InviteCommand;
 import de.eldoria.companies.commands.company.InvitesCommand;
@@ -131,7 +133,13 @@ final class CompanyCommand {
     @Subcommand
     final EventsCommand events;
 
+    @Subcommand
+    final CompanyAreaCommand area;
+
+    private final HomeCommand home;
+
     CompanyCommand(CommandDependencies deps) {
+        home = new HomeCommand(deps);
         order = new CompanyOrderCommand(deps);
         permission = new Permission(deps);
         member = new MemberCommand(deps, permission::show);
@@ -158,7 +166,30 @@ final class CompanyCommand {
         dashboard = new DashboardCommand(deps);
         contest = new ContestCommand(deps);
         job = new CompanyJobCommand(deps);
+        area = new CompanyAreaCommand(deps);
         events = new EventsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept), contest);
+    }
+
+    /**
+     * Teleports the sender to the home of their company.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("home")
+    @PlayerOnly
+    void home(CommandSender sender) {
+        home.home(sender);
+    }
+
+    /**
+     * Sets the home of the sender's company where they stand.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("sethome")
+    @PlayerOnly
+    void setHome(CommandSender sender) {
+        home.setHome(sender);
     }
 
     /**

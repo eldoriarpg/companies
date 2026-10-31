@@ -303,6 +303,27 @@ public final class TreasuryService {
     }
 
     /**
+     * Credits what the server pays back for an area the company sold back. A failed credit is logged with the amount;
+     * the money is lost then.
+     *
+     * @param company company that sold the area
+     * @param actor   member who sold it
+     * @param cents   amount paid back in cents
+     * @param note    note of the log entry, such as the area
+     * @return the outcome with the new balance
+     */
+    public CompletableFuture<Result> sale(ISimpleCompany company, UUID actor, long cents, String note) {
+        if (cents <= 0) return CompletableFuture.completedFuture(Result.of(Outcome.INVALID_AMOUNT));
+        return credit(company, cents, entry(TreasuryKind.AREA_SALE, actor, null, note))
+                .thenApply(balance -> balance.map(Result::done).orElseGet(() -> {
+                    logger.severe(
+                            "Could not pay %s for a sold area to the treasury of company %d (%s). The money is lost."
+                                    .formatted(Money.fromCents(cents), company.id(), note));
+                    return Result.of(Outcome.FAILED);
+                }));
+    }
+
+    /**
      * Credits the company's share of the payouts of a completed order. A failed credit is logged with the amount; the
      * money is lost then.
      *

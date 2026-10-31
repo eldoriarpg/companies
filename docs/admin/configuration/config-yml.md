@@ -99,8 +99,8 @@ discord:
 | `hooks.placeholderapi` | true/false | `true` | Register the [placeholders](../../reference/placeholders.md) when PlaceholderAPI is installed. | restart |
 | `hooks.citizens` | true/false | `true` | Allow binding Citizens NPCs to order boards. | restart |
 | `hooks.fancynpcs` | true/false | `true` | Allow binding FancyNpcs NPCs to order boards. | restart |
-| `hooks.worldguard` | true/false | `true` | Let [jobs](./jobs-yml.md#land-and-access) lie in WorldGuard regions, which give the working company access. | restart |
-| `hooks.plotsquared` | true/false | `true` | Let jobs lie on PlotSquared plots, whose owners trust the working company. | restart |
+| `hooks.worldguard` | true/false | `true` | Let [jobs](./jobs-yml.md#land-and-access) and [company areas](./areas-yml.md) lie in WorldGuard regions. | restart |
+| `hooks.plotsquared` | true/false | `true` | Let jobs and company areas lie on PlotSquared plots. | restart |
 | `hooks.worldedit` | true/false | `true` | Take the area of a job from a WorldEdit or FastAsyncWorldEdit selection. | restart |
 | `historyDays` | number (days) | `90` | How long an ended order stays in the order history. At least 1. Cleaned up by the primary server. | reload |
 | `timezone` | text | empty | The server's time zone as an IANA name, for example `Europe/Berlin` or `America/New_York`. It decides how times are shown in game and where a day starts: for the statistics of the last 7 and 30 days, the end date of repeating orders and the days of the market's price history. Empty uses the machine's zone. An unknown name logs a warning and uses the machine's zone. Times are stored in UTC either way. On a network, set the same zone on every server. | reload |

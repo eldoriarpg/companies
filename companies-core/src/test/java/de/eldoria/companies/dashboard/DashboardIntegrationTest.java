@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.dashboard;
 
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
@@ -14,6 +15,8 @@ import de.eldoria.companies.dashboard.gateway.GatewayStatus;
 import de.eldoria.companies.dashboard.gateway.Handshake;
 import de.eldoria.companies.dashboard.keys.DashboardKeys;
 import de.eldoria.companies.dashboard.sessions.DashboardSessions;
+import de.eldoria.companies.data.wrapper.area.CompanyArea;
+import de.eldoria.companies.data.wrapper.area.CompanyHome;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
@@ -39,6 +42,8 @@ import de.eldoria.companies.web.api.session.SessionCreated;
 import de.eldoria.companies.web.api.session.SessionOpened;
 import de.eldoria.companies.web.api.session.SessionsOpen;
 import de.eldoria.companies.web.api.session.SessionsRevoked;
+import de.eldoria.companies.web.api.snapshot.AreaView;
+import de.eldoria.companies.web.api.snapshot.HomeView;
 import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
 import de.eldoria.companies.web.api.update.Unsubscribe;
@@ -54,6 +59,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -255,6 +261,10 @@ class DashboardIntegrationTest {
         assertEquals(Boolean.FALSE, confirmed.admin());
         assertEquals(List.of(wren + " Firefox on Android"), opened);
 
+        var stamp = LocalDateTime.of(2026, 10, 31, 12, 0);
+        world.areas.add(new CompanyArea(
+                0, miners, "plotsquared", "plots;1;1", "plots", NODE, AreaSource.LINKED, wren, 0, null, stamp));
+        world.homes.set(new CompanyHome(miners, NODE, "survival", "world", 10.5, 64, -3.2, 0, 0, wren, stamp));
         gateway.send(new SnapshotRequest("snap-1", Protocol.VERSION, session, wren));
         var snapshot = gateway.next(Snapshot.class, WAIT);
         assertEquals("snap-1", snapshot.id());
@@ -262,6 +272,12 @@ class DashboardIntegrationTest {
         assertEquals(NODE, snapshot.node());
         assertNotNull(snapshot.company());
         assertEquals(miners, snapshot.company().id());
+        assertEquals(
+                List.of("plots;1;1"),
+                snapshot.company().areas().stream().map(AreaView::ref).toList());
+        assertEquals(
+                new HomeView("world", 10, 64, -4, "survival"),
+                snapshot.company().home());
         assertEquals("Wren", snapshot.player().name());
     }
 

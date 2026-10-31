@@ -36,9 +36,19 @@ export type VersionState = 'SUPPORTED' | 'DEPRECATED' | 'DISCONTINUED';
 export type PartKind = 'FIELD' | 'MESSAGE' | 'FEATURE' | 'PROTOCOL';
 export type CloseReason = 'LOGOUT' | 'IDLE' | 'EXPIRED' | 'REVOKED' | 'CONNECTION_LOST';
 export type MemberPermission =
-  'OWNER' | 'INVITE' | 'KICK' | 'MANAGE_ORDERS' | 'MANAGE_PERMISSIONS' | 'EDIT_PROFILE' | 'TREASURY';
+  | 'OWNER'
+  | 'INVITE'
+  | 'KICK'
+  | 'MANAGE_ORDERS'
+  | 'MANAGE_PERMISSIONS'
+  | 'EDIT_PROFILE'
+  | 'TREASURY'
+  | 'BUILD'
+  | 'CONTAINERS'
+  | 'MANAGE_AREAS';
 export type JoinMode = 'OPEN' | 'APPLICATIONS' | 'INVITE_ONLY';
 export type OrderState = 'UNCLAIMED' | 'CLAIMED' | 'DELIVERED' | 'RECEIVED';
+export type AreaSourceView = 'LINKED' | 'BOUGHT' | 'RENTED';
 export type PatchOp = 'UPSERT' | 'REMOVE' | 'REPLACE';
 export type ErrorCode =
   | 'UNKNOWN_TYPE'
@@ -228,6 +238,8 @@ export interface CompanyView {
   alerts: AlertView[];
   colorName?: string;
   palette?: PaletteColor[];
+  areas?: AreaView[];
+  home?: HomeView;
 }
 export interface LevelView {
   level: number;
@@ -293,6 +305,23 @@ export interface AlertView {
 export interface PaletteColor {
   name: string;
   hex: string;
+}
+export interface AreaView {
+  id: number;
+  provider: string;
+  ref: string;
+  world: string;
+  source: AreaSourceView;
+  price: number;
+  rentUntil?: string;
+  renews: boolean;
+}
+export interface HomeView {
+  world: string;
+  x: number;
+  y: number;
+  z: number;
+  server?: string;
 }
 export interface OwnOrderView {
   id: number;
@@ -380,6 +409,12 @@ export interface ErrorMessage {
   message?: string;
 }
 
+export const AreaSourceView = {
+    BOUGHT: "BOUGHT",
+    LINKED: "LINKED",
+    RENTED: "RENTED",
+} as const;
+
 export const CloseReason = {
     CONNECTION_LOST: "CONNECTION_LOST",
     EXPIRED: "EXPIRED",
@@ -416,9 +451,12 @@ export const KeyKind = {
 } as const;
 
 export const MemberPermission = {
+    BUILD: "BUILD",
+    CONTAINERS: "CONTAINERS",
     EDIT_PROFILE: "EDIT_PROFILE",
     INVITE: "INVITE",
     KICK: "KICK",
+    MANAGE_AREAS: "MANAGE_AREAS",
     MANAGE_ORDERS: "MANAGE_ORDERS",
     MANAGE_PERMISSIONS: "MANAGE_PERMISSIONS",
     OWNER: "OWNER",

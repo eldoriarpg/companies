@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.areas.AreaServices;
 import de.eldoria.companies.boards.Boards;
 import de.eldoria.companies.boards.npc.NpcBoards;
 import de.eldoria.companies.commands.company.order.search.OrderSearch;
@@ -675,6 +676,7 @@ public final class CommandDependencies {
      * @param activeEvents        the server events as this node sees them, read through a short cache
      * @param feeReductions       the fee reductions of the server events running now
      * @param jobs                the jobs: posted by players, taken by companies, checked and paid
+     * @param areas               the areas and homes of companies
      */
     public record Services(
             Economy economy,
@@ -709,5 +711,6 @@ public final class CommandDependencies {
             AServerEventData serverEventData,
             ActiveEvents activeEvents,
             FeeReductions feeReductions,
-            JobServices jobs) {}
+            JobServices jobs,
+            AreaServices areas) {}
 }

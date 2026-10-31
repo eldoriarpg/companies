@@ -1,6 +1,6 @@
 ---
 title: boards.yml
-sidebar_position: 10
+sidebar_position: 11
 ---
 
 # boards.yml

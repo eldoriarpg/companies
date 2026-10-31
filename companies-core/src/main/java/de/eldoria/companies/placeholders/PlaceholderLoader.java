@@ -10,10 +10,13 @@ import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.companylevel.CompanyLevel;
+import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
+import de.eldoria.companies.data.wrapper.area.CompanyHome;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
@@ -31,6 +34,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Loads the placeholder values of players and companies and the complete rankings from the repositories.
@@ -45,6 +49,9 @@ public final class PlaceholderLoader {
     private final AOrderData orderData;
     private final AStatsData stats;
     private final ATreasuryData treasuries;
+    private final AAreaData areas;
+    private final AHomeData homes;
+    private final Executor executor;
     private final OrderLimits limits;
 
     /**
@@ -54,6 +61,9 @@ public final class PlaceholderLoader {
      * @param orderData     order repository
      * @param stats         statistics repository
      * @param treasuries    treasury repository
+     * @param areas         the areas of companies
+     * @param homes         the homes of companies
+     * @param executor      reads the areas and homes, whose repositories block
      */
     public PlaceholderLoader(
             Server server,
@@ -61,13 +71,19 @@ public final class PlaceholderLoader {
             ACompanyData companyData,
             AOrderData orderData,
             AStatsData stats,
-            ATreasuryData treasuries) {
+            ATreasuryData treasuries,
+            AAreaData areas,
+            AHomeData homes,
+            Executor executor) {
         this.server = server;
         this.configuration = configuration;
         this.companyData = companyData;
         this.orderData = orderData;
         this.stats = stats;
         this.treasuries = treasuries;
+        this.areas = areas;
+        this.homes = homes;
+        this.executor = executor;
         this.limits = new OrderLimits(orderData, configuration::userSettings);
     }
 
@@ -124,11 +140,26 @@ public final class PlaceholderLoader {
         var companyStats = companyData.retrieveCompanyStats(profile).asFuture();
         var active = orderData.retrieveCompanyOrderCount(profile).asFuture();
         var treasury = treasuries.retrieveTreasury(profile.id());
-        return CompletableFuture.allOf(companyStats, active, treasury)
-                .thenApply(done -> view(profile, companyStats.join(), active.join(), treasury.join()));
+        var places = CompletableFuture.supplyAsync(() -> places(profile.id()), executor);
+        return CompletableFuture.allOf(companyStats, active, treasury, places)
+                .thenApply(done -> view(profile, companyStats.join(), active.join(), treasury.join(), places.join()));
     }
 
-    private CompanyView view(CompanyProfile profile, CompanyStats values, Integer orders, Treasury treasury) {
+    private Places places(int company) {
+        var server = homes.home(company).map(CompanyHome::server).orElse("");
+        return new Places(areas.ofCompany(company).size(), server);
+    }
+
+    /**
+     * The areas and home of a company, as the placeholders show them.
+     *
+     * @param areas  how many areas it uses
+     * @param server proxy name of the server of its home
+     */
+    private record Places(int areas, String server) {}
+
+    private CompanyView view(
+            CompanyProfile profile, CompanyStats values, Integer orders, Treasury treasury, Places places) {
         return new CompanyView(
                 profile.id(),
                 profile.name(),
@@ -147,7 +178,9 @@ public final class PlaceholderLoader {
                 values.price(),
                 values.deliveredItems(),
                 treasury.balance().doubleValue(),
-                configuration.companySettings().treasury().effectiveShare(treasury.payoutShare()));
+                configuration.companySettings().treasury().effectiveShare(treasury.payoutShare()),
+                places.areas(),
+                places.server());
     }
 
     /**

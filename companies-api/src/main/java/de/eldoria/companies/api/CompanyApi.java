@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.components.area.ICompanyArea;
+import de.eldoria.companies.components.area.ICompanyHome;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.ICompanyStats;
 import de.eldoria.companies.components.company.IMemberStats;
@@ -82,6 +84,22 @@ public interface CompanyApi {
      * @return future of the treasury, empty when no company has this id
      */
     CompletableFuture<Optional<? extends ITreasury>> treasury(int company);
+
+    /**
+     * The areas a company uses: plots and regions it linked, bought or rents.
+     *
+     * @param company id of the company
+     * @return future of the areas, oldest first, empty when the company has none or no company has this id
+     */
+    CompletableFuture<List<? extends ICompanyArea>> areas(int company);
+
+    /**
+     * The home of a company.
+     *
+     * @param company id of the company
+     * @return future of the home, empty when the company has set none or no company has this id
+     */
+    CompletableFuture<Optional<? extends ICompanyHome>> home(int company);
 
     /**
      * Adds a player to a company, regardless of the company's join mode.

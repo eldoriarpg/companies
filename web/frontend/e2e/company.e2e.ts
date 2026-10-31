@@ -108,3 +108,15 @@ test.describe('company management', () => {
         await expect(page.getByText('The company now keeps 12% of every payout.')).toBeVisible()
     })
 })
+
+/** The areas of the company and its home, as the plugin reads them. */
+test.describe('company areas', () => {
+    test('lists the areas with how the company got them and the home', async ({page}) => {
+        const panel = page.getByLabel('Areas')
+        await expect(panel.getByTestId('home')).toContainText('world at 120, 64, -48')
+        const areas = panel.getByTestId('areas')
+        await expect(areas.getByRole('listitem')).toHaveCount(2)
+        await expect(areas.getByRole('listitem').first()).toContainText('Linked by a member who owns it')
+        await expect(areas.getByRole('listitem').nth(1)).toContainText('then renewed')
+    })
+})

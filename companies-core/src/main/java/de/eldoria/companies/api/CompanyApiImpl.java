@@ -5,13 +5,17 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.components.area.ICompanyArea;
+import de.eldoria.companies.components.area.ICompanyHome;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.ICompanyStats;
 import de.eldoria.companies.components.company.IMemberStats;
 import de.eldoria.companies.components.company.ITreasury;
 import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.components.ranking.TimeRange;
+import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -35,6 +39,8 @@ final class CompanyApiImpl implements CompanyApi {
     private final ACompanyData companyData;
     private final AStatsData stats;
     private final ATreasuryData treasuries;
+    private final AAreaData areas;
+    private final AHomeData homes;
     private final WriteAccess writes;
     private final Function<UUID, OfflinePlayer> players;
     private final Supplier<LocalDateTime> clock;
@@ -44,6 +50,8 @@ final class CompanyApiImpl implements CompanyApi {
             ACompanyData companyData,
             AStatsData stats,
             ATreasuryData treasuries,
+            AAreaData areas,
+            AHomeData homes,
             WriteAccess writes,
             Function<UUID, OfflinePlayer> players,
             Supplier<LocalDateTime> clock,
@@ -51,6 +59,8 @@ final class CompanyApiImpl implements CompanyApi {
         this.companyData = companyData;
         this.stats = stats;
         this.treasuries = treasuries;
+        this.areas = areas;
+        this.homes = homes;
         this.writes = writes;
         this.players = players;
         this.clock = clock;
@@ -108,6 +118,16 @@ final class CompanyApiImpl implements CompanyApi {
                         .retrieveTreasury(found.id())
                         .join()),
                 executor);
+    }
+
+    @Override
+    public CompletableFuture<List<? extends ICompanyArea>> areas(int company) {
+        return CompletableFuture.<List<? extends ICompanyArea>>supplyAsync(() -> areas.ofCompany(company), executor);
+    }
+
+    @Override
+    public CompletableFuture<Optional<? extends ICompanyHome>> home(int company) {
+        return CompletableFuture.<Optional<? extends ICompanyHome>>supplyAsync(() -> homes.home(company), executor);
     }
 
     @Override

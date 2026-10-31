@@ -48,7 +48,8 @@ default) or the server's maximum time has passed (a day by default). You can be 
 
 You see what you see in game, nothing more. Your own orders show their progress, but not which company or worker
 delivers them. Your company's orders show their progress, but not who placed them. Inside your company, you see which
-member delivered what.
+member delivered what. The company page also lists the company's [areas](../companies/areas.md) with how it got
+each and until when a rent is paid, and its [home](../companies/home.md). Areas and the home are changed in game.
 
 ## Market prices
 

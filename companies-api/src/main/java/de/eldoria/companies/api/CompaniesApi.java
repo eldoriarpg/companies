@@ -77,4 +77,11 @@ public interface CompaniesApi {
      * @return server event API
      */
     ServerEventApi events();
+
+    /**
+     * Access to the plot and claim plugins companies can own areas of.
+     *
+     * @return area API
+     */
+    AreaApi areas();
 }
