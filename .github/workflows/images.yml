@@ -23,8 +23,12 @@ jobs:
             dockerfile: .docker/frontend.Dockerfile
           - name: companies-demo-node
             dockerfile: .docker/demo-node.Dockerfile
+          - name: companies-demo-reset
+            dockerfile: .docker/demo-reset.Dockerfile
     steps:
       - uses: actions/checkout@v7
+        with:
+          lfs: ${{ matrix.name == 'companies-demo-reset' }}
       - name: Check for the Dockerfile
         id: dockerfile
         run: |

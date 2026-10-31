@@ -12,6 +12,14 @@ services:
     environment:
       MEMORY: 2G
 
+  reset:
+    image: companies-demo-reset:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-reset.Dockerfile
+    volumes:
+      - ./seed:/seed:ro
+
   gateway:
     image: companies-backend:local
     build:

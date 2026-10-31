@@ -149,6 +149,23 @@ services:
       traefik.http.services.companies-demo.loadbalancer.server.port: "4000"
     networks: [web, traefik]
 
+  reset:
+    image: ghcr.io/eldoriarpg/companies-demo-reset:${DEMO_TAG:-latest}
+    restart: unless-stopped
+    init: true
+    environment:
+      RESET_AT: ${RESET_AT:-04:00}
+      TZ: Europe/Berlin
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+      - hub:/nodes/hub
+      - lands:/nodes/lands
+    secrets: [db_password]
+    depends_on:
+      mariadb: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [data]
+
 volumes:
   velocity: {}
   hub: {}
