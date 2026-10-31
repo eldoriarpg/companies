@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ServiceConfigTest {
@@ -46,6 +47,16 @@ class ServiceConfigTest {
 
         assertEquals(
                 8080, ServiceConfig.of(Map.of("PORT_FILE", port.toString())).port());
+    }
+
+    @Test
+    void readsTheServerTokenFromAFileAndHidesIt(@TempDir Path dir) throws IOException {
+        Path token = Files.writeString(dir.resolve("token"), "cst_secret-value\n");
+
+        var config = ServiceConfig.of(Map.of("SERVER_TOKEN_FILE", token.toString()));
+
+        assertEquals("cst_secret-value", config.selfHosted().serverToken());
+        assertFalse(config.toString().contains("secret-value"), config.toString());
     }
 
     @Test

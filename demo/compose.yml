@@ -123,12 +123,12 @@ services:
     environment:
       DB_HOST: postgres
       DB_PASSWORD_FILE: /run/secrets/gateway_db
-      GATEWAY_MODE: ${GATEWAY_MODE:-hosted}
-      LYNA_GATEWAY_SECRET_FILE: /run/secrets/lyna_gateway_secret
+      GATEWAY_MODE: self-hosted
+      SERVER_TOKEN_FILE: /run/secrets/dashboard_key
       PUBLIC_URL: https://${DEMO_HOST:-demo.companies.eldoria.de}
       TRUSTED_PROXIES: 172.16.0.0/12,10.0.0.0/8,192.168.0.0/16
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
-    secrets: [gateway_db, lyna_gateway_secret]
+    secrets: [gateway_db, dashboard_key]
     depends_on:
       postgres: {condition: service_healthy}
     networks: [game, gateway, web]
@@ -188,5 +188,4 @@ secrets:
   db_root: {file: ./secrets/db_root}
   db_password: {file: ./secrets/db_password}
   gateway_db: {file: ./secrets/gateway_db}
-  lyna_gateway_secret: {file: ./secrets/lyna_gateway_secret}
   dashboard_key: {file: ./secrets/dashboard_key}

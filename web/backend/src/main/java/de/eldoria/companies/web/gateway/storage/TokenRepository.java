@@ -64,6 +64,22 @@ public final class TokenRepository {
     }
 
     /**
+     * Stores a given token for a network, creating the network or replacing its token.
+     *
+     * @param name the network's name
+     * @param token the token, starting with {@link #PREFIX}
+     */
+    public void store(String name, String token) {
+        query("""
+                INSERT INTO server_token(id, name, token_hash) VALUES (:id, :name, :hash)
+                ON CONFLICT (name) DO UPDATE SET token_hash = excluded.token_hash;""")
+                .single(call().bind("id", Secrets.sessionId())
+                        .bind("name", name)
+                        .bind("hash", Secrets.hash(token)))
+                .insert();
+    }
+
+    /**
      * Replaces the token of a network; the old token stops working at once.
      *
      * @param name the network's name

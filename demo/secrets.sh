@@ -21,7 +21,7 @@ while read -r name reference; do
   fi
   if [ "$local" = true ]; then
     case "$name" in
-      lyna_gateway_secret|dashboard_key) : > "secrets/$name" ;;
+      dashboard_key) printf 'cst_%s' "$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" > "secrets/$name" ;;
       *) head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' > "secrets/$name" ;;
     esac
   else

@@ -23,9 +23,11 @@ push to `main` and `latest` on every release; `DEMO_TAG=dev` runs the `main` bui
 ## Secrets
 
 Secrets are files in `secrets/`, never committed. `./secrets.sh` reads them from the 1Password references in
-`secrets.op`; `./secrets.sh --local` fills them with random values and leaves the Lyna secret and the dashboard key
-empty. Files that exist are kept, since the databases keep the passwords of their first start; `--force` replaces
-them (remove the `mariadb` and `postgres` volumes then).
+`secrets.op`; `./secrets.sh --local` fills them with random values. `dashboard_key` is the fixed server token of the
+self-hosted gateway (`cst_` and at least 32 characters, e.g. `cst_` and `openssl rand -hex 24`); the gateway and `hub`
+both read it, so the dashboard needs no Lyna key. A malformed one stops the gateway on start. Files that exist are
+kept, since the databases keep the passwords of their first start; `--force` replaces them (remove the `mariadb` and
+`postgres` volumes then).
 
 ## Run it locally
 
@@ -34,9 +36,7 @@ them (remove the `mariadb` and `postgres` volumes then).
 docker compose -f compose.yml -f compose.local.yml up --build
 ```
 
-Join `localhost:25565`. The local gateway runs self-hosted: it prints a server token once on its first start
-(`docker compose logs gateway`); enter it with `/companyadmin dashboard key <token>` on `hub` and open
-`http://localhost:4000`.
+Join `localhost:25565` and open the dashboard at `http://localhost:4000`.
 
 ## Reset
 

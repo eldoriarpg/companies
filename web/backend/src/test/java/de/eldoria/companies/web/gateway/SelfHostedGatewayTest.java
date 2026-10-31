@@ -75,7 +75,7 @@ class SelfHostedGatewayTest {
     private static String run(String... args) {
         ByteArrayOutputStream printed = new ByteArrayOutputStream();
         GatewayService.tokens(
-                List.of(args), new TokenRepository(), new PrintStream(printed, true, StandardCharsets.UTF_8));
+                List.of(args), new TokenRepository(), false, new PrintStream(printed, true, StandardCharsets.UTF_8));
         return printed.toString(StandardCharsets.UTF_8);
     }
 
