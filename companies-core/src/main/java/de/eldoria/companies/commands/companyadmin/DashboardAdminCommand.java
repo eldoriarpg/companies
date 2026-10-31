@@ -23,6 +23,7 @@ import org.bukkit.command.CommandSender;
 
 import java.net.URI;
 import java.util.Locale;
+import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 
 /**
@@ -58,11 +59,18 @@ public final class DashboardAdminCommand {
     public void status(CommandSender sender) {
         deps.dashboard()
                 .status()
-                .thenAccept(status -> deps.messages().sendMessage(sender, describe(status)))
+                .thenAccept(status -> deps.messages().sendMessage(sender, describe(status, this::localize)))
                 .exceptionally(error -> failed(sender, error));
     }
 
-    private MenuText describe(Dashboard.Status status) {
+    /**
+     * Writes the state of the dashboard, one line per part that is known.
+     *
+     * @param status the state
+     * @param localize turns a message key into the text of the plugin's language
+     * @return the text to send
+     */
+    static MenuText describe(Dashboard.Status status, UnaryOperator<String> localize) {
         var text = MenuText.create()
                 .text("<heading>")
                 .locale("companyadmin.dashboard.status.title")
@@ -71,7 +79,7 @@ public final class DashboardAdminCommand {
                         "companyadmin.dashboard.status.connection",
                         Values.text(
                                 "enabled",
-                                localize(
+                                localize.apply(
                                         status.enabled()
                                                 ? "companyadmin.dashboard.status.on"
                                                 : "companyadmin.dashboard.status.off")),
@@ -99,15 +107,16 @@ public final class DashboardAdminCommand {
                     .locale(
                             "companyadmin.dashboard.status.key",
                             Values.text(
-                                    "kind", Dashboard.describe(status.keyKind().get())),
+                                    "key_kind",
+                                    Dashboard.describe(status.keyKind().get())),
                             Values.text("refresh", status.refreshAt().orElse("-")));
         } else {
             text.newLine().locale("companyadmin.dashboard.status.noKey");
         }
         status.problem().ifPresent(problem -> text.newLine()
                 .locale("companyadmin.dashboard.status.problem", Values.text("problem", problem)));
-        for (var notice : status.notices()) {
-            text.newLine().locale("dashboard.notice", Values.text("notice", notice));
+        if (!status.notices().isEmpty()) {
+            text.newLine().locale("dashboard.notice", Values.text("notice", String.join("\n", status.notices())));
         }
         return text.newLine()
                 .locale(
