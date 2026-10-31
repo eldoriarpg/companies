@@ -25,6 +25,10 @@ jobs:
             dockerfile: .docker/demo-node.Dockerfile
           - name: companies-demo-reset
             dockerfile: .docker/demo-reset.Dockerfile
+          - name: companies-demo-proxy
+            dockerfile: .docker/demo-proxy.Dockerfile
+          - name: companies-demo-mariadb
+            dockerfile: .docker/demo-mariadb.Dockerfile
     steps:
       - uses: actions/checkout@v7
         with:

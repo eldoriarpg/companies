@@ -22,21 +22,32 @@ push to `main` and `latest` on every release; `DEMO_TAG=dev` runs the `main` bui
 
 ## Secrets
 
-Secrets are files in `secrets/`, never committed. `./secrets.sh` reads them from the 1Password references in
-`secrets.op`; `./secrets.sh --local` fills them with random values. `dashboard_key` is the fixed server token of the
-self-hosted gateway (`cst_` and at least 32 characters, e.g. `cst_` and `openssl rand -hex 24`); the gateway and `hub`
-both read it, so the dashboard needs no Lyna key. A malformed one stops the gateway on start. Files that exist are
-kept, since the databases keep the passwords of their first start; `--force` replaces them (remove the `mariadb` and
-`postgres` volumes then).
+The compose file takes its secrets from environment variables and hands them to the containers as files:
+
+| Variable | What it is |
+|---|---|
+| `DEMO_RCON` | RCON password of both nodes |
+| `DEMO_FORWARDING` | Velocity's player info forwarding secret |
+| `DEMO_DB_ROOT`, `DEMO_DB_PASSWORD` | MariaDB root and `demo` passwords |
+| `DEMO_GATEWAY_DB` | Password of the gateway's PostgreSQL |
+| `DEMO_DASHBOARD_KEY` | The fixed server token of the self-hosted gateway, `cst_` and at least 32 characters (e.g. `cst_` and `openssl rand -hex 24`); the gateway and `hub` both read it, so the dashboard needs no Lyna key. A malformed one stops the gateway on start |
+
+Keep the values once the demo ran: MariaDB and PostgreSQL keep the passwords of their first start. On a host the
+variables are injected into the environment of `docker compose`. For a local run `./secrets.sh` writes random values
+into `secrets.env` (never committed); values already there are kept unless `--force` is given (remove the `mariadb`
+and `postgres` volumes then).
 
 ## Run it locally
 
 ```sh
-./secrets.sh --local
-docker compose -f compose.yml -f compose.local.yml up --build
+./secrets.sh
+docker compose -f compose.yml -f compose.local.yml --env-file secrets.env up --build
 ```
 
-Join `localhost:25565` and open the dashboard at `http://localhost:4000`.
+Join `localhost:25565` and open the dashboard at `http://localhost:4000`. `--env-file` replaces the default `.env`:
+to keep settings in `.env` as well, pass both, `--env-file .env --env-file secrets.env`. On rootless Docker the reset
+needs `DOCKER_SOCKET=/run/user/<uid>/docker.sock` there or in the environment. The commands below take the same
+`-f` and `--env-file` options locally.
 
 ## Reset
 
@@ -57,7 +68,8 @@ resets at once.
 
 ### Making the seed worlds
 
-Build the worlds in game, then store them as the seed and commit the archives:
+Build the worlds in game, then store them as the seed and commit the archives. Run the capture where the demo runs;
+the archives land in `seed/` next to `compose.yml` and go into `demo/seed/` of a checkout of this repository:
 
 ```sh
 docker compose run --rm -v ./seed:/capture reset capture
@@ -70,12 +82,26 @@ image build of `companies-demo-reset` contains them.
 
 ## Deploy
 
-1. Copy `.env.example` to `.env` and set the host and the Traefik network, entry point and certificate resolver.
-   `GAME_PORT` is the host port Velocity is published on, `NODE_MEMORY` the heap of each node, `DOCKER_SOCKET` the
-   socket of the Docker daemon running the demo (rootless Docker: `/run/user/<uid>/docker.sock`), which the reset
-   uses to stop and start the nodes.
-2. `./secrets.sh` (needs `op` signed in).
+Every image carries its config, so the host needs no checkout of this repository: only `compose.yml` and the
+environment.
+
+1. Put `compose.yml` in a folder and set the settings below where the defaults do not fit, in a `.env` next to it or
+   in the environment.
+2. Inject the `DEMO_*` secrets of [Secrets](#secrets) into the environment.
 3. `docker compose up -d`.
+
+| Setting | Default | What it is |
+|---|---|---|
+| `DEMO_TAG` | `latest` | Image tag: `latest` for the newest release, `dev` for `main` |
+| `DEMO_HOST` | `demo.companies.eldoria.de` | Host name of the dashboard |
+| `TRAEFIK_NETWORK` | `traefik` | The existing Traefik's external Docker network |
+| `TRAEFIK_ENTRYPOINT` | `websecure` | Traefik's HTTPS entry point |
+| `TRAEFIK_CERTRESOLVER` | `letsencrypt` | Traefik's certificate resolver |
+| `GAME_PORT` | `25565` | Host port Velocity is published on |
+| `NODE_MEMORY` | `3G` | Heap of each node |
+| `RESET_AT` | `04:00` | Time of the nightly reset |
+| `COOKIE_SECURE` | `true` | Whether the dashboard cookie needs HTTPS |
+| `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket of the Docker daemon running the demo, which the reset uses to stop and start the nodes; rootless Docker: `/run/user/<uid>/docker.sock` |
 
 The dashboard is reached through the existing Traefik; Velocity's port is published for the Minecraft proxy in front
 of it, which routes players to the demo.

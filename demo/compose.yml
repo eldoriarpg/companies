@@ -24,15 +24,11 @@ x-node-env: &node-env
 
 services:
   velocity:
-    image: itzg/mc-proxy:java25-2026.10.2
+    image: ghcr.io/eldoriarpg/companies-demo-proxy:${DEMO_TAG:-latest}
     restart: unless-stopped
     environment:
-      TYPE: VELOCITY
-      VELOCITY_VERSION: 4.3.1
-      VELOCITY_BUILD_ID: "45"
       MEMORY: 512M
     volumes:
-      - ./velocity:/config:ro
       - velocity:/server
     secrets: [forwarding]
     ports: ["${GAME_PORT:-25565}:25577"]
@@ -78,14 +74,13 @@ services:
       - lands:/data
 
   mariadb:
-    image: mariadb:11.8
+    image: ghcr.io/eldoriarpg/companies-demo-mariadb:${DEMO_TAG:-latest}
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root
       MARIADB_USER: demo
       MARIADB_PASSWORD_FILE: /run/secrets/db_password
     volumes:
-      - ./mariadb:/docker-entrypoint-initdb.d:ro
       - mariadb:/var/lib/mysql
     secrets: [db_root, db_password]
     healthcheck:
@@ -183,9 +178,9 @@ networks:
     name: ${TRAEFIK_NETWORK:-traefik}
 
 secrets:
-  rcon: {file: ./secrets/rcon}
-  forwarding: {file: ./secrets/forwarding}
-  db_root: {file: ./secrets/db_root}
-  db_password: {file: ./secrets/db_password}
-  gateway_db: {file: ./secrets/gateway_db}
-  dashboard_key: {file: ./secrets/dashboard_key}
+  rcon: {environment: DEMO_RCON}
+  forwarding: {environment: DEMO_FORWARDING}
+  db_root: {environment: DEMO_DB_ROOT}
+  db_password: {environment: DEMO_DB_PASSWORD}
+  gateway_db: {environment: DEMO_GATEWAY_DB}
+  dashboard_key: {environment: DEMO_DASHBOARD_KEY}

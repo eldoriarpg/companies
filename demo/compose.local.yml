@@ -20,6 +20,18 @@ services:
     volumes:
       - ./seed:/seed:ro
 
+  velocity:
+    image: companies-demo-proxy:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-proxy.Dockerfile
+
+  mariadb:
+    image: companies-demo-mariadb:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-mariadb.Dockerfile
+
   gateway:
     image: companies-backend:local
     build:

@@ -9,5 +9,5 @@ docs
 .claude
 .git
 .idea
-demo/secrets
+demo/secrets.env*
 demo/.env
